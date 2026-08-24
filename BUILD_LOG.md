@@ -45,3 +45,16 @@ Chronological. Newest at the bottom. See DECISIONS.md and BLOCKED.md for the why
   Supabase isn't configured.
 - Verified against the prod server: /login 200, /signup 200, /app → 307 /login.
 - build/lint/test green.
+
+## Milestone 4 — Landing page port (07:35 UTC)
+- `design/trnd-landing.html` ported to React: sticky nav + theme toggle, scrolling signal
+  ticker, animated hero signal→ad-card SVG, old way / TRND way split, interactive
+  five-step explainer, signal proof cards, flywheel (CSS-driven spin, honors
+  reduced-motion), roadmap, pricing band, demo request form, footer with the
+  "illustrative" disclosure.
+- Demo form posts a server action into the real `demo_requests` table (demo store when
+  Supabase is absent). Reveal-on-scroll is opt-in via JS with a visible-by-default
+  fallback, exactly like the reference.
+- Caught a stale prod server process serving an old build (looked like landing.css was
+  lost); after killing it, verified both themes via headless Chromium screenshots.
+- build/lint/test green.

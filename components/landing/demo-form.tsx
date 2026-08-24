@@ -1,0 +1,84 @@
+"use client";
+
+import { useActionState } from "react";
+
+import { submitDemoRequestAction, type DemoRequestState } from "@/lib/marketing/actions";
+
+export default function DemoForm() {
+  const [state, formAction, pending] = useActionState<DemoRequestState, FormData>(
+    submitDemoRequestAction,
+    {},
+  );
+
+  if (state.ok) {
+    return (
+      <div className="demo-success" role="status">
+        <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true">
+          <circle cx="24" cy="24" r="23" fill="none" stroke="#1EA7AE" strokeWidth="2" />
+          <path
+            d="M14 25L21 32L34 17"
+            stroke="#1EA7AE"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </svg>
+        <h3>Request received.</h3>
+        <p>We&apos;ll follow up within one business day with your live example and a time to talk.</p>
+      </div>
+    );
+  }
+
+  return (
+    <form action={formAction} noValidate>
+      <div className="field-row">
+        <div className="field">
+          <label htmlFor="fName">Full name</label>
+          <input id="fName" name="full_name" type="text" placeholder="Jordan Lee" autoComplete="name" />
+        </div>
+        <div className="field">
+          <label htmlFor="fEmail">Work email</label>
+          <input id="fEmail" name="email" type="email" placeholder="jordan@yourbusiness.com" autoComplete="email" />
+        </div>
+      </div>
+      <div className="field-row">
+        <div className="field">
+          <label htmlFor="fBiz">Business name</label>
+          <input id="fBiz" name="business_name" type="text" placeholder="Corner Coffee Co." autoComplete="organization" />
+        </div>
+        <div className="field">
+          <label htmlFor="fCat">Category</label>
+          <select id="fCat" name="category" defaultValue="">
+            <option value="">Select one</option>
+            <option>Restaurant &amp; food</option>
+            <option>Home services</option>
+            <option>Health &amp; beauty</option>
+            <option>Fitness &amp; wellness</option>
+            <option>Retail &amp; boutique</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div className="field">
+        <label htmlFor="fSpend">Monthly ad spend</label>
+        <select id="fSpend" name="monthly_spend" defaultValue="">
+          <option value="">Select a range</option>
+          <option>Under $1,000</option>
+          <option>$1,000 – $5,000</option>
+          <option>$5,000 – $20,000</option>
+          <option>$20,000+</option>
+        </select>
+      </div>
+      {state.error && <p className="form-error">{state.error}</p>}
+      <button
+        type="submit"
+        className="btn btn-primary"
+        disabled={pending}
+        style={{ width: "100%", justifyContent: "center", marginTop: 6 }}
+      >
+        {pending ? "Sending…" : "Request a demo"}
+      </button>
+    </form>
+  );
+}

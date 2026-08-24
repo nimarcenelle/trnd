@@ -45,3 +45,4 @@ next-env.d.ts
 .demo-data/
 test-results/
 playwright-report/
+.demo-data-e2e/

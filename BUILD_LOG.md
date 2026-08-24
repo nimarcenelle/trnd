@@ -261,3 +261,17 @@ results → learnings) and closed the gaps:
 - Trend chart gridlines snap to round numbers (1/2/5×10ⁿ step picker).
 - Zero-state KPI copy ("first one is a click away"); tighter app-nav spacing ≤520px.
 - Full-inventory screenshot pass over all 16 screens; gate green.
+
+## P7 — Data honesty + business brief (user + CJ requests)
+- Migration 0002: `learnings.source` seed/measured + new `business_briefs` table (RLS'd).
+- Insight engine: seeded priors now read "Illustrative prior — no results yet"; only
+  measured results are ever counted or claimed as track record. Results-screen chips
+  mark seeds as dashed "illustrative". First real result replaces a seed prior.
+- Dev demo store reset to clean seed (0 users/campaigns/results, 8 seed-labeled
+  learnings); Playwright now uses an isolated `.demo-data-e2e` wiped per run — verified
+  the dev store stays byte-identical after a full E2E pass.
+- **Business brief card** (CJ's idea): generated when a business joins — what you do
+  well, your moat, edges to press in ads, what to avoid in ads (category-aware,
+  incl. platform-policy pitfalls). Deterministic fallback now, Gemini Flash path wired
+  behind the same seam. Rendered on This week; lazily generated for older accounts.
+- New unit tests: brief fallback specificity, history-insight provenance. Gate green.

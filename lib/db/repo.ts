@@ -1,11 +1,13 @@
 import type {
   Business,
+  BusinessBrief,
   Campaign,
   CampaignResult,
   Creative,
   DemoRequest,
   Learning,
   NewBusiness,
+  NewBusinessBrief,
   NewCampaign,
   NewCampaignResult,
   NewCreative,
@@ -73,6 +75,10 @@ export interface Repo {
   listResultsForBusiness(businessId: string): Promise<CampaignResult[]>;
   upsertLearning(input: NewLearning): Promise<Learning>;
   listLearnings(category: string, geoBucket?: string): Promise<Learning[]>;
+
+  /* business briefs */
+  upsertBusinessBrief(input: NewBusinessBrief): Promise<BusinessBrief>;
+  getBusinessBrief(businessId: string): Promise<BusinessBrief | null>;
 
   /* marketing */
   insertDemoRequest(input: NewDemoRequest): Promise<DemoRequest>;

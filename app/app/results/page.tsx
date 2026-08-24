@@ -262,14 +262,20 @@ export default async function ResultsPage() {
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {learnings.map((l) => (
-              <span key={l.id} className="pill" title={`${l.sample_size} samples`}>
-                {l.angle_type.replace(/_/g, " ")} · lift {Number(l.lift).toFixed(2)} · n={l.sample_size}
+              <span
+                key={l.id}
+                className="pill"
+                style={l.source === "seed" ? { borderStyle: "dashed", color: "var(--ink-faint)" } : undefined}
+                title={l.source === "seed" ? "Seeded prior — illustrative until real results replace it" : `${l.sample_size} recorded results`}
+              >
+                {l.angle_type.replace(/_/g, " ")} · lift {Number(l.lift).toFixed(2)} ·{" "}
+                {l.source === "seed" ? "illustrative" : `n=${l.sample_size}`}
               </span>
             ))}
           </div>
           <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "14px 0 0", lineHeight: 1.5 }}>
-            Seeded priors are blended out as your real results come in — the more you record, the
-            more these reflect your market, not the average one.
+            Dashed chips are seeded priors — illustrative, never counted as real history. Your
+            first recorded result replaces them, and from then on this reflects your market only.
           </p>
         </section>
       )}

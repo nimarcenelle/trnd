@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Repo } from "../repo";
 import type {
   Business,
+  BusinessBrief,
   Campaign,
   CampaignResult,
   Creative,
@@ -281,6 +282,25 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       const { data, error } = await q;
       throwIf(error, "listLearnings");
       return (data ?? []) as Learning[];
+    },
+
+    async upsertBusinessBrief(input) {
+      const { data, error } = await sb
+        .from("business_briefs")
+        .upsert(input, { onConflict: "business_id" })
+        .select()
+        .single();
+      throwIf(error, "upsertBusinessBrief");
+      return data as BusinessBrief;
+    },
+    async getBusinessBrief(businessId) {
+      const { data, error } = await sb
+        .from("business_briefs")
+        .select("*")
+        .eq("business_id", businessId)
+        .maybeSingle();
+      throwIf(error, "getBusinessBrief");
+      return (data as BusinessBrief | null) ?? null;
     },
 
     async insertDemoRequest(input) {

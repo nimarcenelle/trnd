@@ -3,12 +3,14 @@ import { randomUUID } from "node:crypto";
 import type { Repo } from "../repo";
 import type {
   Business,
+  BusinessBrief,
   Campaign,
   CampaignResult,
   Creative,
   Learning,
   NewBusiness,
   NewCampaign,
+  NewBusinessBrief,
   NewCampaignResult,
   NewDemoRequest,
   NewLearning,
@@ -346,6 +348,26 @@ export function createDemoRepo(actor: DemoActor): Repo {
       return store.learnings.filter(
         (l) => l.category === category && (!geoBucket || l.geo_bucket === geoBucket),
       );
+    },
+
+    /* --------------------------- business briefs --------------------------- */
+    async upsertBusinessBrief(input: NewBusinessBrief) {
+      assertOwnsBusiness(input.business_id);
+      const existing = store.business_briefs.find((b) => b.business_id === input.business_id);
+      if (existing) {
+        Object.assign(existing, input);
+        saveStore();
+        return existing;
+      }
+      const row: BusinessBrief = { ...input, id: randomUUID(), created_at: nowIso() };
+      store.business_briefs.push(row);
+      saveStore();
+      return row;
+    },
+    async getBusinessBrief(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return null;
+      // Older stores predate this table.
+      return (store.business_briefs ?? []).find((b) => b.business_id === businessId) ?? null;
     },
 
     /* ------------------------------ marketing ----------------------------- */

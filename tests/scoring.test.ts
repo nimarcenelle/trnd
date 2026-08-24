@@ -63,7 +63,8 @@ describe("scoring components", () => {
     const l: Learning = {
       id: "l1", category: "Health & beauty", geo_bucket: "US",
       angle_type: "education", lift: 0.8, sample_size: 10,
-      updated_at: new Date().toISOString(),
+      source: "measured" as const,
+  updated_at: new Date().toISOString(),
     };
     expect(historicalLift([l]).score).toBeCloseTo(0.8);
   });
@@ -91,7 +92,8 @@ describe("scoreOpportunity", () => {
       [{
         id: "l1", category: "Health & beauty", geo_bucket: "US",
         angle_type: "education", lift: 0.9, sample_size: 20,
-        updated_at: new Date().toISOString(),
+        source: "measured" as const,
+  updated_at: new Date().toISOString(),
       }],
       { coverageCount: 0 },
     );

@@ -3,6 +3,7 @@ import path from "node:path";
 
 import type {
   Business,
+  BusinessBrief,
   Campaign,
   CampaignResult,
   Creative,
@@ -37,6 +38,7 @@ export interface DemoStore {
   creatives: Creative[];
   campaign_results: CampaignResult[];
   learnings: Learning[];
+  business_briefs: BusinessBrief[];
   demo_requests: DemoRequest[];
 }
 
@@ -53,6 +55,7 @@ function emptyStore(): DemoStore {
     creatives: [],
     campaign_results: [],
     learnings: [],
+    business_briefs: [],
     demo_requests: [],
   };
 }

@@ -73,16 +73,20 @@ export async function submitResultAction(
     const existing = (await repo.listLearnings(business.category, geoBucket)).find(
       (l) => l.angle_type === angleType,
     );
-    const blended = blendLearning(
-      existing ? { lift: Number(existing.lift), sample_size: existing.sample_size } : null,
-      observed,
-    );
+    // A seeded prior is illustrative — the first real result REPLACES it
+    // rather than blending truth with sample data.
+    const blendBase =
+      existing && existing.source === "measured"
+        ? { lift: Number(existing.lift), sample_size: existing.sample_size }
+        : null;
+    const blended = blendLearning(blendBase, observed);
     await repo.upsertLearning({
       category: business.category,
       geo_bucket: geoBucket,
       angle_type: angleType,
       lift: blended.lift,
       sample_size: blended.sample_size,
+      source: "measured",
     });
   }
 

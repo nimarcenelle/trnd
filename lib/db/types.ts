@@ -149,7 +149,21 @@ export interface Learning {
   angle_type: string;
   lift: number;
   sample_size: number;
+  /** 'seed' = illustrative prior; 'measured' = from recorded results. */
+  source: "seed" | "measured";
   updated_at: string;
+}
+
+export interface BusinessBrief {
+  id: string;
+  business_id: string;
+  does_well: string[];
+  moat: string;
+  advantages: string[];
+  watchouts: string[];
+  model_used: string;
+  prompt_version: string;
+  created_at: string;
 }
 
 export interface DemoRequest {
@@ -177,4 +191,5 @@ export type NewCampaign = Omit<Campaign, "id" | "created_at" | "status"> & {
 export type NewCreative = Omit<Creative, "id">;
 export type NewCampaignResult = Omit<CampaignResult, "id" | "recorded_at">;
 export type NewLearning = Omit<Learning, "id" | "updated_at">;
+export type NewBusinessBrief = Omit<BusinessBrief, "id" | "created_at">;
 export type NewDemoRequest = Omit<DemoRequest, "id" | "created_at">;

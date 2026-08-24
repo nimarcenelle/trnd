@@ -13,9 +13,12 @@ export default defineConfig({
     launchOptions: { executablePath: "/opt/pw-browsers/chromium" },
   },
   webServer: {
-    command: "pnpm seed && pnpm start -p 3117",
+    // Isolated demo store: E2E runs never write into the dev .demo-data —
+    // recorded "results" from tests must not pollute real demo learnings.
+    command: "rm -rf .demo-data-e2e && pnpm seed && pnpm start -p 3117",
     url: "http://localhost:3117",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
+    env: { TRND_DEMO_DIR: ".demo-data-e2e" },
   },
 });

@@ -10,6 +10,9 @@ import { GoogleGenAI, Type, type Schema } from "@google/genai";
 
 import { env } from "@/lib/env";
 
+import type { Business, NewBusinessBrief, Service } from "@/lib/db/types";
+
+import { BRIEF_PROMPT_VERSION } from "./brief";
 import type { GeneratedCampaign, GenerationContext } from "./index";
 import {
   buildAnglePrompt,
@@ -18,7 +21,7 @@ import {
   type PromptCtx,
 } from "./prompts/generate-campaign";
 import { systemInstruction } from "./prompts/system";
-import { AngleSchema, CampaignAssetsSchema } from "./schemas";
+import { AngleSchema, BusinessBriefSchema, CampaignAssetsSchema } from "./schemas";
 
 /** Documented fallback chains, newest first. Used only if listing fails or
  * returns nothing usable. */
@@ -171,5 +174,47 @@ export async function generateWithGemini(ctx: GenerationContext): Promise<Genera
     result: { angle, assets },
     model_used: models.pro,
     prompt_version: PROMPT_VERSION,
+  };
+}
+
+const briefResponseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    does_well: { type: Type.ARRAY, items: { type: Type.STRING } },
+    moat: { type: Type.STRING },
+    advantages: { type: Type.ARRAY, items: { type: Type.STRING } },
+    watchouts: { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ["does_well", "moat", "advantages", "watchouts"],
+};
+
+export async function generateBriefWithGemini(
+  business: Business,
+  services: Service[],
+): Promise<NewBusinessBrief> {
+  const models = await resolveModels();
+  const menu = services
+    .filter((s) => s.is_active)
+    .map((s) => `${s.name}${s.price_cents ? ` ($${Math.round(s.price_cents / 100)})` : ""}`)
+    .join(", ");
+  const prompt = [
+    `Positioning read for a small business that just joined TRND.`,
+    `BUSINESS: ${business.name} — ${business.category} in ${business.city}${business.region ? `, ${business.region}` : ""} (${business.radius_miles}mi radius, price band ${business.price_band ?? "$$"}).`,
+    `SELLS: ${menu || "not specified"}.`,
+    business.brand_voice_notes ? `VOICE: ${business.brand_voice_notes}` : "",
+    `Return JSON: does_well (2-4 concrete strengths), moat (one paragraph — what a competitor can't copy),`,
+    `advantages (2-4 edges to press in paid ads), watchouts (2-4 things to AVOID in marketing/ads for this exact category, including platform-policy pitfalls).`,
+    `Each item one sentence. Specific to THIS business, never generic.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const parsed = await structuredCall(models.flash, prompt, briefResponseSchema, (d) =>
+    BusinessBriefSchema.parse(d),
+  );
+  return {
+    business_id: business.id,
+    ...parsed,
+    model_used: models.flash,
+    prompt_version: BRIEF_PROMPT_VERSION,
   };
 }

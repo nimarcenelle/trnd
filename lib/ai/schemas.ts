@@ -38,3 +38,11 @@ export const GenerationSchema = z.object({
   assets: CampaignAssetsSchema,
 });
 export type GenerationResult = z.infer<typeof GenerationSchema>;
+
+export const BusinessBriefSchema = z.object({
+  does_well: z.array(z.string().min(10)).min(2).max(4),
+  moat: z.string().min(20),
+  advantages: z.array(z.string().min(10)).min(2).max(4),
+  watchouts: z.array(z.string().min(10)).min(2).max(4),
+});
+export type BusinessBriefResult = z.infer<typeof BusinessBriefSchema>;

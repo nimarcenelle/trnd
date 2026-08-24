@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { CATEGORIES } from "@/lib/db/types";
@@ -69,7 +70,7 @@ export async function completeOnboardingAction(
     brand_voice_notes: brandVoice || null,
   });
 
-  await repo.createServices(
+  const createdServices = await repo.createServices(
     cleanServices.map((s) => {
       const parsed = Math.round(parseFloat(s.price.replace(/[^0-9.]/g, "")) * 100);
       return {
@@ -81,6 +82,16 @@ export async function completeOnboardingAction(
       };
     }),
   );
+
+  // The joining gift: TRND's read of the business — strengths, moat, edges,
+  // and what to avoid in ads. Deterministic fallback is instant; Gemini
+  // takes over transparently when configured.
+  try {
+    const brief = await generateBusinessBrief(business, createdServices);
+    await repo.upsertBusinessBrief(brief);
+  } catch (err) {
+    console.warn("[onboarding] brief generation failed (non-fatal):", (err as Error).message);
+  }
 
   redirect("/app");
 }

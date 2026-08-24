@@ -886,3 +886,20 @@ details.section-disclosure[open] .summary-open-hint {
     padding: 6px 9px !important;
   }
 }
+
+/* ---------- Business brief card ---------- */
+.brief-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 26px;
+}
+@media (max-width: 1000px) {
+  .brief-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .brief-grid {
+    grid-template-columns: 1fr;
+  }
+}

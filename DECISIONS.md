@@ -44,3 +44,9 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
 - **Landing hero CTA change**: swapped "See how it works" (still reachable from the nav)
   for "Start free — set up in 2 minutes" so the page has a self-serve funnel and not
   only the demo-request path. Pricing band also gained a Start free button.
+- **Learnings provenance**: `learnings.source` ('seed'|'measured'). Seeded priors are
+  never presented as real campaign history; the first recorded result REPLACES a seed
+  prior rather than blending truth with sample data. (User: "there's no outcome that
+  should be recorded — take the fake data out.")
+- **E2E store isolation**: Playwright runs against `.demo-data-e2e` (wiped per run), so
+  test-entered results can never pollute the dev demo store again.

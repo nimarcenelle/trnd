@@ -41,7 +41,8 @@ const scored = (over: Partial<ScoredOpportunity> = {}): ScoredOpportunity => ({
 });
 
 const learnings: Learning[] = [
-  { id: "l1", category: "Health & beauty", geo_bucket: "US", angle_type: "education", lift: 0.72, sample_size: 14, updated_at: "" },
+  { id: "l1", category: "Health & beauty", geo_bucket: "US", angle_type: "education", lift: 0.72, sample_size: 14, source: "measured" as const, updated_at: "" },
+  { id: "l2", category: "Health & beauty", geo_bucket: "US", angle_type: "offer", lift: 0.6, sample_size: 9, source: "seed" as const, updated_at: "" },
 ];
 
 describe("insight engine", () => {
@@ -78,5 +79,20 @@ describe("insight engine", () => {
     expect(t!).not.toContain("\n");
     expect(t!).toMatch(/scale the winner/);
     expect(buildResultsTakeaway({ avgCtr: null, benchmark: 0.018, roas: null })).toBeNull();
+  });
+});
+
+describe("history insight provenance", () => {
+  it("never presents seeded priors as real campaigns", () => {
+    const seedOnly = learnings.filter((l) => l.source === "seed");
+    const out = buildInsights(signal(), scored(), { learnings: seedOnly });
+    const history = out.find((i) => i.kind === "history")!;
+    expect(history.headline).toMatch(/Illustrative prior/);
+    expect(history.detail).not.toMatch(/\d+ recorded/);
+  });
+  it("counts only measured results as track record", () => {
+    const out = buildInsights(signal(), scored(), { learnings });
+    const history = out.find((i) => i.kind === "history")!;
+    expect(history.detail).toMatch(/14 recorded results/);
   });
 });

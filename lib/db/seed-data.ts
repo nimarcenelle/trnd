@@ -152,12 +152,12 @@ export function buildSeedSignals(capturedAt = new Date()): NewSignal[] {
 
 /** A few neutral-ish priors so historical_lift has something to read. */
 export const SEED_LEARNINGS: NewLearning[] = [
-  { category: "Health & beauty", geo_bucket: "US", angle_type: "education", lift: 0.72, sample_size: 14 },
-  { category: "Health & beauty", geo_bucket: "US", angle_type: "offer", lift: 0.58, sample_size: 11 },
-  { category: "Restaurants & cafés", geo_bucket: "US", angle_type: "scarcity", lift: 0.66, sample_size: 9 },
-  { category: "Fitness studios", geo_bucket: "US", angle_type: "social_proof", lift: 0.61, sample_size: 8 },
-  { category: "Home services", geo_bucket: "US", angle_type: "speed", lift: 0.69, sample_size: 12 },
-  { category: "Dental & wellness", geo_bucket: "US", angle_type: "education", lift: 0.64, sample_size: 7 },
-  { category: "Auto services", geo_bucket: "US", angle_type: "offer", lift: 0.57, sample_size: 6 },
-  { category: "Retail & boutiques", geo_bucket: "US", angle_type: "novelty", lift: 0.6, sample_size: 5 },
+  { category: "Health & beauty", geo_bucket: "US", angle_type: "education", lift: 0.72, sample_size: 14, source: "seed" },
+  { category: "Health & beauty", geo_bucket: "US", angle_type: "offer", lift: 0.58, sample_size: 11, source: "seed" },
+  { category: "Restaurants & cafés", geo_bucket: "US", angle_type: "scarcity", lift: 0.66, sample_size: 9, source: "seed" },
+  { category: "Fitness studios", geo_bucket: "US", angle_type: "social_proof", lift: 0.61, sample_size: 8, source: "seed" },
+  { category: "Home services", geo_bucket: "US", angle_type: "speed", lift: 0.69, sample_size: 12, source: "seed" },
+  { category: "Dental & wellness", geo_bucket: "US", angle_type: "education", lift: 0.64, sample_size: 7, source: "seed" },
+  { category: "Auto services", geo_bucket: "US", angle_type: "offer", lift: 0.57, sample_size: 6, source: "seed" },
+  { category: "Retail & boutiques", geo_bucket: "US", angle_type: "novelty", lift: 0.6, sample_size: 5, source: "seed" },
 ];

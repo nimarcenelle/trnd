@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import ScoreBreakdown from "@/components/app/score-breakdown";
+import BusinessBriefCard from "@/components/app/business-brief-card";
 import SubmitButton from "@/components/app/submit-button";
 import ScoreDial from "@/components/app/score-dial";
 import SourceBadge from "@/components/app/source-badge";
@@ -14,6 +15,7 @@ import { getUserRepo } from "@/lib/db";
 import type { Signal } from "@/lib/db/types";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
+import { generateBusinessBrief } from "@/lib/ai/brief";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { titleCase } from "@/lib/text";
 
@@ -119,6 +121,19 @@ export default async function AppHome() {
     .filter((s) => typeof s.delta_pct === "number")
     .sort((a, b) => (b.delta_pct ?? 0) - (a.delta_pct ?? 0))
     .slice(0, 5);
+
+  // Positioning brief — generated at onboarding; lazily healed for accounts
+  // that predate it.
+  let brief = await repo.getBusinessBrief(business.id);
+  if (!brief) {
+    try {
+      brief = await repo.upsertBusinessBrief(
+        await generateBusinessBrief(business, await repo.listServices(business.id)),
+      );
+    } catch {
+      brief = null;
+    }
+  }
 
   const recentCampaigns = campaigns.slice(0, 4);
 
@@ -308,6 +323,8 @@ export default async function AppHome() {
           </div>
         </section>
       </div>
+
+      {brief && <BusinessBriefCard brief={brief} businessName={business.name} />}
 
       {/* ---------- RECENT CAMPAIGNS ---------- */}
       {recentCampaigns.length > 0 && (

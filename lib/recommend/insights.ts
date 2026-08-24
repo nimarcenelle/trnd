@@ -93,15 +93,25 @@ export function buildInsights(
     });
   }
 
-  // ---- history
-  const learnings = opts.learnings;
-  if (learnings.length > 0) {
-    const top = [...learnings].sort((a, b) => Number(b.lift) - Number(a.lift))[0];
-    const n = learnings.reduce((s, l) => s + l.sample_size, 0);
+  // ---- history: only measured results count as track record. Seeded priors
+  // exist so day-one scores aren't blind, but they are never presented as
+  // real campaigns that ran.
+  const measured = opts.learnings.filter((l) => l.source === "measured");
+  const seeded = opts.learnings.filter((l) => l.source === "seed");
+  if (measured.length > 0) {
+    const top = [...measured].sort((a, b) => Number(b.lift) - Number(a.lift))[0];
+    const n = measured.reduce((s, l) => s + l.sample_size, 0);
     insights.push({
       kind: "history",
       headline: sentenceCase(`${top.angle_type.replace(/_/g, " ")} angles ran well before`),
-      detail: `${n} comparable campaign${n === 1 ? "" : "s"} in your category feed this score — the recommended angle leans on what actually converted.`,
+      detail: `${n} recorded result${n === 1 ? "" : "s"} in your category feed this score — the recommended angle leans on what actually converted.`,
+    });
+  } else if (seeded.length > 0) {
+    insights.push({
+      kind: "history",
+      headline: "Illustrative prior — no results yet",
+      detail:
+        "This component starts from a seeded category pattern so day-one scores aren't blind. It's labeled illustrative and is replaced by your first recorded result.",
     });
   } else {
     insights.push({

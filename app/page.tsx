@@ -271,23 +271,85 @@ export default function Home() {
 
       <section className="block" id="pricing">
         <div className="wrap">
-          <div className="price-band reveal">
-            <div>
-              <h3>No agency retainer. No annual contract.</h3>
-              <p>
-                Pricing scales with your ad spend, not your headcount — so it makes sense whether
-                you&apos;re running $30 a day or $3,000 a month.
+          <div className="head reveal">
+            <span className="eyebrow">Pricing</span>
+            <h2>No agency retainer. No annual contract.</h2>
+            <p>
+              Month to month, priced so it makes sense at $30 a day of ad spend. Cancel anytime —
+              the campaigns you generated are yours.
+            </p>
+          </div>
+
+          <div className="tiers reveal">
+            <div className="tier">
+              <span className="tier__badge">Baseline</span>
+              <h3 className="tier__name">TRND</h3>
+              <div className="tier__price">
+                $49<small>/ MO</small>
+              </div>
+              <p className="tier__promise">
+                The insights to power your next winning ad campaign. That&apos;s the promise.
               </p>
-            </div>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <a href="#demo" className="btn btn-primary">
-                Get pricing on a demo
-              </a>
-              <Link href="/signup" className="btn btn-ghost">
+              <div className="tier__list">
+                <div><IcoCheck />This week&apos;s recommendation, scored and explained</div>
+                <div><IcoCheck />A finished campaign every week — copy, scripts, statics, targeting</div>
+                <div><IcoCheck />Your positioning read: strengths, moat, what to avoid</div>
+                <div><IcoCheck />Manual results tracking that sharpens next week</div>
+              </div>
+              <Link href="/signup" className="btn btn-primary" style={{ justifyContent: "center" }}>
                 Start free
               </Link>
+              <span className="tier__foot">14-day trial · no card required</span>
+            </div>
+
+            <div className="tier tier--featured">
+              <span className="tier__badge">● Pro — early access</span>
+              <h3 className="tier__name">TRND Pro</h3>
+              <div className="tier__price">
+                $149<small>/ MO</small>
+              </div>
+              <p className="tier__promise">
+                Your ideator and your analyst. Synced with your ads platform, reading performance
+                in real time.
+              </p>
+              <div className="tier__list">
+                <div><IcoCheck />Everything in TRND</div>
+                <div><IcoCheck />Connected ad account — results flow back automatically</div>
+                <div><IcoCheck />Real-time performance tracking against category benchmarks</div>
+                <div><IcoCheck />Recommendations tuned by what actually converted for you</div>
+              </div>
+              <a href="#demo" className="btn btn-primary" style={{ justifyContent: "center" }}>
+                Get early access
+              </a>
+              <span className="tier__foot">rolling out with connected-account sync</span>
+            </div>
+
+            <div className="tier">
+              <span className="tier__badge">Early stage</span>
+              <h3 className="tier__name">Case by case</h3>
+              <div className="tier__price" style={{ fontSize: 24, paddingTop: 8 }}>
+                Let&apos;s talk
+              </div>
+              <p className="tier__promise">
+                We get deeper into your stack and set the price together — you get tomorrow&apos;s
+                features first.
+              </p>
+              <div className="tier__list">
+                <div><IcoCheck />Everything in Pro, hands-on</div>
+                <div><IcoCheck />Automated customer outreach &amp; insights</div>
+                <div><IcoCheck />Ad content creation, done with you</div>
+                <div><IcoCheck />The full marketing-team stack as it ships</div>
+              </div>
+              <a href="#demo" className="btn btn-ghost" style={{ justifyContent: "center" }}>
+                Talk to us
+              </a>
+              <span className="tier__foot">limited seats while we&apos;re early</span>
             </div>
           </div>
+
+          <p className="founding-note reveal">
+            Founding businesses lock their price for life — it never goes up while you&apos;re a customer.
+          </p>
         </div>
       </section>
 

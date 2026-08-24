@@ -894,3 +894,105 @@ hr.rule {
     transform: none;
   }
 }
+
+/* ---------- PRICING TIERS ---------- */
+.tiers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.tier {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+}
+.tier--featured {
+  border-color: var(--amber);
+  background: linear-gradient(180deg, var(--amber-soft), transparent 60%);
+}
+.tier__badge {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 12px;
+}
+.tier--featured .tier__badge {
+  color: var(--amber-text);
+}
+.tier__name {
+  font-family: var(--disp);
+  font-weight: 700;
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+.tier__price {
+  font-family: var(--disp);
+  font-weight: 700;
+  font-size: 34px;
+  letter-spacing: -0.01em;
+  margin: 10px 0 2px;
+}
+.tier__price small {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+  margin-left: 4px;
+}
+.tier__promise {
+  font-family: var(--body);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 8px 0 18px;
+  min-height: 42px;
+}
+.tier__list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 0 0 22px;
+  flex: 1;
+}
+.tier__list div {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.tier__list svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+.tier__foot {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  text-align: center;
+  margin-top: 10px;
+}
+.founding-note {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--amber-text);
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .tiers {
+    grid-template-columns: 1fr;
+  }
+  .tier__promise {
+    min-height: 0;
+  }
+}

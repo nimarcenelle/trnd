@@ -132,3 +132,51 @@ Chronological. Newest at the bottom. See DECISIONS.md and BLOCKED.md for the why
   - AA contrast: new `--amber-text` / `--mint-text` tokens for small text on light
     backgrounds; `--ink-faint` deepened to #7D5C39; heading order fixed (h4/h5 → h3).
 - Full suite green: lint, 25 unit tests, E2E happy path (24s).
+
+---
+
+# Morning Report
+
+**1. What works end to end right now?**
+Everything in the demo path, with zero credentials: landing page (with working demo-
+request capture) → signup → 5-step onboarding → `/app` shows a scored recommendation
+(formula + plain-English rationale + 30-day sparkline) → one click builds the full
+campaign (5 headlines, 3 primary texts, 3 video scripts, 3 static briefs, landing copy,
+audience) → copy/JSON/Meta-CSV export → mark launched → enter results → history table →
+learnings update and feed next week's scores. Proven by a Playwright E2E that runs the
+whole loop in ~24s (`pnpm test:e2e`). Lighthouse on `/`: 99/100/96/100. Mobile 375px
+clean everywhere. Both themes everywhere.
+
+**2. What's stubbed, and where's the seam?**
+Three things, all in `BLOCKED.md` with exact seams: **Supabase** (schema + RLS + auth
+fully written; add three env vars and run the migrations — the repo interface swaps
+automatically), **Gemini** (wrapper, live model resolution, versioned prompts,
+structured output all written; add `GEMINI_API_KEY` — the permission layer here refused
+to let me grep GRWM for it), and **live ingestion in this container only** (all five
+adapters implemented + fixture-tested; this sandbox 403s the sources — run
+`pnpm job:ingest` anywhere with normal egress and real rows flow).
+
+**3. What did I decide that you might disagree with?**
+- `matchSignalsToBusiness` is the deterministic scoring formula, not a third Gemini
+  call — §8's transparency requirement won over §9's list. Easy to add as a re-rank.
+- Broad SMB categories with med-spa as best-served vertical, per the brief's own
+  resolution of the vision-deck tension.
+- Landing's infinite animations wait for first user input (paint stability); intro
+  animations still play.
+- `main` is bootstrapped at the scaffold commit so a PR could exist at all (empty repo).
+
+**4. The single highest-value next hour**
+Create a Supabase project, paste the three env vars, run the migrations, and run the
+E2E against it. That flips auth + RLS + persistence to production-grade in one sitting
+and surfaces any RLS policy friction while everything's fresh. (Second place: drop the
+Gemini key into `.env.local` and read five generated campaigns for voice quality.)
+
+**5. Run it locally**
+```
+pnpm install
+cp .env.example .env.local
+pnpm seed
+pnpm dev          # → sign up at /signup, onboard, done
+pnpm test         # 25 unit tests
+pnpm test:e2e     # the whole loop, headless
+```

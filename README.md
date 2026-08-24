@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TRND
 
-## Getting Started
+**Know what to advertise — before your competitors do.**
 
-First, run the development server:
+TRND tells a small business what to advertise this week, why now, and hands them the
+finished campaign — then learns from what actually converted.
+
+The loop: **Detect → Match → Position → Launch → Learn.** Step 4 is a feature; any LLM
+writes ad copy. The moat is 2, 3, and 5 — the performance data that comes back from
+clients' own campaigns. See `TRND-BUILD-BRIEF.md` for the full product brief and
+`design/` for the visual references.
+
+## Quickstart
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repo> && cd trnd
+pnpm install
+cp .env.example .env.local   # fill in what you have — everything degrades gracefully
+pnpm seed                    # ~60 illustrative signals so the app demos instantly
+pnpm dev                     # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sign up, complete onboarding, and `/app` shows a scored recommendation immediately.
+Click **Build the campaign** for the full creative package.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Demo mode vs. real mode
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+With no env vars at all, TRND runs in a **loudly-labeled demo mode**: a seeded local
+store (`.demo-data/`), local password accounts, and a deterministic brand-voiced
+campaign generator. Every screen works. Each integration switches on independently the
+moment its env var lands — no code changes:
 
-## Learn More
+| Env var | Turns on |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` + keys | Postgres with RLS + Supabase Auth (run `supabase/migrations/` in order, or `supabase db push`) |
+| `GEMINI_API_KEY` | Real model generation (models resolved live, structured output, Zod-validated, falls back on violation) |
+| `YOUTUBE_API_KEY` | YouTube signal adapter |
+| `CRON_SECRET` | Protects `/api/cron/*` (see `vercel.json` for schedules) |
 
-To learn more about Next.js, take a look at the following resources:
+See `BLOCKED.md` for exactly why each is stubbed in this environment and the seam to
+make it real.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Commands
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm dev / build / start   # Next.js 16 (App Router, TS strict, Tailwind v4)
+pnpm lint                  # eslint
+pnpm test                  # vitest unit suite
+pnpm test:e2e              # Playwright: signup → onboarding → recommendation →
+                           #   campaign → launch → results → learnings
+pnpm seed                  # seed signals/series/learning priors (idempotent)
+pnpm job:ingest            # run all signal adapters now (partial-success semantics)
+pnpm job:recommend         # score this week's opportunities for every business
+```
 
-## Deploy on Vercel
+## Map
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+app/                  routes (landing, auth, onboarding, /app product screens, cron)
+components/           landing sections, app UI, onboarding wizard
+lib/db/               ONE Repo interface; supabase/ + demo/ implementations; seed data
+lib/signals/          adapter interface, hardened HTTP, five source adapters, ingest
+lib/scoring.ts        the entire opportunity formula — tunable in one file
+lib/recommend/        weekly ranking job
+lib/ai/               gemini.ts (only SDK import), versioned prompts, schemas, fallback
+lib/results/          results math + learnings write-back (the flywheel)
+supabase/migrations/  full schema, RLS on every table
+scripts/              seed + manual job runners
+tests/                unit (fixtures for every parser) + e2e
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+
+- Amber = opportunity / the one primary action. Mint = measured reality. Ink-faint =
+  the old way. Don't use amber and mint as an arbitrary palette — they mean things.
+- Lighthouse on `/`: 99 / 100 / 96 / 100. No horizontal scroll at 375px anywhere.
+- `BUILD_LOG.md` is the chronological build record; `DECISIONS.md` the judgment calls;
+  `BLOCKED.md` the integrations awaiting credentials.

@@ -22,7 +22,11 @@ export interface SiteImport {
   voiceHint?: string;
 }
 
-const UA = "trnd-onboarding/0.1 (+https://usetrnd.com; owner-initiated site read)";
+// Browser-like UA (with product identity appended) — WAFs commonly 403 bare
+// bot UAs, and this is a single owner-initiated read of their own site, the
+// same class of request as a link unfurler.
+const UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0 Safari/537.36 trnd-onboarding/0.1";
 const TIMEOUT_MS = 8000;
 const MAX_BYTES = 400_000;
 
@@ -39,13 +43,17 @@ export function normalizeUrl(input: string): string | null {
   }
 }
 
-export async function fetchSiteHtml(url: string): Promise<string> {
+async function fetchOnce(url: string): Promise<string> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: { "user-agent": UA, accept: "text/html,application/xhtml+xml" },
+      headers: {
+        "user-agent": UA,
+        accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+        "accept-language": "en-US,en;q=0.9",
+      },
       redirect: "follow",
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -53,6 +61,21 @@ export async function fetchSiteHtml(url: string): Promise<string> {
     return text.slice(0, MAX_BYTES);
   } finally {
     clearTimeout(t);
+  }
+}
+
+/** One fetch, then a single www./bare-host variant retry — nothing noisier. */
+export async function fetchSiteHtml(url: string): Promise<string> {
+  try {
+    return await fetchOnce(url);
+  } catch (first) {
+    const u = new URL(url);
+    u.hostname = u.hostname.startsWith("www.") ? u.hostname.slice(4) : `www.${u.hostname}`;
+    try {
+      return await fetchOnce(u.toString());
+    } catch {
+      throw first;
+    }
   }
 }
 

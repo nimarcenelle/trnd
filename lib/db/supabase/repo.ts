@@ -258,9 +258,11 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .eq("campaigns.business_id", businessId)
         .order("recorded_at", { ascending: false });
       throwIf(error, "listResultsForBusiness");
-      return ((data ?? []) as (CampaignResult & { campaigns: unknown })[]).map(
-        ({ campaigns: _c, ...r }) => r as CampaignResult,
-      );
+      return ((data ?? []) as (CampaignResult & { campaigns?: unknown })[]).map((row) => {
+        const r = { ...row };
+        delete r.campaigns;
+        return r as CampaignResult;
+      });
     },
     async upsertLearning(input) {
       const { data, error } = await sb

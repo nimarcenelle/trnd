@@ -10,7 +10,6 @@ import type {
   NewBusiness,
   NewCampaign,
   NewCampaignResult,
-  NewCreative,
   NewDemoRequest,
   NewLearning,
   NewOpportunity,

@@ -1,5 +1,5 @@
 import type { Repo } from "@/lib/db/repo";
-import type { Business, NewOpportunity, Signal } from "@/lib/db/types";
+import type { Business, NewOpportunity } from "@/lib/db/types";
 import { scoreOpportunity } from "@/lib/scoring";
 
 /** Monday (UTC) of the week containing `d` — the opportunity week key. */

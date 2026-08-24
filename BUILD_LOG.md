@@ -275,3 +275,16 @@ results → learnings) and closed the gaps:
   incl. platform-policy pitfalls). Deterministic fallback now, Gemini Flash path wired
   behind the same seam. Rendered on This week; lazily generated for older accounts.
 - New unit tests: brief fallback specificity, history-insight provenance. Gate green.
+
+## P8 — Website-first onboarding (user request)
+- Onboarding step 1 is now the business website + name. On Continue, TRND fetches the
+  site (one owner-initiated request, 8s timeout, identified UA) and prefills category,
+  location, and priced offerings; the owner confirms instead of typing.
+- Extraction: JSON-LD (LocalBusiness et al) → title/meta → price-line heuristics with
+  fee filtering; Gemini Flash refinement layered on when configured. Unit-tested
+  against fixture HTML (name, city/state, category, "$7 matcha" style menu rows,
+  delivery-fee exclusion).
+- Failure is a first-class path: unreachable/unreadable sites show a one-line note and
+  onboarding continues manually. In this sandbox egress is blocked, so that path is
+  the one that runs here (BLOCKED.md).
+- Gate green (43 unit tests, E2E).

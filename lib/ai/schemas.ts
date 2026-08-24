@@ -46,3 +46,13 @@ export const BusinessBriefSchema = z.object({
   watchouts: z.array(z.string().min(10)).min(2).max(4),
 });
 export type BusinessBriefResult = z.infer<typeof BusinessBriefSchema>;
+
+export const SiteExtractSchema = z.object({
+  name: z.string().min(1).nullable(),
+  category: z.string().min(3).nullable(),
+  city: z.string().min(2).nullable(),
+  region: z.string().nullable(),
+  services: z.array(z.object({ name: z.string().min(2), price: z.string() })).max(15),
+  voice_hint: z.string().nullable(),
+});
+export type SiteExtract = z.infer<typeof SiteExtractSchema>;

@@ -27,3 +27,10 @@ Each is implemented behind its interface and registered unavailable at runtime.
 ## Vercel deploy
 - No Vercel credentials; config is present (`vercel.json` with cron schedules) but no
   deploy was attempted, per the brief.
+
+## Website import (in this container only)
+- Onboarding's "read your website" fetch is blocked by the sandbox egress policy, so
+  here it always takes the graceful manual-entry path. The fetch + extractor
+  (JSON-LD, title, price-line heuristics; Gemini refinement when keyed) are fully
+  implemented and unit-tested against fixture HTML.
+- **Seam**: none — works wherever the app has normal outbound network access.

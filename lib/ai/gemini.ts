@@ -21,7 +21,7 @@ import {
   type PromptCtx,
 } from "./prompts/generate-campaign";
 import { systemInstruction } from "./prompts/system";
-import { AngleSchema, BusinessBriefSchema, CampaignAssetsSchema } from "./schemas";
+import { AngleSchema, BusinessBriefSchema, CampaignAssetsSchema, SiteExtractSchema } from "./schemas";
 
 /** Documented fallback chains, newest first. Used only if listing fails or
  * returns nothing usable. */
@@ -216,5 +216,58 @@ export async function generateBriefWithGemini(
     ...parsed,
     model_used: models.flash,
     prompt_version: BRIEF_PROMPT_VERSION,
+  };
+}
+
+const siteExtractResponseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    name: { type: Type.STRING, nullable: true },
+    category: { type: Type.STRING, nullable: true },
+    city: { type: Type.STRING, nullable: true },
+    region: { type: Type.STRING, nullable: true },
+    services: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: { name: { type: Type.STRING }, price: { type: Type.STRING } },
+        required: ["name", "price"],
+      },
+    },
+    voice_hint: { type: Type.STRING, nullable: true },
+  },
+  required: ["services"],
+};
+
+export async function extractSiteWithGemini(html: string, url: string) {
+  const { CATEGORIES } = await import("@/lib/db/types");
+  const models = await resolveModels();
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .slice(0, 15000);
+  const prompt = [
+    `Extract structured business facts from this website (${url}).`,
+    `Return: name, category (EXACTLY one of: ${CATEGORIES.join(" | ")} — or null),`,
+    `city, region (US state abbrev if visible), services (offerings/menu items WITH a visible price, price in dollars as a plain number string),`,
+    `voice_hint (one sentence describing the brand's tone, from their own copy).`,
+    `Only report what is actually on the page — nulls beat guesses.`,
+    `PAGE TEXT:\n${text}`,
+  ].join("\n");
+  const parsed = await structuredCall(models.flash, prompt, siteExtractResponseSchema, (d) =>
+    SiteExtractSchema.parse(d),
+  );
+  const category = (CATEGORIES as readonly string[]).includes(parsed.category ?? "")
+    ? (parsed.category as (typeof CATEGORIES)[number])
+    : undefined;
+  return {
+    name: parsed.name ?? undefined,
+    category,
+    city: parsed.city ?? undefined,
+    region: parsed.region ?? undefined,
+    services: parsed.services,
+    voiceHint: parsed.voice_hint ?? undefined,
   };
 }

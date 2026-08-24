@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 
 import { completeOnboardingAction, type OnboardingState } from "@/lib/onboarding/actions";
+import { importFromWebsiteAction } from "@/lib/onboarding/import-action";
 import { CATEGORIES } from "@/lib/db/types";
 
-const STEPS = ["Business", "Category", "Location", "Services", "Voice"] as const;
+const STEPS = ["Website", "Category", "Location", "Services", "Voice"] as const;
 
 interface ServiceRow {
   name: string;
@@ -29,13 +30,54 @@ export default function OnboardingWizard() {
   const [services, setServices] = useState<ServiceRow[]>([{ name: "", price: "" }]);
   const [voice, setVoice] = useState("");
 
+  // Website import: owner-initiated read of their own site that prefills
+  // everything below. Failure is normal — onboarding continues manually.
+  const [importing, startImport] = useTransition();
+  const [importNote, setImportNote] = useState<string | null>(null);
+
+  function continueFromWebsite() {
+    if (!website.trim()) {
+      setStep(1);
+      return;
+    }
+    startImport(async () => {
+      const result = await importFromWebsiteAction(website);
+      if (result.ok && result.data) {
+        const d = result.data;
+        if (!name.trim() && d.name) setName(d.name);
+        if (d.category) setCategory(d.category);
+        if (d.city) setCity(d.city);
+        if (d.region) setRegion(d.region);
+        if (d.services.length > 0) {
+          setServices(d.services.map((sv) => ({ name: sv.name, price: sv.price })));
+        }
+        if (d.voiceHint && !voice) setVoice(d.voiceHint);
+        const found: string[] = [];
+        if (d.services.length > 0) found.push(`${d.services.length} offering${d.services.length === 1 ? "" : "s"} with prices`);
+        if (d.city) found.push("your location");
+        if (d.category) found.push("your category");
+        const gotName = Boolean(name.trim() || d.name);
+        setImportNote(
+          (found.length > 0
+            ? `Read your site — found ${found.join(", ")}. Confirm or edit below.`
+            : "Read your site — confirm the details below.") +
+            (gotName ? "" : " Add your business name to continue."),
+        );
+        if (gotName) setStep(1);
+      } else {
+        setImportNote(result.reason ?? "Couldn't read the site — fill in the details manually.");
+        if (name.trim()) setStep(1);
+      }
+    });
+  }
+
   const canNext = useMemo(() => {
-    if (step === 0) return name.trim().length > 0;
+    if (step === 0) return name.trim().length > 0 || website.trim().length > 0;
     if (step === 1) return category.length > 0;
     if (step === 2) return city.trim().length > 0;
     if (step === 3) return services.some((s) => s.name.trim().length > 0);
     return true;
-  }, [step, name, category, city, services]);
+  }, [step, name, website, category, city, services]);
 
   function setService(i: number, patch: Partial<ServiceRow>) {
     setServices((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -79,17 +121,38 @@ export default function OnboardingWizard() {
 
         {step === 0 && (
           <section>
-            <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>What&apos;s your business called?</h2>
-            <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>As customers know it.</p>
+            <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>Start with your website.</h2>
+            <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>
+              TRND reads your menu, offerings, and prices from it — so you confirm instead of type.
+            </p>
+            <div className="field">
+              <label htmlFor="ob-web">Website</label>
+              <input id="ob-web" type="text" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourbusiness.com" autoFocus inputMode="url" autoComplete="url" />
+            </div>
             <div className="field">
               <label htmlFor="ob-name">Business name</label>
-              <input id="ob-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Corner Coffee Co." autoFocus />
+              <input id="ob-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Corner Coffee Co." autoComplete="organization" />
             </div>
-            <div className="field">
-              <label htmlFor="ob-web">Website (optional)</label>
-              <input id="ob-web" type="text" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="cornercoffee.com" />
-            </div>
+            <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "2px 0 0", lineHeight: 1.5 }}>
+              No website? Leave it blank — you can fill everything in by hand.
+            </p>
           </section>
+        )}
+
+        {importNote && (step > 0 || !importing) && (
+          <p
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 11,
+              lineHeight: 1.5,
+              color: importNote.startsWith("Read your site") ? "var(--mint-text)" : "var(--ink-faint)",
+              margin: "0 0 18px",
+              paddingBottom: 14,
+              borderBottom: "1px dashed var(--line)",
+            }}
+          >
+            {importNote}
+          </p>
         )}
 
         {step === 1 && (
@@ -185,7 +248,11 @@ export default function OnboardingWizard() {
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep((s) => Math.max(0, s - 1))} style={{ visibility: step === 0 ? "hidden" : "visible" }}>
             ← Back
           </button>
-          {step < STEPS.length - 1 ? (
+          {step === 0 ? (
+            <button type="button" className="btn btn-primary btn-sm" disabled={!canNext || importing} onClick={continueFromWebsite} aria-busy={importing}>
+              {importing ? "Reading your site…" : "Continue →"}
+            </button>
+          ) : step < STEPS.length - 1 ? (
             <button type="button" className="btn btn-primary btn-sm" disabled={!canNext} onClick={() => setStep((s) => s + 1)}>
               Continue →
             </button>

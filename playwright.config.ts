@@ -1,4 +1,10 @@
+import { existsSync } from "node:fs";
+
 import { defineConfig } from "@playwright/test";
+
+// The cloud sandbox pre-installs Chromium at a fixed path; on a normal
+// machine Playwright manages its own browsers (`npx playwright install chromium`).
+const sandboxChromium = "/opt/pw-browsers/chromium";
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -8,9 +14,7 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3117",
     screenshot: "only-on-failure",
-    // Pre-installed Chromium (PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD env); the
-    // pinned @playwright/test version must not try to download its own.
-    launchOptions: { executablePath: "/opt/pw-browsers/chromium" },
+    launchOptions: existsSync(sandboxChromium) ? { executablePath: sandboxChromium } : {},
   },
   webServer: {
     // Isolated demo store: E2E runs never write into the dev .demo-data —

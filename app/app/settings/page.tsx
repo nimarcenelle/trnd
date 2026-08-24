@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import BusinessSettingsForm from "@/components/app/business-settings-form";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import {
   addServiceAction,
   deleteServiceAction,
@@ -19,29 +20,63 @@ export default async function SettingsPage() {
   if (!business) redirect("/onboarding");
   const services = await repo.listServices(business.id);
 
-  return (
-    <div className="wrap" style={{ padding: "44px 32px 72px", maxWidth: 860 }}>
-      <span className="eyebrow">Settings</span>
-      <h1 className="h-disp" style={{ fontSize: 28, margin: "0 0 6px" }}>
-        Your business profile.
-      </h1>
-      <p style={{ color: "var(--ink-soft)", maxWidth: 540, lineHeight: 1.6, margin: "0 0 30px" }}>
-        Everything here shapes what gets recommended — the category picks your signals, the
-        services decide what&apos;s matchable, the radius scopes the market. Theme lives in the
-        toggle up top.
-      </p>
+  const integrations = [
+    {
+      name: "Database & auth",
+      detail: isSupabaseConfigured ? "Supabase — connected" : "Local demo store",
+      ok: isSupabaseConfigured,
+      note: isSupabaseConfigured
+        ? "Rows protected per-business by RLS."
+        : "Add Supabase keys to .env.local to go multi-device.",
+    },
+    {
+      name: "Campaign generation",
+      detail: isGeminiConfigured ? "Gemini — connected" : "Template generator",
+      ok: isGeminiConfigured,
+      note: isGeminiConfigured
+        ? "Structured output, validated before it reaches you."
+        : "Add GEMINI_API_KEY to unlock model-written campaigns.",
+    },
+    {
+      name: "Signal sources",
+      detail: "Google Trends · Reddit · Google News",
+      ok: true,
+      note: "Refreshed daily by the ingest job. YouTube optional via API key.",
+    },
+    {
+      name: "Ad account sync",
+      detail: "Meta Marketing API — planned",
+      ok: false,
+      note: "Results are manual entry today; the schema is sync-ready.",
+    },
+  ];
 
-      <section className="card-lg" style={{ padding: "28px 30px", marginBottom: 26 }}>
-        <h2 className="mono-label" style={{ marginBottom: 18 }}>
-          Business
-        </h2>
+  return (
+    <div className="page" style={{ maxWidth: 900 }}>
+      <div className="page-head">
+        <div>
+          <span className="eyebrow" style={{ margin: 0 }}>Settings</span>
+          <h1>Your business profile.</h1>
+          <p className="context">
+            Everything here shapes what gets recommended — the category picks your signals, the
+            services decide what&apos;s matchable, the radius scopes the market.
+          </p>
+        </div>
+      </div>
+
+      <section className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel__head">
+          <span className="panel__title">Business</span>
+          <span className="panel__meta">{user.email}</span>
+        </div>
         <BusinessSettingsForm business={business} />
       </section>
 
-      <section className="card-lg" style={{ padding: "28px 30px" }}>
-        <h2 className="mono-label" style={{ marginBottom: 6 }}>
-          Services &amp; prices
-        </h2>
+      <section className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel__head">
+          <span className="panel__title">Services &amp; prices</span>
+          <span className="panel__meta">{services.filter((s) => s.is_active).length} active</span>
+        </div>
         <p style={{ fontSize: 13, color: "var(--ink-faint)", margin: "0 0 16px" }}>
           Inactive services stay listed but stop matching signals.
         </p>
@@ -107,6 +142,26 @@ export default async function SettingsPage() {
             Add service
           </button>
         </form>
+      </section>
+
+      <section className="panel">
+        <div className="panel__head">
+          <span className="panel__title">Data &amp; integrations</span>
+          <span className="panel__meta">what powers your recommendations</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+          {integrations.map((it) => (
+            <div key={it.name} className="card" style={{ padding: "16px 18px" }}>
+              <span className={`badge${it.ok ? " badge--mint" : " badge--faint"}`}>
+                <i />
+                {it.ok ? "active" : "not connected"}
+              </span>
+              <p style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5, margin: "10px 0 3px" }}>{it.name}</p>
+              <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-soft)", margin: "0 0 8px" }}>{it.detail}</p>
+              <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: 0, lineHeight: 1.5 }}>{it.note}</p>
+            </div>
+          ))}
+        </div>
       </section>
     </div>
   );

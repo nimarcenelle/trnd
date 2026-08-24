@@ -49,10 +49,12 @@ test("signup → onboarding → recommendation → campaign → launch", async (
     .click({ timeout: 10_000 })
     .catch(() => {});
   await toCampaign;
-  await expect(page.getByText("Headlines — 5 variants")).toBeVisible();
-  await expect(page.getByText("Primary texts — 3 variants")).toBeVisible();
-  await expect(page.getByText("Short-form video scripts — 3")).toBeVisible();
-  await expect(page.getByText("Landing copy")).toBeVisible();
+  await expect(page.getByText("Headline 5")).toBeVisible();
+  await expect(page.getByText("Primary text 3")).toBeVisible();
+  await expect(page.getByText("Script 3")).toBeVisible();
+  await expect(page.getByText("Landing section")).toBeVisible();
+  await expect(page.getByText("Launch checklist")).toBeVisible();
+  await expect(page.getByText("in-feed preview — variant 1")).toBeVisible();
 
   // --- mark launched
   await page.getByRole("button", { name: "Mark as launched" }).click();

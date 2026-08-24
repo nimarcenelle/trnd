@@ -29,6 +29,7 @@
   --red: #b23a22;
   --nav-bg: rgba(253, 246, 227, 0.85);
   --texture-dot: rgba(61, 39, 22, 0.06);
+  --shadow: rgba(61, 39, 22, 0.18);
   --fw-ring: #e3d4ae;
   --fw-node-stroke: #efe0c0;
   --sun-d: none;
@@ -36,7 +37,7 @@
 
   --radius: 16px;
   --radius-sm: 10px;
-  --disp: "Bricolage Grotesque", sans-serif;
+  --disp: "Bricolage Grotesque Variable", "Bricolage Grotesque", sans-serif;
   --body: "Inter", sans-serif;
   --mono: "IBM Plex Mono", monospace;
 }
@@ -67,6 +68,7 @@
     --red: #ff6e52;
     --nav-bg: rgba(17, 11, 5, 0.88);
     --texture-dot: rgba(255, 249, 236, 0.07);
+    --shadow: rgba(0, 0, 0, 0.55);
     --fw-ring: #2d2011;
     --fw-node-stroke: #3d2c18;
     --sun-d: block;
@@ -99,6 +101,7 @@
   --red: #ff6e52;
   --nav-bg: rgba(17, 11, 5, 0.88);
   --texture-dot: rgba(255, 249, 236, 0.07);
+  --shadow: rgba(0, 0, 0, 0.55);
   --fw-ring: #2d2011;
   --fw-node-stroke: #3d2c18;
   --sun-d: block;
@@ -123,7 +126,7 @@
   --color-mint: var(--mint);
   --color-mint-ink: var(--mint-ink);
   --color-red: var(--red);
-  --font-disp: "Bricolage Grotesque", sans-serif;
+  --font-disp: "Bricolage Grotesque Variable", "Bricolage Grotesque", sans-serif;
   --font-body: "Inter", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
   --radius-card: 16px;

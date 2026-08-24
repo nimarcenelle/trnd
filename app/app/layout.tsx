@@ -1,3 +1,5 @@
+import "./app.css";
+
 import { redirect } from "next/navigation";
 
 import AppNav from "@/components/app/app-nav";

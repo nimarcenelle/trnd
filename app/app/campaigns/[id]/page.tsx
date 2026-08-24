@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import AdPreview from "@/components/app/ad-preview";
 import CopyAllButton from "@/components/app/copy-all-button";
 import CopyBlock from "@/components/app/copy-block";
+import SourceBadge from "@/components/app/source-badge";
+import StatusTimeline from "@/components/app/status-timeline";
 import { getSessionUser } from "@/lib/auth/session";
 import { markLaunchedAction } from "@/lib/campaigns/actions";
 import { getUserRepo } from "@/lib/db";
@@ -18,12 +21,17 @@ const KIND_LABELS: Record<Creative["kind"], string> = {
   landing_copy: "Landing copy",
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  draft: "var(--ink-faint)",
-  exported: "var(--amber)",
-  live: "var(--mint)",
-  complete: "var(--mint)",
-};
+/** Daily budget guidance by price band — a suggestion, clearly labeled. */
+function budgetFor(priceBand: string | null): { daily: string; test: string } {
+  switch (priceBand) {
+    case "$":
+      return { daily: "$15–25", test: "$120 over 6 days" };
+    case "$$$":
+      return { daily: "$50–90", test: "$420 over 6 days" };
+    default:
+      return { daily: "$25–50", test: "$220 over 6 days" };
+  }
+}
 
 export default async function CampaignPage({ params }: PageProps<"/app/campaigns/[id]">) {
   const { id } = await params;
@@ -32,13 +40,18 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
   const repo = await getUserRepo(user.id);
   const campaign = await repo.getCampaign(id);
   if (!campaign) notFound();
-  const [creatives, opportunity] = await Promise.all([
+  const [creatives, opportunity, business] = await Promise.all([
     repo.listCreatives(id),
     repo.getOpportunity(campaign.opportunity_id),
+    repo.getBusiness(campaign.business_id),
   ]);
   const signal = opportunity ? await repo.getSignal(opportunity.signal_id) : null;
 
   const byKind = (kind: Creative["kind"]) => creatives.filter((c) => c.kind === kind);
+  const headlines = byKind("headline");
+  const primaries = byKind("primary_text");
+  const budget = budgetFor(business?.price_band ?? null);
+
   const copyAll = [
     `ANGLE\n${campaign.angle}`,
     `HOOK\n${campaign.hook}`,
@@ -53,56 +66,56 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
     ),
   ].join("\n\n———\n\n");
 
+  const launched = campaign.status === "live" || campaign.status === "complete";
+
   return (
-    <div className="wrap" style={{ padding: "44px 32px 80px" }}>
-      <Link href="/app" className="mono-label" style={{ display: "inline-block", marginBottom: 18 }}>
+    <div className="page">
+      <Link href="/app" className="mono-label" style={{ display: "inline-block", marginBottom: 16 }}>
         ← This week
       </Link>
 
-      <header className="card-lg" style={{ padding: "32px 34px", borderColor: "var(--amber)", background: "linear-gradient(180deg, var(--amber-soft), transparent 60%)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
-          <div style={{ maxWidth: 640 }}>
-            <span className="eyebrow" style={{ marginBottom: 12 }}>
-              Finished campaign{signal ? ` — from "${signal.term}"` : ""}
-            </span>
-            <h1 className="h-disp" style={{ fontSize: "clamp(24px,3vw,34px)", margin: "0 0 12px", lineHeight: 1.15 }}>
+      {/* ---------- HEADER ---------- */}
+      <header className="panel panel--hero" style={{ padding: "30px 32px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div style={{ maxWidth: 620 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+              <span className="badge badge--amber"><i />finished campaign</span>
+              {signal && <SourceBadge source={signal.source} />}
+              <span className="badge"><i />{campaign.channel} · paid social</span>
+            </div>
+            <h1 className="h-disp" style={{ fontSize: "clamp(24px,3vw,34px)", margin: "0 0 12px", lineHeight: 1.12 }}>
               {campaign.hook}
             </h1>
             <p style={{ fontSize: 15, lineHeight: 1.65, color: "var(--ink-soft)", margin: 0 }}>{campaign.angle}</p>
           </div>
-          <span
-            className="mono-label"
-            style={{ border: `1px solid ${STATUS_COLOR[campaign.status]}`, color: STATUS_COLOR[campaign.status], borderRadius: 999, padding: "6px 14px" }}
-          >
-            {campaign.status}
-          </span>
+          <StatusTimeline status={campaign.status} />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginTop: 24, paddingTop: 20, borderTop: "1px dashed var(--line)" }}>
+        <div className="facts-grid" style={{ marginTop: 24, paddingTop: 20, borderTop: "1px dashed var(--line)" }}>
           <div>
-            <span className="mono-label" style={{ color: "var(--amber)" }}>Offer</span>
-            <p style={{ margin: "5px 0 0", fontSize: 14.5, fontWeight: 600, fontFamily: "var(--disp)" }}>{campaign.offer}</p>
+            <span className="k" style={{ color: "var(--amber-text)" }}>Offer</span>
+            <p className="v" style={{ fontWeight: 600, fontFamily: "var(--disp)" }}>{campaign.offer}</p>
           </div>
           <div>
-            <span className="mono-label">Audience</span>
-            <p style={{ margin: "5px 0 0", fontSize: 13.5, lineHeight: 1.5 }}>
+            <span className="k">Audience</span>
+            <p className="v" style={{ fontSize: 13.5 }}>
               {campaign.audience.who} · {campaign.audience.age_range} · {campaign.audience.radius_miles} mi
             </p>
           </div>
           <div>
-            <span className="mono-label">Channel</span>
-            <p style={{ margin: "5px 0 0", fontSize: 13.5 }}>{campaign.channel} (paid social)</p>
+            <span className="k">Source signal</span>
+            <p className="v" style={{ fontSize: 13.5 }}>{signal ? `"${signal.term}"` : "—"}</p>
           </div>
           <div>
-            <span className="mono-label">Generated by</span>
-            <p style={{ margin: "5px 0 0", fontSize: 12.5, fontFamily: "var(--mono)" }} title={`prompt ${campaign.prompt_version}`}>
-              {campaign.model_used}
+            <span className="k">Generated by</span>
+            <p className="v" style={{ fontSize: 12.5, fontFamily: "var(--mono)" }} title={`prompt ${campaign.prompt_version}`}>
+              {campaign.model_used} · {campaign.prompt_version}
             </p>
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 24 }}>
-          {campaign.status !== "live" && campaign.status !== "complete" ? (
+          {!launched ? (
             <form action={markLaunchedAction}>
               <input type="hidden" name="campaign_id" value={campaign.id} />
               <button type="submit" className="btn btn-primary btn-sm">
@@ -124,26 +137,105 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
         </div>
       </header>
 
-      <section style={{ marginTop: 40 }}>
-        <h2 className="mono-label" style={{ marginBottom: 14 }}>Headlines — 5 variants</h2>
+      {/* ---------- PREVIEW + LAUNCH PLAN ---------- */}
+      <div className="two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1.35fr", gap: 18, marginTop: 18, alignItems: "start" }}>
+        <section className="panel">
+          <div className="panel__head">
+            <span className="panel__title">How it reads in-feed</span>
+          </div>
+          <AdPreview
+            businessName={business?.name ?? "Your business"}
+            primaryText={primaries[0]?.content ?? campaign.angle}
+            headline={headlines[0]?.content ?? campaign.hook}
+            mediaLine={campaign.offer}
+          />
+        </section>
+
+        <section className="panel">
+          <div className="panel__head">
+            <span className="panel__title">Launch plan</span>
+            <span className="panel__meta">suggestions — you stay in control</span>
+          </div>
+          <div className="facts-grid" style={{ marginBottom: 20 }}>
+            <div>
+              <span className="k">Suggested daily budget</span>
+              <p className="v" style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 20 }}>
+                {budget.daily}
+                <small style={{ fontFamily: "var(--mono)", fontSize: 10.5, fontWeight: 500, color: "var(--ink-faint)", marginLeft: 6 }}>/ day</small>
+              </p>
+              <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "4px 0 0" }}>
+                sized to your {business?.price_band ?? "$$"} price band
+              </p>
+            </div>
+            <div>
+              <span className="k">Test flight</span>
+              <p className="v" style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 20 }}>{budget.test}</p>
+              <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "4px 0 0" }}>
+                enough spend to read a winner
+              </p>
+            </div>
+          </div>
+
+          <div className="panel__head" style={{ marginTop: 4 }}>
+            <span className="panel__title">A/B plan</span>
+          </div>
+          <p style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-soft)", margin: "0 0 18px" }}>
+            Days 1–3: run headline 1 vs headline 2 with primary text 1, even spend. Days 4–6: keep
+            the winner, swap in primary text 2. Kill anything under half your account&apos;s median
+            CTR after 1,000 impressions.
+          </p>
+
+          <div className="panel__head">
+            <span className="panel__title">Launch checklist</span>
+          </div>
+          <div className="checklist">
+            {[
+              "Copy the assets below into Meta Ads Manager (or export the CSV).",
+              `Set the audience: ${campaign.audience.who}, ${campaign.audience.age_range}, ${campaign.audience.radius_miles} mile radius.`,
+              `Set ${budget.daily}/day and schedule the ${budget.test.split(" over ")[1]} test flight.`,
+              "Mark as launched here, then record results after the flight — that's what sharpens next week.",
+            ].map((t, i) => (
+              <div key={i}>
+                <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M3 8.5L6.5 12L13 4" stroke="var(--amber)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </svg>
+                {t}
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* ---------- CREATIVE ASSETS ---------- */}
+      <section style={{ marginTop: 30 }}>
+        <div className="panel__head" style={{ marginBottom: 12 }}>
+          <span className="panel__title">Headlines</span>
+          <span className="panel__meta">{headlines.length} variants</span>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-          {byKind("headline").map((c) => (
+          {headlines.map((c) => (
             <CopyBlock key={c.id} label={`Headline ${c.variant_index + 1}`} content={c.content} />
           ))}
         </div>
       </section>
 
-      <section style={{ marginTop: 34 }}>
-        <h2 className="mono-label" style={{ marginBottom: 14 }}>Primary texts — 3 variants</h2>
+      <section style={{ marginTop: 28 }}>
+        <div className="panel__head" style={{ marginBottom: 12 }}>
+          <span className="panel__title">Primary texts</span>
+          <span className="panel__meta">{primaries.length} variants</span>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-          {byKind("primary_text").map((c) => (
+          {primaries.map((c) => (
             <CopyBlock key={c.id} label={`Primary text ${c.variant_index + 1}`} content={c.content} />
           ))}
         </div>
       </section>
 
-      <section style={{ marginTop: 34 }}>
-        <h2 className="mono-label" style={{ marginBottom: 14 }}>Short-form video scripts — 3</h2>
+      <section style={{ marginTop: 28 }}>
+        <div className="panel__head" style={{ marginBottom: 12 }}>
+          <span className="panel__title">Short-form video scripts</span>
+          <span className="panel__meta">{byKind("script").length} scripts · 20–30s each</span>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
           {byKind("script").map((c) => (
             <CopyBlock key={c.id} label={`Script ${c.variant_index + 1}`} content={c.content} mono />
@@ -151,8 +243,11 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
         </div>
       </section>
 
-      <section style={{ marginTop: 34 }}>
-        <h2 className="mono-label" style={{ marginBottom: 14 }}>Static creative briefs — 3</h2>
+      <section style={{ marginTop: 28 }}>
+        <div className="panel__head" style={{ marginBottom: 12 }}>
+          <span className="panel__title">Static creative briefs</span>
+          <span className="panel__meta">hand to any designer — or shoot it on a phone</span>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
           {byKind("static_brief").map((c) => (
             <CopyBlock key={c.id} label={`Static ${c.variant_index + 1}`} content={c.content} />
@@ -160,15 +255,19 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
         </div>
       </section>
 
-      <section style={{ marginTop: 34, maxWidth: 720 }}>
-        <h2 className="mono-label" style={{ marginBottom: 14 }}>Landing copy</h2>
+      <section style={{ marginTop: 28, maxWidth: 720 }}>
+        <div className="panel__head" style={{ marginBottom: 12 }}>
+          <span className="panel__title">Landing copy</span>
+          <span className="panel__meta">for the page the ad points at</span>
+        </div>
         {byKind("landing_copy").map((c) => (
           <CopyBlock key={c.id} label="Landing section" content={c.content} />
         ))}
       </section>
 
-      <p className="mono-label" style={{ marginTop: 36 }}>
-        Audience rationale: {campaign.audience.why}
+      <p style={{ marginTop: 32, fontSize: 13, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 640 }}>
+        <span className="mono-label" style={{ color: "var(--amber-text)" }}>Why this audience: </span>
+        {campaign.audience.why}
       </p>
     </div>
   );

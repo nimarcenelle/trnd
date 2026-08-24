@@ -180,3 +180,28 @@ pnpm dev          # → sign up at /signup, onboard, done
 pnpm test         # 25 unit tests
 pnpm test:e2e     # the whole loop, headless
 ```
+
+## P2 — Sellable-product pass (post-review, user request)
+- Fonts now self-hosted via @fontsource (Bricolage Grotesque Variable, Inter, IBM Plex
+  Mono) — no Google Fonts dependency at build OR runtime; real typography everywhere.
+- New app design system (`app/app/app.css`): page headers, KPI tiles, panels, badges,
+  score dial, labeled breakdown meters, status timeline, in-feed ad preview, data
+  tables, opportunity rows with hover elevation.
+- /app is now a weekly intelligence briefing: KPI row (signals watched, ranked count,
+  launches, avg CTR), hero rec with radial score dial + four labeled scoring meters
+  (weights printed), rationale as checked bullets, provenance badges (source + metric +
+  illustrative flag), interactive 30-day demand chart (crosshair + tooltip, dataviz-skill
+  validated colors), suggested launch window, next-in-line runner-ups with mini
+  component bars, market-pulse top movers.
+- /app/opportunities: ranked rows with rank #, delta chip, source/fit/status badges,
+  mini component bars, per-row sparkline.
+- /app/campaigns/[id]: status timeline (draft→exported→live→complete), in-feed ad
+  preview mock, launch plan (price-band-sized daily budget + test flight, A/B day plan,
+  launch checklist), grouped creative sections with counts.
+- /app/results: KPI tiles (spend, revenue, ROAS, avg CTR vs labeled illustrative
+  category benchmark), CTR-by-campaign bar chart with benchmark line, upgraded history
+  table with vs-benchmark markers, learnings panel.
+- /app/settings: panels + data & integrations status grid (Supabase/Gemini/sources/Meta
+  sync) with honest connect states.
+- `lib/recommend/explain.ts` re-derives score components server-side so every screen
+  can show the formula's work. E2E updated + full gate green (lint, 25 unit, E2E).

@@ -51,10 +51,13 @@ test("signup → onboarding → recommendation → campaign → launch", async (
   await toCampaign;
   await expect(page.getByText("Headline 5")).toBeVisible();
   await expect(page.getByText("Primary text 3")).toBeVisible();
-  await expect(page.getByText("Script 3")).toBeVisible();
-  await expect(page.getByText("Landing section")).toBeVisible();
   await expect(page.getByText("Launch checklist")).toBeVisible();
   await expect(page.getByText("in-feed preview — variant 1")).toBeVisible();
+  // long-form assets live behind disclosures — open them
+  await page.getByText("Short-form video scripts").click();
+  await expect(page.getByText("Script 3")).toBeVisible();
+  await page.getByText("Landing copy", { exact: true }).click();
+  await expect(page.getByText("Landing section")).toBeVisible();
 
   // --- mark launched
   await page.getByRole("button", { name: "Mark as launched" }).click();

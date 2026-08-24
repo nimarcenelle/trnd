@@ -8,6 +8,7 @@ import SourceBadge from "@/components/app/source-badge";
 import StatusTimeline from "@/components/app/status-timeline";
 import { getSessionUser } from "@/lib/auth/session";
 import { markLaunchedAction } from "@/lib/campaigns/actions";
+import { budgetFor } from "@/lib/recommend/insights";
 import { getUserRepo } from "@/lib/db";
 import type { Creative } from "@/lib/db/types";
 
@@ -20,18 +21,6 @@ const KIND_LABELS: Record<Creative["kind"], string> = {
   static_brief: "Static brief",
   landing_copy: "Landing copy",
 };
-
-/** Daily budget guidance by price band — a suggestion, clearly labeled. */
-function budgetFor(priceBand: string | null): { daily: string; test: string } {
-  switch (priceBand) {
-    case "$":
-      return { daily: "$15–25", test: "$120 over 6 days" };
-    case "$$$":
-      return { daily: "$50–90", test: "$420 over 6 days" };
-    default:
-      return { daily: "$25–50", test: "$220 over 6 days" };
-  }
-}
 
 export default async function CampaignPage({ params }: PageProps<"/app/campaigns/[id]">) {
   const { id } = await params;
@@ -177,13 +166,28 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           </div>
 
           <div className="panel__head" style={{ marginTop: 4 }}>
-            <span className="panel__title">A/B plan</span>
+            <span className="panel__title">Test flight plan</span>
           </div>
-          <p style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-soft)", margin: "0 0 18px" }}>
-            Days 1–3: run headline 1 vs headline 2 with primary text 1, even spend. Days 4–6: keep
-            the winner, swap in primary text 2. Kill anything under half your account&apos;s median
-            CTR after 1,000 impressions.
-          </p>
+          <div className="flight" style={{ marginBottom: 18 }}>
+            <div className="flight__step">
+              <span className="flight__when">Days 1–3</span>
+              <p className="flight__what">
+                <b>Headline 1 vs headline 2</b>, both on primary text 1, even spend.
+              </p>
+            </div>
+            <div className="flight__step">
+              <span className="flight__when">Days 4–6</span>
+              <p className="flight__what">
+                <b>Keep the winner</b>, swap in primary text 2 against it.
+              </p>
+            </div>
+            <div className="flight__step">
+              <span className="flight__when">Kill rule</span>
+              <p className="flight__what">
+                Pause anything under <b>half your median CTR</b> after 1,000 impressions.
+              </p>
+            </div>
+          </div>
 
           <div className="panel__head">
             <span className="panel__title">Launch checklist</span>
@@ -231,39 +235,56 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
         </div>
       </section>
 
-      <section style={{ marginTop: 28 }}>
-        <div className="panel__head" style={{ marginBottom: 12 }}>
+      <details className="section-disclosure" style={{ marginTop: 18 }}>
+        <summary>
           <span className="panel__title">Short-form video scripts</span>
-          <span className="panel__meta">{byKind("script").length} scripts · 20–30s each</span>
+          <span className="summary-right">
+            <span className="panel__meta">{byKind("script").length} scripts · 20–30s each</span>
+            <span className="summary-open-hint">open ↓</span>
+          </span>
+        </summary>
+        <div className="section-body">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
+            {byKind("script").map((c) => (
+              <CopyBlock key={c.id} label={`Script ${c.variant_index + 1}`} content={c.content} mono />
+            ))}
+          </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
-          {byKind("script").map((c) => (
-            <CopyBlock key={c.id} label={`Script ${c.variant_index + 1}`} content={c.content} mono />
-          ))}
-        </div>
-      </section>
+      </details>
 
-      <section style={{ marginTop: 28 }}>
-        <div className="panel__head" style={{ marginBottom: 12 }}>
+      <details className="section-disclosure" style={{ marginTop: 18 }}>
+        <summary>
           <span className="panel__title">Static creative briefs</span>
-          <span className="panel__meta">hand to any designer — or shoot it on a phone</span>
+          <span className="summary-right">
+            <span className="panel__meta">hand to any designer — or shoot on a phone</span>
+            <span className="summary-open-hint">open ↓</span>
+          </span>
+        </summary>
+        <div className="section-body">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+            {byKind("static_brief").map((c) => (
+              <CopyBlock key={c.id} label={`Static ${c.variant_index + 1}`} content={c.content} />
+            ))}
+          </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-          {byKind("static_brief").map((c) => (
-            <CopyBlock key={c.id} label={`Static ${c.variant_index + 1}`} content={c.content} />
-          ))}
-        </div>
-      </section>
+      </details>
 
-      <section style={{ marginTop: 28, maxWidth: 720 }}>
-        <div className="panel__head" style={{ marginBottom: 12 }}>
+      <details className="section-disclosure" style={{ marginTop: 18 }}>
+        <summary>
           <span className="panel__title">Landing copy</span>
-          <span className="panel__meta">for the page the ad points at</span>
+          <span className="summary-right">
+            <span className="panel__meta">for the page the ad points at</span>
+            <span className="summary-open-hint">open ↓</span>
+          </span>
+        </summary>
+        <div className="section-body">
+          <div style={{ maxWidth: 720 }}>
+            {byKind("landing_copy").map((c) => (
+              <CopyBlock key={c.id} label="Landing section" content={c.content} />
+            ))}
+          </div>
         </div>
-        {byKind("landing_copy").map((c) => (
-          <CopyBlock key={c.id} label="Landing section" content={c.content} />
-        ))}
-      </section>
+      </details>
 
       <p style={{ marginTop: 32, fontSize: 13, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 640 }}>
         <span className="mono-label" style={{ color: "var(--amber-text)" }}>Why this audience: </span>

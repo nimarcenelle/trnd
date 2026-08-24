@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import ResultEntryForm from "@/components/app/result-entry-form";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { buildResultsTakeaway } from "@/lib/recommend/insights";
 
 export const metadata = { title: "Results — TRND" };
 
@@ -55,6 +56,7 @@ export default async function ResultsPage() {
     latestByCampaign.set(r.campaign_id, { hook: c.hook, ctr: Number(r.ctr) });
   }
   const chartRows = [...latestByCampaign.values()].slice(0, 6);
+  const takeaway = buildResultsTakeaway({ avgCtr, benchmark, roas });
   const chartMax = Math.max(benchmark, ...chartRows.map((r) => r.ctr)) * 1.15 || 0.02;
 
   return (
@@ -99,6 +101,13 @@ export default async function ResultsPage() {
               vs ~{(benchmark * 100).toFixed(1)}% category typical*
             </span>
           </div>
+        </div>
+      )}
+
+      {takeaway && (
+        <div className="takeaway">
+          <span className="k">Read</span>
+          <p>{takeaway}</p>
         </div>
       )}
 

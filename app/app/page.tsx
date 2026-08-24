@@ -5,12 +5,14 @@ import ScoreBreakdown from "@/components/app/score-breakdown";
 import ScoreDial from "@/components/app/score-dial";
 import SourceBadge from "@/components/app/source-badge";
 import TrendChart from "@/components/app/trend-chart";
+import InsightList from "@/components/app/insight-list";
 import MiniBars from "@/components/app/mini-bars";
 import { getSessionUser } from "@/lib/auth/session";
 import { buildCampaignAction } from "@/lib/campaigns/actions";
 import { getUserRepo } from "@/lib/db";
 import type { Signal } from "@/lib/db/types";
 import { explainOpportunity } from "@/lib/recommend/explain";
+import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 
 export const metadata = { title: "This week — TRND" };
@@ -42,10 +44,11 @@ export default async function AppHome() {
   const weekEnd = new Date(new Date(`${week}T00:00:00Z`).getTime() + 6 * 86400_000);
   const weekRange = `${fmtDate(week)} – ${fmtDate(weekEnd)}`;
 
-  const [categorySignals, campaigns, results] = await Promise.all([
+  const [categorySignals, campaigns, results, learnings] = await Promise.all([
     repo.listSignalsForCategory(business.category, { sinceDays: 7 }),
     repo.listCampaigns(business.id),
     repo.listResultsForBusiness(business.id),
+    repo.listLearnings(business.category),
   ]);
   const watched = categorySignals.filter((s) => s.metric_type !== "news_coverage");
   const launched = campaigns.filter((c) => c.status === "live" || c.status === "complete");
@@ -85,9 +88,15 @@ export default async function AppHome() {
   ]);
   const series = signal ? await repo.getSeries(signal.normalized_term, signal.geo, 30) : [];
   const explained = signal ? await explainOpportunity(repo, business, top, signal) : null;
-  const matchedService = top.matched_service_id
-    ? (await repo.listServices(business.id)).find((s) => s.id === top.matched_service_id) ?? null
-    : null;
+  const insights = signal && explained ? buildInsights(signal, explained, { learnings }) : [];
+  const launchBy = fmtDate(
+    new Date(new Date(`${week}T00:00:00Z`).getTime() + 3 * 86400_000).toISOString().slice(0, 10),
+  );
+  const nextAction = buildNextAction({
+    hasCampaign: Boolean(campaign),
+    launchBy,
+    priceBand: business.price_band,
+  });
 
   // Runner-ups + their signals for the strip below the hero.
   const runnerUps = active.slice(1, 4);
@@ -110,10 +119,6 @@ export default async function AppHome() {
     .slice(0, 5);
 
   const recentCampaigns = campaigns.slice(0, 4);
-  const whyBullets = top.rationale
-    .split(/;\s*/)
-    .map((s) => s.replace(/\.$/, "").trim())
-    .filter(Boolean);
 
   return (
     <div className="page">
@@ -175,16 +180,10 @@ export default async function AppHome() {
               {signal?.term ?? "This week's opportunity"}
             </h2>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 9, margin: "0 0 24px" }}>
-              {whyBullets.map((b, i) => (
-                <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14, lineHeight: 1.55, color: "var(--ink-soft)" }}>
-                  <svg width="15" height="15" viewBox="0 0 16 16" style={{ flex: "0 0 auto", marginTop: 3 }} aria-hidden="true">
-                    <path d="M3 8.5L6.5 12L13 4" stroke="var(--amber)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                  </svg>
-                  <span>{b.charAt(0).toUpperCase() + b.slice(1)}</span>
-                </div>
-              ))}
-            </div>
+            <InsightList
+              insights={insights}
+              footnote={top.competitor_gap ? `Saturation read: ${top.competitor_gap}.` : null}
+            />
 
             <form action={buildCampaignAction} style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
               <input type="hidden" name="opportunity_id" value={top.id} />
@@ -213,25 +212,11 @@ export default async function AppHome() {
           </div>
         </div>
 
-        <div className="facts-grid" style={{ marginTop: 26, paddingTop: 22, borderTop: "1px dashed var(--line)" }}>
-          <div>
-            <span className="k">Matched service</span>
-            <p className="v">{matchedService ? matchedService.name : "New offer opportunity"}</p>
-          </div>
-          <div>
-            <span className="k">Competitor gap</span>
-            <p className="v">{top.competitor_gap ?? "—"}</p>
-          </div>
-          <div>
-            <span className="k">Suggested offer window</span>
-            <p className="v">Launch by {fmtDate(new Date(new Date(`${week}T00:00:00Z`).getTime() + 3 * 86400_000).toISOString().slice(0, 10))} to ride the rise</p>
-          </div>
-          <div>
-            <span className="k">Coverage</span>
-            <p className="v">
-              {business.city} · {business.radius_miles} miles
-            </p>
-          </div>
+        <div className="action-strip">
+          <span className="k">Do this next</span>
+          <p className="v">
+            <b>{nextAction.label}.</b> {nextAction.detail}
+          </p>
         </div>
       </section>
 

@@ -215,3 +215,20 @@ pnpm test:e2e     # the whole loop, headless
   derived from it.
 - Theme toggle simplified to attribute-based (no OS media dependency).
 - Full gate green (lint, unit, E2E). Verified light theme via toggle end to end.
+
+## P4 — Layered disclosure (user request: high info without text walls)
+- New `lib/recommend/insights.ts`: structured insight engine. Every score explains
+  itself as four insights — momentum / fit / open door / track record — each a ≤8-word
+  bold headline plus exactly one sentence of detail, phrased from the live data. Plus a
+  "do this next" action (launch-by date + budget) and a one-line results takeaway.
+- /app hero: run-on rationale replaced by four scannable headlines; "The full read"
+  grows the same rows in place (no duplication). Facts grid replaced by a single
+  amber "DO THIS NEXT" action strip. 
+- /app/opportunities: rows collapsed to term + delta + one fit/gap line + score;
+  "why this score" drawer opens the full read, weighted meters, sparkline, provenance.
+- Campaign: A/B paragraph became a 3-step test-flight plan (days 1–3 / 4–6 / kill
+  rule); scripts, statics, and landing copy are collapsible sections with counts —
+  headlines and primary texts stay open as the first-reach assets.
+- Results: one-line "READ" takeaway under the KPIs (CTR vs benchmark + ROAS verdict).
+- 4 new unit tests on the insight engine (headline length caps enforced in test);
+  E2E updated for the disclosures. Full gate green.

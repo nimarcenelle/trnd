@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import MiniBars from "@/components/app/mini-bars";
+import ScoreBreakdown from "@/components/app/score-breakdown";
 import SourceBadge from "@/components/app/source-badge";
 import Sparkline from "@/components/app/sparkline";
 import { getSessionUser } from "@/lib/auth/session";
 import { buildCampaignAction, setOpportunityStatusAction } from "@/lib/campaigns/actions";
 import { getUserRepo } from "@/lib/db";
 import { explainOpportunity } from "@/lib/recommend/explain";
+import { buildInsights } from "@/lib/recommend/insights";
 import { weekOf } from "@/lib/recommend/recommend";
 
 export const metadata = { title: "Opportunities — TRND" };
@@ -20,8 +21,10 @@ export default async function OpportunitiesPage() {
   if (!business) redirect("/onboarding");
 
   const week = weekOf();
-  const opportunities = await repo.listOpportunities(business.id, week);
-  const services = await repo.listServices(business.id);
+  const [opportunities, learnings] = await Promise.all([
+    repo.listOpportunities(business.id, week),
+    repo.listLearnings(business.category),
+  ]);
 
   const enriched = await Promise.all(
     opportunities.map(async (o) => {
@@ -31,7 +34,8 @@ export default async function OpportunitiesPage() {
         signal ? repo.getSeries(signal.normalized_term, signal.geo, 30) : Promise.resolve([]),
         signal ? explainOpportunity(repo, business, o, signal) : Promise.resolve(null),
       ]);
-      return { o, signal, campaign, series, explained };
+      const insights = signal && explained ? buildInsights(signal, explained, { learnings }) : [];
+      return { o, signal, campaign, series, explained, insights };
     }),
   );
 
@@ -50,8 +54,7 @@ export default async function OpportunitiesPage() {
           <span className="eyebrow" style={{ margin: 0 }}>Ranked for you · week of {weekLabel}</span>
           <h1>This week&apos;s opportunities.</h1>
           <p className="context">
-            Every score shows its work — momentum, fit, competitor gap, track record. Accept what&apos;s
-            worth running; dismissals feed next week&apos;s ranking.
+            One line each — open <b>why this score</b> on any row for the full read.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -74,11 +77,12 @@ export default async function OpportunitiesPage() {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {enriched.map(({ o, signal, campaign, series, explained }, idx) => {
+        {enriched.map(({ o, signal, campaign, series, explained, insights }, idx) => {
           const isDismissed = o.status === "dismissed";
-          const matched = o.matched_service_id
-            ? services.find((s) => s.id === o.matched_service_id) ?? null
-            : null;
+          const scanLine = insights
+            .filter((i) => i.kind === "fit" || i.kind === "gap")
+            .map((i) => i.headline)
+            .join(" · ");
           return (
             <div key={o.id} className={`opp-row${isDismissed ? " opp-row--dismissed" : ""}`}>
               <span className="rank">#{idx + 1}</span>
@@ -88,13 +92,6 @@ export default async function OpportunitiesPage() {
                   {typeof signal?.delta_pct === "number" && (
                     <span className="delta-chip">↑{Math.round(signal.delta_pct)}%</span>
                   )}
-                </div>
-                <div className="facts">
-                  {signal && <SourceBadge source={signal.source} metric={signal.metric_type} />}
-                  <span className="badge">
-                    <i />
-                    {matched ? `fits: ${matched.name}` : "new offer"}
-                  </span>
                   {o.status !== "new" && (
                     <span className={`badge${o.status === "launched" || o.status === "accepted" ? " badge--mint" : " badge--faint"}`}>
                       <i />
@@ -102,21 +99,51 @@ export default async function OpportunitiesPage() {
                     </span>
                   )}
                 </div>
-                <p className="why">{o.rationale}</p>
+                <p className="why" style={{ marginTop: 6 }}>{scanLine}</p>
+
+                <details className="disclosure" style={{ marginTop: 12 }}>
+                  <summary>
+                    <span className="chev">›</span>
+                    <span className="mono-label" style={{ color: "var(--ink-soft)" }}>
+                      why this score
+                    </span>
+                  </summary>
+                  <div className="disclosure__body">
+                    <div style={{ display: "flex", gap: 28, flexWrap: "wrap", alignItems: "flex-start" }}>
+                      <div style={{ flex: "1 1 300px", maxWidth: 460 }}>
+                        {insights.map((ins) => (
+                          <div className="insight" key={ins.kind}>
+                            <span className={`insight__dot insight__dot--${ins.kind}`} />
+                            <div>
+                              <span className="insight__headline">{ins.headline}</span>
+                              <p className="insight__detail">{ins.detail}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ flex: "0 1 280px", display: "flex", flexDirection: "column", gap: 16 }}>
+                        {explained && <ScoreBreakdown components={explained.components} />}
+                        <div>
+                          <span className="mono-label" style={{ color: "var(--mint-text)", display: "block", marginBottom: 6 }}>
+                            demand — 30d
+                          </span>
+                          <Sparkline points={series} width={220} height={44} />
+                        </div>
+                        {signal && <SourceBadge source={signal.source} metric={signal.metric_type} />}
+                      </div>
+                    </div>
+                  </div>
+                </details>
               </div>
               <div className="side">
-                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                  {explained && <MiniBars components={explained.components} />}
-                  <div style={{ textAlign: "right" }}>
-                    <span className="score-num" style={{ fontSize: 24, color: "var(--amber-text)" }}>
-                      {Number(o.score).toFixed(1)}
-                    </span>
-                    <span className="mono-label" style={{ display: "block", fontSize: 9 }}>
-                      / 10
-                    </span>
-                  </div>
+                <div style={{ textAlign: "right" }}>
+                  <span className="score-num" style={{ fontSize: 24, color: "var(--amber-text)" }}>
+                    {Number(o.score).toFixed(1)}
+                  </span>
+                  <span className="mono-label" style={{ display: "block", fontSize: 9 }}>
+                    / 10
+                  </span>
                 </div>
-                <Sparkline points={series} width={150} height={36} />
                 <div className="actions">
                   {campaign ? (
                     <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary btn-sm">

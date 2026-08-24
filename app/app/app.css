@@ -603,3 +603,221 @@
     margin: 0 6px;
   }
 }
+
+/* ---------- Insight rows (headline + optional detail) ---------- */
+.insight {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 9px 0;
+}
+.insight + .insight {
+  border-top: 1px dashed var(--line);
+}
+.insight__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 6px;
+}
+.insight__dot--momentum {
+  background: var(--mint);
+}
+.insight__dot--fit {
+  background: var(--amber);
+}
+.insight__dot--gap {
+  background: var(--amber);
+  opacity: 0.55;
+}
+.insight__dot--history {
+  background: var(--ink-faint);
+}
+.insight__headline {
+  font-family: var(--disp);
+  font-weight: 600;
+  font-size: 14.5px;
+  line-height: 1.35;
+}
+.insight__detail {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-faint);
+  margin: 3px 0 0;
+  max-width: 52ch;
+}
+
+/* ---------- "Do this next" action strip ---------- */
+.action-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  background: var(--amber-soft);
+  border: 1px dashed var(--amber);
+}
+.action-strip .k {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--amber-text);
+  white-space: nowrap;
+}
+.action-strip .v {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 0;
+}
+.action-strip .v b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ---------- Disclosure (expand-on-demand) ---------- */
+details.disclosure > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+}
+details.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+details.disclosure > summary .chev {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-faint);
+  font-size: 10px;
+  transition: transform 0.18s ease;
+  flex: 0 0 auto;
+}
+details.disclosure[open] > summary .chev {
+  transform: rotate(90deg);
+  color: var(--amber-text);
+  border-color: var(--amber);
+}
+details.disclosure > summary:hover .chev {
+  color: var(--ink);
+}
+.disclosure__body {
+  margin-top: 14px;
+}
+
+/* Section-level disclosure (campaign creatives) */
+details.section-disclosure {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  padding: 0;
+}
+details.section-disclosure > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 22px;
+  user-select: none;
+}
+details.section-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+details.section-disclosure > summary:hover {
+  background: var(--bg-2);
+  border-radius: var(--radius);
+}
+details.section-disclosure[open] > summary:hover {
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+details.section-disclosure .section-body {
+  padding: 6px 22px 22px;
+}
+.summary-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.summary-open-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: 0.05em;
+}
+details.section-disclosure[open] .summary-open-hint {
+  display: none;
+}
+
+/* ---------- Flight plan steps ---------- */
+.flight {
+  display: flex;
+  flex-direction: column;
+}
+.flight__step {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 14px;
+  padding: 10px 0;
+  align-items: baseline;
+}
+.flight__step + .flight__step {
+  border-top: 1px dashed var(--line);
+}
+.flight__when {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--amber-text);
+  white-space: nowrap;
+}
+.flight__what {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 0;
+}
+.flight__what b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ---------- Takeaway line ---------- */
+.takeaway {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 13px 18px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--mint);
+  background: var(--mint-glow);
+  margin-bottom: 22px;
+}
+.takeaway .k {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mint-text);
+  white-space: nowrap;
+  padding-top: 2px;
+}
+.takeaway p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}

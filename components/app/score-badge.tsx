@@ -13,10 +13,10 @@ export default function ScoreBadge({ score, size = "lg" }: { score: number; size
         padding: big ? "10px 16px" : "4px 10px",
       }}
     >
-      <span className="score-num" style={{ fontSize: big ? 30 : 16, color: "var(--amber)" }}>
+      <span className="score-num" style={{ fontSize: big ? 30 : 16, color: "var(--amber-text)" }}>
         {score.toFixed(1)}
       </span>
-      <span className="mono-label" style={{ color: "var(--amber)" }}>
+      <span className="mono-label" style={{ color: "var(--amber-text)" }}>
         / 10
       </span>
     </div>

@@ -57,8 +57,14 @@ function emptyStore(): DemoStore {
   };
 }
 
-const DATA_DIR = process.env.TRND_DEMO_DIR ?? path.join(process.cwd(), ".demo-data");
-const DATA_FILE = path.join(DATA_DIR, "store.json");
+// Resolved lazily so tests can point TRND_DEMO_DIR at a temp dir even though
+// ES-module imports hoist above their env assignment.
+function dataDir(): string {
+  return process.env.TRND_DEMO_DIR ?? path.join(process.cwd(), ".demo-data");
+}
+function dataFile(): string {
+  return path.join(dataDir(), "store.json");
+}
 
 // Survive Next.js dev-server module reloads.
 const g = globalThis as unknown as { __trndDemoStore?: DemoStore };
@@ -67,7 +73,7 @@ export function loadStore(): DemoStore {
   if (g.__trndDemoStore) return g.__trndDemoStore;
   let store = emptyStore();
   try {
-    const parsed = JSON.parse(readFileSync(DATA_FILE, "utf8")) as Partial<DemoStore>;
+    const parsed = JSON.parse(readFileSync(dataFile(), "utf8")) as Partial<DemoStore>;
     store = { ...store, ...parsed };
   } catch {
     /* first run — start empty; the seed script fills it */
@@ -79,10 +85,10 @@ export function loadStore(): DemoStore {
 export function saveStore(store?: DemoStore): void {
   const s = store ?? g.__trndDemoStore;
   if (!s) return;
-  mkdirSync(DATA_DIR, { recursive: true });
-  const tmp = `${DATA_FILE}.tmp`;
+  mkdirSync(dataDir(), { recursive: true });
+  const tmp = `${dataFile()}.tmp`;
   writeFileSync(tmp, JSON.stringify(s));
-  renameSync(tmp, DATA_FILE);
+  renameSync(tmp, dataFile());
 }
 
 /** Test/seed helper: replace the in-memory store wholesale. */
@@ -91,4 +97,4 @@ export function resetStore(next?: DemoStore): DemoStore {
   return g.__trndDemoStore;
 }
 
-export const demoStorePath = DATA_FILE;
+export const demoStorePath = dataFile;

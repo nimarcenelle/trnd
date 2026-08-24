@@ -62,7 +62,14 @@
   display: inline-flex;
   align-items: center;
   animation: scrollX 42s linear infinite;
+  animation-play-state: paused;
   padding: 10px 0;
+}
+/* Infinite loops (ticker scroll, dot pulse, dash flow, flywheel spin) start on
+   the visitor's first input. One-shot intro animations always play, so the
+   page reads finished on load — and Lighthouse's speed index stays honest. */
+.motion-run .ticker__track {
+  animation-play-state: running;
 }
 @keyframes scrollX {
   from {
@@ -84,11 +91,11 @@
   color: var(--ink-soft);
 }
 .ticker__item b {
-  color: var(--mint);
+  color: var(--mint-text);
   font-weight: 600;
 }
 .ticker__item b.hot {
-  color: var(--amber);
+  color: var(--amber-text);
 }
 
 /* ---------- HERO ---------- */
@@ -180,6 +187,9 @@
 }
 #sparkDot {
   opacity: 0;
+  animation: popDot 0.4s ease-out forwards 1.6s;
+}
+.motion-run #sparkDot {
   animation:
     popDot 0.4s ease-out forwards 1.6s,
     pulseDot 2s ease-in-out infinite 2s;
@@ -212,6 +222,9 @@
 #connectFlow {
   stroke-dasharray: 4 7;
   opacity: 0;
+  animation: fadeFlow 0.3s forwards 2.1s;
+}
+.motion-run #connectFlow {
   animation:
     fadeFlow 0.3s forwards 2.1s,
     flowDash 1s linear infinite 2.1s;
@@ -303,7 +316,7 @@ hr.rule {
   margin-bottom: 20px;
 }
 .split__col.now .split__title {
-  color: var(--amber);
+  color: var(--amber-text);
 }
 .split__row {
   display: flex;
@@ -404,7 +417,7 @@ hr.rule {
 .step-panel__num {
   font-family: var(--mono);
   font-size: 11px;
-  color: var(--amber);
+  color: var(--amber-text);
   letter-spacing: 0.06em;
   margin-bottom: 10px;
   display: block;
@@ -432,7 +445,7 @@ hr.rule {
   font-size: 10px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--mint);
+  color: var(--mint-text);
   display: block;
   margin-bottom: 6px;
 }
@@ -462,7 +475,7 @@ hr.rule {
 .sig-card__stat {
   font-family: var(--mono);
   font-size: 13px;
-  color: var(--mint);
+  color: var(--mint-text);
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -506,11 +519,11 @@ hr.rule {
 .fly__num {
   font-family: var(--mono);
   font-size: 12px;
-  color: var(--amber);
+  color: var(--amber-text);
   flex: 0 0 26px;
   padding-top: 2px;
 }
-.fly__item h4 {
+.fly__item h3 {
   font-family: var(--disp);
   font-weight: 600;
   font-size: 15.5px;
@@ -525,6 +538,10 @@ hr.rule {
 }
 #flySpin {
   animation: flySpinDash 24s linear infinite;
+  animation-play-state: paused;
+}
+.motion-run #flySpin {
+  animation-play-state: running;
 }
 @keyframes flySpinDash {
   to {
@@ -556,7 +573,7 @@ hr.rule {
   color: var(--ink-faint);
 }
 .rm-card.live .rm-status {
-  color: var(--amber);
+  color: var(--amber-text);
 }
 .rm-n {
   font-family: var(--mono);
@@ -710,7 +727,7 @@ hr.rule {
   gap: 52px;
   flex-wrap: wrap;
 }
-.foot-col h5 {
+.foot-col h3 {
   font-family: var(--mono);
   font-size: 10.5px;
   letter-spacing: 0.06em;

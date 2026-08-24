@@ -28,6 +28,11 @@ function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/** "Facial balancing consult" should never become "… consult consult". */
+function consultName(offerName: string): string {
+  return /consult/i.test(offerName) ? offerName : `${offerName} consult`;
+}
+
 function price(service: Service | null): string {
   if (service?.price_cents) return `$${Math.round(service.price_cents / 100)}`;
   return "$49";
@@ -65,7 +70,7 @@ export function generateFallbackCampaign(ctx: Ctx): GenerationResult {
     education: {
       angle: `Most people searching "${term}" don't need more — they need it done right. Position ${business.name} as the place in ${city} that explains before it sells.`,
       hook: `Three things nobody tells you about ${term}.`,
-      offer: `${offerName} consult — ${p}, applied to your first visit`,
+      offer: `${consultName(offerName)} — ${p}, applied to your first visit`,
     },
     offer: {
       angle: `Interest in ${term} is ${deltaPhrase(signal)} and almost nobody in ${city} is advertising it. A clear first-timer offer wins the click.`,

@@ -231,7 +231,7 @@ export default function Home() {
                 <div className="fly__item" key={f.n}>
                   <span className="fly__num">{f.n}</span>
                   <div>
-                    <h4>{f.h}</h4>
+                    <h3>{f.h}</h3>
                     <p>{f.p}</p>
                   </div>
                 </div>
@@ -331,19 +331,19 @@ export default function Home() {
             </div>
             <div className="foot-links">
               <div className="foot-col">
-                <h5>Product</h5>
+                <h3>Product</h3>
                 <a href="#product">Overview</a>
                 <a href="#how">How it works</a>
                 <a href="#signals">Proof</a>
               </div>
               <div className="foot-col">
-                <h5>Company</h5>
+                <h3>Company</h3>
                 <a href="#vision">Vision</a>
                 <a href="#pricing">Pricing</a>
                 <a href="#demo">Request a demo</a>
               </div>
               <div className="foot-col">
-                <h5>Follow</h5>
+                <h3>Follow</h3>
                 <a href="#">X / Twitter</a>
                 <a href="#">LinkedIn</a>
               </div>

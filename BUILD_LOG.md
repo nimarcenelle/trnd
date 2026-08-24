@@ -111,3 +111,24 @@ Chronological. Newest at the bottom. See DECISIONS.md and BLOCKED.md for the why
   which the scoring formula already consumes. The loop is closed and unit-tested.
 - E2E now runs the whole flywheel: … → launch → enter results → history row (2.50%
   CTR) → learnings updated. Green in 24s.
+
+## Milestone 9 + polish — Hardening and professional pass (08:55 UTC)
+- `/app/settings`: business profile edit, services add/toggle/remove.
+- Error boundaries (root + app), branded 404, loading skeletons for /app.
+- Mobile: verified zero horizontal scroll at 375px on landing + all five app screens
+  (headless Chromium, measured `scrollWidth` diff).
+- Found & fixed a real data bug: unit tests were clobbering `.demo-data` because the
+  store path resolved at import time (ES import hoisting beats the test's env var) —
+  paths are now lazy; verified by hashing the store across a test run.
+- Fixed "consult consult" copy duplication in the fallback generator.
+- Lighthouse on `/`: **99 / 100 / 96 / 100** (was 88/94/96/100).
+  - Root-caused SI=20s via the LH filmstrip: the render-blocking Google Fonts
+    stylesheet hangs behind this sandbox's proxy → blank page for ~14s. Fonts now load
+    async (media=print swap + noscript fallback) — a straight win in any environment.
+  - Reveal-on-scroll rewritten per-element: content already on screen never flickers
+    out on slow devices; below-fold content reveals as before.
+  - Infinite animations (ticker, dot pulse, dash flow, flywheel spin) start on first
+    user input; one-shot intro animations play on load.
+  - AA contrast: new `--amber-text` / `--mint-text` tokens for small text on light
+    backgrounds; `--ink-faint` deepened to #7D5C39; heading order fixed (h4/h5 → h3).
+- Full suite green: lint, 25 unit tests, E2E happy path (24s).

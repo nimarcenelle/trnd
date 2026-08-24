@@ -18,11 +18,27 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Loaded as a stylesheet (not next/font) so builds never depend on
-            network access to Google Fonts. Every family has a real fallback. */}
+            network access to Google Fonts, and loaded async (media="print"
+            swap) so a slow font CDN can never block first paint — every
+            family has a real fallback stack. */}
         <link
           href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
           rel="stylesheet"
+          media="print"
+          data-font-swap
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'var l=document.querySelector("link[data-font-swap]");if(l){var s=function(){l.media="all"};l.addEventListener("load",s);if(l.sheet)s();}',
+          }}
+        />
+        <noscript>
+          <link
+            href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+            rel="stylesheet"
+          />
+        </noscript>
       </head>
       <body>{children}</body>
     </html>

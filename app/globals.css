@@ -12,16 +12,18 @@
   --card-stroke: #efe0c0;
   --ink: #33200f;
   --ink-soft: #6b4a2c;
-  --ink-faint: #8f6b44;
+  --ink-faint: #7d5c39; /* AA on --bg for small text */
   --line: rgba(61, 39, 22, 0.1);
   --line-strong: rgba(61, 39, 22, 0.2);
   --amber: #d99a12;
+  --amber-text: #8a6208; /* AA-contrast amber for small text on light bgs */
   --amber-ink: #2b1b08;
   --amber-hover: #efae21;
   --amber-glow: rgba(217, 154, 18, 0.22);
   --amber-soft: rgba(217, 154, 18, 0.14);
   --amber-softer: rgba(217, 154, 18, 0.03);
   --mint: #1ea7ae;
+  --mint-text: #0e7379; /* AA-contrast mint for small text on light bgs */
   --mint-ink: #eafbfc;
   --mint-glow: rgba(30, 167, 174, 0.2);
   --red: #b23a22;
@@ -52,12 +54,14 @@
     --line: rgba(255, 249, 236, 0.14);
     --line-strong: rgba(255, 249, 236, 0.26);
     --amber: #ffc72c;
+    --amber-text: #ffc72c;
     --amber-ink: #2b1b08;
     --amber-hover: #ffd466;
     --amber-glow: rgba(255, 177, 61, 0.18);
     --amber-soft: rgba(255, 177, 61, 0.09);
     --amber-softer: rgba(255, 177, 61, 0.02);
     --mint: #2fc9c6;
+    --mint-text: #2fc9c6;
     --mint-ink: #072a2a;
     --mint-glow: rgba(111, 231, 194, 0.18);
     --red: #ff6e52;
@@ -82,12 +86,14 @@
   --line: rgba(255, 249, 236, 0.14);
   --line-strong: rgba(255, 249, 236, 0.26);
   --amber: #ffc72c;
+  --amber-text: #ffc72c;
   --amber-ink: #2b1b08;
   --amber-hover: #ffd466;
   --amber-glow: rgba(255, 177, 61, 0.18);
   --amber-soft: rgba(255, 177, 61, 0.09);
   --amber-softer: rgba(255, 177, 61, 0.02);
   --mint: #2fc9c6;
+  --mint-text: #2fc9c6;
   --mint-ink: #072a2a;
   --mint-glow: rgba(111, 231, 194, 0.18);
   --red: #ff6e52;
@@ -164,7 +170,7 @@ svg {
   font-size: 11.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--amber);
+  color: var(--amber-text);
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -179,7 +185,7 @@ svg {
   box-shadow: 0 0 0 4px var(--amber-glow);
 }
 .eyebrow--mint {
-  color: var(--mint);
+  color: var(--mint-text);
 }
 .eyebrow--mint::before {
   background: var(--mint);
@@ -340,23 +346,24 @@ svg {
 }
 
 /* ---------- REVEAL ----------
-   Content is visible by default. JS opts in to the animation only if the
-   browser actually supports IntersectionObserver, so a failed/unsupported
-   observer can never leave the page blank. */
+   Content is visible by default. JS hides an element (reveal-pending) only
+   if IntersectionObserver exists AND the element is still below the fold —
+   a failed observer can never blank the page, and content the visitor is
+   already looking at never flickers out. */
 .reveal {
   opacity: 1;
   transform: none;
 }
-.js-reveal .reveal {
+.reveal.reveal-pending {
   opacity: 0;
   transform: translateY(16px);
+}
+.reveal.reveal-in {
+  opacity: 1;
+  transform: translateY(0);
   transition:
     opacity 0.6s ease,
     transform 0.6s ease;
-}
-.js-reveal .reveal.in {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 /* ---------- SPARKLINE / SCORE ---------- */
@@ -398,7 +405,8 @@ svg {
     scroll-behavior: auto;
   }
   .reveal,
-  .js-reveal .reveal {
+  .reveal.reveal-pending,
+  .reveal.reveal-in {
     transition: none;
     opacity: 1;
     transform: none;

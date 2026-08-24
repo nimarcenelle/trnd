@@ -9,32 +9,50 @@ import { useEffect } from "react";
  */
 export default function RevealObserver() {
   useEffect(() => {
+    const startMotion = () => document.documentElement.classList.add("motion-run");
+    const events = ["pointerdown", "pointermove", "wheel", "scroll", "keydown", "touchstart"] as const;
+    events.forEach((e) => window.addEventListener(e, startMotion, { once: true, passive: true }));
     if (
       !("IntersectionObserver" in window) ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
       return;
     }
-    const els = document.querySelectorAll(".reveal");
-    document.documentElement.classList.add("js-reveal");
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
           if (e.isIntersecting) {
-            e.target.classList.add("in");
+            e.target.classList.remove("reveal-pending");
+            e.target.classList.add("reveal-in");
             io.unobserve(e.target);
           }
         });
       },
       { threshold: 0.12 },
     );
-    els.forEach((el) => io.observe(el));
-    // Safety net: if anything is still hidden shortly after load, show it.
-    const t = setTimeout(() => els.forEach((el) => el.classList.add("in")), 1500);
+    // Hide-and-reveal only what is still below the fold; anything already on
+    // screen stays exactly as painted.
+    const pending: Element[] = [];
+    document.querySelectorAll(".reveal").forEach((el) => {
+      if (el.getBoundingClientRect().top > window.innerHeight * 0.95) {
+        el.classList.add("reveal-pending");
+        pending.push(el);
+        io.observe(el);
+      }
+    });
+    // Safety net: if anything is still hidden after a while, show it.
+    const t = setTimeout(
+      () =>
+        pending.forEach((el) => {
+          el.classList.remove("reveal-pending");
+          el.classList.add("reveal-in");
+        }),
+      4000,
+    );
     return () => {
+      events.forEach((e) => window.removeEventListener(e, startMotion));
       clearTimeout(t);
       io.disconnect();
-      document.documentElement.classList.remove("js-reveal");
     };
   }, []);
   return null;

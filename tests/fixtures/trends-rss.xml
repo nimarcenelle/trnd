@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:ht="https://trends.google.com/trending/rss" version="2.0">
+  <channel>
+    <title>Daily Search Trends</title>
+    <item>
+      <title>matcha latte recipe</title>
+      <ht:approx_traffic>200,000+</ht:approx_traffic>
+      <pubDate>Mon, 24 Aug 2026 07:00:00 -0700</pubDate>
+    </item>
+    <item>
+      <title>celebrity gossip thing</title>
+      <ht:approx_traffic>1,000,000+</ht:approx_traffic>
+      <pubDate>Mon, 24 Aug 2026 07:00:00 -0700</pubDate>
+    </item>
+    <item>
+      <title>teeth whitening at home</title>
+      <ht:approx_traffic>50,000+</ht:approx_traffic>
+      <pubDate>Mon, 24 Aug 2026 07:00:00 -0700</pubDate>
+    </item>
+  </channel>
+</rss>

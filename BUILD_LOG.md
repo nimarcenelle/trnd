@@ -58,3 +58,20 @@ Chronological. Newest at the bottom. See DECISIONS.md and BLOCKED.md for the why
 - Caught a stale prod server process serving an old build (looked like landing.css was
   lost); after killing it, verified both themes via headless Chromium screenshots.
 - build/lint/test green.
+
+## Milestone 5 — Signal ingestion (07:40 UTC)
+- `SignalAdapter` interface + five adapters in the brief's order: Google Trends daily
+  RSS (lexicon-classified into categories, noise dropped), Reddit public JSON (per-
+  category subreddits, upvote-velocity ranking, descriptive UA), Google News RSS
+  (corroboration counts), Trends interest-over-time (direct widget endpoints — no
+  unmaintained package; fast-tripping circuit breaker), YouTube (key-gated). TikTok
+  intentionally not attempted (no viable free API — known gap).
+- Shared hardened HTTP: 10s timeout, exponential backoff (max 3), per-adapter circuit
+  breaker; 4xx never retried. Ingest succeeds with partial results; raw responses land
+  in signals.raw; DB unique index makes re-runs idempotent per day.
+- `POST /api/cron/ingest` (CRON_SECRET bearer) + `pnpm job:ingest`; vercel.json cron
+  schedules added.
+- Proved the degrade path by running the job in this egress-blocked container: all
+  sources 403, breakers open, run completes cleanly with partial (0) results. Fixture
+  unit tests cover every parser + classifier + delta math.
+- build/lint/test green.

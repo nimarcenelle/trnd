@@ -1,3 +1,5 @@
+import { normalizeTerm } from "@/lib/signals/normalize";
+
 import type { NewLearning, NewSeriesPoint, NewSignal } from "./types";
 
 /**
@@ -88,14 +90,6 @@ export const SEED_TERMS: SeedTerm[] = [
   { term: "kids first dental visit", category: "Dental & wellness", metric_type: "booking_intent", delta_pct: 19, value: 50 },
   { term: "gum contouring", category: "Dental & wellness", metric_type: "search_interest", delta_pct: 24, value: 44 },
 ];
-
-export function normalizeTerm(term: string): string {
-  return term
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, "")
-    .trim()
-    .replace(/\s+/g, "_");
-}
 
 /* Deterministic PRNG so seeded sparklines are stable run to run. */
 function hashString(s: string): number {

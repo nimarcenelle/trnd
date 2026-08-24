@@ -821,3 +821,9 @@ details.section-disclosure[open] .summary-open-hint {
   line-height: 1.55;
   color: var(--ink);
 }
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import ScoreBreakdown from "@/components/app/score-breakdown";
+import SubmitButton from "@/components/app/submit-button";
 import ScoreDial from "@/components/app/score-dial";
 import SourceBadge from "@/components/app/source-badge";
 import TrendChart from "@/components/app/trend-chart";
@@ -193,9 +194,9 @@ export default async function AppHome() {
                   View the campaign →
                 </Link>
               ) : (
-                <button type="submit" className="btn btn-primary">
+                <SubmitButton pendingLabel="Building your campaign…">
                   Build the campaign
-                </button>
+                </SubmitButton>
               )}
               <Link href="/app/opportunities" className="btn btn-ghost btn-sm">
                 All {active.length} ranked →

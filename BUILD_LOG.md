@@ -238,3 +238,18 @@ pnpm test:e2e     # the whole loop, headless
 - Signal terms render as Title Case wherever they act as titles (hero, runner-ups,
   market pulse, opportunity rows, campaign source-signal fact); insight headlines are
   sentence-cased at the source. Ad copy keeps its natural casing on purpose.
+
+## P5 — Complete-product audit (user request)
+Walked the whole flow (landing → signup → onboarding → weekly rec → campaign → launch →
+results → learnings) and closed the gaps:
+- **/app/campaigns index** (new nav tab): campaigns grouped Live / Drafts / Exported /
+  Complete with status timelines and next-step hints; empty state links to This week.
+- **Pending states on generation**: "Build the campaign" buttons now show a spinner +
+  "Building your campaign…" via useFormStatus — matters once Gemini latency is real.
+- **Magic-link failure feedback**: /login now explains an expired/invalid link instead
+  of failing silently (callback already redirected with ?error=auth).
+- **Self-serve funnel**: landing hero + pricing band link to /signup (see DECISIONS.md).
+- **SEO layer**: metadataBase + OpenGraph/Twitter cards with a generated brand OG image
+  (public/og.png), robots.txt (blocks /app, /api, /onboarding), sitemap.xml; scaffold
+  SVG leftovers removed.
+- E2E extended to cover the campaigns index; full gate green.

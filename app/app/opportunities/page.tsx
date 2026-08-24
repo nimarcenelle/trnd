@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import ScoreBreakdown from "@/components/app/score-breakdown";
 import SourceBadge from "@/components/app/source-badge";
+import SubmitButton from "@/components/app/submit-button";
 import Sparkline from "@/components/app/sparkline";
 import { getSessionUser } from "@/lib/auth/session";
 import { buildCampaignAction, setOpportunityStatusAction } from "@/lib/campaigns/actions";
@@ -162,9 +163,9 @@ export default async function OpportunitiesPage() {
                     <>
                       <form action={buildCampaignAction}>
                         <input type="hidden" name="opportunity_id" value={o.id} />
-                        <button type="submit" className="btn btn-primary btn-sm">
+                        <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Building…">
                           Build campaign
-                        </button>
+                        </SubmitButton>
                       </form>
                       <form action={setOpportunityStatusAction}>
                         <input type="hidden" name="opportunity_id" value={o.id} />

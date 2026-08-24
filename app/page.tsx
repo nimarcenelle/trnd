@@ -90,9 +90,9 @@ export default function Home() {
               <a href="#demo" className="btn btn-primary">
                 Request a demo
               </a>
-              <a href="#how" className="btn btn-ghost">
-                See how it works
-              </a>
+              <Link href="/signup" className="btn btn-ghost">
+                Start free — set up in 2 minutes
+              </Link>
             </div>
             <div className="hero__proof">
               <span className="pill">No agency retainer</span>
@@ -279,9 +279,14 @@ export default function Home() {
                 you&apos;re running $30 a day or $3,000 a month.
               </p>
             </div>
-            <a href="#demo" className="btn btn-primary">
-              Get pricing on a demo
-            </a>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <a href="#demo" className="btn btn-primary">
+                Get pricing on a demo
+              </a>
+              <Link href="/signup" className="btn btn-ghost">
+                Start free
+              </Link>
+            </div>
           </div>
         </div>
       </section>

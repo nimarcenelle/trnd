@@ -63,6 +63,12 @@ test("signup → onboarding → recommendation → campaign → launch", async (
   await page.getByRole("button", { name: "Mark as launched" }).click();
   await expect(page.getByRole("link", { name: "Enter results →" })).toBeVisible({ timeout: 15_000 });
 
+  // --- campaigns index shows the live campaign, then back to the detail page
+  await page.goto("/app/campaigns");
+  await expect(page.getByText("Live — waiting on results")).toBeVisible();
+  await page.goBack();
+  await page.getByRole("link", { name: "Enter results →" }).waitFor({ timeout: 15_000 });
+
   // --- enter results, see history, learnings updated
   await page.getByRole("link", { name: "Enter results →" }).click();
   await expect(page).toHaveURL(/\/app\/results/);

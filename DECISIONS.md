@@ -41,3 +41,6 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
 - **Dark palette retuned to the logo** (`design/trnd-logo.png`, colors sampled from the
   file): warm near-black `#14100C`, off-white ink `#F6F1E3`, sage-mint accent `#81CEBA`,
   gold softened to `#F0B429`. Light palette unchanged.
+- **Landing hero CTA change**: swapped "See how it works" (still reachable from the nav)
+  for "Start free — set up in 2 minutes" so the page has a self-serve funnel and not
+  only the demo-request path. Pricing band also gained a Start free button.

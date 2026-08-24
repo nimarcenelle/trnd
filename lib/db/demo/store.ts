@@ -1,0 +1,94 @@
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import path from "node:path";
+
+import type {
+  Business,
+  Campaign,
+  CampaignResult,
+  Creative,
+  DemoRequest,
+  Learning,
+  Opportunity,
+  Profile,
+  Service,
+  Signal,
+  SignalSeriesPoint,
+} from "../types";
+
+/** A local account record — demo mode's stand-in for auth.users. */
+export interface DemoUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  password_hash: string; // scrypt, hex
+  salt: string;
+  created_at: string;
+}
+
+export interface DemoStore {
+  users: DemoUser[];
+  profiles: Profile[];
+  businesses: Business[];
+  services: Service[];
+  signals: Signal[];
+  signal_series: SignalSeriesPoint[];
+  opportunities: Opportunity[];
+  campaigns: Campaign[];
+  creatives: Creative[];
+  campaign_results: CampaignResult[];
+  learnings: Learning[];
+  demo_requests: DemoRequest[];
+}
+
+function emptyStore(): DemoStore {
+  return {
+    users: [],
+    profiles: [],
+    businesses: [],
+    services: [],
+    signals: [],
+    signal_series: [],
+    opportunities: [],
+    campaigns: [],
+    creatives: [],
+    campaign_results: [],
+    learnings: [],
+    demo_requests: [],
+  };
+}
+
+const DATA_DIR = process.env.TRND_DEMO_DIR ?? path.join(process.cwd(), ".demo-data");
+const DATA_FILE = path.join(DATA_DIR, "store.json");
+
+// Survive Next.js dev-server module reloads.
+const g = globalThis as unknown as { __trndDemoStore?: DemoStore };
+
+export function loadStore(): DemoStore {
+  if (g.__trndDemoStore) return g.__trndDemoStore;
+  let store = emptyStore();
+  try {
+    const parsed = JSON.parse(readFileSync(DATA_FILE, "utf8")) as Partial<DemoStore>;
+    store = { ...store, ...parsed };
+  } catch {
+    /* first run — start empty; the seed script fills it */
+  }
+  g.__trndDemoStore = store;
+  return store;
+}
+
+export function saveStore(store?: DemoStore): void {
+  const s = store ?? g.__trndDemoStore;
+  if (!s) return;
+  mkdirSync(DATA_DIR, { recursive: true });
+  const tmp = `${DATA_FILE}.tmp`;
+  writeFileSync(tmp, JSON.stringify(s));
+  renameSync(tmp, DATA_FILE);
+}
+
+/** Test/seed helper: replace the in-memory store wholesale. */
+export function resetStore(next?: DemoStore): DemoStore {
+  g.__trndDemoStore = next ?? emptyStore();
+  return g.__trndDemoStore;
+}
+
+export const demoStorePath = DATA_FILE;

@@ -75,3 +75,28 @@ Chronological. Newest at the bottom. See DECISIONS.md and BLOCKED.md for the why
   sources 403, breakers open, run completes cleanly with partial (0) results. Fixture
   unit tests cover every parser + classifier + delta math.
 - build/lint/test green.
+
+## Milestones 6 + 7 — Scoring, recommendations, Gemini generation, campaign screen (08:05 UTC)
+- `lib/scoring.ts`: the whole formula in one file per §8, every component 0..1 with a
+  plain-English reason; unit tests cover saturation, service token-matching, gap proxy,
+  neutral priors, and the full score.
+- `lib/recommend`: weekly top-5 opportunity generation per business (idempotent per
+  week); `/api/cron/recommend` + `pnpm job:recommend`. `/app` also self-heals: first
+  visit of a week scores inline so the screen is never empty — demo works seconds after
+  onboarding.
+- `/app`: the hero screen. One recommendation — term, 0-10 score badge, rationale,
+  30-day mint sparkline, matched service, competitor gap, source (+ "illustrative"
+  marker for seeded rows), one primary action. `/app/opportunities`: ranked list with
+  accept / dismiss / restore.
+- `lib/ai`: Gemini wrapper (`gemini.ts` is the only SDK import) — models resolved from
+  live ListModels (never hardcoded), documented fallback chains, Pro for the two
+  creative calls, structured JSON output validated with Zod, one retry then the
+  deterministic brand-voiced fallback generator (`fallback.ts`) which validates against
+  the same schemas. model_used + prompt_version stored on every campaign.
+- `/app/campaigns/[id]`: angle/hook/offer/audience header, 5 headlines, 3 primary
+  texts, 3 timestamped video scripts, 3 static briefs, landing copy — all copyable;
+  copy-all; JSON + Meta-CSV export via route handler (draft→exported); mark-as-launched
+  (→ live, opportunity → launched).
+- Playwright E2E green (24s): signup → onboarding → recommendation → campaign → launch.
+  (Root-caused a nasty hang: clicks on buttons that detach mid-navigation retry forever
+  with no default action timeout — explicit click timeouts fix it.)

@@ -1,5 +1,6 @@
 import type { Learning, Signal } from "@/lib/db/types";
 import type { ScoredOpportunity } from "@/lib/scoring";
+import { sentenceCase } from "@/lib/text";
 
 /**
  * Structured, layered insights — the anti-text-wall.
@@ -99,7 +100,7 @@ export function buildInsights(
     const n = learnings.reduce((s, l) => s + l.sample_size, 0);
     insights.push({
       kind: "history",
-      headline: `${top.angle_type.replace(/_/g, " ")} angles ran well before`,
+      headline: sentenceCase(`${top.angle_type.replace(/_/g, " ")} angles ran well before`),
       detail: `${n} comparable campaign${n === 1 ? "" : "s"} in your category feed this score — the recommended angle leans on what actually converted.`,
     });
   } else {

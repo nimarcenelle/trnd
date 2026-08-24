@@ -14,6 +14,7 @@ import type { Signal } from "@/lib/db/types";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
+import { titleCase } from "@/lib/text";
 
 export const metadata = { title: "This week — TRND" };
 
@@ -177,7 +178,7 @@ export default async function AppHome() {
               )}
             </div>
             <h2 className="h-disp" style={{ fontSize: "clamp(26px,3.2vw,38px)", margin: "0 0 16px", lineHeight: 1.08, letterSpacing: "-0.02em" }}>
-              {signal?.term ?? "This week's opportunity"}
+              {signal ? titleCase(signal.term) : "This week's opportunity"}
             </h2>
 
             <InsightList
@@ -261,7 +262,7 @@ export default async function AppHome() {
                       #{i + 2}
                     </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5 }}>{s?.term}</span>
+                      <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5 }}>{s ? titleCase(s.term) : ""}</span>
                       <span className="panel__meta" style={{ display: "block", marginTop: 2 }}>
                         {typeof s?.delta_pct === "number" ? `↑${Math.round(s.delta_pct)}% · ` : ""}
                         {s?.metric_type.replace(/_/g, " ")}
@@ -296,7 +297,7 @@ export default async function AppHome() {
                   borderBottom: i < movers.length - 1 ? "1px dashed var(--line)" : "none",
                 }}
               >
-                <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>{s.term}</span>
+                <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>{titleCase(s.term)}</span>
                 <span className="delta-chip">↑{Math.round(s.delta_pct ?? 0)}%</span>
               </div>
             ))}

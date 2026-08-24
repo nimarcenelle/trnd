@@ -10,6 +10,7 @@ import { getUserRepo } from "@/lib/db";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildInsights } from "@/lib/recommend/insights";
 import { weekOf } from "@/lib/recommend/recommend";
+import { titleCase } from "@/lib/text";
 
 export const metadata = { title: "Opportunities — TRND" };
 
@@ -88,7 +89,7 @@ export default async function OpportunitiesPage() {
               <span className="rank">#{idx + 1}</span>
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
-                  <span className="term">{signal?.term ?? "Opportunity"}</span>
+                  <span className="term">{signal ? titleCase(signal.term) : "Opportunity"}</span>
                   {typeof signal?.delta_pct === "number" && (
                     <span className="delta-chip">↑{Math.round(signal.delta_pct)}%</span>
                   )}

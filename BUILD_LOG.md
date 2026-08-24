@@ -232,3 +232,9 @@ pnpm test:e2e     # the whole loop, headless
 - Results: one-line "READ" takeaway under the KPIs (CTR vs benchmark + ROAS verdict).
 - 4 new unit tests on the insight engine (headline length caps enforced in test);
   E2E updated for the disclosures. Full gate green.
+
+## P4.1 — Casing polish (user request)
+- `lib/text.ts`: titleCase (small-words-aware) + sentenceCase helpers, unit-tested.
+- Signal terms render as Title Case wherever they act as titles (hero, runner-ups,
+  market pulse, opportunity rows, campaign source-signal fact); insight headlines are
+  sentence-cased at the source. Ad copy keeps its natural casing on purpose.

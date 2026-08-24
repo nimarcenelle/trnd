@@ -253,3 +253,11 @@ results → learnings) and closed the gaps:
   (public/og.png), robots.txt (blocks /app, /api, /onboarding), sitemap.xml; scaffold
   SVG leftovers removed.
 - E2E extended to cover the campaigns index; full gate green.
+
+## P6 — UI cleanup sweep (user request)
+- Demo-mode banner toned down to a slim centered strip (informative, not shouty).
+- Campaigns-index cards use a compact status timeline (dots + current label) instead of
+  the full labeled one, which wrapped in narrow cards.
+- Trend chart gridlines snap to round numbers (1/2/5×10ⁿ step picker).
+- Zero-state KPI copy ("first one is a click away"); tighter app-nav spacing ≤520px.
+- Full-inventory screenshot pass over all 16 screens; gate green.

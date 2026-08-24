@@ -86,7 +86,7 @@ export default async function CampaignsPage() {
                   <p style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 15.5, margin: "0 0 14px", lineHeight: 1.35 }}>
                     {c.hook}
                   </p>
-                  <StatusTimeline status={c.status} />
+                  <StatusTimeline status={c.status} compact />
                   <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "14px 0 0" }}>
                     {new Date(c.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {c.channel} ·{" "}
                     {c.status === "draft" ? "launch today" : c.status === "live" ? "enter results when ready" : "done"}

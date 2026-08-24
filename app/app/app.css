@@ -827,3 +827,62 @@ details.section-disclosure[open] .summary-open-hint {
     transform: rotate(360deg);
   }
 }
+
+/* Compact timeline (cards) */
+.timeline--compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.timeline--compact .tl-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bg-2);
+  border: 1px solid var(--line-strong);
+}
+.timeline--compact .tl-dot.done {
+  background: var(--mint);
+  border-color: var(--mint);
+}
+.timeline--compact .tl-dot.current {
+  background: var(--amber);
+  border-color: var(--amber);
+}
+.timeline--compact .tl-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-left: 5px;
+}
+
+/* Demo-mode strip — informative, not shouty */
+.demo-strip {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 5px 16px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.demo-strip b {
+  color: var(--amber-text);
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .app-nav {
+    gap: 2px !important;
+  }
+  .app-nav a {
+    font-size: 12.5px !important;
+    padding: 6px 9px !important;
+  }
+}

@@ -19,18 +19,8 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
       <AppNav businessName={business.name} signOut={signOutAction} />
       {!isSupabaseConfigured && (
-        <div
-          style={{
-            background: "var(--bg-2)",
-            borderBottom: "1px solid var(--line)",
-            padding: "7px 24px",
-            fontFamily: "var(--mono)",
-            fontSize: 10.5,
-            letterSpacing: "0.05em",
-            color: "var(--ink-faint)",
-          }}
-        >
-          DEMO MODE — LOCAL STORE, ILLUSTRATIVE DATA. SEE BLOCKED.MD TO CONNECT SUPABASE.
+        <div className="demo-strip">
+          <b>Demo mode</b> local store · illustrative data · see BLOCKED.md to connect Supabase
         </div>
       )}
       <main style={{ flex: 1 }}>{children}</main>

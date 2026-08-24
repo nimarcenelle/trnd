@@ -36,10 +36,14 @@ export default function TrendChart({ points }: { points: SignalSeriesPoint[] }) 
     const y = (v: number) => PAD.t + (H - PAD.t - PAD.b) * (1 - (v - lo) / (hi - lo || 1));
     const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.value).toFixed(1)}`).join(" ");
     const area = `${line} L${x(points.length - 1).toFixed(1)} ${(H - PAD.b).toFixed(1)} L${PAD.l} ${(H - PAD.b).toFixed(1)} Z`;
-    const grid = [0.25, 0.55, 0.85].map((f) => ({
-      yPos: PAD.t + (H - PAD.t - PAD.b) * f,
-      val: hi - (hi - lo) * f,
-    }));
+    // Round-number gridlines: pick a 1/2/5×10ⁿ step, draw the ticks that fit.
+    const span = hi - lo || 1;
+    const rawStep = span / 3;
+    const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const step = [1, 2, 5, 10].map((m) => m * mag).find((s2) => s2 >= rawStep) ?? mag * 10;
+    const ticks: number[] = [];
+    for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(v);
+    const grid = ticks.map((val) => ({ yPos: y(val), val }));
     return { x, y, line, area, grid, lo, hi };
   }, [points]);
 

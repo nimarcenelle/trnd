@@ -153,7 +153,7 @@ export default async function AppHome() {
         <div className="kpi">
           <span className="k">Campaigns launched</span>
           <span className="v">{launched.length}</span>
-          <span className="s">{campaigns.length} generated total</span>
+          <span className="s">{campaigns.length === 0 ? "first one is a click away" : `${campaigns.length} generated total`}</span>
         </div>
         <div className="kpi">
           <span className="k">Avg CTR to date</span>

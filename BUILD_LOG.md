@@ -30,3 +30,18 @@ Chronological. Newest at the bottom. See DECISIONS.md and BLOCKED.md for the why
 - Tests: static RLS coverage over migrations, demo-repo cross-business read/write
   blocking, signal dedupe, env-gated live Supabase RLS test (skips loudly — BLOCKED.md).
 - build/lint/test green.
+
+## Milestone 3 — Auth + onboarding (07:20 UTC)
+- Mode-agnostic session API (`lib/auth/session.ts`): Supabase Auth (password + magic
+  link + /auth/callback code exchange) when configured; demo mode uses scrypt-hashed
+  local accounts and an HMAC-signed cookie. `proxy.ts` (Next 16's middleware) refreshes
+  Supabase sessions; pass-through in demo mode.
+- /login, /signup styled per the design system; magic-link button explains itself in
+  demo mode instead of pretending to send mail.
+- /onboarding: 5-step wizard (name → category → location+radius+price band → services &
+  prices → brand voice), single server action writes businesses + services, cannot be
+  skipped — /app layout redirects to it until a business exists.
+- /app shell: sticky nav, business name, sign out, and a visible DEMO MODE banner when
+  Supabase isn't configured.
+- Verified against the prod server: /login 200, /signup 200, /app → 307 /login.
+- build/lint/test green.

@@ -57,4 +57,17 @@ test("signup → onboarding → recommendation → campaign → launch", async (
   // --- mark launched
   await page.getByRole("button", { name: "Mark as launched" }).click();
   await expect(page.getByRole("link", { name: "Enter results →" })).toBeVisible({ timeout: 15_000 });
+
+  // --- enter results, see history, learnings updated
+  await page.getByRole("link", { name: "Enter results →" }).click();
+  await expect(page).toHaveURL(/\/app\/results/);
+  await page.getByPlaceholder("12,400").fill("12400");
+  await page.getByPlaceholder("310").fill("310");
+  await page.getByPlaceholder("180").fill("180");
+  await page.getByPlaceholder("9").fill("9");
+  await page.getByPlaceholder("1,240").fill("1240");
+  await page.getByRole("button", { name: "Record results" }).click();
+  // Revalidation flips the campaign to complete and moves it into history.
+  await expect(page.getByRole("cell", { name: "2.50%" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/What TRND has learned/)).toBeVisible();
 });

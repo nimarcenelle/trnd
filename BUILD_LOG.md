@@ -100,3 +100,14 @@ Chronological. Newest at the bottom. See DECISIONS.md and BLOCKED.md for the why
 - Playwright E2E green (24s): signup → onboarding → recommendation → campaign → launch.
   (Root-caused a nasty hang: clicks on buttons that detach mid-navigation retry forever
   with no default action timeout — explicit click timeouts fix it.)
+
+## Milestone 8 — Results + learnings (08:20 UTC)
+- `/app/results`: manual entry per live campaign (impressions/clicks/spend/bookings/
+  revenue), history table with CTR / cost-per-result / revenue, and a visible "what
+  TRND has learned" strip. Structured so a Meta API sync lands without schema change
+  (`campaign_results.source`).
+- `lib/results/compute.ts`: CTR/CPA math and the lift function (0.5 neutral; CTR-led
+  with booking and profitability nudges), blended into `learnings` by sample size —
+  which the scoring formula already consumes. The loop is closed and unit-tested.
+- E2E now runs the whole flywheel: … → launch → enter results → history row (2.50%
+  CTR) → learnings updated. Green in 24s.

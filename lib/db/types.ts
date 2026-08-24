@@ -101,6 +101,8 @@ export interface CampaignAudience {
   radius_miles: number;
   interests: string[];
   why: string;
+  /** Persuasion shape — the key the learnings loop aggregates on. */
+  angle_type?: "education" | "offer" | "scarcity" | "social_proof" | "speed" | "novelty";
 }
 
 export interface Campaign {

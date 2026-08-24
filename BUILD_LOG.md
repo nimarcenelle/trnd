@@ -288,3 +288,29 @@ results → learnings) and closed the gaps:
   onboarding continues manually. In this sandbox egress is blocked, so that path is
   the one that runs here (BLOCKED.md).
 - Gate green (43 unit tests, E2E).
+
+## P9 — Full founding analysis + zero-question onboarding (user request)
+- **Site crawl**: import now reads the homepage plus up to four relevant pages
+  (menu/pricing/services/about, keyword-scored internal links, parallel fetch,
+  failures dropped). Offerings are pooled across pages; the price band is inferred
+  from real prices (median vs. per-category thresholds, Gemini refinement on the
+  labeled multi-page corpus, which can also return `price_band`).
+- **Fewer questions**: a successful import collapses steps 2-5 into one prefilled
+  "Confirm what we read" screen — name, category, city/state, radius, price band,
+  services, voice, all editable, one submit. The stepper survives only as the
+  no-website / failed-import path (unchanged, still E2E-covered).
+- **Full analysis** (brief-2): `business_briefs` grew positioning, customer_segments,
+  market_context, pricing_read, seasonality, first_moves (migration 0003, defaults
+  keep old rows valid). Gemini path now runs on **Pro** (flash retry → deterministic
+  fallback) and is fed the crawled site text — onboarding round-trips it through the
+  form so there's no refetch; settings/lazy paths re-crawl best-effort. The
+  deterministic fallback fills every section per-category and grounds pricing_read /
+  first_moves in the actual menu ("Wood-Fired Margherita at $16").
+- **Staleness fixed**: settings edits (business fields, add/toggle/delete service)
+  regenerate the analysis via `after()` so saves stay instant; briefs with an old
+  prompt_version render as-is once and upgrade after the response.
+- This week card redesigned: positioning lead, who's-buying/market/pricing/seasonality
+  row, the original four columns, numbered "Your first moves".
+- Verified end-to-end against a local fixture site (localhost egress works): crawl
+  found all 6 menu items from /menu.html, inferred $$, confirm screen → /app showed
+  the full analysis. Gate green (47 unit tests, E2E, build).

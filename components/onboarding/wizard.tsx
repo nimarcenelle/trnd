@@ -13,7 +13,21 @@ interface ServiceRow {
   price: string;
 }
 
+const inputStyle: React.CSSProperties = {
+  fontFamily: "var(--body)",
+  fontSize: 14.5,
+  background: "var(--bg-2)",
+  border: "1px solid var(--line-strong)",
+  color: "var(--ink)",
+  padding: "12px 14px",
+  borderRadius: "var(--radius-sm)",
+};
+
 export default function OnboardingWizard() {
+  // Two paths after the website step: a successful import collapses the rest
+  // into one prefilled confirm screen ("review"); otherwise the stepper asks
+  // only for what the site couldn't provide.
+  const [mode, setMode] = useState<"steps" | "review">("steps");
   const [step, setStep] = useState(0);
   const [state, formAction, pending] = useActionState<OnboardingState, FormData>(
     completeOnboardingAction,
@@ -29,6 +43,7 @@ export default function OnboardingWizard() {
   const [priceBand, setPriceBand] = useState("$$");
   const [services, setServices] = useState<ServiceRow[]>([{ name: "", price: "" }]);
   const [voice, setVoice] = useState("");
+  const [siteText, setSiteText] = useState("");
 
   // Website import: owner-initiated read of their own site that prefills
   // everything below. Failure is normal — onboarding continues manually.
@@ -48,22 +63,26 @@ export default function OnboardingWizard() {
         if (d.category) setCategory(d.category);
         if (d.city) setCity(d.city);
         if (d.region) setRegion(d.region);
+        if (d.priceBand) setPriceBand(d.priceBand);
         if (d.services.length > 0) {
           setServices(d.services.map((sv) => ({ name: sv.name, price: sv.price })));
         }
         if (d.voiceHint && !voice) setVoice(d.voiceHint);
+        if (result.siteText) setSiteText(result.siteText);
         const found: string[] = [];
         if (d.services.length > 0) found.push(`${d.services.length} offering${d.services.length === 1 ? "" : "s"} with prices`);
         if (d.city) found.push("your location");
         if (d.category) found.push("your category");
+        if (d.priceBand) found.push("your price range");
         const gotName = Boolean(name.trim() || d.name);
         setImportNote(
           (found.length > 0
-            ? `Read your site — found ${found.join(", ")}. Confirm or edit below.`
+            ? `Read your site — found ${found.join(", ")}. Confirm or edit below, then you're in.`
             : "Read your site — confirm the details below.") +
             (gotName ? "" : " Add your business name to continue."),
         );
-        if (gotName) setStep(1);
+        // Everything on one confirm screen — no more questions than needed.
+        if (gotName) setMode("review");
       } else {
         setImportNote(result.reason ?? "Couldn't read the site — fill in the details manually.");
         if (name.trim()) setStep(1);
@@ -79,32 +98,108 @@ export default function OnboardingWizard() {
     return true;
   }, [step, name, website, category, city, services]);
 
+  const canFinish =
+    name.trim().length > 0 &&
+    category.length > 0 &&
+    city.trim().length > 0 &&
+    services.some((s) => s.name.trim().length > 0);
+
   function setService(i: number, patch: Partial<ServiceRow>) {
     setServices((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
+
+  const categoryPicker = (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }} role="radiogroup" aria-label="Business category">
+      {CATEGORIES.map((c) => (
+        <button
+          key={c}
+          type="button"
+          role="radio"
+          aria-checked={category === c}
+          onClick={() => setCategory(c)}
+          className="pill"
+          style={
+            category === c
+              ? { background: "var(--amber)", color: "var(--amber-ink)", borderColor: "var(--amber)", cursor: "pointer", fontWeight: 600 }
+              : { cursor: "pointer", background: "var(--bg-1)" }
+          }
+        >
+          {c}
+        </button>
+      ))}
+    </div>
+  );
+
+  const serviceRows = (
+    <>
+      {services.map((row, i) => (
+        <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 40px", gap: 10, marginBottom: 12 }}>
+          <input aria-label={`Service ${i + 1} name`} type="text" value={row.name} onChange={(e) => setService(i, { name: e.target.value })} placeholder="e.g. Facial balancing consult" style={inputStyle} />
+          <input aria-label={`Service ${i + 1} price`} type="text" value={row.price} onChange={(e) => setService(i, { price: e.target.value })} placeholder="$ price" style={inputStyle} />
+          <button type="button" aria-label={`Remove service ${i + 1}`} onClick={() => setServices((r) => r.filter((_, idx) => idx !== i))} disabled={services.length === 1} style={{ background: "none", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", color: "var(--ink-faint)", cursor: "pointer" }}>
+            ×
+          </button>
+        </div>
+      ))}
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setServices((r) => [...r, { name: "", price: "" }])}>
+        + Add another
+      </button>
+    </>
+  );
+
+  const locationFields = (
+    <>
+      <div className="field-row">
+        <div className="field">
+          <label htmlFor="ob-city">City</label>
+          <input id="ob-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Atlanta" />
+        </div>
+        <div className="field">
+          <label htmlFor="ob-region">State / region</label>
+          <input id="ob-region" type="text" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="GA" />
+        </div>
+      </div>
+      <div className="field">
+        <label htmlFor="ob-radius">Radius — {radius} miles</label>
+        <input id="ob-radius" type="range" min={5} max={60} step={5} value={radius} onChange={(e) => setRadius(Number(e.target.value))} style={{ accentColor: "var(--amber)", padding: 0, background: "transparent", border: "none" }} />
+      </div>
+      <div className="field">
+        <label htmlFor="ob-price">Price band</label>
+        <select id="ob-price" value={priceBand} onChange={(e) => setPriceBand(e.target.value)}>
+          <option value="$">$ — budget-friendly</option>
+          <option value="$$">$$ — mid-range</option>
+          <option value="$$$">$$$ — premium</option>
+        </select>
+      </div>
+    </>
+  );
 
   return (
     <div className="card-lg" style={{ maxWidth: 620, width: "100%", padding: "36px 34px" }}>
       {/* progress rail */}
       <div style={{ display: "flex", gap: 6, marginBottom: 30 }}>
-        {STEPS.map((label, i) => (
-          <div key={label} style={{ flex: 1 }}>
-            <div
-              style={{
-                height: 4,
-                borderRadius: 2,
-                background: i <= step ? "var(--amber)" : "var(--line-strong)",
-                transition: "background .2s ease",
-              }}
-            />
-            <span
-              className="mono-label"
-              style={{ fontSize: 9.5, marginTop: 6, display: "block", color: i <= step ? "var(--amber)" : undefined }}
-            >
-              {label}
-            </span>
-          </div>
-        ))}
+        {(mode === "review" ? (["Website", "Confirm"] as const) : STEPS).map((label, i, arr) => {
+          const done = mode === "review" || i <= step;
+          const isLast = i === arr.length - 1;
+          return (
+            <div key={label} style={{ flex: 1 }}>
+              <div
+                style={{
+                  height: 4,
+                  borderRadius: 2,
+                  background: done ? "var(--amber)" : "var(--line-strong)",
+                  transition: "background .2s ease",
+                }}
+              />
+              <span
+                className="mono-label"
+                style={{ fontSize: 9.5, marginTop: 6, display: "block", color: done ? "var(--amber)" : undefined, textAlign: mode === "review" && isLast ? "right" : undefined }}
+              >
+                {label}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <form action={formAction}>
@@ -118,12 +213,13 @@ export default function OnboardingWizard() {
         <input type="hidden" name="price_band" value={priceBand} />
         <input type="hidden" name="services" value={JSON.stringify(services)} />
         <input type="hidden" name="brand_voice_notes" value={voice} />
+        <input type="hidden" name="site_text" value={siteText} />
 
-        {step === 0 && (
+        {mode === "steps" && step === 0 && (
           <section>
             <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>Start with your website.</h2>
             <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>
-              TRND reads your menu, offerings, and prices from it — so you confirm instead of type.
+              TRND reads your menu, offerings, prices, and location from it — one confirm screen instead of a questionnaire.
             </p>
             <div className="field">
               <label htmlFor="ob-web">Website</label>
@@ -139,7 +235,7 @@ export default function OnboardingWizard() {
           </section>
         )}
 
-        {importNote && (step > 0 || !importing) && (
+        {importNote && (mode === "review" || step > 0 || !importing) && (
           <p
             style={{
               fontFamily: "var(--mono)",
@@ -155,81 +251,57 @@ export default function OnboardingWizard() {
           </p>
         )}
 
-        {step === 1 && (
+        {mode === "review" && (
+          <section>
+            <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>Confirm what we read.</h2>
+            <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>
+              Everything below came from your site or a sensible default — fix anything that&apos;s off.
+            </p>
+            <div className="field">
+              <label htmlFor="ob-name-r">Business name</label>
+              <input id="ob-name-r" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Corner Coffee Co." autoComplete="organization" />
+            </div>
+            <div className="field">
+              <label>Category</label>
+              {categoryPicker}
+            </div>
+            <div style={{ marginTop: 18 }}>{locationFields}</div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>What you sell</label>
+            </div>
+            {serviceRows}
+            <div className="field" style={{ marginTop: 18 }}>
+              <label htmlFor="ob-voice-r">Brand voice notes (optional)</label>
+              <textarea id="ob-voice-r" rows={3} value={voice} onChange={(e) => setVoice(e.target.value)} placeholder='e.g. "Warm but direct. We never discount, we add value. No exclamation marks."' />
+            </div>
+          </section>
+        )}
+
+        {mode === "steps" && step === 1 && (
           <section>
             <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>What kind of business?</h2>
             <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>This decides which demand signals TRND watches for you.</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }} role="radiogroup" aria-label="Business category">
-              {CATEGORIES.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  role="radio"
-                  aria-checked={category === c}
-                  onClick={() => setCategory(c)}
-                  className="pill"
-                  style={
-                    category === c
-                      ? { background: "var(--amber)", color: "var(--amber-ink)", borderColor: "var(--amber)", cursor: "pointer", fontWeight: 600 }
-                      : { cursor: "pointer", background: "var(--bg-1)" }
-                  }
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
+            {categoryPicker}
           </section>
         )}
 
-        {step === 2 && (
+        {mode === "steps" && step === 2 && (
           <section>
             <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>Where do customers find you?</h2>
             <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>Signal gets read for your area, not the whole internet.</p>
-            <div className="field-row">
-              <div className="field">
-                <label htmlFor="ob-city">City</label>
-                <input id="ob-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Atlanta" />
-              </div>
-              <div className="field">
-                <label htmlFor="ob-region">State / region</label>
-                <input id="ob-region" type="text" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="GA" />
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor="ob-radius">Radius — {radius} miles</label>
-              <input id="ob-radius" type="range" min={5} max={60} step={5} value={radius} onChange={(e) => setRadius(Number(e.target.value))} style={{ accentColor: "var(--amber)", padding: 0, background: "transparent", border: "none" }} />
-            </div>
-            <div className="field">
-              <label htmlFor="ob-price">Price band</label>
-              <select id="ob-price" value={priceBand} onChange={(e) => setPriceBand(e.target.value)}>
-                <option value="$">$ — budget-friendly</option>
-                <option value="$$">$$ — mid-range</option>
-                <option value="$$$">$$$ — premium</option>
-              </select>
-            </div>
+            {locationFields}
           </section>
         )}
 
-        {step === 3 && (
+        {mode === "steps" && step === 3 && (
           <section>
             <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>What do you sell?</h2>
             <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>TRND only recommends promoting things you actually offer.</p>
-            {services.map((row, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 40px", gap: 10, marginBottom: 12 }}>
-                <input aria-label={`Service ${i + 1} name`} type="text" value={row.name} onChange={(e) => setService(i, { name: e.target.value })} placeholder="e.g. Facial balancing consult" style={{ fontFamily: "var(--body)", fontSize: 14.5, background: "var(--bg-2)", border: "1px solid var(--line-strong)", color: "var(--ink)", padding: "12px 14px", borderRadius: "var(--radius-sm)" }} />
-                <input aria-label={`Service ${i + 1} price`} type="text" value={row.price} onChange={(e) => setService(i, { price: e.target.value })} placeholder="$ price" style={{ fontFamily: "var(--body)", fontSize: 14.5, background: "var(--bg-2)", border: "1px solid var(--line-strong)", color: "var(--ink)", padding: "12px 14px", borderRadius: "var(--radius-sm)" }} />
-                <button type="button" aria-label={`Remove service ${i + 1}`} onClick={() => setServices((r) => r.filter((_, idx) => idx !== i))} disabled={services.length === 1} style={{ background: "none", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", color: "var(--ink-faint)", cursor: "pointer" }}>
-                  ×
-                </button>
-              </div>
-            ))}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setServices((r) => [...r, { name: "", price: "" }])}>
-              + Add another
-            </button>
+            {serviceRows}
           </section>
         )}
 
-        {step === 4 && (
+        {mode === "steps" && step === 4 && (
           <section>
             <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>How do you sound?</h2>
             <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>
@@ -245,10 +317,26 @@ export default function OnboardingWizard() {
         {state.error && <p className="form-error">{state.error}</p>}
 
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 28 }}>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep((s) => Math.max(0, s - 1))} style={{ visibility: step === 0 ? "hidden" : "visible" }}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              if (mode === "review") {
+                setMode("steps");
+                setStep(0);
+              } else {
+                setStep((s) => Math.max(0, s - 1));
+              }
+            }}
+            style={{ visibility: mode === "steps" && step === 0 ? "hidden" : "visible" }}
+          >
             ← Back
           </button>
-          {step === 0 ? (
+          {mode === "review" ? (
+            <button type="submit" className="btn btn-primary" disabled={!canFinish || pending}>
+              {pending ? "Building your analysis…" : "Looks right — finish setup"}
+            </button>
+          ) : step === 0 ? (
             <button type="button" className="btn btn-primary btn-sm" disabled={!canNext || importing} onClick={continueFromWebsite} aria-busy={importing}>
               {importing ? "Reading your site…" : "Continue →"}
             </button>
@@ -258,7 +346,7 @@ export default function OnboardingWizard() {
             </button>
           ) : (
             <button type="submit" className="btn btn-primary" disabled={pending}>
-              {pending ? "Setting up…" : "Finish setup"}
+              {pending ? "Building your analysis…" : "Finish setup"}
             </button>
           )}
         </div>

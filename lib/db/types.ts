@@ -157,10 +157,22 @@ export interface Learning {
 export interface BusinessBrief {
   id: string;
   business_id: string;
+  /** One paragraph — how this business should be positioned in its market. */
+  positioning: string;
+  /** 2-4 segments — who actually buys, and why. */
+  customer_segments: string[];
+  /** One paragraph — local category dynamics: competition, comparisons, demand drivers. */
+  market_context: string;
+  /** One paragraph — how their real prices sit in the category, and what to lead with. */
+  pricing_read: string;
+  /** One paragraph — when demand peaks and dips for this category, and how to use it. */
+  seasonality: string;
   does_well: string[];
   moat: string;
   advantages: string[];
   watchouts: string[];
+  /** 2-4 concrete first campaigns to run, named against real services. */
+  first_moves: string[];
   model_used: string;
   prompt_version: string;
   created_at: string;

@@ -20,6 +20,19 @@ export interface SiteImport {
   region?: string;
   services: ImportedService[];
   voiceHint?: string;
+  /** "$" | "$$" | "$$$", inferred from real prices on the site. */
+  priceBand?: string;
+}
+
+export interface SitePage {
+  url: string;
+  html: string;
+}
+
+export interface SiteCorpus {
+  pages: SitePage[];
+  /** Plain text of every fetched page, labeled by path, capped. */
+  text: string;
 }
 
 // Browser-like UA (with product identity appended) — WAFs commonly 403 bare
@@ -77,6 +90,80 @@ export async function fetchSiteHtml(url: string): Promise<string> {
       throw first;
     }
   }
+}
+
+/* ------------------------------ site crawl ------------------------------ */
+
+// Pages worth reading beyond the homepage, in priority order. Menus and
+// pricing first — that's where offerings live; about/story pages feed the
+// voice and positioning read.
+const LINK_PRIORITY = [
+  /menu/i,
+  /pric|rate|package|bundle/i,
+  /service|treatment|class|membership|offering/i,
+  /shop|store|product|collection/i,
+  /about|story|team|our-/i,
+  /book|schedule|catering|event/i,
+];
+const MAX_SUBPAGES = 4;
+const MAX_CORPUS_CHARS = 24_000;
+
+/**
+ * Internal links that look like menu/services/pricing/about pages, best
+ * first. Same host only; anchors, files, mailto/tel are skipped.
+ */
+export function discoverInternalLinks(html: string, baseUrl: string): string[] {
+  const base = new URL(baseUrl);
+  const scored: { url: string; score: number }[] = [];
+  const seen = new Set<string>([base.href]);
+  for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,120}?)<\/a>/gi)) {
+    const href = m[1].trim();
+    if (/^(mailto:|tel:|javascript:)/i.test(href)) continue;
+    let u: URL;
+    try {
+      u = new URL(href, base);
+    } catch {
+      continue;
+    }
+    if (u.hostname !== base.hostname || !/^https?:$/.test(u.protocol)) continue;
+    if (/\.(pdf|jpe?g|png|gif|svg|webp|mp4|zip|docx?)$/i.test(u.pathname)) continue;
+    u.hash = "";
+    if (seen.has(u.href)) continue;
+    const anchorText = m[2].replace(/<[^>]+>/g, " ");
+    const haystack = `${u.pathname} ${anchorText}`;
+    const score = LINK_PRIORITY.findIndex((re) => re.test(haystack));
+    if (score === -1) continue;
+    seen.add(u.href);
+    scored.push({ url: u.href, score });
+  }
+  return scored
+    .sort((a, b) => a.score - b.score)
+    .slice(0, MAX_SUBPAGES)
+    .map((s) => s.url);
+}
+
+/**
+ * Homepage plus up to four relevant subpages (menu, pricing, services,
+ * about), fetched in parallel. Subpage failures are dropped silently — the
+ * homepage alone is still a useful corpus.
+ */
+export async function fetchSiteCorpus(url: string): Promise<SiteCorpus> {
+  const homeHtml = await fetchSiteHtml(url);
+  const links = discoverInternalLinks(homeHtml, url);
+  const settled = await Promise.allSettled(links.map((l) => fetchOnce(l)));
+  const pages: SitePage[] = [{ url, html: homeHtml }];
+  settled.forEach((r, i) => {
+    if (r.status === "fulfilled") pages.push({ url: links[i], html: r.value });
+  });
+
+  let text = "";
+  for (const p of pages) {
+    if (text.length >= MAX_CORPUS_CHARS) break;
+    const path = new URL(p.url).pathname || "/";
+    const stripped = stripHtml(p.html).text;
+    text += `\n\n=== PAGE ${path} ===\n${stripped.slice(0, MAX_CORPUS_CHARS - text.length)}`;
+  }
+  return { pages, text: text.trim() };
 }
 
 /* ------------------------------ extraction ------------------------------ */
@@ -193,5 +280,65 @@ export function extractFromHtml(html: string): SiteImport {
     const desc = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']{20,200})["']/i)?.[1];
     if (desc) result.voiceHint = desc;
   }
+  return result;
+}
+
+/** Plain text of one HTML page — for feeding page copy to the analysis. */
+export function htmlToText(html: string): string {
+  return stripHtml(html).text;
+}
+
+// Median-price thresholds per category for a $ / $$ / $$$ read. Rough on
+// purpose — this is a prefill the owner confirms, never a silent decision.
+const PRICE_BAND_THRESHOLDS: Record<string, [number, number]> = {
+  "Restaurants & cafés": [12, 25],
+  "Home services": [150, 400],
+  "Health & beauty": [75, 250],
+  "Fitness studios": [25, 60],
+  "Retail & boutiques": [30, 100],
+  "Auto services": [60, 250],
+  "Dental & wellness": [100, 350],
+};
+
+export function inferPriceBand(
+  services: ImportedService[],
+  category?: string,
+): string | undefined {
+  const thresholds = category ? PRICE_BAND_THRESHOLDS[category] : undefined;
+  if (!thresholds) return undefined;
+  const prices = services
+    .map((s) => parseFloat(s.price))
+    .filter((p) => Number.isFinite(p) && p > 0)
+    .sort((a, b) => a - b);
+  if (prices.length === 0) return undefined;
+  const median = prices[Math.floor(prices.length / 2)];
+  if (median < thresholds[0]) return "$";
+  if (median < thresholds[1]) return "$$";
+  return "$$$";
+}
+
+/**
+ * Extraction over the whole crawl: identity and location come from the
+ * homepage (JSON-LD, title, meta), priced offerings are pooled across every
+ * page (menu and pricing pages usually carry them), and the price band is
+ * inferred from the pooled prices.
+ */
+export function extractFromPages(pages: SitePage[]): SiteImport {
+  const result = extractFromHtml(pages[0].html);
+  const seen = new Set(result.services.map((s) => s.name.toLowerCase()));
+  for (const page of pages.slice(1)) {
+    const sub = extractFromHtml(page.html);
+    for (const svc of sub.services) {
+      const key = svc.name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.services.push(svc);
+      if (result.services.length >= 15) break;
+    }
+    // A subpage can name the category (e.g. /menu) when the homepage doesn't.
+    if (!result.category && sub.category) result.category = sub.category;
+    if (result.services.length >= 15) break;
+  }
+  result.priceBand = inferPriceBand(result.services, result.category);
   return result;
 }

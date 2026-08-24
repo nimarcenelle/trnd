@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { extractFromHtml, normalizeUrl } from "../lib/import/website";
+import {
+  discoverInternalLinks,
+  extractFromHtml,
+  extractFromPages,
+  inferPriceBand,
+  normalizeUrl,
+} from "../lib/import/website";
 
 const CAFE_HTML = `
 <html><head>
@@ -55,5 +61,44 @@ describe("website import extractor", () => {
     expect(out.name).toBe("Glow Aesthetics Studio");
     expect(out.category).toBe("Health & beauty");
     expect(out.city).toBe("Atlanta");
+  });
+});
+
+describe("site crawl", () => {
+  it("discovers menu/pricing/about links on the same host, menus first", () => {
+    const html = `
+      <a href="/menu">Menu</a>
+      <a href="/about-us">About</a>
+      <a href="https://instagram.com/noa">Instagram</a>
+      <a href="/menu.pdf">PDF menu</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/careers">Careers</a>
+      <a href="/menu">Menu again</a>`;
+    const links = discoverInternalLinks(html, "https://noaacafe.com/");
+    expect(links[0]).toBe("https://noaacafe.com/menu");
+    expect(links).toContain("https://noaacafe.com/pricing");
+    expect(links).toContain("https://noaacafe.com/about-us");
+    expect(links.join(" ")).not.toMatch(/instagram|pdf|careers/);
+    expect(new Set(links).size).toBe(links.length);
+  });
+
+  it("pools priced offerings across pages and infers a price band", () => {
+    const menuHtml = `<ul><li>Iced Matcha Latte ..... $7</li><li>Weekend Brunch Plate · $24</li><li>Espresso ... $4.50</li></ul>`;
+    const out = extractFromPages([
+      { url: "https://noaacafe.com/", html: CAFE_HTML },
+      { url: "https://noaacafe.com/menu", html: menuHtml },
+    ]);
+    // Dedupes against the homepage's items instead of doubling them.
+    expect(out.services.filter((s) => s.name === "Espresso")).toHaveLength(1);
+    expect(out.priceBand).toBe("$");
+  });
+
+  it("infers price band from median price per category", () => {
+    const cheap = [{ name: "Drip", price: "3" }, { name: "Latte", price: "5" }];
+    const premium = [{ name: "Tasting menu", price: "95" }, { name: "Pairing", price: "60" }];
+    expect(inferPriceBand(cheap, "Restaurants & cafés")).toBe("$");
+    expect(inferPriceBand(premium, "Restaurants & cafés")).toBe("$$$");
+    expect(inferPriceBand(premium, undefined)).toBeUndefined();
+    expect(inferPriceBand([], "Restaurants & cafés")).toBeUndefined();
   });
 });

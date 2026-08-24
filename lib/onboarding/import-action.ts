@@ -3,21 +3,28 @@
 import { getSessionUser } from "@/lib/auth/session";
 import { isGeminiConfigured } from "@/lib/env";
 import {
-  extractFromHtml,
-  fetchSiteHtml,
+  extractFromPages,
+  fetchSiteCorpus,
+  inferPriceBand,
   normalizeUrl,
   type SiteImport,
 } from "@/lib/import/website";
+
+/** Site text round-trips through a hidden form field into brief generation. */
+const MAX_SITE_TEXT = 12_000;
 
 export interface ImportResult {
   ok: boolean;
   reason?: string;
   data?: SiteImport;
+  /** Plain text of the crawled pages — feeds the founding analysis. */
+  siteText?: string;
 }
 
 /**
- * Owner-initiated read of their own website during onboarding. One fetch,
- * 8s timeout. Deterministic extraction always; Gemini refines when
+ * Owner-initiated read of their own website during onboarding: the homepage
+ * plus up to four relevant pages (menu, pricing, services, about), 8s
+ * timeout each. Deterministic extraction always; Gemini refines when
  * configured. Failure is normal and non-blocking — onboarding continues
  * manually.
  */
@@ -28,9 +35,9 @@ export async function importFromWebsiteAction(rawUrl: string): Promise<ImportRes
   const url = normalizeUrl(rawUrl);
   if (!url) return { ok: false, reason: "That doesn't look like a web address." };
 
-  let html: string;
+  let corpus: Awaited<ReturnType<typeof fetchSiteCorpus>>;
   try {
-    html = await fetchSiteHtml(url);
+    corpus = await fetchSiteCorpus(url);
   } catch (err) {
     return {
       ok: false,
@@ -38,20 +45,23 @@ export async function importFromWebsiteAction(rawUrl: string): Promise<ImportRes
     };
   }
 
-  let data = extractFromHtml(html);
+  let data = extractFromPages(corpus.pages);
 
   if (isGeminiConfigured) {
     try {
       const { extractSiteWithGemini } = await import("@/lib/ai/gemini");
-      const refined = await extractSiteWithGemini(html, url);
+      const refined = await extractSiteWithGemini(corpus.text, url);
       // Gemini wins where it found something; heuristics fill its gaps.
+      const services = refined.services.length > 0 ? refined.services : data.services;
+      const category = refined.category ?? data.category;
       data = {
         name: refined.name ?? data.name,
-        category: refined.category ?? data.category,
+        category,
         city: refined.city ?? data.city,
         region: refined.region ?? data.region,
-        services: refined.services.length > 0 ? refined.services : data.services,
+        services,
         voiceHint: refined.voiceHint ?? data.voiceHint,
+        priceBand: refined.priceBand ?? inferPriceBand(services, category) ?? data.priceBand,
       };
     } catch (err) {
       console.warn("[import] Gemini refine failed — using heuristics:", (err as Error).message);
@@ -63,5 +73,5 @@ export async function importFromWebsiteAction(rawUrl: string): Promise<ImportRes
   if (!foundAnything) {
     return { ok: false, reason: "Reached the site but couldn't read offerings — fill in manually." };
   }
-  return { ok: true, data };
+  return { ok: true, data, siteText: corpus.text.slice(0, MAX_SITE_TEXT) };
 }

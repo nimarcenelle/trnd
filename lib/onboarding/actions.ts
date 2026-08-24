@@ -83,11 +83,13 @@ export async function completeOnboardingAction(
     }),
   );
 
-  // The joining gift: TRND's read of the business — strengths, moat, edges,
-  // and what to avoid in ads. Deterministic fallback is instant; Gemini
-  // takes over transparently when configured.
+  // The joining gift: TRND's full analysis of the business — positioning,
+  // customers, market, pricing, seasonality, and first moves. The site text
+  // the import already fetched feeds it, so no refetch here. Deterministic
+  // fallback is instant; Gemini takes over transparently when configured.
+  const siteText = String(formData.get("site_text") ?? "").slice(0, 12_000) || undefined;
   try {
-    const brief = await generateBusinessBrief(business, createdServices);
+    const brief = await generateBusinessBrief(business, createdServices, siteText);
     await repo.upsertBusinessBrief(brief);
   } catch (err) {
     console.warn("[onboarding] brief generation failed (non-fatal):", (err as Error).message);

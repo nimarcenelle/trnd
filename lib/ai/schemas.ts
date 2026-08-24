@@ -40,10 +40,16 @@ export const GenerationSchema = z.object({
 export type GenerationResult = z.infer<typeof GenerationSchema>;
 
 export const BusinessBriefSchema = z.object({
+  positioning: z.string().min(40),
+  customer_segments: z.array(z.string().min(10)).min(2).max(4),
+  market_context: z.string().min(40),
+  pricing_read: z.string().min(40),
+  seasonality: z.string().min(40),
   does_well: z.array(z.string().min(10)).min(2).max(4),
   moat: z.string().min(20),
   advantages: z.array(z.string().min(10)).min(2).max(4),
   watchouts: z.array(z.string().min(10)).min(2).max(4),
+  first_moves: z.array(z.string().min(10)).min(2).max(4),
 });
 export type BusinessBriefResult = z.infer<typeof BusinessBriefSchema>;
 
@@ -54,5 +60,6 @@ export const SiteExtractSchema = z.object({
   region: z.string().nullable(),
   services: z.array(z.object({ name: z.string().min(2), price: z.string() })).max(15),
   voice_hint: z.string().nullable(),
+  price_band: z.string().nullable(),
 });
 export type SiteExtract = z.infer<typeof SiteExtractSchema>;

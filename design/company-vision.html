@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vision — Signal to Revenue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EFF1EA;
+    --paper-dim:#E5E8DF;
+    --ink:#12211C;
+    --ink-soft:#3C4B45;
+    --line:#C9D0C4;
+    --signal:#FF4D6D;
+    --signal-dim:#FFD9DF;
+    --data:#0F6E5C;
+    --data-dim:#CFE7E0;
+    --gold:#C99A2E;
+    --white:#FBFBF8;
+    --radius:10px;
+    --disp:'Space Grotesk',sans-serif;
+    --body:'Source Serif 4',serif;
+    --mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--body);
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+  ::selection{background:var(--signal);color:var(--white);}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 28px;
+    background:rgba(239,241,234,0.92);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav__mark{
+    font-family:var(--disp); font-weight:700; font-size:15px;
+    letter-spacing:0.02em; display:flex; align-items:baseline; gap:8px;
+  }
+  .nav__mark span{
+    font-family:var(--mono); font-size:10px; font-weight:500; color:var(--signal);
+    letter-spacing:0.08em;
+  }
+  .nav__links{
+    display:flex; gap:4px; overflow-x:auto; scrollbar-width:none;
+  }
+  .nav__links::-webkit-scrollbar{display:none;}
+  .nav__links a{
+    font-family:var(--mono); font-size:11px; letter-spacing:0.06em;
+    text-transform:uppercase; text-decoration:none; color:var(--ink-soft);
+    padding:8px 12px; border-radius:999px; white-space:nowrap;
+    transition:background 0.15s ease, color 0.15s ease;
+  }
+  .nav__links a:hover, .nav__links a:focus-visible{ background:var(--ink); color:var(--paper); outline:none;}
+
+  /* ---------- TICKER ---------- */
+  .ticker{
+    background:var(--ink); color:var(--paper); overflow:hidden;
+    border-bottom:1px solid var(--ink);
+    white-space:nowrap;
+  }
+  .ticker__track{
+    display:inline-flex; align-items:center;
+    animation:scroll 38s linear infinite;
+    padding:9px 0;
+  }
+  @keyframes scroll{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
+  .ticker__item{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.03em;
+    padding:0 22px; display:inline-flex; align-items:center; gap:8px;
+    border-right:1px solid rgba(251,251,248,0.18);
+  }
+  .ticker__item b{color:var(--signal); font-weight:600;}
+  .ticker__item i{color:var(--data-dim); font-style:normal; opacity:0.75;}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    max-width:980px; margin:0 auto; padding:88px 28px 64px;
+  }
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--data); display:flex; align-items:center; gap:8px; margin-bottom:22px;
+  }
+  .eyebrow::before{
+    content:''; width:7px; height:7px; border-radius:50%; background:var(--signal);
+    box-shadow:0 0 0 4px var(--signal-dim);
+  }
+  .hero h1{
+    font-family:var(--disp); font-weight:600; font-size:clamp(34px,5.2vw,64px);
+    line-height:1.06; letter-spacing:-0.015em; margin:0 0 26px;
+  }
+  .hero h1 em{
+    font-style:normal; color:var(--signal);
+  }
+  .hero__sub{
+    font-family:var(--body); font-size:19px; line-height:1.55; color:var(--ink-soft);
+    max-width:640px; margin:0 0 34px;
+  }
+  .hero__meta{
+    display:flex; flex-wrap:wrap; gap:10px;
+  }
+  .pill{
+    font-family:var(--mono); font-size:11px; letter-spacing:0.04em;
+    border:1px solid var(--line); border-radius:999px; padding:7px 14px;
+    background:var(--white);
+  }
+
+  /* ---------- SECTION SHELL ---------- */
+  section{ max-width:980px; margin:0 auto; padding:70px 28px; }
+  .section__head{ margin-bottom:38px; }
+  .section__num{
+    font-family:var(--mono); font-size:11px; color:var(--signal); letter-spacing:0.08em;
+    display:block; margin-bottom:10px;
+  }
+  .section__title{
+    font-family:var(--disp); font-weight:600; font-size:clamp(24px,3vw,34px);
+    letter-spacing:-0.01em; margin:0 0 12px;
+  }
+  .section__desc{
+    font-family:var(--body); font-size:16px; line-height:1.6; color:var(--ink-soft);
+    max-width:620px; margin:0;
+  }
+  hr.rule{ border:none; border-top:1px solid var(--line); max-width:980px; margin:0 auto; }
+
+  /* ---------- NOT/INSTEAD ---------- */
+  .notgrid{ display:grid; grid-template-columns:1fr; gap:0; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; background:var(--white);}
+  .not-row{
+    display:flex; align-items:center; gap:14px; padding:16px 20px;
+    border-bottom:1px dashed var(--line); font-family:var(--mono); font-size:14px;
+  }
+  .not-row:last-child{ border-bottom:none; }
+  .not-row .tag{ font-size:10px; letter-spacing:0.08em; color:#B23A50; flex:0 0 68px; }
+  .not-row .txt{ text-decoration:line-through; color:var(--ink-soft); text-decoration-color:#B23A50; }
+  .instead{
+    margin-top:18px; padding:22px 24px; border-radius:var(--radius);
+    background:var(--ink); color:var(--paper);
+    font-family:var(--body); font-size:19px; line-height:1.5;
+  }
+  .instead b{ color:var(--signal-dim); font-family:var(--disp); font-weight:600; }
+
+  /* ---------- PILLARS ---------- */
+  .pillars{ display:grid; grid-template-columns:repeat(5,1fr); gap:2px; background:var(--line); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+  .pillar-btn{
+    background:var(--white); border:none; padding:16px 8px; cursor:pointer;
+    font-family:var(--mono); font-size:11px; letter-spacing:0.03em; text-align:center;
+    color:var(--ink-soft); transition:background 0.15s ease, color 0.15s ease;
+  }
+  .pillar-btn b{ display:block; font-family:var(--disp); font-size:15px; color:var(--ink); font-weight:600; margin-bottom:4px;}
+  .pillar-btn.active{ background:var(--signal); color:var(--white); }
+  .pillar-btn.active b{ color:var(--white); }
+  .pillar-panel{
+    margin-top:2px; background:var(--white); border:1px solid var(--line); border-radius:var(--radius);
+    padding:28px 26px;
+  }
+  .pillar-panel__q{ font-family:var(--body); font-style:italic; font-size:18px; color:var(--ink-soft); margin:0 0 14px;}
+  .pillar-panel__example{
+    margin-top:18px; padding-top:18px; border-top:1px dashed var(--line);
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px;
+  }
+  .ex-item .k{ font-family:var(--mono); font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--data); display:block; margin-bottom:6px;}
+  .ex-item .v{ font-family:var(--body); font-size:14.5px; line-height:1.4; }
+
+  /* ---------- WEDGE / PHASES ---------- */
+  .phases{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .phase{
+    border:1px solid var(--line); border-radius:var(--radius); padding:20px 16px; background:var(--white);
+    position:relative;
+  }
+  .phase.active{ border-color:var(--signal); background:var(--white); box-shadow:0 0 0 3px var(--signal-dim); }
+  .phase__n{ font-family:var(--mono); font-size:11px; color:var(--ink-soft); }
+  .phase.active .phase__n{ color:var(--signal); font-weight:600; }
+  .phase__t{ font-family:var(--disp); font-weight:600; font-size:17px; margin:6px 0 10px; }
+  .phase__d{ font-family:var(--body); font-size:13.5px; color:var(--ink-soft); line-height:1.45; }
+  .phase__status{
+    position:absolute; top:16px; right:14px; font-family:var(--mono); font-size:9px;
+    letter-spacing:0.06em; color:var(--ink-soft); opacity:0.6;
+  }
+  .phase.active .phase__status{ color:var(--signal); opacity:1; }
+  .why-niche{ margin-top:22px; display:flex; flex-wrap:wrap; gap:10px; }
+  .why-niche span{
+    font-family:var(--mono); font-size:11.5px; background:var(--data-dim); color:var(--data);
+    padding:7px 12px; border-radius:999px;
+  }
+
+  /* ---------- FLYWHEEL ---------- */
+  .flywheel-wrap{ display:flex; flex-direction:column; align-items:center; gap:26px; }
+  .flywheel svg{ width:100%; max-width:460px; height:auto; }
+  .fw-node text{ font-family:var(--mono); font-size:9.5px; fill:var(--ink); }
+  .fw-caption{
+    max-width:520px; text-align:center; font-family:var(--body); font-size:15px;
+    color:var(--ink-soft); line-height:1.55;
+  }
+
+  /* ---------- MOAT ---------- */
+  .moat-callout{
+    background:var(--data-dim); border:1px solid var(--data); border-radius:var(--radius);
+    padding:18px 20px; margin-bottom:26px; font-family:var(--body); font-size:14.5px;
+    line-height:1.55; color:var(--ink);
+  }
+  .moat-callout b{ font-family:var(--disp); font-weight:600; color:var(--data); }
+  .moat-axis{
+    display:flex; justify-content:space-between; max-width:100%;
+    margin:0 0 14px 186px; font-family:var(--mono); font-size:10px;
+    letter-spacing:0.05em; text-transform:uppercase; color:var(--ink-soft); opacity:0.65;
+  }
+  .moat{ display:flex; flex-direction:column; gap:16px; }
+  .moat-row{
+    display:grid; grid-template-columns:170px 1fr; align-items:center; gap:16px;
+  }
+  .moat-note{
+    grid-column:2; font-family:var(--body); font-size:12.5px; color:var(--ink-soft);
+    line-height:1.4; max-width:520px; margin-top:2px;
+  }
+  .moat-label{ font-family:var(--mono); font-size:11.5px; text-align:right; color:var(--ink-soft); }
+  .moat-bar{ height:38px; border-radius:6px; display:flex; align-items:center; padding:0 14px; font-family:var(--disp); font-weight:600; font-size:13px; color:var(--white); }
+  .moat-row:nth-child(1) .moat-bar{ width:32%; background:#8FA396; }
+  .moat-row:nth-child(2) .moat-bar{ width:52%; background:var(--data); }
+  .moat-row:nth-child(3) .moat-bar{ width:68%; background:#3C4B45; }
+  .moat-row:nth-child(4) .moat-label{ color:var(--ink); font-weight:600; }
+  .moat-row:nth-child(4) .moat-bar{ width:100%; background:var(--signal); }
+
+  /* ---------- POSITIONING ---------- */
+  .toggle-wrap{ display:flex; gap:6px; margin-bottom:22px; background:var(--white); border:1px solid var(--line); border-radius:999px; padding:4px; width:max-content; }
+  .toggle-btn{
+    font-family:var(--mono); font-size:11.5px; letter-spacing:0.03em; padding:9px 18px;
+    border:none; background:transparent; border-radius:999px; cursor:pointer; color:var(--ink-soft);
+  }
+  .toggle-btn.active{ background:var(--ink); color:var(--paper); }
+  .postable{ width:100%; border-collapse:collapse; background:var(--white); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+  .postable td{ padding:14px 18px; font-family:var(--body); font-size:14.5px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .postable tr:last-child td{ border-bottom:none; }
+  .postable td:first-child{ font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); width:190px; }
+  .postable td:last-child b{ color:var(--signal); font-family:var(--disp); }
+
+  /* ---------- FOOTER ---------- */
+  footer{
+    padding:56px 28px 70px; text-align:center; border-top:1px solid var(--line); margin-top:20px;
+  }
+  footer p{ font-family:var(--body); font-style:italic; font-size:16px; color:var(--ink-soft); max-width:520px; margin:0 auto 14px; }
+  footer .tag{ font-family:var(--mono); font-size:10.5px; color:var(--ink-soft); letter-spacing:0.06em; opacity:0.7; }
+
+  /* ---------- REVEAL ---------- */
+  /* Content is visible by default. JS opts in to the animation only if the
+     browser actually supports IntersectionObserver, so a failed/unsupported
+     observer can never leave the page blank. */
+  .reveal{ opacity:1; transform:none; }
+  .js-reveal .reveal{ opacity:0; transform:translateY(14px); transition:opacity 0.6s ease, transform 0.6s ease; }
+  .js-reveal .reveal.in{ opacity:1; transform:translateY(0); }
+
+  @media (max-width:780px){
+    .pillars{ grid-template-columns:repeat(5,1fr); }
+    .pillar-btn{ font-size:9px; padding:12px 4px; }
+    .pillar-btn b{ font-size:12px; }
+    .phases{ grid-template-columns:1fr 1fr; }
+    .moat-row{ grid-template-columns:96px 1fr; }
+    .moat-label{ font-size:10px; }
+    .moat-axis{ margin-left:112px; }
+    .postable td:first-child{ width:120px; }
+  }
+  @media (max-width:520px){
+    .phases{ grid-template-columns:1fr; }
+    .hero{ padding-top:56px; }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .ticker__track{ animation:none; }
+    .reveal, .js-reveal .reveal{ transition:none; opacity:1; transform:none; }
+    html{ scroll-behavior:auto; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav__mark">[COMPANY]<span>V1 · AESTHETIC VERTICAL</span></div>
+  <div class="nav__links">
+    <a href="#thesis">Thesis</a>
+    <a href="#pillars">Pillars</a>
+    <a href="#wedge">Wedge</a>
+    <a href="#flywheel">Flywheel</a>
+    <a href="#moat">Moat</a>
+    <a href="#position">Position</a>
+  </div>
+</nav>
+
+<div class="ticker" aria-hidden="true">
+  <div class="ticker__track" id="tickerTrack"></div>
+</div>
+
+<header class="hero">
+  <div class="eyebrow">Live signal → recommendation → revenue</div>
+  <h1>We turn changes in consumer attention into <em>revenue opportunities</em> — and hand businesses the campaign to launch.</h1>
+  <p class="hero__sub">Not a dashboard of mentions. Not another AI ad generator. A system that tells a specific aesthetic clinic exactly what to promote this week, why now, and gives them the finished campaign — then learns from what actually converts.</p>
+  <div class="hero__meta">
+    <span class="pill">Phase 1 — Aesthetic injectables & skin clinics</span>
+    <span class="pill">SMB-first, not enterprise</span>
+    <span class="pill">Moat = performance data, not generation</span>
+  </div>
+</header>
+
+<hr class="rule">
+
+<section id="thesis">
+  <div class="section__head reveal">
+    <span class="section__num">01 — Positioning</span>
+    <h2 class="section__title">What we are, stated by what we refuse to be</h2>
+    <p class="section__desc">The category is crowded with words that sound similar and mean something much smaller. We're specific on purpose.</p>
+  </div>
+  <div class="notgrid reveal">
+    <div class="not-row"><span class="tag">NOT</span><span class="txt">"AI social listening."</span></div>
+    <div class="not-row"><span class="tag">NOT</span><span class="txt">"Trend analytics."</span></div>
+    <div class="not-row"><span class="tag">NOT</span><span class="txt">"AI ad generator."</span></div>
+    <div class="not-row"><span class="tag">DEFINITELY NOT</span><span class="txt">"Merciv for small businesses."</span></div>
+  </div>
+  <div class="instead reveal">
+    <b>Instead:</b> AI marketing intelligence that tells vertical businesses what to advertise before their competitors do — and creates the campaign for them.
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="pillars">
+  <div class="section__head reveal">
+    <span class="section__num">02 — Product</span>
+    <h2 class="section__title">Five steps, in order of defensibility</h2>
+    <p class="section__desc">Anyone can generate a TikTok ad with an LLM. The moat is #2, #3, and #5 — not #4. Click a step to see it worked through a real example.</p>
+  </div>
+  <div class="pillars reveal" id="pillarBtns">
+    <button class="pillar-btn active" data-p="0"><b>Detect</b>signal</button>
+    <button class="pillar-btn" data-p="1"><b>Decide</b>fit</button>
+    <button class="pillar-btn" data-p="2"><b>Angle</b>position</button>
+    <button class="pillar-btn" data-p="3"><b>Create</b>generate</button>
+    <button class="pillar-btn" data-p="4"><b>Learn</b>feedback</button>
+  </div>
+  <div class="pillar-panel reveal" id="pillarPanel"></div>
+</section>
+
+<hr class="rule">
+
+<section id="wedge">
+  <div class="section__head reveal">
+    <span class="section__num">03 — Go-to-market</span>
+    <h2 class="section__title">Narrow first. Expand on proof, not hope.</h2>
+    <p class="section__desc">"AI marketing intelligence for every business" puts us in the ring with HubSpot, Semrush, Brandwatch, and Jasper on day one. We don't have the domain depth to win that fight yet — so we don't take it.</p>
+  </div>
+  <div class="phases reveal">
+    <div class="phase active">
+      <span class="phase__status">● live</span>
+      <span class="phase__n">Phase 1</span>
+      <div class="phase__t">Aesthetic clinics</div>
+      <div class="phase__d">Botox, filler, facial balancing, peels, lasers, body contouring.</div>
+    </div>
+    <div class="phase">
+      <span class="phase__status">○ next</span>
+      <span class="phase__n">Phase 2</span>
+      <div class="phase__t">Dentistry</div>
+      <div class="phase__d">Invisalign, veneers, cosmetic dentistry, implants.</div>
+    </div>
+    <div class="phase">
+      <span class="phase__status">○ planned</span>
+      <span class="phase__n">Phase 3</span>
+      <div class="phase__t">Hair / beauty</div>
+      <div class="phase__d">Same shape: high ticket, visual, local.</div>
+    </div>
+    <div class="phase">
+      <span class="phase__status">○ future</span>
+      <span class="phase__n">Phase 4</span>
+      <div class="phase__t">Other high-ticket local</div>
+      <div class="phase__d">Any vertical matching the pattern below.</div>
+    </div>
+  </div>
+  <div class="why-niche reveal">
+    <span>High AOV</span><span>Trend-sensitive</span><span>Creative-driven</span><span>Local / geo moat</span><span>Paid-social dependent</span>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="flywheel">
+  <div class="section__head reveal">
+    <span class="section__num">04 — Compounding</span>
+    <h2 class="section__title">The flywheel is the actual company</h2>
+    <p class="section__desc">Generic signal is table stakes and gets commoditized fast. What compounds is knowing which offer, angle, and audience actually converts — for this vertical, in this geography.</p>
+  </div>
+  <div class="flywheel-wrap reveal">
+    <div class="flywheel">
+      <svg viewBox="0 0 420 420" fill="none">
+        <circle cx="210" cy="210" r="150" stroke="#C9D0C4" stroke-width="1.5" stroke-dasharray="2 6"/>
+        <circle id="fwSpin" cx="210" cy="210" r="150" stroke="#FF4D6D" stroke-width="2.5" stroke-dasharray="40 902" stroke-linecap="round"/>
+        <g class="fw-node"><circle cx="210" cy="60" r="40" fill="#FBFBF8" stroke="#12211C" stroke-width="1"/><text x="210" y="56" text-anchor="middle">MORE</text><text x="210" y="68" text-anchor="middle">CLINICS</text></g>
+        <g class="fw-node"><circle cx="352" cy="150" r="40" fill="#FBFBF8" stroke="#12211C" stroke-width="1"/><text x="352" y="146" text-anchor="middle">MORE</text><text x="352" y="158" text-anchor="middle">CAMPAIGNS</text></g>
+        <g class="fw-node"><circle cx="322" cy="316" r="44" fill="#FBFBF8" stroke="#12211C" stroke-width="1"/><text x="322" y="308" text-anchor="middle">PERFORMANCE</text><text x="322" y="320" text-anchor="middle">DATA</text></g>
+        <g class="fw-node"><circle cx="140" cy="352" r="44" fill="#0F6E5C" stroke="#0F6E5C" stroke-width="1"/><text x="140" y="348" text-anchor="middle" fill="#FBFBF8">BETTER</text><text x="140" y="360" text-anchor="middle" fill="#FBFBF8">RECS</text></g>
+        <g class="fw-node"><circle cx="58" cy="200" r="40" fill="#FBFBF8" stroke="#12211C" stroke-width="1"/><text x="58" y="196" text-anchor="middle">BETTER</text><text x="58" y="208" text-anchor="middle">OUTCOMES</text></g>
+      </svg>
+    </div>
+    <p class="fw-caption">Every clinic that becomes a client connects their ad account as part of onboarding. That real result — did it book, what did it cost — feeds straight back into the next recommendation. It's a dataset a competitor can't buy or scrape; it only exists because a business chose to work with us.</p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="moat">
+  <div class="section__head reveal">
+    <span class="section__num">05 — Defensibility</span>
+    <h2 class="section__title">Where the moat actually is</h2>
+    <p class="section__desc">Bar length = how hard this layer is for a competitor to copy — not size, not effort. A short bar means "buildable in weeks." A full bar means "only exists after real campaigns have run."</p>
+  </div>
+  <div class="moat-callout reveal">
+    <b>What "performance data" actually is:</b> results from our own clients — not scraped, not public. Every business that works with us connects their ad account (Meta/TikTok) as part of onboarding, so we can see what actually converted: CTR, bookings, CAC, revenue. That connected-account relationship is the product, not a side effect of it — a competitor without our clients has no way to get this data at all.
+  </div>
+  <div class="moat-axis reveal">
+    <span>← easier to copy</span><span>harder to copy →</span>
+  </div>
+  <div class="moat reveal">
+    <div class="moat-row">
+      <span class="moat-label">Intelligence</span>
+      <div class="moat-bar">Table stakes</div>
+      <span class="moat-note">Anyone with API access can pull social signal.</span>
+    </div>
+    <div class="moat-row">
+      <span class="moat-label">Recommendation</span>
+      <div class="moat-bar">The product</div>
+      <span class="moat-note">Your actual product — but a well-funded competitor could eventually rebuild it.</span>
+    </div>
+    <div class="moat-row">
+      <span class="moat-label">Creative generation</span>
+      <div class="moat-bar">A feature</div>
+      <span class="moat-note">Any LLM can write the ad copy. Not a moat on its own.</span>
+    </div>
+    <div class="moat-row">
+      <span class="moat-label">Performance data</span>
+      <div class="moat-bar">Ultimate moat</div>
+      <span class="moat-note">Comes from our own clients' connected ad accounts — not scraped, not public. Only exists because they're a customer.</span>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="position">
+  <div class="section__head reveal">
+    <span class="section__num">06 — Category</span>
+    <h2 class="section__title">Vs. the enterprise players</h2>
+    <p class="section__desc">Brandwatch, Talkwalker, Meltwater, Sprinklr, Quid, and Merciv all read social signal into insight. None of them are built to serve — or profit from — a single medspa with a $40/day budget. That's the open door.</p>
+  </div>
+  <div class="toggle-wrap reveal">
+    <button class="toggle-btn active" data-t="0">Enterprise players</button>
+    <button class="toggle-btn" data-t="1">Us</button>
+  </div>
+  <table class="postable reveal" id="posTable"></table>
+</section>
+
+<footer>
+  <p>"We tell aesthetic clinics what people want right now, what they should sell, and exactly how they should market it."</p>
+  <div class="tag">COMPANY VISION — V1 — INTERNAL / ENGINEERING HANDOFF</div>
+</footer>
+
+<script>
+// ---- Ticker ----
+const signals = [
+  ['↑38%','FACIAL BALANCING DEMAND'],
+  ['↑51%','TIKTOK CONVERSATION'],
+  ['↑24%','GOOGLE INTEREST'],
+  ['↑43%','LOCAL DEMAND — ATLANTA'],
+  ['LOW','COMPETITOR AD SATURATION'],
+  ['↑','SKIN BARRIER CONTENT EXPLODING'],
+  ['8.7/10','OPPORTUNITY SCORE'],
+  ['2.4×','THIS ANGLE OUTPERFORMED FOR SIMILAR CLINICS'],
+];
+const track = document.getElementById('tickerTrack');
+function buildTicker(){
+  let html = '';
+  for(let r=0;r<2;r++){
+    signals.forEach(([v,l])=>{
+      html += `<span class="ticker__item"><b>${v}</b><i>${l}</i></span>`;
+    });
+  }
+  track.innerHTML = html;
+}
+buildTicker();
+
+// ---- Pillars ----
+const pillarData = [
+  {
+    q: '"What is changing in consumer demand?"',
+    ex: [['Demand','↑38% facial balancing'],['TikTok','↑51% conversation'],['Google','↑24% search interest'],['Local','↑43% Atlanta demand'],['Saturation','Competitor ads: LOW']]
+  },
+  {
+    q: '"What should this specific business advertise?"',
+    ex: [['Match','Clinic already offers facial balancing'],['Gap','Competitors aren\u2019t promoting it'],['Offer','Facial Balancing Consultation, $99'],['Audience','Women 23–35, 20mi radius']]
+  },
+  {
+    q: '"What positioning is most likely to work?"',
+    ex: [['Angle','"You don\u2019t need more filler. You may need better balance."'],['Hook','"Three signs your face may be out of balance."'],['CTA','Book consultation']]
+  },
+  {
+    q: '"Here are the actual ads, scripts, and creative."',
+    ex: [['Output','5 hooks · 3 short-form scripts · 3 statics'],['Also','Ad copy, headline, landing copy, shot list'],['Format','Practitioner talking-head + patient transformation']]
+  },
+  {
+    q: '"Did it work — and what should we do differently next time?"',
+    ex: [['Pulled back','CTR / bookings / CAC / revenue'],['Learning','"This angle worked 2.4× better for similar clinics"'],['Feeds','Directly back into Decide + Angle']]
+  }
+];
+const pillarBtns = document.querySelectorAll('.pillar-btn');
+const pillarPanel = document.getElementById('pillarPanel');
+function renderPillar(i){
+  const d = pillarData[i];
+  pillarPanel.innerHTML = `<p class="pillar-panel__q">${d.q}</p>
+    <div class="pillar-panel__example">${d.ex.map(([k,v])=>`<div class="ex-item"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}</div>`;
+}
+pillarBtns.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    pillarBtns.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderPillar(btn.dataset.p);
+  });
+});
+renderPillar(0);
+
+// ---- Flywheel spin ----
+const spin = document.getElementById('fwSpin');
+let offset = 0;
+function animateSpin(){
+  offset -= 0.6;
+  spin.setAttribute('stroke-dashoffset', offset);
+  requestAnimationFrame(animateSpin);
+}
+if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+  animateSpin();
+}
+
+// ---- Positioning toggle ----
+const posData = [
+  [
+    ['Customer','Enterprise brand & insights teams (CPG, F&B, fashion)'],
+    ['Buyer motion','Enterprise sales, procurement, SOC 2, annual contracts'],
+    ['Output','Dashboards, decks, reports — <b>decision support</b>'],
+    ['Vertical depth','Horizontal — same product for soda or fashion'],
+    ['End of workflow','Human takes the insight and decides what to do'],
+    ['Price point','$$$$ / year contracts'],
+  ],
+  [
+    ['Customer','A single local business — this clinic, this owner'],
+    ['Buyer motion','Self-serve or light-touch, days not quarters'],
+    ['Output','A launched campaign — <b>decision replacement</b>'],
+    ['Vertical depth','Deep — service norms, pricing, compliance, seasonality'],
+    ['End of workflow','System launches the campaign and reads back results'],
+    ['Price point','SMB-affordable, tied to ad spend'],
+  ]
+];
+const posTable = document.getElementById('posTable');
+function renderPos(i){
+  posTable.innerHTML = posData[i].map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+}
+document.querySelectorAll('.toggle-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderPos(btn.dataset.t);
+  });
+});
+renderPos(0);
+
+// ---- Reveal on scroll ----
+(function(){
+  var els = document.querySelectorAll('.reveal');
+  if(!('IntersectionObserver' in window) ||
+     window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    return; // leave everything visible
+  }
+  document.documentElement.classList.add('js-reveal');
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  },{threshold:0.12});
+  els.forEach(function(el){ io.observe(el); });
+  // Safety net: if anything is still hidden shortly after load
+  // (zero-height viewport, preview pane, observer never fires), show it.
+  setTimeout(function(){
+    els.forEach(function(el){ el.classList.add('in'); });
+  }, 1500);
+})();
+</script>
+
+</body>
+</html>

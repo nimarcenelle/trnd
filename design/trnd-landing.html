@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TRND — Know what to advertise, before your competitors do</title>
+<meta name="description" content="TRND reads real-time demand signal and turns it into a finished ad campaign for your business — every day. Built for small businesses, not agencies.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ================= THEME TOKENS =================
+     Light is the default. Dark applies when the OS asks for it,
+     and [data-theme] on <html> always wins over the OS setting. */
+  :root{
+    color-scheme:light;
+    --bg:#FDF6E3;
+    --bg-1:#FFFFFF;
+    --bg-2:#F7EACB;
+    --paper:#FFFFFF;
+    --card-stroke:#EFE0C0;
+    --ink:#33200F;
+    --ink-soft:#6B4A2C;
+    --ink-faint:#8F6B44;
+    --line:rgba(61,39,22,0.10);
+    --line-strong:rgba(61,39,22,0.20);
+    --amber:#D99A12;
+    --amber-ink:#2B1B08;
+    --amber-hover:#EFAE21;
+    --amber-glow:rgba(217,154,18,0.22);
+    --amber-soft:rgba(217,154,18,0.14);
+    --amber-softer:rgba(217,154,18,0.03);
+    --mint:#1EA7AE;
+    --mint-ink:#EAFBFC;
+    --mint-glow:rgba(30,167,174,0.20);
+    --red:#B23A22;
+    --nav-bg:rgba(253,246,227,0.85);
+    --texture-dot:rgba(61,39,22,0.06);
+    --fw-ring:#E3D4AE;
+    --fw-node-stroke:#EFE0C0;
+    --sun-d:none;
+    --moon-d:block;
+
+    --radius:16px;
+    --radius-sm:10px;
+    --disp:'Bricolage Grotesque',sans-serif;
+    --body:'Inter',sans-serif;
+    --mono:'IBM Plex Mono',monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#110B05;
+    --bg-1:#1F150B;
+    --bg-2:#2D2011;
+    --paper:#FBF6EC;
+    --card-stroke:#221408;
+    --ink:#FFF9EC;
+    --ink-soft:#F5E6C8;
+    --ink-faint:#E3C896;
+    --line:rgba(255,249,236,0.14);
+    --line-strong:rgba(255,249,236,0.26);
+    --amber:#FFC72C;
+    --amber-ink:#2B1B08;
+    --amber-hover:#FFD466;
+    --amber-glow:rgba(255,177,61,0.18);
+    --amber-soft:rgba(255,177,61,0.09);
+    --amber-softer:rgba(255,177,61,0.02);
+    --mint:#2FC9C6;
+    --mint-ink:#072A2A;
+    --mint-glow:rgba(111,231,194,0.18);
+    --red:#FF6E52;
+    --nav-bg:rgba(17,11,5,0.88);
+    --texture-dot:rgba(255,249,236,0.07);
+    --fw-ring:#2D2011;
+    --fw-node-stroke:#3D2C18;
+    --sun-d:block;
+    --moon-d:none;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#110B05;
+    --bg-1:#1F150B;
+    --bg-2:#2D2011;
+    --paper:#FBF6EC;
+    --card-stroke:#221408;
+    --ink:#FFF9EC;
+    --ink-soft:#F5E6C8;
+    --ink-faint:#E3C896;
+    --line:rgba(255,249,236,0.14);
+    --line-strong:rgba(255,249,236,0.26);
+    --amber:#FFC72C;
+    --amber-ink:#2B1B08;
+    --amber-hover:#FFD466;
+    --amber-glow:rgba(255,177,61,0.18);
+    --amber-soft:rgba(255,177,61,0.09);
+    --amber-softer:rgba(255,177,61,0.02);
+    --mint:#2FC9C6;
+    --mint-ink:#072A2A;
+    --mint-glow:rgba(111,231,194,0.18);
+    --red:#FF6E52;
+    --nav-bg:rgba(17,11,5,0.88);
+    --texture-dot:rgba(255,249,236,0.07);
+    --fw-ring:#2D2011;
+    --fw-node-stroke:#3D2C18;
+    --sun-d:block;
+    --moon-d:none;
+  }
+  html{transition:background-color .25s ease;}
+  body,.nav,.ticker,.split__col,.step-panel,.sig-card,.rm-card,.price-band,.demo,.field input,.field select{
+    transition:background-color .25s ease, border-color .25s ease, color .25s ease;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--body);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none;}
+  img,svg{display:block;max-width:100%;}
+  ::selection{background:var(--amber);color:var(--amber-ink);}
+  .wrap{max-width:1120px;margin:0 auto;padding-left:32px;padding-right:32px;}
+  .eyebrow{
+    font-family:var(--mono);font-size:11.5px;letter-spacing:0.1em;text-transform:uppercase;
+    color:var(--amber);display:inline-flex;align-items:center;gap:8px;margin:0 0 20px;
+  }
+  .eyebrow::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-glow);}
+  .btn{
+    font-family:var(--disp);font-weight:600;font-size:15px;display:inline-flex;align-items:center;gap:8px;
+    padding:13px 24px;border-radius:999px;cursor:pointer;border:1px solid transparent;transition:transform .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:var(--amber);color:var(--amber-ink);}
+  .btn-primary:hover{background:var(--amber-hover);}
+  .btn-ghost{background:transparent;color:var(--ink);border-color:var(--line-strong);}
+  .btn-ghost:hover{border-color:var(--ink-soft);}
+  .btn-sm{padding:9px 16px;font-size:13px;}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;
+    padding:16px 32px;background:var(--nav-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  }
+  .nav__mark{display:flex;align-items:center;gap:9px;font-family:var(--disp);font-weight:800;font-size:19px;letter-spacing:0.01em;}
+  .nav__mark i{width:8px;height:8px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 4px var(--mint-glow);}
+  .nav__links{display:flex;align-items:center;gap:26px;}
+  .nav__links a{font-family:var(--body);font-size:14px;color:var(--ink-soft);transition:color .15s ease;}
+  .nav__links a:hover{color:var(--ink);}
+  .nav__right{display:flex;align-items:center;gap:18px;}
+  .nav__burger{display:none;background:none;border:none;color:var(--ink);cursor:pointer;padding:6px;}
+
+  /* ---------- TICKER ---------- */
+  .ticker{background:var(--bg-1);border-bottom:1px solid var(--line);overflow:hidden;white-space:nowrap;}
+  .ticker__track{display:inline-flex;align-items:center;animation:scrollX 42s linear infinite;padding:10px 0;}
+  @keyframes scrollX{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+  .ticker__item{font-family:var(--mono);font-size:12px;letter-spacing:0.02em;padding:0 22px;display:inline-flex;align-items:center;gap:8px;border-right:1px solid var(--line);color:var(--ink-soft);}
+  .ticker__item b{color:var(--mint);font-weight:600;}
+  .ticker__item b.hot{color:var(--amber);}
+
+  /* ---------- HERO ---------- */
+  .hero{padding:84px 0 40px;position:relative;}
+  .hero__texture{position:absolute;inset:0;top:0;height:520px;pointer-events:none;opacity:0.5;
+    background-image:radial-gradient(circle at 1px 1px, var(--texture-dot) 1px, transparent 1px);
+    background-size:26px 26px; mask-image:linear-gradient(to bottom, black, transparent 85%);}
+  .hero__grid{display:grid;grid-template-columns:1.05fr 0.95fr;gap:48px;align-items:center;position:relative;}
+  .hero h1{
+    font-family:var(--disp);font-weight:700;font-size:clamp(36px,4.6vw,58px);line-height:1.04;letter-spacing:-0.02em;margin:0 0 24px;
+  }
+  .hero h1 em{font-style:normal;color:var(--amber);}
+  .hero__sub{font-family:var(--body);font-size:18px;line-height:1.6;color:var(--ink-soft);max-width:520px;margin:0 0 32px;}
+  .hero__ctas{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:34px;}
+  .hero__proof{display:flex;flex-wrap:wrap;gap:10px;}
+  .pill{font-family:var(--mono);font-size:11px;letter-spacing:0.03em;border:1px solid var(--line-strong);border-radius:999px;padding:7px 13px;color:var(--ink-soft);}
+
+  /* ---------- HERO SIGNATURE VISUAL ---------- */
+  .signal-viz{position:relative;}
+  .signal-viz svg{width:100%;height:auto;}
+  .sv-label{font-family:var(--mono);font-size:9.5px;letter-spacing:0.05em;}
+  .sv-chip{font-family:var(--mono);font-size:9.5px;font-weight:600;}
+  .sv-headline{font-family:var(--disp);font-weight:700;}
+  .sv-body{font-family:var(--body);}
+  #sparkPath{stroke-dasharray:520;stroke-dashoffset:520;animation:drawSpark 1.6s ease-out forwards .2s;}
+  @keyframes drawSpark{to{stroke-dashoffset:0;}}
+  #sparkDot{opacity:0;animation:popDot .4s ease-out forwards 1.6s, pulseDot 2s ease-in-out infinite 2s;}
+  @keyframes popDot{to{opacity:1;}}
+  @keyframes pulseDot{0%,100%{r:6;}50%{r:8.5;}}
+  #adCard{opacity:0;transform:translate(14px,0);animation:slideCard .6s cubic-bezier(.2,.8,.3,1) forwards 1.9s;}
+  @keyframes slideCard{to{opacity:1;transform:translate(0,0);}}
+  #connectFlow{stroke-dasharray:4 7;animation:flowDash 1.2s linear infinite;opacity:0;animation:fadeFlow .3s forwards 2.1s, flowDash 1s linear infinite 2.1s;}
+  @keyframes flowDash{to{stroke-dashoffset:-22;}}
+  @keyframes fadeFlow{to{opacity:0.8;}}
+
+  /* ---------- SECTION SHELL ---------- */
+  section.block{padding:96px 0;}
+  .head{max-width:640px;margin-bottom:44px;}
+  .head .eyebrow{margin-bottom:16px;}
+  .head h2{font-family:var(--disp);font-weight:700;font-size:clamp(26px,3.4vw,38px);letter-spacing:-0.015em;margin:0 0 14px;line-height:1.12;}
+  .head p{font-family:var(--body);font-size:16.5px;line-height:1.6;color:var(--ink-soft);margin:0;}
+  hr.rule{border:none;border-top:1px solid var(--line);max-width:1120px;margin:0 auto;}
+
+  /* ---------- CATEGORY CHIPS ---------- */
+  .chipband{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}
+  .chipband span{font-family:var(--mono);font-size:12px;background:var(--bg-1);border:1px solid var(--line);color:var(--ink-soft);padding:9px 15px;border-radius:999px;}
+
+  /* ---------- OLD WAY / TRND WAY ---------- */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+  .split__col{background:var(--bg-1);padding:30px 28px;}
+  .split__col.now{background:linear-gradient(180deg, var(--amber-soft), var(--amber-softer));}
+  .split__title{font-family:var(--mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:20px;}
+  .split__col.now .split__title{color:var(--amber);}
+  .split__row{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px dashed var(--line);font-size:14.5px;line-height:1.5;}
+  .split__row:last-child{border-bottom:none;}
+  .split__col:not(.now) .split__row{color:var(--ink-faint);}
+  .split__col.now .split__row{color:var(--ink);}
+  .split__row svg{flex:0 0 auto;margin-top:2px;}
+
+  /* ---------- HOW IT WORKS ---------- */
+  .steps{position:relative;}
+  .steps__rail{display:flex;justify-content:space-between;position:relative;margin-bottom:0;}
+  .steps__rail::before{content:'';position:absolute;top:19px;left:19px;right:19px;height:1px;background:var(--line-strong);z-index:0;}
+  .step{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:12px;background:none;border:none;cursor:pointer;flex:1;padding:0 4px;}
+  .step__dot{width:38px;height:38px;border-radius:50%;background:var(--bg-1);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--ink-soft);transition:all .2s ease;}
+  .step.active .step__dot{background:var(--amber);border-color:var(--amber);color:var(--amber-ink);}
+  .step__label{font-family:var(--disp);font-weight:600;font-size:13.5px;color:var(--ink-faint);text-align:center;}
+  .step.active .step__label{color:var(--ink);}
+  .step-panel{margin-top:36px;background:var(--bg-1);border:1px solid var(--line);border-radius:var(--radius);padding:32px;display:grid;grid-template-columns:1.3fr 1fr;gap:30px;align-items:center;}
+  .step-panel__num{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:0.06em;margin-bottom:10px;display:block;}
+  .step-panel__title{font-family:var(--disp);font-weight:700;font-size:22px;margin:0 0 12px;}
+  .step-panel__desc{font-family:var(--body);font-size:15px;line-height:1.6;color:var(--ink-soft);margin:0;}
+  .step-panel__side{background:var(--bg-2);border-radius:var(--radius-sm);padding:20px;}
+  .step-panel__side .k{font-family:var(--mono);font-size:10px;letter-spacing:0.05em;text-transform:uppercase;color:var(--mint);display:block;margin-bottom:6px;}
+  .step-panel__side .v{font-family:var(--body);font-size:13.5px;line-height:1.5;color:var(--ink);margin:0 0 14px;}
+  .step-panel__side .v:last-child{margin-bottom:0;}
+
+  /* ---------- SIGNAL PROOF CARDS ---------- */
+  .signals{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .sig-card{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--radius-sm);padding:20px;}
+  .sig-card__stat{font-family:var(--mono);font-size:13px;color:var(--mint);font-weight:600;margin-bottom:10px;}
+  .sig-card svg{margin-bottom:14px;}
+  .sig-card__name{font-family:var(--disp);font-weight:600;font-size:14.5px;margin-bottom:4px;}
+  .sig-card__cat{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);letter-spacing:0.03em;}
+
+  /* ---------- FLYWHEEL ---------- */
+  .fly{display:grid;grid-template-columns:0.9fr 1.1fr;gap:48px;align-items:center;}
+  .fly svg{width:100%;height:auto;max-width:380px;}
+  .fly__list{display:flex;flex-direction:column;gap:22px;}
+  .fly__item{display:flex;gap:16px;}
+  .fly__num{font-family:var(--mono);font-size:12px;color:var(--amber);flex:0 0 26px;padding-top:2px;}
+  .fly__item h4{font-family:var(--disp);font-weight:600;font-size:15.5px;margin:0 0 5px;}
+  .fly__item p{font-family:var(--body);font-size:14px;color:var(--ink-soft);line-height:1.55;margin:0;}
+
+  /* ---------- ROADMAP ---------- */
+  .roadmap{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .rm-card{border:1px solid var(--line);border-radius:var(--radius-sm);padding:22px 18px;background:var(--bg-1);position:relative;}
+  .rm-card.live{border-color:var(--amber);background:linear-gradient(180deg, var(--amber-soft), transparent);}
+  .rm-status{font-family:var(--mono);font-size:9.5px;letter-spacing:0.06em;color:var(--ink-faint);}
+  .rm-card.live .rm-status{color:var(--amber);}
+  .rm-n{font-family:var(--mono);font-size:11px;color:var(--ink-faint);display:block;margin:10px 0 6px;}
+  .rm-t{font-family:var(--disp);font-weight:600;font-size:16px;margin:0 0 8px;}
+  .rm-d{font-family:var(--body);font-size:13px;line-height:1.5;color:var(--ink-soft);}
+
+  /* ---------- PRICING TEASE ---------- */
+  .price-band{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--radius);padding:44px 40px;display:flex;justify-content:space-between;align-items:center;gap:30px;flex-wrap:wrap;}
+  .price-band h3{font-family:var(--disp);font-weight:700;font-size:24px;margin:0 0 10px;max-width:460px;line-height:1.25;}
+  .price-band p{font-family:var(--body);font-size:14.5px;color:var(--ink-soft);margin:0;max-width:440px;line-height:1.55;}
+
+  /* ---------- DEMO FORM ---------- */
+  .demo{background:var(--bg-1);border:1px solid var(--line);border-radius:24px;padding:56px;display:grid;grid-template-columns:0.9fr 1.1fr;gap:48px;}
+  .demo__copy h2{font-family:var(--disp);font-weight:700;font-size:clamp(24px,3vw,32px);letter-spacing:-0.01em;margin:0 0 16px;line-height:1.18;}
+  .demo__copy p{font-family:var(--body);font-size:15.5px;color:var(--ink-soft);line-height:1.6;margin:0 0 26px;}
+  .demo__bullets{display:flex;flex-direction:column;gap:12px;}
+  .demo__bullets div{display:flex;gap:10px;align-items:flex-start;font-family:var(--body);font-size:14px;color:var(--ink);}
+  .demo__bullets svg{flex:0 0 auto;margin-top:2px;}
+  .field{display:flex;flex-direction:column;gap:7px;margin-bottom:18px;}
+  .field label{font-family:var(--mono);font-size:10.5px;letter-spacing:0.05em;text-transform:uppercase;color:var(--ink-faint);}
+  .field input,.field select{
+    font-family:var(--body);font-size:14.5px;background:var(--bg-2);border:1px solid var(--line-strong);color:var(--ink);
+    padding:12px 14px;border-radius:var(--radius-sm);outline:none;transition:border-color .15s ease;
+  }
+  .field input:focus,.field select:focus{border-color:var(--amber);}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .form-error{font-family:var(--mono);font-size:11px;color:var(--red);margin-top:-10px;margin-bottom:14px;display:none;}
+  .form-error.show{display:block;}
+  #demoSuccess{display:none;text-align:center;padding:40px 10px;}
+  #demoSuccess.show{display:block;}
+  #demoSuccess svg{margin:0 auto 18px;}
+  #demoSuccess h3{font-family:var(--disp);font-weight:700;font-size:20px;margin:0 0 8px;}
+  #demoSuccess p{font-family:var(--body);font-size:14px;color:var(--ink-soft);margin:0;}
+
+  /* ---------- FOOTER ---------- */
+  footer{padding:56px 0 40px;border-top:1px solid var(--line);margin-top:20px;}
+  .foot-grid{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:30px;margin-bottom:36px;}
+  .foot-mark{font-family:var(--disp);font-weight:800;font-size:20px;display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+  .foot-mark i{width:8px;height:8px;border-radius:50%;background:var(--mint);}
+  footer .tagline{font-family:var(--body);font-size:13.5px;color:var(--ink-faint);max-width:220px;line-height:1.5;}
+  .foot-links{display:flex;gap:52px;flex-wrap:wrap;}
+  .foot-col h5{font-family:var(--mono);font-size:10.5px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 14px;}
+  .foot-col a{display:block;font-family:var(--body);font-size:13.5px;color:var(--ink-soft);margin-bottom:10px;}
+  .foot-col a:hover{color:var(--ink);}
+  .foot-bottom{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-top:26px;border-top:1px solid var(--line);}
+  .foot-bottom span{font-family:var(--mono);font-size:11px;color:var(--ink-faint);}
+
+
+  /* ---------- THEME TOGGLE ---------- */
+  .theme-toggle{
+    width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+    background:transparent;border:1px solid var(--line-strong);color:var(--ink-soft);cursor:pointer;
+    transition:color .15s ease, border-color .15s ease, background .15s ease;
+  }
+  .theme-toggle:hover{color:var(--ink);border-color:var(--ink-soft);}
+  .theme-toggle:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
+  .theme-toggle svg{width:17px;height:17px;}
+  .theme-toggle .ico-sun{display:var(--sun-d);}
+  .theme-toggle .ico-moon{display:var(--moon-d);}
+
+  /* ---------- THEMED SVG ARTWORK ----------
+     CSS beats presentation attributes, so the inline fill/stroke values
+     in the markup act as a static fallback and these rules drive the theme. */
+  .sv-faint{fill:var(--ink-faint);}
+  .sv-mint{fill:var(--mint);}
+  .sv-ink{fill:var(--ink);}
+  .sv-card{fill:var(--paper);stroke:var(--card-stroke);}
+  .sv-amber-fill{fill:var(--amber);}
+  #sparkPath,#connectFlow{stroke:var(--amber);}
+  #sparkDot{fill:var(--amber);}
+  .ico-x path{stroke:var(--ink-faint);}
+  .ico-check path{stroke:var(--amber);}
+  .sig-card svg path{stroke:var(--mint);}
+  .fly svg > circle:nth-of-type(1){stroke:var(--fw-ring);}
+  #flySpin{stroke:var(--amber);}
+  .fly svg g circle{fill:var(--bg-1);stroke:var(--fw-node-stroke);}
+  .fly svg g text{fill:var(--ink);}
+  .fly svg g.fw-accent circle{fill:var(--mint);stroke:var(--mint);}
+  .fly svg g.fw-accent text{fill:var(--mint-ink);}
+  #demoSuccess svg circle,#demoSuccess svg path{stroke:var(--mint);}
+
+  /* ---------- REVEAL ---------- */
+  .reveal{opacity:1;transform:none;}
+  .js-reveal .reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease, transform .6s ease;}
+  .js-reveal .reveal.in{opacity:1;transform:translateY(0);}
+
+  @media (max-width:900px){
+    .hero__grid{grid-template-columns:1fr;}
+    .signal-viz{order:-1;max-width:420px;margin:0 auto 20px;}
+    .split{grid-template-columns:1fr;}
+    .signals{grid-template-columns:1fr 1fr;}
+    .roadmap{grid-template-columns:1fr 1fr;}
+    .fly{grid-template-columns:1fr;}
+    .fly svg{max-width:300px;margin:0 auto;}
+    .demo{grid-template-columns:1fr;padding:36px 26px;}
+    .step-panel{grid-template-columns:1fr;}
+    .nav__links{display:none;}
+    .price-band{padding:32px 26px;}
+  }
+  @media (max-width:620px){
+    .wrap{padding-left:20px;padding-right:20px;}
+    .signals{grid-template-columns:1fr 1fr;}
+    .steps__rail{overflow-x:auto;}
+    .step__label{font-size:11px;}
+    .field-row{grid-template-columns:1fr;}
+    .foot-grid{flex-direction:column;}
+    section.block{padding:64px 0;}
+    .hero{padding:52px 0 24px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .ticker__track{animation:none;}
+    .reveal,.js-reveal .reveal{transition:none;opacity:1;transform:none;}
+    #sparkPath,#sparkDot,#adCard,#connectFlow{animation:none !important;opacity:1;stroke-dashoffset:0;transform:none;}
+    html{scroll-behavior:auto;}
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="#top" class="nav__mark"><i></i>TRND</a>
+  <div class="nav__links">
+    <a href="#product">Product</a>
+    <a href="#how">How it works</a>
+    <a href="#signals">Proof</a>
+    <a href="#vision">Vision</a>
+    <a href="#pricing">Pricing</a>
+  </div>
+  <div class="nav__right">
+    <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode" title="Toggle light / dark">
+      <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.4v2.2M12 19.4v2.2M2.4 12h2.2M19.4 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+      </svg>
+      <svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1Z"/>
+      </svg>
+    </button>
+    <a href="#demo" class="btn btn-primary btn-sm">Request a demo</a>
+  </div>
+</nav>
+
+<div class="ticker" aria-hidden="true">
+  <div class="ticker__track" id="tickerTrack"></div>
+</div>
+
+<header class="hero" id="top">
+  <div class="hero__texture"></div>
+  <div class="wrap hero__grid">
+    <div>
+      <div class="eyebrow">Live signal → finished campaign</div>
+      <h1>Know what to advertise — <em>before your competitors do.</em></h1>
+      <p class="hero__sub">TRND reads what's actually moving in your market right now and turns it into a finished ad campaign — headline, creative, targeting — ready to launch today. Built for small businesses, not agencies with a quarter to spare.</p>
+      <div class="hero__ctas">
+        <a href="#demo" class="btn btn-primary">Request a demo</a>
+        <a href="#how" class="btn btn-ghost">See how it works</a>
+      </div>
+      <div class="hero__proof">
+        <span class="pill">No agency retainer</span>
+        <span class="pill">New campaign every week</span>
+        <span class="pill">Priced to your ad spend</span>
+      </div>
+    </div>
+    <div class="signal-viz">
+      <svg viewBox="0 0 460 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A rising demand signal turning into a finished ad campaign card">
+        <text x="8" y="24" class="sv-label sv-faint" fill="#8F6B44">DEMAND SIGNAL — 30D</text>
+        <path id="sparkPath" d="M8 210 L46 224 L84 190 L122 200 L160 140 L198 158 L236 96 L266 108" fill="none" stroke="#D99A12" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle id="sparkDot" cx="266" cy="108" r="6" fill="#D99A12"/>
+        <text x="230" y="86" class="sv-chip sv-mint" fill="#1EA7AE">+34% this week</text>
+        <text x="8" y="252" class="sv-chip sv-faint" fill="#8F6B44">Opportunity score</text>
+        <text x="8" y="272" class="sv-headline sv-ink" font-size="26" fill="#33200F" font-weight="700">8.7 / 10</text>
+        <path id="connectFlow" d="M280 108 C 320 108, 330 108, 352 108" stroke="#D99A12" stroke-width="2" stroke-linecap="round"/>
+        <g id="adCard">
+          <rect class="sv-card" x="300" y="20" width="152" height="220" rx="16" fill="#FFFFFF" stroke="#EFE0C0" stroke-width="1.5"/>
+          <circle class="sv-amber-fill" cx="322" cy="42" r="7" fill="#D99A12"/>
+          <rect x="336" y="37" width="60" height="9" rx="4" fill="#3A2205" opacity="0.55"/>
+          <text x="426" y="42" text-anchor="end" class="sv-label" fill="#3A2205" opacity="0.45">AD</text>
+          <rect x="316" y="60" width="120" height="80" rx="10" fill="#3A2205" opacity="0.12"/>
+          <path d="M330 118 L352 96 L368 108 L392 82 L410 98" stroke="#3A2205" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
+          <rect x="316" y="152" width="112" height="10" rx="3" fill="#22160A" opacity="0.85"/>
+          <rect x="316" y="168" width="80" height="8" rx="3" fill="#22160A" opacity="0.4"/>
+          <rect class="sv-amber-fill" x="316" y="196" width="116" height="30" rx="15" fill="#D99A12"/>
+          <text x="374" y="215" text-anchor="middle" class="sv-chip" fill="#3A2205" font-size="10.5">Book now →</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</header>
+
+<hr class="rule">
+
+<section class="block" id="product">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Who this is for</span>
+      <h2>Built for the businesses that live and die by attention.</h2>
+      <p>If your customers decide fast and your budget is small, you can't afford to wait a quarter to find out what's working.</p>
+    </div>
+    <div class="chipband reveal">
+      <span>Restaurants &amp; cafés</span><span>Home services</span><span>Health &amp; beauty</span>
+      <span>Fitness studios</span><span>Retail &amp; boutiques</span><span>Auto services</span><span>Dental &amp; wellness</span>
+    </div>
+
+    <div style="height:56px;"></div>
+
+    <div class="split reveal">
+      <div class="split__col">
+        <div class="split__title">The old way</div>
+        <div class="split__row"><svg class="ico-x" width="16" height="16" viewBox="0 0 16 16"><path d="M4 4L12 12M12 4L4 12" stroke="#8F6B44" stroke-width="1.6" stroke-linecap="round"/></svg>Guess what to post and hope it lands.</div>
+        <div class="split__row"><svg class="ico-x" width="16" height="16" viewBox="0 0 16 16"><path d="M4 4L12 12M12 4L4 12" stroke="#8F6B44" stroke-width="1.6" stroke-linecap="round"/></svg>Hire an agency, wait weeks for a plan.</div>
+        <div class="split__row"><svg class="ico-x" width="16" height="16" viewBox="0 0 16 16"><path d="M4 4L12 12M12 4L4 12" stroke="#8F6B44" stroke-width="1.6" stroke-linecap="round"/></svg>Generic AI copy that sounds like everyone else's.</div>
+        <div class="split__row"><svg class="ico-x" width="16" height="16" viewBox="0 0 16 16"><path d="M4 4L12 12M12 4L4 12" stroke="#8F6B44" stroke-width="1.6" stroke-linecap="round"/></svg>Find out it flopped next quarter's report.</div>
+      </div>
+      <div class="split__col now">
+        <div class="split__title">The TRND way</div>
+        <div class="split__row"><svg class="ico-check" width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5L6.5 12L13 4" stroke="#D99A12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>Know what's moving before you spend a dollar.</div>
+        <div class="split__row"><svg class="ico-check" width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5L6.5 12L13 4" stroke="#D99A12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>Get a finished campaign every morning.</div>
+        <div class="split__row"><svg class="ico-check" width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5L6.5 12L13 4" stroke="#D99A12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>Positioning built from what's actually converting for businesses like yours.</div>
+        <div class="split__row"><svg class="ico-check" width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5L6.5 12L13 4" stroke="#D99A12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>See what worked, fed straight into next week's plan.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section class="block" id="how">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Product</span>
+      <h2>Five steps, running every day.</h2>
+      <p>You don't do any of this manually. Click a step to see it worked through a real example.</p>
+    </div>
+    <div class="steps reveal">
+      <div class="steps__rail" id="stepRail">
+        <button class="step active" data-s="0"><span class="step__dot">1</span><span class="step__label">Detect</span></button>
+        <button class="step" data-s="1"><span class="step__dot">2</span><span class="step__label">Match</span></button>
+        <button class="step" data-s="2"><span class="step__dot">3</span><span class="step__label">Position</span></button>
+        <button class="step" data-s="3"><span class="step__dot">4</span><span class="step__label">Launch</span></button>
+        <button class="step" data-s="4"><span class="step__dot">5</span><span class="step__label">Learn</span></button>
+      </div>
+      <div class="step-panel" id="stepPanel"></div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section class="block" id="signals">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Proof</span>
+      <h2>What "signal" actually looks like.</h2>
+      <p>A sample of what TRND is watching this week, across a few different kinds of small businesses.</p>
+    </div>
+    <div class="signals reveal">
+      <div class="sig-card">
+        <svg width="90" height="34" viewBox="0 0 90 34"><path d="M2 26 L16 24 L30 20 L44 22 L58 10 L72 14 L88 4" fill="none" stroke="#1EA7AE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="sig-card__stat">↑34% search interest</div>
+        <div class="sig-card__name">Iced latte alternatives</div>
+        <div class="sig-card__cat">COFFEE SHOPS &amp; CAFÉS</div>
+      </div>
+      <div class="sig-card">
+        <svg width="90" height="34" viewBox="0 0 90 34"><path d="M2 22 L16 24 L30 18 L44 20 L58 12 L72 8 L88 2" fill="none" stroke="#1EA7AE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="sig-card__stat">↑27% booking intent</div>
+        <div class="sig-card__name">Same-day appointments</div>
+        <div class="sig-card__cat">HOME SERVICES</div>
+      </div>
+      <div class="sig-card">
+        <svg width="90" height="34" viewBox="0 0 90 34"><path d="M2 28 L16 20 L30 22 L44 12 L58 14 L72 6 L88 8" fill="none" stroke="#1EA7AE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="sig-card__stat">↑48% conversation</div>
+        <div class="sig-card__name">Recovery &amp; wellness add-ons</div>
+        <div class="sig-card__cat">FITNESS STUDIOS</div>
+      </div>
+      <div class="sig-card">
+        <svg width="90" height="34" viewBox="0 0 90 34"><path d="M2 24 L16 22 L30 24 L44 16 L58 18 L72 10 L88 12" fill="none" stroke="#1EA7AE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="sig-card__stat">↑22% local demand</div>
+        <div class="sig-card__name">Weekend brunch reservations</div>
+        <div class="sig-card__cat">RESTAURANTS</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section class="block" id="flywheel">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Compounding</span>
+      <h2>The more businesses on TRND, the sharper it gets.</h2>
+      <p>Detecting a trend is table stakes. What compounds is knowing which offer, angle, and audience actually converts — and that only comes from real campaigns running in the real world.</p>
+    </div>
+    <div class="fly reveal">
+      <svg viewBox="0 0 320 320" fill="none">
+        <circle cx="160" cy="160" r="118" stroke="#E3D4AE" stroke-width="1.5" stroke-dasharray="2 7"/>
+        <circle id="flySpin" cx="160" cy="160" r="118" stroke="#D99A12" stroke-width="2.5" stroke-dasharray="32 710" stroke-linecap="round"/>
+        <g><circle cx="160" cy="42" r="34" fill="#FFFFFF" stroke="#EFE0C0" stroke-width="1"/><text x="160" y="38" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="#33200F">MORE</text><text x="160" y="50" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="#33200F">BUSINESSES</text></g>
+        <g><circle cx="270" cy="160" r="34" fill="#FFFFFF" stroke="#EFE0C0" stroke-width="1"/><text x="270" y="156" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="#33200F">MORE</text><text x="270" y="168" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="#33200F">CAMPAIGNS</text></g>
+        <g><circle cx="160" cy="278" r="34" fill="#FFFFFF" stroke="#EFE0C0" stroke-width="1"/><text x="160" y="274" text-anchor="middle" font-family="IBM Plex Mono" font-size="8.5" fill="#33200F">PERFORMANCE</text><text x="160" y="286" text-anchor="middle" font-family="IBM Plex Mono" font-size="8.5" fill="#33200F">DATA</text></g>
+        <g class="fw-accent"><circle cx="50" cy="160" r="34" fill="#1EA7AE" stroke="#1EA7AE" stroke-width="1"/><text x="50" y="156" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="#EAFBFC">SHARPER</text><text x="50" y="168" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="#EAFBFC">RECS</text></g>
+      </svg>
+      <div class="fly__list">
+        <div class="fly__item"><span class="fly__num">01</span><div><h4>Every client connects their ad account</h4><p>As part of onboarding — so TRND can see what actually happened, not just what was published.</p></div></div>
+        <div class="fly__item"><span class="fly__num">02</span><div><h4>Real outcomes come back</h4><p>Clicks, bookings, cost per result, revenue — pulled straight from the campaigns that actually ran.</p></div></div>
+        <div class="fly__item"><span class="fly__num">03</span><div><h4>The model learns what converts</h4><p>Not in general — for this category, this price point, this geography.</p></div></div>
+        <div class="fly__item"><span class="fly__num">04</span><div><h4>Next week's recommendation is sharper</h4><p>For every business on TRND, not just the one that ran the test.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section class="block" id="vision">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Where this is going</span>
+      <h2>Today: the campaign. Eventually: the whole outreach engine.</h2>
+      <p>We're starting narrow on purpose — ad campaigns are where the signal is clearest and the payoff is fastest. The same engine extends naturally to the rest of how a small business reaches customers.</p>
+    </div>
+    <div class="roadmap reveal">
+      <div class="rm-card live">
+        <span class="rm-status">● live</span>
+        <span class="rm-n">Phase 1</span>
+        <div class="rm-t">Ad campaigns</div>
+        <div class="rm-d">Trend detection and finished paid social &amp; search campaigns, daily or weekly.</div>
+      </div>
+      <div class="rm-card">
+        <span class="rm-status">○ next</span>
+        <span class="rm-n">Phase 2</span>
+        <div class="rm-t">Email &amp; SMS</div>
+        <div class="rm-d">Follow-up messaging built from the same demand signal that shaped the ad.</div>
+      </div>
+      <div class="rm-card">
+        <span class="rm-status">○ planned</span>
+        <span class="rm-n">Phase 3</span>
+        <div class="rm-t">Reviews &amp; reputation</div>
+        <div class="rm-d">Requests timed to real customer moments, not a generic monthly blast.</div>
+      </div>
+      <div class="rm-card">
+        <span class="rm-status">○ future</span>
+        <span class="rm-n">Phase 4</span>
+        <div class="rm-t">The full outreach suite</div>
+        <div class="rm-d">One system running every channel a small business uses to reach customers.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section class="block" id="pricing">
+  <div class="wrap">
+    <div class="price-band reveal">
+      <div>
+        <h3>No agency retainer. No annual contract.</h3>
+        <p>Pricing scales with your ad spend, not your headcount — so it makes sense whether you're running $30 a day or $3,000 a month.</p>
+      </div>
+      <a href="#demo" class="btn btn-primary">Get pricing on a demo</a>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section class="block" id="demo">
+  <div class="wrap">
+    <div class="demo reveal">
+      <div class="demo__copy">
+        <span class="eyebrow">Request a demo</span>
+        <h2>See what TRND would recommend for your business this week.</h2>
+        <p>Tell us a bit about your business. We'll pull a live example ahead of the call, using real signal from your category and area.</p>
+        <div class="demo__bullets">
+          <div><svg class="ico-check" width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5L6.5 12L13 4" stroke="#D99A12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>20-minute call, no slide deck</div>
+          <div><svg class="ico-check" width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5L6.5 12L13 4" stroke="#D99A12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>A real sample campaign for your business</div>
+          <div><svg class="ico-check" width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5L6.5 12L13 4" stroke="#D99A12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>Straight answer on pricing, no follow-up chase</div>
+        </div>
+      </div>
+      <div class="demo__form">
+        <form id="demoForm" novalidate>
+          <div class="field-row">
+            <div class="field"><label for="fName">Full name</label><input id="fName" type="text" placeholder="Jordan Lee" autocomplete="name"></div>
+            <div class="field"><label for="fEmail">Work email</label><input id="fEmail" type="email" placeholder="jordan@yourbusiness.com" autocomplete="email"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="fBiz">Business name</label><input id="fBiz" type="text" placeholder="Corner Coffee Co." autocomplete="organization"></div>
+            <div class="field"><label for="fCat">Category</label>
+              <select id="fCat">
+                <option value="">Select one</option>
+                <option>Restaurant &amp; food</option>
+                <option>Home services</option>
+                <option>Health &amp; beauty</option>
+                <option>Fitness &amp; wellness</option>
+                <option>Retail &amp; boutique</option>
+                <option>Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="fSpend">Monthly ad spend</label>
+            <select id="fSpend">
+              <option value="">Select a range</option>
+              <option>Under $1,000</option>
+              <option>$1,000 – $5,000</option>
+              <option>$5,000 – $20,000</option>
+              <option>$20,000+</option>
+            </select>
+          </div>
+          <div class="form-error" id="formError">Fill in your name, work email, and business name first.</div>
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:6px;">Request a demo</button>
+        </form>
+        <div id="demoSuccess">
+          <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="23" fill="none" stroke="#1EA7AE" stroke-width="2"/><path d="M14 25L21 32L34 17" stroke="#1EA7AE" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          <h3>Request received.</h3>
+          <p>We'll follow up within one business day with your live example and a time to talk.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-mark"><i></i>TRND</div>
+        <p class="tagline">AI marketing intelligence for small business. usetrnd.com</p>
+      </div>
+      <div class="foot-links">
+        <div class="foot-col">
+          <h5>Product</h5>
+          <a href="#product">Overview</a>
+          <a href="#how">How it works</a>
+          <a href="#signals">Proof</a>
+        </div>
+        <div class="foot-col">
+          <h5>Company</h5>
+          <a href="#vision">Vision</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#demo">Request a demo</a>
+        </div>
+        <div class="foot-col">
+          <h5>Follow</h5>
+          <a href="#">X / Twitter</a>
+          <a href="#">LinkedIn</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 TRND, Inc.</span>
+      <span>Trend data shown throughout is illustrative.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Ticker
+const signals = [
+  ['↑34%','ICED LATTE ALTERNATIVES — SEARCH'],
+  ['↑27%','SAME-DAY BOOKING INTENT'],
+  ['↑48%','RECOVERY & WELLNESS CONVERSATION'],
+  ['LOW','COMPETITOR AD SATURATION — YOUR ZIP', true],
+  ['↑22%','WEEKEND BRUNCH DEMAND'],
+  ['8.7/10','OPPORTUNITY SCORE — THIS WEEK'],
+  ['2.1×','THIS ANGLE OUTPERFORMED FOR SIMILAR BUSINESSES', true],
+];
+const track = document.getElementById('tickerTrack');
+function buildTicker(){
+  let html = '';
+  for(let r=0;r<2;r++){
+    signals.forEach(([v,l,hot])=>{
+      html += `<span class="ticker__item"><b class="${hot?'hot':''}">${v}</b>${l}</span>`;
+    });
+  }
+  track.innerHTML = html;
+}
+buildTicker();
+
+// How it works steps
+const stepData = [
+  {
+    title:'Detect what\u2019s moving',
+    desc:'TRND scans search, social, and local demand signals in your category and area, every single day \u2014 not once a quarter.',
+    side:[['Watching','Search volume, social conversation, local booking intent'],['Refresh','Every 24 hours'],['Coverage','Your category + a configurable radius']]
+  },
+  {
+    title:'Match it to your business',
+    desc:'It checks what\u2019s rising against what you actually sell \u2014 and what your competitors are missing.',
+    side:[['Fit check','Do you already offer this, or could you'],['Gap check','Are competitors already advertising it'],['Output','A ranked list of what\u2019s worth promoting this week']]
+  },
+  {
+    title:'Build the angle',
+    desc:'It builds the positioning: the hook, the offer, and the audience most likely to actually convert.',
+    side:[['Angle','The specific claim your ad makes'],['Hook','The first line that stops the scroll'],['Audience','Who to target and why']]
+  },
+  {
+    title:'Launch the campaign',
+    desc:'You get finished ad copy, creative direction, and targeting \u2014 ready to run today, on the channels you already use.',
+    side:[['Output','Headlines, ad copy, creative brief, targeting'],['Format','Ready for paid social &amp; search'],['Time to launch','Same day']]
+  },
+  {
+    title:'Learn from what happened',
+    desc:'Real results \u2014 clicks, bookings, cost per result, revenue \u2014 feed straight back in, so next week\u2019s campaign is sharper than this week\u2019s.',
+    side:[['Pulled back','CTR, bookings, cost per result, revenue'],['Learning','Which angle actually worked, and for whom'],['Feeds into','Next week\u2019s Match + Position step']]
+  }
+];
+const stepBtns = document.querySelectorAll('.step');
+const stepPanel = document.getElementById('stepPanel');
+function renderStep(i){
+  const d = stepData[i];
+  stepPanel.innerHTML = `
+    <div>
+      <span class="step-panel__num">Step ${Number(i)+1} of 5</span>
+      <h3 class="step-panel__title">${d.title}</h3>
+      <p class="step-panel__desc">${d.desc}</p>
+    </div>
+    <div class="step-panel__side">
+      ${d.side.map(([k,v])=>`<span class="k">${k}</span><p class="v">${v}</p>`).join('')}
+    </div>`;
+}
+stepBtns.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    stepBtns.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderStep(btn.dataset.s);
+  });
+});
+renderStep(0);
+
+// Flywheel spin
+const flySpin = document.getElementById('flySpin');
+let flyOffset = 0;
+function animateFly(){
+  flyOffset -= 0.5;
+  flySpin.setAttribute('stroke-dashoffset', flyOffset);
+  requestAnimationFrame(animateFly);
+}
+if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+  animateFly();
+}
+
+// Demo form
+const demoForm = document.getElementById('demoForm');
+const formError = document.getElementById('formError');
+const demoSuccess = document.getElementById('demoSuccess');
+demoForm.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const name = document.getElementById('fName').value.trim();
+  const email = document.getElementById('fEmail').value.trim();
+  const biz = document.getElementById('fBiz').value.trim();
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if(!name || !biz || !emailOk){
+    formError.classList.add('show');
+    return;
+  }
+  formError.classList.remove('show');
+  demoForm.style.display = 'none';
+  demoSuccess.classList.add('show');
+});
+['fName','fEmail','fBiz'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>formError.classList.remove('show'));
+});
+
+// Theme toggle — follows the OS by default, [data-theme] overrides it.
+(function(){
+  var root = document.documentElement;
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  var btn = document.getElementById('themeToggle');
+  function effective(){
+    return root.getAttribute('data-theme') || (mq.matches ? 'dark' : 'light');
+  }
+  function sync(){
+    var dark = effective() === 'dark';
+    btn.setAttribute('aria-pressed', String(dark));
+    btn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+  }
+  btn.addEventListener('click', function(){
+    root.setAttribute('data-theme', effective() === 'dark' ? 'light' : 'dark');
+    sync();
+  });
+  if(mq.addEventListener){ mq.addEventListener('change', sync); }
+  sync();
+})();
+
+// Reveal on scroll
+(function(){
+  var els = document.querySelectorAll('.reveal');
+  if(!('IntersectionObserver' in window) ||
+     window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    return; // leave everything visible
+  }
+  document.documentElement.classList.add('js-reveal');
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  },{threshold:0.12});
+  els.forEach(function(el){ io.observe(el); });
+  setTimeout(function(){ els.forEach(function(el){ el.classList.add('in'); }); }, 1500);
+})();
+</script>
+
+</body>
+</html>

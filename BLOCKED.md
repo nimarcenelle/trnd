@@ -1,0 +1,29 @@
+# BLOCKED
+
+Integrations that could not go live in this environment, per Overnight Protocol §3.2.
+Each is implemented behind its interface and registered unavailable at runtime.
+
+## Gemini API key
+- The brief points at the GRWM repo for the key. The repo was cloned, but this session's
+  permission classifier denies grepping repositories for API-key material (twice).
+- **Seam**: put the key in `.env.local` as `GEMINI_API_KEY=` — nothing else changes.
+  `lib/ai/gemini.ts` detects it at startup; without it the deterministic template
+  generator in `lib/ai/fallback.ts` produces campaign JSON so every downstream screen works.
+
+## Supabase (database + auth)
+- No `NEXT_PUBLIC_SUPABASE_URL`/keys in the environment; `supabase start` impossible —
+  Docker CLI exists but no daemon socket in this container.
+- **Seam**: create a Supabase project, `supabase db push` (or run the SQL in
+  `supabase/migrations/` in order), fill the three env vars. `lib/db` switches from the
+  demo store to Supabase automatically; auth switches from the demo cookie session to
+  Supabase Auth.
+
+## Live signal sources (in this container only)
+- Egress policy 403s trends.google.com, reddit.com, news.google.com (verified via the
+  agent proxy log). Adapters are fully implemented with timeout/retry/circuit-breaker and
+  fixture-based unit tests; the ingest job degrades to partial results per the brief.
+- **Seam**: none needed — run `pnpm job:ingest` from any machine with normal egress.
+
+## Vercel deploy
+- No Vercel credentials; config is present (`vercel.json` with cron schedules) but no
+  deploy was attempted, per the brief.

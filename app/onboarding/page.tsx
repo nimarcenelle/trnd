@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import OnboardingWizard from "@/components/onboarding/wizard";
+import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
@@ -25,10 +26,7 @@ export default async function OnboardingPage() {
           borderBottom: "1px solid var(--line)",
         }}
       >
-        <span style={{ display: "flex", alignItems: "center", gap: 9, fontFamily: "var(--disp)", fontWeight: 800, fontSize: 19 }}>
-          <i style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--mint)", boxShadow: "0 0 0 4px var(--mint-glow)" }} />
-          TRND
-        </span>
+        <Brand href={null} />
         <ThemeToggle />
       </nav>
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 20px" }}>

@@ -1,9 +1,48 @@
 @import "tailwindcss";
 
 /* ================= THEME TOKENS =================
-   Light is the default. Dark applies when the OS asks for it,
-   and [data-theme] on <html> always wins over the OS setting. */
+   Dark is the default — the brand look (logo: warm near-black, off-white
+   type, sage-mint dot). Light is an explicit choice via [data-theme="light"]
+   from the toggle. */
 :root {
+  color-scheme: dark;
+  --bg: #14100c;
+  --bg-1: #1d1712;
+  --bg-2: #2a2118;
+  --paper: #fbf6ec;
+  --card-stroke: #221408;
+  --ink: #f6f1e3;
+  --ink-soft: #cfc4b2;
+  --ink-faint: #9f917c;
+  --line: rgba(246, 241, 227, 0.09);
+  --line-strong: rgba(246, 241, 227, 0.2);
+  --amber: #f0b429;
+  --amber-text: #f0b429;
+  --amber-ink: #2b1b08;
+  --amber-hover: #ffc94d;
+  --amber-glow: rgba(240, 180, 41, 0.16);
+  --amber-soft: rgba(240, 180, 41, 0.08);
+  --amber-softer: rgba(240, 180, 41, 0.02);
+  --mint: #81ceba;
+  --mint-text: #81ceba;
+  --mint-ink: #10201b;
+  --mint-glow: rgba(129, 206, 186, 0.16);
+  --red: #ff6e52;
+  --nav-bg: rgba(20, 16, 12, 0.88);
+  --texture-dot: rgba(246, 241, 227, 0.06);
+  --shadow: rgba(0, 0, 0, 0.55);
+  --fw-ring: #2a2118;
+  --fw-node-stroke: #3a3024;
+  --sun-d: block;
+  --moon-d: none;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --disp: "Bricolage Grotesque Variable", "Bricolage Grotesque", sans-serif;
+  --body: "Inter", sans-serif;
+  --mono: "IBM Plex Mono", monospace;
+}
+:root[data-theme="light"] {
   color-scheme: light;
   --bg: #fdf6e3;
   --bg-1: #ffffff;
@@ -34,78 +73,6 @@
   --fw-node-stroke: #efe0c0;
   --sun-d: none;
   --moon-d: block;
-
-  --radius: 16px;
-  --radius-sm: 10px;
-  --disp: "Bricolage Grotesque Variable", "Bricolage Grotesque", sans-serif;
-  --body: "Inter", sans-serif;
-  --mono: "IBM Plex Mono", monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #110b05;
-    --bg-1: #1f150b;
-    --bg-2: #2d2011;
-    --paper: #fbf6ec;
-    --card-stroke: #221408;
-    --ink: #fff9ec;
-    --ink-soft: #f5e6c8;
-    --ink-faint: #e3c896;
-    --line: rgba(255, 249, 236, 0.14);
-    --line-strong: rgba(255, 249, 236, 0.26);
-    --amber: #ffc72c;
-    --amber-text: #ffc72c;
-    --amber-ink: #2b1b08;
-    --amber-hover: #ffd466;
-    --amber-glow: rgba(255, 177, 61, 0.18);
-    --amber-soft: rgba(255, 177, 61, 0.09);
-    --amber-softer: rgba(255, 177, 61, 0.02);
-    --mint: #2fc9c6;
-    --mint-text: #2fc9c6;
-    --mint-ink: #072a2a;
-    --mint-glow: rgba(111, 231, 194, 0.18);
-    --red: #ff6e52;
-    --nav-bg: rgba(17, 11, 5, 0.88);
-    --texture-dot: rgba(255, 249, 236, 0.07);
-    --shadow: rgba(0, 0, 0, 0.55);
-    --fw-ring: #2d2011;
-    --fw-node-stroke: #3d2c18;
-    --sun-d: block;
-    --moon-d: none;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #110b05;
-  --bg-1: #1f150b;
-  --bg-2: #2d2011;
-  --paper: #fbf6ec;
-  --card-stroke: #221408;
-  --ink: #fff9ec;
-  --ink-soft: #f5e6c8;
-  --ink-faint: #e3c896;
-  --line: rgba(255, 249, 236, 0.14);
-  --line-strong: rgba(255, 249, 236, 0.26);
-  --amber: #ffc72c;
-  --amber-text: #ffc72c;
-  --amber-ink: #2b1b08;
-  --amber-hover: #ffd466;
-  --amber-glow: rgba(255, 177, 61, 0.18);
-  --amber-soft: rgba(255, 177, 61, 0.09);
-  --amber-softer: rgba(255, 177, 61, 0.02);
-  --mint: #2fc9c6;
-  --mint-text: #2fc9c6;
-  --mint-ink: #072a2a;
-  --mint-glow: rgba(111, 231, 194, 0.18);
-  --red: #ff6e52;
-  --nav-bg: rgba(17, 11, 5, 0.88);
-  --texture-dot: rgba(255, 249, 236, 0.07);
-  --shadow: rgba(0, 0, 0, 0.55);
-  --fw-ring: #2d2011;
-  --fw-node-stroke: #3d2c18;
-  --sun-d: block;
-  --moon-d: none;
 }
 
 /* Expose tokens to Tailwind v4 utilities (bg-bg-1, text-ink-soft, border-line, …) */

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
 
 const LINKS = [
@@ -38,13 +39,7 @@ export default function AppNav({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 18, minWidth: 0 }}>
-        <Link
-          href="/app"
-          style={{ display: "flex", alignItems: "center", gap: 9, fontFamily: "var(--disp)", fontWeight: 800, fontSize: 18 }}
-        >
-          <i style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--mint)", boxShadow: "0 0 0 4px var(--mint-glow)" }} />
-          TRND
-        </Link>
+        <Brand href="/app" size={16} />
         <span
           className="mono-label"
           style={{ borderLeft: "1px solid var(--line-strong)", paddingLeft: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 180 }}

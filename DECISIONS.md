@@ -35,3 +35,9 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
 - **`main` bootstrapped at the scaffold commit**: the repo was empty (no default
   branch), and a PR needs a base with shared history. `main` points at the first
   commit only; all product work arrives via the PR from the designated branch.
+- **Dark is now the default theme** (user direction, matching the TRND logo): dark tokens
+  live on `:root`; light is an explicit `[data-theme="light"]` choice from the toggle,
+  persisted in localStorage. OS `prefers-color-scheme` no longer decides — the brand does.
+- **Dark palette retuned to the logo** (`design/trnd-logo.png`, colors sampled from the
+  file): warm near-black `#14100C`, off-white ink `#F6F1E3`, sage-mint accent `#81CEBA`,
+  gold softened to `#F0B429`. Light palette unchanged.

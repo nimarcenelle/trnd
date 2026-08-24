@@ -3,31 +3,24 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * Follows the OS by default; [data-theme] on <html> overrides it.
- * The override persists in localStorage and is applied pre-paint by the
- * inline script in app/layout.tsx. Icon visibility itself is pure CSS
+ * Dark is the brand default. Choosing light sets [data-theme="light"] on
+ * <html>; the choice persists in localStorage and is applied pre-paint by
+ * the inline script in app/layout.tsx. Icon visibility itself is pure CSS
  * (--sun-d / --moon-d), so this component only tracks state for a11y labels.
  */
 const THEME_EVENT = "trnd-theme-change";
 
 function subscribe(onChange: () => void) {
-  const mq = window.matchMedia("(prefers-color-scheme: dark)");
-  mq.addEventListener?.("change", onChange);
   window.addEventListener(THEME_EVENT, onChange);
-  return () => {
-    mq.removeEventListener?.("change", onChange);
-    window.removeEventListener(THEME_EVENT, onChange);
-  };
+  return () => window.removeEventListener(THEME_EVENT, onChange);
 }
 
 function getSnapshot(): boolean {
-  const override = document.documentElement.getAttribute("data-theme");
-  if (override === "dark" || override === "light") return override === "dark";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return document.documentElement.getAttribute("data-theme") !== "light";
 }
 
 export default function ThemeToggle() {
-  const dark = useSyncExternalStore(subscribe, getSnapshot, () => false);
+  const dark = useSyncExternalStore(subscribe, getSnapshot, () => true);
 
   function toggle() {
     const next = dark ? "light" : "dark";

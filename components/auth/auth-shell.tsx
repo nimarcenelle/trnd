@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
 
 export default function AuthShell({
@@ -22,28 +21,7 @@ export default function AuthShell({
           borderBottom: "1px solid var(--line)",
         }}
       >
-        <Link
-          href="/"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 9,
-            fontFamily: "var(--disp)",
-            fontWeight: 800,
-            fontSize: 19,
-          }}
-        >
-          <i
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: "var(--mint)",
-              boxShadow: "0 0 0 4px var(--mint-glow)",
-            }}
-          />
-          TRND
-        </Link>
+        <Brand />
         <ThemeToggle />
       </nav>
       <div

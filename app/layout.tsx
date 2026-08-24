@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 // Self-hosted fonts (shipped with the app — no font CDN dependency at all).
 import "@fontsource-variable/bricolage-grotesque";
@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   description:
     "TRND reads real-time demand signal and turns it into a finished ad campaign for your business — every day. Built for small businesses, not agencies.",
 };
+
+export const viewport: Viewport = { themeColor: "#14100C" };
 
 /** Applies a saved theme override before first paint so there is no flash. */
 const themeInit = `try{var t=localStorage.getItem("trnd-theme");if(t==="dark"||t==="light"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}`;

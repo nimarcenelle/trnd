@@ -205,3 +205,13 @@ pnpm test:e2e     # the whole loop, headless
   sync) with honest connect states.
 - `lib/recommend/explain.ts` re-derives score components server-side so every screen
   can show the formula's work. E2E updated + full gate green (lint, 25 unit, E2E).
+
+## P3 — Dark-first brand identity (user request, logo supplied)
+- Logo checked in at `design/trnd-logo.png`; palette sampled from it directly.
+- Dark default on `:root` (warm near-black / off-white / sage-mint / softened gold);
+  light is now the explicit toggle choice. `viewport.themeColor` set to match.
+- New `components/brand.tsx` wordmark (mint dot + wide-tracked TRND, per the logo) used
+  in the landing nav/footer, auth shell, onboarding, and app nav; `app/icon.svg` favicon
+  derived from it.
+- Theme toggle simplified to attribute-based (no OS media dependency).
+- Full gate green (lint, unit, E2E). Verified light theme via toggle end to end.

@@ -4,6 +4,7 @@ import DemoForm from "@/components/landing/demo-form";
 import HeroViz from "@/components/landing/hero-viz";
 import { IcoCheck, IcoX } from "@/components/landing/icons";
 import RevealObserver from "@/components/landing/reveal-observer";
+import Brand from "@/components/brand";
 import Steps from "@/components/landing/steps";
 import Ticker from "@/components/landing/ticker";
 import ThemeToggle from "@/components/theme-toggle";
@@ -49,10 +50,9 @@ export default function Home() {
     <>
       <RevealObserver />
       <nav className="nav">
-        <Link href="#top" className="nav__mark">
-          <i />
-          TRND
-        </Link>
+        <a href="#top" style={{ display: "inline-flex" }} aria-label="TRND — top">
+          <Brand href={null} />
+        </a>
         <div className="nav__links">
           <a href="#product">Product</a>
           <a href="#how">How it works</a>
@@ -323,9 +323,8 @@ export default function Home() {
         <div className="wrap">
           <div className="foot-grid">
             <div>
-              <div className="foot-mark">
-                <i />
-                TRND
+              <div style={{ marginBottom: 12 }}>
+                <Brand href={null} size={18} />
               </div>
               <p className="tagline">AI marketing intelligence for small business. usetrnd.com</p>
             </div>

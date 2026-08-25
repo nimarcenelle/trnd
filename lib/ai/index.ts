@@ -30,11 +30,14 @@ export interface GeneratedCampaign {
   prompt_version: string;
 }
 
-export async function generateCampaign(ctx: GenerationContext): Promise<GeneratedCampaign> {
+export async function generateCampaign(
+  ctx: GenerationContext,
+  onStatus: (label: string) => void = () => {},
+): Promise<GeneratedCampaign> {
   if (isGeminiConfigured) {
     try {
       const { generateWithGemini } = await import("./gemini");
-      return await generateWithGemini(ctx);
+      return await generateWithGemini(ctx, onStatus);
     } catch (err) {
       console.warn(
         "[ai] Gemini generation failed — using deterministic fallback:",

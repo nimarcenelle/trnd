@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
+import AutoRefresh from "@/components/app/auto-refresh";
 import SubmitButton from "@/components/app/submit-button";
-import { generateBusinessBrief } from "@/lib/ai/brief";
+import { briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { refreshSnapshotAction } from "@/lib/snapshot/actions";
@@ -34,13 +36,18 @@ export default async function SnapshotPage() {
   if (!business) redirect("/onboarding");
 
   const services = await repo.listServices(business.id);
-  let brief = await repo.getBusinessBrief(business.id);
-  if (!brief) {
-    try {
-      brief = await repo.upsertBusinessBrief(await generateBusinessBrief(business, services));
-    } catch {
-      brief = null;
-    }
+  const brief = await repo.getBusinessBrief(business.id);
+  // Missing → the onboarding background job is probably still writing it;
+  // only kick a fresh generation if enough time has passed that it clearly
+  // isn't coming. Either way the page waits politely and refreshes itself.
+  if (!brief && !briefLikelyInFlight(business.created_at)) {
+    after(async () => {
+      try {
+        await repo.upsertBusinessBrief(await generateBusinessBrief(business, services));
+      } catch (err) {
+        console.warn("[snapshot] background generation failed (non-fatal):", (err as Error).message);
+      }
+    });
   }
 
   const activeServices = services.filter((s) => s.is_active);
@@ -76,9 +83,17 @@ export default async function SnapshotPage() {
       </div>
 
       {!brief ? (
-        <div className="panel" style={{ maxWidth: 620 }}>
-          <p style={{ margin: 0, color: "var(--ink-soft)", fontSize: 14.5, lineHeight: 1.6 }}>
-            The analysis couldn&apos;t be generated just now — hit refresh above to try again.
+        <div className="empty-state">
+          <AutoRefresh everyMs={6000} />
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+            <path d="M8 6h18l6 6v22H8z" stroke="var(--ink-faint)" strokeWidth="2" strokeLinejoin="round" />
+            <path d="M26 6v6h6" stroke="var(--ink-faint)" strokeWidth="2" strokeLinejoin="round" />
+            <path d="M13 18h14M13 24h14M13 30h9" stroke="var(--amber)" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <h3>Your founding analysis is being written</h3>
+          <p>
+            TRND is reading {business.name} — positioning, who buys, the local market, pricing,
+            and your first moves. Usually under two minutes; this page refreshes itself.
           </p>
         </div>
       ) : (

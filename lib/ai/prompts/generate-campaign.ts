@@ -1,6 +1,6 @@
 import type { Business, BusinessBrief, Opportunity, Service, Signal } from "@/lib/db/types";
 
-export const PROMPT_VERSION = "gemini-2";
+export const PROMPT_VERSION = "gemini-3";
 
 export interface PromptCtx {
   business: Business;
@@ -51,9 +51,12 @@ export function buildAnglePrompt(ctx: PromptCtx): string {
     "",
     "Build the positioning for one ad campaign this week:",
     "- angle: the specific claim the ad makes and why it wins now (2-3 sentences).",
-    "- hook: the first line that stops the scroll (one line).",
-    "- offer: a concrete offer with a price or clear terms.",
-    "- audience: who to target and why — including angle_type, one of:",
+    "- hook: the first line that stops the scroll — use the words customers themselves",
+    "  use for this trend, not marketing vocabulary.",
+    "- offer: a concrete offer with a real price (use the matched service's actual",
+    "  price when there is one) or unmistakably clear terms.",
+    "- audience: who to target and why — pick the snapshot customer segment this",
+    "  trend actually reaches; include angle_type, one of:",
     "  education | offer | scarcity | social_proof | speed | novelty.",
     `- audience.radius_miles must be ${ctx.business.radius_miles}.`,
   ].join("\n");

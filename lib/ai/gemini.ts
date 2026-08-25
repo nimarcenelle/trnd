@@ -178,15 +178,20 @@ async function creativeCall<T>(
   }
 }
 
-export async function generateWithGemini(ctx: GenerationContext): Promise<GeneratedCampaign> {
+export async function generateWithGemini(
+  ctx: GenerationContext,
+  onStatus: (label: string) => void = () => {},
+): Promise<GeneratedCampaign> {
   const models = await resolveModels();
   const promptCtx: PromptCtx = ctx;
 
   // Creative calls run on Pro per the brief; Flash is reserved for
   // classification/ranking-type calls.
+  onStatus("Finding the angle that wins this week…");
   const angle = await creativeCall(models, buildAnglePrompt(promptCtx), angleResponseSchema, (d) =>
     AngleSchema.parse(d),
   );
+  onStatus("Writing headlines, scripts, and creative briefs…");
   const assets = await creativeCall(
     models,
     generateAssetsPrompt(promptCtx, angle.value),
@@ -337,6 +342,7 @@ export async function judgeSignalRelevance(
     `- 0.0: same industry on paper but wrong business — a cold-plunge studio must not advertise teeth whitening, a barbershop must not advertise lash extensions.`,
     `Judge against what they ACTUALLY sell and who actually walks in, not the category label.`,
     `Return exactly one judgment for EVERY numbered trend below — skip none.`,
+    `Reasons are shown to the owner in a list — vary how they start; never open more than one with "Not".`,
     ``,
     `TRENDS:`,
     ...candidates.map((c, i) => `${i}. "${c.term}" (${c.metric.replace(/_/g, " ")})`),

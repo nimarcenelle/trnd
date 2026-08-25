@@ -420,7 +420,7 @@ export default function OnboardingWizard() {
           </button>
           {mode === "review" ? (
             <button type="submit" className="btn btn-primary" disabled={!canFinish || pending}>
-              {pending ? "Building your analysis…" : "Looks right — finish setup"}
+              {pending ? "Finishing setup…" : "Looks right — finish setup"}
             </button>
           ) : step === 0 ? (
             <button type="button" className="btn btn-primary btn-sm" disabled={!canNext || importing} onClick={continueFromWebsite} aria-busy={importing}>
@@ -432,7 +432,7 @@ export default function OnboardingWizard() {
             </button>
           ) : (
             <button type="submit" className="btn btn-primary" disabled={pending}>
-              {pending ? "Building your analysis…" : "Finish setup"}
+              {pending ? "Finishing setup…" : "Finish setup"}
             </button>
           )}
         </div>

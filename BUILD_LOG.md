@@ -540,3 +540,32 @@ Follow-through on "hashtag hero" and the audit ("scrub thru and analyze"):
   signals); Trends-IOT still 429s from this IP — from Vercel's cron IPs the
   personalized terms become rankable search-interest signals. Gate green
   (66 unit, E2E, build).
+
+## P20 — UX perfection pass: no long waits, no dev-speak, de-tic'd prompts
+Full scrub for waits, weird visuals, and imperfect copy (user request).
+- **Onboarding finishes in ~1 second** (measured 1.0s to dashboard; was
+  30-60s): the founding analysis is written via after() behind the redirect.
+  The dashboard shows a "your founding analysis is being written" teaser, the
+  Snapshot page holds a proper waiting state that refreshes itself
+  (AutoRefresh client helper) — measured landing ~29s later, hands-free. The
+  in-flight guard (briefLikelyInFlight, 5-min window on business.created_at)
+  prevents duplicate generations from page visits.
+- **Campaign build streams**: POST /api/campaigns/build narrates stages as
+  NDJSON ("Reading the signal…", "Finding the angle that wins this week…",
+  "Writing headlines, scripts, and creative briefs…", "Saving your
+  campaign…") and the BuildCampaignButton shows them live on the button, then
+  client-navigates to the finished campaign. Build logic extracted to
+  lib/campaigns/build.ts (onStatus threads through generateCampaign →
+  generateWithGemini); the old blocking server action is gone from both call
+  sites.
+- **Prompt dial-in**: the "Not X. Instead: Y." negation turn demoted from
+  standing rule to at-most-once scalpel, with "vary sentence openings" added
+  to the system voice and the relevance judge ("never open more than one
+  reason with 'Not'"). Angle prompt now demands the customers' own words in
+  the hook, the matched service's real price in the offer, and audience
+  chosen from the snapshot's segments. PROMPT_VERSION gemini-3,
+  BRIEF_PROMPT_VERSION brief-4 (existing outputs upgrade lazily). First
+  post-change hook verified live: no template tic.
+- **Copy scrub**: demo strip no longer tells users to "see BLOCKED.md";
+  onboarding submit reads "Finishing setup…" (it is); e2e labels updated.
+- Gate green (66 unit, E2E, build); probe account scrubbed from the store.

@@ -32,10 +32,10 @@ test("signup → onboarding → recommendation → campaign → launch", async (
   await page.getByRole("button", { name: "Continue →" }).click();
 
   await page.getByLabel("Brand voice notes").fill("Warm but direct. No exclamation marks.");
-  // The submit swaps its label ("Building your analysis…") and navigates — race-proof it.
+  // The submit swaps its label ("Finishing setup…") and navigates — race-proof it.
   const toApp = page.waitForURL(/\/app$/, { timeout: 30_000 });
   await page
-    .getByRole("button", { name: /Finish setup|Building your analysis/ })
+    .getByRole("button", { name: /Finish setup|Finishing setup/ })
     .click({ timeout: 10_000 })
     .catch(() => {}); // button may detach as the action navigates
   await toApp;

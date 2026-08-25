@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import { generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
@@ -84,16 +85,19 @@ export async function completeOnboardingAction(
   );
 
   // The joining gift: TRND's full analysis of the business — positioning,
-  // customers, market, pricing, seasonality, and first moves. The site text
-  // the import already fetched feeds it, so no refetch here. Deterministic
-  // fallback is instant; Gemini takes over transparently when configured.
+  // customers, market, pricing, seasonality, and first moves. It takes the
+  // model a minute, so it's written AFTER the redirect: the owner lands on
+  // the dashboard immediately and the snapshot fills in behind them. The
+  // site text the import already fetched feeds it, so no refetch here.
   const siteText = String(formData.get("site_text") ?? "").slice(0, 12_000) || undefined;
-  try {
-    const brief = await generateBusinessBrief(business, createdServices, siteText);
-    await repo.upsertBusinessBrief(brief);
-  } catch (err) {
-    console.warn("[onboarding] brief generation failed (non-fatal):", (err as Error).message);
-  }
+  after(async () => {
+    try {
+      const brief = await generateBusinessBrief(business, createdServices, siteText);
+      await repo.upsertBusinessBrief(brief);
+    } catch (err) {
+      console.warn("[onboarding] brief generation failed (non-fatal):", (err as Error).message);
+    }
+  });
 
   redirect("/app");
 }

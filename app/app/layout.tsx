@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
       <AppNav businessName={business.name} signOut={signOutAction} />
       {!isSupabaseConfigured && (
         <div className="demo-strip">
-          <b>Demo mode</b> local store · illustrative data · see BLOCKED.md to connect Supabase
+          <b>Demo mode</b> local data · illustrative signals
         </div>
       )}
       <main style={{ flex: 1 }}>{children}</main>

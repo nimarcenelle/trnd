@@ -10,14 +10,14 @@ import SourceBadge from "@/components/app/source-badge";
 import TrendChart from "@/components/app/trend-chart";
 import InsightList from "@/components/app/insight-list";
 import { getSessionUser } from "@/lib/auth/session";
-import { buildCampaignAction } from "@/lib/campaigns/actions";
+import BuildCampaignButton from "@/components/app/build-campaign-button";
 import { refreshRankingAction } from "@/lib/recommend/actions";
 import { getUserRepo } from "@/lib/db";
 import type { Signal } from "@/lib/db/types";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildHowTo, tiktokHashtag } from "@/lib/recommend/howto";
 import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
-import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, generateBusinessBrief } from "@/lib/ai/brief";
+import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
 import { isGeminiConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { titleCase } from "@/lib/text";
@@ -134,21 +134,16 @@ export default async function AppHome() {
     .sort((a, b) => (b.delta_pct ?? 0) - (a.delta_pct ?? 0))
     .slice(0, 5);
 
-  // The analysis — generated at onboarding; lazily healed for accounts that
-  // predate it. Briefs from an older prompt version render as-is this visit
-  // and upgrade to the full analysis after the response, so no page load
-  // ever waits on regeneration.
-  let brief = await repo.getBusinessBrief(business.id);
-  if (!brief) {
-    try {
-      brief = await repo.upsertBusinessBrief(await generateBusinessBrief(business, services));
-    } catch {
-      brief = null;
-    }
-  } else if (
-    brief.prompt_version !== BRIEF_PROMPT_VERSION ||
-    // A template brief upgrades to the real analysis once Gemini is keyed.
-    (brief.model_used === BRIEF_FALLBACK_MODEL && isGeminiConfigured)
+  // The analysis — written in the background right after onboarding. No page
+  // load ever waits on it: missing or outdated briefs (re)generate after the
+  // response, and the teaser below shows a writing-it state meanwhile.
+  const brief = await repo.getBusinessBrief(business.id);
+  if (
+    (!brief && !briefLikelyInFlight(business.created_at)) ||
+    (brief &&
+      (brief.prompt_version !== BRIEF_PROMPT_VERSION ||
+        // A template brief upgrades to the real analysis once Gemini is keyed.
+        (brief.model_used === BRIEF_FALLBACK_MODEL && isGeminiConfigured)))
   ) {
     after(async () => {
       try {
@@ -156,7 +151,7 @@ export default async function AppHome() {
           await generateBusinessBrief(business, await repo.listServices(business.id)),
         );
       } catch (err) {
-        console.warn("[app] brief upgrade failed (non-fatal):", (err as Error).message);
+        console.warn("[app] brief refresh failed (non-fatal):", (err as Error).message);
       }
     });
   }
@@ -233,21 +228,18 @@ export default async function AppHome() {
               footnote={top.competitor_gap ? `Saturation read: ${top.competitor_gap}.` : null}
             />
 
-            <form action={buildCampaignAction} style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 22 }}>
-              <input type="hidden" name="opportunity_id" value={top.id} />
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 22 }}>
               {campaign ? (
                 <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary">
                   View the campaign →
                 </Link>
               ) : (
-                <SubmitButton pendingLabel="Building your campaign…">
-                  Build the campaign
-                </SubmitButton>
+                <BuildCampaignButton opportunityId={top.id} />
               )}
               <Link href="/app/opportunities" className="btn btn-ghost btn-sm">
                 All {active.length} ranked →
               </Link>
-            </form>
+            </div>
 
             {howto && (
               <details className="howto" open>
@@ -403,6 +395,22 @@ export default async function AppHome() {
         </section>
       </div>
 
+      {!brief && (
+        <section className="snap-teaser">
+          <div className="snap-teaser__left">
+            <div>
+              <h4>Your founding analysis is being written</h4>
+              <p>
+                TRND is reading {business.name} — positioning, customers, market, first moves.
+                Usually under two minutes.
+              </p>
+            </div>
+          </div>
+          <Link href="/app/snapshot" className="btn btn-ghost btn-sm">
+            Watch it land →
+          </Link>
+        </section>
+      )}
       {brief && (
         <section className="snap-teaser">
           <div className="snap-teaser__left">

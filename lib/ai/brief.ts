@@ -3,7 +3,7 @@ import { isGeminiConfigured } from "@/lib/env";
 import { CATEGORY_CONFIGS } from "@/lib/signals/category-terms";
 
 export const BRIEF_FALLBACK_MODEL = "trnd-template/v3";
-export const BRIEF_PROMPT_VERSION = "brief-3";
+export const BRIEF_PROMPT_VERSION = "brief-4";
 
 /**
  * The full analysis a business gets when it joins: positioning, who buys,
@@ -259,6 +259,12 @@ async function fetchSiteTextForBrief(website: string | null): Promise<string | u
     console.warn("[ai] site fetch for brief failed (non-fatal):", (err as Error).message);
     return undefined;
   }
+}
+
+/** True while onboarding's own background generation is presumably still
+ * writing this business's analysis — don't start a second one. */
+export function briefLikelyInFlight(businessCreatedAt: string): boolean {
+  return Date.now() - new Date(businessCreatedAt).getTime() < 5 * 60_000;
 }
 
 export async function generateBusinessBrief(

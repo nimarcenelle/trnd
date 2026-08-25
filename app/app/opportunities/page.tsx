@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import BuildCampaignButton from "@/components/app/build-campaign-button";
 import GradePill from "@/components/app/grade-pill";
 import ScoreBreakdown from "@/components/app/score-breakdown";
 import SourceBadge from "@/components/app/source-badge";
-import SubmitButton from "@/components/app/submit-button";
 import Sparkline from "@/components/app/sparkline";
 import { getSessionUser } from "@/lib/auth/session";
-import { buildCampaignAction, setOpportunityStatusAction } from "@/lib/campaigns/actions";
+import { setOpportunityStatusAction } from "@/lib/campaigns/actions";
 import { getUserRepo } from "@/lib/db";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildInsights } from "@/lib/recommend/insights";
@@ -165,12 +165,9 @@ export default async function OpportunitiesPage() {
                     </form>
                   ) : (
                     <>
-                      <form action={buildCampaignAction}>
-                        <input type="hidden" name="opportunity_id" value={o.id} />
-                        <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Building…">
-                          Build campaign
-                        </SubmitButton>
-                      </form>
+                      <BuildCampaignButton opportunityId={o.id} className="btn btn-primary btn-sm">
+                        Build campaign
+                      </BuildCampaignButton>
                       <form action={setOpportunityStatusAction}>
                         <input type="hidden" name="opportunity_id" value={o.id} />
                         <input type="hidden" name="status" value="dismissed" />

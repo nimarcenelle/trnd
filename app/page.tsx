@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import DemoForm from "@/components/landing/demo-form";
-import HeroViz from "@/components/landing/hero-viz";
+import FloatingCta from "@/components/landing/floating-cta";
+import ProductFrame from "@/components/landing/product-frame";
 import { IcoCheck, IcoX } from "@/components/landing/icons";
 import RevealObserver from "@/components/landing/reveal-observer";
 import Brand from "@/components/brand";
@@ -49,6 +50,7 @@ export default function Home() {
   return (
     <>
       <RevealObserver />
+      <FloatingCta />
       <nav className="nav">
         <a href="#top" style={{ display: "inline-flex" }} aria-label="TRND — top">
           <Brand href={null} />
@@ -100,7 +102,7 @@ export default function Home() {
               <span className="pill">Priced to your ad spend</span>
             </div>
           </div>
-          <HeroViz />
+          <ProductFrame />
         </div>
       </header>
 

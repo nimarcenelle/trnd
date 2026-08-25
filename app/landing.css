@@ -153,31 +153,172 @@
   gap: 10px;
 }
 
-/* ---------- HERO SIGNATURE VISUAL ---------- */
-.signal-viz {
+/* ---------- HERO PRODUCT FRAME ----------
+   The actual dashboard, framed as a browser window — software, not
+   illustration. */
+.pframe {
   position: relative;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--bg-1);
+  box-shadow: 0 28px 70px var(--shadow);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: frameIn 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) forwards 0.15s;
 }
-.signal-viz svg {
+@keyframes frameIn {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.pframe__bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+}
+.pframe__bar i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.pframe__bar span {
+  margin-left: 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+.pframe__body {
+  padding: 20px 22px 18px;
+}
+.pframe__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.pframe__eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--amber-text);
+}
+.pframe__delta {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--mint-text);
+}
+.pframe__title {
+  font-family: var(--disp);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.15;
+}
+.pframe__why {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 6px 0 14px;
+}
+.pframe__chart {
+  display: block;
   width: 100%;
   height: auto;
+  margin-bottom: 4px;
 }
-.sv-label {
-  font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.05em;
+.pframe__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
 }
-.sv-chip {
-  font-family: var(--mono);
-  font-size: 9.5px;
-  font-weight: 600;
+.pframe__score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.sv-headline {
+.pframe__score svg {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+}
+.pframe__score strong {
   font-family: var(--disp);
+  font-size: 20px;
   font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
 }
+.pframe__score span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  margin-top: 3px;
+}
+.pframe__cta {
+  background: var(--amber);
+  color: var(--amber-ink);
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pframe__foot {
+  margin-top: 14px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: var(--ink-faint);
+}
+
+/* ---------- FLOATING DEMO CTA ---------- */
+.float-cta {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 70;
+  background: var(--amber);
+  color: var(--amber-ink);
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 13px 22px;
+  border-radius: 999px;
+  box-shadow: 0 12px 32px var(--shadow);
+  opacity: 0;
+  transform: translateY(16px);
+  pointer-events: none;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+.float-cta--on {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.float-cta:hover {
+  background: var(--amber-hover);
+}
+
 #sparkPath {
-  stroke-dasharray: 520;
-  stroke-dashoffset: 520;
+  stroke-dasharray: 420;
+  stroke-dashoffset: 420;
   animation: drawSpark 1.6s ease-out forwards 0.2s;
 }
 @keyframes drawSpark {
@@ -208,38 +349,6 @@
     r: 8.5;
   }
 }
-#adCard {
-  opacity: 0;
-  transform: translate(14px, 0);
-  animation: slideCard 0.6s cubic-bezier(0.2, 0.8, 0.3, 1) forwards 1.9s;
-}
-@keyframes slideCard {
-  to {
-    opacity: 1;
-    transform: translate(0, 0);
-  }
-}
-#connectFlow {
-  stroke-dasharray: 4 7;
-  opacity: 0;
-  animation: fadeFlow 0.3s forwards 2.1s;
-}
-.motion-run #connectFlow {
-  animation:
-    fadeFlow 0.3s forwards 2.1s,
-    flowDash 1s linear infinite 2.1s;
-}
-@keyframes flowDash {
-  to {
-    stroke-dashoffset: -22;
-  }
-}
-@keyframes fadeFlow {
-  to {
-    opacity: 0.8;
-  }
-}
-
 /* ---------- SECTION SHELL ---------- */
 section.block {
   padding: 96px 0;
@@ -763,24 +872,7 @@ hr.rule {
 /* ---------- THEMED SVG ARTWORK ----------
    CSS beats presentation attributes, so the inline fill/stroke values in the
    markup act as a static fallback and these rules drive the theme. */
-.sv-faint {
-  fill: var(--ink-faint);
-}
-.sv-mint {
-  fill: var(--mint);
-}
-.sv-ink {
-  fill: var(--ink);
-}
-.sv-card {
-  fill: var(--paper);
-  stroke: var(--card-stroke);
-}
-.sv-amber-fill {
-  fill: var(--amber);
-}
-#sparkPath,
-#connectFlow {
+#sparkPath {
   stroke: var(--amber);
 }
 #sparkDot {
@@ -824,9 +916,10 @@ hr.rule {
   .hero__grid {
     grid-template-columns: 1fr;
   }
-  .signal-viz {
+  .pframe {
     order: -1;
     max-width: 420px;
+    width: 100%;
     margin: 0 auto 20px;
   }
   .split {
@@ -897,8 +990,8 @@ hr.rule {
   }
   #sparkPath,
   #sparkDot,
-  #adCard,
-  #connectFlow,
+  .pframe,
+  .float-cta,
   #flySpin {
     animation: none !important;
     opacity: 1;

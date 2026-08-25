@@ -361,3 +361,23 @@ of real sites (`scripts/probe-import.ts`, kept as a diagnostic).
   anchored on the ring (viewBox widened so nothing clips); mobile nav ≤620px no
   longer wraps "Sign in" and the demo button onto the logo (tighter padding,
   nowrap) — verified numerically at 375px. Gate green.
+
+## P12 — "Working SaaS" landing pass (vibe reference: hostie.ai, nothing copied)
+What makes that site feel like a working product: the product shown as a real
+thing, calm one-idea sections, persistent demo CTA, proof everywhere. TRND is
+pre-launch and the data-honesty rule holds — no invented logos, testimonials, or
+metrics — so the honest translation:
+- **Hero product frame** replaces the abstract signal→ad SVG: the actual
+  dashboard in a browser window (recommendation, ↑48% delta, demand sparkline,
+  6.8/10 score dial, "Build the campaign" button, and the concrete output line
+  "5 headlines · 3 primary texts · 3 scripts · targeting"). Reuses the spark
+  draw-in animation; entrance slide; fully token-themed for both themes.
+  hero-viz.tsx deleted along with its orphaned CSS/keyframes.
+- **Floating "Request a demo" pill** (bottom-right) appears after the hero's own
+  CTAs scroll away; reduced-motion safe; verified visible-at-1200/hidden-at-top.
+- **E2E back to deterministic**: `next start` had begun loading `.env.local`, so
+  "Build the campaign" made live Pro calls and blew the 45s wait. Playwright's
+  webServer now blanks GEMINI_API_KEY — E2E exercises the fallback path with no
+  LLM cost. Gate green (53 unit, E2E, build).
+- Confirmed model resolution post-fix: flash `gemini-3.7-flash`, pro
+  `gemini-3.1-pro-preview` — nothing resolves to retired 2.5 ids.

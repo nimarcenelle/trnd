@@ -19,10 +19,12 @@ export default defineConfig({
   webServer: {
     // Isolated demo store: E2E runs never write into the dev .demo-data —
     // recorded "results" from tests must not pollute real demo learnings.
+    // GEMINI_API_KEY is blanked so E2E exercises the deterministic path:
+    // no live LLM calls, no per-run cost, no 45s+ generation stalls.
     command: "rm -rf .demo-data-e2e && pnpm seed && pnpm start -p 3117",
     url: "http://localhost:3117",
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { TRND_DEMO_DIR: ".demo-data-e2e" },
+    env: { TRND_DEMO_DIR: ".demo-data-e2e", GEMINI_API_KEY: "" },
   },
 });

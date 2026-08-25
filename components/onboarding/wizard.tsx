@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 
 import { completeOnboardingAction, type OnboardingState } from "@/lib/onboarding/actions";
-import { importFromWebsiteAction } from "@/lib/onboarding/import-action";
 import { CATEGORIES } from "@/lib/db/types";
+import type { ImportEvent, SiteImport } from "@/lib/import/website";
 
 const STEPS = ["Website", "Category", "Location", "Services", "Voice"] as const;
 
@@ -45,50 +45,115 @@ export default function OnboardingWizard() {
   const [voice, setVoice] = useState("");
   const [siteText, setSiteText] = useState("");
 
-  // Website import: owner-initiated read of their own site that prefills
-  // everything below. Failure is normal — onboarding continues manually.
-  const [importing, startImport] = useTransition();
+  // Website import: owner-initiated read of their own site, streamed as
+  // NDJSON events so every stage shows up the moment it happens. Heuristics
+  // land as a `partial` prefill; the AI pass follows as `final`. Failure is
+  // normal — onboarding continues manually.
+  const [importing, setImporting] = useState(false);
   const [importNote, setImportNote] = useState<string | null>(null);
+  const [importLog, setImportLog] = useState<string[]>([]);
+  const [foundChips, setFoundChips] = useState<string[]>([]);
+  // What the import itself wrote, so a later event may refine it but the
+  // owner's own typing is never clobbered.
+  const importedName = useRef<string | null>(null);
+  const importedVoice = useRef<string | null>(null);
 
-  function continueFromWebsite() {
+  function applyImport(d: SiteImport) {
+    if (d.name && (!name.trim() || name === importedName.current)) {
+      setName(d.name);
+      importedName.current = d.name;
+    }
+    if (d.category) setCategory(d.category);
+    if (d.city) setCity(d.city);
+    if (d.region) setRegion(d.region);
+    if (d.priceBand) setPriceBand(d.priceBand);
+    if (d.services.length > 0) {
+      setServices(d.services.map((sv) => ({ name: sv.name, price: sv.price })));
+    }
+    if (d.voiceHint && (!voice || voice === importedVoice.current)) {
+      setVoice(d.voiceHint);
+      importedVoice.current = d.voiceHint;
+    }
+    const chips = d.services.slice(0, 6).map((sv) => `${sv.name} — $${sv.price}`);
+    if (d.services.length > 6) chips.push(`+${d.services.length - 6} more`);
+    if (d.city) chips.push(`${d.city}${d.region ? `, ${d.region}` : ""}`);
+    setFoundChips(chips);
+  }
+
+  function finishImport(d: SiteImport) {
+    const found: string[] = [];
+    if (d.services.length > 0) found.push(`${d.services.length} offering${d.services.length === 1 ? "" : "s"} with prices`);
+    if (d.city) found.push("your location");
+    if (d.category) found.push("your category");
+    if (d.priceBand) found.push("your price range");
+    const gotName = Boolean(name.trim() || d.name);
+    setImportNote(
+      (found.length > 0
+        ? `Read your site — found ${found.join(", ")}. Confirm or edit below, then you're in.`
+        : "Read your site — confirm the details below.") +
+        (d.services.length === 0 ? " Couldn't read a menu or price list, so add what you sell below." : "") +
+        (gotName ? "" : " Add your business name to continue."),
+    );
+    // Everything on one confirm screen — no more questions than needed.
+    if (gotName) setMode("review");
+  }
+
+  async function continueFromWebsite() {
     if (!website.trim()) {
       setStep(1);
       return;
     }
-    startImport(async () => {
-      const result = await importFromWebsiteAction(website);
-      if (result.ok && result.data) {
-        const d = result.data;
-        if (!name.trim() && d.name) setName(d.name);
-        if (d.category) setCategory(d.category);
-        if (d.city) setCity(d.city);
-        if (d.region) setRegion(d.region);
-        if (d.priceBand) setPriceBand(d.priceBand);
-        if (d.services.length > 0) {
-          setServices(d.services.map((sv) => ({ name: sv.name, price: sv.price })));
+    setImporting(true);
+    setImportNote(null);
+    setImportLog([]);
+    setFoundChips([]);
+    try {
+      const res = await fetch("/api/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: website }),
+      });
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("no stream");
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let sawVerdict = false;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line) as ImportEvent;
+          if (event.type === "status") {
+            setImportLog((log) => [...log, event.label]);
+          } else if (event.type === "partial") {
+            applyImport(event.data);
+            setImportLog((log) => [...log, "Extracting offerings and prices…"]);
+          } else if (event.type === "final") {
+            applyImport(event.data);
+            setSiteText(event.siteText);
+            sawVerdict = true;
+            finishImport(event.data);
+          } else {
+            sawVerdict = true;
+            setImportNote(event.reason);
+            if (name.trim()) setStep(1);
+          }
         }
-        if (d.voiceHint && !voice) setVoice(d.voiceHint);
-        if (result.siteText) setSiteText(result.siteText);
-        const found: string[] = [];
-        if (d.services.length > 0) found.push(`${d.services.length} offering${d.services.length === 1 ? "" : "s"} with prices`);
-        if (d.city) found.push("your location");
-        if (d.category) found.push("your category");
-        if (d.priceBand) found.push("your price range");
-        const gotName = Boolean(name.trim() || d.name);
-        setImportNote(
-          (found.length > 0
-            ? `Read your site — found ${found.join(", ")}. Confirm or edit below, then you're in.`
-            : "Read your site — confirm the details below.") +
-            (d.services.length === 0 ? " Couldn't read a menu or price list, so add what you sell below." : "") +
-            (gotName ? "" : " Add your business name to continue."),
-        );
-        // Everything on one confirm screen — no more questions than needed.
-        if (gotName) setMode("review");
-      } else {
-        setImportNote(result.reason ?? "Couldn't read the site — fill in the details manually.");
-        if (name.trim()) setStep(1);
       }
-    });
+      if (!sawVerdict) {
+        // Stream ended without a verdict (connection dropped mid-read).
+        setImportNote("Lost the connection while reading the site — fill in the details manually.");
+      }
+    } catch {
+      setImportNote("Couldn't read the site — fill in the details manually.");
+      if (name.trim()) setStep(1);
+    } finally {
+      setImporting(false);
+    }
   }
 
   const canNext = useMemo(() => {
@@ -233,6 +298,26 @@ export default function OnboardingWizard() {
             <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "2px 0 0", lineHeight: 1.5 }}>
               No website? Leave it blank — you can fill everything in by hand.
             </p>
+            {(importing || importLog.length > 0) && (
+              <div className="import-log" aria-live="polite">
+                {importLog.map((line, i) => {
+                  const current = importing && i === importLog.length - 1;
+                  return (
+                    <div key={i} className={`import-log__line${current ? " is-current" : ""}`}>
+                      <span className="import-log__mark" aria-hidden="true">{current ? "" : "✓"}</span>
+                      <span>{line}</span>
+                    </div>
+                  );
+                })}
+                {foundChips.length > 0 && (
+                  <div className="import-log__chips">
+                    {foundChips.map((chip) => (
+                      <span key={chip} className="pill">{chip}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         )}
 

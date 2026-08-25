@@ -381,3 +381,24 @@ metrics — so the honest translation:
   LLM cost. Gate green (53 unit, E2E, build).
 - Confirmed model resolution post-fix: flash `gemini-3.7-flash`, pro
   `gemini-3.1-pro-preview` — nothing resolves to retired 2.5 ids.
+
+## P13 — Streaming site import (user request: feedback bit by bit)
+The "Reading your site…" button used to sit frozen for 20-60s (crawl + headless
+render + Gemini). The import is now a streaming NDJSON route with live narration:
+- `POST /api/import` replaces the server action (same auth via session cookie,
+  plus an explicit origin check). It streams one JSON line per event: status
+  ("Reaching sweathouz.com…", "Their site runs on JavaScript — opening a real
+  browser for /chapel-hill-book-now/", "Found 3 more pages worth reading: …",
+  "Read /locations/", "AI pass — reading the pages like a person…"), a `partial`
+  prefill the moment heuristics land, then `final` with the refined data + site
+  text (or `error`).
+- `fetchSiteCorpus` grew an optional onProgress callback (rendering / links /
+  page events); other callers unchanged.
+- Wizard consumes the stream: a live checklist under the fields (done lines get
+  amber ✓, the current line pulses; reduced-motion safe; aria-live), found
+  offerings appear as pills as soon as they're extracted, fields prefill on
+  `partial` and refine on `final` — the owner's own typing is never clobbered
+  (imported values tracked in refs). First feedback in ~1s instead of a minute
+  of nothing.
+- Verified live against the Sweathouz deep URL: 4 narration lines within 4s,
+  review screen with all 8 services at the end. Gate green (53 unit, E2E, build).

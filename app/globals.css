@@ -385,3 +385,60 @@ svg {
     animation: none;
   }
 }
+
+/* ---------- Onboarding import log ----------
+   Live narration while TRND reads a website: one line per stage, the
+   current line pulsing, found offerings appearing as pills. */
+.import-log {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.import-log__line {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+.import-log__line.is-current {
+  color: var(--amber-text);
+}
+.import-log__mark {
+  flex: 0 0 12px;
+  color: var(--amber);
+}
+.import-log__line.is-current .import-log__mark::before {
+  content: "●";
+  display: inline-block;
+  animation: importPulse 1s ease-in-out infinite;
+}
+@keyframes importPulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.import-log__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.import-log__chips .pill {
+  font-size: 10.5px;
+  padding: 4px 10px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .import-log__line.is-current .import-log__mark::before {
+    animation: none;
+  }
+}

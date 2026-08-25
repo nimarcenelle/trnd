@@ -166,6 +166,21 @@ export function discoverInternalLinks(html: string, baseUrl: string): string[] {
     .map((s) => s.url);
 }
 
+/** One NDJSON line per event on /api/import — the wizard narrates these. */
+export type ImportEvent =
+  | { type: "status"; label: string }
+  | { type: "partial"; data: SiteImport }
+  | { type: "final"; data: SiteImport; siteText: string }
+  | { type: "error"; reason: string };
+
+/** Progress events the crawl emits, so a caller can stream live status. */
+export type CorpusProgress =
+  | { kind: "rendering"; path: string }
+  | { kind: "links"; paths: string[] }
+  | { kind: "page"; path: string };
+
+const pathOf = (u: string) => new URL(u).pathname || "/";
+
 /**
  * Homepage plus up to four relevant subpages (menu, pricing, services,
  * locations, about), fetched in parallel. When the plain fetch is blocked
@@ -174,7 +189,10 @@ export function discoverInternalLinks(html: string, baseUrl: string): string[] {
  * Subpage failures are dropped silently — the homepage alone is still a
  * useful corpus.
  */
-export async function fetchSiteCorpus(url: string): Promise<SiteCorpus> {
+export async function fetchSiteCorpus(
+  url: string,
+  onProgress?: (event: CorpusProgress) => void,
+): Promise<SiteCorpus> {
   let renderer: Renderer | null = null;
   let rendersLeft = MAX_RENDERED_PAGES;
   const renderPage = async (pageUrl: string): Promise<string | null> => {
@@ -186,6 +204,7 @@ export async function fetchSiteCorpus(url: string): Promise<SiteCorpus> {
     }
     if (!renderer) return null;
     rendersLeft--;
+    onProgress?.({ kind: "rendering", path: pathOf(pageUrl) });
     return renderer.render(pageUrl);
   };
 
@@ -220,6 +239,7 @@ export async function fetchSiteCorpus(url: string): Promise<SiteCorpus> {
   try {
     const givenLoad = await loadPage(url);
     if (!givenLoad.html) throw givenLoad.error;
+    onProgress?.({ kind: "page", path: pathOf(url) });
 
     // A pasted deep link (a menu or booking page) is often where the prices
     // are — keep it, and crawl the site root alongside it for identity.
@@ -228,7 +248,10 @@ export async function fetchSiteCorpus(url: string): Promise<SiteCorpus> {
     if (given.pathname.replace(/\/+$/, "") !== "") {
       const rootUrl = `${given.origin}/`;
       const rootLoad = await loadPage(rootUrl);
-      if (rootLoad.html) pages.push({ url: rootUrl, html: rootLoad.html });
+      if (rootLoad.html) {
+        pages.push({ url: rootUrl, html: rootLoad.html });
+        onProgress?.({ kind: "page", path: "/" });
+      }
     }
     pages.push({ url, html: givenLoad.html });
 
@@ -242,6 +265,7 @@ export async function fetchSiteCorpus(url: string): Promise<SiteCorpus> {
       linkSeen.add(key);
       links.push(l);
     }
+    if (links.length > 0) onProgress?.({ kind: "links", paths: links.map(pathOf) });
     const settled = await Promise.allSettled(links.map((l) => fetchOnce(l)));
     for (let i = 0; i < settled.length; i++) {
       const r = settled[i];
@@ -249,7 +273,10 @@ export async function fetchSiteCorpus(url: string): Promise<SiteCorpus> {
       if (!html || stripHtml(html).text.length < MIN_PAGE_TEXT) {
         html = (await renderPage(links[i])) ?? html;
       }
-      if (html && !looksBlocked(html)) pages.push({ url: links[i], html });
+      if (html && !looksBlocked(html)) {
+        pages.push({ url: links[i], html });
+        onProgress?.({ kind: "page", path: pathOf(links[i]) });
+      }
     }
 
     let text = "";

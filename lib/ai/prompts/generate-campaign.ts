@@ -1,15 +1,16 @@
-import type { Business, Opportunity, Service, Signal } from "@/lib/db/types";
+import type { Business, BusinessBrief, Opportunity, Service, Signal } from "@/lib/db/types";
 
-export const PROMPT_VERSION = "gemini-1";
+export const PROMPT_VERSION = "gemini-2";
 
 export interface PromptCtx {
   business: Business;
   signal: Signal;
   opportunity: Opportunity;
   service: Service | null;
+  brief: BusinessBrief | null;
 }
 
-function businessBlock({ business, service }: PromptCtx): string {
+function businessBlock({ business, service, brief }: PromptCtx): string {
   return [
     `BUSINESS: ${business.name} — ${business.category} in ${business.city}${business.region ? ", " + business.region : ""}.`,
     `Radius: ${business.radius_miles} miles. Price band: ${business.price_band ?? "unknown"}.`,
@@ -17,6 +18,14 @@ function businessBlock({ business, service }: PromptCtx): string {
       ? `Matched service: ${service.name}${service.price_cents ? ` ($${Math.round(service.price_cents / 100)})` : ""}.`
       : "No direct service match — recommend a sensible new offer.",
     business.brand_voice_notes ? `Owner's voice notes: ${business.brand_voice_notes}` : "",
+    ...(brief
+      ? [
+          `SNAPSHOT (how TRND reads this business — the campaign must fit it):`,
+          brief.positioning ? `Positioning: ${brief.positioning}` : "",
+          brief.advantages.length > 0 ? `Edges to press: ${brief.advantages.slice(0, 2).join(" ")}` : "",
+          brief.watchouts.length > 0 ? `Never: ${brief.watchouts.slice(0, 2).join(" ")}` : "",
+        ]
+      : []),
   ]
     .filter(Boolean)
     .join("\n");

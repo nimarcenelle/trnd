@@ -26,15 +26,16 @@ export async function buildCampaignAction(formData: FormData): Promise<void> {
   const existing = await repo.getCampaignByOpportunity(opportunity.id);
   if (existing) redirect(`/app/campaigns/${existing.id}`);
 
-  const [business, signal, services] = await Promise.all([
+  const [business, signal, services, brief] = await Promise.all([
     repo.getBusiness(opportunity.business_id),
     repo.getSignal(opportunity.signal_id),
     repo.listServices(opportunity.business_id),
+    repo.getBusinessBrief(opportunity.business_id),
   ]);
   if (!business || !signal) redirect("/app");
 
   const service = services.find((s) => s.id === opportunity.matched_service_id) ?? null;
-  const generated = await generateCampaign({ business, signal, opportunity, service });
+  const generated = await generateCampaign({ business, signal, opportunity, service, brief });
   const { angle } = generated.result;
   const { assets } = generated.result;
 

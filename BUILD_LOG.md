@@ -482,3 +482,27 @@ Sixth signal source: TikTok's public Creative Center trend board, per industry.
 - Live ingest run: tiktok_cc delivered 21 signals + 147 series points — the
   top live source of the run (Reddit 403'd from this IP, Trends IOT 429'd;
   circuit breakers degraded both cleanly). Gate green (60 unit, E2E, build).
+
+## P18 — Snapshot-aware recommendations ("use the company snapshot to be intelligent")
+Reported: Sweathouz (contrast therapy) got recommended teeth whitening —
+category-level matching can't tell a cold-plunge studio from a dentist.
+- **Relevance pass in the recommender**: after deterministic scoring, the top
+  12 candidates go through one Flash call carrying the founding analysis
+  (positioning + customer segments) and the actual service list; each trend
+  gets relevance 0–1 + a one-line reason. The fit component becomes the judged
+  relevance (applyRelevance in lib/scoring.ts — same published weights, score
+  re-derived, matched-service claim dropped under 0.3 fit, reason appended to
+  the rationale as "Snapshot read: …"). Wider pool means a relevant #9 can
+  outrank junk #1. Non-fatal: no key / failed call → deterministic ranking
+  stands.
+- **Campaign prompts carry the snapshot** (PROMPT_VERSION gemini-2): the
+  business block now includes positioning, top edges, and watch-outs as hard
+  guidance, and the brief threads through GenerationContext from the build
+  action.
+- Verified live on the reporting account: "teeth whitening before wedding"
+  sank from the top to 5.0 ("Not a cosmetic dental practice — your studio
+  sells private infrared sauna and cold plunge suites"); new #1
+  "naturalremedies" 7.2 ("a natural 60-minute recovery cycle of infrared heat
+  and cold plunges"), #2 "iv hydration therapy" 6.7 ("adjacent recovery
+  routine for the same UNC athletes seeking inflammation relief"). Both
+  Sweathouz accounts re-ranked in place. Gate green (63 unit, E2E, build).

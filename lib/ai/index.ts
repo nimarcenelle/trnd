@@ -5,7 +5,7 @@
  * generator so every screen downstream always works (BLOCKED.md).
  */
 
-import type { Business, Opportunity, Service, Signal } from "@/lib/db/types";
+import type { Business, BusinessBrief, Opportunity, Service, Signal } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
 
 import {
@@ -20,6 +20,8 @@ export interface GenerationContext {
   signal: Signal;
   opportunity: Opportunity;
   service: Service | null;
+  /** The founding analysis — campaigns are written to fit it. */
+  brief: BusinessBrief | null;
 }
 
 export interface GeneratedCampaign {

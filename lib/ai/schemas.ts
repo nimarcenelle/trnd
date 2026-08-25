@@ -53,6 +53,19 @@ export const BusinessBriefSchema = z.object({
 });
 export type BusinessBriefResult = z.infer<typeof BusinessBriefSchema>;
 
+export const RelevanceSchema = z.object({
+  judgments: z
+    .array(
+      z.object({
+        index: z.number().int().min(0),
+        relevance: z.number().min(0).max(1),
+        reason: z.string().min(4),
+      }),
+    )
+    .min(1),
+});
+export type RelevanceResult = z.infer<typeof RelevanceSchema>;
+
 export const SiteExtractSchema = z.object({
   name: z.string().min(1).nullable(),
   category: z.string().min(3).nullable(),

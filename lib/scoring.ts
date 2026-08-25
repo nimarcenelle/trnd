@@ -115,6 +115,34 @@ export interface ScoredOpportunity {
   competitorGapText: string;
 }
 
+/**
+ * Fold in the snapshot-aware relevance judgment: the fit component becomes
+ * the judged relevance (the token-overlap guess was only ever a proxy for
+ * "does this make sense for THIS business"), the total re-derives from the
+ * same public weights, and the reason lands in the rationale.
+ */
+export function applyRelevance(
+  result: ScoredOpportunity,
+  relevance: number,
+  reason: string,
+): ScoredOpportunity {
+  const fit = Math.min(1, Math.max(0, relevance));
+  const c = result.components;
+  const total =
+    WEIGHTS.normalizedDelta * c.normalizedDelta +
+    WEIGHTS.serviceMatch * fit +
+    WEIGHTS.competitorGap * c.competitorGap +
+    WEIGHTS.historicalLift * c.historicalLift;
+  return {
+    ...result,
+    score: Math.round(total * 100) / 10,
+    components: { ...c, serviceMatch: fit },
+    // A "matched service" claim under an irrelevant term reads as nonsense.
+    matchedService: fit < 0.3 ? null : result.matchedService,
+    rationale: `${result.rationale} Snapshot read: ${reason}`,
+  };
+}
+
 export function scoreOpportunity(
   signal: Signal,
   services: Service[],

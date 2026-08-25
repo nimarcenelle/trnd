@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Learning, Service, Signal } from "../lib/db/types";
 import {
+  applyRelevance,
   competitorGap,
   historicalLift,
   matchService,
@@ -98,5 +99,37 @@ describe("scoreOpportunity", () => {
       { coverageCount: 0 },
     );
     expect(result.score).toBeGreaterThanOrEqual(8.5);
+  });
+});
+
+describe("applyRelevance", () => {
+  const base = () =>
+    scoreOpportunity(signal(), [service("Facial balancing consult")], [], { coverageCount: 2 });
+
+  it("sinks a category-matched but business-irrelevant term", () => {
+    const before = base();
+    const after = applyRelevance(before, 0.05, "They sell contrast therapy, not teeth whitening.");
+    expect(after.score).toBeLessThan(before.score);
+    expect(after.components.serviceMatch).toBe(0.05);
+    expect(after.matchedService).toBeNull();
+    expect(after.rationale).toContain("Snapshot read:");
+  });
+
+  it("lifts a relevant term that had no token overlap with any service", () => {
+    // "facial balancing" vs a menu that shares no tokens → fallback fit 0.35.
+    const before = scoreOpportunity(signal(), [service("Cold plunge session")], [], { coverageCount: 2 });
+    expect(before.components.serviceMatch).toBe(0.35);
+    const after = applyRelevance(before, 0.95, "Adjacent recovery need their exact customers have.");
+    expect(after.score).toBeGreaterThan(before.score);
+  });
+
+  it("re-derives the total from the published weights", () => {
+    const after = applyRelevance(base(), 0.5, "Plausible stretch.");
+    const c = after.components;
+    const expected =
+      Math.round(
+        (0.35 * c.normalizedDelta + 0.25 * 0.5 + 0.2 * c.competitorGap + 0.2 * c.historicalLift) * 100,
+      ) / 10;
+    expect(after.score).toBe(expected);
   });
 });

@@ -21,7 +21,13 @@ import {
   type PromptCtx,
 } from "./prompts/generate-campaign";
 import { systemInstruction } from "./prompts/system";
-import { AngleSchema, BusinessBriefSchema, CampaignAssetsSchema, SiteExtractSchema } from "./schemas";
+import {
+  AngleSchema,
+  BusinessBriefSchema,
+  CampaignAssetsSchema,
+  RelevanceSchema,
+  SiteExtractSchema,
+} from "./schemas";
 
 /** Documented fallback chains, newest first. Used only if listing fails or
  * returns nothing usable. */
@@ -271,6 +277,79 @@ export async function generateBriefWithGemini(
     model_used: model,
     prompt_version: BRIEF_PROMPT_VERSION,
   };
+}
+
+const relevanceResponseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    judgments: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          index: { type: Type.INTEGER },
+          relevance: { type: Type.NUMBER },
+          reason: { type: Type.STRING },
+        },
+        required: ["index", "relevance", "reason"],
+      },
+    },
+  },
+  required: ["judgments"],
+};
+
+export interface RelevanceCandidate {
+  term: string;
+  metric: string;
+}
+
+/**
+ * The snapshot-aware screen between "same category" and "actually useful":
+ * given how TRND reads this business, rate how sensible a paid campaign on
+ * each trend term would be. A contrast-therapy studio and a dentist share a
+ * category; they do not share campaigns.
+ */
+export async function judgeSignalRelevance(
+  business: Business,
+  brief: NewBusinessBrief | { positioning: string; customer_segments: string[] },
+  services: Service[],
+  candidates: RelevanceCandidate[],
+): Promise<Map<number, { relevance: number; reason: string }>> {
+  const models = await resolveModels();
+  const menu = services
+    .filter((s) => s.is_active)
+    .map((s) => s.name)
+    .join("; ");
+  const prompt = [
+    `You screen weekly trend signals for one specific local business. Only signals this business could credibly and profitably advertise on THIS WEEK matter.`,
+    `BUSINESS: ${business.name} — ${business.category} in ${business.city}${business.region ? `, ${business.region}` : ""}.`,
+    `SELLS: ${menu || "not specified"}.`,
+    brief.positioning ? `POSITIONING: ${brief.positioning}` : "",
+    (brief.customer_segments ?? []).length > 0 ? `CUSTOMERS: ${brief.customer_segments.join(" | ")}` : "",
+    ``,
+    `For each numbered trend below, return index, relevance (0 to 1), and reason (one short sentence).`,
+    `- 1.0: squarely what they sell, or an adjacent need their exact customers have that they could credibly serve.`,
+    `- 0.5: plausible with a stretch — a new offer they could stand up this week.`,
+    `- 0.0: same industry on paper but wrong business — a cold-plunge studio must not advertise teeth whitening, a barbershop must not advertise lash extensions.`,
+    `Judge against what they ACTUALLY sell and who actually walks in, not the category label.`,
+    `Return exactly one judgment for EVERY numbered trend below — skip none.`,
+    ``,
+    `TRENDS:`,
+    ...candidates.map((c, i) => `${i}. "${c.term}" (${c.metric.replace(/_/g, " ")})`),
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const parsed = await structuredCall(models.flash, prompt, relevanceResponseSchema, (d) =>
+    RelevanceSchema.parse(d),
+  );
+  const out = new Map<number, { relevance: number; reason: string }>();
+  for (const j of parsed.judgments) {
+    if (j.index >= 0 && j.index < candidates.length) {
+      out.set(j.index, { relevance: j.relevance, reason: j.reason });
+    }
+  }
+  return out;
 }
 
 const siteExtractResponseSchema: Schema = {

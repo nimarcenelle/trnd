@@ -1,6 +1,7 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, NewOpportunity } from "@/lib/db/types";
-import { scoreOpportunity } from "@/lib/scoring";
+import { isGeminiConfigured } from "@/lib/env";
+import { applyRelevance, scoreOpportunity } from "@/lib/scoring";
 
 /** Monday (UTC) of the week containing `d` — the opportunity week key. */
 export function weekOf(d = new Date()): string {
@@ -11,6 +12,8 @@ export function weekOf(d = new Date()): string {
 }
 
 const TOP_N = 5;
+/** Wider pool for the relevance pass — a relevant #9 can outrank a junk #1. */
+const CANDIDATE_POOL = 12;
 
 export interface RecommendBusinessResult {
   businessId: string;
@@ -41,7 +44,7 @@ export async function recommendForBusiness(
   }
 
   const scorable = signals.filter((s) => s.metric_type !== "news_coverage");
-  const scored = scorable
+  let scored = scorable
     .map((signal) => ({
       signal,
       result: scoreOpportunity(signal, services, learnings, {
@@ -49,7 +52,38 @@ export async function recommendForBusiness(
       }),
     }))
     .sort((a, b) => b.result.score - a.result.score)
-    .slice(0, TOP_N);
+    .slice(0, CANDIDATE_POOL);
+
+  // Snapshot-aware relevance pass: category matching says "teeth whitening"
+  // fits a contrast-therapy studio; the founding analysis knows better. One
+  // Flash call re-judges the candidate pool against what the business
+  // actually sells and who its customers are. Non-fatal — the deterministic
+  // ranking stands when Gemini is unavailable or the call fails.
+  if (isGeminiConfigured && scored.length > 0) {
+    try {
+      const brief = await repo.getBusinessBrief(business.id);
+      if (brief) {
+        const { judgeSignalRelevance } = await import("@/lib/ai/gemini");
+        const judgments = await judgeSignalRelevance(
+          business,
+          brief,
+          services,
+          scored.map(({ signal }) => ({ term: signal.term, metric: signal.metric_type })),
+        );
+        scored = scored
+          .map((entry, i) => {
+            const j = judgments.get(i);
+            return j
+              ? { ...entry, result: applyRelevance(entry.result, j.relevance, j.reason) }
+              : entry;
+          })
+          .sort((a, b) => b.result.score - a.result.score);
+      }
+    } catch (err) {
+      console.warn("[recommend] relevance pass failed (non-fatal):", (err as Error).message);
+    }
+  }
+  scored = scored.slice(0, TOP_N);
 
   if (scored.length === 0) {
     return { businessId: business.id, created: 0, topScore: null };

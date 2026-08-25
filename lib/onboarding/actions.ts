@@ -56,6 +56,16 @@ export async function completeOnboardingAction(
   const existing = await repo.getBusinessByOwner(user.id);
   if (existing) redirect("/app");
 
+  let photoUrls: string[] = [];
+  try {
+    const parsed = JSON.parse(String(formData.get("photo_urls") ?? "[]")) as unknown;
+    if (Array.isArray(parsed)) {
+      photoUrls = parsed.filter((p): p is string => typeof p === "string" && /^https?:\/\//.test(p)).slice(0, 6);
+    }
+  } catch {
+    /* photos are a nice-to-have — never block onboarding on them */
+  }
+
   const business = await repo.createBusiness({
     owner_id: user.id,
     name,
@@ -69,6 +79,7 @@ export async function completeOnboardingAction(
     website: website || null,
     price_band: priceBand || null,
     brand_voice_notes: brandVoice || null,
+    photo_urls: photoUrls,
   });
 
   const createdServices = await repo.createServices(

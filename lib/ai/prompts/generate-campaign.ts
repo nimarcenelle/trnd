@@ -82,7 +82,9 @@ export function generateAssetsPrompt(
     "- scripts: exactly 3 short-form video scripts with timestamped beats",
     "  (HOOK / body / CTA), each shootable by an owner on a phone.",
     "- static_briefs: exactly 3 one-paragraph briefs for static images —",
-    "  IMAGE / TEXT OVERLAY / FOOTER structure.",
+    "  IMAGE / TEXT OVERLAY / FOOTER structure. Each must be shootable by the",
+    "  owner with a phone, in their own space, in under 15 minutes — name the",
+    "  exact spot, subject, and light, never a studio setup.",
     "- landing_copy: a short landing section in markdown — headline, one",
     "  paragraph, three proof bullets, one CTA line with the offer.",
   ].join("\n");

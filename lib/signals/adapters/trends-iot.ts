@@ -82,18 +82,20 @@ export function createTrendsIotAdapter(): SignalAdapter {
     },
     async fetch({ terms, watch, geo }: AdapterFetchInput): Promise<RawSignal[]> {
       const out: RawSignal[] = [];
-      const targets = watch.length > 0 ? watch : terms.map((t) => ({ term: t, category: "" }));
-      for (const { term, category } of targets) {
+      const targets: { term: string; category: string; geo?: string }[] =
+        watch.length > 0 ? watch : terms.map((t) => ({ term: t, category: "" }));
+      for (const { term, category, geo: termGeo } of targets) {
         if (breaker.isOpen) break; // degrade, don't crash
+        const g = termGeo ?? geo ?? "US";
         try {
-          const points = await fetchSeriesForTerm(term, geo || "US");
+          const points = await fetchSeriesForTerm(term, g);
           seriesCache.push(...points);
           const last = points.at(-1);
           out.push({
             source: "google_trends",
             term,
             category,
-            geo: geo || "US",
+            geo: g,
             metric_type: "search_interest",
             value: last?.value ?? null,
             delta_pct: deltaFromSeries(points),

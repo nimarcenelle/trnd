@@ -18,6 +18,7 @@ const biz = (over: Partial<Business> = {}): Business => ({
   website: "noaacafe.com",
   price_band: "$$",
   brand_voice_notes: "Warm neighborhood cafe.",
+  photo_urls: [],
   created_at: "",
   ...over,
 });

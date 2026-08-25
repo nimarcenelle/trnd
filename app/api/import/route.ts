@@ -91,6 +91,7 @@ export async function POST(req: Request): Promise<Response> {
               services,
               voiceHint: refined.voiceHint ?? data.voiceHint,
               priceBand: refined.priceBand ?? inferPriceBand(services, category) ?? data.priceBand,
+              photos: data.photos,
             };
           } catch (err) {
             console.warn("[import] Gemini refine failed — using heuristics:", (err as Error).message);

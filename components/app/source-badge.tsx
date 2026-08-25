@@ -6,6 +6,7 @@ const LABELS: Record<SignalSource, string> = {
   news: "Google News",
   youtube: "YouTube",
   tiktok: "TikTok",
+  meta_ads: "Meta Ad Library",
   seed: "Illustrative",
 };
 

@@ -30,25 +30,45 @@ export async function recommendForBusiness(
   business: Business,
 ): Promise<RecommendBusinessResult> {
   const [signals, services, learnings] = await Promise.all([
-    repo.listSignalsForCategory(business.category, { sinceDays: 14 }),
+    repo.listSignalsForCategory(business.category, {
+      sinceDays: 14,
+      // Local state signals rank alongside national ones.
+      geo: business.region ? `US-${business.region.toUpperCase()}` : undefined,
+    }),
     repo.listServices(business.id),
     repo.listLearnings(business.category),
   ]);
 
-  // News coverage per normalized term doubles as the saturation proxy.
+  // News coverage is the saturation proxy; real Meta Ad Library counts beat
+  // it when present. Ad reads are queried as "<term> <city>", so match on
+  // the term prefix too.
   const coverage = new Map<string, number>();
+  const adCounts = new Map<string, number>();
   for (const s of signals) {
     if (s.metric_type === "news_coverage" && typeof s.value === "number") {
       coverage.set(s.normalized_term, s.value);
     }
+    if (s.metric_type === "ad_saturation" && typeof s.value === "number") {
+      adCounts.set(s.normalized_term, s.value);
+    }
   }
+  const adCountFor = (normalizedTerm: string): number | null => {
+    if (adCounts.has(normalizedTerm)) return adCounts.get(normalizedTerm)!;
+    for (const [key, value] of adCounts) {
+      if (key.startsWith(`${normalizedTerm}_`)) return value;
+    }
+    return null;
+  };
 
-  const scorable = signals.filter((s) => s.metric_type !== "news_coverage");
+  const scorable = signals.filter(
+    (s) => s.metric_type !== "news_coverage" && s.metric_type !== "ad_saturation",
+  );
   let scored = scorable
     .map((signal) => ({
       signal,
       result: scoreOpportunity(signal, services, learnings, {
         coverageCount: coverage.get(signal.normalized_term) ?? null,
+        adCount: adCountFor(signal.normalized_term),
       }),
     }))
     .sort((a, b) => b.result.score - a.result.score)

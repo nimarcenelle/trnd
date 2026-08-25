@@ -44,6 +44,7 @@ export default function OnboardingWizard() {
   const [services, setServices] = useState<ServiceRow[]>([{ name: "", price: "" }]);
   const [voice, setVoice] = useState("");
   const [siteText, setSiteText] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
 
   // Website import: owner-initiated read of their own site, streamed as
   // NDJSON events so every stage shows up the moment it happens. Heuristics
@@ -74,6 +75,7 @@ export default function OnboardingWizard() {
       setVoice(d.voiceHint);
       importedVoice.current = d.voiceHint;
     }
+    if ((d.photos ?? []).length > 0) setPhotos(d.photos ?? []);
     const chips = d.services.slice(0, 6).map((sv) => `${sv.name} — $${sv.price}`);
     if (d.services.length > 6) chips.push(`+${d.services.length - 6} more`);
     if (d.city) chips.push(`${d.city}${d.region ? `, ${d.region}` : ""}`);
@@ -280,6 +282,7 @@ export default function OnboardingWizard() {
         <input type="hidden" name="services" value={JSON.stringify(services)} />
         <input type="hidden" name="brand_voice_notes" value={voice} />
         <input type="hidden" name="site_text" value={siteText} />
+        <input type="hidden" name="photo_urls" value={JSON.stringify(photos)} />
 
         {mode === "steps" && step === 0 && (
           <section>

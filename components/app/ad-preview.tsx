@@ -7,12 +7,15 @@ export default function AdPreview({
   primaryText,
   headline,
   mediaLine,
+  imageUrl,
   cta = "Book now",
 }: {
   businessName: string;
   primaryText: string;
   headline: string;
   mediaLine: string;
+  /** A real photo from the business's own site, when the import found one. */
+  imageUrl?: string | null;
   cta?: string;
 }) {
   const initial = businessName.trim().charAt(0).toUpperCase() || "T";
@@ -29,7 +32,22 @@ export default function AdPreview({
           </span>
         </div>
         <p className="ad-preview__text">{truncated}</p>
-        <div className="ad-preview__media">{mediaLine}</div>
+        <div
+          className="ad-preview__media"
+          style={
+            imageUrl
+              ? {
+                  backgroundImage: `linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.45)), url(${JSON.stringify(imageUrl)})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  color: "#fff",
+                  textShadow: "0 1px 6px rgba(0,0,0,0.6)",
+                }
+              : undefined
+          }
+        >
+          {mediaLine}
+        </div>
         <div className="ad-preview__bottom">
           <span className="ad-preview__headline">{headline}</span>
           <span className="ad-preview__cta">{cta}</span>

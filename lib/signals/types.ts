@@ -24,6 +24,9 @@ export interface RawSeriesPoint {
 export interface WatchTerm {
   term: string;
   category: string;
+  /** Optional finer geo (e.g. "US-NC") — business terms watch the business's
+   * own state; stock category terms stay national. */
+  geo?: string;
 }
 
 export interface AdapterFetchInput {

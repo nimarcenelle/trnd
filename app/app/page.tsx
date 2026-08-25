@@ -16,6 +16,7 @@ import { getUserRepo } from "@/lib/db";
 import type { Signal } from "@/lib/db/types";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildHowTo, tiktokHashtag } from "@/lib/recommend/howto";
+import { upcomingMoments } from "@/lib/recommend/seasonal";
 import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
 import { isGeminiConfigured } from "@/lib/env";
@@ -57,7 +58,9 @@ export default async function AppHome() {
     repo.listResultsForBusiness(business.id),
     repo.listLearnings(business.category),
   ]);
-  const watched = categorySignals.filter((s) => s.metric_type !== "news_coverage");
+  const watched = categorySignals.filter(
+    (s) => s.metric_type !== "news_coverage" && s.metric_type !== "ad_saturation",
+  );
   const launched = campaigns.filter((c) => c.status === "live" || c.status === "complete");
   const ctrs = results.map((r) => r.ctr).filter((v): v is number => typeof v === "number");
   const avgCtr = ctrs.length ? ctrs.reduce((a, b) => a + b, 0) / ctrs.length : null;
@@ -102,6 +105,20 @@ export default async function AppHome() {
         city: business.city,
       })
     : null;
+
+  // The Ad Library read for this term, when the daily scan captured one —
+  // real saturation plus what competitors are actually running.
+  const adRead = signal
+    ? (categorySignals.find(
+        (s) =>
+          s.metric_type === "ad_saturation" &&
+          (s.normalized_term === signal.normalized_term ||
+            s.normalized_term.startsWith(`${signal.normalized_term}_`)),
+      ) ?? null)
+    : null;
+  const competitorAds = (
+    (adRead?.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads ?? []
+  ).slice(0, 2);
   const series = signal ? await repo.getSeries(signal.normalized_term, signal.geo, 30) : [];
   const explained = signal ? await explainOpportunity(repo, business, top, signal) : null;
   const insights = signal && explained ? buildInsights(signal, explained, { learnings }) : [];
@@ -133,6 +150,9 @@ export default async function AppHome() {
     .filter((s) => typeof s.delta_pct === "number")
     .sort((a, b) => (b.delta_pct ?? 0) - (a.delta_pct ?? 0))
     .slice(0, 5);
+
+  // Known demand moments ahead — the calendar half of timing.
+  const seasonal = upcomingMoments(business.category);
 
   // The analysis — written in the background right after onboarding. No page
   // load ever waits on it: missing or outdated briefs (re)generate after the
@@ -307,6 +327,24 @@ export default async function AppHome() {
             </div>
           </div>
         </div>
+
+        {adRead && competitorAds.length > 0 && (
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px dashed var(--line)" }}>
+            <span className="mono-label" style={{ display: "block", marginBottom: 12 }}>
+              What competitors are running · {adRead.value} active Meta ad{adRead.value === 1 ? "" : "s"} on this
+            </span>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+              {competitorAds.map((ad) => (
+                <div key={ad.advertiser} style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
+                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 13 }}>{ad.advertiser}</span>
+                  <p style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-soft)", margin: "5px 0 0" }}>
+                    “{ad.snippet.length > 140 ? `${ad.snippet.slice(0, 137)}…` : ad.snippet}”
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ---------- TREND CHART (only when we actually hold a series) ---------- */}
@@ -394,6 +432,32 @@ export default async function AppHome() {
           </div>
         </section>
       </div>
+
+      {/* ---------- SEASONAL CALENDAR ---------- */}
+      {seasonal.length > 0 && (
+        <section className="panel" style={{ marginTop: 18 }}>
+          <div className="panel__head">
+            <span className="panel__title">Coming up — plan ahead</span>
+            <span className="panel__meta">known demand moments for {business.category.toLowerCase()}</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
+            {seasonal.map((m) => (
+              <div key={m.label} style={{ borderLeft: `2px solid ${m.prepNow ? "var(--amber)" : "var(--line-strong)"}`, paddingLeft: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
+                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5 }}>{m.label}</span>
+                  <span className="mono-label" style={{ color: m.prepNow ? "var(--amber-text)" : undefined, whiteSpace: "nowrap" }}>
+                    {m.daysOut <= 1 ? "now" : `${m.daysOut}d out`}
+                  </span>
+                </div>
+                <p style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)", margin: "6px 0 0" }}>
+                  {m.prepNow ? "Start now — " : `Start ~${Math.max(1, Math.round((m.daysOut - m.leadWeeks * 7) / 7))} wk${Math.round((m.daysOut - m.leadWeeks * 7) / 7) === 1 ? "" : "s"} from now. `}
+                  {m.advice}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {!brief && (
         <section className="snap-teaser">

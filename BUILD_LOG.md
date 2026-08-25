@@ -569,3 +569,38 @@ Full scrub for waits, weird visuals, and imperfect copy (user request).
 - **Copy scrub**: demo strip no longer tells users to "see BLOCKED.md";
   onboarding submit reads "Finishing setup…" (it is); e2e labels updated.
 - Gate green (66 unit, E2E, build); probe account scrubbed from the store.
+
+## P21 — Local signals, seasonal calendar, real competitor reads, real photos
+The "rocket launcher" batch (user request: #4 fully, #1 sans image-gen, #2).
+- **Meta Ad Library reads (#2)**: the public search page renders anonymously —
+  probe confirmed full data (counts, advertisers, ad copy). New
+  lib/signals/adlibrary.ts: pure text parser (unit-tested on a live fixture) +
+  a Playwright-backed adapter (source 'meta_ads', metric 'ad_saturation',
+  migration 0007) querying business-scoped watch terms and this week's ranked
+  terms (city-suffixed), capped at 10 renders/run. competitorGap now prefers
+  the REAL count (1 − count/60) over the news proxy; the hero shows "What
+  competitors are running" with actual nearby ads. First live run delivered:
+  "private sauna chapel hill → 4 ads (top advertiser: SweatHouz themselves)",
+  "contrast therapy durham → 18 ads incl. Augment Wellness Durham opening
+  soon", "infrared sauna benefits → 2,800 ads" (correctly saturated). Where
+  Playwright is absent (serverless) the adapter skips and the proxy stands.
+- **Local geo (#4)**: WatchTerm carries an optional geo; business watch terms
+  query the business's state (US-NC) through Trends interest-over-time, and
+  the recommender now passes geo so state signals rank alongside national
+  (repos already supported it — nothing ever passed it).
+- **Seasonal calendar (#4)**: lib/recommend/seasonal.ts — per-category demand
+  moments with lead times (our data, no model). "Coming up — plan ahead" panel
+  on This week: soonest three, amber-flagged when prep should already be
+  underway.
+- **Real photos (#1, no image-gen)**: the site import now harvests the
+  business's own photography (og:image + content imgs; logo/banner/thumbnail
+  filtering incl. filename-dimension heuristics; migration 0006
+  businesses.photo_urls). The in-feed ad preview renders on a real photo, and
+  the builder's creative-direction cards use their photos as starting frames.
+  Static-brief prompt now demands phone-shootable setups in the owner's space.
+- Timing note: ranked-term ad reads close on the NEXT daily ingest (ingest →
+  rank → tomorrow's ingest reads the ranked terms) — by design, cron-shaped.
+- New accounts appeared mid-work (Ellemes — real Atlanta med spa — and CJ's
+  Sweathouz): Ellemes ranks 8.1 on genuinely fitting terms; Sweathouz stays
+  honestly thin until local trend signals flow. Gate green (72 unit, E2E,
+  build).

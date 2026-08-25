@@ -24,6 +24,9 @@ export interface SiteImport {
   voiceHint?: string;
   /** "$" | "$$" | "$$$", inferred from real prices on the site. */
   priceBand?: string;
+  /** Real photos from their own site — creative previews use these instead
+   * of placeholders. */
+  photos?: string[];
 }
 
 export interface SitePage {
@@ -559,6 +562,45 @@ export function htmlToText(html: string): string {
   return stripHtml(html).text;
 }
 
+const JUNK_IMAGE = /logo|icon|favicon|sprite|placeholder|avatar|badge|pixel|tracking/i;
+
+/** Real photos on the page: og:image first, then content <img>s that look
+ * like photography rather than chrome. */
+export function extractImageUrls(html: string, baseUrl: string, cap = 6): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw: string | undefined | null, requireExt: boolean) => {
+    if (!raw || out.length >= cap) return;
+    let u: URL;
+    try {
+      u = new URL(decodeEntities(raw.trim()), baseUrl);
+    } catch {
+      return;
+    }
+    if (!/^https?:$/.test(u.protocol)) return;
+    if (JUNK_IMAGE.test(u.pathname)) return;
+    if (requireExt && !/\.(jpe?g|png|webp)$/i.test(u.pathname)) return;
+    // Filenames often carry dimensions ("-1024x265") — skip banners and
+    // thumbnails: too short, or wider than 3:1 (logo strips).
+    const dim = u.pathname.match(/-(\d{2,4})x(\d{2,4})(?=[-.])/);
+    if (dim) {
+      const w = Number(dim[1]);
+      const h = Number(dim[2]);
+      if (h < 200 || w / h > 3) return;
+    }
+    const key = u.origin + u.pathname;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(u.href);
+  };
+  const og = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1];
+  push(og, false);
+  for (const m of html.matchAll(/<img\b[^>]*src=["']([^"']+)["']/gi)) {
+    push(m[1], true);
+  }
+  return out;
+}
+
 // Median-price thresholds per category for a $ / $$ / $$$ read. Rough on
 // purpose — this is a prefill the owner confirms, never a silent decision.
 const PRICE_BAND_THRESHOLDS: Record<string, [number, number]> = {
@@ -618,6 +660,16 @@ export function extractFromPages(pages: SitePage[]): SiteImport {
   // Category is voted across every crawled page, not won by the first hit.
   result.category =
     classifyCategory(pages.map((p) => htmlToText(p.html)).join("\n")) ?? result.category;
+  // Their own photography, pooled across the crawl — homepage first.
+  const photos: string[] = [];
+  for (const page of pages) {
+    for (const url of extractImageUrls(page.html, page.url, 6)) {
+      if (photos.length >= 6) break;
+      if (!photos.includes(url)) photos.push(url);
+    }
+    if (photos.length >= 6) break;
+  }
+  if (photos.length > 0) result.photos = photos;
   // An explicit JSON-LD priceRange beats our median inference.
   result.priceBand = result.priceBand ?? inferPriceBand(result.services, result.category);
   return result;

@@ -73,12 +73,23 @@ export function matchService(signal: Signal, services: Service[]): ServiceMatch 
 }
 
 export interface GapInput {
-  /** Recent news/ad coverage count for the same term, when we have it. */
+  /** Recent news coverage count for the same term, when we have it. */
   coverageCount: number | null;
+  /** Active Meta ads matching the term — the REAL saturation read. */
+  adCount?: number | null;
 }
 
-/** Inverse of saturation. Little coverage of a rising term = open door. */
-export function competitorGap({ coverageCount }: GapInput): { score: number; reason: string } {
+/** Inverse of saturation. Few competitors on a rising term = open door.
+ * A real Meta Ad Library count beats the news-coverage proxy. */
+export function competitorGap({ coverageCount, adCount }: GapInput): { score: number; reason: string } {
+  if (typeof adCount === "number") {
+    const score = 1 - Math.min(1, adCount / 60);
+    const label = score > 0.66 ? "low" : score > 0.33 ? "moderate" : "high";
+    return {
+      score,
+      reason: `${adCount} active Meta ad${adCount === 1 ? "" : "s"} match this near you — ${label} saturation`,
+    };
+  }
   if (coverageCount === null) {
     return { score: 0.6, reason: "competitor ad saturation looks low (proxy estimate)" };
   }

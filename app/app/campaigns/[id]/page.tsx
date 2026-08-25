@@ -118,15 +118,33 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           phone. Copy the full brief from the card.
         </p>
         <div className="creative-grid">
-          {byKind("static_brief").map((c, i) => (
-            <div key={c.id} className="creative-card">
-              <div className={`art art--${(i % 3) + 1}`}>{String(i + 1).padStart(2, "0")}</div>
-              <div className="cap">
-                <span className="tag">Direction {i + 1}</span>
-                <span className="desc">{c.content}</span>
+          {byKind("static_brief").map((c, i) => {
+            const photo = (business?.photo_urls ?? [])[i];
+            return (
+              <div key={c.id} className="creative-card">
+                <div
+                  className={`art art--${(i % 3) + 1}`}
+                  style={
+                    photo
+                      ? {
+                          backgroundImage: `linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.45)), url(${JSON.stringify(photo)})`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                          color: "#fff",
+                        }
+                      : undefined
+                  }
+                  title={photo ? "One of your own site photos — a starting point for this shot" : undefined}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </div>
+                <div className="cap">
+                  <span className="tag">Direction {i + 1}</span>
+                  <span className="desc">{c.content}</span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <details className="section-disclosure" style={{ marginTop: 18 }}>
@@ -187,6 +205,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
               primaryText={primaries[0]?.content ?? campaign.angle}
               headline={headlines[0]?.content ?? campaign.hook}
               mediaLine={campaign.offer}
+              imageUrl={(business?.photo_urls ?? [])[0] ?? null}
             />
           </div>
         </div>

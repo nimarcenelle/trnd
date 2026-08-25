@@ -15,7 +15,14 @@ export const CATEGORIES = [
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
 
-export type SignalSource = "google_trends" | "reddit" | "youtube" | "news" | "tiktok" | "seed";
+export type SignalSource =
+  | "google_trends"
+  | "reddit"
+  | "youtube"
+  | "news"
+  | "tiktok"
+  | "meta_ads"
+  | "seed";
 export type OpportunityStatus = "new" | "accepted" | "dismissed" | "launched";
 export type CampaignStatus = "draft" | "exported" | "live" | "complete";
 export type CampaignChannel = "meta" | "google" | "tiktok";
@@ -47,6 +54,8 @@ export interface Business {
   website: string | null;
   price_band: string | null;
   brand_voice_notes: string | null;
+  /** Photos from their own site, harvested at onboarding. */
+  photo_urls: string[];
   created_at: string;
 }
 

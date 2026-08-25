@@ -19,6 +19,9 @@ export async function refreshSnapshotAction(): Promise<void> {
   const services = await repo.listServices(business.id);
   try {
     await repo.upsertBusinessBrief(await generateBusinessBrief(business, services));
+    // A changed analysis changes what fits — re-judge the week.
+    const { rerankWeek } = await import("@/lib/recommend/rerank");
+    await rerankWeek(repo, business);
   } catch (err) {
     console.warn("[snapshot] refresh failed (non-fatal):", (err as Error).message);
   }

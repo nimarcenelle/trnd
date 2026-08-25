@@ -105,6 +105,10 @@ export async function completeOnboardingAction(
     try {
       const brief = await generateBusinessBrief(business, createdServices, siteText);
       await repo.upsertBusinessBrief(brief);
+      // The dashboard's first ranking ran before the analysis existed —
+      // re-rank now so it's snapshot-judged, not category-matched.
+      const { rerankWeek } = await import("@/lib/recommend/rerank");
+      await rerankWeek(repo, business);
     } catch (err) {
       console.warn("[onboarding] brief generation failed (non-fatal):", (err as Error).message);
     }

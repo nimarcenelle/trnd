@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
-import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
+import { rerankWeek } from "@/lib/recommend/rerank";
 
 /**
  * Owner-triggered re-rank of the current week: fresh signals came in, the
@@ -20,14 +20,6 @@ export async function refreshRankingAction(): Promise<void> {
   const business = await repo.getBusinessByOwner(user.id);
   if (!business) redirect("/onboarding");
 
-  const week = weekOf();
-  const [opportunities, campaigns] = await Promise.all([
-    repo.listOpportunities(business.id, week),
-    repo.listCampaigns(business.id),
-  ]);
-  const withCampaign = new Set(campaigns.map((c) => c.opportunity_id));
-  const keepIds = opportunities.filter((o) => withCampaign.has(o.id)).map((o) => o.id);
-  await repo.deleteOpportunitiesForWeek(business.id, week, keepIds);
-  await recommendForBusiness(repo, business);
+  await rerankWeek(repo, business);
   revalidatePath("/app", "layout");
 }

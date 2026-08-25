@@ -167,9 +167,16 @@ export default async function AppHome() {
   ) {
     after(async () => {
       try {
+        const hadBrief = Boolean(brief);
         await repo.upsertBusinessBrief(
           await generateBusinessBrief(business, await repo.listServices(business.id)),
         );
+        // A brand-new analysis means the current ranking was never judged
+        // against it — rebuild. (Version upgrades keep the week stable.)
+        if (!hadBrief) {
+          const { rerankWeek } = await import("@/lib/recommend/rerank");
+          await rerankWeek(repo, business);
+        }
       } catch (err) {
         console.warn("[app] brief refresh failed (non-fatal):", (err as Error).message);
       }

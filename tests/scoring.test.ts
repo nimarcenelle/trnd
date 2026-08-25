@@ -137,3 +137,28 @@ describe("applyRelevance", () => {
     expect(after.score).toBeLessThan(4.3);
   });
 });
+
+describe("dedupeByTerm", () => {
+  it("collapses re-phrasings of the same trend, keeping the stronger delta", async () => {
+    const { dedupeByTerm } = await import("../lib/recommend/recommend");
+    const rows = [
+      { normalized_term: "hygiene_routines", delta_pct: 80 },
+      { normalized_term: "personal_hygiene_routines", delta_pct: 100 },
+      { normalized_term: "korean_glass_skin_facial", delta_pct: 47 },
+    ];
+    const out = dedupeByTerm(rows);
+    expect(out.map((r) => r.normalized_term)).toEqual([
+      "personal_hygiene_routines",
+      "korean_glass_skin_facial",
+    ]);
+  });
+
+  it("keeps genuinely different terms apart", async () => {
+    const { dedupeByTerm } = await import("../lib/recommend/recommend");
+    const rows = [
+      { normalized_term: "cold_plunge", delta_pct: 50 },
+      { normalized_term: "infrared_sauna", delta_pct: 40 },
+    ];
+    expect(dedupeByTerm(rows).length).toBe(2);
+  });
+});

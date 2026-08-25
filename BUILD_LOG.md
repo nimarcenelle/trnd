@@ -604,3 +604,25 @@ The "rocket launcher" batch (user request: #4 fully, #1 sans image-gen, #2).
   Sweathouz): Ellemes ranks 8.1 on genuinely fitting terms; Sweathouz stays
   honestly thin until local trend signals flow. Gate green (72 unit, E2E,
   build).
+
+## P22 — The unjudged-ranking race (user screenshot: B+ hygiene for a sauna studio)
+P20's fast-finish onboarding created a race: the first ranking runs the moment
+the owner lands on the dashboard, before the founding analysis exists — no
+brief, no relevance judge, so an ungated B+ ranking persisted for the week.
+- **Brief lands → automatic re-rank** (lib/recommend/rerank.ts): every brief
+  writer (onboarding after(), snapshot refresh, settings refresh, the /app
+  missing-brief heal) now rebuilds the week's ranking once the analysis
+  exists. Campaign-referenced rows survive. The re-rank button reuses the
+  same helper.
+- **Judge failure can no longer downgrade silently**: the relevance pass
+  retries, and if it still fails while a snapshot is on file, the previous
+  judged ranking is KEPT rather than overwritten with confident nonsense.
+  (First-ever rank with no predecessor stays deterministic and is corrected
+  by the brief-landing re-rank.)
+- **Term dedupe** (dedupeByTerm, unit-tested): hashtag humanization varies
+  day to day ("personal hygiene routines" vs "hygiene routines") — token-set
+  containment collapses re-phrasings, keeping the stronger delta.
+- Live store re-ranked: both Sweathouz accounts now hold judged C-grade thin
+  weeks; Ellemes (a real med spa) ranks 8.3 on genuinely fitting terms — the
+  same signal pool, correctly split by what each business actually is. Gate
+  green (74 unit, E2E, build).

@@ -16,7 +16,8 @@ import { getUserRepo } from "@/lib/db";
 import type { Signal } from "@/lib/db/types";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
-import { BRIEF_PROMPT_VERSION, generateBusinessBrief } from "@/lib/ai/brief";
+import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, generateBusinessBrief } from "@/lib/ai/brief";
+import { isGeminiConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { titleCase } from "@/lib/text";
 
@@ -136,7 +137,11 @@ export default async function AppHome() {
     } catch {
       brief = null;
     }
-  } else if (brief.prompt_version !== BRIEF_PROMPT_VERSION) {
+  } else if (
+    brief.prompt_version !== BRIEF_PROMPT_VERSION ||
+    // A template brief upgrades to the real analysis once Gemini is keyed.
+    (brief.model_used === BRIEF_FALLBACK_MODEL && isGeminiConfigured)
+  ) {
     after(async () => {
       try {
         await repo.upsertBusinessBrief(

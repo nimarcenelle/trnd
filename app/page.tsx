@@ -81,7 +81,7 @@ export default function Home() {
           <div>
             <div className="eyebrow">Live signal → finished campaign</div>
             <h1>
-              Know what to advertise — <em>before your competitors do.</em>
+              Know what to advertise — <em>before it&apos;s obvious.</em>
             </h1>
             <p className="hero__sub">
               TRND reads what&apos;s actually moving in your market right now and turns it into a

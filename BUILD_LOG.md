@@ -635,3 +635,20 @@ keeps its row id, only fallen-out rows are deleted (campaign-referenced rows
 always survive), and the build button self-heals on a stale id by refreshing
 and asking for one more click. recommendForBusiness returns the week's
 opportunity ids. Gate green (74 unit, E2E, build).
+
+## P23 — The inviting pass (Merciv-inspired warmth)
+Side-by-side against merciv.com's hero (warm bone ground, badge eyebrow,
+abundance headline, one warm CTA, tactile imagery) showed TRND's dark
+terminal default working against its Main-Street audience.
+- **Warm light is now the brand default**: the cream/ink/gold palette moves
+  to bare `:root`; the terminal look lives on behind [data-theme="dark"].
+  Stored preferences keep working — only the no-preference default flips.
+- **Headline reframe**: "before your competitors do" → "before it's
+  obvious" — the timing edge without the enemy. Competitor framing stays
+  where it earns its place (old-way/TRND-way, saturation signals).
+- **Ticker humanized**: sentence-case body type, mono reserved for the
+  numbers. Landing eyebrows become bordered badges on bg-1; hero proof
+  pills drop the mono voice.
+- Still open (needs assets/permission): real photography and a named
+  owner story on the landing — the biggest remaining warmth lever.
+  Gate green (74 unit, E2E, build), both themes verified by screenshot.

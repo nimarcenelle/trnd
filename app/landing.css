@@ -111,8 +111,12 @@
   height: 520px;
   pointer-events: none;
   opacity: 0.5;
-  background-image: radial-gradient(circle at 1px 1px, var(--texture-dot) 1px, transparent 1px);
-  background-size: 26px 26px;
+  background-image:
+    radial-gradient(ellipse 920px 460px at 50% -12%, var(--amber-glow), transparent 70%),
+    radial-gradient(circle at 1px 1px, var(--texture-dot) 1px, transparent 1px);
+  background-size:
+    auto,
+    26px 26px;
   mask-image: linear-gradient(to bottom, black, transparent 85%);
 }
 .hero__grid {
@@ -132,7 +136,7 @@
 }
 .hero h1 em {
   font-style: normal;
-  color: var(--amber);
+  color: var(--amber-display);
 }
 .hero__sub {
   font-family: var(--body);

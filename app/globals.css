@@ -6,35 +6,38 @@
    choice via [data-theme="dark"] from the toggle. */
 :root {
   color-scheme: light;
-  --bg: #fdf6e3;
+  /* Warm bone, not butter: the ground is low-chroma so the gold accent and
+     the ink do the talking. Hairlines and shadows stay warm but quiet. */
+  --bg: #f7f3ea;
   --bg-1: #ffffff;
-  --bg-2: #f7eacb;
-  --bg-3: #f0dfb0;
+  --bg-2: #efe9da;
+  --bg-3: #e4dbc6;
   --paper: #ffffff;
-  --card-stroke: #e7d9b8;
-  --ink: #33200f;
-  --ink-soft: #6b4a2c;
-  --ink-faint: #7d5c39; /* AA on --bg for small text */
-  --line: rgba(61, 39, 22, 0.1);
-  --line-strong: rgba(61, 39, 22, 0.2);
+  --card-stroke: #e6dfcd;
+  --ink: #2e2413;
+  --ink-soft: #64533a;
+  --ink-faint: #75634a; /* AA on --bg for small text */
+  --line: rgba(46, 36, 19, 0.08);
+  --line-strong: rgba(46, 36, 19, 0.16);
   --amber: #d99a12;
   --amber-text: #8a6208; /* AA-contrast amber for small text on light bgs */
+  --amber-display: #b57c07; /* deeper gold for large display accents — 3:1 on --bg */
   --amber-ink: #2b1b08;
   --amber-hover: #efae21;
-  --amber-glow: rgba(217, 154, 18, 0.22);
-  --amber-soft: rgba(217, 154, 18, 0.14);
+  --amber-glow: rgba(217, 154, 18, 0.18);
+  --amber-soft: rgba(217, 154, 18, 0.12);
   --amber-softer: rgba(217, 154, 18, 0.03);
   --mint: #1ea7ae;
   --mint-text: #0e7379; /* AA-contrast mint for small text on light bgs */
   --mint-ink: #eafbfc;
-  --mint-glow: rgba(30, 167, 174, 0.2);
+  --mint-glow: rgba(30, 167, 174, 0.18);
   --red: #b23a22;
-  --nav-bg: rgba(253, 246, 227, 0.85);
-  --overlay-tint: rgba(253, 246, 227, 0.55);
-  --texture-dot: rgba(61, 39, 22, 0.06);
-  --shadow: rgba(61, 39, 22, 0.18);
-  --fw-ring: #e3d4ae;
-  --fw-node-stroke: #efe0c0;
+  --nav-bg: rgba(247, 243, 234, 0.85);
+  --overlay-tint: rgba(247, 243, 234, 0.55);
+  --texture-dot: rgba(46, 36, 19, 0.05);
+  --shadow: rgba(46, 36, 19, 0.13);
+  --fw-ring: #e4dbc6;
+  --fw-node-stroke: #ece5d4;
   --sun-d: none;
   --moon-d: block;
 
@@ -59,6 +62,7 @@
   --line-strong: rgba(255, 249, 236, 0.18);
   --amber: #ffc72c;
   --amber-text: #ffc72c;
+  --amber-display: #ffc72c;
   --amber-ink: #2b1b08;
   --amber-hover: #ffd554;
   --amber-glow: rgba(255, 199, 44, 0.16);

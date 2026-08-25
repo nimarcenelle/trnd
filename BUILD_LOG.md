@@ -652,3 +652,20 @@ terminal default working against its Main-Street audience.
 - Still open (needs assets/permission): real photography and a named
   owner story on the landing — the biggest remaining warmth lever.
   Gate green (74 unit, E2E, build), both themes verified by screenshot.
+
+## P24 — Light-mode rework: bone, not butter
+Benchmarked against merciv.com: our cream #fdf6e3 read as high-chroma
+butter next to their calm warm bone, and our borders/shadows were heavy
+and yellow-tinted.
+- **New light palette**: ground #f7f3ea (low-chroma warm bone), quieter
+  hairlines (rgba ink at 0.08/0.16), neutral-warm card strokes, softer
+  warm shadows. Gold and ink now do the talking instead of the ground.
+- **Contrast verified programmatically**: every small-text token ≥4.5:1
+  (AA) on bg, white and bg-2. Fixed real AA failures found in the pass:
+  auth cross-links, wizard step labels and a styleguide label used raw
+  --amber (~2.4:1) for small text — now --amber-text.
+- **--amber-display**: deeper gold (#b57c07, 3:1 large-text AA) for the
+  hero headline accent in light; dark keeps #ffc72c.
+- **Hero halo**: soft amber radial layered over the dot grid (both
+  themes, token-driven).
+- Dark theme untouched. Gate green (74 unit, E2E, build).

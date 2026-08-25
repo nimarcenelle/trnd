@@ -25,8 +25,8 @@ import { AngleSchema, BusinessBriefSchema, CampaignAssetsSchema, SiteExtractSche
 
 /** Documented fallback chains, newest first. Used only if listing fails or
  * returns nothing usable. */
-const FLASH_FALLBACKS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
-const PRO_FALLBACKS = ["gemini-2.5-pro", "gemini-1.5-pro"];
+const FLASH_FALLBACKS = ["gemini-3.7-flash", "gemini-2.5-flash", "gemini-2.0-flash"];
+const PRO_FALLBACKS = ["gemini-3.1-pro-preview", "gemini-2.5-pro", "gemini-1.5-pro"];
 
 let client: GoogleGenAI | null = null;
 function getClient(): GoogleGenAI {
@@ -40,19 +40,22 @@ interface ResolvedModels {
 }
 let resolved: ResolvedModels | null = null;
 
-function isStable(name: string): boolean {
-  return !/preview|exp|latest|lite|thinking|image|tts|audio|live|embedding|8b/i.test(name);
+/** Capability variants and experiments we never want; previews stay eligible
+ * — Google retires stable names for new API keys ("gemini-2.5-pro is no
+ * longer available to new users") while the replacement is preview-only. */
+function isUsable(name: string): boolean {
+  return !/exp|latest|lite|thinking|image|tts|audio|live|embedding|8b/i.test(name);
 }
 
-/** Prefer the highest version number among stable models matching `family`. */
+/** Highest version wins; at the same version a stable name beats a preview. */
 function pickNewest(names: string[], family: "flash" | "pro", fallbacks: string[]): string {
   const candidates = names
-    .filter((n) => n.includes(family) && isStable(n))
+    .filter((n) => n.includes(family) && isUsable(n))
     .map((n) => {
       const m = n.match(/gemini-(\d+)\.(\d+)/);
-      return { name: n, v: m ? Number(m[1]) * 100 + Number(m[2]) : 0 };
+      return { name: n, v: m ? Number(m[1]) * 100 + Number(m[2]) : 0, preview: /preview/i.test(n) };
     })
-    .sort((a, b) => b.v - a.v);
+    .sort((a, b) => b.v - a.v || Number(a.preview) - Number(b.preview) || a.name.length - b.name.length);
   return candidates[0]?.name ?? fallbacks[0];
 }
 
@@ -151,28 +154,42 @@ async function structuredCall<T>(
   throw lastError;
 }
 
+/** Pro first for creative quality; one Flash retry before the caller's
+ * deterministic fallback — a retired pro model id must degrade to Flash,
+ * not to the template. */
+async function creativeCall<T>(
+  models: { flash: string; pro: string },
+  prompt: string,
+  responseSchema: Schema,
+  validate: (data: unknown) => T,
+): Promise<{ value: T; model: string }> {
+  try {
+    return { value: await structuredCall(models.pro, prompt, responseSchema, validate), model: models.pro };
+  } catch (err) {
+    console.warn(`[ai] ${models.pro} failed — retrying on ${models.flash}:`, (err as Error).message);
+    return { value: await structuredCall(models.flash, prompt, responseSchema, validate), model: models.flash };
+  }
+}
+
 export async function generateWithGemini(ctx: GenerationContext): Promise<GeneratedCampaign> {
   const models = await resolveModels();
   const promptCtx: PromptCtx = ctx;
 
   // Creative calls run on Pro per the brief; Flash is reserved for
   // classification/ranking-type calls.
-  const angle = await structuredCall(
-    models.pro,
-    buildAnglePrompt(promptCtx),
-    angleResponseSchema,
-    (d) => AngleSchema.parse(d),
+  const angle = await creativeCall(models, buildAnglePrompt(promptCtx), angleResponseSchema, (d) =>
+    AngleSchema.parse(d),
   );
-  const assets = await structuredCall(
-    models.pro,
-    generateAssetsPrompt(promptCtx, angle),
+  const assets = await creativeCall(
+    models,
+    generateAssetsPrompt(promptCtx, angle.value),
     assetsResponseSchema,
     (d) => CampaignAssetsSchema.parse(d),
   );
 
   return {
-    result: { angle, assets },
-    model_used: models.pro,
+    result: { angle: angle.value, assets: assets.value },
+    model_used: assets.model,
     prompt_version: PROMPT_VERSION,
   };
 }
@@ -245,19 +262,9 @@ export async function generateBriefWithGemini(
     .filter(Boolean)
     .join("\n");
 
-  let model = models.pro;
-  let parsed: ReturnType<typeof BusinessBriefSchema.parse>;
-  try {
-    parsed = await structuredCall(model, prompt, briefResponseSchema, (d) =>
-      BusinessBriefSchema.parse(d),
-    );
-  } catch (err) {
-    console.warn(`[ai] brief on ${model} failed — retrying on flash:`, (err as Error).message);
-    model = models.flash;
-    parsed = await structuredCall(model, prompt, briefResponseSchema, (d) =>
-      BusinessBriefSchema.parse(d),
-    );
-  }
+  const { value: parsed, model } = await creativeCall(models, prompt, briefResponseSchema, (d) =>
+    BusinessBriefSchema.parse(d),
+  );
   return {
     business_id: business.id,
     ...parsed,

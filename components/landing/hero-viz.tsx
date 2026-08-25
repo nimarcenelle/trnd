@@ -20,7 +20,8 @@ export default function HeroViz() {
           strokeLinejoin="round"
         />
         <circle id="sparkDot" cx="266" cy="108" r="6" fill="#D99A12" />
-        <text x="230" y="86" className="sv-chip sv-mint" fill="#1EA7AE">
+        {/* Anchored to end left of the ad card (x=300) — never under it. */}
+        <text x="288" y="84" textAnchor="end" className="sv-chip sv-mint" fill="#1EA7AE">
           +34% this week
         </text>
         <text x="8" y="252" className="sv-chip sv-faint" fill="#8F6B44">
@@ -44,14 +45,12 @@ export default function HeroViz() {
             AD
           </text>
           <rect x="316" y="60" width="120" height="80" rx="10" fill="#3A2205" opacity="0.12" />
+          {/* Image placeholder: sun + hills, quieter than a second chart. */}
+          <circle cx="404" cy="82" r="9" fill="#3A2205" opacity="0.28" />
           <path
-            d="M330 118 L352 96 L368 108 L392 82 L410 98"
-            stroke="#3A2205"
-            strokeWidth="2.5"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity="0.55"
+            d="M320 138 L352 102 L374 122 L396 106 L432 138 Z"
+            fill="#3A2205"
+            opacity="0.22"
           />
           <rect x="316" y="152" width="112" height="10" rx="3" fill="#22160A" opacity="0.85" />
           <rect x="316" y="168" width="80" height="8" rx="3" fill="#22160A" opacity="0.4" />

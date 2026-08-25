@@ -202,28 +202,26 @@ export default function Home() {
             </p>
           </div>
           <div className="fly reveal">
-            <svg viewBox="0 0 320 320" fill="none" aria-hidden="true">
+            {/* Nodes are the site's pill idiom, anchored on the ring — not
+                clip-art circles. */}
+            <svg viewBox="-24 16 368 288" fill="none" aria-hidden="true">
               <circle cx="160" cy="160" r="118" stroke="#E3D4AE" strokeWidth="1.5" strokeDasharray="2 7" />
               <circle id="flySpin" cx="160" cy="160" r="118" stroke="#D99A12" strokeWidth="2.5" strokeDasharray="32 710" strokeLinecap="round" />
               <g>
-                <circle cx="160" cy="42" r="34" fill="#FFFFFF" stroke="#EFE0C0" strokeWidth="1" />
-                <text x="160" y="38" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#33200F">MORE</text>
-                <text x="160" y="50" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#33200F">BUSINESSES</text>
+                <rect x="103" y="30" width="114" height="24" rx="12" fill="#FFFFFF" stroke="#EFE0C0" strokeWidth="1" />
+                <text x="160" y="46" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#33200F">MORE BUSINESSES</text>
               </g>
               <g>
-                <circle cx="270" cy="160" r="34" fill="#FFFFFF" stroke="#EFE0C0" strokeWidth="1" />
-                <text x="270" y="156" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#33200F">MORE</text>
-                <text x="270" y="168" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#33200F">CAMPAIGNS</text>
+                <rect x="222" y="148" width="112" height="24" rx="12" fill="#FFFFFF" stroke="#EFE0C0" strokeWidth="1" />
+                <text x="278" y="164" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#33200F">MORE CAMPAIGNS</text>
               </g>
               <g>
-                <circle cx="160" cy="278" r="34" fill="#FFFFFF" stroke="#EFE0C0" strokeWidth="1" />
-                <text x="160" y="274" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="8.5" fill="#33200F">PERFORMANCE</text>
-                <text x="160" y="286" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="8.5" fill="#33200F">DATA</text>
+                <rect x="99" y="266" width="122" height="24" rx="12" fill="#FFFFFF" stroke="#EFE0C0" strokeWidth="1" />
+                <text x="160" y="282" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#33200F">PERFORMANCE DATA</text>
               </g>
               <g className="fw-accent">
-                <circle cx="50" cy="160" r="34" fill="#1EA7AE" stroke="#1EA7AE" strokeWidth="1" />
-                <text x="50" y="156" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#EAFBFC">SHARPER</text>
-                <text x="50" y="168" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#EAFBFC">RECS</text>
+                <rect x="-9" y="148" width="102" height="24" rx="12" fill="#1EA7AE" stroke="#1EA7AE" strokeWidth="1" />
+                <text x="42" y="164" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#EAFBFC">SHARPER RECS</text>
               </g>
             </svg>
             <div className="fly__list">

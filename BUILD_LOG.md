@@ -342,3 +342,22 @@ of real sites (`scripts/probe-import.ts`, kept as a diagnostic).
   (53 unit tests, E2E, build). Remaining lever: `GEMINI_API_KEY` in `.env.local`
   (BLOCKED.md) — without it the analysis is the template and extraction is
   heuristics-only.
+
+## P11 — Gemini live + model retirement + landing polish (user requests)
+- `GEMINI_API_KEY` now set in `.env.local` (gitignored). Verified live: the Sweathouz
+  deep URL imports 8 priced offerings (memberships and packs the heuristics missed)
+  and the founding analysis comes back Gemini-written and hyper-local (UNC/Duke
+  segments, Estes Drive first moves, NC seasonality).
+- **Model retirement fix**: Google 404s `gemini-2.5-pro` for new API keys and points
+  at `gemini-3.1-pro-preview` — but `isStable()` rejected preview names, so resolve
+  picked the dead stable id. Ranking now allows previews (highest version wins,
+  stable beats preview at the same version), and every creative call (campaign angle,
+  assets, brief) retries on Flash before falling back to the template — a retired
+  pro id degrades to Flash, never silently to the template. Fallback chains updated.
+- **Landing fixes** ("elements overlapping and childish"): hero "+34% this week" chip
+  was drawn under the ad card — now end-anchored left of it; the ad-card's inner
+  zigzag chart replaced with a quiet photo placeholder (sun + hills); flywheel's four
+  clip-art circles with cramped two-line text replaced by the site's pill idiom
+  anchored on the ring (viewBox widened so nothing clips); mobile nav ≤620px no
+  longer wraps "Sign in" and the demo button onto the logo (tighter padding,
+  nowrap) — verified numerically at 375px. Gate green.

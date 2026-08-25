@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import GradePill from "@/components/app/grade-pill";
 import ScoreBreakdown from "@/components/app/score-breakdown";
 import SourceBadge from "@/components/app/source-badge";
 import SubmitButton from "@/components/app/submit-button";
@@ -23,10 +24,12 @@ export default async function OpportunitiesPage() {
   if (!business) redirect("/onboarding");
 
   const week = weekOf();
-  const [opportunities, learnings] = await Promise.all([
+  const [opportunities, learnings, services] = await Promise.all([
     repo.listOpportunities(business.id, week),
     repo.listLearnings(business.category),
+    repo.listServices(business.id),
   ]);
+  const serviceById = new Map(services.map((s) => [s.id, s]));
 
   const enriched = await Promise.all(
     opportunities.map(async (o) => {
@@ -81,19 +84,17 @@ export default async function OpportunitiesPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {enriched.map(({ o, signal, campaign, series, explained, insights }, idx) => {
           const isDismissed = o.status === "dismissed";
-          const scanLine = insights
-            .filter((i) => i.kind === "fit" || i.kind === "gap")
+          const matched = o.matched_service_id ? serviceById.get(o.matched_service_id) : null;
+          const tags = insights
+            .filter((i) => i.kind !== "momentum")
             .map((i) => i.headline)
-            .join(" · ");
+            .slice(0, 3);
           return (
-            <div key={o.id} className={`opp-row${isDismissed ? " opp-row--dismissed" : ""}`}>
+            <div key={o.id} className={`opp-row${isDismissed ? " opp-row--dismissed" : ""}${idx === 0 && !isDismissed ? " opp-row--lead" : ""}`}>
               <span className="rank">#{idx + 1}</span>
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
                   <span className="term">{signal ? titleCase(signal.term) : "Opportunity"}</span>
-                  {typeof signal?.delta_pct === "number" && (
-                    <span className="delta-chip">↑{Math.round(signal.delta_pct)}%</span>
-                  )}
                   {o.status !== "new" && (
                     <span className={`badge${o.status === "launched" || o.status === "accepted" ? " badge--mint" : " badge--faint"}`}>
                       <i />
@@ -101,7 +102,17 @@ export default async function OpportunitiesPage() {
                     </span>
                   )}
                 </div>
-                <p className="why" style={{ marginTop: 6 }}>{scanLine}</p>
+                <p className="why" style={{ marginTop: 6, fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--mint-text)" }}>
+                  {typeof signal?.delta_pct === "number" ? `↑${Math.round(signal.delta_pct)}% ${signal.metric_type.replace(/_/g, " ")}` : ""}
+                  {matched ? ` · matched to ${matched.name}` : ""}
+                </p>
+                {tags.length > 0 && (
+                  <div className="opp-tags">
+                    {tags.map((t) => (
+                      <span key={t}>{t}</span>
+                    ))}
+                  </div>
+                )}
 
                 <details className="disclosure" style={{ marginTop: 12 }}>
                   <summary>
@@ -138,14 +149,7 @@ export default async function OpportunitiesPage() {
                 </details>
               </div>
               <div className="side">
-                <div style={{ textAlign: "right" }}>
-                  <span className="score-num" style={{ fontSize: 24, color: "var(--amber-text)" }}>
-                    {Number(o.score).toFixed(1)}
-                  </span>
-                  <span className="mono-label" style={{ display: "block", fontSize: 9 }}>
-                    / 10
-                  </span>
-                </div>
+                <GradePill score={Number(o.score)} lead={idx === 0 && !isDismissed} />
                 <div className="actions">
                   {campaign ? (
                     <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary btn-sm">

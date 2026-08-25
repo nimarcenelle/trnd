@@ -3,18 +3,18 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 
 import ScoreBreakdown from "@/components/app/score-breakdown";
-import BusinessBriefCard from "@/components/app/business-brief-card";
+import GradePill from "@/components/app/grade-pill";
+import GradeRing from "@/components/app/grade-ring";
 import SubmitButton from "@/components/app/submit-button";
-import ScoreDial from "@/components/app/score-dial";
 import SourceBadge from "@/components/app/source-badge";
 import TrendChart from "@/components/app/trend-chart";
 import InsightList from "@/components/app/insight-list";
-import MiniBars from "@/components/app/mini-bars";
 import { getSessionUser } from "@/lib/auth/session";
 import { buildCampaignAction } from "@/lib/campaigns/actions";
 import { getUserRepo } from "@/lib/db";
 import type { Signal } from "@/lib/db/types";
 import { explainOpportunity } from "@/lib/recommend/explain";
+import { buildHowTo } from "@/lib/recommend/howto";
 import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, generateBusinessBrief } from "@/lib/ai/brief";
 import { isGeminiConfigured } from "@/lib/env";
@@ -88,10 +88,15 @@ export default async function AppHome() {
     );
   }
 
-  const [signal, campaign] = await Promise.all([
+  const [signal, campaign, services] = await Promise.all([
     repo.getSignal(top.signal_id),
     repo.getCampaignByOpportunity(top.id),
+    repo.listServices(business.id),
   ]);
+  const matchedService = services.find((s) => s.id === top.matched_service_id) ?? null;
+  const howto = signal
+    ? buildHowTo({ term: signal.term, category: business.category, city: business.city })
+    : null;
   const series = signal ? await repo.getSeries(signal.normalized_term, signal.geo, 30) : [];
   const explained = signal ? await explainOpportunity(repo, business, top, signal) : null;
   const insights = signal && explained ? buildInsights(signal, explained, { learnings }) : [];
@@ -131,9 +136,7 @@ export default async function AppHome() {
   let brief = await repo.getBusinessBrief(business.id);
   if (!brief) {
     try {
-      brief = await repo.upsertBusinessBrief(
-        await generateBusinessBrief(business, await repo.listServices(business.id)),
-      );
+      brief = await repo.upsertBusinessBrief(await generateBusinessBrief(business, services));
     } catch {
       brief = null;
     }
@@ -220,7 +223,7 @@ export default async function AppHome() {
               footnote={top.competitor_gap ? `Saturation read: ${top.competitor_gap}.` : null}
             />
 
-            <form action={buildCampaignAction} style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <form action={buildCampaignAction} style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 22 }}>
               <input type="hidden" name="opportunity_id" value={top.id} />
               {campaign ? (
                 <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary">
@@ -235,10 +238,39 @@ export default async function AppHome() {
                 All {active.length} ranked →
               </Link>
             </form>
+
+            {howto && (
+              <details className="howto" open>
+                <summary>
+                  How to run it well
+                  <svg className="chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  </svg>
+                </summary>
+                <div className="howto-body">
+                  <div className="howto-col">
+                    <span className="k">Content angle</span>
+                    <p>{howto.contentAngle}</p>
+                  </div>
+                  <div className="howto-col">
+                    <span className="k">Caption direction</span>
+                    <p>{howto.captionDirection}</p>
+                  </div>
+                  <div className="howto-col">
+                    <span className="k">Hashtags to use</span>
+                    <div className="tag-row">
+                      {howto.hashtags.map((h) => (
+                        <span key={h}>#{h}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </details>
+            )}
           </div>
 
-          <div style={{ flex: "1 1 340px", minWidth: 300, maxWidth: 420, display: "flex", flexDirection: "column", gap: 18, alignItems: "center" }}>
-            <ScoreDial score={Number(top.score)} />
+          <div style={{ flex: "1 1 300px", minWidth: 280, maxWidth: 400, display: "flex", flexDirection: "column", gap: 18, alignItems: "center" }}>
+            <GradeRing score={Number(top.score)} />
             {explained && (
               <div style={{ width: "100%" }}>
                 <ScoreBreakdown components={explained.components} />
@@ -247,11 +279,25 @@ export default async function AppHome() {
           </div>
         </div>
 
-        <div className="action-strip">
-          <span className="k">Do this next</span>
-          <p className="v">
-            <b>{nextAction.label}.</b> {nextAction.detail}
-          </p>
+        <div className="meta-row">
+          <div>
+            <span className="k">Matched service</span>
+            <div className="v">{matchedService ? matchedService.name : "Your closest offering"}</div>
+          </div>
+          <div>
+            <span className="k">Competitor gap</span>
+            <div className="v">{top.competitor_gap ?? "No saturation read yet"}</div>
+          </div>
+          <div>
+            <span className="k">Do this next</span>
+            <div className="v">{campaign ? nextAction.label : `${nextAction.label} — launch by ${launchBy}`}</div>
+          </div>
+          <div>
+            <span className="k">Coverage</span>
+            <div className="v">
+              {business.city} · {business.radius_miles} miles
+            </div>
+          </div>
         </div>
       </section>
 
@@ -302,10 +348,7 @@ export default async function AppHome() {
                         {s?.metric_type.replace(/_/g, " ")}
                       </span>
                     </div>
-                    {ex && <MiniBars components={ex.components} />}
-                    <span className="score-num" style={{ fontSize: 16, color: "var(--amber-text)" }}>
-                      {Number(o.score).toFixed(1)}
-                    </span>
+                    {ex && <GradePill score={Number(o.score)} />}
                   </div>
                 );
               })}
@@ -342,7 +385,26 @@ export default async function AppHome() {
         </section>
       </div>
 
-      {brief && <BusinessBriefCard brief={brief} businessName={business.name} />}
+      {brief && (
+        <section className="snap-teaser">
+          <div className="snap-teaser__left">
+            <div>
+              <h4>How TRND reads {business.name}</h4>
+              <p>
+                {business.category} · {business.city}
+                {business.region ? `, ${business.region}` : ""} · {services.filter((s) => s.is_active).length} services on file
+              </p>
+            </div>
+            <div className="mini-chip-row">
+              {brief.advantages[0] && <span className="mini-chip">Edge: {brief.advantages[0]}</span>}
+              {brief.watchouts[0] && <span className="mini-chip">Watch-out: {brief.watchouts[0]}</span>}
+            </div>
+          </div>
+          <Link href="/app/snapshot" className="btn btn-ghost btn-sm">
+            View full snapshot →
+          </Link>
+        </section>
+      )}
 
       {/* ---------- RECENT CAMPAIGNS ---------- */}
       {recentCampaigns.length > 0 && (

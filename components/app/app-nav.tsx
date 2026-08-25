@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/app/opportunities", label: "Opportunities" },
   { href: "/app/campaigns", label: "Campaigns" },
   { href: "/app/results", label: "Results" },
+  { href: "/app/snapshot", label: "Snapshot" },
   { href: "/app/settings", label: "Settings" },
 ] as const;
 
@@ -23,60 +24,28 @@ export default function AppNav({
 }) {
   const pathname = usePathname();
   return (
-    <nav
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 60,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 16,
-        padding: "14px 24px",
-        background: "var(--nav-bg)",
-        backdropFilter: "blur(10px)",
-        borderBottom: "1px solid var(--line)",
-        flexWrap: "wrap",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 18, minWidth: 0 }}>
+    <nav className="app-shell-nav">
+      <div className="app-shell-nav__left">
         <Brand href="/app" size={16} />
-        <span
-          className="mono-label"
-          style={{ borderLeft: "1px solid var(--line-strong)", paddingLeft: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 180 }}
-        >
-          {businessName}
-        </span>
+        <span className="app-shell-nav__biz mono-label">{businessName}</span>
       </div>
-      <div className="app-nav" style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+      <div className="app-tabs" role="navigation" aria-label="App sections">
         {LINKS.map((l) => {
           const active = l.href === "/app" ? pathname === "/app" : pathname.startsWith(l.href);
           return (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={active ? "active" : undefined}
-              style={{
-                fontFamily: "var(--body)",
-                fontSize: 13.5,
-                padding: "7px 12px",
-                borderRadius: 999,
-                color: active ? "var(--ink)" : "var(--ink-soft)",
-                background: active ? "var(--bg-2)" : "transparent",
-              }}
-            >
+            <Link key={l.href} href={l.href} className={active ? "active" : undefined} aria-current={active ? "page" : undefined}>
               {l.label}
             </Link>
           );
         })}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: 10 }}>
-          <ThemeToggle />
-          <form action={signOut}>
-            <button type="submit" className="btn btn-ghost btn-sm">
-              Sign out
-            </button>
-          </form>
-        </div>
+      </div>
+      <div className="app-shell-nav__right">
+        <ThemeToggle />
+        <form action={signOut}>
+          <button type="submit" className="btn btn-ghost btn-sm">
+            Sign out
+          </button>
+        </form>
       </div>
     </nav>
   );

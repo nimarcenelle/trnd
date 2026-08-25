@@ -8,6 +8,7 @@ import SourceBadge from "@/components/app/source-badge";
 import StatusTimeline from "@/components/app/status-timeline";
 import { getSessionUser } from "@/lib/auth/session";
 import { markLaunchedAction } from "@/lib/campaigns/actions";
+import { trendLinks } from "@/lib/recommend/howto";
 import { budgetFor } from "@/lib/recommend/insights";
 import { titleCase } from "@/lib/text";
 import { getUserRepo } from "@/lib/db";
@@ -104,7 +105,192 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 24 }}>
+      </header>
+
+      {/* ---------- STEP 1 · SHOOT ---------- */}
+      <section className="step-card">
+        <div className="step-head">
+          <span className="step-num">1</span>
+          <h3>Shoot creative that matches what&apos;s converting</h3>
+        </div>
+        <p className="lede">
+          Each direction describes the shot, not a finished photo — hand one to anyone with a
+          phone. Copy the full brief from the card.
+        </p>
+        <div className="creative-grid">
+          {byKind("static_brief").map((c, i) => (
+            <div key={c.id} className="creative-card">
+              <div className={`art art--${(i % 3) + 1}`}>{String(i + 1).padStart(2, "0")}</div>
+              <div className="cap">
+                <span className="tag">Direction {i + 1}</span>
+                <span className="desc">{c.content}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <details className="section-disclosure" style={{ marginTop: 18 }}>
+          <summary>
+            <span className="panel__title">Short-form video scripts</span>
+            <span className="summary-right">
+              <span className="panel__meta">{byKind("script").length} scripts · 20–30s each</span>
+              <span className="summary-open-hint">open ↓</span>
+            </span>
+          </summary>
+          <div className="section-body">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
+              {byKind("script").map((c) => (
+                <CopyBlock key={c.id} label={`Script ${c.variant_index + 1}`} content={c.content} mono />
+              ))}
+            </div>
+          </div>
+        </details>
+      </section>
+
+      {/* ---------- STEP 2 · WRITE ---------- */}
+      <section className="step-card">
+        <div className="step-head">
+          <span className="step-num">2</span>
+          <h3>Write the copy</h3>
+        </div>
+        <p className="lede">
+          Five headlines and three primary texts, ready to paste. The preview shows how the first
+          pairing reads in-feed.
+        </p>
+        <div className="two-col" style={{ display: "grid", gridTemplateColumns: "1.35fr 1fr", gap: 18, alignItems: "start" }}>
+          <div>
+            <div className="panel__head" style={{ marginBottom: 10 }}>
+              <span className="panel__title">Headlines</span>
+              <span className="panel__meta">{headlines.length} variants</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12, marginBottom: 20 }}>
+              {headlines.map((c) => (
+                <CopyBlock key={c.id} label={`Headline ${c.variant_index + 1}`} content={c.content} />
+              ))}
+            </div>
+            <div className="panel__head" style={{ marginBottom: 10 }}>
+              <span className="panel__title">Primary texts</span>
+              <span className="panel__meta">{primaries.length} variants</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+              {primaries.map((c) => (
+                <CopyBlock key={c.id} label={`Primary text ${c.variant_index + 1}`} content={c.content} />
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="panel__head" style={{ marginBottom: 10 }}>
+              <span className="panel__title">How it reads in-feed</span>
+            </div>
+            <AdPreview
+              businessName={business?.name ?? "Your business"}
+              primaryText={primaries[0]?.content ?? campaign.angle}
+              headline={headlines[0]?.content ?? campaign.hook}
+              mediaLine={campaign.offer}
+            />
+          </div>
+        </div>
+
+        {signal && (
+          <div className="ref-links">
+            <a className="ref-link" href={trendLinks(signal.term).tiktok} target="_blank" rel="noopener noreferrer">
+              See what&apos;s working on TikTok →
+            </a>
+            <a className="ref-link" href={trendLinks(signal.term).instagram} target="_blank" rel="noopener noreferrer">
+              See what&apos;s working on Instagram →
+            </a>
+          </div>
+        )}
+
+        <details className="section-disclosure" style={{ marginTop: 18 }}>
+          <summary>
+            <span className="panel__title">Landing copy</span>
+            <span className="summary-right">
+              <span className="panel__meta">for the page the ad points at</span>
+              <span className="summary-open-hint">open ↓</span>
+            </span>
+          </summary>
+          <div className="section-body">
+            <div style={{ maxWidth: 720 }}>
+              {byKind("landing_copy").map((c) => (
+                <CopyBlock key={c.id} label="Landing section" content={c.content} />
+              ))}
+            </div>
+          </div>
+        </details>
+      </section>
+
+      {/* ---------- STEP 3 · TARGET ---------- */}
+      <section className="step-card">
+        <div className="step-head">
+          <span className="step-num">3</span>
+          <h3>Set targeting and budget</h3>
+        </div>
+        <p className="lede">Suggested starting point — sized to your {business?.price_band ?? "$$"} price band. You stay in control.</p>
+        <div className="target-grid">
+          <div className="t-box">
+            <span className="k">Suggested budget</span>
+            <div className="v">{budget.daily} / day</div>
+          </div>
+          <div className="t-box">
+            <span className="k">Radius</span>
+            <div className="v">{campaign.audience.radius_miles} miles from you</div>
+          </div>
+          <div className="t-box">
+            <span className="k">Audience</span>
+            <div className="v">
+              {campaign.audience.who} · {campaign.audience.age_range}
+            </div>
+          </div>
+        </div>
+        <div className="flight" style={{ marginTop: 18 }}>
+          <div className="flight__step">
+            <span className="flight__when">Days 1–3</span>
+            <p className="flight__what">
+              <b>Headline 1 vs headline 2</b>, both on primary text 1, even spend.
+            </p>
+          </div>
+          <div className="flight__step">
+            <span className="flight__when">Days 4–6</span>
+            <p className="flight__what">
+              <b>Keep the winner</b>, swap in primary text 2 against it.
+            </p>
+          </div>
+          <div className="flight__step">
+            <span className="flight__when">Kill rule</span>
+            <p className="flight__what">
+              Pause anything under <b>half your median CTR</b> after 1,000 impressions.
+            </p>
+          </div>
+        </div>
+        <p style={{ marginTop: 16, marginBottom: 0, fontSize: 13, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 640 }}>
+          <span className="mono-label" style={{ color: "var(--amber-text)" }}>Why this audience: </span>
+          {campaign.audience.why}
+        </p>
+      </section>
+
+      {/* ---------- STEP 4 · LAUNCH ---------- */}
+      <section className="step-card">
+        <div className="step-head">
+          <span className="step-num">4</span>
+          <h3>Launch checklist</h3>
+        </div>
+        <div className="checklist">
+          {[
+            "Copy the assets above into Meta Ads Manager (or export the CSV).",
+            `Set the audience: ${campaign.audience.who}, ${campaign.audience.age_range}, ${campaign.audience.radius_miles} mile radius.`,
+            `Set ${budget.daily}/day and schedule the ${budget.test.split(" over ")[1]} test flight.`,
+            "Mark as launched here, then record results after the flight — that's what sharpens next week.",
+          ].map((t, i) => (
+            <div key={i}>
+              <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M3 8.5L6.5 12L13 4" stroke="var(--amber)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </svg>
+              {t}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
           {!launched ? (
             <form action={markLaunchedAction}>
               <input type="hidden" name="campaign_id" value={campaign.id} />
@@ -125,172 +311,14 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
             CSV for Meta
           </a>
         </div>
-      </header>
-
-      {/* ---------- PREVIEW + LAUNCH PLAN ---------- */}
-      <div className="two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1.35fr", gap: 18, marginTop: 18, alignItems: "start" }}>
-        <section className="panel">
-          <div className="panel__head">
-            <span className="panel__title">How it reads in-feed</span>
-          </div>
-          <AdPreview
-            businessName={business?.name ?? "Your business"}
-            primaryText={primaries[0]?.content ?? campaign.angle}
-            headline={headlines[0]?.content ?? campaign.hook}
-            mediaLine={campaign.offer}
-          />
-        </section>
-
-        <section className="panel">
-          <div className="panel__head">
-            <span className="panel__title">Launch plan</span>
-            <span className="panel__meta">suggestions — you stay in control</span>
-          </div>
-          <div className="facts-grid" style={{ marginBottom: 20 }}>
-            <div>
-              <span className="k">Suggested daily budget</span>
-              <p className="v" style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 20 }}>
-                {budget.daily}
-                <small style={{ fontFamily: "var(--mono)", fontSize: 10.5, fontWeight: 500, color: "var(--ink-faint)", marginLeft: 6 }}>/ day</small>
-              </p>
-              <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "4px 0 0" }}>
-                sized to your {business?.price_band ?? "$$"} price band
-              </p>
-            </div>
-            <div>
-              <span className="k">Test flight</span>
-              <p className="v" style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 20 }}>{budget.test}</p>
-              <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "4px 0 0" }}>
-                enough spend to read a winner
-              </p>
-            </div>
-          </div>
-
-          <div className="panel__head" style={{ marginTop: 4 }}>
-            <span className="panel__title">Test flight plan</span>
-          </div>
-          <div className="flight" style={{ marginBottom: 18 }}>
-            <div className="flight__step">
-              <span className="flight__when">Days 1–3</span>
-              <p className="flight__what">
-                <b>Headline 1 vs headline 2</b>, both on primary text 1, even spend.
-              </p>
-            </div>
-            <div className="flight__step">
-              <span className="flight__when">Days 4–6</span>
-              <p className="flight__what">
-                <b>Keep the winner</b>, swap in primary text 2 against it.
-              </p>
-            </div>
-            <div className="flight__step">
-              <span className="flight__when">Kill rule</span>
-              <p className="flight__what">
-                Pause anything under <b>half your median CTR</b> after 1,000 impressions.
-              </p>
-            </div>
-          </div>
-
-          <div className="panel__head">
-            <span className="panel__title">Launch checklist</span>
-          </div>
-          <div className="checklist">
-            {[
-              "Copy the assets below into Meta Ads Manager (or export the CSV).",
-              `Set the audience: ${campaign.audience.who}, ${campaign.audience.age_range}, ${campaign.audience.radius_miles} mile radius.`,
-              `Set ${budget.daily}/day and schedule the ${budget.test.split(" over ")[1]} test flight.`,
-              "Mark as launched here, then record results after the flight — that's what sharpens next week.",
-            ].map((t, i) => (
-              <div key={i}>
-                <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
-                  <path d="M3 8.5L6.5 12L13 4" stroke="var(--amber)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                </svg>
-                {t}
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* ---------- CREATIVE ASSETS ---------- */}
-      <section style={{ marginTop: 30 }}>
-        <div className="panel__head" style={{ marginBottom: 12 }}>
-          <span className="panel__title">Headlines</span>
-          <span className="panel__meta">{headlines.length} variants</span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-          {headlines.map((c) => (
-            <CopyBlock key={c.id} label={`Headline ${c.variant_index + 1}`} content={c.content} />
-          ))}
+        <div className="lock-note">
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none" />
+            <path d="M4 5V3.5a2 2 0 0 1 4 0V5" stroke="currentColor" strokeWidth="1.2" fill="none" />
+          </svg>
+          One-click publish to Meta &amp; TikTok Ads unlocks on Pro
         </div>
       </section>
-
-      <section style={{ marginTop: 28 }}>
-        <div className="panel__head" style={{ marginBottom: 12 }}>
-          <span className="panel__title">Primary texts</span>
-          <span className="panel__meta">{primaries.length} variants</span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-          {primaries.map((c) => (
-            <CopyBlock key={c.id} label={`Primary text ${c.variant_index + 1}`} content={c.content} />
-          ))}
-        </div>
-      </section>
-
-      <details className="section-disclosure" style={{ marginTop: 18 }}>
-        <summary>
-          <span className="panel__title">Short-form video scripts</span>
-          <span className="summary-right">
-            <span className="panel__meta">{byKind("script").length} scripts · 20–30s each</span>
-            <span className="summary-open-hint">open ↓</span>
-          </span>
-        </summary>
-        <div className="section-body">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
-            {byKind("script").map((c) => (
-              <CopyBlock key={c.id} label={`Script ${c.variant_index + 1}`} content={c.content} mono />
-            ))}
-          </div>
-        </div>
-      </details>
-
-      <details className="section-disclosure" style={{ marginTop: 18 }}>
-        <summary>
-          <span className="panel__title">Static creative briefs</span>
-          <span className="summary-right">
-            <span className="panel__meta">hand to any designer — or shoot on a phone</span>
-            <span className="summary-open-hint">open ↓</span>
-          </span>
-        </summary>
-        <div className="section-body">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-            {byKind("static_brief").map((c) => (
-              <CopyBlock key={c.id} label={`Static ${c.variant_index + 1}`} content={c.content} />
-            ))}
-          </div>
-        </div>
-      </details>
-
-      <details className="section-disclosure" style={{ marginTop: 18 }}>
-        <summary>
-          <span className="panel__title">Landing copy</span>
-          <span className="summary-right">
-            <span className="panel__meta">for the page the ad points at</span>
-            <span className="summary-open-hint">open ↓</span>
-          </span>
-        </summary>
-        <div className="section-body">
-          <div style={{ maxWidth: 720 }}>
-            {byKind("landing_copy").map((c) => (
-              <CopyBlock key={c.id} label="Landing section" content={c.content} />
-            ))}
-          </div>
-        </div>
-      </details>
-
-      <p style={{ marginTop: 32, fontSize: 13, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 640 }}>
-        <span className="mono-label" style={{ color: "var(--amber-text)" }}>Why this audience: </span>
-        {campaign.audience.why}
-      </p>
     </div>
   );
 }

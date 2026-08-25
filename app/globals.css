@@ -6,33 +6,35 @@
    from the toggle. */
 :root {
   color-scheme: dark;
-  --bg: #14100c;
-  --bg-1: #1d1712;
-  --bg-2: #2a2118;
-  --paper: #fbf6ec;
-  --card-stroke: #221408;
-  --ink: #f6f1e3;
-  --ink-soft: #cfc4b2;
-  --ink-faint: #9f917c;
-  --line: rgba(246, 241, 227, 0.09);
-  --line-strong: rgba(246, 241, 227, 0.2);
-  --amber: #f0b429;
-  --amber-text: #f0b429;
+  --bg: #110b05;
+  --bg-1: #1f150b;
+  --bg-2: #2d2011;
+  --bg-3: #3a2a17;
+  --paper: #fff9ec;
+  --card-stroke: #3d2c18;
+  --ink: #fff9ec;
+  --ink-soft: #e3c896;
+  --ink-faint: #9c8465;
+  --line: rgba(255, 249, 236, 0.1);
+  --line-strong: rgba(255, 249, 236, 0.18);
+  --amber: #ffc72c;
+  --amber-text: #ffc72c;
   --amber-ink: #2b1b08;
-  --amber-hover: #ffc94d;
-  --amber-glow: rgba(240, 180, 41, 0.16);
-  --amber-soft: rgba(240, 180, 41, 0.08);
-  --amber-softer: rgba(240, 180, 41, 0.02);
-  --mint: #81ceba;
-  --mint-text: #81ceba;
-  --mint-ink: #10201b;
-  --mint-glow: rgba(129, 206, 186, 0.16);
+  --amber-hover: #ffd554;
+  --amber-glow: rgba(255, 199, 44, 0.16);
+  --amber-soft: rgba(255, 199, 44, 0.1);
+  --amber-softer: rgba(255, 199, 44, 0.03);
+  --mint: #2fc9c6;
+  --mint-text: #2fc9c6;
+  --mint-ink: #072a2a;
+  --mint-glow: rgba(47, 201, 198, 0.16);
   --red: #ff6e52;
-  --nav-bg: rgba(20, 16, 12, 0.88);
-  --texture-dot: rgba(246, 241, 227, 0.06);
+  --nav-bg: rgba(17, 11, 5, 0.92);
+  --overlay-tint: rgba(17, 11, 5, 0.4);
+  --texture-dot: rgba(255, 249, 236, 0.06);
   --shadow: rgba(0, 0, 0, 0.55);
-  --fw-ring: #2a2118;
-  --fw-node-stroke: #3a3024;
+  --fw-ring: #2d2011;
+  --fw-node-stroke: #3d2c18;
   --sun-d: block;
   --moon-d: none;
 
@@ -47,8 +49,9 @@
   --bg: #fdf6e3;
   --bg-1: #ffffff;
   --bg-2: #f7eacb;
+  --bg-3: #f0dfb0;
   --paper: #ffffff;
-  --card-stroke: #efe0c0;
+  --card-stroke: #e7d9b8;
   --ink: #33200f;
   --ink-soft: #6b4a2c;
   --ink-faint: #7d5c39; /* AA on --bg for small text */
@@ -67,6 +70,7 @@
   --mint-glow: rgba(30, 167, 174, 0.2);
   --red: #b23a22;
   --nav-bg: rgba(253, 246, 227, 0.85);
+  --overlay-tint: rgba(253, 246, 227, 0.55);
   --texture-dot: rgba(61, 39, 22, 0.06);
   --shadow: rgba(61, 39, 22, 0.18);
   --fw-ring: #e3d4ae;

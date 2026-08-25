@@ -40,7 +40,7 @@ test("signup → onboarding → recommendation → campaign → launch", async (
     .catch(() => {}); // button may detach as the action navigates
   await toApp;
   await page.getByText(/This week.s recommendation/).waitFor({ state: "visible", timeout: 20_000 });
-  await page.getByText("/ 10").first().waitFor({ state: "visible", timeout: 20_000 });
+  await page.locator(".grade-ring").first().waitFor({ state: "visible", timeout: 20_000 });
 
   // --- build the campaign
   const toCampaign = page.waitForURL(/\/app\/campaigns\//, { timeout: 45_000 });

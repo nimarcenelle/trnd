@@ -53,8 +53,8 @@ export default function ProductFrame() {
               />
             </svg>
             <div>
-              <strong>6.8</strong>
-              <span>/ 10 · solid signal</span>
+              <strong>B+</strong>
+              <span>solid opportunity</span>
             </div>
           </div>
           <span className="pframe__cta">Build the campaign →</span>

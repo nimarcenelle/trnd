@@ -112,15 +112,38 @@ export default async function ResultsPage() {
       )}
 
       {liveOnes.length === 0 && results.length === 0 && (
-        <div className="panel" style={{ maxWidth: 620 }}>
-          <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.6, fontSize: 14.5 }}>
-            Nothing launched yet. Build a campaign from{" "}
-            <Link href="/app" style={{ color: "var(--amber-text)" }}>
-              this week&apos;s recommendation
-            </Link>
-            , mark it launched, and enter its numbers here.
-          </p>
-        </div>
+        <>
+          <div className="empty-state">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+              <rect x="4" y="20" width="6" height="16" rx="1.5" stroke="var(--ink-faint)" strokeWidth="2" />
+              <rect x="17" y="10" width="6" height="26" rx="1.5" stroke="var(--ink-faint)" strokeWidth="2" />
+              <rect x="30" y="4" width="6" height="32" rx="1.5" stroke="var(--amber)" strokeWidth="2" />
+            </svg>
+            <h3>No campaigns launched yet</h3>
+            <p>
+              Build a campaign from{" "}
+              <Link href="/app" style={{ color: "var(--amber-text)" }}>
+                this week&apos;s recommendation
+              </Link>
+              , mark it launched, and its numbers — clicks, bookings, cost per result — start
+              filling this screen in.
+            </p>
+          </div>
+          <div className="ghost-table" style={{ marginBottom: 26 }}>
+            <div className="g-row"><span>Campaign</span><span>CTR</span><span>Clicks</span><span>Bookings</span><span>Cost / result</span></div>
+            {(campaigns.length > 0
+              ? campaigns.slice(0, 3).map((c) => c.hook)
+              : ["Your first campaign", "Your second campaign", "Your third campaign"]
+            ).map((label) => (
+              <div className="g-row" key={label}>
+                <span>{label}</span><span>—</span><span>—</span><span>—</span><span>—</span>
+              </div>
+            ))}
+            <div className="ghost-overlay">
+              <span>Preview — unlocks after your first launch</span>
+            </div>
+          </div>
+        </>
       )}
 
       {liveOnes.length > 0 && (

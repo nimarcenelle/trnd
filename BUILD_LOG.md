@@ -402,3 +402,42 @@ render + Gemini). The import is now a streaming NDJSON route with live narration
   of nothing.
 - Verified live against the Sweathouz deep URL: 4 narration lines within 4s,
   review screen with all 8 services at the end. Gate green (53 unit, E2E, build).
+
+## P14 — Dashboard v2 (user-supplied mockup: "do this typa shi")
+Rework of the whole app UI to the direction of the shared trnd-dashboard-v2.html
+mock — its vibe, mapped onto real data (its fabricated stats — reviews, booking
+history, founded-year — were NOT reproduced; every number on screen is ours).
+- **Palette**: warmer/punchier dark tokens (bg #110B05, amber #FFC72C, mint
+  #2FC9C6, + --bg-3/--overlay-tint); light theme mostly unchanged. Cascades to
+  the landing page for one brand.
+- **Nav**: centered pill-tab bar (This week / Opportunities / Campaigns /
+  Results / Snapshot / Settings), brand + business tag left, scrollable on
+  mobile.
+- **Letter grades** (lib/recommend/grade.ts, unit-tested): fixed score bands →
+  A…C with a verdict line ("Strong opportunity · Worth acting on this week").
+  Grade ring replaces the numeric dial on This week (breakdown meters stay for
+  transparency); grade pills replace raw scores on runner-ups and the
+  opportunities list. Per follow-up: the /10 number is gone from the UI
+  entirely — letters only (score still drives everything underneath).
+- **This week**: hero card now carries a "How to run it well" accordion
+  (lib/recommend/howto.ts — category-keyed content angle / caption direction /
+  hashtags incl. term + city tags) and a meta row (matched service, competitor
+  gap, do-this-next, coverage). Business-brief card became a snapshot teaser
+  strip (edge + watch-out chips) linking to the new page.
+- **Company snapshot page** (/app/snapshot): the founding analysis as its own
+  screen — profile bar from real profile facts, positioning lead, three-column
+  do-well/edge/watch-outs, who's-buying/market/pricing row, seasonality + first
+  moves, honest "How we built this" provenance (model + prompt version), and an
+  owner-triggered Refresh action.
+- **Opportunities**: leader row amber-bordered, mint sub-line
+  ("↑47% conversation · matched to …"), insight tags as chips, grade pills.
+- **Results**: proper empty state + blurred ghost table ("Preview — unlocks
+  after your first launch").
+- **Campaign page → 4-step builder**: 1 Shoot (static briefs as creative-
+  direction cards, scripts disclosure) · 2 Write (headlines/primary texts +
+  in-feed preview, live TikTok/Instagram tag links for the term, landing copy)
+  · 3 Target (budget/radius/audience boxes + test flight) · 4 Launch
+  (checklist, mark-launched/copy/export, honest Pro lock note).
+- Removed: ScoreDial, MiniBars, ScoreBadge, BusinessBriefCard components.
+- Verified live on every screen (fresh account, real Pro-generated campaign —
+  header shows gemini-3.1-pro-preview). Gate green (55 unit, E2E, build).

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildFallbackBrief } from "../lib/ai/brief";
+import { gradeFor } from "../lib/recommend/grade";
 import type { Business, Service } from "../lib/db/types";
 
 const biz = (over: Partial<Business> = {}): Business => ({
@@ -73,5 +74,21 @@ describe("business brief fallback", () => {
     expect(cafe.market_context).not.toEqual(gym.market_context);
     expect(cafe.seasonality).not.toEqual(gym.seasonality);
     expect(cafe.customer_segments).not.toEqual(gym.customer_segments);
+  });
+});
+
+describe("opportunity grades", () => {
+  it("maps scores to stable letter bands", () => {
+    expect(gradeFor(8.4).letter).toBe("A");
+    expect(gradeFor(7.2).letter).toBe("A-");
+    expect(gradeFor(6.8).letter).toBe("B+");
+    expect(gradeFor(5.8).letter).toBe("B");
+    expect(gradeFor(5.1).letter).toBe("B-");
+    expect(gradeFor(4.4).letter).toBe("C+");
+    expect(gradeFor(3).letter).toBe("C");
+  });
+  it("clamps the ring fill to 0..1", () => {
+    expect(gradeFor(12).pct).toBe(1);
+    expect(gradeFor(-1).pct).toBe(0);
   });
 });

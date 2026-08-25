@@ -448,3 +448,12 @@ ratings (half-star steps, amber fill, Google-ratings feel) — labels and
 weights stay printed so the formula remains transparent; the raw numbers now
 live only in the aria-labels and the scoring engine. Grade ring and pills
 already letter-only. Gate green.
+
+## P16 — Human-voiced import narration (user request)
+The onboarding stream's status lines dropped their plumbing-speak: no more
+"runs on JavaScript — opening a real browser for /path". Now: "Opening
+sweathouz.com…", "Taking a closer look at your chapel hill book now page…",
+"Read your home page", "Found 3 more pages worth reading — locations, …"
+(numeric slugs filtered from the list), "Making sense of what we found…",
+"Pulling out what you sell and what it costs…". Verified against the live
+stream. Store re-zeroed after probes.

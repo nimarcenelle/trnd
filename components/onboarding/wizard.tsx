@@ -131,7 +131,7 @@ export default function OnboardingWizard() {
             setImportLog((log) => [...log, event.label]);
           } else if (event.type === "partial") {
             applyImport(event.data);
-            setImportLog((log) => [...log, "Extracting offerings and prices…"]);
+            setImportLog((log) => [...log, "Pulling out what you sell and what it costs…"]);
           } else if (event.type === "final") {
             applyImport(event.data);
             setSiteText(event.siteText);

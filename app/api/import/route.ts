@@ -42,15 +42,31 @@ export async function POST(req: Request): Promise<Response> {
     async start(controller) {
       const send = (event: ImportEvent) =>
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      // Owner-facing narration — plain words, no plumbing. "/chapel-hill-book-now/"
+      // reads as "chapel hill book now"; the homepage reads as "your home page".
+      const pageName = (path: string) => {
+        const slug = path.replace(/^\/+|\/+$/g, "").split("/").pop() ?? "";
+        return slug ? `your ${slug.replace(/[-_]/g, " ")} page` : "your home page";
+      };
       try {
-        send({ type: "status", label: `Reaching ${new URL(url).hostname.replace(/^www\./, "")}…` });
+        send({ type: "status", label: `Opening ${new URL(url).hostname.replace(/^www\./, "")}…` });
         const corpus = await fetchSiteCorpus(url, (e) => {
           if (e.kind === "rendering") {
-            send({ type: "status", label: `Their site runs on JavaScript — opening a real browser for ${e.path}` });
+            send({ type: "status", label: `Taking a closer look at ${pageName(e.path)}…` });
           } else if (e.kind === "links") {
-            send({ type: "status", label: `Found ${e.paths.length} more page${e.paths.length === 1 ? "" : "s"} worth reading: ${e.paths.join(", ")}` });
+            // Only name pages with readable slugs — "/locations" yes, "/102348" no.
+            const names = e.paths
+              .map((p) => pageName(p).replace(/^your /, "").replace(/ page$/, ""))
+              .filter((n) => /[a-z]/i.test(n))
+              .slice(0, 3);
+            send({
+              type: "status",
+              label:
+                `Found ${e.paths.length} more page${e.paths.length === 1 ? "" : "s"} worth reading` +
+                (names.length > 0 ? ` — ${names.join(", ")}` : ""),
+            });
           } else {
-            send({ type: "status", label: `Read ${e.path}` });
+            send({ type: "status", label: `Read ${pageName(e.path)}` });
           }
         });
 
@@ -60,7 +76,7 @@ export async function POST(req: Request): Promise<Response> {
         }
 
         if (isGeminiConfigured) {
-          send({ type: "status", label: "AI pass — reading the pages like a person…" });
+          send({ type: "status", label: "Making sense of what we found…" });
           try {
             const { extractSiteWithGemini } = await import("@/lib/ai/gemini");
             const refined = await extractSiteWithGemini(corpus.text, url);

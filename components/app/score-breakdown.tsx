@@ -14,8 +14,40 @@ const ROWS = [
   { key: "historicalLift", label: "Track record", weight: WEIGHTS.historicalLift, hint: "similar campaigns" },
 ] as const;
 
+const STAR_PATH =
+  "M8 1.3l2.05 4.16 4.59.67-3.32 3.23.78 4.57L8 11.77l-4.1 2.16.78-4.57L1.36 6.13l4.59-.67z";
+
+function Star({ fill }: { fill: number }) {
+  return (
+    <span className="stars__star">
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d={STAR_PATH} className="stars__base" />
+      </svg>
+      {fill > 0 && (
+        <span className="stars__over" style={{ width: `${fill * 100}%` }}>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d={STAR_PATH} className="stars__fill" />
+          </svg>
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** 0–1 value as five stars, half-star steps — reads like a rating. */
+function Stars({ value, label }: { value: number; label: string }) {
+  const rating = Math.round(Math.max(0, Math.min(1, value)) * 10) / 2; // 0–5 in 0.5 steps
+  return (
+    <span className="stars" role="img" aria-label={`${label}: ${rating} out of 5`}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <Star key={i} fill={Math.max(0, Math.min(1, rating - i))} />
+      ))}
+    </span>
+  );
+}
+
 /**
- * The four scoring components as labeled meters — the score's "show your
+ * The four scoring components as star ratings — the score's "show your
  * work". Weights are printed so the formula is never a black box.
  */
 export default function ScoreBreakdown({ components }: { components: BreakdownData }) {
@@ -24,15 +56,12 @@ export default function ScoreBreakdown({ components }: { components: BreakdownDa
       {ROWS.map((row) => {
         const v = components[row.key];
         return (
-          <div className="breakdown__row" key={row.key}>
+          <div className="breakdown__row breakdown__row--stars" key={row.key}>
             <span className="lbl">
               {row.label} · {Math.round(row.weight * 100)}%
               <small>{row.hint}</small>
             </span>
-            <div className="breakdown__track">
-              <div className="breakdown__fill" style={{ width: `${Math.round(v * 100)}%` }} />
-            </div>
-            <span className="val">{v.toFixed(2)}</span>
+            <Stars value={v} label={row.label} />
           </div>
         );
       })}

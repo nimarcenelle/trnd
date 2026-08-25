@@ -441,3 +441,10 @@ history, founded-year — were NOT reproduced; every number on screen is ours).
 - Removed: ScoreDial, MiniBars, ScoreBadge, BusinessBriefCard components.
 - Verified live on every screen (fresh account, real Pro-generated campaign —
   header shows gemini-3.1-pro-preview). Gate green (55 unit, E2E, build).
+
+## P15 — Star-rating breakdown (user request)
+Score-component meters lost their far-right decimals and became five-star
+ratings (half-star steps, amber fill, Google-ratings feel) — labels and
+weights stay printed so the formula remains transparent; the raw numbers now
+live only in the aria-labels and the scoring engine. Grade ring and pills
+already letter-only. Gate green.

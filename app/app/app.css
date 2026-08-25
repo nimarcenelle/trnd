@@ -235,6 +235,45 @@
   text-align: right;
   color: var(--ink);
 }
+/* Star-rating variant — Google-ratings feel, no numbers. */
+.breakdown__row--stars {
+  grid-template-columns: 1fr auto;
+}
+.stars {
+  display: inline-flex;
+  gap: 3px;
+}
+.stars__star {
+  position: relative;
+  width: 15px;
+  height: 15px;
+  display: inline-block;
+}
+.stars__star > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.stars__base {
+  fill: var(--bg-3);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.stars__over {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+}
+.stars__over svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+.stars__fill {
+  fill: var(--amber);
+}
 
 /* ---------- Mini breakdown (opportunity rows) ---------- */
 .mini-bars {

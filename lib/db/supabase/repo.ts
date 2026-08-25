@@ -171,6 +171,17 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwIf(error, "listOpportunities");
       return (data ?? []) as Opportunity[];
     },
+    async deleteOpportunitiesForWeek(businessId, weekOf, keepIds) {
+      let q = sb
+        .from("opportunities")
+        .delete({ count: "exact" })
+        .eq("business_id", businessId)
+        .eq("week_of", weekOf);
+      if (keepIds.length > 0) q = q.not("id", "in", `(${keepIds.join(",")})`);
+      const { count, error } = await q;
+      throwIf(error, "deleteOpportunitiesForWeek");
+      return count ?? 0;
+    },
     async getOpportunity(id) {
       const { data, error } = await sb.from("opportunities").select("*").eq("id", id).maybeSingle();
       throwIf(error, "getOpportunity");

@@ -240,6 +240,16 @@ export function createDemoRepo(actor: DemoActor): Repo {
         .filter((o) => o.business_id === businessId && (!weekOf || o.week_of === weekOf))
         .sort((a, b) => b.score - a.score);
     },
+    async deleteOpportunitiesForWeek(businessId, weekOf, keepIds) {
+      assertOwnsBusiness(businessId);
+      const keep = new Set(keepIds);
+      const before = store.opportunities.length;
+      store.opportunities = store.opportunities.filter(
+        (o) => o.business_id !== businessId || o.week_of !== weekOf || keep.has(o.id),
+      );
+      saveStore();
+      return before - store.opportunities.length;
+    },
     async getOpportunity(id) {
       const o = store.opportunities.find((x) => x.id === id) ?? null;
       if (!o) return null;

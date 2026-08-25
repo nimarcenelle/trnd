@@ -1,8 +1,9 @@
 import type { Business, NewBusinessBrief, Service } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
+import { CATEGORY_CONFIGS } from "@/lib/signals/category-terms";
 
-export const BRIEF_FALLBACK_MODEL = "trnd-template/v2";
-export const BRIEF_PROMPT_VERSION = "brief-2";
+export const BRIEF_FALLBACK_MODEL = "trnd-template/v3";
+export const BRIEF_PROMPT_VERSION = "brief-3";
 
 /**
  * The full analysis a business gets when it joins: positioning, who buys,
@@ -209,6 +210,13 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
     `Record results after each campaign — TRND's recommendations sharpen with every real number you give it.`,
   ];
 
+  // Watchlist without an LLM: the actual offerings, lowercased, plus the
+  // category's stock watch terms — regenerated properly once Gemini runs.
+  const watchTerms = [
+    ...active.slice(0, 5).map((s) => s.name.toLowerCase()),
+    ...(CATEGORY_CONFIGS.find((c) => c.category === business.category)?.watchTerms.slice(0, 3) ?? []),
+  ].slice(0, 8);
+
   return {
     business_id: business.id,
     positioning,
@@ -228,6 +236,7 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
     advantages,
     watchouts,
     first_moves: firstMoves,
+    watch_terms: watchTerms,
     model_used: BRIEF_FALLBACK_MODEL,
     prompt_version: BRIEF_PROMPT_VERSION,
   };

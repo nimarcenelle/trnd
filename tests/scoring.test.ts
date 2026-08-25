@@ -123,13 +123,17 @@ describe("applyRelevance", () => {
     expect(after.score).toBeGreaterThan(before.score);
   });
 
-  it("re-derives the total from the published weights", () => {
+  it("re-derives the total from the published weights, gated by fit", () => {
     const after = applyRelevance(base(), 0.5, "Plausible stretch.");
     const c = after.components;
-    const expected =
-      Math.round(
-        (0.35 * c.normalizedDelta + 0.25 * 0.5 + 0.2 * c.competitorGap + 0.2 * c.historicalLift) * 100,
-      ) / 10;
-    expect(after.score).toBe(expected);
+    const weighted =
+      0.35 * c.normalizedDelta + 0.25 * 0.5 + 0.2 * c.competitorGap + 0.2 * c.historicalLift;
+    expect(after.score).toBe(Math.round(weighted * (0.3 + 0.7 * 0.5) * 100) / 10);
+  });
+
+  it("keeps an irrelevant trend in the C range no matter the momentum", () => {
+    const hot = scoreOpportunity(signal({ delta_pct: 100 }), [], [], { coverageCount: 0 });
+    const after = applyRelevance(hot, 0.05, "Completely outside this business.");
+    expect(after.score).toBeLessThan(4.3);
   });
 });

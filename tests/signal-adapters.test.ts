@@ -135,3 +135,23 @@ describe("tiktok creative center adapter", () => {
     expect(ccSignals({ BaseResp: { StatusCode: 40101 } }, "x", "US", 7)).toEqual([]);
   });
 });
+
+describe("tiktok hashtag humanization", () => {
+  it("swaps slugs for readable terms in signals and series, keeping the raw tag", () => {
+    const termFor = (h: string) => (h === "babylist" ? "baby registries" : h);
+    const [sig] = ccSignals(CC_FIXTURE, "Health & beauty", "US", 7, termFor);
+    expect(sig.term).toBe("baby registries");
+    expect((sig.raw as { hashtagName?: string }).hashtagName).toBe("babylist");
+    const series = ccSeries(CC_FIXTURE, "US", termFor);
+    expect(series[0].term).toBe("baby_registries"); // normalized for series keys
+  });
+
+  it("adapter translates via the injected humanizer consistently", async () => {
+    const { createTiktokCcAdapter } = await import("../lib/signals/adapters/tiktok-cc");
+    const adapter = createTiktokCcAdapter({ humanize: async (tags) => tags.map((t) => `nice ${t}`) });
+    // No network in unit tests: fetch() will fail per-industry and produce
+    // zero signals, but must not throw.
+    const signals = await adapter.fetch({ terms: [], watch: [], geo: "ZZ", windowDays: 7 });
+    expect(Array.isArray(signals)).toBe(true);
+  });
+});

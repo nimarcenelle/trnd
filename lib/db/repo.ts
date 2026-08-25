@@ -59,6 +59,9 @@ export interface Repo {
   /* opportunities */
   upsertOpportunities(inputs: NewOpportunity[]): Promise<Opportunity[]>;
   listOpportunities(businessId: string, weekOf?: string): Promise<Opportunity[]>;
+  /** Clears a week's ranking so it can be rebuilt; `keepIds` survive (rows a
+   * campaign already references). Returns rows removed. */
+  deleteOpportunitiesForWeek(businessId: string, weekOf: string, keepIds: string[]): Promise<number>;
   getOpportunity(id: string): Promise<Opportunity | null>;
   setOpportunityStatus(id: string, status: OpportunityStatus): Promise<Opportunity>;
 

@@ -3,7 +3,7 @@ import { createTiktokCcAdapter } from "../lib/signals/adapters/tiktok-cc";
 
 async function main() {
   const adapter = createTiktokCcAdapter();
-  const input = { terms: [], geo: "US", windowDays: 7 };
+  const input = { terms: [], watch: [], geo: "US", windowDays: 7 };
   const signals = await adapter.fetch(input);
   const series = (await adapter.fetchSeries?.(input)) ?? [];
   console.log(

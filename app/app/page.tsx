@@ -11,10 +11,11 @@ import TrendChart from "@/components/app/trend-chart";
 import InsightList from "@/components/app/insight-list";
 import { getSessionUser } from "@/lib/auth/session";
 import { buildCampaignAction } from "@/lib/campaigns/actions";
+import { refreshRankingAction } from "@/lib/recommend/actions";
 import { getUserRepo } from "@/lib/db";
 import type { Signal } from "@/lib/db/types";
 import { explainOpportunity } from "@/lib/recommend/explain";
-import { buildHowTo } from "@/lib/recommend/howto";
+import { buildHowTo, tiktokHashtag } from "@/lib/recommend/howto";
 import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, generateBusinessBrief } from "@/lib/ai/brief";
 import { isGeminiConfigured } from "@/lib/env";
@@ -95,7 +96,11 @@ export default async function AppHome() {
   ]);
   const matchedService = services.find((s) => s.id === top.matched_service_id) ?? null;
   const howto = signal
-    ? buildHowTo({ term: signal.term, category: business.category, city: business.city })
+    ? buildHowTo({
+        term: tiktokHashtag(signal) ?? signal.term,
+        category: business.category,
+        city: business.city,
+      })
     : null;
   const series = signal ? await repo.getSeries(signal.normalized_term, signal.geo, 30) : [];
   const explained = signal ? await explainOpportunity(repo, business, top, signal) : null;
@@ -170,9 +175,14 @@ export default async function AppHome() {
             signal refreshes daily
           </p>
         </div>
-        {signal?.source === "seed" && (
-          <SourceBadge source="seed" />
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {signal?.source === "seed" && <SourceBadge source="seed" />}
+          <form action={refreshRankingAction}>
+            <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Re-reading the market…">
+              Re-rank this week
+            </SubmitButton>
+          </form>
+        </div>
       </div>
 
       <div className="kpi-row">
@@ -282,7 +292,7 @@ export default async function AppHome() {
         <div className="meta-row">
           <div>
             <span className="k">Matched service</span>
-            <div className="v">{matchedService ? matchedService.name : "Your closest offering"}</div>
+            <div className="v">{matchedService ? matchedService.name : "New offer — nothing on your menu yet"}</div>
           </div>
           <div>
             <span className="k">Competitor gap</span>
@@ -290,7 +300,13 @@ export default async function AppHome() {
           </div>
           <div>
             <span className="k">Do this next</span>
-            <div className="v">{campaign ? nextAction.label : `${nextAction.label} — launch by ${launchBy}`}</div>
+            <div className="v">
+              {Number(top.score) < 4.3
+                ? "Thin week — nothing squarely fits what you sell. Wait, or build only if the creative is trivial."
+                : campaign
+                  ? nextAction.label
+                  : `${nextAction.label} — launch by ${launchBy}`}
+            </div>
           </div>
           <div>
             <span className="k">Coverage</span>
@@ -301,17 +317,19 @@ export default async function AppHome() {
         </div>
       </section>
 
-      {/* ---------- TREND CHART ---------- */}
-      <section className="panel" style={{ marginTop: 18 }}>
-        <div className="panel__head">
-          <span className="panel__title mint">Demand — 30 days</span>
-          <span className="panel__meta">
-            {signal ? `${signal.normalized_term.replace(/_/g, " ")} · ${signal.geo}` : ""}
-            {signal?.source === "seed" ? " · illustrative" : ""}
-          </span>
-        </div>
-        <TrendChart points={series} />
-      </section>
+      {/* ---------- TREND CHART (only when we actually hold a series) ---------- */}
+      {series.length >= 2 && (
+        <section className="panel" style={{ marginTop: 18 }}>
+          <div className="panel__head">
+            <span className="panel__title mint">Demand — {series.length >= 14 ? "30 days" : "this week"}</span>
+            <span className="panel__meta">
+              {signal ? `${signal.normalized_term.replace(/_/g, " ")} · ${signal.geo}` : ""}
+              {signal?.source === "seed" ? " · illustrative" : ""}
+            </span>
+          </div>
+          <TrendChart points={series} />
+        </section>
+      )}
 
       {/* ---------- RUNNER-UPS + MARKET PULSE ---------- */}
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18, marginTop: 18, alignItems: "start" }} className="two-col">

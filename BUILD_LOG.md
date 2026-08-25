@@ -506,3 +506,37 @@ category-level matching can't tell a cold-plunge studio from a dentist.
   and cold plunges"), #2 "iv hydration therapy" 6.7 ("adjacent recovery
   routine for the same UNC athletes seeking inflammation relief"). Both
   Sweathouz accounts re-ranked in place. Gate green (63 unit, E2E, build).
+
+## P19 — Fit gates the score + the snapshot drives the watchlist
+Follow-through on "hashtag hero" and the audit ("scrub thru and analyze"):
+- **Humanized TikTok terms**: hashtag slugs become readable trend phrases at
+  ingestion via one Flash call ("hygienetok" → "personal hygiene routines",
+  "kbbq" → "korean bbq dining"); the raw tag stays in signals.raw and still
+  powers hashtag suggestions and TikTok/IG trend links (tiktokHashtag helper).
+  Injectable humanizer keeps the adapter unit-testable; identity fallback
+  without a key.
+- **Relevance now GATES the score**: applyRelevance scales the weighted sum by
+  (0.3 + 0.7×fit) — momentum on a trend the business shouldn't touch caps in
+  the C range ("Weak signal — watch, don't spend") instead of parading as a B.
+  Judged-irrelevant rows (<0.15 fit) drop from the list entirely unless the
+  whole pool is irrelevant, in which case the least-bad few stay, honestly
+  graded, and This week's "Do this next" says "Thin week — nothing squarely
+  fits."
+- **The snapshot drives signal acquisition** (brief-3, migration 0005): the
+  founding analysis now emits watch_terms — 5-8 search phrases this business's
+  real customers use ("cold plunge chapel hill", "infrared sauna near me",
+  "sports recovery chapel hill" for Sweathouz). Ingest unions every business's
+  watchlist with the stock category terms into a category-tagged watch list
+  consumed by the News, Trends-IOT, and YouTube adapters (fixing a latent bug:
+  trends_iot rows used to land category-less and could never be ranked).
+  Snapshot page shows the watchlist as chips.
+- **"Re-rank this week"** button on This week: owner-triggered re-scoring of
+  the current week through the full pipeline (deleteOpportunitiesForWeek repo
+  method, campaign-referenced rows survive) — no more manual store surgery.
+- Honesty polish: demand chart hidden when no series exists; "matched service"
+  reads "New offer — nothing on your menu yet" instead of a vague placeholder.
+- Verified live: Sweathouz's pool is genuinely irrelevant this week → all C
+  (1.7-1.8) with correct reasons; watch terms fetched by News (6 coverage
+  signals); Trends-IOT still 429s from this IP — from Vercel's cron IPs the
+  personalized terms become rankable search-interest signals. Gate green
+  (66 unit, E2E, build).

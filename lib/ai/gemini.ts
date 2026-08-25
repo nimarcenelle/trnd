@@ -25,6 +25,7 @@ import {
   AngleSchema,
   BusinessBriefSchema,
   CampaignAssetsSchema,
+  HumanizeSchema,
   RelevanceSchema,
   SiteExtractSchema,
 } from "./schemas";
@@ -213,6 +214,7 @@ const briefResponseSchema: Schema = {
     advantages: { type: Type.ARRAY, items: { type: Type.STRING } },
     watchouts: { type: Type.ARRAY, items: { type: Type.STRING } },
     first_moves: { type: Type.ARRAY, items: { type: Type.STRING } },
+    watch_terms: { type: Type.ARRAY, items: { type: Type.STRING } },
   },
   required: [
     "positioning",
@@ -225,6 +227,7 @@ const briefResponseSchema: Schema = {
     "advantages",
     "watchouts",
     "first_moves",
+    "watch_terms",
   ],
 };
 
@@ -262,6 +265,7 @@ export async function generateBriefWithGemini(
     `- advantages: 2-4 edges to press in paid ads.`,
     `- watchouts: 2-4 things to AVOID in marketing for this exact category, including ad-platform policy pitfalls.`,
     `- first_moves: 2-4 concrete first campaigns, each one sentence naming a real service from SELLS with its angle (e.g. which item, which audience, which hook). Ordered: run the first one first.`,
+    `- watch_terms: 5-8 short search phrases (2-4 words, lowercase, no hashtags) that real customers type when they want what THIS business sells — the demand terms TRND should watch for them (e.g. "cold plunge near me", "sauna benefits", "contrast therapy"). Specific to the actual offerings, never generic category words.`,
     ``,
     `Ground every claim in the facts provided. Name real services and real prices. Where the facts are thin, reason from the category and city — but never invent a fact about this specific business (no invented awards, years in business, or reviews). List items are one sentence each. Specific to THIS business; if a sentence could be pasted into another business's analysis, rewrite it.`,
   ]
@@ -350,6 +354,36 @@ export async function judgeSignalRelevance(
     }
   }
   return out;
+}
+
+const humanizeResponseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: { terms: { type: Type.ARRAY, items: { type: Type.STRING } } },
+  required: ["terms"],
+};
+
+/**
+ * TikTok hashtags are community slugs, not readable trend names —
+ * "hygienetok" is a headline nobody should ship. One Flash call turns each
+ * tag into the plain-English demand it stands for; callers keep the raw tag
+ * for links and hashtag suggestions.
+ */
+export async function humanizeTrendTerms(hashtags: string[]): Promise<string[]> {
+  const models = await resolveModels();
+  const prompt = [
+    `These are trending TikTok hashtags. Rewrite each as the plain-English trend it represents — a short lowercase phrase (2-4 words) a local business owner would recognize as customer demand.`,
+    `Rules: expand community suffixes ("hygienetok" → "hygiene routines"), expand abbreviations ("kbbq" → "korean bbq"), keep brand and proper names as names ("krispykreme" → "krispy kreme", "lowes" → "lowe's"), never keep the raw concatenated slug.`,
+    `Return exactly ${hashtags.length} terms, same order, one per input.`,
+    `HASHTAGS:`,
+    ...hashtags.map((h, i) => `${i}. #${h}`),
+  ].join("\n");
+  const parsed = await structuredCall(models.flash, prompt, humanizeResponseSchema, (d) =>
+    HumanizeSchema.parse(d),
+  );
+  if (parsed.terms.length !== hashtags.length) {
+    throw new Error(`humanize count mismatch: ${parsed.terms.length} for ${hashtags.length}`);
+  }
+  return parsed.terms.map((t, i) => t.trim() || hashtags[i]);
 }
 
 const siteExtractResponseSchema: Schema = {

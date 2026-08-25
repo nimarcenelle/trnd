@@ -29,11 +29,11 @@ export function createGoogleNewsAdapter(): SignalAdapter {
     async isAvailable() {
       return !breaker.isOpen;
     },
-    async fetch({ geo, windowDays, terms }: AdapterFetchInput): Promise<RawSignal[]> {
+    async fetch({ geo, windowDays, watch: watchIn }: AdapterFetchInput): Promise<RawSignal[]> {
       const out: RawSignal[] = [];
       const watch =
-        terms.length > 0
-          ? terms.map((t) => ({ term: t, category: "" }))
+        watchIn.length > 0
+          ? watchIn
           : CATEGORY_CONFIGS.flatMap((c) =>
               c.watchTerms.slice(0, 3).map((t) => ({ term: t, category: c.category })),
             );

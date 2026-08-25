@@ -80,9 +80,10 @@ export function createTrendsIotAdapter(): SignalAdapter {
     async isAvailable() {
       return !breaker.isOpen;
     },
-    async fetch({ terms, geo }: AdapterFetchInput): Promise<RawSignal[]> {
+    async fetch({ terms, watch, geo }: AdapterFetchInput): Promise<RawSignal[]> {
       const out: RawSignal[] = [];
-      for (const term of terms) {
+      const targets = watch.length > 0 ? watch : terms.map((t) => ({ term: t, category: "" }));
+      for (const { term, category } of targets) {
         if (breaker.isOpen) break; // degrade, don't crash
         try {
           const points = await fetchSeriesForTerm(term, geo || "US");
@@ -91,7 +92,7 @@ export function createTrendsIotAdapter(): SignalAdapter {
           out.push({
             source: "google_trends",
             term,
-            category: "",
+            category,
             geo: geo || "US",
             metric_type: "search_interest",
             value: last?.value ?? null,

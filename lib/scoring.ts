@@ -116,10 +116,12 @@ export interface ScoredOpportunity {
 }
 
 /**
- * Fold in the snapshot-aware relevance judgment: the fit component becomes
- * the judged relevance (the token-overlap guess was only ever a proxy for
- * "does this make sense for THIS business"), the total re-derives from the
- * same public weights, and the reason lands in the rationale.
+ * Fold in the snapshot-aware relevance judgment. The fit component becomes
+ * the judged relevance, and — unlike the additive first pass — fit GATES the
+ * total: momentum on a trend this business shouldn't touch is not an
+ * opportunity, so the weighted sum is scaled by (0.3 + 0.7 × fit). A perfect
+ * fit changes nothing; "completely outside your business" lands in the C
+ * range no matter how hard the trend is rising.
  */
 export function applyRelevance(
   result: ScoredOpportunity,
@@ -128,11 +130,12 @@ export function applyRelevance(
 ): ScoredOpportunity {
   const fit = Math.min(1, Math.max(0, relevance));
   const c = result.components;
-  const total =
+  const weighted =
     WEIGHTS.normalizedDelta * c.normalizedDelta +
     WEIGHTS.serviceMatch * fit +
     WEIGHTS.competitorGap * c.competitorGap +
     WEIGHTS.historicalLift * c.historicalLift;
+  const total = weighted * (0.3 + 0.7 * fit);
   return {
     ...result,
     score: Math.round(total * 100) / 10,

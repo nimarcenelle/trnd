@@ -1,3 +1,5 @@
+import { isGeminiConfigured } from "@/lib/env";
+
 import { normalizeTerm } from "../normalize";
 import { CircuitBreaker, fetchJson } from "../http";
 import type { AdapterFetchInput, RawSeriesPoint, RawSignal, SignalAdapter } from "../types";
@@ -66,19 +68,21 @@ export function curveDelta(curve: CcCurvePoint[] | undefined): number | null {
   return Math.max(-100, Math.min(100, Math.round(pct)));
 }
 
-/** Pure mapper — unit-tested against a captured fixture. */
+/** Pure mapper — unit-tested against a captured fixture. `termFor` swaps the
+ * raw hashtag slug for a readable trend phrase; the slug stays in `raw`. */
 export function ccSignals(
   payload: CcPayload,
   category: string,
   geo: string,
   windowDays: number,
+  termFor: (hashtag: string) => string = (h) => h,
 ): RawSignal[] {
   if (payload.BaseResp?.StatusCode !== 0) return [];
   return (payload.items ?? [])
     .filter((i) => typeof i.hashtagName === "string" && i.hashtagName.length > 1)
     .map((i) => ({
       source: "tiktok" as const,
-      term: String(i.hashtagName),
+      term: termFor(String(i.hashtagName)),
       category,
       geo,
       metric_type: "conversation",
@@ -89,12 +93,16 @@ export function ccSignals(
     }));
 }
 
-export function ccSeries(payload: CcPayload, geo: string): RawSeriesPoint[] {
+export function ccSeries(
+  payload: CcPayload,
+  geo: string,
+  termFor: (hashtag: string) => string = (h) => h,
+): RawSeriesPoint[] {
   if (payload.BaseResp?.StatusCode !== 0) return [];
   const out: RawSeriesPoint[] = [];
   for (const item of payload.items ?? []) {
     if (!item.hashtagName) continue;
-    const term = normalizeTerm(item.hashtagName);
+    const term = normalizeTerm(termFor(item.hashtagName));
     for (const p of item.popularityCurve ?? []) {
       const ms = Number(p.timestamp) * 1000;
       if (!Number.isFinite(ms) || ms <= 0) continue;
@@ -109,9 +117,43 @@ export function ccSeries(payload: CcPayload, geo: string): RawSeriesPoint[] {
   return out;
 }
 
-export function createTiktokCcAdapter(): SignalAdapter {
+export function createTiktokCcAdapter(opts: {
+  /** Injectable for tests; defaults to the Gemini pass when configured. */
+  humanize?: (hashtags: string[]) => Promise<string[]>;
+} = {}): SignalAdapter {
   const breaker = new CircuitBreaker("tiktok_cc");
   const cache = new Map<string, CcPayload>();
+  // hashtag slug → readable trend phrase, built once per run over every
+  // industry's items so signals and series always share the same term.
+  const termMap = new Map<string, string>();
+  let termsResolved = false;
+
+  const resolveTerms = async (payloads: CcPayload[]) => {
+    if (termsResolved) return;
+    termsResolved = true;
+    const names = [
+      ...new Set(
+        payloads
+          .flatMap((p) => p.items ?? [])
+          .map((i) => i.hashtagName)
+          .filter((n): n is string => typeof n === "string" && n.length > 1),
+      ),
+    ];
+    if (names.length === 0) return;
+    try {
+      const humanize =
+        opts.humanize ??
+        (isGeminiConfigured
+          ? (await import("@/lib/ai/gemini")).humanizeTrendTerms
+          : null);
+      if (!humanize) return;
+      const phrases = await humanize(names);
+      names.forEach((n, i) => termMap.set(n, phrases[i] ?? n));
+    } catch (err) {
+      console.warn("[signals:tiktok_cc] humanize failed — keeping raw hashtags:", (err as Error).message);
+    }
+  };
+  const termFor = (hashtag: string) => termMap.get(hashtag) ?? hashtag;
 
   const fetchIndustry = async (industryId: string, geo: string, windowDays: number) => {
     const key = `${industryId}:${geo}`;
@@ -139,30 +181,32 @@ export function createTiktokCcAdapter(): SignalAdapter {
       return true; // no key needed
     },
     async fetch(input: AdapterFetchInput): Promise<RawSignal[]> {
-      const out: RawSignal[] = [];
+      const collected: { payload: CcPayload; category: string }[] = [];
       for (const [industryId, category] of Object.entries(INDUSTRY_TO_CATEGORY)) {
         if (breaker.isOpen) break;
         try {
-          const payload = await fetchIndustry(industryId, input.geo, input.windowDays);
-          out.push(...ccSignals(payload, category, input.geo, Math.min(input.windowDays, 7)));
+          collected.push({ payload: await fetchIndustry(industryId, input.geo, input.windowDays), category });
         } catch (err) {
           console.warn(`[signals:tiktok_cc] industry ${industryId} failed:`, (err as Error).message);
         }
       }
-      return out;
+      await resolveTerms(collected.map((c) => c.payload));
+      return collected.flatMap(({ payload, category }) =>
+        ccSignals(payload, category, input.geo, Math.min(input.windowDays, 7), termFor),
+      );
     },
     async fetchSeries(input: AdapterFetchInput): Promise<RawSeriesPoint[]> {
-      const out: RawSeriesPoint[] = [];
+      const payloads: CcPayload[] = [];
       for (const industryId of Object.keys(INDUSTRY_TO_CATEGORY)) {
         if (breaker.isOpen) break;
         try {
-          const payload = await fetchIndustry(industryId, input.geo, input.windowDays);
-          out.push(...ccSeries(payload, input.geo));
+          payloads.push(await fetchIndustry(industryId, input.geo, input.windowDays));
         } catch {
           /* logged in fetch() */
         }
       }
-      return out;
+      await resolveTerms(payloads);
+      return payloads.flatMap((p) => ccSeries(p, input.geo, termFor));
     },
   };
 }

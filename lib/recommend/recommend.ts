@@ -78,6 +78,11 @@ export async function recommendForBusiness(
               : entry;
           })
           .sort((a, b) => b.result.score - a.result.score);
+        // Judged-irrelevant trends don't make the list at all — unless the
+        // whole pool is irrelevant, in which case the least-bad few stay,
+        // honestly graded C, rather than an empty screen.
+        const fitOk = scored.filter((e) => e.result.components.serviceMatch >= 0.15);
+        if (fitOk.length >= 2) scored = fitOk;
       }
     } catch (err) {
       console.warn("[recommend] relevance pass failed (non-fatal):", (err as Error).message);

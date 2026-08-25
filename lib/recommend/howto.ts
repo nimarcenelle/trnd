@@ -84,3 +84,14 @@ export function trendLinks(term: string): { tiktok: string; instagram: string } 
     instagram: `https://www.instagram.com/explore/tags/${tag}/`,
   };
 }
+
+/**
+ * TikTok signals display a humanized term ("hygiene routines") but the real
+ * community tag lives in the raw payload ("hygienetok") — hashtags and trend
+ * links should ride the actual tag.
+ */
+export function tiktokHashtag(signal: { source: string; raw: unknown }): string | null {
+  if (signal.source !== "tiktok") return null;
+  const name = (signal.raw as { hashtagName?: unknown } | null)?.hashtagName;
+  return typeof name === "string" && name.length > 1 ? name : null;
+}

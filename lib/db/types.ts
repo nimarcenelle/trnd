@@ -173,6 +173,9 @@ export interface BusinessBrief {
   watchouts: string[];
   /** 2-4 concrete first campaigns to run, named against real services. */
   first_moves: string[];
+  /** 5-8 search phrases this business's customers actually use — the
+   * personalized demand watchlist signal ingestion rides. */
+  watch_terms: string[];
   model_used: string;
   prompt_version: string;
   created_at: string;

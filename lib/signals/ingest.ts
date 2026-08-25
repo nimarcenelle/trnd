@@ -47,6 +47,27 @@ export async function runIngest(
   const adapters = opts.adapters ?? defaultAdapters();
   const watchTerms = CATEGORY_CONFIGS.flatMap((c) => c.watchTerms.slice(0, 2));
 
+  // The personalized half of the watchlist: every business's snapshot names
+  // the search phrases its real customers use. TRND watches what each
+  // business sells — not just its category.
+  const seen = new Set<string>();
+  const watch: { term: string; category: string }[] = [];
+  const addWatch = (term: string, category: string) => {
+    const key = term.toLowerCase().trim();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    watch.push({ term: key, category });
+  };
+  for (const c of CATEGORY_CONFIGS) for (const t of c.watchTerms.slice(0, 2)) addWatch(t, c.category);
+  try {
+    for (const b of await repo.listAllBusinesses()) {
+      const brief = await repo.getBusinessBrief(b.id);
+      for (const t of (brief?.watch_terms ?? []).slice(0, 8)) addWatch(t, b.category);
+    }
+  } catch (err) {
+    console.warn("[ingest] business watchlist unavailable:", (err as Error).message);
+  }
+
   const reports: AdapterRunReport[] = [];
   let totalSignals = 0;
   let totalSeriesPoints = 0;
@@ -60,7 +81,7 @@ export async function runIngest(
         reports.push(report);
         continue;
       }
-      const raw = await adapter.fetch({ terms: watchTerms, geo, windowDays });
+      const raw = await adapter.fetch({ terms: watchTerms, watch, geo, windowDays });
       const rows: NewSignal[] = raw
         .filter((r) => r.term.trim().length > 0)
         .map((r) => ({
@@ -77,7 +98,7 @@ export async function runIngest(
         }));
       report.signals = await repo.upsertSignals(rows);
       if (adapter.fetchSeries) {
-        const series = await adapter.fetchSeries({ terms: watchTerms, geo, windowDays });
+        const series = await adapter.fetchSeries({ terms: watchTerms, watch, geo, windowDays });
         report.seriesPoints = await repo.upsertSeriesPoints(
           series.map((p) => ({
             normalized_term: normalizeTerm(p.term),

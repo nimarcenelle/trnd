@@ -8,7 +8,7 @@ import SourceBadge from "@/components/app/source-badge";
 import StatusTimeline from "@/components/app/status-timeline";
 import { getSessionUser } from "@/lib/auth/session";
 import { markLaunchedAction } from "@/lib/campaigns/actions";
-import { trendLinks } from "@/lib/recommend/howto";
+import { tiktokHashtag, trendLinks } from "@/lib/recommend/howto";
 import { budgetFor } from "@/lib/recommend/insights";
 import { titleCase } from "@/lib/text";
 import { getUserRepo } from "@/lib/db";
@@ -193,10 +193,10 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
 
         {signal && (
           <div className="ref-links">
-            <a className="ref-link" href={trendLinks(signal.term).tiktok} target="_blank" rel="noopener noreferrer">
+            <a className="ref-link" href={trendLinks(tiktokHashtag(signal) ?? signal.term).tiktok} target="_blank" rel="noopener noreferrer">
               See what&apos;s working on TikTok →
             </a>
-            <a className="ref-link" href={trendLinks(signal.term).instagram} target="_blank" rel="noopener noreferrer">
+            <a className="ref-link" href={trendLinks(tiktokHashtag(signal) ?? signal.term).instagram} target="_blank" rel="noopener noreferrer">
               See what&apos;s working on Instagram →
             </a>
           </div>

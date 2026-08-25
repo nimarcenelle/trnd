@@ -50,6 +50,7 @@ export const BusinessBriefSchema = z.object({
   advantages: z.array(z.string().min(10)).min(2).max(4),
   watchouts: z.array(z.string().min(10)).min(2).max(4),
   first_moves: z.array(z.string().min(10)).min(2).max(4),
+  watch_terms: z.array(z.string().min(3)).min(4).max(8),
 });
 export type BusinessBriefResult = z.infer<typeof BusinessBriefSchema>;
 
@@ -65,6 +66,10 @@ export const RelevanceSchema = z.object({
     .min(1),
 });
 export type RelevanceResult = z.infer<typeof RelevanceSchema>;
+
+export const HumanizeSchema = z.object({
+  terms: z.array(z.string().min(2)).min(1),
+});
 
 export const SiteExtractSchema = z.object({
   name: z.string().min(1).nullable(),

@@ -21,8 +21,16 @@ export interface RawSeriesPoint {
   value: number;
 }
 
+export interface WatchTerm {
+  term: string;
+  category: string;
+}
+
 export interface AdapterFetchInput {
   terms: string[];
+  /** Category-tagged watchlist: stock per-category terms plus every
+   * business's snapshot-generated watch_terms. */
+  watch: WatchTerm[];
   geo: string;
   windowDays: number;
 }

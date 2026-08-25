@@ -196,6 +196,21 @@ export default async function SnapshotPage() {
             </div>
           )}
 
+          {(brief.watch_terms ?? []).length > 0 && (
+            <div className="note-card">
+              <span className="t">What TRND watches for you</span>
+              <div className="mini-chip-row" style={{ marginBottom: 10 }}>
+                {brief.watch_terms.map((t) => (
+                  <span key={t} className="mini-chip">{t}</span>
+                ))}
+              </div>
+              <p style={{ fontSize: 12.5 }}>
+                Search phrases your customers actually use — pulled from this analysis and fed into
+                the daily signal scan, alongside your category&apos;s stock terms.
+              </p>
+            </div>
+          )}
+
           <div className="note-card">
             <span className="t">How we built this</span>
             <p>

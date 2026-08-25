@@ -4,6 +4,7 @@ import type { NewSignal } from "@/lib/db/types";
 import { createGoogleNewsAdapter } from "./adapters/google-news";
 import { createGoogleTrendsRssAdapter } from "./adapters/google-trends-rss";
 import { createRedditAdapter } from "./adapters/reddit";
+import { createTiktokCcAdapter } from "./adapters/tiktok-cc";
 import { createTrendsIotAdapter } from "./adapters/trends-iot";
 import { createYoutubeAdapter } from "./adapters/youtube";
 import { CATEGORY_CONFIGS } from "./category-terms";
@@ -19,11 +20,13 @@ export interface IngestSummary {
 
 function defaultAdapters(): SignalAdapter[] {
   // Order per the brief: RSS first (most reliable), then Reddit, News,
-  // Trends interest-over-time (fragile), YouTube (key-gated).
+  // TikTok Creative Center (unofficial, per-industry), Trends
+  // interest-over-time (fragile), YouTube (key-gated).
   return [
     createGoogleTrendsRssAdapter(),
     createRedditAdapter(),
     createGoogleNewsAdapter(),
+    createTiktokCcAdapter(),
     createTrendsIotAdapter(),
     createYoutubeAdapter(),
   ];

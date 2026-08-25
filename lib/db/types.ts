@@ -15,7 +15,7 @@ export const CATEGORIES = [
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
 
-export type SignalSource = "google_trends" | "reddit" | "youtube" | "news" | "seed";
+export type SignalSource = "google_trends" | "reddit" | "youtube" | "news" | "tiktok" | "seed";
 export type OpportunityStatus = "new" | "accepted" | "dismissed" | "launched";
 export type CampaignStatus = "draft" | "exported" | "live" | "complete";
 export type CampaignChannel = "meta" | "google" | "tiktok";

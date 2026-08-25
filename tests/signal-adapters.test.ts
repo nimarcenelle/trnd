@@ -76,3 +76,62 @@ describe("normalizeTerm", () => {
     expect(normalizeTerm("  Iced-Latte  Alternatives! ")).toBe("icedlatte_alternatives");
   });
 });
+
+import { ccSeries, ccSignals, curveDelta, INDUSTRY_TO_CATEGORY } from "../lib/signals/adapters/tiktok-cc";
+
+// Trimmed from a live GetHashtagList capture (Aug 2026).
+const CC_FIXTURE = {
+  BaseResp: { StatusCode: 0, StatusMessage: "" },
+  items: [
+    {
+      hashtagName: "babylist",
+      industryIDs: ["12000000000"],
+      publishCnt: "12677",
+      vv: "21831042",
+      rankIndex: "2",
+      popularityCurve: [
+        { timestamp: "1786924800", value: 5 },
+        { timestamp: "1787011200", value: 72 },
+        { timestamp: "1787097600", value: 97 },
+        { timestamp: "1787184000", value: 100 },
+        { timestamp: "1787270400", value: 81 },
+        { timestamp: "1787356800", value: 34 },
+        { timestamp: "1787443200", value: 0 },
+      ],
+    },
+  ],
+};
+
+describe("tiktok creative center adapter", () => {
+  it("maps hashtags to signals with the queried category", () => {
+    const [sig] = ccSignals(CC_FIXTURE, "Health & beauty", "US", 7);
+    expect(sig.source).toBe("tiktok");
+    expect(sig.term).toBe("babylist");
+    expect(sig.category).toBe("Health & beauty");
+    expect(sig.metric_type).toBe("conversation");
+    expect(sig.value).toBe(12677);
+    expect(sig.window_days).toBe(7);
+  });
+
+  it("computes the delta from the popularity curve, ignoring the trailing zero", () => {
+    // 5 → 34 after dropping today's partial 0: +580%, clamped to 100.
+    expect(curveDelta(CC_FIXTURE.items[0].popularityCurve)).toBe(100);
+    expect(curveDelta([{ timestamp: "1", value: 80 }, { timestamp: "2", value: 40 }])).toBe(-50);
+    expect(curveDelta([])).toBeNull();
+  });
+
+  it("emits daily series points from the curve", () => {
+    const series = ccSeries(CC_FIXTURE, "US");
+    expect(series.length).toBe(7);
+    expect(series[0]).toMatchObject({ term: "babylist", geo: "US", value: 5 });
+    expect(series[0].day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("covers all seven TRND categories in the industry map", () => {
+    expect(new Set(Object.values(INDUSTRY_TO_CATEGORY)).size).toBe(7);
+  });
+
+  it("returns nothing on an API error payload", () => {
+    expect(ccSignals({ BaseResp: { StatusCode: 40101 } }, "x", "US", 7)).toEqual([]);
+  });
+});

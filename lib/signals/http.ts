@@ -52,6 +52,8 @@ export interface FetchTextOptions {
   breaker?: CircuitBreaker;
   /** 4xx statuses are not retried (retrying a 403 policy denial is noise). */
   retryOn4xx?: boolean;
+  method?: "GET" | "POST";
+  body?: string;
 }
 
 export async function fetchText(url: string, opts: FetchTextOptions = {}): Promise<string> {
@@ -62,7 +64,9 @@ export async function fetchText(url: string, opts: FetchTextOptions = {}): Promi
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const res = await fetch(url, {
+        method: opts.method ?? "GET",
         headers: opts.headers,
+        body: opts.body,
         signal: AbortSignal.timeout(TIMEOUT_MS),
         cache: "no-store",
       });

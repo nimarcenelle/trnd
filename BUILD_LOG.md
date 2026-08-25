@@ -457,3 +457,28 @@ sweathouz.com…", "Taking a closer look at your chapel hill book now page…",
 (numeric slugs filtered from the list), "Making sense of what we found…",
 "Pulling out what you sell and what it costs…". Verified against the live
 stream. Store re-zeroed after probes.
+
+## P17 — TikTok Creative Center adapter (user request)
+Sixth signal source: TikTok's public Creative Center trend board, per industry.
+- Reverse-engineered live (probe kept at scripts/probe-tiktok-cc.ts): the
+  current backing endpoint (CreativeOne/KnowledgeAPI/GetHashtagList) accepts
+  plain JSON POSTs with NO signing — no browser, no key. Anonymous access caps
+  each query at the top ~3 hashtags, so the adapter queries once per industry:
+  7 TikTok industries mapped to the 7 TRND categories (ids verified against
+  labels extracted from TikTok's own JS bundle — Food & Beverage → Restaurants,
+  Beauty & Personal Care → Health & beauty, Sports & Outdoor → Fitness, Vehicle
+  → Auto, Home Improvement → Home services, Apparel → Retail, Health → Dental
+  & wellness).
+- Each hashtag lands with post count, video views, a delta computed from the
+  normalized 7-day popularity curve (trailing partial-day zero dropped), and
+  daily series points that feed the demand sparkline. metric_type
+  "conversation" so UI copy reads naturally.
+- TikTok's industry tags are loose (celebrity/gaming crossovers reach Sports
+  and Vehicle) — deliberately not lexicon-filtered: novel terms are the point,
+  and the scorer's service-fit component (25%) is the junk filter by design.
+- Wiring: source union + migration 0004 (signals_source_check gains 'tiktok'),
+  SourceBadge label, POST support in the shared hardened fetch, adapter slot
+  in the default ingest order. 5 new unit tests against a captured fixture.
+- Live ingest run: tiktok_cc delivered 21 signals + 147 series points — the
+  top live source of the run (Reddit 403'd from this IP, Trends IOT 429'd;
+  circuit breakers degraded both cleanly). Gate green (60 unit, E2E, build).

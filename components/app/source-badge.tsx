@@ -5,6 +5,7 @@ const LABELS: Record<SignalSource, string> = {
   reddit: "Reddit",
   news: "Google News",
   youtube: "YouTube",
+  tiktok: "TikTok",
   seed: "Illustrative",
 };
 

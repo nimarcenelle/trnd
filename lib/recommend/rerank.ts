@@ -4,20 +4,17 @@ import type { Business } from "@/lib/db/types";
 import { recommendForBusiness, weekOf } from "./recommend";
 
 /**
- * Rebuild this week's ranking through the full pipeline. Opportunities a
- * campaign already references survive. Used by the owner's re-rank button
- * AND automatically whenever the founding analysis (re)lands — the first
- * ranking often runs before the brief exists, and must not stand unjudged
- * for a week.
+ * Rebuild this week's ranking through the full pipeline. Upsert-first so a
+ * signal that stays ranked KEEPS its row id — pages already rendered hold
+ * opportunity ids, and a build click must not land on a deleted row. Only
+ * rows that fell out of the new ranking (and have no campaign) are removed.
+ * Used by the owner's re-rank button AND automatically whenever the
+ * founding analysis (re)lands.
  */
 export async function rerankWeek(repo: Repo, business: Business): Promise<void> {
   const week = weekOf();
-  const [opportunities, campaigns] = await Promise.all([
-    repo.listOpportunities(business.id, week),
-    repo.listCampaigns(business.id),
-  ]);
-  const withCampaign = new Set(campaigns.map((c) => c.opportunity_id));
-  const keepIds = opportunities.filter((o) => withCampaign.has(o.id)).map((o) => o.id);
+  const result = await recommendForBusiness(repo, business);
+  const campaigns = await repo.listCampaigns(business.id);
+  const keepIds = [...result.opportunityIds, ...campaigns.map((c) => c.opportunity_id)];
   await repo.deleteOpportunitiesForWeek(business.id, week, keepIds);
-  await recommendForBusiness(repo, business);
 }

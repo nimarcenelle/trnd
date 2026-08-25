@@ -626,3 +626,12 @@ brief, no relevance judge, so an ungated B+ ranking persisted for the week.
   weeks; Ellemes (a real med spa) ranks 8.3 on genuinely fitting terms — the
   same signal pool, correctly split by what each business actually is. Gate
   green (74 unit, E2E, build).
+
+## P22b — Stable opportunity ids through re-ranks
+The P22 auto-re-rank deleted and recreated rows, so any already-rendered
+dashboard held dead opportunity ids — a build click landed on a deleted row
+(caught by E2E). rerankWeek is now upsert-first: a signal that stays ranked
+keeps its row id, only fallen-out rows are deleted (campaign-referenced rows
+always survive), and the build button self-heals on a stale id by refreshing
+and asking for one more click. recommendForBusiness returns the week's
+opportunity ids. Gate green (74 unit, E2E, build).

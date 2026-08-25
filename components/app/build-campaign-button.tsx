@@ -52,7 +52,15 @@ export default function BuildCampaignButton({
             router.push(`/app/campaigns/${event.campaignId}`);
             return;
           } else {
-            setError(event.reason);
+            // A stale opportunity id means the ranking was rebuilt behind
+            // this page (e.g. the analysis just landed) — refresh so the
+            // button binds to the current row.
+            if (/isn't available/.test(event.reason)) {
+              setError("The ranking just updated — try again.");
+              router.refresh();
+            } else {
+              setError(event.reason);
+            }
             setStatus(null);
             return;
           }

@@ -39,6 +39,8 @@ export interface RecommendBusinessResult {
   businessId: string;
   created: number;
   topScore: number | null;
+  /** The week's current opportunity ids after this run. */
+  opportunityIds: string[];
 }
 
 /**
@@ -138,7 +140,12 @@ export async function recommendForBusiness(
         const existing = await repo.listOpportunities(business.id, weekOf());
         if (existing.length > 0) {
           console.warn("[recommend] judge unavailable — keeping the existing judged ranking");
-          return { businessId: business.id, created: 0, topScore: Number(existing[0].score) };
+          return {
+            businessId: business.id,
+            created: 0,
+            topScore: Number(existing[0].score),
+            opportunityIds: existing.map((o) => o.id),
+          };
         }
       }
     }
@@ -146,7 +153,7 @@ export async function recommendForBusiness(
   scored = scored.slice(0, TOP_N);
 
   if (scored.length === 0) {
-    return { businessId: business.id, created: 0, topScore: null };
+    return { businessId: business.id, created: 0, topScore: null, opportunityIds: [] };
   }
 
   const week = weekOf();
@@ -159,9 +166,14 @@ export async function recommendForBusiness(
     matched_service_id: result.matchedService?.id ?? null,
     competitor_gap: result.competitorGapText,
   }));
-  await repo.upsertOpportunities(inputs);
+  const rows = await repo.upsertOpportunities(inputs);
 
-  return { businessId: business.id, created: inputs.length, topScore: scored[0].result.score };
+  return {
+    businessId: business.id,
+    created: inputs.length,
+    topScore: scored[0].result.score,
+    opportunityIds: rows.map((r) => r.id),
+  };
 }
 
 export async function runRecommend(repo: Repo): Promise<RecommendBusinessResult[]> {
@@ -172,7 +184,7 @@ export async function runRecommend(repo: Repo): Promise<RecommendBusinessResult[
       results.push(await recommendForBusiness(repo, b));
     } catch (err) {
       console.warn(`[recommend] business ${b.id} failed:`, (err as Error).message);
-      results.push({ businessId: b.id, created: 0, topScore: null });
+      results.push({ businessId: b.id, created: 0, topScore: null, opportunityIds: [] });
     }
   }
   return results;

@@ -79,6 +79,7 @@ export default function OnboardingWizard() {
           (found.length > 0
             ? `Read your site — found ${found.join(", ")}. Confirm or edit below, then you're in.`
             : "Read your site — confirm the details below.") +
+            (d.services.length === 0 ? " Couldn't read a menu or price list, so add what you sell below." : "") +
             (gotName ? "" : " Add your business name to continue."),
         );
         // Everything on one confirm screen — no more questions than needed.

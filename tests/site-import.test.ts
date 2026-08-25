@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  decodeEntities,
   discoverInternalLinks,
   extractFromHtml,
   extractFromPages,
   inferPriceBand,
+  looksBlocked,
   normalizeUrl,
 } from "../lib/import/website";
 
@@ -91,6 +93,54 @@ describe("site crawl", () => {
     // Dedupes against the homepage's items instead of doubling them.
     expect(out.services.filter((s) => s.name === "Espresso")).toHaveLength(1);
     expect(out.priceBand).toBe("$");
+  });
+
+  it("decodes HTML entities in names pulled from JSON-LD and titles", () => {
+    const html = `<script type="application/ld+json">{"@type":"Restaurant","name":"Tupelo Honey Kitchen &amp; Bar","address":{"addressLocality":"Asheville","addressRegion":"NC"}}</script>`;
+    expect(extractFromHtml(html).name).toBe("Tupelo Honey Kitchen & Bar");
+    expect(decodeEntities("Caf&eacute; &#39;76 &amp; Co&#x2019;s")).toBe("Café '76 & Co’s");
+  });
+
+  it("accepts any LocalBusiness subtype and reads priceRange as the band", () => {
+    const html = `<script type="application/ld+json">{"@graph":[{"@type":"FoodEstablishment","name":"Ember","priceRange":"$$$","address":{"addressLocality":"Austin","addressRegion":"TX"}}]}</script>`;
+    const out = extractFromHtml(html);
+    expect(out.name).toBe("Ember");
+    expect(out.city).toBe("Austin");
+    expect(out.priceBand).toBe("$$$");
+  });
+
+  it("pulls priced offerings out of JSON-LD menus and products, filtering storefront junk", () => {
+    const html = `<script type="application/ld+json">
+      {"@type":"Restaurant","name":"Noa","hasMenu":{"@type":"Menu","hasMenuSection":{"@type":"MenuSection","hasMenuItem":[
+        {"@type":"MenuItem","name":"Shakshuka","offers":{"@type":"Offer","price":"14"}},
+        {"@type":"MenuItem","name":"Gift Card","offers":{"@type":"Offer","price":"50"}}
+      ]}}}
+    </script>
+    <script type="application/ld+json">{"@type":"Product","name":"House Blend Beans","offers":[{"@type":"Offer","price":18.5}]}</script>`;
+    const out = extractFromHtml(html);
+    const names = out.services.map((s) => s.name);
+    expect(names).toContain("Shakshuka");
+    expect(names).toContain("House Blend Beans");
+    expect(out.services.find((s) => s.name === "House Blend Beans")?.price).toBe("18.5");
+    expect(names.join(" ")).not.toMatch(/Gift Card/);
+  });
+
+  it("skips storefront price chrome in text lines", () => {
+    const html = `<p>Sale price: $55</p><p>Original price: $64</p><p>Fade Cut — $38</p>`;
+    const names = extractFromHtml(html).services.map((s) => s.name);
+    expect(names).toEqual(["Fade Cut"]);
+  });
+
+  it("votes the category across keyword counts instead of first match", () => {
+    // One generic nav "menu" must not beat a page full of sauna language.
+    const html = `<p>Menu</p><p>Private infrared sauna and cold plunge studio. Book your sauna session. Contrast therapy for recovery.</p>`;
+    expect(extractFromHtml(html).category).toBe("Health & beauty");
+  });
+
+  it("recognizes bot-protection interstitials", () => {
+    expect(looksBlocked(`<title>Attention Required! | Cloudflare</title><p>captcha</p>`)).toBe(true);
+    expect(looksBlocked(`<title>Just a moment...</title><p>Verify you are human</p>`)).toBe(true);
+    expect(looksBlocked(CAFE_HTML)).toBe(false);
   });
 
   it("infers price band from median price per category", () => {

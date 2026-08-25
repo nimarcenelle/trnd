@@ -314,3 +314,31 @@ results → learnings) and closed the gaps:
 - Verified end-to-end against a local fixture site (localhost egress works): crawl
   found all 6 menu items from /menu.html, inferred $$, confirm screen → /app showed
   the full analysis. Gate green (47 unit tests, E2E, build).
+
+## P10 — Import that survives the real web (fixing "doesn't seem to be succeeding")
+Diagnosed against the store's real onboarding attempt (Sweathouz, a deep
+`/chapel-hill-book-now/` URL that yielded one hand-typed service) and live probes
+of real sites (`scripts/probe-import.ts`, kept as a diagnostic).
+- **Headless render fallback** (`lib/import/render.ts`): when the plain fetch 403s
+  or returns a JS husk (<500 chars of text) or a bot-protection interstitial, the
+  page is rendered with full Chromium in new-headless mode (real-Chrome fingerprint,
+  normal UA, one 5s wait for JS challenges to clear). Playwright is a devDependency
+  + `serverExternalPackages`; where it isn't installed the import stays fetch-only.
+  Passes Cloudflare on sweathouz.com; hard blocks now fail with an honest
+  "bot protection blocked the read" instead of extracting "Attention Required!".
+- **Deep-link handling**: a pasted inner page (menu/booking) is kept as a corpus
+  page and the site root is crawled alongside it for identity.
+- **Extraction fixes**: www/apex hostname mismatch no longer discards every nav
+  link; link dedupe ignores tracking params; JSON-LD parsing accepts any
+  LocalBusiness subtype, reads `priceRange` as the band, and pulls priced items out
+  of Menu/MenuItem/Product/Offer graphs; HTML entities decoded everywhere
+  ("Kitchen &amp; Bar" → "& Bar"); storefront chrome ("Sale price:", gift cards)
+  filtered from services; category is voted by keyword count across all crawled
+  pages (one nav "menu" no longer beats a page full of "sauna"); barber/sauna/cold
+  plunge added to Health & beauty keywords; exotic dash trims.
+- Wizard note now says plainly when no menu could be read.
+- Result on the failing case: sweathouz.com deep URL → SWTHZ, Health & beauty,
+  Chapel Hill NC, $$, 6 priced services with clean names. Gate green
+  (53 unit tests, E2E, build). Remaining lever: `GEMINI_API_KEY` in `.env.local`
+  (BLOCKED.md) — without it the analysis is the template and extraction is
+  heuristics-only.

@@ -1,5 +1,7 @@
 import { CATEGORIES } from "@/lib/db/types";
 
+import type { Renderer } from "./render";
+
 /**
  * Website import: one polite fetch of the business's own site (owner-initiated,
  * 8s timeout, identified UA), then best-effort extraction of name, category,
@@ -102,22 +104,41 @@ const LINK_PRIORITY = [
   /pric|rate|package|bundle/i,
   /service|treatment|class|membership|offering/i,
   /shop|store|product|collection/i,
+  /location|contact|visit|find-us/i,
   /about|story|team|our-/i,
   /book|schedule|catering|event/i,
 ];
 const MAX_SUBPAGES = 4;
 const MAX_CORPUS_CHARS = 24_000;
+// Below this much visible text a page is a JS husk — worth a headless render.
+const MIN_PAGE_TEXT = 500;
+const MAX_RENDERED_PAGES = 3;
+
+/** Bot-protection interstitials — extracting from these produces garbage
+ * prefills ("Attention Required!" as the business name). */
+export function looksBlocked(html: string): boolean {
+  const head = stripHtml(html.slice(0, 4000)).text;
+  return /attention required|just a moment|access denied|verify you are (a )?human|are you a robot|enable javascript and cookies|cf-browser-verification|captcha/i.test(
+    head,
+  );
+}
+
+/** Same site modulo the www. prefix — nav links routinely cross that line. */
+function sameSite(a: string, b: string): boolean {
+  const bare = (h: string) => h.replace(/^www\./i, "");
+  return bare(a) === bare(b);
+}
 
 /**
  * Internal links that look like menu/services/pricing/about pages, best
- * first. Same host only; anchors, files, mailto/tel are skipped.
+ * first. Same site only; anchors, files, mailto/tel are skipped.
  */
 export function discoverInternalLinks(html: string, baseUrl: string): string[] {
   const base = new URL(baseUrl);
   const scored: { url: string; score: number }[] = [];
-  const seen = new Set<string>([base.href]);
+  const seen = new Set<string>([(base.origin + base.pathname).replace(/\/+$/, "")]);
   for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,120}?)<\/a>/gi)) {
-    const href = m[1].trim();
+    const href = decodeEntities(m[1].trim());
     if (/^(mailto:|tel:|javascript:)/i.test(href)) continue;
     let u: URL;
     try {
@@ -125,15 +146,18 @@ export function discoverInternalLinks(html: string, baseUrl: string): string[] {
     } catch {
       continue;
     }
-    if (u.hostname !== base.hostname || !/^https?:$/.test(u.protocol)) continue;
+    if (!sameSite(u.hostname, base.hostname) || !/^https?:$/.test(u.protocol)) continue;
     if (/\.(pdf|jpe?g|png|gif|svg|webp|mp4|zip|docx?)$/i.test(u.pathname)) continue;
     u.hash = "";
-    if (seen.has(u.href)) continue;
+    // Dedupe on origin+path — tracking params and trailing slashes vary
+    // across copies of the same nav link.
+    const key = (u.origin + u.pathname).replace(/\/+$/, "");
+    if (seen.has(key)) continue;
     const anchorText = m[2].replace(/<[^>]+>/g, " ");
     const haystack = `${u.pathname} ${anchorText}`;
     const score = LINK_PRIORITY.findIndex((re) => re.test(haystack));
     if (score === -1) continue;
-    seen.add(u.href);
+    seen.add(key);
     scored.push({ url: u.href, score });
   }
   return scored
@@ -144,26 +168,101 @@ export function discoverInternalLinks(html: string, baseUrl: string): string[] {
 
 /**
  * Homepage plus up to four relevant subpages (menu, pricing, services,
- * about), fetched in parallel. Subpage failures are dropped silently — the
- * homepage alone is still a useful corpus.
+ * locations, about), fetched in parallel. When the plain fetch is blocked
+ * (WAF 403) or returns a JS husk with no visible text, a headless-browser
+ * render takes over where Playwright is installed (see lib/import/render.ts).
+ * Subpage failures are dropped silently — the homepage alone is still a
+ * useful corpus.
  */
 export async function fetchSiteCorpus(url: string): Promise<SiteCorpus> {
-  const homeHtml = await fetchSiteHtml(url);
-  const links = discoverInternalLinks(homeHtml, url);
-  const settled = await Promise.allSettled(links.map((l) => fetchOnce(l)));
-  const pages: SitePage[] = [{ url, html: homeHtml }];
-  settled.forEach((r, i) => {
-    if (r.status === "fulfilled") pages.push({ url: links[i], html: r.value });
-  });
+  let renderer: Renderer | null = null;
+  let rendersLeft = MAX_RENDERED_PAGES;
+  const renderPage = async (pageUrl: string): Promise<string | null> => {
+    if (rendersLeft <= 0) return null;
+    if (renderer === null) {
+      const { getRenderer } = await import("./render");
+      renderer = await getRenderer();
+      if (!renderer) rendersLeft = 0;
+    }
+    if (!renderer) return null;
+    rendersLeft--;
+    return renderer.render(pageUrl);
+  };
 
-  let text = "";
-  for (const p of pages) {
-    if (text.length >= MAX_CORPUS_CHARS) break;
-    const path = new URL(p.url).pathname || "/";
-    const stripped = stripHtml(p.html).text;
-    text += `\n\n=== PAGE ${path} ===\n${stripped.slice(0, MAX_CORPUS_CHARS - text.length)}`;
+  // Fetch first; if the result is missing, a JS husk, or a bot-protection
+  // interstitial, try a headless render. Returns usable HTML or an error.
+  const loadPage = async (pageUrl: string): Promise<{ html: string | null; error: unknown }> => {
+    let html: string | null = null;
+    let error: unknown;
+    try {
+      html = await fetchSiteHtml(pageUrl);
+    } catch (err) {
+      error = err;
+    }
+    if (!html || stripHtml(html).text.length < MIN_PAGE_TEXT || looksBlocked(html)) {
+      const rendered = await renderPage(pageUrl);
+      // Keep the render only if it beat the fetch (a challenge page can
+      // appear in both).
+      if (rendered && !looksBlocked(rendered)) {
+        html = rendered;
+      } else if (rendered) {
+        html = null;
+        error = new Error("the site's bot protection blocked the read");
+      }
+    }
+    if (html && looksBlocked(html)) {
+      html = null;
+      error = new Error("the site's bot protection blocked the read");
+    }
+    return { html, error: error ?? new Error("empty page") };
+  };
+
+  try {
+    const givenLoad = await loadPage(url);
+    if (!givenLoad.html) throw givenLoad.error;
+
+    // A pasted deep link (a menu or booking page) is often where the prices
+    // are — keep it, and crawl the site root alongside it for identity.
+    const pages: SitePage[] = [];
+    const given = new URL(url);
+    if (given.pathname.replace(/\/+$/, "") !== "") {
+      const rootUrl = `${given.origin}/`;
+      const rootLoad = await loadPage(rootUrl);
+      if (rootLoad.html) pages.push({ url: rootUrl, html: rootLoad.html });
+    }
+    pages.push({ url, html: givenLoad.html });
+
+    const pathKey = (u: string) => (new URL(u).origin + new URL(u).pathname).replace(/\/+$/, "");
+    const linkSeen = new Set(pages.map((p) => pathKey(p.url)));
+    const links: string[] = [];
+    for (const l of pages.flatMap((p) => discoverInternalLinks(p.html, p.url))) {
+      if (links.length >= MAX_SUBPAGES) break;
+      const key = pathKey(l);
+      if (linkSeen.has(key)) continue;
+      linkSeen.add(key);
+      links.push(l);
+    }
+    const settled = await Promise.allSettled(links.map((l) => fetchOnce(l)));
+    for (let i = 0; i < settled.length; i++) {
+      const r = settled[i];
+      let html = r.status === "fulfilled" ? r.value : null;
+      if (!html || stripHtml(html).text.length < MIN_PAGE_TEXT) {
+        html = (await renderPage(links[i])) ?? html;
+      }
+      if (html && !looksBlocked(html)) pages.push({ url: links[i], html });
+    }
+
+    let text = "";
+    for (const p of pages) {
+      if (text.length >= MAX_CORPUS_CHARS) break;
+      const path = new URL(p.url).pathname || "/";
+      const stripped = stripHtml(p.html).text;
+      text += `\n\n=== PAGE ${path} ===\n${stripped.slice(0, MAX_CORPUS_CHARS - text.length)}`;
+    }
+    return { pages, text: text.trim() };
+  } finally {
+    await (renderer as Renderer | null)?.close();
   }
-  return { pages, text: text.trim() };
 }
 
 /* ------------------------------ extraction ------------------------------ */
@@ -171,9 +270,11 @@ export async function fetchSiteCorpus(url: string): Promise<SiteCorpus> {
 const STATE_RE =
   "A[LKZR]|C[AOT]|D[EC]|FL|GA|HI|I[DLNA]|K[SY]|LA|M[EDAINSOT]|N[EVHJMYCD]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[TA]|W[AVIY]";
 
+// Scored, not first-match: every site's nav says "menu", so a single generic
+// hit must not outvote a page full of "sauna" or "dental".
 const CATEGORY_KEYWORDS: [RegExp, (typeof CATEGORIES)[number]][] = [
   [/(coffee|cafe|café|espresso|brunch|restaurant|menu|bakery|bistro|eatery|pizza|taco)/i, "Restaurants & cafés"],
-  [/(botox|filler|facial|medspa|med spa|aesthetic|skincare|salon|lash|brow|waxing)/i, "Health & beauty"],
+  [/(botox|filler|facial|medspa|med spa|aesthetic|skincare|salon|barber|lash|brow|waxing|sauna|cold plunge|contrast therapy|cryotherapy|float tank)/i, "Health & beauty"],
   [/(plumb|hvac|roof|electric|landscap|handyman|cleaning service|pest)/i, "Home services"],
   [/(gym|fitness|yoga|pilates|crossfit|training|workout)/i, "Fitness studios"],
   [/(dental|dentist|orthodont|invisalign|veneer|wellness clinic|chiropract)/i, "Dental & wellness"],
@@ -181,18 +282,41 @@ const CATEGORY_KEYWORDS: [RegExp, (typeof CATEGORIES)[number]][] = [
   [/(boutique|shop|store|apparel|jewelry|gift|vintage)/i, "Retail & boutiques"],
 ];
 
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+  rsquo: "'",
+  lsquo: "'",
+  ldquo: '"',
+  rdquo: '"',
+  ndash: "–",
+  mdash: "—",
+  hellip: "…",
+  eacute: "é",
+  copy: "©",
+  reg: "®",
+  trade: "™",
+};
+
+/** Real sites double-encode ("Tupelo Honey Kitchen &amp; Bar" inside JSON-LD). */
+export function decodeEntities(s: string): string {
+  return s
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec: string) => String.fromCodePoint(Number(dec)))
+    .replace(/&([a-z]+);/gi, (m, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? m);
+}
+
 function stripHtml(html: string): { text: string; lines: string[] } {
   const noScripts = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ");
   const withBreaks = noScripts.replace(/<(br|\/p|\/li|\/h[1-6]|\/div|\/tr)[^>]*>/gi, "\n");
-  const text = withBreaks
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&#0?39;|&rsquo;/g, "'")
-    .replace(/&quot;/g, '"');
+  const text = decodeEntities(withBreaks.replace(/<[^>]+>/g, " "));
   const lines = text
     .split(/\n+/)
     .map((l) => l.replace(/\s+/g, " ").trim())
@@ -200,44 +324,153 @@ function stripHtml(html: string): { text: string; lines: string[] } {
   return { text: lines.join("\n"), lines };
 }
 
-interface JsonLdBiz {
-  name?: string;
-  address?: { addressLocality?: string; addressRegion?: string };
-  description?: string;
-  "@type"?: string | string[];
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type LdNode = Record<string, any>;
+
+function nodeType(node: LdNode): string {
+  const t = node["@type"];
+  return Array.isArray(t) ? t.join(",") : String(t ?? "");
 }
 
-function parseJsonLd(html: string): JsonLdBiz | null {
+/** Every JSON-LD node on the page, flattened through arrays and @graph. */
+function collectJsonLdNodes(html: string): LdNode[] {
+  const nodes: LdNode[] = [];
   const blocks = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
   for (const m of blocks) {
     try {
       const parsed = JSON.parse(m[1]) as unknown;
-      const nodes = Array.isArray(parsed)
-        ? parsed
-        : [parsed, ...((parsed as { "@graph"?: unknown[] })["@graph"] ?? [])];
-      for (const node of nodes as JsonLdBiz[]) {
-        const type = Array.isArray(node["@type"]) ? node["@type"].join(",") : (node["@type"] ?? "");
-        if (/LocalBusiness|Restaurant|CafeOrCoffeeShop|Store|HealthAndBeautyBusiness|Dentist|AutoRepair|ExerciseGym/i.test(String(type))) {
-          return node;
+      const queue: unknown[] = Array.isArray(parsed) ? [...parsed] : [parsed];
+      while (queue.length > 0) {
+        const item = queue.shift();
+        if (!item || typeof item !== "object") continue;
+        if (Array.isArray(item)) {
+          queue.push(...item);
+          continue;
         }
+        const node = item as LdNode;
+        nodes.push(node);
+        if (Array.isArray(node["@graph"])) queue.push(...node["@graph"]);
       }
     } catch {
       /* malformed JSON-LD — skip */
     }
   }
-  return null;
+  return nodes;
 }
+
+// Any organization-shaped identity node — real sites use dozens of
+// LocalBusiness subtypes (FoodEstablishment, BeautySalon, Plumber, …) that a
+// short whitelist misses. A postal address is an equally good signal.
+const IDENTITY_TYPE =
+  /Business|Restaurant|Cafe|Coffee|Bar\b|Bakery|Food|Store|Shop|Boutique|Dentist|Dental|Auto|Gym|Fitness|Salon|Spa|Beauty|Clinic|Physician|Plumber|Electrician|Roofing|HomeAndConstruction|Organization/i;
+
+function findIdentityNode(nodes: LdNode[]): LdNode | null {
+  const candidates = nodes.filter((n) => IDENTITY_TYPE.test(nodeType(n)) || n.address);
+  // Prefer the node that actually carries an address, then one with a name.
+  return (
+    candidates.find((n) => n.address && n.name) ??
+    candidates.find((n) => n.address) ??
+    candidates.find((n) => n.name) ??
+    null
+  );
+}
+
+function addressParts(node: LdNode): { city?: string; region?: string } {
+  const addr = node.address;
+  if (!addr) return {};
+  if (typeof addr === "string") {
+    const m = addr.match(new RegExp(`([A-Z][a-zA-Z .]+),\\s*(${STATE_RE})\\b`));
+    return m ? { city: m[1].trim(), region: m[2] } : {};
+  }
+  const one = Array.isArray(addr) ? addr[0] : addr;
+  return {
+    city: typeof one?.addressLocality === "string" ? one.addressLocality : undefined,
+    region: typeof one?.addressRegion === "string" ? one.addressRegion : undefined,
+  };
+}
+
+/** "$$" / "$$$$" style priceRange → our three bands. */
+function bandFromPriceRange(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const dollars = raw.match(/\$+/)?.[0].length ?? 0;
+  if (dollars === 0) return undefined;
+  return dollars <= 1 ? "$" : dollars === 2 ? "$$" : "$$$";
+}
+
+function priceFrom(value: unknown): string | undefined {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) return String(value);
+  if (typeof value === "string") {
+    const m = value.match(/\d{1,4}(?:\.\d{2})?/);
+    if (m && parseFloat(m[0]) > 0) return m[0];
+  }
+  return undefined;
+}
+
+/**
+ * Priced offerings anywhere in the JSON-LD graph: MenuItem/Product/Service
+ * nodes (and Offer.itemOffered) with a price on the node, its offers, or a
+ * priceSpecification. This is where Squarespace/Wix/Toast sites keep the
+ * menu the visible HTML renders with JavaScript.
+ */
+function jsonLdPricedItems(nodes: LdNode[]): ImportedService[] {
+  const out: ImportedService[] = [];
+  const seen = new Set<string>();
+  const visit = (node: unknown, depth: number) => {
+    if (!node || typeof node !== "object" || depth > 6) return;
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, depth + 1);
+      return;
+    }
+    const n = node as LdNode;
+    const type = nodeType(n);
+    const named = /MenuItem|Product|Service/i.test(type) ? n : /Offer/i.test(type) ? (n.itemOffered as LdNode | undefined) : undefined;
+    if (named && typeof named.name === "string") {
+      const offer = Array.isArray(n.offers) ? n.offers[0] : (n.offers ?? n);
+      const price =
+        priceFrom((offer as LdNode)?.price) ??
+        priceFrom((offer as LdNode)?.priceSpecification?.price) ??
+        priceFrom(n.price);
+      if (price) {
+        const name = decodeEntities(named.name).replace(/\s+/g, " ").trim().slice(0, 60);
+        const key = name.toLowerCase();
+        if (name.length >= 3 && !JUNK_SERVICE_NAME.test(name) && !seen.has(key)) {
+          seen.add(key);
+          out.push({ name, price });
+        }
+      }
+    }
+    for (const key of ["hasMenu", "hasMenuSection", "hasMenuItem", "itemListElement", "makesOffer", "offers", "itemOffered"]) {
+      if (n[key]) visit(n[key], depth + 1);
+    }
+  };
+  for (const n of nodes) visit(n, 0);
+  return out.slice(0, 15);
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export function classifyCategory(text: string): (typeof CATEGORIES)[number] | undefined {
+  let best: { cat: (typeof CATEGORIES)[number]; count: number } | undefined;
+  for (const [re, cat] of CATEGORY_KEYWORDS) {
+    const count = text.match(new RegExp(re.source, "gi"))?.length ?? 0;
+    if (count > 0 && (!best || count > best.count)) best = { cat, count };
+  }
+  return best?.cat;
+}
+
+// Storefront chrome and checkout math, not offerings.
+const JUNK_SERVICE_NAME =
+  /total|subtotal|shipping|delivery fee|tax|minimum|gift card|^(sale price|original price|regular price|unit price|price|from|starting at|now|was|save|only|add to cart)\b|[:：]$/i;
 
 /** Lines that look like "<offering> … $<price>" become service candidates. */
 function extractPricedItems(lines: string[]): ImportedService[] {
   const out: ImportedService[] = [];
   const seen = new Set<string>();
-  const re = /^(.{3,48}?)[\s.·…—–-]*\$\s?(\d{1,4}(?:\.\d{2})?)\s*$/;
+  const re = /^(.{3,48}?)[\s.·…—–‒―⎯|-]*\$\s?(\d{1,4}(?:\.\d{2})?)\s*$/;
   for (const line of lines) {
     const m = line.match(re);
     if (!m) continue;
-    const name = m[1].replace(/[.·…—–-]+$/, "").trim();
-    if (name.length < 3 || /total|subtotal|shipping|delivery fee|tax|minimum|gift card/i.test(name)) continue;
+    const name = m[1].replace(/[\s.·…—–‒―⎯|-]+$/, "").trim();
+    if (name.length < 3 || JUNK_SERVICE_NAME.test(name)) continue;
     const key = name.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -249,18 +482,34 @@ function extractPricedItems(lines: string[]): ImportedService[] {
 
 export function extractFromHtml(html: string): SiteImport {
   const { text, lines } = stripHtml(html);
-  const result: SiteImport = { services: extractPricedItems(lines) };
+  const nodes = collectJsonLdNodes(html);
 
-  const ld = parseJsonLd(html);
-  if (ld?.name) result.name = ld.name;
-  if (ld?.address?.addressLocality) result.city = ld.address.addressLocality;
-  if (ld?.address?.addressRegion) result.region = ld.address.addressRegion;
-  if (ld?.description) result.voiceHint = ld.description.slice(0, 200);
+  // Priced items: structured data first (it survives JS-rendered menus),
+  // "<item> … $<price>" text lines fill the gaps.
+  const services = jsonLdPricedItems(nodes);
+  const seen = new Set(services.map((s) => s.name.toLowerCase()));
+  for (const svc of extractPricedItems(lines)) {
+    if (services.length >= 15) break;
+    if (seen.has(svc.name.toLowerCase())) continue;
+    seen.add(svc.name.toLowerCase());
+    services.push(svc);
+  }
+  const result: SiteImport = { services };
+
+  const ld = findIdentityNode(nodes);
+  if (typeof ld?.name === "string") result.name = decodeEntities(ld.name).trim().slice(0, 60);
+  const addr = ld ? addressParts(ld) : {};
+  if (addr.city) result.city = addr.city;
+  if (addr.region) result.region = addr.region;
+  if (typeof ld?.description === "string") {
+    result.voiceHint = decodeEntities(ld.description).slice(0, 200);
+  }
+  result.priceBand = bandFromPriceRange(ld?.priceRange);
 
   if (!result.name) {
     const title = html.match(/<title[^>]*>([\s\S]{1,120}?)<\/title>/i)?.[1];
     if (title) {
-      result.name = title.split(/\s*[|–—·:]\s*/)[0].replace(/\s+/g, " ").trim().slice(0, 60);
+      result.name = decodeEntities(title.split(/\s*[|–—·:]\s*/)[0]).replace(/\s+/g, " ").trim().slice(0, 60);
     }
   }
   if (!result.city) {
@@ -270,15 +519,10 @@ export function extractFromHtml(html: string): SiteImport {
       result.region = m[2];
     }
   }
-  for (const [re, cat] of CATEGORY_KEYWORDS) {
-    if (re.test(text)) {
-      result.category = cat;
-      break;
-    }
-  }
+  result.category = classifyCategory(text);
   if (!result.voiceHint) {
     const desc = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']{20,200})["']/i)?.[1];
-    if (desc) result.voiceHint = desc;
+    if (desc) result.voiceHint = decodeEntities(desc);
   }
   return result;
 }
@@ -335,10 +579,19 @@ export function extractFromPages(pages: SitePage[]): SiteImport {
       result.services.push(svc);
       if (result.services.length >= 15) break;
     }
-    // A subpage can name the category (e.g. /menu) when the homepage doesn't.
-    if (!result.category && sub.category) result.category = sub.category;
+    // A subpage can fill what the homepage doesn't carry (city on /contact
+    // or /locations).
+    if (!result.city && sub.city) {
+      result.city = sub.city;
+      result.region = result.region ?? sub.region;
+    }
+    if (!result.priceBand && sub.priceBand) result.priceBand = sub.priceBand;
     if (result.services.length >= 15) break;
   }
-  result.priceBand = inferPriceBand(result.services, result.category);
+  // Category is voted across every crawled page, not won by the first hit.
+  result.category =
+    classifyCategory(pages.map((p) => htmlToText(p.html)).join("\n")) ?? result.category;
+  // An explicit JSON-LD priceRange beats our median inference.
+  result.priceBand = result.priceBand ?? inferPriceBand(result.services, result.category);
   return result;
 }

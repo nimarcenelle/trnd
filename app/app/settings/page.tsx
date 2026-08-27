@@ -56,9 +56,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
     },
     {
       name: "Signal sources",
-      detail: "Google Trends · Reddit · Google News",
+      detail: "Trends (metro) · Weather · Autocomplete · Reddit · News",
       ok: true,
-      note: "Refreshed daily by the ingest job. YouTube optional via API key.",
+      note: "Refreshed daily; measured in your metro where possible. YouTube optional via API key.",
     },
     {
       name: "Payments",

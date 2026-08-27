@@ -682,3 +682,37 @@ campaign → launch → results → billing/account panels), zero console errors
    NEXT_PUBLIC_SITE_URL — the product is then literally sellable.
 5. **Run it**: `pnpm i && pnpm seed && pnpm dev` (demo), `pnpm test`,
    `pnpm test:e2e`, `pnpm build`.
+
+## P24 — Detect v2: local-first signal
+"Make Detect much better." The viability read named signal quality as the
+company's biggest risk — national trending noise standing in for local
+demand. This pass makes local measurement the default:
+
+- **Metro resolution** (lib/signals/geo.ts): business city → Nielsen DMA geo
+  (top ~50 US metros + suburb aliases, state-verified so Portland ME never
+  becomes Portland OR) with coordinates. Google Trends accepts DMA geos —
+  real sub-state demand measurement, free, that almost nobody uses.
+- **Rising related queries** (adapters/trends-related.ts): per business watch
+  term, per metro — the discovery half of Detect. Surfaces breakout phrasings
+  nobody typed into a config; Breakout values capped at +400% so one outlier
+  can't own a ranking.
+- **Weather demand triggers** (adapters/weather.ts): Open-Meteo (keyless) per
+  place; deterministic rules that fire only when the forecast crosses a line
+  the recent past didn't — first heat wave → AC tune-ups, first freeze →
+  heating/tire swaps, patio windows, rain streaks, wash-and-detail rebounds.
+  Deltas are labeled heuristic; the insight layer says "forecast-derived,
+  not a measured trend."
+- **Autocomplete intent** (adapters/suggest.ts): keyless Google suggest reads
+  per watch term — buying-intent counts plus discovered long-tail phrasings.
+- **Locality-aware scoring**: metro-measured signal earns +0.5 (state +0.2)
+  on the 10-scale, transparent in the rationale ("measured in your metro,
+  not nationally"), surviving the relevance gate. Repos return national +
+  state + in-state-metro rows together; geo strings humanize in the UI
+  ("Atlanta metro").
+- New sources 'weather' and 'google_suggest' (migration 0009), seeded
+  weather-trigger examples for demo mode, settings/README updated.
+
+Gate green: 109 unit tests (17 new for geo/weather/suggest/related/locality),
+E2E, lint, build. Live-source calls remain fixture-tested here (sandbox
+egress) — same seam as every other adapter: none needed, run `pnpm
+job:ingest` anywhere with normal network.

@@ -17,11 +17,13 @@ export type Category = (typeof CATEGORIES)[number];
 
 export type SignalSource =
   | "google_trends"
+  | "google_suggest"
   | "reddit"
   | "youtube"
   | "news"
   | "tiktok"
   | "meta_ads"
+  | "weather"
   | "seed";
 export type OpportunityStatus = "new" | "accepted" | "dismissed" | "launched";
 export type CampaignStatus = "draft" | "exported" | "live" | "complete";

@@ -168,7 +168,12 @@ export function createDemoRepo(actor: DemoActor): Repo {
         .filter(
           (s) =>
             s.category === category &&
-            (!opts?.geo || s.geo === opts.geo || s.geo === "US") &&
+            // National rows, the business's state, and any metro inside it
+            // ("US-GA-524" for a "US-GA" query) rank together.
+            (!opts?.geo ||
+              s.geo === "US" ||
+              s.geo === opts.geo ||
+              s.geo.startsWith(`${opts.geo}-`)) &&
             new Date(s.captured_at).getTime() >= cutoff,
         )
         .sort((a, b) => (b.delta_pct ?? 0) - (a.delta_pct ?? 0));

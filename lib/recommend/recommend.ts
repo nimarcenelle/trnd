@@ -2,6 +2,7 @@ import type { Repo } from "@/lib/db/repo";
 import type { Business, NewOpportunity } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity } from "@/lib/scoring";
+import { localityFor } from "@/lib/signals/geo";
 
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
@@ -90,10 +91,18 @@ export async function recommendForBusiness(
   let scored = scorable
     .map((signal) => ({
       signal,
-      result: scoreOpportunity(signal, services, learnings, {
-        coverageCount: coverage.get(signal.normalized_term) ?? null,
-        adCount: adCountFor(signal.normalized_term),
-      }),
+      result: scoreOpportunity(
+        signal,
+        services,
+        learnings,
+        {
+          coverageCount: coverage.get(signal.normalized_term) ?? null,
+          adCount: adCountFor(signal.normalized_term),
+        },
+        // Demand measured in the business's own metro or state outranks the
+        // same demand measured nationally.
+        { locality: localityFor(signal.geo, business.region) },
+      ),
     }))
     .sort((a, b) => b.result.score - a.result.score)
     .slice(0, CANDIDATE_POOL);

@@ -2,11 +2,13 @@ import type { SignalSource } from "@/lib/db/types";
 
 const LABELS: Record<SignalSource, string> = {
   google_trends: "Google Trends",
+  google_suggest: "Google Autocomplete",
   reddit: "Reddit",
   news: "Google News",
   youtube: "YouTube",
   tiktok: "TikTok",
   meta_ads: "Meta Ad Library",
+  weather: "Weather forecast",
   seed: "Illustrative",
 };
 

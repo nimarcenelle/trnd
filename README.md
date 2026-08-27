@@ -44,6 +44,13 @@ Recommendation fit never depends on a key: a deterministic concept judge
 advertise espresso martinis; the Gemini judge refines that read when configured.
 `GET /api/health` reports which mode each subsystem is running in.
 
+**Detect is local-first.** Business cities resolve to Nielsen DMA metros
+(`lib/signals/geo.ts`), so Google Trends interest and rising related queries are
+measured per metro, not nationally; Open-Meteo forecasts (keyless) fire weather demand
+triggers per place (first heat wave → AC tune-ups, patio windows, freeze → tire swaps);
+Google Autocomplete reads buying intent per watch term. Metro-measured signal earns a
+transparent locality bonus in scoring, and every provenance detail renders in the UI.
+
 See `BLOCKED.md` for exactly why each is stubbed in this environment and the seam to
 make it real.
 

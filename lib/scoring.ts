@@ -113,6 +113,22 @@ export function historicalLift(learnings: Learning[]): { score: number; reason: 
   };
 }
 
+export type SignalLocality = "metro" | "state" | "national";
+
+/** Demand measured where the business actually is outranks the same demand
+ * measured nationally — a small, transparent bonus on the 0..1 total. */
+export const LOCALITY_BONUS: Record<SignalLocality, number> = {
+  metro: 0.05,
+  state: 0.02,
+  national: 0,
+};
+
+const LOCALITY_TEXT: Record<SignalLocality, string> = {
+  metro: "measured in your metro, not nationally",
+  state: "measured in your state",
+  national: "",
+};
+
 export interface ScoredOpportunity {
   score: number; // 0..10, one decimal
   components: {
@@ -121,6 +137,8 @@ export interface ScoredOpportunity {
     competitorGap: number;
     historicalLift: number;
   };
+  /** 0..0.05 added after the weighted sum; survives applyRelevance. */
+  localityBonus: number;
   matchedService: Service | null;
   rationale: string;
   competitorGapText: string;
@@ -147,7 +165,7 @@ export function applyRelevance(
     WEIGHTS.serviceMatch * fit +
     WEIGHTS.competitorGap * c.competitorGap +
     WEIGHTS.historicalLift * c.historicalLift;
-  const total = weighted * (0.3 + 0.7 * fit);
+  const total = Math.min(1, weighted * (0.3 + 0.7 * fit) + result.localityBonus);
   return {
     ...result,
     score: Math.round(total * 100) / 10,
@@ -163,22 +181,29 @@ export function scoreOpportunity(
   services: Service[],
   learnings: Learning[],
   gap: GapInput,
+  opts: { locality?: SignalLocality } = {},
 ): ScoredOpportunity {
   const nd = normalizedDelta(signal.delta_pct);
   const sm = matchService(signal, services);
   const cg = competitorGap(gap);
   const hl = historicalLift(learnings);
+  const locality = opts.locality ?? "national";
+  const localityBonus = LOCALITY_BONUS[locality];
 
-  const total =
+  const total = Math.min(
+    1,
     WEIGHTS.normalizedDelta * nd +
-    WEIGHTS.serviceMatch * sm.score +
-    WEIGHTS.competitorGap * cg.score +
-    WEIGHTS.historicalLift * hl.score;
+      WEIGHTS.serviceMatch * sm.score +
+      WEIGHTS.competitorGap * cg.score +
+      WEIGHTS.historicalLift * hl.score +
+      localityBonus,
+  );
 
   const deltaText =
     signal.delta_pct !== null
       ? `up ${Math.round(signal.delta_pct)}% ${signal.metric_type.replace(/_/g, " ")} this week`
       : `trending in ${signal.metric_type.replace(/_/g, " ")} right now`;
+  const localityText = LOCALITY_TEXT[locality] ? ` (${LOCALITY_TEXT[locality]})` : "";
 
   return {
     score: Math.round(total * 100) / 10,
@@ -188,8 +213,9 @@ export function scoreOpportunity(
       competitorGap: cg.score,
       historicalLift: hl.score,
     },
+    localityBonus,
     matchedService: sm.service,
-    rationale: `"${signal.term}" is ${deltaText}; ${sm.reason}; ${cg.reason}; ${hl.reason}.`,
+    rationale: `"${signal.term}" is ${deltaText}${localityText}; ${sm.reason}; ${cg.reason}; ${hl.reason}.`,
     competitorGapText: cg.reason,
   };
 }

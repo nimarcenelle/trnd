@@ -26,6 +26,7 @@ const signal = (over: Partial<Signal> = {}): Signal => ({
 
 const scored = (over: Partial<ScoredOpportunity> = {}): ScoredOpportunity => ({
   score: 7.8,
+  localityBonus: 0,
   components: { normalizedDelta: 0.94, serviceMatch: 0.8, competitorGap: 0.6, historicalLift: 0.67 },
   matchedService: {
     id: "svc1",

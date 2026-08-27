@@ -28,9 +28,14 @@ export async function explainOpportunity(
   const coverage = categorySignals.find(
     (s) => s.metric_type === "news_coverage" && s.normalized_term === signal.normalized_term,
   );
-  const scored = scoreOpportunity(signal, services, learnings, {
-    coverageCount: typeof coverage?.value === "number" ? coverage.value : null,
-  });
+  const { localityFor } = await import("@/lib/signals/geo");
+  const scored = scoreOpportunity(
+    signal,
+    services,
+    learnings,
+    { coverageCount: typeof coverage?.value === "number" ? coverage.value : null },
+    { locality: localityFor(signal.geo, business.region) },
+  );
   if (isGeminiConfigured) return scored;
   const fitCtx = buildBusinessFitContext(business, services, brief);
   const j = judgeTermRelevance(signal.term, business.category, fitCtx);

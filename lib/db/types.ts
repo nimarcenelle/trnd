@@ -184,9 +184,16 @@ export interface BusinessBrief {
   watchouts: string[];
   /** 2-4 concrete first campaigns to run, named against real services. */
   first_moves: string[];
-  /** 5-8 search phrases this business's customers actually use — the
+  /** 18-30 search phrases this business's customers actually use — the
    * personalized demand watchlist signal ingestion rides. */
   watch_terms: string[];
+  /** 12-24 keywords/stems specific to what THIS business sells — the
+   * classification vocabulary the fit judge uses beyond the category's
+   * stock concept map. Empty on briefs written before brief-5. */
+  lexicon: string[];
+  /** 3-6 subreddit names (no r/ prefix) where this business's customers
+   * actually talk — read alongside the category's stock list. */
+  subreddits: string[];
   model_used: string;
   prompt_version: string;
   created_at: string;

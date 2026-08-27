@@ -44,12 +44,13 @@ const CATEGORY_CONCEPTS: Record<string, Concept[]> = {
     { key: "bakery", label: "bakery & dessert", keywords: ["bakery", "pastry*", "croissant*", "dessert*", "cake*", "donut*", "doughnut*", "ice cream", "gelato", "cookie*"] },
     { key: "dinner", mode: true, label: "dinner & date-night", keywords: ["dinner", "date night", "prix fixe", "tasting", "fine dining", "reservation*", "omakase"] },
     { key: "casual", mode: true, label: "takeout & quick bites", keywords: ["takeout", "late night", "delivery", "food truck", "lunch", "sandwich*", "grab and go"] },
-    { key: "bbq", label: "grill & barbecue", keywords: ["bbq", "barbecue", "brisket", "rib", "ribs", "smoked", "smokehouse", "grill*", "steak*", "burger*", "wings", "pitmaster"] },
+    { key: "bbq", label: "grill & barbecue", keywords: ["bbq", "barbecue", "brisket", "rib", "ribs", "smoked", "smokehouse", "grill*", "steak*", "burger*", "wings", "pitmaster", "cookout*"] },
     { key: "pizza", label: "pizza & pasta", keywords: ["pizza*", "pasta*", "italian", "calzone*"] },
     { key: "global", label: "global flavors", keywords: ["sushi", "ramen", "pho", "thai", "taco*", "burrito*", "curry", "curries", "tikka", "samosa*", "masala", "indian", "mexican", "korean", "mediterranean", "falafel", "shawarma", "dumpling*", "fusion"] },
     { key: "healthy", label: "health-forward menu", keywords: ["vegan", "vegetarian", "gluten free", "salad*", "smoothie*", "juice*", "plant based", "acai"] },
     { key: "patio", mode: true, label: "patio & atmosphere", keywords: ["patio", "rooftop", "live music", "outdoor", "terrace", "esplanade"] },
     { key: "family", mode: true, label: "family & groups", keywords: ["family", "kids", "group*", "party", "catering", "sharing"] },
+    { key: "occasions", mode: true, label: "holiday & occasion", keywords: ["father's day", "mother's day", "valentine*", "game day", "tailgat*", "graduation", "galentine*", "friendsgiving", "super bowl"] },
   ],
   "Home services": [
     { key: "hvac", label: "heating & cooling", keywords: ["hvac", "ac", "heating", "furnace*", "thermostat*", "heat pump", "cooling", "air condition*"] },
@@ -146,30 +147,37 @@ export interface BusinessFitContext {
   concepts: Concept[];
   hasProfileSignal: boolean;
   services: Service[];
+  /** The snapshot's own vocabulary (model-written briefs only) — words this
+   * business is about that no category concept map could know. */
+  lexicon: Set<string>;
 }
 
 /** Everything we know a business is about, folded into concept space.
- * A template brief's watch_terms are the category's STOCK list, not
- * evidence about this business — only a model-written brief's watchlist
+ * A template brief's watch_terms and lexicon are the category's STOCK
+ * lists, not evidence about this business — only a model-written brief
  * counts, or "matcha latte" would make every restaurant look like a café. */
 export function buildBusinessFitContext(
   business: Pick<Business, "name" | "category" | "brand_voice_notes">,
   services: Service[],
-  brief: Pick<BusinessBrief, "watch_terms" | "positioning" | "model_used"> | null,
+  brief: Pick<BusinessBrief, "watch_terms" | "positioning" | "model_used"> &
+    Partial<Pick<BusinessBrief, "lexicon">> | null,
 ): BusinessFitContext {
   const active = services.filter((s) => s.is_active);
   const briefIsEvidence = Boolean(brief && !brief.model_used.startsWith("trnd-template"));
+  const briefLexicon = briefIsEvidence ? (brief?.lexicon ?? []) : [];
   const text = [
     business.name,
     business.brand_voice_notes ?? "",
     ...active.map((s) => `${s.name} ${s.description ?? ""}`),
     ...(briefIsEvidence ? (brief?.watch_terms ?? []) : []),
+    ...briefLexicon,
     briefIsEvidence ? (brief?.positioning ?? "") : "",
   ].join("\n");
   return {
     concepts: conceptsForText(text, business.category),
     hasProfileSignal: active.length > 0 || Boolean(business.brand_voice_notes),
     services: active,
+    lexicon: new Set(briefLexicon.map((w) => w.toLowerCase().trim()).filter(Boolean)),
   };
 }
 
@@ -200,6 +208,17 @@ export function judgeTermRelevance(
       relevance: Math.min(0.95, 0.7 + bestService.overlap * 0.1),
       reason: `this is squarely what ${bestService.service.name} sells`,
       kind: "service",
+    };
+  }
+
+  // 1.5. Snapshot vocabulary hit — the model-written lexicon knows words
+  // about this business ("wim hof", "plunge") no category map carries.
+  const lexHits = [...termTokens].filter((t) => ctx.lexicon.has(t));
+  if (lexHits.length > 0) {
+    return {
+      relevance: Math.min(0.85, 0.65 + lexHits.length * 0.1),
+      reason: `speaks the demand language your customers use (“${lexHits[0]}”)`,
+      kind: "concept",
     };
   }
 

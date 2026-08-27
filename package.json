@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "seed": "tsx scripts/seed.ts",
     "job:ingest": "tsx scripts/job-ingest.ts",
-    "job:recommend": "tsx scripts/job-recommend.ts"
+    "job:recommend": "tsx scripts/job-recommend.ts",
+    "eval:quality": "tsx scripts/eval-quality.ts"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",

@@ -41,6 +41,12 @@ export interface WatchPlace {
   categories: string[];
 }
 
+/** A community to read, tagged with the category its signals file under. */
+export interface WatchSubreddit {
+  name: string;
+  category: string;
+}
+
 export interface AdapterFetchInput {
   terms: string[];
   /** Category-tagged watchlist: stock per-category terms plus every
@@ -48,6 +54,9 @@ export interface AdapterFetchInput {
   watch: WatchTerm[];
   /** Deduped business locations, metro-resolved where possible. */
   places?: WatchPlace[];
+  /** Stock per-category subreddits plus every business's snapshot-named
+   * communities. Adapters that read Reddit use this over the stock list. */
+  subreddits?: WatchSubreddit[];
   geo: string;
   windowDays: number;
 }

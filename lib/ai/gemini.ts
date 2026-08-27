@@ -13,18 +13,27 @@ import { env } from "@/lib/env";
 import type { Business, NewBusinessBrief, Service } from "@/lib/db/types";
 
 import { BRIEF_PROMPT_VERSION } from "./brief";
+import {
+  buildClaimFacts,
+  buildClaimsRewritePrompt,
+  campaignTexts,
+  findUnsupportedClaims,
+} from "./claims";
 import type { GeneratedCampaign, GenerationContext } from "./index";
 import {
-  buildAnglePrompt,
+  buildAngleJudgePrompt,
+  buildAngleSlatePrompt,
   generateAssetsPrompt,
   PROMPT_VERSION,
   type PromptCtx,
 } from "./prompts/generate-campaign";
 import { systemInstruction } from "./prompts/system";
 import {
-  AngleSchema,
+  AngleSlateSchema,
+  AngleVerdictSchema,
   BusinessBriefSchema,
   CampaignAssetsSchema,
+  GenerationSchema,
   HumanizeSchema,
   RelevanceSchema,
   SiteExtractSchema,
@@ -119,6 +128,23 @@ const angleResponseSchema: Schema = {
   required: ["angle", "hook", "offer", "audience"],
 };
 
+const angleSlateResponseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    angles: { type: Type.ARRAY, items: angleResponseSchema },
+  },
+  required: ["angles"],
+};
+
+const angleVerdictResponseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    winner: { type: Type.INTEGER },
+    reason: { type: Type.STRING },
+  },
+  required: ["winner", "reason"],
+};
+
 const assetsResponseSchema: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -187,24 +213,83 @@ export async function generateWithGemini(
 
   // Creative calls run on Pro per the brief; Flash is reserved for
   // classification/ranking-type calls.
-  onStatus("Finding the angle that wins this week…");
-  const angle = await creativeCall(models, buildAnglePrompt(promptCtx), angleResponseSchema, (d) =>
-    AngleSchema.parse(d),
+  onStatus("Drafting three angles that could win this week…");
+  const slate = await creativeCall(models, buildAngleSlatePrompt(promptCtx), angleSlateResponseSchema, (d) =>
+    AngleSlateSchema.parse(d),
   );
+
+  onStatus("Judging the slate against the signal…");
+  let angle = slate.value.angles[0];
+  try {
+    const verdict = await structuredCall(
+      models.flash,
+      buildAngleJudgePrompt(promptCtx, slate.value.angles),
+      angleVerdictResponseSchema,
+      (d) => AngleVerdictSchema.parse(d),
+    );
+    angle = slate.value.angles[verdict.winner] ?? angle;
+    console.log(`[ai] angle judge picked #${verdict.winner}: ${verdict.reason}`);
+  } catch (err) {
+    console.warn("[ai] angle judge failed — running the first angle:", (err as Error).message);
+  }
+
   onStatus("Writing headlines, scripts, and creative briefs…");
   const assets = await creativeCall(
     models,
-    generateAssetsPrompt(promptCtx, angle.value),
+    generateAssetsPrompt(promptCtx, angle),
     assetsResponseSchema,
     (d) => CampaignAssetsSchema.parse(d),
   );
 
+  let result = { angle, assets: assets.value };
+
+  // Claims guard: any measurement the copy states about this business must
+  // trace to a fact the owner gave us. One targeted rewrite; the original
+  // survives a failed rewrite (logged) rather than shipping nothing.
+  const facts = buildClaimFacts({
+    business: ctx.business,
+    services: ctx.service ? [ctx.service] : [],
+    signal: ctx.signal,
+    opportunity: ctx.opportunity,
+  });
+  const flagged = findUnsupportedClaims(campaignTexts(result.angle, result.assets), facts);
+  if (flagged.length > 0) {
+    onStatus("Fact-checking every number in the copy…");
+    try {
+      const rewritten = await structuredCall(
+        models.pro,
+        buildClaimsRewritePrompt(ctx.business, result.angle, result.assets, flagged, facts),
+        generationResponseSchema,
+        (d) => GenerationSchema.parse(d),
+      );
+      const remaining = findUnsupportedClaims(campaignTexts(rewritten.angle, rewritten.assets), facts);
+      console.log(
+        `[ai] claims guard: ${flagged.length} unsupported number(s) flagged, ${remaining.length} after rewrite`,
+      );
+      result = rewritten;
+    } catch (err) {
+      console.warn(
+        `[ai] claims rewrite failed — shipping original with ${flagged.length} flagged number(s):`,
+        (err as Error).message,
+      );
+    }
+  }
+
   return {
-    result: { angle: angle.value, assets: assets.value },
+    result,
     model_used: assets.model,
     prompt_version: PROMPT_VERSION,
   };
 }
+
+const generationResponseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    angle: angleResponseSchema,
+    assets: assetsResponseSchema,
+  },
+  required: ["angle", "assets"],
+};
 
 const briefResponseSchema: Schema = {
   type: Type.OBJECT,
@@ -220,6 +305,8 @@ const briefResponseSchema: Schema = {
     watchouts: { type: Type.ARRAY, items: { type: Type.STRING } },
     first_moves: { type: Type.ARRAY, items: { type: Type.STRING } },
     watch_terms: { type: Type.ARRAY, items: { type: Type.STRING } },
+    lexicon: { type: Type.ARRAY, items: { type: Type.STRING } },
+    subreddits: { type: Type.ARRAY, items: { type: Type.STRING } },
   },
   required: [
     "positioning",
@@ -233,6 +320,8 @@ const briefResponseSchema: Schema = {
     "watchouts",
     "first_moves",
     "watch_terms",
+    "lexicon",
+    "subreddits",
   ],
 };
 
@@ -270,7 +359,9 @@ export async function generateBriefWithGemini(
     `- advantages: 2-4 edges to press in paid ads.`,
     `- watchouts: 2-4 things to AVOID in marketing for this exact category, including ad-platform policy pitfalls.`,
     `- first_moves: 2-4 concrete first campaigns, each one sentence naming a real service from SELLS with its angle (e.g. which item, which audience, which hook). Ordered: run the first one first.`,
-    `- watch_terms: 5-8 short search phrases (2-4 words, lowercase, no hashtags) that real customers type when they want what THIS business sells — the demand terms TRND should watch for them (e.g. "cold plunge near me", "sauna benefits", "contrast therapy"). Specific to the actual offerings, never generic category words.`,
+    `- watch_terms: 18-30 short search phrases (2-4 words, lowercase, no hashtags) that real customers type when they want what THIS business sells — the demand terms TRND should watch for them. Cover three tiers: (1) each actual offering and its common name variants ("cold plunge near me", "contrast therapy"), (2) the problems and occasions that bring customers in ("muscle recovery", "sore after marathon", "hangover cure"), (3) the adjacent things those exact customers search that this business could credibly ride ("ice bath benefits", "sauna vs steam room"). Specific to the actual offerings; no two terms mere rewordings of each other; never generic category words.`,
+    `- lexicon: 12-24 single keywords or short stems specific to what THIS business sells and who buys it ("plunge", "sauna", "recovery", "contrast", "wim hof") — the vocabulary for deciding whether an arbitrary trending phrase is relevant to them. Lowercase, no duplicates of each other, never generic marketing words.`,
+    `- subreddits: 3-6 REAL, active subreddit names (no "r/" prefix) where this business's actual customers discuss what it sells (e.g. "coldplunge", "Sauna", "AdvancedRunning"). Only subreddits you are confident exist.`,
     ``,
     `Ground every claim in the facts provided. Name real services and real prices. Where the facts are thin, reason from the category and city — but never invent a fact about this specific business (no invented awards, years in business, or reviews). List items are one sentence each. Specific to THIS business; if a sentence could be pasted into another business's analysis, rewrite it.`,
   ]

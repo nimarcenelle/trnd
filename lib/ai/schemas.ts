@@ -24,6 +24,16 @@ export const AngleSchema = z.object({
 });
 export type AngleResult = z.infer<typeof AngleSchema>;
 
+/** Three candidate angles from one call — the tournament the judge picks from. */
+export const AngleSlateSchema = z.object({
+  angles: z.array(AngleSchema).length(3),
+});
+
+export const AngleVerdictSchema = z.object({
+  winner: z.number().int().min(0).max(2),
+  reason: z.string().min(8),
+});
+
 export const CampaignAssetsSchema = z.object({
   headlines: z.array(z.string().min(4)).length(5),
   primary_texts: z.array(z.string().min(20)).length(3),
@@ -50,7 +60,9 @@ export const BusinessBriefSchema = z.object({
   advantages: z.array(z.string().min(10)).min(2).max(4),
   watchouts: z.array(z.string().min(10)).min(2).max(4),
   first_moves: z.array(z.string().min(10)).min(2).max(4),
-  watch_terms: z.array(z.string().min(3)).min(4).max(8),
+  watch_terms: z.array(z.string().min(3)).min(4).max(30),
+  lexicon: z.array(z.string().min(2)).max(24),
+  subreddits: z.array(z.string().min(2)).max(6),
 });
 export type BusinessBriefResult = z.infer<typeof BusinessBriefSchema>;
 

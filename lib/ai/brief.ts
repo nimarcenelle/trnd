@@ -3,7 +3,7 @@ import { isGeminiConfigured } from "@/lib/env";
 import { CATEGORY_CONFIGS } from "@/lib/signals/category-terms";
 
 export const BRIEF_FALLBACK_MODEL = "trnd-template/v3";
-export const BRIEF_PROMPT_VERSION = "brief-4";
+export const BRIEF_PROMPT_VERSION = "brief-5";
 
 /**
  * The full analysis a business gets when it joins: positioning, who buys,
@@ -210,12 +210,29 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
     `Record results after each campaign — TRND's recommendations sharpen with every real number you give it.`,
   ];
 
-  // Watchlist without an LLM: the actual offerings, lowercased, plus the
-  // category's stock watch terms — regenerated properly once Gemini runs.
+  // Watchlist without an LLM: the actual offerings, their "near me" intent
+  // variants, and the category's full stock list — regenerated properly
+  // (deeper, with lexicon and subreddits) once Gemini runs.
+  const categoryConfig = CATEGORY_CONFIGS.find((c) => c.category === business.category);
+  const seenTerms = new Set<string>();
   const watchTerms = [
-    ...active.slice(0, 5).map((s) => s.name.toLowerCase()),
-    ...(CATEGORY_CONFIGS.find((c) => c.category === business.category)?.watchTerms.slice(0, 3) ?? []),
-  ].slice(0, 8);
+    ...active.slice(0, 10).map((s) => s.name.toLowerCase()),
+    ...active.slice(0, 5).map((s) => `${s.name.toLowerCase()} near me`),
+    ...(categoryConfig?.watchTerms ?? []),
+  ]
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 3 && !seenTerms.has(t) && (seenTerms.add(t) || true))
+    .slice(0, 20);
+
+  // Classification vocabulary without an LLM: the category's stock lexicon
+  // plus every substantive word in the owner's own service names.
+  const seenWords = new Set<string>(categoryConfig?.lexicon ?? []);
+  const lexicon = [
+    ...(categoryConfig?.lexicon ?? []),
+    ...active
+      .flatMap((s) => s.name.toLowerCase().split(/[^a-z0-9]+/))
+      .filter((w) => w.length > 3 && !seenWords.has(w) && (seenWords.add(w) || true)),
+  ].slice(0, 24);
 
   return {
     business_id: business.id,
@@ -237,6 +254,8 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
     watchouts,
     first_moves: firstMoves,
     watch_terms: watchTerms,
+    lexicon,
+    subreddits: categoryConfig?.subreddits ?? [],
     model_used: BRIEF_FALLBACK_MODEL,
     prompt_version: BRIEF_PROMPT_VERSION,
   };

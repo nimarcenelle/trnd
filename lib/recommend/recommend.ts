@@ -15,8 +15,9 @@ export function weekOf(d = new Date()): string {
 }
 
 const TOP_N = 5;
-/** Wider pool for the relevance pass — a relevant #9 can outrank a junk #1. */
-const CANDIDATE_POOL = 12;
+/** Wider pool for the relevance pass — a relevant #15 can outrank a junk #1
+ * now that per-business watchlists put more genuinely-relevant terms in play. */
+const CANDIDATE_POOL = 20;
 
 /**
  * "personal hygiene routines" and "hygiene routines" are the same trend

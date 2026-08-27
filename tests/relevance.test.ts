@@ -90,15 +90,26 @@ describe("judgeTermRelevance", () => {
     expect(j.relevance).toBeCloseTo(0.45);
   });
 
-  it("uses the founding analysis watchlist as profile signal", () => {
+  it("uses a model-written watchlist as profile signal", () => {
     const ctx = buildBusinessFitContext(
       biz("Glow Room", "Health & beauty"),
       [service("Signature session")],
-      { watch_terms: ["hydrafacial", "skin barrier repair"], positioning: "" },
+      { watch_terms: ["hydrafacial", "skin barrier repair"], positioning: "", model_used: "gemini-2.5-pro" },
     );
     const j = judgeTermRelevance("korean glass skin facial", "Health & beauty", ctx);
     expect(j.kind).toBe("concept");
     expect(j.relevance).toBeGreaterThanOrEqual(0.6);
+  });
+
+  it("ignores a template brief's stock watchlist — it isn't evidence", () => {
+    const ctx = buildBusinessFitContext(bbq, bbqServices, {
+      watch_terms: ["brunch near me", "matcha latte", "iced coffee"],
+      positioning: "",
+      model_used: "trnd-template/v3",
+    });
+    const j = judgeTermRelevance("matcha drinks near me", "Restaurants & cafés", ctx);
+    expect(j.kind).toBe("mismatch");
+    expect(j.relevance).toBeLessThan(0.3);
   });
 });
 

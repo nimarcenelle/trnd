@@ -148,19 +148,23 @@ export interface BusinessFitContext {
   services: Service[];
 }
 
-/** Everything we know a business is about, folded into concept space. */
+/** Everything we know a business is about, folded into concept space.
+ * A template brief's watch_terms are the category's STOCK list, not
+ * evidence about this business — only a model-written brief's watchlist
+ * counts, or "matcha latte" would make every restaurant look like a café. */
 export function buildBusinessFitContext(
   business: Pick<Business, "name" | "category" | "brand_voice_notes">,
   services: Service[],
-  brief: Pick<BusinessBrief, "watch_terms" | "positioning"> | null,
+  brief: Pick<BusinessBrief, "watch_terms" | "positioning" | "model_used"> | null,
 ): BusinessFitContext {
   const active = services.filter((s) => s.is_active);
+  const briefIsEvidence = Boolean(brief && !brief.model_used.startsWith("trnd-template"));
   const text = [
     business.name,
     business.brand_voice_notes ?? "",
     ...active.map((s) => `${s.name} ${s.description ?? ""}`),
-    ...(brief?.watch_terms ?? []),
-    brief?.positioning ?? "",
+    ...(briefIsEvidence ? (brief?.watch_terms ?? []) : []),
+    briefIsEvidence ? (brief?.positioning ?? "") : "",
   ].join("\n");
   return {
     concepts: conceptsForText(text, business.category),

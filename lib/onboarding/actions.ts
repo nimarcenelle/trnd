@@ -108,6 +108,18 @@ export async function completeOnboardingAction(
   // model a minute, so it's written AFTER the redirect: the owner lands on
   // the dashboard immediately and the snapshot fills in behind them. The
   // site text the import already fetched feeds it, so no refetch here.
+  after(() =>
+    import("@/lib/notify").then(({ notifyFounder }) =>
+      notifyFounder({
+        kind: "signup",
+        email: user.email,
+        businessName: business.name,
+        category: business.category,
+        city: business.city,
+      }),
+    ),
+  );
+
   const siteText = String(formData.get("site_text") ?? "").slice(0, 12_000) || undefined;
   after(async () => {
     try {

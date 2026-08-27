@@ -635,3 +635,50 @@ keeps its row id, only fallen-out rows are deleted (campaign-referenced rows
 always survive), and the build button self-heals on a stale id by refreshing
 and asking for one more click. recommendForBusiness returns the week's
 opportunity ids. Gate green (74 unit, E2E, build).
+
+## P23 — Enterprise scrub: keyless fit, billing, accounts, trust surface
+The overnight "make it a complete product" pass. Four fronts, each gated green:
+
+- **Deterministic fit gate** (lib/recommend/relevance.ts): the relevance judge
+  no longer exists only when Gemini does. A per-category concept lexicon
+  (cuisine-vs-mode aware) judges every candidate against the business's
+  services, name, and voice notes; fit gates the total exactly like the model
+  judge; mismatches drop off the list; insights say "Outside your lane"
+  instead of dressing a mismatch up as a "new offer". Proof: identical seed
+  signals now rank "family style takeout" #1 for a BBQ smokehouse (maps to
+  its rib pack) while espresso martinis vanish from its list — and stay #1,
+  legitimately, for a restaurant that actually has a bar. Follow-up fix: a
+  template brief's stock watchlist no longer counts as business evidence.
+- **Category-aware campaign copy** (lib/ai/fallback.ts): offers and CTAs
+  speak each category's language — no more "consult, applied to your first
+  visit" for a plate of ribs; band-based default prices per category.
+- **Billing** (lib/billing/, /api/stripe/webhook, migration 0008): every
+  business starts a tracked 14-day trial; STRIPE_* keys switch on hosted
+  checkout ($49/$149), the customer portal, and webhook-driven plan state.
+  Expired trials gate NEW campaign builds only; nothing ever locks without
+  keys. RLS: owners read, service role writes.
+- **Accounts & trust**: forgot-password (Supabase recovery → /auth/reset),
+  change password (current-password verified in both modes), typed-DELETE
+  account deletion with full data cascade in both stores; /terms + /privacy
+  written to match the real product, linked from footer and signup;
+  GET /api/health reports subsystem modes for uptime monitors.
+
+Gate green: 89 unit tests, E2E happy path, lint, production build. Full
+Playwright walkthrough re-verified (signup → onboarding → sensible ranking →
+campaign → launch → results → billing/account panels), zero console errors.
+
+### Morning Report (P23)
+1. **End to end now**: everything from before, plus billing/trial state,
+   account self-service, legal pages, health probe — and rankings that make
+   sense for the specific business with zero keys.
+2. **Stubbed, with seams**: Stripe (add 4 env vars + webhook — BLOCKED.md),
+   Supabase, Gemini, YouTube unchanged. Meta ad-account sync still the
+   roadmap item the schema is shaped for.
+3. **Might disagree**: fit-gated scores read lower (an honest C beats a
+   flattering B+); billing never locks keyless installs; service-role use
+   for account deletion (DECISIONS.md).
+4. **Highest-value next hour**: create the two Stripe prices, fill the env
+   vars, run one live checkout against a test card, and flip
+   NEXT_PUBLIC_SITE_URL — the product is then literally sellable.
+5. **Run it**: `pnpm i && pnpm seed && pnpm dev` (demo), `pnpm test`,
+   `pnpm test:e2e`, `pnpm build`.

@@ -26,8 +26,8 @@ export const PLAN_LABELS: Record<PlanId, string> = {
 };
 
 export const PLAN_PRICES: Record<Exclude<PlanId, "trial">, string> = {
-  baseline: "$49/mo",
-  pro: "$149/mo",
+  baseline: "$250/mo",
+  pro: "$500/mo",
 };
 
 export interface PlanState {

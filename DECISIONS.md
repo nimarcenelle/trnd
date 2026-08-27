@@ -66,3 +66,8 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
   service key to cron routes, but deleting the auth user requires the admin API.
   It's used for exactly one thing (self-serve account deletion, after the RLS-scoped
   business delete), which honors the brief's intent — least privilege — if not its letter.
+- **Repricing (user direction): TRND $250/mo.** Pro must sit above the baseline; the
+  user named only the one number, so Pro is set at $500/mo (2× baseline; the old
+  49→149 tripling felt steep at this altitude). Landing pricing copy reframed from
+  "$30 a day of ad spend" math to "pays for itself with one landed campaign," which is
+  the honest claim at $250 in high-LTV verticals. Playbook updated to match.

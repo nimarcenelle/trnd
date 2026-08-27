@@ -17,12 +17,14 @@ import type {
   NewSeriesPoint,
   NewService,
   NewSignal,
+  NewSubscription,
   Opportunity,
   OpportunityStatus,
   Profile,
   Service,
   Signal,
   SignalSeriesPoint,
+  Subscription,
 } from "./types";
 
 /**
@@ -82,6 +84,13 @@ export interface Repo {
   /* business briefs */
   upsertBusinessBrief(input: NewBusinessBrief): Promise<BusinessBrief>;
   getBusinessBrief(businessId: string): Promise<BusinessBrief | null>;
+
+  /* billing */
+  getSubscription(businessId: string): Promise<Subscription | null>;
+  /** Upsert on business_id — trial creation and webhook plan changes alike. */
+  upsertSubscription(input: NewSubscription): Promise<Subscription>;
+  /** Webhook lookups arrive keyed by Stripe's subscription id. Admin surface. */
+  getSubscriptionByStripeId(stripeSubscriptionId: string): Promise<Subscription | null>;
 
   /* marketing */
   insertDemoRequest(input: NewDemoRequest): Promise<DemoRequest>;

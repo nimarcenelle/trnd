@@ -190,6 +190,28 @@ export interface BusinessBrief {
   created_at: string;
 }
 
+export type PlanId = "trial" | "baseline" | "pro";
+export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled";
+
+/**
+ * One row per business. Every business starts on a 14-day trial; Stripe
+ * webhooks move it to a paid plan. The row exists (and the trial clock runs)
+ * even before Stripe is configured, so turning billing on later never
+ * requires a backfill.
+ */
+export interface Subscription {
+  id: string;
+  business_id: string;
+  plan: PlanId;
+  status: SubscriptionStatus;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  current_period_end: string | null;
+  trial_ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DemoRequest {
   id: string;
   full_name: string;
@@ -217,3 +239,4 @@ export type NewCampaignResult = Omit<CampaignResult, "id" | "recorded_at">;
 export type NewLearning = Omit<Learning, "id" | "updated_at">;
 export type NewBusinessBrief = Omit<BusinessBrief, "id" | "created_at">;
 export type NewDemoRequest = Omit<DemoRequest, "id" | "created_at">;
+export type NewSubscription = Omit<Subscription, "id" | "created_at" | "updated_at">;

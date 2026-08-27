@@ -33,6 +33,7 @@ describe("migrations", () => {
       "creatives",
       "campaign_results",
       "learnings",
+      "subscriptions",
       "demo_requests",
     ]) {
       expect(tables).toContain(required);

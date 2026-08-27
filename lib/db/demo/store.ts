@@ -14,6 +14,7 @@ import type {
   Service,
   Signal,
   SignalSeriesPoint,
+  Subscription,
 } from "../types";
 
 /** A local account record — demo mode's stand-in for auth.users. */
@@ -39,6 +40,7 @@ export interface DemoStore {
   campaign_results: CampaignResult[];
   learnings: Learning[];
   business_briefs: BusinessBrief[];
+  subscriptions: Subscription[];
   demo_requests: DemoRequest[];
 }
 
@@ -56,6 +58,7 @@ function emptyStore(): DemoStore {
     campaign_results: [],
     learnings: [],
     business_briefs: [],
+    subscriptions: [],
     demo_requests: [],
   };
 }

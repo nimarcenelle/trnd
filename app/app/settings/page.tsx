@@ -2,8 +2,10 @@ import { redirect } from "next/navigation";
 
 import BusinessSettingsForm from "@/components/app/business-settings-form";
 import { getSessionUser } from "@/lib/auth/session";
+import { getPlanState, PLAN_LABELS, PLAN_PRICES } from "@/lib/billing";
+import { openBillingPortalAction, startCheckoutAction } from "@/lib/billing/actions";
 import { getUserRepo } from "@/lib/db";
-import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
+import { isGeminiConfigured, isStripeConfigured, isSupabaseConfigured } from "@/lib/env";
 import {
   addServiceAction,
   deleteServiceAction,
@@ -12,13 +14,27 @@ import {
 
 export const metadata = { title: "Settings — TRND" };
 
-export default async function SettingsPage() {
+const BILLING_NOTICES: Record<string, { text: string; tone: "mint" | "faint" }> = {
+  success: { text: "You're in — the plan is active. Thanks for building with TRND.", tone: "mint" },
+  canceled: { text: "Checkout canceled — nothing was charged.", tone: "faint" },
+  unconfigured: {
+    text: "Billing isn't connected yet — add the STRIPE_* keys in .env.local and this panel goes live.",
+    tone: "faint",
+  },
+  nocustomer: { text: "No billing profile yet — pick a plan first.", tone: "faint" },
+  error: { text: "Billing hit a snag — try again in a moment.", tone: "faint" },
+};
+
+export default async function SettingsPage({ searchParams }: PageProps<"/app/settings">) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
   const business = await repo.getBusinessByOwner(user.id);
   if (!business) redirect("/onboarding");
   const services = await repo.listServices(business.id);
+  const plan = await getPlanState(repo, business);
+  const billingFlag = String((await searchParams).billing ?? "");
+  const billingNotice = BILLING_NOTICES[billingFlag] ?? null;
 
   const integrations = [
     {
@@ -42,6 +58,14 @@ export default async function SettingsPage() {
       detail: "Google Trends · Reddit · Google News",
       ok: true,
       note: "Refreshed daily by the ingest job. YouTube optional via API key.",
+    },
+    {
+      name: "Payments",
+      detail: isStripeConfigured ? "Stripe — connected" : "Stripe — not connected",
+      ok: isStripeConfigured,
+      note: isStripeConfigured
+        ? "Checkout, upgrades, and the billing portal are live."
+        : "Add STRIPE_* keys to .env.local to start charging.",
     },
     {
       name: "Ad account sync",
@@ -142,6 +166,87 @@ export default async function SettingsPage() {
             Add service
           </button>
         </form>
+      </section>
+
+      <section className="panel" id="billing" style={{ marginBottom: 20 }}>
+        <div className="panel__head">
+          <span className="panel__title">Plan &amp; billing</span>
+          <span className="panel__meta">
+            {PLAN_LABELS[plan.plan]}
+            {plan.plan !== "trial" ? ` · ${PLAN_PRICES[plan.plan]}` : ""}
+          </span>
+        </div>
+
+        {billingNotice && (
+          <p
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 11.5,
+              lineHeight: 1.55,
+              color: billingNotice.tone === "mint" ? "var(--mint-text)" : "var(--ink-faint)",
+              margin: "0 0 16px",
+              paddingBottom: 12,
+              borderBottom: "1px dashed var(--line)",
+            }}
+          >
+            {billingNotice.text}
+          </p>
+        )}
+
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
+          <span className={`badge${plan.status === "active" ? " badge--mint" : plan.locked ? "" : " badge--mint"}`}>
+            <i />
+            {plan.plan === "trial"
+              ? plan.locked
+                ? "trial ended"
+                : `trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left`
+              : plan.status.replace(/_/g, " ")}
+          </span>
+          <p style={{ fontSize: 13.5, color: "var(--ink-soft)", margin: 0, lineHeight: 1.55 }}>
+            {plan.plan === "trial"
+              ? plan.locked
+                ? "Everything you generated stays yours. Pick a plan to keep the weekly recommendations and campaign builds coming."
+                : "Full product, no card required. Pick a plan any time — founding businesses lock their price for life."
+              : plan.plan === "pro"
+                ? "Everything in TRND plus connected-account sync as it rolls out."
+                : "A finished, scored campaign every week — recorded results sharpen the next one."}
+          </p>
+        </div>
+
+        {isStripeConfigured ? (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {plan.plan !== "baseline" && plan.status !== "active" && (
+              <form action={startCheckoutAction}>
+                <input type="hidden" name="plan" value="baseline" />
+                <button type="submit" className="btn btn-primary btn-sm">
+                  Start TRND — {PLAN_PRICES.baseline}
+                </button>
+              </form>
+            )}
+            {plan.plan !== "pro" && (
+              <form action={startCheckoutAction}>
+                <input type="hidden" name="plan" value="pro" />
+                <button type="submit" className={`btn btn-sm ${plan.plan === "baseline" ? "btn-primary" : "btn-ghost"}`}>
+                  {plan.plan === "baseline" ? "Upgrade to Pro" : "Start Pro"} — {PLAN_PRICES.pro}
+                </button>
+              </form>
+            )}
+            {plan.subscription.stripe_customer_id && (
+              <form action={openBillingPortalAction}>
+                <button type="submit" className="btn btn-ghost btn-sm">
+                  Manage billing →
+                </button>
+              </form>
+            )}
+          </div>
+        ) : (
+          <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0, lineHeight: 1.6 }}>
+            Payments aren&apos;t connected in this install. Add <code style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>STRIPE_SECRET_KEY</code>,{" "}
+            <code style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>STRIPE_WEBHOOK_SECRET</code>, and the two{" "}
+            <code style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>STRIPE_PRICE_*</code> ids to .env.local and
+            this panel starts selling — checkout, upgrades, and the customer portal included.
+          </p>
+        )}
       </section>
 
       <section className="panel">

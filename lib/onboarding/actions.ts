@@ -82,6 +82,14 @@ export async function completeOnboardingAction(
     photo_urls: photoUrls,
   });
 
+  // Start the 14-day trial clock the moment the business exists.
+  try {
+    const { getOrCreateSubscription } = await import("@/lib/billing");
+    await getOrCreateSubscription(repo, business);
+  } catch (err) {
+    console.warn("[onboarding] trial subscription init failed (non-fatal):", (err as Error).message);
+  }
+
   const createdServices = await repo.createServices(
     cleanServices.map((s) => {
       const parsed = Math.round(parseFloat(s.price.replace(/[^0-9.]/g, "")) * 100);

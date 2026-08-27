@@ -18,10 +18,12 @@ import type {
   NewSeriesPoint,
   NewService,
   NewSignal,
+  NewSubscription,
   Opportunity,
   OpportunityStatus,
   Service,
   Signal,
+  Subscription,
 } from "../types";
 import { loadStore, saveStore } from "./store";
 
@@ -378,6 +380,40 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (!visibleBusinessIds().has(businessId)) return null;
       // Older stores predate this table.
       return (store.business_briefs ?? []).find((b) => b.business_id === businessId) ?? null;
+    },
+
+    /* ------------------------------- billing ------------------------------ */
+    async getSubscription(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return null;
+      return (store.subscriptions ?? []).find((s) => s.business_id === businessId) ?? null;
+    },
+    async upsertSubscription(input: NewSubscription) {
+      assertOwnsBusiness(input.business_id);
+      store.subscriptions ??= [];
+      const existing = store.subscriptions.find((s) => s.business_id === input.business_id);
+      if (existing) {
+        Object.assign(existing, input, { updated_at: nowIso() });
+        saveStore();
+        return existing;
+      }
+      const row: Subscription = {
+        ...input,
+        id: randomUUID(),
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      };
+      store.subscriptions.push(row);
+      saveStore();
+      return row;
+    },
+    async getSubscriptionByStripeId(stripeSubscriptionId) {
+      const s =
+        (store.subscriptions ?? []).find(
+          (x) => x.stripe_subscription_id === stripeSubscriptionId,
+        ) ?? null;
+      if (!s) return null;
+      if (!visibleBusinessIds().has(s.business_id)) return null;
+      return s;
     },
 
     /* ------------------------------ marketing ----------------------------- */

@@ -8,23 +8,23 @@
   color-scheme: light;
   /* Warm bone, not butter: the ground is low-chroma so the gold accent and
      the ink do the talking. Hairlines and shadows stay warm but quiet. */
-  --bg: #f7f3ea;
+  --bg: #f6f4ee;
   --bg-1: #ffffff;
-  --bg-2: #efe9da;
-  --bg-3: #e4dbc6;
+  --bg-2: #eeebe1;
+  --bg-3: #e3dfd1;
   --paper: #ffffff;
-  --card-stroke: #e6dfcd;
-  --ink: #2e2413;
-  --ink-soft: #64533a;
-  --ink-faint: #75634a; /* AA on --bg for small text */
-  --line: rgba(46, 36, 19, 0.08);
-  --line-strong: rgba(46, 36, 19, 0.16);
+  --card-stroke: #e6e1d4;
+  --ink: #23201a;
+  --ink-soft: #5d564a;
+  --ink-faint: #6f6759; /* AA on --bg for small text */
+  --line: rgba(35, 32, 26, 0.08);
+  --line-strong: rgba(35, 32, 26, 0.16);
   --amber: #d99a12;
   --amber-text: #8a6208; /* AA-contrast amber for small text on light bgs */
   --amber-display: #b57c07; /* deeper gold for large display accents — 3:1 on --bg */
   --amber-ink: #2b1b08;
   --amber-hover: #efae21;
-  --amber-glow: rgba(217, 154, 18, 0.18);
+  --amber-glow: rgba(217, 154, 18, 0.13);
   --amber-soft: rgba(217, 154, 18, 0.12);
   --amber-softer: rgba(217, 154, 18, 0.03);
   --mint: #1ea7ae;
@@ -32,14 +32,19 @@
   --mint-ink: #eafbfc;
   --mint-glow: rgba(30, 167, 174, 0.18);
   --red: #b23a22;
-  --nav-bg: rgba(247, 243, 234, 0.85);
-  --overlay-tint: rgba(247, 243, 234, 0.55);
-  --texture-dot: rgba(46, 36, 19, 0.05);
-  --shadow: rgba(46, 36, 19, 0.13);
-  --fw-ring: #e4dbc6;
-  --fw-node-stroke: #ece5d4;
+  --nav-bg: rgba(246, 244, 238, 0.85);
+  --overlay-tint: rgba(246, 244, 238, 0.55);
+  --texture-dot: rgba(35, 32, 26, 0.05);
+  --shadow: rgba(35, 32, 26, 0.12);
+  --fw-ring: #e3dfd1;
+  --fw-node-stroke: #eae6da;
   --sun-d: none;
   --moon-d: block;
+  /* Elevation: warm, soft, barely-there at rest — the finish layer. */
+  --elev-1: 0 1px 2px rgba(35, 32, 26, 0.04), 0 6px 20px rgba(35, 32, 26, 0.05);
+  --elev-2: 0 2px 4px rgba(35, 32, 26, 0.05), 0 16px 40px rgba(35, 32, 26, 0.09);
+  --mint-soft: rgba(30, 167, 174, 0.1);
+  --mint-softer: rgba(30, 167, 174, 0.05);
 
   --radius: 16px;
   --radius-sm: 10px;
@@ -81,6 +86,10 @@
   --fw-node-stroke: #3d2c18;
   --sun-d: block;
   --moon-d: none;
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+  --elev-2: 0 2px 4px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.4);
+  --mint-soft: rgba(47, 201, 198, 0.12);
+  --mint-softer: rgba(47, 201, 198, 0.06);
 }
 
 /* Expose tokens to Tailwind v4 utilities (bg-bg-1, text-ink-soft, border-line, …) */
@@ -156,18 +165,16 @@ svg {
 }
 .eyebrow::before {
   content: "";
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--amber);
-  box-shadow: 0 0 0 4px var(--amber-glow);
 }
 .eyebrow--mint {
   color: var(--mint-text);
 }
 .eyebrow--mint::before {
   background: var(--mint);
-  box-shadow: 0 0 0 4px var(--mint-glow);
 }
 .btn {
   font-family: var(--disp);
@@ -183,7 +190,8 @@ svg {
   transition:
     transform 0.15s ease,
     background 0.15s ease,
-    border-color 0.15s ease;
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .btn:active {
   transform: scale(0.97);
@@ -195,17 +203,32 @@ svg {
 .btn-primary {
   background: var(--amber);
   color: var(--amber-ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 1px 2px rgba(35, 32, 26, 0.12),
+    0 4px 12px var(--amber-glow);
 }
 .btn-primary:hover {
   background: var(--amber-hover);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 2px 4px rgba(35, 32, 26, 0.12),
+    0 8px 20px var(--amber-glow);
 }
 .btn-ghost {
-  background: transparent;
+  background: var(--bg-1);
   color: var(--ink);
   border-color: var(--line-strong);
 }
 .btn-ghost:hover {
   border-color: var(--ink-soft);
+  box-shadow: var(--elev-1);
+}
+:where(a, button, summary):focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 .btn-sm {
   padding: 9px 16px;
@@ -224,11 +247,22 @@ svg {
   background: var(--bg-1);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
+  box-shadow: var(--elev-1);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+a.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elev-2);
+  border-color: var(--line-strong);
 }
 .card-lg {
   background: var(--bg-1);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  box-shadow: var(--elev-1);
 }
 .mono-label {
   font-family: var(--mono);
@@ -267,6 +301,7 @@ svg {
 .field select:focus,
 .field textarea:focus {
   border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-soft);
 }
 .field-row {
   display: grid;

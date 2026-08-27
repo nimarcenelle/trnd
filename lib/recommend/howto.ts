@@ -57,12 +57,24 @@ const CATEGORY_TAGS: Record<string, string[]> = {
 
 const tagify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-export function buildHowTo(opts: { term: string; category: string; city: string }): HowTo {
+export function buildHowTo(opts: {
+  term: string;
+  category: string;
+  city: string;
+  /** Signal source — a "snapshot" pick is already business-specific, so the
+   * broad category tags (#skincareroutine on a contrast-therapy studio)
+   * would misfire; ride the term and the city instead. */
+  source?: string;
+  /** The matched menu item, tagged alongside the term when present. */
+  serviceName?: string | null;
+}): HowTo {
   const termTag = tagify(opts.term);
   const cityTag = tagify(opts.city);
+  const serviceTag = opts.serviceName ? tagify(opts.serviceName) : "";
   const hashtags = [
     ...(termTag ? [termTag] : []),
-    ...(CATEGORY_TAGS[opts.category] ?? ["supportlocal"]),
+    ...(serviceTag && serviceTag !== termTag ? [serviceTag] : []),
+    ...(opts.source === "snapshot" ? ["supportlocal"] : (CATEGORY_TAGS[opts.category] ?? ["supportlocal"])),
     ...(cityTag ? [cityTag] : []),
   ].slice(0, 5);
   return {

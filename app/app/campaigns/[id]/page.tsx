@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import AdPreview from "@/components/app/ad-preview";
 import CopyAllButton from "@/components/app/copy-all-button";
 import CopyBlock from "@/components/app/copy-block";
+import LaunchToMetaButton from "@/components/app/launch-to-meta-button";
 import SourceBadge from "@/components/app/source-badge";
 import StatusTimeline from "@/components/app/status-timeline";
 import { getSessionUser } from "@/lib/auth/session";
@@ -31,11 +32,13 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
   const repo = await getUserRepo(user.id);
   const campaign = await repo.getCampaign(id);
   if (!campaign) notFound();
-  const [creatives, opportunity, business] = await Promise.all([
+  const [creatives, opportunity, business, metaConnection] = await Promise.all([
     repo.listCreatives(id),
     repo.getOpportunity(campaign.opportunity_id),
     repo.getBusiness(campaign.business_id),
+    repo.getConnection(campaign.business_id, "meta"),
   ]);
+  const metaReady = metaConnection?.status === "connected" && Boolean(metaConnection.account_id);
   const signal = opportunity ? await repo.getSignal(opportunity.signal_id) : null;
 
   const byKind = (kind: Creative["kind"]) => creatives.filter((c) => c.kind === kind);
@@ -310,10 +313,17 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           ))}
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
+          {metaReady && !campaign.external_id && <LaunchToMetaButton campaignId={campaign.id} />}
+          {campaign.external_id && (
+            <span className="badge badge--mint" style={{ alignSelf: "center" }}>
+              <i />
+              In your Meta account · {campaign.external_status ?? "PAUSED"} — results sync daily
+            </span>
+          )}
           {!launched ? (
             <form action={markLaunchedAction}>
               <input type="hidden" name="campaign_id" value={campaign.id} />
-              <button type="submit" className="btn btn-primary btn-sm">
+              <button type="submit" className={`btn btn-sm ${metaReady ? "btn-ghost" : "btn-primary"}`}>
                 Mark as launched
               </button>
             </form>
@@ -330,13 +340,15 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
             CSV for Meta
           </a>
         </div>
-        <div className="lock-note">
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-            <rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none" />
-            <path d="M4 5V3.5a2 2 0 0 1 4 0V5" stroke="currentColor" strokeWidth="1.2" fill="none" />
-          </svg>
-          One-click publish to Meta &amp; TikTok Ads unlocks on Pro
-        </div>
+        {!metaReady && (
+          <div className="lock-note">
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+              <rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none" />
+              <path d="M4 5V3.5a2 2 0 0 1 4 0V5" stroke="currentColor" strokeWidth="1.2" fill="none" />
+            </svg>
+            One-click launch &amp; auto-synced results — connect your Meta ad account in Settings
+          </div>
+        )}
       </section>
     </div>
   );

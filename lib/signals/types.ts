@@ -27,6 +27,9 @@ export interface WatchTerm {
   /** Optional finer geo (e.g. "US-NC") — business terms watch the business's
    * own state; stock category terms stay national. */
   geo?: string;
+  /** Locality tokens ("chapel", "hill", "nyc") an adapter may strip when a
+   * term is too narrow for its meter and the read must widen to land. */
+  locality?: string[];
 }
 
 export interface AdapterFetchInput {

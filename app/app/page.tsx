@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import AutoRefresh from "@/components/app/auto-refresh";
 import ScoreBreakdown from "@/components/app/score-breakdown";
 import GradePill from "@/components/app/grade-pill";
 import GradeRing from "@/components/app/grade-ring";
@@ -11,15 +12,18 @@ import TrendChart from "@/components/app/trend-chart";
 import InsightList from "@/components/app/insight-list";
 import { getSessionUser } from "@/lib/auth/session";
 import BuildCampaignButton from "@/components/app/build-campaign-button";
+import { markAlertsReadAction } from "@/lib/intel/actions";
 import { refreshRankingAction } from "@/lib/recommend/actions";
 import { getUserRepo } from "@/lib/db";
 import type { Signal } from "@/lib/db/types";
 import { explainOpportunity } from "@/lib/recommend/explain";
+import CopyBlock from "@/components/app/copy-block";
 import { buildHowTo, tiktokHashtag } from "@/lib/recommend/howto";
+import { buildOrganicPost } from "@/lib/recommend/post";
 import { upcomingMoments } from "@/lib/recommend/seasonal";
 import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
-import { isGeminiConfigured } from "@/lib/env";
+import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { titleCase } from "@/lib/text";
 
@@ -52,11 +56,12 @@ export default async function AppHome() {
   const weekEnd = new Date(new Date(`${week}T00:00:00Z`).getTime() + 6 * 86400_000);
   const weekRange = `${fmtDate(week)} – ${fmtDate(weekEnd)}`;
 
-  const [categorySignals, campaigns, results, learnings] = await Promise.all([
+  const [categorySignals, campaigns, results, learnings, unreadAlerts] = await Promise.all([
     repo.listSignalsForCategory(business.category, { sinceDays: 7 }),
     repo.listCampaigns(business.id),
     repo.listResultsForBusiness(business.id),
     repo.listLearnings(business.category),
+    repo.listAlerts(business.id, { unreadOnly: true, limit: 5 }),
   ]);
   const watched = categorySignals.filter(
     (s) => s.metric_type !== "news_coverage" && s.metric_type !== "ad_saturation",
@@ -64,8 +69,73 @@ export default async function AppHome() {
   const launched = campaigns.filter((c) => c.status === "live" || c.status === "complete");
   const ctrs = results.map((r) => r.ctr).filter((v): v is number => typeof v === "number");
   const avgCtr = ctrs.length ? ctrs.reduce((a, b) => a + b, 0) / ctrs.length : null;
+  // The ledger: what TRND campaigns did, in dollars. Only rendered once real
+  // spend exists — a zero ledger is noise, not proof.
+  const sumR = (f: (r: (typeof results)[number]) => number | null) =>
+    results.reduce((acc, r) => acc + (f(r) ?? 0), 0);
+  const ledger = {
+    spendCents: sumR((r) => r.spend_cents),
+    revenueCents: sumR((r) => r.revenue_cents),
+    bookings: sumR((r) => r.bookings),
+    synced: results.some((r) => r.source === "meta_api"),
+  };
+
+  // Re-evaluate proactive alerts after the response — idempotent (deduped
+  // keys), so the dashboard doubles as the alert heartbeat between crons.
+  after(async () => {
+    try {
+      const { evaluateAlerts } = await import("@/lib/alerts/engine");
+      await evaluateAlerts(repo, business);
+    } catch (err) {
+      console.warn("[app] alert evaluation failed (non-fatal):", (err as Error).message);
+    }
+  });
 
   if (!top) {
+    // A missing analysis means the ranking is deliberately held (never show
+    // unjudged junk) — narrate the wait and refresh into the real picks.
+    const pendingBrief = await repo.getBusinessBrief(business.id);
+    if (!pendingBrief && isGeminiConfigured) {
+      if (!briefLikelyInFlight(business.created_at)) {
+        // The background write died somewhere — self-heal.
+        after(async () => {
+          try {
+            await repo.upsertBusinessBrief(
+              await generateBusinessBrief(business, await repo.listServices(business.id)),
+            );
+            const { rerankWeek } = await import("@/lib/recommend/rerank");
+            await rerankWeek(repo, business);
+          } catch (err) {
+            console.warn("[app] brief recovery failed (non-fatal):", (err as Error).message);
+          }
+        });
+      }
+      return (
+        <div className="page">
+          <AutoRefresh />
+          <div className="page-head">
+            <div>
+              <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
+              <h1>TRND is reading {business.name}.</h1>
+              <p className="context">
+                Positioning, customers, demand terms, first moves — the founding analysis is
+                being written now, and your first judged ranking lands with it. Usually under
+                two minutes; this page refreshes itself.
+              </p>
+            </div>
+          </div>
+          <div className="panel" style={{ maxWidth: 620 }}>
+            <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
+              TRND never shows a ranking that hasn&apos;t been judged against what you actually
+              sell — a minute of honest silence beats a week of confident nonsense.
+            </p>
+            <Link className="btn btn-ghost btn-sm" href="/app/snapshot" style={{ marginTop: 18 }}>
+              Watch the analysis land →
+            </Link>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="page">
         <div className="page-head">
@@ -80,10 +150,14 @@ export default async function AppHome() {
         </div>
         <div className="panel" style={{ maxWidth: 620 }}>
           <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
-            Run <code style={{ fontFamily: "var(--mono)", fontSize: 13 }}>pnpm seed</code> for
-            illustrative data or <code style={{ fontFamily: "var(--mono)", fontSize: 13 }}>pnpm job:ingest</code>{" "}
-            for live sources, then refresh. Signal refreshes daily once the cron jobs are live.
+            TRND reads the market for you every day — the first ranking appears as soon as a
+            read lands for your area. Nothing for you to do; check back soon.
           </p>
+          {!isSupabaseConfigured && (
+            <p style={{ margin: "12px 0 0", fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--ink-faint)" }}>
+              dev note: run <code>pnpm seed</code> for illustrative data or <code>pnpm job:ingest</code> for live sources.
+            </p>
+          )}
           <Link className="btn btn-ghost btn-sm" href="/app/opportunities" style={{ marginTop: 18 }}>
             Review dismissed opportunities
           </Link>
@@ -98,13 +172,21 @@ export default async function AppHome() {
     repo.listServices(business.id),
   ]);
   const matchedService = services.find((s) => s.id === top.matched_service_id) ?? null;
-  const howto = signal
-    ? buildHowTo({
-        term: tiktokHashtag(signal) ?? signal.term,
-        category: business.category,
-        city: business.city,
-      })
-    : null;
+  // Judged-thin week: even the pool's best sits below the worth-running bar.
+  // The screen must not dress it up — no creative playbook, no "capture this
+  // demand" pitch — just the honest read and what to run instead.
+  const thin = Number(top.score) < 4.3;
+  const snapshotReason = top.rationale?.match(/Snapshot read: (.+)$/)?.[1] ?? null;
+  const howto =
+    signal && !thin
+      ? buildHowTo({
+          term: tiktokHashtag(signal) ?? signal.term,
+          category: business.category,
+          city: business.city,
+          source: signal.source,
+          serviceName: matchedService?.name ?? null,
+        })
+      : null;
 
   // The Ad Library read for this term, when the daily scan captured one —
   // real saturation plus what competitors are actually running.
@@ -120,8 +202,38 @@ export default async function AppHome() {
     (adRead?.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads ?? []
   ).slice(0, 2);
   const series = signal ? await repo.getSeries(signal.normalized_term, signal.geo, 30) : [];
+  // The interest read for this term (may live on a sibling google_trends row).
+  const interestSparse = signal
+    ? categorySignals.some(
+        (s) =>
+          s.normalized_term === signal.normalized_term &&
+          s.metric_type === "search_interest" &&
+          (s.raw as { sparse?: boolean } | null)?.sparse === true,
+      )
+    : false;
   const explained = signal ? await explainOpportunity(repo, business, top, signal) : null;
-  const insights = signal && explained ? buildInsights(signal, explained, { learnings }) : [];
+  // The zero-budget move: every non-thin week hands the owner a free,
+  // ready-to-paste post built from the pick + their customers' own words.
+  const voiceDigest = await repo.getReviewDigest(business.id);
+  const organicPost =
+    howto && signal
+      ? buildOrganicPost({
+          term: signal.term,
+          businessName: business.name,
+          hook: campaign?.hook ?? null,
+          copyHooks: voiceDigest?.copy_hooks ?? [],
+          hashtags: howto.hashtags,
+        })
+      : null;
+
+  const insights =
+    signal && explained
+      ? buildInsights(signal, explained, {
+          learnings,
+          unfit: thin && !matchedService,
+          snapshotReason,
+        })
+      : [];
   const launchBy = fmtDate(
     new Date(new Date(`${week}T00:00:00Z`).getTime() + 3 * 86400_000).toISOString().slice(0, 10),
   );
@@ -199,6 +311,9 @@ export default async function AppHome() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {signal?.source === "seed" && <SourceBadge source="seed" />}
+          <Link href="/app/report" className="btn btn-ghost btn-sm">
+            Intel report →
+          </Link>
           <form action={refreshRankingAction}>
             <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Re-reading the market…">
               Re-rank this week
@@ -209,7 +324,7 @@ export default async function AppHome() {
 
       <div className="kpi-row">
         <div className="kpi">
-          <span className="k">Signals watched · 7d</span>
+          <span className="k">Market reads · 7d</span>
           <span className="v">{watched.length}</span>
           <span className="s">across {business.category.toLowerCase()}</span>
         </div>
@@ -235,12 +350,66 @@ export default async function AppHome() {
         </div>
       </div>
 
+      {ledger.spendCents > 0 && (
+        <div className="panel" style={{ marginTop: 18, padding: "14px 20px", display: "flex", gap: 24, alignItems: "baseline", flexWrap: "wrap" }}>
+          <span className="mono-label">TRND campaigns to date</span>
+          <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15 }}>
+            ${(ledger.spendCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} spent
+          </span>
+          {ledger.bookings > 0 && (
+            <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15 }}>{ledger.bookings} bookings</span>
+          )}
+          {ledger.revenueCents > 0 && (
+            <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15, color: "var(--mint-text)" }}>
+              ${(ledger.revenueCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} back
+              {ledger.spendCents > 0 ? ` · ${(ledger.revenueCents / ledger.spendCents).toFixed(1)}×` : ""}
+            </span>
+          )}
+          <span className="mono-label" style={{ marginLeft: "auto" }}>
+            {ledger.synced ? "auto-synced from Meta" : "from your recorded results"}
+          </span>
+        </div>
+      )}
+
+      {unreadAlerts.length > 0 && (
+        <section className="panel" style={{ marginTop: 18 }}>
+          <div className="panel__head">
+            <span className="panel__title">What changed</span>
+            <form action={markAlertsReadAction}>
+              <button type="submit" className="panel__meta" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--amber-text)", fontFamily: "var(--mono)" }}>
+                mark all read
+              </button>
+            </form>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {unreadAlerts.map((a, i) => (
+              <Link
+                key={a.id}
+                href={a.href}
+                className="alert-row"
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "baseline",
+                  padding: "10px 0",
+                  borderBottom: i < unreadAlerts.length - 1 ? "1px dashed var(--line)" : "none",
+                }}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--amber)", flex: "0 0 auto", transform: "translateY(-2px)" }} />
+                <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 13.5 }}>{a.title}</span>
+                <span style={{ fontSize: 12.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>{a.body}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ---------- HERO RECOMMENDATION ---------- */}
       <section className="panel panel--hero" style={{ padding: "30px 32px 28px" }}>
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
           <div style={{ flex: "1 1 400px", minWidth: 280 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
-              <span className="badge badge--amber"><i />#1 this week</span>
+              <span className="badge badge--amber"><i />{thin ? "Closest fit — not a pick" : "#1 this week"}</span>
               {signal && <SourceBadge source={signal.source} metric={signal.metric_type} />}
               {typeof signal?.delta_pct === "number" && (
                 <span className="delta-chip">↑{Math.round(signal.delta_pct)}% this week</span>
@@ -260,6 +429,10 @@ export default async function AppHome() {
                 <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary">
                   View the campaign →
                 </Link>
+              ) : thin ? (
+                <BuildCampaignButton opportunityId={top.id} className="btn btn-ghost">
+                  Build anyway
+                </BuildCampaignButton>
               ) : (
                 <BuildCampaignButton opportunityId={top.id} />
               )}
@@ -267,6 +440,12 @@ export default async function AppHome() {
                 All {active.length} ranked →
               </Link>
             </div>
+
+            {organicPost && (
+              <div style={{ marginBottom: 18 }}>
+                <CopyBlock label="No ad budget this week? Post this today — free" content={organicPost} />
+              </div>
+            )}
 
             {howto && (
               <details className="howto" open>
@@ -314,13 +493,13 @@ export default async function AppHome() {
             <div className="v">{matchedService ? matchedService.name : "New offer — nothing on your menu yet"}</div>
           </div>
           <div>
-            <span className="k">Competitor gap</span>
-            <div className="v">{top.competitor_gap ?? "No saturation read yet"}</div>
+            <span className="k">Competition</span>
+            <div className="v">{top.competitor_gap ?? "No ad read yet"}</div>
           </div>
           <div>
             <span className="k">Do this next</span>
             <div className="v">
-              {Number(top.score) < 4.3
+              {thin
                 ? "Thin week — nothing squarely fits what you sell. Wait, or build only if the creative is trivial."
                 : campaign
                   ? nextAction.label
@@ -354,8 +533,32 @@ export default async function AppHome() {
         )}
       </section>
 
-      {/* ---------- TREND CHART (only when we actually hold a series) ---------- */}
-      {series.length >= 2 && (
+      {/* ---------- THIN WEEK: WHAT TO RUN INSTEAD ----------
+          When no trend fits, the useful advice isn't a trend at all — it's
+          the service-anchored first moves from the founding analysis. */}
+      {thin && brief && brief.first_moves.length > 0 && (
+        <section className="panel" style={{ marginTop: 18 }}>
+          <div className="panel__head">
+            <span className="panel__title">Worth running instead</span>
+            <span className="panel__meta">from your analysis — anchored to what you actually sell</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
+            {brief.first_moves.slice(0, 3).map((move, i) => (
+              <div key={move} style={{ borderLeft: "2px solid var(--amber)", paddingLeft: 14 }}>
+                <span className="mono-label" style={{ display: "block", marginBottom: 6 }}>Move {i + 1}</span>
+                <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "var(--ink)", margin: 0 }}>{move}</p>
+              </div>
+            ))}
+          </div>
+          <Link href="/app/snapshot" className="btn btn-ghost btn-sm" style={{ marginTop: 18 }}>
+            See the full analysis →
+          </Link>
+        </section>
+      )}
+
+      {/* ---------- TREND CHART (only when we hold a series worth reading:
+          a sparse, mostly-zero niche series would headline a fake "0") ---------- */}
+      {series.length >= 2 && !interestSparse && (
         <section className="panel" style={{ marginTop: 18 }}>
           <div className="panel__head">
             <span className="panel__title mint">Demand — {series.length >= 14 ? "30 days" : "this week"}</span>
@@ -378,6 +581,11 @@ export default async function AppHome() {
                 view all →
               </Link>
             </div>
+            {thin && (
+              <p style={{ margin: "0 0 8px", fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-faint)" }}>
+                None of these fit what you sell this week — shown as market context, graded accordingly.
+              </p>
+            )}
             <div style={{ display: "flex", flexDirection: "column" }}>
               {runnerUps.map((o, i) => {
                 const s = runnerSignals.get(o.id);

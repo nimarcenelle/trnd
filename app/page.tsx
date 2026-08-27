@@ -77,30 +77,28 @@ export default function Home() {
 
       <header className="hero" id="top">
         <div className="hero__texture" />
-        <div className="wrap hero__grid">
-          <div>
-            <div className="eyebrow">Live signal → finished campaign</div>
-            <h1>
-              Know what to advertise — <em>before it&apos;s obvious.</em>
-            </h1>
-            <p className="hero__sub">
-              TRND reads what&apos;s actually moving in your market right now and turns it into a
-              finished ad campaign — headline, creative, targeting — ready to launch today. Built
-              for small businesses, not agencies with a quarter to spare.
-            </p>
-            <div className="hero__ctas">
-              <a href="#demo" className="btn btn-primary">
-                Request a demo
-              </a>
-              <Link href="/signup" className="btn btn-ghost">
-                Start free — set up in 2 minutes
-              </Link>
-            </div>
-            <div className="hero__proof">
-              <span className="pill">No agency retainer</span>
-              <span className="pill">New campaign every week</span>
-              <span className="pill">Priced to your ad spend</span>
-            </div>
+        <div className="wrap hero__inner">
+          <div className="eyebrow">Live signal → finished campaign</div>
+          <h1>
+            Know what to advertise — <em>before it&apos;s obvious.</em>
+          </h1>
+          <p className="hero__sub">
+            TRND reads what&apos;s actually moving in your market right now and turns it into a
+            finished ad campaign — headline, creative, targeting — ready to launch today. Built
+            for small businesses, not agencies with a quarter to spare.
+          </p>
+          <div className="hero__ctas">
+            <a href="#demo" className="btn btn-primary">
+              Request a demo
+            </a>
+            <Link href="/signup" className="btn btn-ghost">
+              Start free — set up in 2 minutes
+            </Link>
+          </div>
+          <div className="hero__proof">
+            <span className="pill">No agency retainer</span>
+            <span className="pill">New campaign every week</span>
+            <span className="pill">Priced to your ad spend</span>
           </div>
           <ProductFrame />
         </div>

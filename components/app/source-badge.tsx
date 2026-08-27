@@ -7,6 +7,8 @@ const LABELS: Record<SignalSource, string> = {
   youtube: "YouTube",
   tiktok: "TikTok",
   meta_ads: "Meta Ad Library",
+  dataforseo: "Search volume",
+  snapshot: "Your snapshot",
   seed: "Illustrative",
 };
 
@@ -19,11 +21,14 @@ export default function SourceBadge({
   metric?: string;
 }) {
   const seed = source === "seed";
+  const title =
+    source === "seed"
+      ? "Seeded example data — becomes live signal once ingestion runs with network access"
+      : source === "snapshot"
+        ? "A demand term from your founding analysis, watched daily"
+        : `Captured from ${LABELS[source]}`;
   return (
-    <span
-      className={`badge${seed ? " badge--faint" : " badge--mint"}`}
-      title={seed ? "Seeded example data — becomes live signal once ingestion runs with network access" : `Captured from ${LABELS[source]}`}
-    >
+    <span className={`badge${seed ? " badge--faint" : " badge--mint"}`} title={title}>
       <i />
       {LABELS[source]}
       {metric ? ` · ${metric.replace(/_/g, " ")}` : ""}

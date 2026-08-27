@@ -10,7 +10,7 @@ export interface BreakdownData {
 const ROWS = [
   { key: "normalizedDelta", label: "Momentum", weight: WEIGHTS.normalizedDelta, hint: "how fast it's rising" },
   { key: "serviceMatch", label: "Fit", weight: WEIGHTS.serviceMatch, hint: "matches what you sell" },
-  { key: "competitorGap", label: "Open door", weight: WEIGHTS.competitorGap, hint: "competitor gap" },
+  { key: "competitorGap", label: "Open door", weight: WEIGHTS.competitorGap, hint: "who else is on it" },
   { key: "historicalLift", label: "Track record", weight: WEIGHTS.historicalLift, hint: "similar campaigns" },
 ] as const;
 

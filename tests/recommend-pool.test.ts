@@ -1,0 +1,144 @@
+import { describe, expect, it } from "vitest";
+
+import { buildCandidatePool, evergreenSignalInputs } from "../lib/recommend/recommend";
+import { buildInsights } from "../lib/recommend/insights";
+import { applyRelevance, type ScoredOpportunity } from "../lib/scoring";
+import type { Business, Signal } from "../lib/db/types";
+
+const entry = (id: string, term: string) => ({ signal: { id, term } });
+
+/** 12 high-momentum junk terms that fill the raw cutoff. */
+const junkPool = Array.from({ length: 12 }, (_, i) => entry(`junk-${i}`, `skin barrier trend ${i}`));
+
+describe("buildCandidatePool", () => {
+  it("admits a snapshot watch-term signal ranked past the cutoff", () => {
+    const allScored = [...junkPool, entry("hit", "cold plunge memberships")];
+    const pool = buildCandidatePool(allScored, ["cold plunge near me", "sauna benefits"]);
+    expect(pool.map((e) => e.signal.id)).toContain("hit");
+    // The union preserves best-first order — extras append after the cutoff.
+    expect(pool[pool.length - 1].signal.id).toBe("hit");
+  });
+
+  it("matches against menu item names too", () => {
+    const allScored = [...junkPool, entry("hit", "contrast therapy recovery")];
+    const pool = buildCandidatePool(allScored, ["Contrast Therapy Session"]);
+    expect(pool.map((e) => e.signal.id)).toContain("hit");
+  });
+
+  it("does not admit unrelated terms and stays at the cutoff without anchors", () => {
+    const allScored = [...junkPool, entry("miss", "teeth whitening deals")];
+    expect(
+      buildCandidatePool(allScored, ["cold plunge near me"]).map((e) => e.signal.id),
+    ).not.toContain("miss");
+    expect(buildCandidatePool(allScored, [])).toHaveLength(12);
+  });
+
+  it("caps the number of admitted extras", () => {
+    const extras = Array.from({ length: 10 }, (_, i) => entry(`extra-${i}`, `cold plunge angle ${i}`));
+    const pool = buildCandidatePool([...junkPool, ...extras], ["cold plunge"]);
+    expect(pool.length).toBeLessThanOrEqual(12 + 6);
+  });
+});
+
+describe("evergreenSignalInputs", () => {
+  const business = {
+    id: "b1",
+    category: "Health & beauty",
+    region: "NC",
+    city: "Chapel Hill",
+  } as unknown as Business;
+  const watchTerms = ["cold plunge chapel hill", "infrared sauna near me", "ice bath near me"];
+
+  it("turns snapshot watch terms into steady-demand candidates", () => {
+    const rows = evergreenSignalInputs(business, watchTerms, []);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({
+      source: "snapshot",
+      metric_type: "steady_demand",
+      category: "Health & beauty",
+      geo: "US-NC",
+      delta_pct: null,
+    });
+  });
+
+  it("skips terms already present as a scorable trend read, but not ones only present as coverage", () => {
+    const rows = evergreenSignalInputs(business, watchTerms, [
+      { normalized_term: "cold_plunge_chapel_hill", metric_type: "search_interest" },
+      { normalized_term: "infrared_sauna_near_me", metric_type: "news_coverage" },
+    ]);
+    const terms = rows.map((r) => r.term);
+    expect(terms).not.toContain("cold plunge chapel hill");
+    expect(terms).toContain("infrared sauna near me");
+  });
+});
+
+describe("buildInsights for an evergreen pick", () => {
+  it("frames steady demand honestly instead of a fake trend spike", () => {
+    const signal = {
+      id: "s2",
+      source: "snapshot",
+      term: "cold plunge chapel hill",
+      metric_type: "steady_demand",
+      delta_pct: null,
+    } as unknown as Signal;
+    const scored: ScoredOpportunity = {
+      score: 6.8,
+      components: { normalizedDelta: 0.5, serviceMatch: 1, competitorGap: 0.7, historicalLift: 0.5 },
+      matchedService: null,
+      rationale: "",
+      competitorGapText: "",
+    };
+    const insights = buildInsights(signal, scored, { learnings: [] });
+    const momentum = insights.find((i) => i.kind === "momentum")!;
+    expect(momentum.headline).toBe("Steady demand — not a spike");
+  });
+});
+
+describe("applyRelevance round-trip for the breakdown", () => {
+  it("re-applying the persisted relevance reproduces the stored score", () => {
+    const raw: ScoredOpportunity = {
+      score: 6.6,
+      components: { normalizedDelta: 1, serviceMatch: 0.35, competitorGap: 0.6, historicalLift: 0.5 },
+      matchedService: null,
+      rationale: "base",
+      competitorGapText: "",
+    };
+    const stored = applyRelevance(raw, 0.1, "wrong business");
+    const reExplained = applyRelevance(raw, 0.1, "wrong business");
+    expect(reExplained.score).toBe(stored.score);
+    expect(reExplained.components.serviceMatch).toBe(0.1);
+  });
+});
+
+describe("buildInsights on a judged-thin week", () => {
+  const signal = {
+    id: "s1",
+    term: "personal hygiene routines",
+    metric_type: "conversation",
+    delta_pct: 100,
+  } as unknown as Signal;
+  const scored: ScoredOpportunity = {
+    score: 3.1,
+    components: { normalizedDelta: 1, serviceMatch: 0.05, competitorGap: 0.6, historicalLift: 0.5 },
+    matchedService: null,
+    rationale: "",
+    competitorGapText: "",
+  };
+
+  it("replaces the new-offer pitch with the honest fit read", () => {
+    const insights = buildInsights(signal, scored, {
+      learnings: [],
+      unfit: true,
+      snapshotReason: "A contrast-therapy studio has no credible skincare offer.",
+    });
+    const fit = insights.find((i) => i.kind === "fit")!;
+    expect(fit.headline).toBe("Doesn't map to what you sell");
+    expect(fit.detail).toContain("contrast-therapy");
+    expect(insights.some((i) => i.headline === "New offer opportunity")).toBe(false);
+  });
+
+  it("still pitches the new offer when the week is not thin", () => {
+    const insights = buildInsights(signal, scored, { learnings: [] });
+    expect(insights.some((i) => i.headline === "New offer opportunity")).toBe(true);
+  });
+});

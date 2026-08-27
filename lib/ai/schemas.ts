@@ -67,6 +67,28 @@ export const RelevanceSchema = z.object({
 });
 export type RelevanceResult = z.infer<typeof RelevanceSchema>;
 
+export const IntelNoteSchema = z.object({
+  headline: z.string().min(12),
+  narrative: z.array(z.string().min(40)).min(2).max(3),
+  actions: z.array(z.string().min(10)).min(2).max(4),
+});
+export type IntelNoteResult = z.infer<typeof IntelNoteSchema>;
+
+export const ReviewDigestSchema = z.object({
+  themes: z.array(z.string().min(6)).min(1).max(4),
+  copy_hooks: z.array(z.string().min(6)).min(1).max(4),
+  watchouts: z.array(z.string().min(6)).max(3),
+});
+export type ReviewDigestResult = z.infer<typeof ReviewDigestSchema>;
+
+export const AskAnswerSchema = z.object({
+  answer: z.array(z.string().min(20)).min(1).max(3),
+  citations: z.array(z.object({ claim: z.string().min(6), source: z.string().min(3) })).max(6),
+  /** True when the honest answer is "the data doesn't say". */
+  insufficient: z.boolean(),
+});
+export type AskAnswerResult = z.infer<typeof AskAnswerSchema>;
+
 export const HumanizeSchema = z.object({
   terms: z.array(z.string().min(2)).min(1),
 });

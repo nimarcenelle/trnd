@@ -2,24 +2,36 @@ import { randomUUID } from "node:crypto";
 
 import type { Repo } from "../repo";
 import type {
+  Alert,
   Business,
   BusinessBrief,
   Campaign,
   CampaignResult,
+  Competitor,
+  Connection,
   Creative,
+  IntelNote,
   Learning,
+  NewAlert,
   NewBusiness,
   NewCampaign,
   NewBusinessBrief,
   NewCampaignResult,
+  NewCompetitor,
+  NewCompetitorRead,
+  NewConnection,
   NewDemoRequest,
+  NewIntelNote,
   NewLearning,
   NewOpportunity,
+  NewReview,
+  NewReviewDigest,
   NewSeriesPoint,
   NewService,
   NewSignal,
   Opportunity,
   OpportunityStatus,
+  ReviewDigest,
   Service,
   Signal,
 } from "../types";
@@ -218,6 +230,7 @@ export function createDemoRepo(actor: DemoActor): Repo {
           existing.rationale = i.rationale;
           existing.matched_service_id = i.matched_service_id;
           existing.competitor_gap = i.competitor_gap;
+          existing.relevance = i.relevance;
           out.push(existing);
           continue;
         }
@@ -271,6 +284,8 @@ export function createDemoRepo(actor: DemoActor): Repo {
       const campaign: Campaign = {
         ...input,
         status: input.status ?? "draft",
+        external_id: input.external_id ?? null,
+        external_status: input.external_status ?? null,
         id: randomUUID(),
         created_at: nowIso(),
       };
@@ -378,6 +393,218 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (!visibleBusinessIds().has(businessId)) return null;
       // Older stores predate this table.
       return (store.business_briefs ?? []).find((b) => b.business_id === businessId) ?? null;
+    },
+
+    /* ------------------------------ intel notes ---------------------------- */
+    async upsertIntelNote(input: NewIntelNote) {
+      assertOwnsBusiness(input.business_id);
+      store.intel_notes ??= [];
+      const existing = store.intel_notes.find(
+        (n) => n.business_id === input.business_id && n.week_of === input.week_of,
+      );
+      if (existing) {
+        Object.assign(existing, input);
+        saveStore();
+        return existing;
+      }
+      const row: IntelNote = { ...input, id: randomUUID(), created_at: nowIso() };
+      store.intel_notes.push(row);
+      saveStore();
+      return row;
+    },
+    async getIntelNote(businessId, weekOf) {
+      if (!visibleBusinessIds().has(businessId)) return null;
+      return (
+        (store.intel_notes ?? []).find(
+          (n) => n.business_id === businessId && n.week_of === weekOf,
+        ) ?? null
+      );
+    },
+
+    /* ------------------------------ connections --------------------------- */
+    async upsertConnection(input: NewConnection) {
+      assertOwnsBusiness(input.business_id);
+      store.connections ??= [];
+      const existing = store.connections.find(
+        (c) => c.business_id === input.business_id && c.provider === input.provider,
+      );
+      if (existing) {
+        Object.assign(existing, input, { updated_at: nowIso() });
+        saveStore();
+        return existing;
+      }
+      const row: Connection = { ...input, id: randomUUID(), created_at: nowIso(), updated_at: nowIso() };
+      store.connections.push(row);
+      saveStore();
+      return row;
+    },
+    async getConnection(businessId, provider) {
+      if (!visibleBusinessIds().has(businessId)) return null;
+      return (
+        (store.connections ?? []).find(
+          (c) => c.business_id === businessId && c.provider === provider,
+        ) ?? null
+      );
+    },
+    async listConnections(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      return (store.connections ?? []).filter((c) => c.business_id === businessId);
+    },
+    async deleteConnection(businessId, provider) {
+      assertOwnsBusiness(businessId);
+      store.connections = (store.connections ?? []).filter(
+        (c) => !(c.business_id === businessId && c.provider === provider),
+      );
+      saveStore();
+    },
+
+    /* ------------------------------ competitors --------------------------- */
+    async createCompetitor(input: NewCompetitor) {
+      assertOwnsBusiness(input.business_id);
+      store.competitors ??= [];
+      const dupe = store.competitors.find(
+        (c) => c.business_id === input.business_id && c.name.toLowerCase() === input.name.toLowerCase(),
+      );
+      if (dupe) return dupe;
+      const row: Competitor = { ...input, id: randomUUID(), created_at: nowIso() };
+      store.competitors.push(row);
+      saveStore();
+      return row;
+    },
+    async listCompetitors(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      return (store.competitors ?? []).filter((c) => c.business_id === businessId);
+    },
+    async updateCompetitor(id, patch) {
+      const row = (store.competitors ?? []).find((c) => c.id === id);
+      if (!row) throw new OwnershipError(`competitor ${id} not found`);
+      assertOwnsBusiness(row.business_id);
+      Object.assign(row, patch);
+      saveStore();
+      return row;
+    },
+    async deleteCompetitor(id) {
+      const row = (store.competitors ?? []).find((c) => c.id === id);
+      if (!row) return;
+      assertOwnsBusiness(row.business_id);
+      store.competitors = store.competitors.filter((c) => c.id !== id);
+      store.competitor_reads = (store.competitor_reads ?? []).filter((r) => r.competitor_id !== id);
+      saveStore();
+    },
+    async upsertCompetitorReads(inputs: NewCompetitorRead[]) {
+      store.competitor_reads ??= [];
+      let written = 0;
+      for (const i of inputs) {
+        assertOwnsBusiness(i.business_id);
+        const captured = i.captured_at ?? nowIso();
+        const day = captured.slice(0, 10);
+        const exists = store.competitor_reads.some(
+          (r) =>
+            r.competitor_id === i.competitor_id &&
+            r.kind === i.kind &&
+            r.captured_at.slice(0, 10) === day,
+        );
+        if (exists) continue;
+        store.competitor_reads.push({ ...i, id: randomUUID(), captured_at: captured });
+        written += 1;
+      }
+      if (written) saveStore();
+      return written;
+    },
+    async listCompetitorReads(businessId, opts) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      const cutoff = Date.now() - (opts?.sinceDays ?? 30) * 86400_000;
+      return (store.competitor_reads ?? [])
+        .filter((r) => r.business_id === businessId && new Date(r.captured_at).getTime() >= cutoff)
+        .sort((a, b) => b.captured_at.localeCompare(a.captured_at));
+    },
+
+    /* -------------------------------- reviews ----------------------------- */
+    async upsertReviews(inputs: NewReview[]) {
+      store.reviews ??= [];
+      let written = 0;
+      for (const i of inputs) {
+        assertOwnsBusiness(i.business_id);
+        const exists = store.reviews.some(
+          (r) =>
+            r.business_id === i.business_id &&
+            (r.competitor_id ?? null) === (i.competitor_id ?? null) &&
+            r.author === i.author &&
+            r.text === i.text,
+        );
+        if (exists) continue;
+        store.reviews.push({ ...i, id: randomUUID(), captured_at: nowIso() });
+        written += 1;
+      }
+      if (written) saveStore();
+      return written;
+    },
+    async listReviews(businessId, opts) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      return (store.reviews ?? [])
+        .filter(
+          (r) =>
+            r.business_id === businessId &&
+            (opts?.competitorId === undefined || (r.competitor_id ?? null) === opts.competitorId),
+        )
+        .sort((a, b) => (b.published_at ?? b.captured_at).localeCompare(a.published_at ?? a.captured_at));
+    },
+    async upsertReviewDigest(input: NewReviewDigest) {
+      assertOwnsBusiness(input.business_id);
+      store.review_digests ??= [];
+      const existing = store.review_digests.find((d) => d.business_id === input.business_id);
+      if (existing) {
+        Object.assign(existing, input, { created_at: nowIso() });
+        saveStore();
+        return existing;
+      }
+      const row: ReviewDigest = { ...input, id: randomUUID(), created_at: nowIso() };
+      store.review_digests.push(row);
+      saveStore();
+      return row;
+    },
+    async getReviewDigest(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return null;
+      return (store.review_digests ?? []).find((d) => d.business_id === businessId) ?? null;
+    },
+
+    /* -------------------------------- alerts ------------------------------ */
+    async createAlert(input: NewAlert) {
+      assertOwnsBusiness(input.business_id);
+      store.alerts ??= [];
+      const exists = store.alerts.some(
+        (a) => a.business_id === input.business_id && a.dedupe_key === input.dedupe_key,
+      );
+      if (exists) return null;
+      const row: Alert = { ...input, id: randomUUID(), read_at: null, created_at: nowIso() };
+      store.alerts.push(row);
+      saveStore();
+      return row;
+    },
+    async listAlerts(businessId, opts) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      return (store.alerts ?? [])
+        .filter((a) => a.business_id === businessId && (!opts?.unreadOnly || a.read_at === null))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, opts?.limit ?? 50);
+    },
+    async markAlertsRead(businessId, ids) {
+      assertOwnsBusiness(businessId);
+      for (const a of store.alerts ?? []) {
+        if (a.business_id === businessId && a.read_at === null && (!ids || ids.includes(a.id))) {
+          a.read_at = nowIso();
+        }
+      }
+      saveStore();
+    },
+
+    /* ------------------------ campaign platform link ----------------------- */
+    async setCampaignExternal(id, externalId, externalStatus) {
+      const c = campaignOrThrow(id);
+      c.external_id = externalId;
+      c.external_status = externalStatus;
+      saveStore();
+      return c;
     },
 
     /* ------------------------------ marketing ----------------------------- */

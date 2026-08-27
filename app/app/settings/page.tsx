@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import AccountPanel from "@/components/app/account-panel";
 import BusinessSettingsForm from "@/components/app/business-settings-form";
 import { getSessionUser } from "@/lib/auth/session";
 import { getPlanState, PLAN_LABELS, PLAN_PRICES } from "@/lib/billing";
@@ -247,6 +248,14 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             this panel starts selling — checkout, upgrades, and the customer portal included.
           </p>
         )}
+      </section>
+
+      <section className="panel" id="account" style={{ marginBottom: 20 }}>
+        <div className="panel__head">
+          <span className="panel__title">Account</span>
+          <span className="panel__meta">password &amp; data</span>
+        </div>
+        <AccountPanel email={user.email} />
       </section>
 
       <section className="panel">

@@ -33,7 +33,14 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <input id="email" name="email" type="email" placeholder="jordan@yourbusiness.com" autoComplete="email" required />
         </div>
         <div className="field">
-          <label htmlFor="password">Password</label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <label htmlFor="password">Password</label>
+            {mode === "login" && (
+              <Link href="/forgot" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+                Forgot password?
+              </Link>
+            )}
+          </div>
           <input
             id="password"
             name="password"

@@ -138,6 +138,7 @@ export function applyRelevance(
   result: ScoredOpportunity,
   relevance: number,
   reason: string,
+  label = "Snapshot read",
 ): ScoredOpportunity {
   const fit = Math.min(1, Math.max(0, relevance));
   const c = result.components;
@@ -153,7 +154,7 @@ export function applyRelevance(
     components: { ...c, serviceMatch: fit },
     // A "matched service" claim under an irrelevant term reads as nonsense.
     matchedService: fit < 0.3 ? null : result.matchedService,
-    rationale: `${result.rationale} Snapshot read: ${reason}`,
+    rationale: `${result.rationale} ${label}: ${reason}`,
   };
 }
 

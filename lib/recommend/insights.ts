@@ -59,6 +59,16 @@ export function buildInsights(
       headline: `You already sell this`,
       detail: `Maps to ${scored.matchedService.name} — you can promote it with zero new inventory or training.`,
     });
+  } else if (scored.components.serviceMatch < 0.35) {
+    // A mismatch the fit gate kept only because the week was thin. Say so —
+    // dressing it up as a "new offer" is exactly the confident nonsense TRND
+    // exists to avoid.
+    insights.push({
+      kind: "fit",
+      headline: "Outside your lane",
+      detail:
+        "This trend doesn't map to anything you sell — it ranked on momentum in your category, not fit. Skip it unless you actually want to add the offer.",
+    });
   } else {
     insights.push({
       kind: "fit",

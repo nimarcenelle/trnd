@@ -34,8 +34,14 @@ moment its env var lands — no code changes:
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` + keys | Postgres with RLS + Supabase Auth (run `supabase/migrations/` in order, or `supabase db push`) |
 | `GEMINI_API_KEY` | Real model generation (models resolved live, structured output, Zod-validated, falls back on violation) |
+| `STRIPE_SECRET_KEY` + price ids | Billing: hosted checkout, customer portal, webhook-driven plan state, trial enforcement |
 | `YOUTUBE_API_KEY` | YouTube signal adapter |
 | `CRON_SECRET` | Protects `/api/cron/*` (see `vercel.json` for schedules) |
+
+Recommendation fit never depends on a key: a deterministic concept judge
+(`lib/recommend/relevance.ts`) gates every ranking so a BBQ smokehouse is never told to
+advertise espresso martinis; the Gemini judge refines that read when configured.
+`GET /api/health` reports which mode each subsystem is running in.
 
 See `BLOCKED.md` for exactly why each is stubbed in this environment and the seam to
 make it real.

@@ -409,9 +409,9 @@ export default function Home() {
                 <a href="#demo">Request a demo</a>
               </div>
               <div className="foot-col">
-                <h3>Follow</h3>
-                <a href="#">X / Twitter</a>
-                <a href="#">LinkedIn</a>
+                <h3>Legal</h3>
+                <Link href="/terms">Terms of Service</Link>
+                <Link href="/privacy">Privacy Policy</Link>
               </div>
             </div>
           </div>

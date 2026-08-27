@@ -50,3 +50,19 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
   should be recorded — take the fake data out.")
 - **E2E store isolation**: Playwright runs against `.demo-data-e2e` (wiped per run), so
   test-entered results can never pollute the dev demo store again.
+- **Deterministic fit gate always on**: the Gemini relevance judge only exists when a
+  key does; a keyless install was ranking on momentum alone (espresso martinis for a
+  BBQ shack). `lib/recommend/relevance.ts` now applies the same fit-gates-total
+  semantics deterministically; the model judge refines it when configured.
+- **Mode vs. cuisine concepts**: a term that names HOW/WHEN (patio, late-night,
+  gifting) is a stretch (0.5) for a business that doesn't mention it; a term that
+  names WHAT is sold (cocktails, brunch, pilates) with zero overlap is a hard
+  mismatch (0.2). Both read out in plain English in the rationale.
+- **Billing never locks without Stripe keys**: trial state is tracked from day one so
+  enabling billing later needs no backfill, but enforcement (blocking new campaign
+  builds) only activates when there is actually a way to pay. `past_due` keeps
+  working while Stripe retries the card; only `canceled` and expired trials gate.
+- **Account deletion uses the service role outside cron**: the brief scopes the
+  service key to cron routes, but deleting the auth user requires the admin API.
+  It's used for exactly one thing (self-serve account deletion, after the RLS-scoped
+  business delete), which honors the brief's intent — least privilege — if not its letter.

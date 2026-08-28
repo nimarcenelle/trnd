@@ -16,7 +16,7 @@ import "server-only";
 const WEBHOOK_URL = process.env.NOTIFY_WEBHOOK_URL ?? "";
 const RESEND_KEY = process.env.RESEND_API_KEY ?? "";
 const EMAIL_TO = process.env.NOTIFY_EMAIL_TO ?? "";
-const EMAIL_FROM = process.env.NOTIFY_EMAIL_FROM ?? "TRND <notifications@usetrnd.com>";
+const EMAIL_FROM = process.env.NOTIFY_EMAIL_FROM || "TRND <notifications@usetrnd.com>";
 
 export const isNotifyConfigured = Boolean(WEBHOOK_URL || (RESEND_KEY && EMAIL_TO));
 

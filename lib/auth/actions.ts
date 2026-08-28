@@ -90,7 +90,7 @@ export async function magicLinkAction(
   const sb = await createServerSupabase();
   const { error } = await sb.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/auth/callback` },
+    options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || ""}/auth/callback` },
   });
   if (error) return { error: error.message };
   return { notice: "Check your email for the sign-in link." };

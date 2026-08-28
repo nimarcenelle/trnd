@@ -32,7 +32,15 @@ export function buildInsights(
 
   // ---- momentum
   const delta = signal.delta_pct;
-  if (typeof delta === "number") {
+  if (signal.metric_type === "weather_trigger") {
+    // Forecast-derived: the honest framing is a window, not a measured rise.
+    const raw = signal.raw as { detail?: string } | null;
+    insights.push({
+      kind: "momentum",
+      headline: "Weather window · next 7 days",
+      detail: `${raw?.detail ?? "The forecast crosses a seasonal threshold this week."} Demand estimate is forecast-derived, not a measured trend.`,
+    });
+  } else if (typeof delta === "number") {
     const speed =
       delta >= 40
         ? "One of the fastest risers in your category right now."
@@ -58,6 +66,16 @@ export function buildInsights(
       kind: "fit",
       headline: `You already sell this`,
       detail: `Maps to ${scored.matchedService.name} — you can promote it with zero new inventory or training.`,
+    });
+  } else if (scored.components.serviceMatch < 0.35) {
+    // A mismatch the fit gate kept only because the week was thin. Say so —
+    // dressing it up as a "new offer" is exactly the confident nonsense TRND
+    // exists to avoid.
+    insights.push({
+      kind: "fit",
+      headline: "Outside your lane",
+      detail:
+        "This trend doesn't map to anything you sell — it ranked on momentum in your category, not fit. Skip it unless you actually want to add the offer.",
     });
   } else {
     insights.push({

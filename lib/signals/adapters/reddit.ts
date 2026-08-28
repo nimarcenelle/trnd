@@ -66,20 +66,24 @@ export function createRedditAdapter(): SignalAdapter {
     async isAvailable() {
       return !breaker.isOpen;
     },
-    async fetch({ geo }: AdapterFetchInput): Promise<RawSignal[]> {
+    async fetch({ geo, subreddits }: AdapterFetchInput): Promise<RawSignal[]> {
+      // Snapshot-widened list when ingest provides one (stock categories plus
+      // each business's own communities); stock configs otherwise.
+      const subs =
+        subreddits && subreddits.length > 0
+          ? subreddits
+          : CATEGORY_CONFIGS.flatMap((cfg) => cfg.subreddits.map((name) => ({ name, category: cfg.category })));
       const out: RawSignal[] = [];
-      for (const cfg of CATEGORY_CONFIGS) {
-        for (const sub of cfg.subreddits) {
-          if (breaker.isOpen) return out; // partial results beat a dead run
-          try {
-            const listing = await fetchJson<RedditListing>(
-              `https://www.reddit.com/r/${sub}/top.json?t=week&limit=100`,
-              { breaker, headers: { "User-Agent": env.redditUserAgent } },
-            );
-            out.push(...topRedditSignals(listing, cfg.category, geo || "US"));
-          } catch (err) {
-            console.warn(`[signals:reddit] r/${sub} failed:`, (err as Error).message);
-          }
+      for (const { name, category } of subs) {
+        if (breaker.isOpen) return out; // partial results beat a dead run
+        try {
+          const listing = await fetchJson<RedditListing>(
+            `https://www.reddit.com/r/${name}/top.json?t=week&limit=100`,
+            { breaker, headers: { "User-Agent": env.redditUserAgent } },
+          );
+          out.push(...topRedditSignals(listing, category, geo || "US"));
+        } catch (err) {
+          console.warn(`[signals:reddit] r/${name} failed:`, (err as Error).message);
         }
       }
       return out;

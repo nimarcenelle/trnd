@@ -28,14 +28,84 @@ function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** "Facial balancing consult" should never become "… consult consult". */
-function consultName(offerName: string): string {
-  return /consult/i.test(offerName) ? offerName : `${offerName} consult`;
+/**
+ * How each category talks about a first purchase. A restaurant guest orders
+ * a plate; a med-spa client books a consult; a shop customer walks in. Copy
+ * that says "consult — applied to your first visit" about a rib platter is
+ * exactly the generic-AI output the brief calls a bug.
+ */
+interface CategoryVoice {
+  /** Education-angle offer: how a first, low-commitment purchase is framed. */
+  educationOffer: (offerName: string, p: string) => string;
+  /** The booking verb + friction-free close, reused across texts. */
+  ctaLine: string;
+  bookVerb: string;
+  /** Fallback price when no service carries one, by price band. */
+  defaultPrice: Record<string, number>;
 }
 
-function price(service: Service | null): string {
+/** "Facial balancing consult" should never become "… consult consult". */
+const consultName = (offerName: string, word: string) =>
+  new RegExp(word, "i").test(offerName) ? offerName : `${offerName} ${word}`;
+
+const CATEGORY_VOICE: Record<string, CategoryVoice> = {
+  "Restaurants & cafés": {
+    educationOffer: (o, p) => `${o} — ${p}, this week only`,
+    ctaLine: "Reserve in two taps — or just walk in.",
+    bookVerb: "Reserve",
+    defaultPrice: { $: 12, $$: 24, $$$: 55 },
+  },
+  "Home services": {
+    educationOffer: (o, p) => `${consultName(o, "assessment")} — ${p}, credited to the job`,
+    ctaLine: "Book online in two minutes — no phone tag.",
+    bookVerb: "Book",
+    defaultPrice: { $: 79, $$: 149, $$$: 299 },
+  },
+  "Health & beauty": {
+    educationOffer: (o, p) => `${consultName(o, "consult")} — ${p}, applied to your first visit`,
+    ctaLine: "Book online in two minutes — no phone tag.",
+    bookVerb: "Book",
+    defaultPrice: { $: 39, $$: 89, $$$: 199 },
+  },
+  "Fitness studios": {
+    educationOffer: (o, p) => `Intro ${o.toLowerCase()} session — ${p}`,
+    ctaLine: "Grab a spot in two taps — first-timers welcome.",
+    bookVerb: "Book",
+    defaultPrice: { $: 15, $$: 29, $$$: 59 },
+  },
+  "Retail & boutiques": {
+    educationOffer: (o, p) => `${o} — ${p}, in store and going fast`,
+    ctaLine: "Come see it in person — we'll hold it for 24 hours.",
+    bookVerb: "Shop",
+    defaultPrice: { $: 25, $$: 48, $$$: 120 },
+  },
+  "Auto services": {
+    educationOffer: (o, p) => `${consultName(o, "inspection")} — ${p}, waived with the work`,
+    ctaLine: "Book online in two minutes — real quote, no upsell.",
+    bookVerb: "Schedule",
+    defaultPrice: { $: 49, $$: 99, $$$: 249 },
+  },
+  "Dental & wellness": {
+    educationOffer: (o, p) => `${consultName(o, "consult")} — ${p}, applied to treatment`,
+    ctaLine: "Book online in two minutes — no phone tag.",
+    bookVerb: "Book",
+    defaultPrice: { $: 59, $$: 129, $$$: 249 },
+  },
+};
+
+const FALLBACK_VOICE: CategoryVoice = {
+  educationOffer: (o, p) => `First ${o.toLowerCase()} — ${p}`,
+  ctaLine: "Book online in two minutes — no phone tag.",
+  bookVerb: "Book",
+  defaultPrice: { $: 29, $$: 49, $$$: 99 },
+};
+
+const voiceFor = (category: string): CategoryVoice => CATEGORY_VOICE[category] ?? FALLBACK_VOICE;
+
+function price(service: Service | null, business: Business): string {
   if (service?.price_cents) return `$${Math.round(service.price_cents / 100)}`;
-  return "$49";
+  const v = voiceFor(business.category);
+  return `$${v.defaultPrice[business.price_band ?? "$$"] ?? v.defaultPrice["$$"]}`;
 }
 
 function deltaPhrase(signal: Signal): string {
@@ -62,15 +132,16 @@ export function generateFallbackCampaign(ctx: Ctx): GenerationResult {
   const term = signal.term.toLowerCase();
   const offerName = service?.name ?? cap(term);
   const city = business.city;
-  const p = price(service);
+  const p = price(service, business);
   const angleType = pickAngleType(ctx);
   const radius = business.radius_miles;
+  const voice = voiceFor(business.category);
 
   const angleByType: Record<AngleType, { angle: string; hook: string; offer: string }> = {
     education: {
       angle: `Most people searching "${term}" don't need more — they need it done right. Position ${business.name} as the place in ${city} that explains before it sells.`,
       hook: `Three things nobody tells you about ${term}.`,
-      offer: `${consultName(offerName)} — ${p}, applied to your first visit`,
+      offer: voice.educationOffer(offerName, p),
     },
     offer: {
       angle: `Interest in ${term} is ${deltaPhrase(signal)} and almost nobody in ${city} is advertising it. A clear first-timer offer wins the click.`,
@@ -90,7 +161,7 @@ export function generateFallbackCampaign(ctx: Ctx): GenerationResult {
     speed: {
       angle: `Searches for ${term} are ${deltaPhrase(signal)} — these are people who want it handled now. Answer with speed, not a brochure.`,
       hook: `Need ${term}? Booked by tonight.`,
-      offer: `Same-week ${offerName} — book in two taps`,
+      offer: `Same-week ${offerName} — ${voice.bookVerb.toLowerCase()} in two taps`,
     },
     novelty: {
       angle: `${cap(term)} is new enough that no one in ${city} owns it yet. First mover gets the association.`,
@@ -134,7 +205,7 @@ export function generateFallbackCampaign(ctx: Ctx): GenerationResult {
         `${business.name}: the ${city} answer to ${term}.`,
       ],
       primary_texts: [
-        `${cap(term)} is having a moment — ${deltaPhrase(signal)}. Most places will wait a quarter to react. ${business.name} isn't most places. ${a.offer}. Book in two minutes, no phone tag.`,
+        `${cap(term)} is having a moment — ${deltaPhrase(signal)}. Most places will wait a quarter to react. ${business.name} isn't most places. ${a.offer}. ${voice.ctaLine}`,
         `Not a trend chase. Not a gimmick. ${cap(term)} is what your neighbors in ${city} are actually looking for this week — and ${business.name} already does it well. ${a.offer}.`,
         `You've seen ${term} everywhere. Here's the version worth your money — done by people who do it every day at ${business.name} in ${city}. ${a.offer}.`,
       ],
@@ -144,11 +215,11 @@ export function generateFallbackCampaign(ctx: Ctx): GenerationResult {
         `HOOK (0-3s): "${city}: stop scrolling if you've been thinking about ${term}."\nLIST (3-20s): Three quick things to know before you book anywhere — genuinely useful, no pitch.\nTURN (20-27s): "That's how we do it at ${business.name}."\nCTA (27-30s): "${a.offer}."`,
       ],
       static_briefs: [
-        `IMAGE: Tight, real photo of ${term} in progress at ${business.name} — no stock. TEXT OVERLAY: "${a.hook}" BOTTOM BAR: ${a.offer} · ${city}. Amber CTA button: "Book now".`,
+        `IMAGE: Tight, real photo of ${term} in progress at ${business.name} — no stock. TEXT OVERLAY: "${a.hook}" BOTTOM BAR: ${a.offer} · ${city}. Amber CTA button: "${voice.bookVerb} now".`,
         `IMAGE: Split frame — "what you've heard" vs "what it actually is". TEXT OVERLAY: "${cap(term)}, minus the noise." FOOTER: ${business.name}, ${city} · ${a.offer}.`,
-        `IMAGE: The owner or lead practitioner, facing camera, workspace visible. TEXT OVERLAY: "The ${city} spot for ${term}." FOOTER: ${a.offer} · Book in two minutes.`,
+        `IMAGE: The owner or lead practitioner, facing camera, workspace visible. TEXT OVERLAY: "The ${city} spot for ${term}." FOOTER: ${a.offer} · ${voice.ctaLine}`,
       ],
-      landing_copy: `# ${a.hook}\n\n${cap(term)} is ${deltaPhrase(signal)} in ${city} — and most places haven't noticed yet. ${business.name} has.\n\nNot a sales pitch. A straight answer: what ${term} is, whether it's right for you, and what it costs here — ${a.offer}.\n\n**Why ${business.name}**\n— We already do this, every week, for people in ${city}.\n— One clear price. No follow-up chase.\n— Book online in two minutes.\n\n[Book now — ${a.offer}]`,
+      landing_copy: `# ${a.hook}\n\n${cap(term)} is ${deltaPhrase(signal)} in ${city} — and most places haven't noticed yet. ${business.name} has.\n\nNot a sales pitch. A straight answer: what ${term} is, whether it's right for you, and what it costs here — ${a.offer}.\n\n**Why ${business.name}**\n— We already do this, every week, for people in ${city}.\n— One clear price. No follow-up chase.\n— ${voice.ctaLine}\n\n[${voice.bookVerb} now — ${a.offer}]`,
     },
   };
 

@@ -84,6 +84,54 @@ export function demoSignIn(
   return { user };
 }
 
+export function demoChangePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): { ok: true } | { error: string } {
+  const store = loadStore();
+  const user = store.users.find((u) => u.id === userId);
+  if (!user) return { error: "Account not found." };
+  const attempt = Buffer.from(hashPassword(currentPassword, user.salt), "hex");
+  const actual = Buffer.from(user.password_hash, "hex");
+  if (attempt.length !== actual.length || !timingSafeEqual(attempt, actual)) {
+    return { error: "Current password is wrong." };
+  }
+  if (newPassword.length < 8) return { error: "New password must be at least 8 characters." };
+  user.salt = randomBytes(16).toString("hex");
+  user.password_hash = hashPassword(newPassword, user.salt);
+  saveStore();
+  return { ok: true };
+}
+
+/**
+ * Full account deletion — the demo-mode mirror of the FK cascade the SQL
+ * schema does: user, profile, their businesses, and everything hanging off
+ * those businesses. Shared market data (signals, learnings) stays.
+ */
+export function demoDeleteUser(userId: string): void {
+  const store = loadStore();
+  const businessIds = new Set(
+    store.businesses.filter((b) => b.owner_id === userId).map((b) => b.id),
+  );
+  const campaignIds = new Set(
+    store.campaigns.filter((c) => businessIds.has(c.business_id)).map((c) => c.id),
+  );
+  store.users = store.users.filter((u) => u.id !== userId);
+  store.profiles = store.profiles.filter((p) => p.id !== userId);
+  store.businesses = store.businesses.filter((b) => !businessIds.has(b.id));
+  store.services = store.services.filter((s) => !businessIds.has(s.business_id));
+  store.opportunities = store.opportunities.filter((o) => !businessIds.has(o.business_id));
+  store.campaigns = store.campaigns.filter((c) => !campaignIds.has(c.id));
+  store.creatives = store.creatives.filter((c) => !campaignIds.has(c.campaign_id));
+  store.campaign_results = store.campaign_results.filter((r) => !campaignIds.has(r.campaign_id));
+  store.business_briefs = store.business_briefs.filter((b) => !businessIds.has(b.business_id));
+  store.subscriptions = (store.subscriptions ?? []).filter(
+    (s) => !businessIds.has(s.business_id),
+  );
+  saveStore();
+}
+
 export function createSessionToken(userId: string): string {
   const exp = Date.now() + SESSION_TTL_MS;
   const payload = `${userId}.${exp}`;

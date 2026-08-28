@@ -33,6 +33,18 @@ export async function POST(req: Request): Promise<Response> {
   if (!opportunityId) return line({ type: "error", reason: "Missing opportunity." }, 400);
 
   const repo = await getUserRepo(user.id);
+
+  // Plan gate: an ended trial (with billing live) stops NEW builds only —
+  // existing campaigns stay readable and exportable.
+  const business = await repo.getBusinessByOwner(user.id);
+  if (business) {
+    const { getPlanState } = await import("@/lib/billing");
+    const plan = await getPlanState(repo, business);
+    if (plan.locked) {
+      return line({ type: "error", reason: `${plan.lockedReason} Upgrade in Settings → Billing.` }, 402);
+    }
+  }
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {

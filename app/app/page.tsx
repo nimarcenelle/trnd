@@ -21,6 +21,7 @@ import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
 import { isGeminiConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
+import { geoLabel } from "@/lib/signals/geo";
 import { titleCase } from "@/lib/text";
 
 export const metadata = { title: "This week — TRND" };
@@ -360,7 +361,7 @@ export default async function AppHome() {
           <div className="panel__head">
             <span className="panel__title mint">Demand — {series.length >= 14 ? "30 days" : "this week"}</span>
             <span className="panel__meta">
-              {signal ? `${signal.normalized_term.replace(/_/g, " ")} · ${signal.geo}` : ""}
+              {signal ? `${signal.normalized_term.replace(/_/g, " ")} · ${geoLabel(signal.geo)}` : ""}
               {signal?.source === "seed" ? " · illustrative" : ""}
             </span>
           </div>

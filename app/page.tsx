@@ -275,7 +275,7 @@ export default function Home() {
             <span className="eyebrow">Pricing</span>
             <h2>No agency retainer. No annual contract.</h2>
             <p>
-              Month to month, priced so it makes sense at $30 a day of ad spend. Cancel anytime —
+              Month to month, priced to pay for itself with one landed campaign. Cancel anytime —
               the campaigns you generated are yours.
             </p>
           </div>
@@ -285,7 +285,7 @@ export default function Home() {
               <span className="tier__badge">Baseline</span>
               <h3 className="tier__name">TRND</h3>
               <div className="tier__price">
-                $49<small>/ MO</small>
+                $250<small>/ MO</small>
               </div>
               <p className="tier__promise">
                 The insights to power your next winning ad campaign. That&apos;s the promise.
@@ -306,7 +306,7 @@ export default function Home() {
               <span className="tier__badge">● Pro — early access</span>
               <h3 className="tier__name">TRND Pro</h3>
               <div className="tier__price">
-                $149<small>/ MO</small>
+                $500<small>/ MO</small>
               </div>
               <p className="tier__promise">
                 Your ideator and your analyst. Synced with your ads platform, reading performance
@@ -409,9 +409,9 @@ export default function Home() {
                 <a href="#demo">Request a demo</a>
               </div>
               <div className="foot-col">
-                <h3>Follow</h3>
-                <a href="#">X / Twitter</a>
-                <a href="#">LinkedIn</a>
+                <h3>Legal</h3>
+                <Link href="/terms">Terms of Service</Link>
+                <Link href="/privacy">Privacy Policy</Link>
               </div>
             </div>
           </div>

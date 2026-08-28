@@ -15,6 +15,8 @@ interface SeedTerm {
   delta_pct: number;
   value: number;
   geo?: string;
+  /** Extra raw payload (weather triggers carry their plain-English detail). */
+  raw?: Record<string, unknown>;
 }
 
 export const SEED_TERMS: SeedTerm[] = [
@@ -79,6 +81,21 @@ export const SEED_TERMS: SeedTerm[] = [
   { term: "fleet oil change plans", category: "Auto services", metric_type: "search_interest", delta_pct: 17, value: 41 },
   { term: "headlight restoration", category: "Auto services", metric_type: "search_interest", delta_pct: 26, value: 45 },
   { term: "paint protection film cost", category: "Auto services", metric_type: "search_interest", delta_pct: 35, value: 62 },
+
+  // Weather-trigger examples (live rows come from the Open-Meteo adapter,
+  // per metro; these illustrate the shape in demo mode)
+  {
+    term: "ac tune up before the heat", category: "Home services", metric_type: "weather_trigger", delta_pct: 45, value: 33,
+    raw: { kind: "heat_wave", detail: "First real heat of the season — 91°F forecast this week after two weeks under 84°F.", heuristic_delta: true },
+  },
+  {
+    term: "first patio weekend", category: "Restaurants & cafés", metric_type: "weather_trigger", delta_pct: 25, value: 4,
+    raw: { kind: "patio_window", detail: "4 clear, mild days forecast this week after a week that offered almost none.", heuristic_delta: true },
+  },
+  {
+    term: "car wash and detail window", category: "Auto services", metric_type: "weather_trigger", delta_pct: 25, value: 26,
+    raw: { kind: "dry_window", detail: "Dry days ahead after 26mm of rain last week — the classic wash-and-detail rebound.", heuristic_delta: true },
+  },
 
   // Dental & wellness
   { term: "invisalign open house", category: "Dental & wellness", metric_type: "booking_intent", delta_pct: 28, value: 60 },
@@ -146,7 +163,7 @@ export function buildSeedSignals(capturedAt = new Date()): NewSignal[] {
     delta_pct: t.delta_pct,
     window_days: 7,
     captured_at: capturedAt.toISOString(),
-    raw: { seeded: true },
+    raw: { seeded: true, ...(t.raw ?? {}) },
   }));
 }
 

@@ -24,6 +24,16 @@ Each is implemented behind its interface and registered unavailable at runtime.
   fixture-based unit tests; the ingest job degrades to partial results per the brief.
 - **Seam**: none needed — run `pnpm job:ingest` from any machine with normal egress.
 
+## Stripe billing
+- No Stripe keys in this environment, so checkout/portal/webhook are implemented but
+  dormant: plan state tracks a 14-day trial from day one, and nothing ever locks while
+  billing is unconfigured (an install with no way to pay must not brick itself).
+- **Seam**: create two recurring prices ($49 baseline, $149 pro), fill
+  `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_BASELINE`,
+  `STRIPE_PRICE_PRO`, and point a webhook at `/api/stripe/webhook` with
+  `checkout.session.completed` + `customer.subscription.updated/deleted`. Settings →
+  Billing goes live and trial expiry starts gating new campaign builds.
+
 ## Vercel deploy
 - No Vercel credentials; config is present (`vercel.json` with cron schedules) but no
   deploy was attempted, per the brief.

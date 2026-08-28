@@ -14,6 +14,7 @@ import type {
   Service,
   Signal,
   SignalSeriesPoint,
+  Subscription,
 } from "../types";
 
 function throwIf(error: { message: string } | null, ctx: string): void {
@@ -110,7 +111,9 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       const sinceDays = opts?.sinceDays ?? 14;
       const cutoff = new Date(Date.now() - sinceDays * 86400_000).toISOString();
       let q = sb.from("signals").select("*").eq("category", category).gte("captured_at", cutoff);
-      if (opts?.geo) q = q.in("geo", [opts.geo, "US"]);
+      // National rows, the business's state, and any metro inside it
+      // ("US-GA-524" for a "US-GA" query) rank together.
+      if (opts?.geo) q = q.or(`geo.eq.US,geo.eq.${opts.geo},geo.like.${opts.geo}-%`);
       const { data, error } = await q.order("delta_pct", { ascending: false });
       throwIf(error, "listSignalsForCategory");
       return (data ?? []) as Signal[];
@@ -312,6 +315,34 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .maybeSingle();
       throwIf(error, "getBusinessBrief");
       return (data as BusinessBrief | null) ?? null;
+    },
+
+    async getSubscription(businessId) {
+      const { data, error } = await sb
+        .from("subscriptions")
+        .select("*")
+        .eq("business_id", businessId)
+        .maybeSingle();
+      throwIf(error, "getSubscription");
+      return (data as Subscription | null) ?? null;
+    },
+    async upsertSubscription(input) {
+      const { data, error } = await sb
+        .from("subscriptions")
+        .upsert({ ...input, updated_at: new Date().toISOString() }, { onConflict: "business_id" })
+        .select()
+        .single();
+      throwIf(error, "upsertSubscription");
+      return data as Subscription;
+    },
+    async getSubscriptionByStripeId(stripeSubscriptionId) {
+      const { data, error } = await sb
+        .from("subscriptions")
+        .select("*")
+        .eq("stripe_subscription_id", stripeSubscriptionId)
+        .maybeSingle();
+      throwIf(error, "getSubscriptionByStripeId");
+      return (data as Subscription | null) ?? null;
     },
 
     async insertDemoRequest(input) {

@@ -82,6 +82,14 @@ export async function completeOnboardingAction(
     photo_urls: photoUrls,
   });
 
+  // Start the 14-day trial clock the moment the business exists.
+  try {
+    const { getOrCreateSubscription } = await import("@/lib/billing");
+    await getOrCreateSubscription(repo, business);
+  } catch (err) {
+    console.warn("[onboarding] trial subscription init failed (non-fatal):", (err as Error).message);
+  }
+
   const createdServices = await repo.createServices(
     cleanServices.map((s) => {
       const parsed = Math.round(parseFloat(s.price.replace(/[^0-9.]/g, "")) * 100);
@@ -100,6 +108,18 @@ export async function completeOnboardingAction(
   // model a minute, so it's written AFTER the redirect: the owner lands on
   // the dashboard immediately and the snapshot fills in behind them. The
   // site text the import already fetched feeds it, so no refetch here.
+  after(() =>
+    import("@/lib/notify").then(({ notifyFounder }) =>
+      notifyFounder({
+        kind: "signup",
+        email: user.email,
+        businessName: business.name,
+        category: business.category,
+        city: business.city,
+      }),
+    ),
+  );
+
   const siteText = String(formData.get("site_text") ?? "").slice(0, 12_000) || undefined;
   after(async () => {
     try {

@@ -2,6 +2,9 @@ import type { Repo } from "@/lib/db/repo";
 import type { Business, NewOpportunity } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity } from "@/lib/scoring";
+import { localityFor } from "@/lib/signals/geo";
+
+import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
 /** Monday (UTC) of the week containing `d` — the opportunity week key. */
 export function weekOf(d = new Date()): string {
@@ -12,8 +15,9 @@ export function weekOf(d = new Date()): string {
 }
 
 const TOP_N = 5;
-/** Wider pool for the relevance pass — a relevant #9 can outrank a junk #1. */
-const CANDIDATE_POOL = 12;
+/** Wider pool for the relevance pass — a relevant #15 can outrank a junk #1
+ * now that per-business watchlists put more genuinely-relevant terms in play. */
+const CANDIDATE_POOL = 20;
 
 /**
  * "personal hygiene routines" and "hygiene routines" are the same trend
@@ -88,20 +92,48 @@ export async function recommendForBusiness(
   let scored = scorable
     .map((signal) => ({
       signal,
-      result: scoreOpportunity(signal, services, learnings, {
-        coverageCount: coverage.get(signal.normalized_term) ?? null,
-        adCount: adCountFor(signal.normalized_term),
-      }),
+      result: scoreOpportunity(
+        signal,
+        services,
+        learnings,
+        {
+          coverageCount: coverage.get(signal.normalized_term) ?? null,
+          adCount: adCountFor(signal.normalized_term),
+        },
+        // Demand measured in the business's own metro or state outranks the
+        // same demand measured nationally.
+        { locality: localityFor(signal.geo, business.region) },
+      ),
     }))
     .sort((a, b) => b.result.score - a.result.score)
     .slice(0, CANDIDATE_POOL);
+
+  const brief = await repo.getBusinessBrief(business.id);
+
+  // Deterministic fit gate — always on, key or no key. Category matching
+  // says an espresso-martini trend "fits" a BBQ smokehouse because both are
+  // restaurants; the concept judge knows better, and momentum alone must
+  // never carry a mismatched trend to #1. The model judge below refines
+  // this read when a key is present.
+  const fitCtx = buildBusinessFitContext(business, services, brief);
+  scored = scored
+    .map((entry) => {
+      const j = judgeTermRelevance(entry.signal.term, business.category, fitCtx);
+      return { ...entry, result: applyRelevance(entry.result, j.relevance, j.reason, "Fit read") };
+    })
+    .sort((a, b) => b.result.score - a.result.score);
+  {
+    // Mismatched trends drop off the list entirely — unless the whole pool
+    // mismatches, in which case the least-bad few stay, honestly graded C.
+    const fitOk = scored.filter((e) => e.result.components.serviceMatch >= 0.4);
+    if (fitOk.length >= 2) scored = fitOk;
+  }
 
   // Snapshot-aware relevance pass: category matching says "teeth whitening"
   // fits a contrast-therapy studio; the founding analysis knows better. One
   // Flash call re-judges the candidate pool against what the business
   // actually sells and who its customers are.
   if (isGeminiConfigured && scored.length > 0) {
-    const brief = await repo.getBusinessBrief(business.id);
     if (brief) {
       let judgments: Awaited<ReturnType<typeof import("@/lib/ai/gemini").judgeSignalRelevance>> | null = null;
       for (let attempt = 0; attempt < 2 && !judgments; attempt++) {

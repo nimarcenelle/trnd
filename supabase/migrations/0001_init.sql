@@ -102,11 +102,14 @@ create table public.signals (
   delta_pct        numeric,
   window_days      integer not null default 7,
   captured_at      timestamptz not null default now(),
+  -- The UTC day, stored: a bare captured_at::date depends on the session
+  -- timezone, which Postgres rejects in an index expression (42P17).
+  captured_day     date not null generated always as (((captured_at at time zone 'utc'))::date) stored,
   raw              jsonb
 );
 alter table public.signals enable row level security;
 create unique index signals_daily_uniq
-  on public.signals (source, normalized_term, geo, (captured_at::date));
+  on public.signals (source, normalized_term, geo, captured_day);
 create index signals_category_idx on public.signals (category, captured_at desc);
 
 create policy "signals: authenticated read" on public.signals

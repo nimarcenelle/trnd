@@ -17,11 +17,13 @@ export type Category = (typeof CATEGORIES)[number];
 
 export type SignalSource =
   | "google_trends"
+  | "google_suggest"
   | "reddit"
   | "youtube"
   | "news"
   | "tiktok"
   | "meta_ads"
+  | "weather"
   | "seed";
 export type OpportunityStatus = "new" | "accepted" | "dismissed" | "launched";
 export type CampaignStatus = "draft" | "exported" | "live" | "complete";
@@ -182,12 +184,41 @@ export interface BusinessBrief {
   watchouts: string[];
   /** 2-4 concrete first campaigns to run, named against real services. */
   first_moves: string[];
-  /** 5-8 search phrases this business's customers actually use — the
+  /** 18-30 search phrases this business's customers actually use — the
    * personalized demand watchlist signal ingestion rides. */
   watch_terms: string[];
+  /** 12-24 keywords/stems specific to what THIS business sells — the
+   * classification vocabulary the fit judge uses beyond the category's
+   * stock concept map. Empty on briefs written before brief-5. */
+  lexicon: string[];
+  /** 3-6 subreddit names (no r/ prefix) where this business's customers
+   * actually talk — read alongside the category's stock list. */
+  subreddits: string[];
   model_used: string;
   prompt_version: string;
   created_at: string;
+}
+
+export type PlanId = "trial" | "baseline" | "pro";
+export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled";
+
+/**
+ * One row per business. Every business starts on a 14-day trial; Stripe
+ * webhooks move it to a paid plan. The row exists (and the trial clock runs)
+ * even before Stripe is configured, so turning billing on later never
+ * requires a backfill.
+ */
+export interface Subscription {
+  id: string;
+  business_id: string;
+  plan: PlanId;
+  status: SubscriptionStatus;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  current_period_end: string | null;
+  trial_ends_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DemoRequest {
@@ -217,3 +248,4 @@ export type NewCampaignResult = Omit<CampaignResult, "id" | "recorded_at">;
 export type NewLearning = Omit<Learning, "id" | "updated_at">;
 export type NewBusinessBrief = Omit<BusinessBrief, "id" | "created_at">;
 export type NewDemoRequest = Omit<DemoRequest, "id" | "created_at">;
+export type NewSubscription = Omit<Subscription, "id" | "created_at" | "updated_at">;

@@ -33,7 +33,14 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <input id="email" name="email" type="email" placeholder="jordan@yourbusiness.com" autoComplete="email" required />
         </div>
         <div className="field">
-          <label htmlFor="password">Password</label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <label htmlFor="password">Password</label>
+            {mode === "login" && (
+              <Link href="/forgot" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+                Forgot password?
+              </Link>
+            )}
+          </div>
           <input
             id="password"
             name="password"
@@ -53,6 +60,13 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         >
           {pending ? "One moment…" : mode === "login" ? "Sign in" : "Create account"}
         </button>
+        {mode === "signup" && (
+          <p style={{ fontSize: 11.5, color: "var(--ink-faint)", margin: "12px 0 0", textAlign: "center", lineHeight: 1.5 }}>
+            By creating an account you agree to the{" "}
+            <Link href="/terms" style={{ color: "var(--ink-faint)", textDecoration: "underline" }}>Terms</Link> and{" "}
+            <Link href="/privacy" style={{ color: "var(--ink-faint)", textDecoration: "underline" }}>Privacy Policy</Link>.
+          </p>
+        )}
       </form>
 
       {mode === "login" && (

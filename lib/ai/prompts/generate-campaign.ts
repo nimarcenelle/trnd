@@ -1,6 +1,6 @@
 import type { Business, BusinessBrief, Opportunity, Service, Signal } from "@/lib/db/types";
 
-export const PROMPT_VERSION = "gemini-3";
+export const PROMPT_VERSION = "gemini-4";
 
 export interface PromptCtx {
   business: Business;
@@ -42,23 +42,59 @@ function signalBlock({ signal, opportunity }: PromptCtx): string {
     .join("\n");
 }
 
-/** Call 2 of the brief — buildAngle. */
-export function buildAnglePrompt(ctx: PromptCtx): string {
+const ANGLE_FIELDS = (ctx: PromptCtx) => [
+  "- angle: the specific claim the ad makes and why it wins now (2-3 sentences).",
+  "- hook: the first line that stops the scroll — use the words customers themselves",
+  "  use for this trend, not marketing vocabulary.",
+  "- offer: a concrete offer with a real price (use the matched service's actual",
+  "  price when there is one) or unmistakably clear terms.",
+  "- audience: who to target and why — pick the snapshot customer segment this",
+  "  trend actually reaches; include angle_type, one of:",
+  "  education | offer | scarcity | social_proof | speed | novelty.",
+  `- audience.radius_miles must be ${ctx.business.radius_miles}.`,
+];
+
+/** Call 2 of the brief — an angle slate. Three genuinely different ways to
+ * ride the signal, so the judge picks the best instead of the first. */
+export function buildAngleSlatePrompt(ctx: PromptCtx): string {
   return [
     businessBlock(ctx),
     "",
     signalBlock(ctx),
     "",
-    "Build the positioning for one ad campaign this week:",
-    "- angle: the specific claim the ad makes and why it wins now (2-3 sentences).",
-    "- hook: the first line that stops the scroll — use the words customers themselves",
-    "  use for this trend, not marketing vocabulary.",
-    "- offer: a concrete offer with a real price (use the matched service's actual",
-    "  price when there is one) or unmistakably clear terms.",
-    "- audience: who to target and why — pick the snapshot customer segment this",
-    "  trend actually reaches; include angle_type, one of:",
-    "  education | offer | scarcity | social_proof | speed | novelty.",
-    `- audience.radius_miles must be ${ctx.business.radius_miles}.`,
+    "Build THREE genuinely different positionings for one ad campaign this week —",
+    "three distinct routes into the same demand, not three phrasings of one idea.",
+    "Each must use a different angle_type, attack from a different motive (e.g. one",
+    "hijacks the trend's own comparison, one leads with the offer, one educates),",
+    "and stand alone as a campaign an owner would run. For each angle return:",
+    ...ANGLE_FIELDS(ctx),
+    "",
+    "Order them however you like — a separate judge picks the winner.",
+  ].join("\n");
+}
+
+/** Flash judge: pick the slate's winner against the signal and the snapshot. */
+export function buildAngleJudgePrompt(
+  ctx: PromptCtx,
+  angles: { angle: string; hook: string; offer: string; audience: { angle_type: string } }[],
+): string {
+  return [
+    businessBlock(ctx),
+    "",
+    signalBlock(ctx),
+    "",
+    "Three candidate ad angles follow. Pick the ONE a sharp local marketer would",
+    "actually run this week. Judge: does the hook stop the scroll for THIS trend's",
+    "audience; is the claim credible from THIS business specifically; is the offer",
+    "concrete enough to act on; does it avoid the snapshot's watchouts. Prefer the",
+    "angle a competitor is least able to copy next week.",
+    "Return winner (0, 1, or 2) and reason (one sentence, shown in logs).",
+    "",
+    "CANDIDATES:",
+    ...angles.map(
+      (a, i) =>
+        `${i}. [${a.audience.angle_type}] HOOK: ${a.hook} | OFFER: ${a.offer} | ANGLE: ${a.angle}`,
+    ),
   ].join("\n");
 }
 

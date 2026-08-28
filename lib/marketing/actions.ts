@@ -1,6 +1,9 @@
 "use server";
 
+import { after } from "next/server";
+
 import { getAnonRepo } from "@/lib/db";
+import { notifyFounder } from "@/lib/notify";
 
 export interface DemoRequestState {
   ok?: boolean;
@@ -29,5 +32,17 @@ export async function submitDemoRequestAction(
     category: category || null,
     monthly_spend: monthlySpend || null,
   });
+  // A lead that lands silently in a table is a lead lost — tell the founder,
+  // after the response so the form never waits on it.
+  after(() =>
+    notifyFounder({
+      kind: "demo_request",
+      fullName,
+      email,
+      businessName,
+      category: category || null,
+      monthlySpend: monthlySpend || null,
+    }),
+  );
   return { ok: true };
 }

@@ -12,10 +12,17 @@ export const env = {
   youtubeApiKey: process.env.YOUTUBE_API_KEY ?? "",
   redditUserAgent: process.env.REDDIT_USER_AGENT ?? "trnd-signal/0.1 (by /u/trnd)",
   cronSecret: process.env.CRON_SECRET ?? "",
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+  stripePriceBaseline: process.env.STRIPE_PRICE_BASELINE ?? "",
+  stripePricePro: process.env.STRIPE_PRICE_PRO ?? "",
 };
 
 export const isSupabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey);
 export const isGeminiConfigured = Boolean(env.geminiApiKey);
+/** Billing switches on with a secret key + at least the baseline price id. */
+export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePriceBaseline);
 
 let warned = false;
 /** One loud console note per process, so demo mode is never silent. */

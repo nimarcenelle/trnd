@@ -19,3 +19,6 @@ export async function POST(request: NextRequest) {
   const summary = await runIngest(getAdminRepo());
   return NextResponse.json(summary);
 }
+
+// Vercel Cron invokes with GET (same Bearer CRON_SECRET header).
+export const GET = POST;

@@ -14,3 +14,6 @@ export async function POST(request: NextRequest) {
   const results = await runRecommend(getAdminRepo());
   return NextResponse.json({ businesses: results.length, results });
 }
+
+// Vercel Cron invokes with GET (same Bearer CRON_SECRET header).
+export const GET = POST;

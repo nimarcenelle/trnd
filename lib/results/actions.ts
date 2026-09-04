@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 
-import { blendLearning, computeCpaCents, computeCtr, computeLift } from "./compute";
+import { recordCampaignResult } from "./record";
 
 export interface ResultFormState {
   error?: string;
@@ -48,47 +48,9 @@ export async function submitResultAction(
     return { error: "Enter at least one number." };
   }
 
-  await repo.insertCampaignResult({
-    campaign_id: campaign.id,
-    impressions: input.impressions,
-    clicks: input.clicks,
-    spend_cents: input.spend_cents,
-    bookings: input.bookings,
-    revenue_cents: input.revenue_cents,
-    ctr: computeCtr(input),
-    cpa_cents: computeCpaCents(input),
-    source: "manual",
-  });
-
-  if (campaign.status === "live") {
-    await repo.setCampaignStatus(campaign.id, "complete");
-  }
-
-  // ---- learnings write-back (the flywheel) ----
-  const business = await repo.getBusiness(campaign.business_id);
-  if (business) {
-    const angleType = campaign.audience.angle_type ?? "offer";
-    const geoBucket = business.country || "US";
-    const observed = computeLift(input);
-    const existing = (await repo.listLearnings(business.category, geoBucket)).find(
-      (l) => l.angle_type === angleType,
-    );
-    // A seeded prior is illustrative — the first real result REPLACES it
-    // rather than blending truth with sample data.
-    const blendBase =
-      existing && existing.source === "measured"
-        ? { lift: Number(existing.lift), sample_size: existing.sample_size }
-        : null;
-    const blended = blendLearning(blendBase, observed);
-    await repo.upsertLearning({
-      category: business.category,
-      geo_bucket: geoBucket,
-      angle_type: angleType,
-      lift: blended.lift,
-      sample_size: blended.sample_size,
-      source: "measured",
-    });
-  }
+  // One shared write path with platform sync — result row, status,
+  // learnings flywheel.
+  await recordCampaignResult(repo, campaign, input, "manual");
 
   revalidatePath("/app/results");
   revalidatePath("/app");

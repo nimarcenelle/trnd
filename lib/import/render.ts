@@ -23,6 +23,10 @@ const UA =
 
 export interface Renderer {
   render(url: string): Promise<string | null>;
+  /** Navigate and return the body of the first network response whose URL
+   * matches — for pages whose payload is an XHR, not the HTML (e.g. Google
+   * Trends' widget data). Reloads once if the response never fires. */
+  capture(url: string, responseMatch: RegExp, timeoutMs?: number): Promise<string | null>;
   close(): Promise<void>;
 }
 
@@ -56,6 +60,38 @@ export async function getRenderer(): Promise<Renderer | null> {
             html = await page.content();
           }
           return html;
+        } catch {
+          return null;
+        } finally {
+          await context?.close().catch(() => {});
+        }
+      },
+      async capture(url: string, responseMatch: RegExp, timeoutMs = 15_000) {
+        let context;
+        try {
+          context = await browser.newContext({
+            userAgent: UA,
+            viewport: { width: 1366, height: 900 },
+            locale: "en-US",
+          });
+          const page = await context.newPage();
+          const waitFor = () =>
+            page
+              .waitForResponse((r) => responseMatch.test(r.url()) && r.status() === 200, {
+                timeout: timeoutMs,
+              })
+              .then((r) => r.text())
+              .catch(() => null);
+          let pending = waitFor();
+          await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS }).catch(() => {});
+          let body = await pending;
+          if (!body) {
+            // Rate-limit interstitials usually clear on one reload.
+            pending = waitFor();
+            await page.reload({ waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS }).catch(() => {});
+            body = await pending;
+          }
+          return body;
         } catch {
           return null;
         } finally {

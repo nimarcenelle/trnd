@@ -33,10 +33,10 @@ const SIG_CARDS = [
 ];
 
 const FLY_ITEMS = [
-  { n: "01", h: "Every client connects their ad account", p: "As part of onboarding — so TRND can see what actually happened, not just what was published." },
-  { n: "02", h: "Real outcomes come back", p: "Clicks, bookings, cost per result, revenue — pulled straight from the campaigns that actually ran." },
-  { n: "03", h: "The model learns what converts", p: "Not in general — for this category, this price point, this geography." },
-  { n: "04", h: "Next week's recommendation is sharper", p: "For every business on TRND, not just the one that ran the test." },
+  { n: "01", h: "TRND reads your business on day one", p: "Your services, prices, neighborhood, and voice become the founding analysis every recommendation is judged against." },
+  { n: "02", h: "Your campaigns run in the real world", p: "Clicks, bookings, cost per result — pulled from your ad account, not industry averages." },
+  { n: "03", h: "The model learns what converts for you", p: "Not in general — for your offer, your price point, your neighborhood." },
+  { n: "04", h: "Next week's recommendation is sharper", p: "Built on everything TRND now knows about your business that it didn't last week." },
 ];
 
 const ROADMAP = [
@@ -77,30 +77,28 @@ export default function Home() {
 
       <header className="hero" id="top">
         <div className="hero__texture" />
-        <div className="wrap hero__grid">
-          <div>
-            <div className="eyebrow">Live signal → finished campaign</div>
-            <h1>
-              Know what to advertise — <em>before your competitors do.</em>
-            </h1>
-            <p className="hero__sub">
-              TRND reads what&apos;s actually moving in your market right now and turns it into a
-              finished ad campaign — headline, creative, targeting — ready to launch today. Built
-              for small businesses, not agencies with a quarter to spare.
-            </p>
-            <div className="hero__ctas">
-              <a href="#demo" className="btn btn-primary">
-                Request a demo
-              </a>
-              <Link href="/signup" className="btn btn-ghost">
-                Start free — set up in 2 minutes
-              </Link>
-            </div>
-            <div className="hero__proof">
-              <span className="pill">No agency retainer</span>
-              <span className="pill">New campaign every week</span>
-              <span className="pill">Priced to your ad spend</span>
-            </div>
+        <div className="wrap hero__inner">
+          <div className="eyebrow">Live signal → finished campaign</div>
+          <h1>
+            Know what to advertise — <em>before it&apos;s obvious.</em>
+          </h1>
+          <p className="hero__sub">
+            TRND reads what&apos;s actually moving in your market right now and turns it into a
+            finished ad campaign — headline, creative, targeting — ready to launch today. Built
+            for small businesses, not agencies with a quarter to spare.
+          </p>
+          <div className="hero__ctas">
+            <a href="#demo" className="btn btn-primary">
+              Request a demo
+            </a>
+            <Link href="/signup" className="btn btn-ghost">
+              Start free — set up in 2 minutes
+            </Link>
+          </div>
+          <div className="hero__proof">
+            <span className="pill">No agency retainer</span>
+            <span className="pill">New campaign every week</span>
+            <span className="pill">Priced to your ad spend</span>
           </div>
           <ProductFrame />
         </div>
@@ -196,11 +194,11 @@ export default function Home() {
         <div className="wrap">
           <div className="head reveal">
             <span className="eyebrow">Compounding</span>
-            <h2>The more businesses on TRND, the sharper it gets.</h2>
+            <h2>The more TRND knows about your business, the sharper it gets.</h2>
             <p>
-              Detecting a trend is table stakes. What compounds is knowing which offer, angle, and
-              audience actually converts — and that only comes from real campaigns running in the
-              real world.
+              Detecting a trend is table stakes. What compounds is knowing what you sell, who walks
+              in, and which offer, angle, and audience actually converted for you — a picture that
+              deepens every week you run.
             </p>
           </div>
           <div className="fly reveal">
@@ -211,11 +209,11 @@ export default function Home() {
               <circle id="flySpin" cx="160" cy="160" r="118" stroke="#D99A12" strokeWidth="2.5" strokeDasharray="32 710" strokeLinecap="round" />
               <g>
                 <rect x="103" y="30" width="114" height="24" rx="12" fill="#FFFFFF" stroke="#EFE0C0" strokeWidth="1" />
-                <text x="160" y="46" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#33200F">MORE BUSINESSES</text>
+                <text x="160" y="46" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#33200F">YOUR BUSINESS</text>
               </g>
               <g>
                 <rect x="222" y="148" width="112" height="24" rx="12" fill="#FFFFFF" stroke="#EFE0C0" strokeWidth="1" />
-                <text x="278" y="164" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#33200F">MORE CAMPAIGNS</text>
+                <text x="278" y="164" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#33200F">REAL CAMPAIGNS</text>
               </g>
               <g>
                 <rect x="99" y="266" width="122" height="24" rx="12" fill="#FFFFFF" stroke="#EFE0C0" strokeWidth="1" />

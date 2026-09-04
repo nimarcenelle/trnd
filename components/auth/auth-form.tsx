@@ -96,11 +96,11 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       <p style={{ fontSize: 13.5, color: "var(--ink-soft)", marginTop: 22, textAlign: "center" }}>
         {mode === "login" ? (
           <>
-            New to TRND? <Link href="/signup" style={{ color: "var(--amber)" }}>Create an account</Link>
+            New to TRND? <Link href="/signup" style={{ color: "var(--amber-text)" }}>Create an account</Link>
           </>
         ) : (
           <>
-            Already have an account? <Link href="/login" style={{ color: "var(--amber)" }}>Sign in</Link>
+            Already have an account? <Link href="/login" style={{ color: "var(--amber-text)" }}>Sign in</Link>
           </>
         )}
       </p>

@@ -2,6 +2,10 @@
  * Central env access. `isSupabaseConfigured` / `isGeminiConfigured` are the
  * switches that flip the app between real integrations and the loudly-labeled
  * local fallbacks documented in BLOCKED.md.
+ *
+ * Defaulted reads use `||`, never `??` — env imports (e.g. Vercel's
+ * .env.example scan) create variables as empty strings, and empty must mean
+ * unset or a blank value poisons URLs and senders downstream.
  */
 
 export const env = {
@@ -13,16 +17,41 @@ export const env = {
   redditUserAgent: process.env.REDDIT_USER_AGENT || "trnd-signal/0.1 (by /u/trnd)",
   cronSecret: process.env.CRON_SECRET ?? "",
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+  /** Public origin for OAuth redirects and email links — falls back to siteUrl. */
+  appUrl:
+    process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
   stripePriceBaseline: process.env.STRIPE_PRICE_BASELINE ?? "",
   stripePricePro: process.env.STRIPE_PRICE_PRO ?? "",
+  /** Meta Marketing API app — ad-account connect, results sync, launch. */
+  metaAppId: process.env.META_APP_ID ?? "",
+  metaAppSecret: process.env.META_APP_SECRET ?? "",
+  /** Google Ads OAuth + developer token — seam; sync ships Meta-first. */
+  googleAdsClientId: process.env.GOOGLE_ADS_CLIENT_ID ?? "",
+  googleAdsClientSecret: process.env.GOOGLE_ADS_CLIENT_SECRET ?? "",
+  googleAdsDeveloperToken: process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? "",
+  /** Google Places — own + competitor ratings and review text. */
+  placesApiKey: process.env.GOOGLE_PLACES_API_KEY ?? "",
+  /** Resend — weekly report email + alert digests. */
+  resendApiKey: process.env.RESEND_API_KEY ?? "",
+  emailFrom: process.env.EMAIL_FROM || "TRND <reports@usetrnd.com>",
+  /** DataForSEO — the sturdy search-volume backbone for watch terms. */
+  dataForSeoLogin: process.env.DATAFORSEO_LOGIN ?? "",
+  dataForSeoPassword: process.env.DATAFORSEO_PASSWORD ?? "",
 };
 
 export const isSupabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey);
 export const isGeminiConfigured = Boolean(env.geminiApiKey);
 /** Billing switches on with a secret key + at least the baseline price id. */
 export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePriceBaseline);
+export const isMetaAdsConfigured = Boolean(env.metaAppId && env.metaAppSecret);
+export const isGoogleAdsConfigured = Boolean(
+  env.googleAdsClientId && env.googleAdsClientSecret && env.googleAdsDeveloperToken,
+);
+export const isPlacesConfigured = Boolean(env.placesApiKey);
+export const isEmailConfigured = Boolean(env.resendApiKey);
+export const isDataForSeoConfigured = Boolean(env.dataForSeoLogin && env.dataForSeoPassword);
 
 let warned = false;
 /** One loud console note per process, so demo mode is never silent. */

@@ -2,15 +2,22 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type {
+  Alert,
   Business,
   BusinessBrief,
   Campaign,
   CampaignResult,
+  Competitor,
+  CompetitorRead,
+  Connection,
   Creative,
   DemoRequest,
+  IntelNote,
   Learning,
   Opportunity,
   Profile,
+  Review,
+  ReviewDigest,
   Service,
   Signal,
   SignalSeriesPoint,
@@ -41,6 +48,13 @@ export interface DemoStore {
   learnings: Learning[];
   business_briefs: BusinessBrief[];
   subscriptions: Subscription[];
+  intel_notes: IntelNote[];
+  connections: Connection[];
+  competitors: Competitor[];
+  competitor_reads: CompetitorRead[];
+  reviews: Review[];
+  review_digests: ReviewDigest[];
+  alerts: Alert[];
   demo_requests: DemoRequest[];
 }
 
@@ -59,6 +73,13 @@ function emptyStore(): DemoStore {
     learnings: [],
     business_briefs: [],
     subscriptions: [],
+    intel_notes: [],
+    connections: [],
+    competitors: [],
+    competitor_reads: [],
+    reviews: [],
+    review_digests: [],
+    alerts: [],
     demo_requests: [],
   };
 }

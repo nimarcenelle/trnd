@@ -1,11 +1,11 @@
 const SIGNALS: [string, string, boolean?][] = [
-  ["↑34%", "ICED LATTE ALTERNATIVES — SEARCH"],
-  ["↑27%", "SAME-DAY BOOKING INTENT"],
-  ["↑48%", "RECOVERY & WELLNESS CONVERSATION"],
-  ["LOW", "COMPETITOR AD SATURATION — YOUR ZIP", true],
-  ["↑22%", "WEEKEND BRUNCH DEMAND"],
-  ["8.7/10", "OPPORTUNITY SCORE — THIS WEEK"],
-  ["2.1×", "THIS ANGLE OUTPERFORMED FOR SIMILAR BUSINESSES", true],
+  ["↑34%", "Iced latte alternatives in search"],
+  ["↑27%", "Same-day booking intent"],
+  ["↑48%", "Recovery & wellness conversation"],
+  ["Low", "Competitor ad saturation in your zip", true],
+  ["↑22%", "Weekend brunch demand"],
+  ["8.7/10", "This week's opportunity score"],
+  ["2.1×", "This angle outperformed for businesses like yours", true],
 ];
 
 export default function Ticker() {

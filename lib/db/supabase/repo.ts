@@ -6,10 +6,17 @@ import type {
   BusinessBrief,
   Campaign,
   CampaignResult,
+  Alert,
+  Competitor,
+  CompetitorRead,
+  Connection,
   Creative,
   DemoRequest,
+  IntelNote,
   Learning,
   Opportunity,
+  Review,
+  ReviewDigest,
   Profile,
   Service,
   Signal,
@@ -343,6 +350,184 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .maybeSingle();
       throwIf(error, "getSubscriptionByStripeId");
       return (data as Subscription | null) ?? null;
+    },
+
+    async upsertIntelNote(input) {
+      const { data, error } = await sb
+        .from("intel_notes")
+        .upsert(input, { onConflict: "business_id,week_of" })
+        .select()
+        .single();
+      throwIf(error, "upsertIntelNote");
+      return data as IntelNote;
+    },
+    async getIntelNote(businessId, weekOf) {
+      const { data, error } = await sb
+        .from("intel_notes")
+        .select("*")
+        .eq("business_id", businessId)
+        .eq("week_of", weekOf)
+        .maybeSingle();
+      throwIf(error, "getIntelNote");
+      return (data as IntelNote | null) ?? null;
+    },
+
+    async upsertConnection(input) {
+      const { data, error } = await sb
+        .from("connections")
+        .upsert({ ...input, updated_at: new Date().toISOString() }, { onConflict: "business_id,provider" })
+        .select()
+        .single();
+      throwIf(error, "upsertConnection");
+      return data as Connection;
+    },
+    async getConnection(businessId, provider) {
+      const { data, error } = await sb
+        .from("connections")
+        .select("*")
+        .eq("business_id", businessId)
+        .eq("provider", provider)
+        .maybeSingle();
+      throwIf(error, "getConnection");
+      return (data as Connection | null) ?? null;
+    },
+    async listConnections(businessId) {
+      const { data, error } = await sb.from("connections").select("*").eq("business_id", businessId);
+      throwIf(error, "listConnections");
+      return (data ?? []) as Connection[];
+    },
+    async deleteConnection(businessId, provider) {
+      const { error } = await sb
+        .from("connections")
+        .delete()
+        .eq("business_id", businessId)
+        .eq("provider", provider);
+      throwIf(error, "deleteConnection");
+    },
+
+    async createCompetitor(input) {
+      const { data, error } = await sb
+        .from("competitors")
+        .upsert(input, { onConflict: "business_id,name" })
+        .select()
+        .single();
+      throwIf(error, "createCompetitor");
+      return data as Competitor;
+    },
+    async listCompetitors(businessId) {
+      const { data, error } = await sb
+        .from("competitors")
+        .select("*")
+        .eq("business_id", businessId)
+        .order("created_at");
+      throwIf(error, "listCompetitors");
+      return (data ?? []) as Competitor[];
+    },
+    async updateCompetitor(id, patch) {
+      const { data, error } = await sb.from("competitors").update(patch).eq("id", id).select().single();
+      throwIf(error, "updateCompetitor");
+      return data as Competitor;
+    },
+    async deleteCompetitor(id) {
+      const { error } = await sb.from("competitors").delete().eq("id", id);
+      throwIf(error, "deleteCompetitor");
+    },
+    async upsertCompetitorReads(inputs) {
+      if (inputs.length === 0) return 0;
+      const { count, error } = await sb.from("competitor_reads").upsert(
+        inputs.map((i) => ({
+          ...i,
+          captured_at: i.captured_at ?? new Date().toISOString(),
+          day: (i.captured_at ?? new Date().toISOString()).slice(0, 10),
+        })),
+        { onConflict: "competitor_id,kind,day", ignoreDuplicates: true, count: "exact" },
+      );
+      throwIf(error, "upsertCompetitorReads");
+      return count ?? 0;
+    },
+    async listCompetitorReads(businessId, opts) {
+      const since = new Date(Date.now() - (opts?.sinceDays ?? 30) * 86400_000).toISOString();
+      const { data, error } = await sb
+        .from("competitor_reads")
+        .select("*")
+        .eq("business_id", businessId)
+        .gte("captured_at", since)
+        .order("captured_at", { ascending: false });
+      throwIf(error, "listCompetitorReads");
+      return (data ?? []) as CompetitorRead[];
+    },
+
+    async upsertReviews(inputs) {
+      if (inputs.length === 0) return 0;
+      const { count, error } = await sb.from("reviews").upsert(
+        inputs.map((i) => ({ ...i, captured_at: new Date().toISOString() })),
+        { onConflict: "business_id,competitor_id,author,text", ignoreDuplicates: true, count: "exact" },
+      );
+      throwIf(error, "upsertReviews");
+      return count ?? 0;
+    },
+    async listReviews(businessId, opts) {
+      let q = sb.from("reviews").select("*").eq("business_id", businessId);
+      if (opts?.competitorId === null) q = q.is("competitor_id", null);
+      else if (opts?.competitorId) q = q.eq("competitor_id", opts.competitorId);
+      const { data, error } = await q.order("published_at", { ascending: false, nullsFirst: false });
+      throwIf(error, "listReviews");
+      return (data ?? []) as Review[];
+    },
+    async upsertReviewDigest(input) {
+      const { data, error } = await sb
+        .from("review_digests")
+        .upsert(input, { onConflict: "business_id" })
+        .select()
+        .single();
+      throwIf(error, "upsertReviewDigest");
+      return data as ReviewDigest;
+    },
+    async getReviewDigest(businessId) {
+      const { data, error } = await sb
+        .from("review_digests")
+        .select("*")
+        .eq("business_id", businessId)
+        .maybeSingle();
+      throwIf(error, "getReviewDigest");
+      return (data as ReviewDigest | null) ?? null;
+    },
+
+    async createAlert(input) {
+      const { data, error } = await sb
+        .from("alerts")
+        .upsert(input, { onConflict: "business_id,dedupe_key", ignoreDuplicates: true })
+        .select();
+      throwIf(error, "createAlert");
+      return ((data ?? [])[0] as Alert | undefined) ?? null;
+    },
+    async listAlerts(businessId, opts) {
+      let q = sb.from("alerts").select("*").eq("business_id", businessId);
+      if (opts?.unreadOnly) q = q.is("read_at", null);
+      const { data, error } = await q.order("created_at", { ascending: false }).limit(opts?.limit ?? 50);
+      throwIf(error, "listAlerts");
+      return (data ?? []) as Alert[];
+    },
+    async markAlertsRead(businessId, ids) {
+      let q = sb
+        .from("alerts")
+        .update({ read_at: new Date().toISOString() })
+        .eq("business_id", businessId)
+        .is("read_at", null);
+      if (ids && ids.length > 0) q = q.in("id", ids);
+      const { error } = await q;
+      throwIf(error, "markAlertsRead");
+    },
+
+    async setCampaignExternal(id, externalId, externalStatus) {
+      const { data, error } = await sb
+        .from("campaigns")
+        .update({ external_id: externalId, external_status: externalStatus })
+        .eq("id", id)
+        .select()
+        .single();
+      throwIf(error, "setCampaignExternal");
+      return data as Campaign;
     },
 
     async insertDemoRequest(input) {

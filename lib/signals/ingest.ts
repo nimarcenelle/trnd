@@ -1,8 +1,9 @@
 import type { Repo } from "@/lib/db/repo";
-import type { NewSignal } from "@/lib/db/types";
+import type { Business, NewSignal } from "@/lib/db/types";
 
 import { weekOf } from "@/lib/recommend/recommend";
 
+import { createDataForSeoAdapter } from "./adapters/dataforseo";
 import { createGoogleNewsAdapter } from "./adapters/google-news";
 import { createGoogleTrendsRssAdapter } from "./adapters/google-trends-rss";
 import { createRedditAdapter } from "./adapters/reddit";
@@ -25,12 +26,100 @@ export interface IngestSummary {
   totalSeriesPoints: number;
 }
 
+/** The tokens that make a watch term local — strippable when an adapter has
+ * to widen a too-narrow read ("cold plunge nyc" → "cold plunge"). */
+export function localityTokens(business: Business): string[] {
+  return [
+    ...business.city.toLowerCase().split(/\s+/).filter((w) => w.length > 2),
+    ...(business.region ? [business.region.toLowerCase()] : []),
+    "nyc",
+    "near",
+    "me",
+    "local",
+  ];
+}
+
+/** Raw adapter output → insert rows (shared by the daily job and the
+ * per-business first-day ingest). */
+function toSignalRows(raw: Awaited<ReturnType<SignalAdapter["fetch"]>>): NewSignal[] {
+  return raw
+    .filter((r) => r.term.trim().length > 0)
+    .map((r) => ({
+      source: r.source,
+      term: r.term,
+      normalized_term: normalizeTerm(r.term),
+      category: r.category || "General",
+      geo: r.geo,
+      metric_type: r.metric_type,
+      value: r.value,
+      delta_pct: r.delta_pct,
+      window_days: r.window_days,
+      raw: r.raw,
+    }));
+}
+
+/**
+ * Day-one demand reads for ONE business: its snapshot watch terms through
+ * the targeted adapters (search volume, news coverage, ad library, trends)
+ * — so a new business's demand tracker fills in at onboarding instead of
+ * waiting for the next daily cron. Idempotent like the daily job.
+ */
+export async function runSignalIngestForBusiness(
+  repo: Repo,
+  business: Business,
+): Promise<number> {
+  const brief = await repo.getBusinessBrief(business.id);
+  // Brief v5 watchlists run 18-30 terms; day one reads the strongest dozen.
+  const terms = (brief?.watch_terms ?? []).slice(0, 12);
+  if (terms.length === 0) return 0;
+  const stateGeo = business.region ? `US-${business.region.toUpperCase()}` : "US";
+  const locality = localityTokens(business);
+  const watch = terms.map((t) => ({
+    term: t.toLowerCase().trim(),
+    category: business.category,
+    geo: stateGeo,
+    locality,
+  }));
+  const adapters: SignalAdapter[] = [
+    createDataForSeoAdapter(),
+    createGoogleNewsAdapter(),
+    createMetaAdsAdapter(),
+    createTrendsIotAdapter(),
+  ];
+  let written = 0;
+  for (const adapter of adapters) {
+    try {
+      if (!(await adapter.isAvailable())) continue;
+      const raw = await adapter.fetch({ terms: [], watch, geo: "US", windowDays: 7 });
+      written += await repo.upsertSignals(toSignalRows(raw));
+      if (adapter.fetchSeries) {
+        const series = await adapter.fetchSeries({ terms: [], watch, geo: "US", windowDays: 7 });
+        await repo.upsertSeriesPoints(
+          series.map((p) => ({
+            normalized_term: normalizeTerm(p.term),
+            geo: p.geo,
+            day: p.day,
+            value: p.value,
+          })),
+        );
+      }
+    } catch (err) {
+      console.warn(`[ingest:business] adapter ${adapter.name} failed:`, (err as Error).message);
+    }
+  }
+  return written;
+}
+
 function defaultAdapters(): SignalAdapter[] {
   // Reliable + keyless first (RSS, weather, autocomplete), then Reddit,
   // News, TikTok Creative Center (unofficial, per-industry), the fragile
   // Trends widget endpoints (interest-over-time + rising related queries),
   // YouTube (key-gated).
   return [
+    // Paid search-volume backbone first — when keyed, it's the reliable
+    // per-business demand read; the unofficial trends endpoint becomes a
+    // bonus rather than a dependency.
+    createDataForSeoAdapter(),
     createGoogleTrendsRssAdapter(),
     createWeatherAdapter(),
     createSuggestAdapter(),
@@ -65,12 +154,12 @@ export async function runIngest(
   // backbone (up to 24 terms per business, metro-scoped); the category's
   // stock terms are the floor beneath it.
   const seen = new Set<string>();
-  const watch: { term: string; category: string; geo?: string }[] = [];
-  const addWatch = (term: string, category: string, termGeo?: string) => {
+  const watch: { term: string; category: string; geo?: string; locality?: string[] }[] = [];
+  const addWatch = (term: string, category: string, termGeo?: string, locality?: string[]) => {
     const key = term.toLowerCase().trim();
     if (!key || seen.has(key)) return;
     seen.add(key);
-    watch.push({ term: key, category, geo: termGeo });
+    watch.push({ term: key, category, geo: termGeo, locality });
   };
   for (const c of CATEGORY_CONFIGS) for (const t of c.watchTerms.slice(0, 3)) addWatch(t, c.category);
   // Communities: stock per-category lists, widened by each snapshot's own.
@@ -94,7 +183,8 @@ export async function runIngest(
       const metro = resolveMetro(b.city, b.region);
       const stateGeo = b.region ? `US-${b.region.toUpperCase()}` : "US";
       const bizGeo = metro?.geo ?? stateGeo;
-      for (const t of (brief?.watch_terms ?? []).slice(0, 24)) addWatch(t, b.category, bizGeo);
+      const locality = localityTokens(b);
+      for (const t of (brief?.watch_terms ?? []).slice(0, 24)) addWatch(t, b.category, bizGeo, locality);
       for (const s of (brief?.subreddits ?? []).slice(0, 6)) addSubreddit(s, b.category);
       // This week's ranked terms too — so their saturation read is real.
       for (const o of (await repo.listOpportunities(b.id, week)).slice(0, 5)) {
@@ -133,21 +223,7 @@ export async function runIngest(
         continue;
       }
       const raw = await adapter.fetch({ terms: watchTerms, watch, places, subreddits, geo, windowDays });
-      const rows: NewSignal[] = raw
-        .filter((r) => r.term.trim().length > 0)
-        .map((r) => ({
-          source: r.source,
-          term: r.term,
-          normalized_term: normalizeTerm(r.term),
-          category: r.category || "General",
-          geo: r.geo,
-          metric_type: r.metric_type,
-          value: r.value,
-          delta_pct: r.delta_pct,
-          window_days: r.window_days,
-          raw: r.raw,
-        }));
-      report.signals = await repo.upsertSignals(rows);
+      report.signals = await repo.upsertSignals(toSignalRows(raw));
       if (adapter.fetchSeries) {
         const series = await adapter.fetchSeries({ terms: watchTerms, watch, places, subreddits, geo, windowDays });
         report.seriesPoints = await repo.upsertSeriesPoints(

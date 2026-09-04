@@ -221,7 +221,7 @@ export default async function SnapshotPage() {
               </div>
               <p style={{ fontSize: 12.5 }}>
                 Search phrases your customers actually use — pulled from this analysis and fed into
-                the daily signal scan, alongside your category&apos;s stock terms.
+                the daily market scan, alongside your category&apos;s stock terms.
               </p>
             </div>
           )}

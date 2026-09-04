@@ -44,24 +44,26 @@
   background: var(--bg-1);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 14px 16px 12px;
+  padding: 15px 17px 13px;
+  box-shadow: var(--elev-1);
 }
 .kpi .k {
   font-family: var(--mono);
   font-size: 10px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
   display: block;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   white-space: nowrap;
 }
 .kpi .v {
   font-family: var(--disp);
   font-weight: 700;
-  font-size: 24px;
+  font-size: 26px;
   letter-spacing: -0.01em;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 .kpi .v small {
   font-family: var(--mono);
@@ -86,12 +88,17 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 24px 26px;
+  box-shadow: var(--elev-1);
 }
 .panel--hero {
   border-color: var(--amber);
   background:
-    linear-gradient(180deg, var(--amber-soft), transparent 55%),
+    radial-gradient(ellipse 640px 220px at 18% -8%, var(--amber-soft), transparent 70%),
+    linear-gradient(180deg, var(--amber-softer), transparent 60%),
     var(--bg-1);
+  box-shadow:
+    var(--elev-2),
+    0 0 0 4px var(--amber-softer);
 }
 .panel__head {
   display: flex;
@@ -168,9 +175,12 @@
 }
 .delta-chip {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--mint-text);
+  background: var(--mint-soft);
+  border-radius: 999px;
+  padding: 2px 9px;
   white-space: nowrap;
 }
 
@@ -958,6 +968,7 @@ details.section-disclosure[open] .summary-open-hint {
   background: var(--nav-bg);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
+  box-shadow: 0 4px 20px rgba(35, 32, 26, 0.03);
 }
 .app-shell-nav__left {
   display: flex;
@@ -980,8 +991,8 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .app-tabs {
   display: flex;
-  gap: 4px;
-  background: var(--bg-1);
+  gap: 2px;
+  background: var(--bg-2);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 3px;
@@ -998,14 +1009,20 @@ details.section-disclosure[open] .summary-open-hint {
   border-radius: 999px;
   color: var(--ink-faint);
   white-space: nowrap;
-  transition: color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
 }
 .app-tabs a:hover {
   color: var(--ink);
 }
 .app-tabs a.active {
-  background: var(--bg-2);
+  background: var(--bg-1);
   color: var(--ink);
+  font-weight: 550;
+  box-shadow:
+    0 1px 2px rgba(35, 32, 26, 0.08),
+    0 2px 8px rgba(35, 32, 26, 0.06);
 }
 @media (max-width: 980px) {
   .app-shell-nav {
@@ -1043,12 +1060,24 @@ details.section-disclosure[open] .summary-open-hint {
   align-items: center;
   justify-content: center;
 }
+.grade-ring--strong {
+  --grade-stroke: var(--mint);
+  --grade-text: var(--mint-text);
+}
+.grade-ring--solid {
+  --grade-stroke: var(--amber);
+  --grade-text: var(--amber-text);
+}
+.grade-ring--watch {
+  --grade-stroke: var(--ink-faint);
+  --grade-text: var(--ink-soft);
+}
 .grade-ring__num .n {
   font-family: var(--disp);
   font-weight: 800;
   font-size: 38px;
   line-height: 1;
-  color: var(--amber-text);
+  color: var(--grade-text, var(--amber-text));
 }
 .grade-ring__num .d {
   font-family: var(--mono);
@@ -1062,7 +1091,7 @@ details.section-disclosure[open] .summary-open-hint {
   font-family: var(--disp);
   font-weight: 700;
   font-size: 15px;
-  color: var(--mint-text);
+  color: var(--grade-text, var(--mint-text));
   margin-bottom: 2px;
 }
 .grade-ring__sub {
@@ -1081,10 +1110,29 @@ details.section-disclosure[open] .summary-open-hint {
   border: 1px solid var(--line-strong);
   white-space: nowrap;
 }
-.grade-pill--lead {
-  background: var(--amber);
-  color: var(--amber-ink);
+.grade-pill--strong {
+  background: var(--mint-soft);
+  border-color: var(--mint);
+  color: var(--mint-text);
+}
+.grade-pill--solid {
+  background: var(--amber-soft);
   border-color: var(--amber);
+  color: var(--amber-text);
+}
+.grade-pill--watch {
+  color: var(--ink-faint);
+  border-style: dashed;
+}
+.grade-pill--lead.grade-pill--strong {
+  background: var(--mint);
+  border-color: var(--mint);
+  color: var(--mint-ink);
+}
+.grade-pill--lead.grade-pill--solid {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--amber-ink);
 }
 
 /* ---------- Evidence chips ---------- */
@@ -1617,4 +1665,193 @@ details.section-disclosure[open] .summary-open-hint {
   .ghost-table .g-row {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+/* ---------- INTEL REPORT ---------- */
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.report-table th {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: left;
+  font-weight: 500;
+  padding: 0 14px 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.report-table td {
+  padding: 10px 14px 10px 0;
+  border-bottom: 1px dashed var(--line);
+  color: var(--ink);
+  vertical-align: middle;
+}
+.report-table tr:last-child td {
+  border-bottom: none;
+}
+.report-table .mono-cell {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.report-none {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+/* ---------- PRINT (the report's export path) ----------
+   Print = save-to-PDF: the report becomes the deliverable, so chrome,
+   actions, and theme backgrounds all drop away. */
+@media print {
+  .app-shell-nav,
+  .demo-strip,
+  .no-print,
+  .theme-toggle {
+    display: none !important;
+  }
+  body {
+    background: #ffffff;
+  }
+  .page {
+    padding: 0;
+    max-width: none;
+  }
+  .panel,
+  .kpi {
+    box-shadow: none;
+    border: 1px solid #ddd6c6;
+    break-inside: avoid;
+  }
+  .panel--hero {
+    background: #ffffff;
+  }
+  a {
+    text-decoration: none;
+  }
+}
+
+/* ---------- REPORT APPENDIX ----------
+   The analyst layer: collapsed on screen, absent from the printed report —
+   the PDF an owner shares is the actionable half. */
+.report-appendix {
+  margin-top: 22px;
+}
+.report-appendix > summary {
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--disp);
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  padding: 14px 18px;
+  background: var(--bg-1);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+.report-appendix > summary::before {
+  content: "›";
+  display: inline-block;
+  margin-right: 10px;
+  transition: transform 0.15s ease;
+  color: var(--amber-text);
+}
+.report-appendix[open] > summary::before {
+  transform: rotate(90deg);
+}
+.report-appendix > summary::-webkit-details-marker {
+  display: none;
+}
+@media print {
+  .report-appendix {
+    display: none;
+  }
+}
+
+/* ---------- FINISH PASS ----------
+   Depth, states, and rhythm applied app-wide: this is what separates a tool
+   an owner tolerates from a product a business pays for. */
+.opp-row,
+.step-card,
+.snap-teaser {
+  box-shadow: var(--elev-1);
+}
+.opp-row:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--elev-2);
+}
+.page-head h1 {
+  letter-spacing: -0.022em;
+}
+.page-head {
+  align-items: flex-end;
+}
+.report-table th {
+  letter-spacing: 0.08em;
+  padding-bottom: 12px;
+}
+.report-table td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.report-table tbody tr {
+  transition: background 0.12s ease;
+}
+.report-table tbody tr:hover {
+  background: var(--amber-softer);
+}
+.panel__title::before {
+  box-shadow: 0 0 0 3px var(--amber-softer);
+}
+.panel__title.mint::before {
+  box-shadow: 0 0 0 3px var(--mint-softer);
+}
+/* Actions on the report open the week — they should feel pressable. */
+.report-action {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+  box-shadow: var(--elev-1);
+}
+.report-action:hover {
+  transform: translateY(-1px);
+  border-color: var(--line-strong) !important;
+  box-shadow: var(--elev-2);
+}
+/* Alert rows breathe on hover, like the links they are. */
+.alert-row {
+  border-radius: var(--radius-sm);
+  margin: 0 -10px;
+  padding-left: 10px !important;
+  padding-right: 10px;
+  transition: background 0.12s ease;
+}
+.alert-row:hover {
+  background: var(--amber-softer);
+}
+
+/* Trend chart summary — the number first, the line as evidence. */
+.trend-chart__summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.trend-chart__now {
+  font-family: var(--disp);
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.delta-chip--down {
+  color: var(--ink-soft);
+  background: var(--bg-2);
 }

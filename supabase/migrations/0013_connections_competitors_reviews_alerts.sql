@@ -114,8 +114,5 @@ create policy "alerts: via business" on public.alerts
 alter table public.campaigns add column external_id text;
 alter table public.campaigns add column external_status text;
 
--- DataForSEO joins the signal sources (paid search-volume backbone).
-alter table public.signals drop constraint signals_source_check;
-alter table public.signals
-  add constraint signals_source_check
-  check (source in ('google_trends', 'reddit', 'youtube', 'news', 'tiktok', 'meta_ads', 'dataforseo', 'snapshot', 'seed'));
+-- (The signals source check is owned by 0011 — the full live union,
+-- dataforseo included. Rewriting it here with a partial list broke ingest.)

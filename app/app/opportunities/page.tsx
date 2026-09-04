@@ -39,7 +39,15 @@ export default async function OpportunitiesPage() {
         signal ? repo.getSeries(signal.normalized_term, signal.geo, 30) : Promise.resolve([]),
         signal ? explainOpportunity(repo, business, o, signal) : Promise.resolve(null),
       ]);
-      const insights = signal && explained ? buildInsights(signal, explained, { learnings }) : [];
+      const insights =
+        signal && explained
+          ? buildInsights(signal, explained, {
+              learnings,
+              // A judged-unfit row must not pitch itself as a new offer.
+              unfit: Number(o.score) < 4.3 && !o.matched_service_id,
+              snapshotReason: o.rationale?.match(/Snapshot read: (.+)$/)?.[1] ?? null,
+            })
+          : [];
       return { o, signal, campaign, series, explained, insights };
     }),
   );
@@ -103,7 +111,11 @@ export default async function OpportunitiesPage() {
                   )}
                 </div>
                 <p className="why" style={{ marginTop: 6, fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--mint-text)" }}>
-                  {typeof signal?.delta_pct === "number" ? `↑${Math.round(signal.delta_pct)}% ${signal.metric_type.replace(/_/g, " ")}` : ""}
+                  {typeof signal?.delta_pct === "number"
+                    ? `↑${Math.round(signal.delta_pct)}% ${signal.metric_type.replace(/_/g, " ")}`
+                    : signal
+                      ? signal.metric_type.replace(/_/g, " ")
+                      : ""}
                   {matched ? ` · matched to ${matched.name}` : ""}
                 </p>
                 {tags.length > 0 && (

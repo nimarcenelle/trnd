@@ -3,16 +3,25 @@ import { CircuitBreaker, fetchText } from "../http";
 import type { AdapterFetchInput, RawSeriesPoint, RawSignal, SignalAdapter } from "../types";
 
 /**
- * Google Trends interest-over-time via the unofficial widget endpoints (the
- * same surface the `google-trends-api` package wraps — implemented directly
- * to avoid an unmaintained dependency; see DECISIONS.md). Real numbers, but
- * rate-limits hard and breaks often, so everything is wrapped in the shared
- * retry + circuit breaker and the adapter degrades instead of crashing the
- * job.
+ * Google Trends interest-over-time — real search-interest levels and deltas
+ * for every watch term, without a paid key. Two paths, tried in order:
+ *
+ * 1. The unofficial widget API, primed with a real session cookie and paced
+ *    like a person (the bare endpoint 429s naked clients immediately).
+ * 2. The headless renderer: load the public explore page and capture the
+ *    same widget payload off the wire — the pattern that already works for
+ *    the Ad Library. Slower, but it reads what any visitor can see.
+ *
+ * A 90-day window gives daily points: the last value is the current level
+ * (0-100), min/max is the range, and last-7-vs-prior-7 is the weekly delta.
  */
 
 const EXPLORE_URL = "https://trends.google.com/trends/api/explore";
 const MULTILINE_URL = "https://trends.google.com/trends/api/widgetdata/multiline";
+const WINDOW = "today 3-m";
+
+const UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36";
 
 interface ExploreWidget {
   id: string;
@@ -49,19 +58,90 @@ export function deltaFromSeries(points: RawSeriesPoint[]): number | null {
   return Math.round(((last7 - prev7) / prev7) * 100);
 }
 
+/**
+ * The level-and-range read the tracker shows. The literal last point is
+ * often a partial day (0 for niche local terms), so the level is the 7-day
+ * mean. A series that is mostly zeros isn't "interest 0" — it's a term too
+ * small for Google's regional sampling, flagged sparse and said plainly.
+ */
+export function rangeFromSeries(
+  points: RawSeriesPoint[],
+): { level: number; min: number; max: number; sparse: boolean } | null {
+  if (points.length === 0) return null;
+  const values = points.map((p) => p.value);
+  const last7 = values.slice(-7);
+  const level = Math.round(last7.reduce((s, v) => s + v, 0) / last7.length);
+  const zeroShare = values.filter((v) => v === 0).length / values.length;
+  return {
+    level,
+    min: Math.min(...values),
+    max: Math.max(...values),
+    sparse: zeroShare > 0.6,
+  };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * Widen a too-local term to its core service: strip the locality tokens
+ * ("cold plunge nyc" → "cold plunge", "banya near me" → "banya"); when the
+ * qualifier isn't a known token ("sports massage flatiron"), drop the
+ * trailing word — locality qualifiers trail in search phrasing.
+ */
+export function coreTerm(term: string, locality: string[] = []): string {
+  const strip = new Set(["near", "me", "local", "nyc", ...locality.map((l) => l.toLowerCase())]);
+  const parts = term.toLowerCase().trim().split(/\s+/);
+  const kept = parts.filter((p) => !strip.has(p));
+  if (kept.length > 0 && kept.length < parts.length) return kept.join(" ");
+  if (parts.length >= 3) return parts.slice(0, -1).join(" ");
+  return term.toLowerCase().trim();
+}
+
+/** A real session cookie — the difference between a 429 and a 200. */
+async function primeTrendsCookie(): Promise<string> {
+  try {
+    const res = await fetch("https://trends.google.com/trends/explore?hl=en-US", {
+      headers: { "user-agent": UA, accept: "text/html" },
+      redirect: "follow",
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    const setCookies: string[] =
+      (res.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie?.() ?? [];
+    return setCookies.map((c) => c.split(";")[0]).join("; ");
+  } catch {
+    return "";
+  }
+}
+
+export function exploreePageUrl(term: string, geo: string): string {
+  const params = new URLSearchParams({ date: WINDOW, q: term, hl: "en-US" });
+  if (geo && geo !== "US") params.set("geo", geo);
+  else params.set("geo", "US");
+  return `https://trends.google.com/trends/explore?${params}`;
+}
+
 export function createTrendsIotAdapter(): SignalAdapter {
-  const breaker = new CircuitBreaker("google_trends_iot", 2); // fragile: trip fast
+  const breaker = new CircuitBreaker("google_trends_iot", 3);
   const seriesCache: RawSeriesPoint[] = [];
 
-  async function fetchSeriesForTerm(term: string, geo: string): Promise<RawSeriesPoint[]> {
+  async function fetchSeriesDirect(term: string, geo: string, cookie: string): Promise<RawSeriesPoint[]> {
     const req = {
-      comparisonItem: [{ keyword: term, geo: geo === "US" ? "US" : geo, time: "today 1-m" }],
+      comparisonItem: [{ keyword: term, geo: geo === "US" ? "US" : geo, time: WINDOW }],
       category: 0,
       property: "",
     };
+    const headers = {
+      "user-agent": UA,
+      accept: "application/json, text/plain, */*",
+      referer: "https://trends.google.com/trends/explore",
+      ...(cookie ? { cookie } : {}),
+    };
     const exploreText = await fetchText(
       `${EXPLORE_URL}?hl=en-US&tz=0&req=${encodeURIComponent(JSON.stringify(req))}`,
-      { breaker },
+      { breaker, headers },
     );
     const explore = parseGoogleJson<{ widgets?: ExploreWidget[] }>(exploreText);
     const widget = explore.widgets?.find((w) => w.id === "TIMESERIES");
@@ -70,7 +150,7 @@ export function createTrendsIotAdapter(): SignalAdapter {
       `${MULTILINE_URL}?hl=en-US&tz=0&req=${encodeURIComponent(
         JSON.stringify(widget.request),
       )}&token=${encodeURIComponent(widget.token)}`,
-      { breaker },
+      { breaker, headers },
     );
     return extractTimelinePoints(parseGoogleJson(dataText), term, geo);
   }
@@ -78,33 +158,98 @@ export function createTrendsIotAdapter(): SignalAdapter {
   return {
     name: "google_trends_iot",
     async isAvailable() {
-      return !breaker.isOpen;
+      return true; // renderer fallback means the API breaker alone can't kill it
     },
     async fetch({ terms, watch, geo }: AdapterFetchInput): Promise<RawSignal[]> {
       const out: RawSignal[] = [];
-      const targets: { term: string; category: string; geo?: string }[] =
+      const targets: { term: string; category: string; geo?: string; locality?: string[] }[] =
         watch.length > 0 ? watch : terms.map((t) => ({ term: t, category: "" }));
-      for (const { term, category, geo: termGeo } of targets) {
-        if (breaker.isOpen) break; // degrade, don't crash
-        const g = termGeo ?? geo ?? "US";
-        try {
-          const points = await fetchSeriesForTerm(term, g);
-          seriesCache.push(...points);
-          const last = points.at(-1);
+      if (targets.length === 0) return out;
+
+      const cookie = await primeTrendsCookie();
+      // Boxed so the closure assignment survives TS control-flow narrowing.
+      const rctx: { r: import("@/lib/import/render").Renderer | null; tried: boolean } = { r: null, tried: false };
+
+      // One read attempt: primed widget API first, renderer capture second.
+      const readOnce = async (t: string, g: string): Promise<RawSeriesPoint[]> => {
+        if (!breaker.isOpen) {
+          try {
+            const points = await fetchSeriesDirect(t, g, cookie);
+            await sleep(800 + Math.random() * 1200);
+            return points;
+          } catch (err) {
+            console.warn(`[signals:trends_iot] direct "${t}"@${g} failed:`, (err as Error).message);
+          }
+        }
+        if (!rctx.tried) {
+          rctx.tried = true;
+          const { getRenderer } = await import("@/lib/import/render");
+          rctx.r = await getRenderer();
+        }
+        if (rctx.r) {
+          try {
+            const body = await rctx.r.capture(exploreePageUrl(t, g), /widgetdata\/multiline/);
+            if (body) return extractTimelinePoints(parseGoogleJson(body), t, g);
+          } catch (err) {
+            console.warn(`[signals:trends_iot] render "${t}"@${g} failed:`, (err as Error).message);
+          }
+        }
+        return [];
+      };
+
+      try {
+        for (const { term, category, geo: termGeo, locality } of targets) {
+          const g = termGeo ?? geo ?? "US";
+
+          // No-fail ladder: the exact local read is best, but a hyper-local
+          // term is often below Google's regional meter — widen to the core
+          // service nationally rather than report nothing. What was actually
+          // measured always travels with the number.
+          let points = await readOnce(term, g);
+          let range = rangeFromSeries(points);
+          let measuredTerm = term;
+          let measuredGeo = g;
+          if (!range || range.sparse) {
+            const widened = coreTerm(term, locality);
+            const nextTerm = widened !== term.toLowerCase() ? widened : term;
+            const p2 = await readOnce(nextTerm, "US");
+            const r2 = rangeFromSeries(p2);
+            if (r2 && (!r2.sparse || !range)) {
+              points = p2;
+              range = r2;
+              measuredTerm = nextTerm;
+              measuredGeo = "US";
+            }
+          }
+
+          if (points.length === 0 || !range) continue;
+          const adjusted = measuredTerm !== term || measuredGeo !== g;
+          // Series stays keyed to the watch term/geo so charts read continuously.
+          seriesCache.push(...points.map((p) => ({ ...p, term, geo: g })));
           out.push({
             source: "google_trends",
             term,
             category,
             geo: g,
             metric_type: "search_interest",
-            value: last?.value ?? null,
-            delta_pct: deltaFromSeries(points),
+            value: range.level,
+            // A delta computed over a mostly-zero series is spike noise.
+            delta_pct: range.sparse ? null : deltaFromSeries(points),
             window_days: 7,
-            raw: { points: points.length },
+            raw: {
+              points: points.length,
+              min: range.min,
+              max: range.max,
+              sparse: range.sparse,
+              adjusted,
+              measuredTerm,
+              measuredGeo,
+              window: WINDOW,
+            },
           });
-        } catch (err) {
-          console.warn(`[signals:trends_iot] "${term}" failed:`, (err as Error).message);
         }
+      } finally {
+        await rctx.r?.close().catch(() => {});
       }
       return out;
     },

@@ -13,6 +13,10 @@
 
 import type { Learning, Service, Signal } from "@/lib/db/types";
 
+/** Above this, a keyword-matched ad count is brand/national noise, not a
+ * local read — excluded from scoring and labeled in every surface. */
+export const AD_COUNT_LOCAL_MAX = 300;
+
 export const WEIGHTS = {
   normalizedDelta: 0.35,
   serviceMatch: 0.25,
@@ -31,7 +35,7 @@ const STOPWORDS = new Set([
   "at", "vs", "with", "your", "my", "before", "after", "best",
 ]);
 
-function tokens(text: string): Set<string> {
+export function tokens(text: string): Set<string> {
   return new Set(
     text
       .toLowerCase()
@@ -82,26 +86,35 @@ export interface GapInput {
 /** Inverse of saturation. Few competitors on a rising term = open door.
  * A real Meta Ad Library count beats the news-coverage proxy. */
 export function competitorGap({ coverageCount, adCount }: GapInput): { score: number; reason: string } {
+  // A national keyword total says nothing about this owner's block — fall
+  // through to the news read rather than scoring phantom competition.
+  if (typeof adCount === "number" && adCount > AD_COUNT_LOCAL_MAX) adCount = null;
   if (typeof adCount === "number") {
     const score = 1 - Math.min(1, adCount / 60);
-    const label = score > 0.66 ? "low" : score > 0.33 ? "moderate" : "high";
+    const phrase =
+      score > 0.66 ? "the field is open" : score > 0.33 ? "some competition already" : "a crowded field";
     return {
       score,
-      reason: `${adCount} active Meta ad${adCount === 1 ? "" : "s"} match this near you — ${label} saturation`,
+      reason: `${adCount} competitor ad${adCount === 1 ? "" : "s"} running on this near you — ${phrase}`,
     };
   }
   if (coverageCount === null) {
-    return { score: 0.6, reason: "competitor ad saturation looks low (proxy estimate)" };
+    return { score: 0.6, reason: "few competitors seem to be on this yet (estimated — no direct ad read)" };
   }
   const score = 1 - Math.min(1, coverageCount / 15);
-  const label = score > 0.66 ? "low" : score > 0.33 ? "moderate" : "high";
-  return { score, reason: `local coverage of this is ${label} (${coverageCount} recent mentions)` };
+  const reason =
+    score > 0.66
+      ? `hardly any local buzz on this yet (${coverageCount} news mention${coverageCount === 1 ? "" : "s"}) — room to own it`
+      : score > 0.33
+        ? `some local buzz already (${coverageCount} news mentions)`
+        : `this is all over local news (${coverageCount} mentions) — crowded`;
+  return { score, reason };
 }
 
 /** Average lift from learnings for this category; neutral 0.5 when empty. */
 export function historicalLift(learnings: Learning[]): { score: number; reason: string } {
   if (learnings.length === 0) {
-    return { score: 0.5, reason: "no comparable campaign history yet — neutral prior" };
+    return { score: 0.5, reason: "no campaign history on this yet — scored down the middle" };
   }
   const totalWeight = learnings.reduce((s, l) => s + l.sample_size, 0) || learnings.length;
   const avg =
@@ -109,7 +122,7 @@ export function historicalLift(learnings: Learning[]): { score: number; reason: 
   const score = Math.min(1, Math.max(0, avg));
   return {
     score,
-    reason: `similar angles ran ${score >= 0.6 ? "well" : "unevenly"} for businesses like yours (${learnings.length} learnings)`,
+    reason: `similar angles ran ${score >= 0.6 ? "well" : "unevenly"} for businesses like yours (${learnings.length} past result${learnings.length === 1 ? "" : "s"})`,
   };
 }
 

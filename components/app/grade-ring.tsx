@@ -7,7 +7,7 @@ const C = 2 * Math.PI * 52;
 export default function GradeRing({ score }: { score: number }) {
   const g = gradeFor(score);
   return (
-    <div className="grade-ring">
+    <div className={`grade-ring grade-ring--${g.tone}`}>
       <div className="grade-ring__wrap">
         <svg viewBox="0 0 120 120" aria-hidden="true">
           <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg-2)" strokeWidth="9" />
@@ -16,7 +16,7 @@ export default function GradeRing({ score }: { score: number }) {
             cy="60"
             r="52"
             fill="none"
-            stroke="var(--amber)"
+            stroke="var(--grade-stroke, var(--amber))"
             strokeWidth="9"
             strokeLinecap="round"
             strokeDasharray={C}

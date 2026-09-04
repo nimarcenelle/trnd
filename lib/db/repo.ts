@@ -1,19 +1,32 @@
 import type {
+  Alert,
   Business,
   BusinessBrief,
   Campaign,
   CampaignResult,
+  Competitor,
+  CompetitorRead,
+  Connection,
+  ConnectionProvider,
   Creative,
   DemoRequest,
+  IntelNote,
   Learning,
+  NewAlert,
   NewBusiness,
   NewBusinessBrief,
   NewCampaign,
   NewCampaignResult,
+  NewCompetitor,
+  NewCompetitorRead,
+  NewConnection,
   NewCreative,
   NewDemoRequest,
+  NewIntelNote,
   NewLearning,
   NewOpportunity,
+  NewReview,
+  NewReviewDigest,
   NewSeriesPoint,
   NewService,
   NewSignal,
@@ -21,6 +34,8 @@ import type {
   Opportunity,
   OpportunityStatus,
   Profile,
+  Review,
+  ReviewDigest,
   Service,
   Signal,
   SignalSeriesPoint,
@@ -91,6 +106,40 @@ export interface Repo {
   upsertSubscription(input: NewSubscription): Promise<Subscription>;
   /** Webhook lookups arrive keyed by Stripe's subscription id. Admin surface. */
   getSubscriptionByStripeId(stripeSubscriptionId: string): Promise<Subscription | null>;
+  /* intel notes — the analyst note opening each week's report */
+  upsertIntelNote(input: NewIntelNote): Promise<IntelNote>;
+  getIntelNote(businessId: string, weekOf: string): Promise<IntelNote | null>;
+
+  /* connections — OAuth links to ad platforms & business profiles */
+  upsertConnection(input: NewConnection): Promise<Connection>;
+  getConnection(businessId: string, provider: ConnectionProvider): Promise<Connection | null>;
+  listConnections(businessId: string): Promise<Connection[]>;
+  deleteConnection(businessId: string, provider: ConnectionProvider): Promise<void>;
+
+  /* competitors — named rivals + dated observations */
+  createCompetitor(input: NewCompetitor): Promise<Competitor>;
+  listCompetitors(businessId: string): Promise<Competitor[]>;
+  updateCompetitor(id: string, patch: Partial<NewCompetitor>): Promise<Competitor>;
+  deleteCompetitor(id: string): Promise<void>;
+  /** Idempotent per (competitor, kind, day). Returns rows written. */
+  upsertCompetitorReads(inputs: NewCompetitorRead[]): Promise<number>;
+  listCompetitorReads(businessId: string, opts?: { sinceDays?: number }): Promise<CompetitorRead[]>;
+
+  /* reviews — own + competitor voice-of-customer */
+  /** Dedupes on (business, competitor, author, text). Returns rows written. */
+  upsertReviews(inputs: NewReview[]): Promise<number>;
+  listReviews(businessId: string, opts?: { competitorId?: string | null }): Promise<Review[]>;
+  upsertReviewDigest(input: NewReviewDigest): Promise<ReviewDigest>;
+  getReviewDigest(businessId: string): Promise<ReviewDigest | null>;
+
+  /* alerts — proactive nudges, deduped by key */
+  /** No-ops on an existing dedupe_key. Returns the alert when newly created. */
+  createAlert(input: NewAlert): Promise<Alert | null>;
+  listAlerts(businessId: string, opts?: { unreadOnly?: boolean; limit?: number }): Promise<Alert[]>;
+  markAlertsRead(businessId: string, ids?: string[]): Promise<void>;
+
+  /* campaign platform linkage */
+  setCampaignExternal(id: string, externalId: string, externalStatus: string): Promise<Campaign>;
 
   /* marketing */
   insertDemoRequest(input: NewDemoRequest): Promise<DemoRequest>;

@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * Dark is the brand default. Choosing light sets [data-theme="light"] on
+ * Warm light is the brand default. Choosing dark sets [data-theme="dark"] on
  * <html>; the choice persists in localStorage and is applied pre-paint by
  * the inline script in app/layout.tsx. Icon visibility itself is pure CSS
  * (--sun-d / --moon-d), so this component only tracks state for a11y labels.
@@ -16,11 +16,11 @@ function subscribe(onChange: () => void) {
 }
 
 function getSnapshot(): boolean {
-  return document.documentElement.getAttribute("data-theme") !== "light";
+  return document.documentElement.getAttribute("data-theme") === "dark";
 }
 
 export default function ThemeToggle() {
-  const dark = useSyncExternalStore(subscribe, getSnapshot, () => true);
+  const dark = useSyncExternalStore(subscribe, getSnapshot, () => false);
 
   function toggle() {
     const next = dark ? "light" : "dark";

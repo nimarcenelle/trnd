@@ -1,6 +1,5 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, Opportunity, Signal } from "@/lib/db/types";
-import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity, type ScoredOpportunity } from "@/lib/scoring";
 
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
@@ -8,10 +7,11 @@ import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 /**
  * Re-derive the score breakdown for a stored opportunity so screens can show
  * their work. Uses the same inputs the recommend job used (services,
- * learnings, news-coverage proxy — and, keyless, the same deterministic fit
- * judge), so the components match the stored score. With a Gemini key the
- * stored score carries the model judge's fit, which can't be re-derived
- * offline; the deterministic read below is the closest honest approximation.
+ * learnings, news-coverage proxy, locality) — and when the ranking was
+ * judged, folds the persisted relevance back in, so the FIT meter shows the
+ * judged fit the stored score actually used, not the raw token match. With
+ * no persisted judgment, the deterministic fit judge gives the same kind of
+ * read keylessly.
  */
 export async function explainOpportunity(
   repo: Repo,
@@ -36,7 +36,13 @@ export async function explainOpportunity(
     { coverageCount: typeof coverage?.value === "number" ? coverage.value : null },
     { locality: localityFor(signal.geo, business.region) },
   );
-  if (isGeminiConfigured) return scored;
+  // A judged ranking persisted its relevance — show exactly what it used.
+  if (opportunity.relevance != null) {
+    const reason =
+      opportunity.rationale.match(/Snapshot read: (.+)$/)?.[1] ?? "judged against your snapshot";
+    return applyRelevance(scored, Number(opportunity.relevance), reason);
+  }
+  // Unjudged (legacy rows): the deterministic judge is the honest stand-in.
   const fitCtx = buildBusinessFitContext(business, services, brief);
   const j = judgeTermRelevance(signal.term, business.category, fitCtx);
   return applyRelevance(scored, j.relevance, j.reason, "Fit read");

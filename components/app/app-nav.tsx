@@ -8,6 +8,8 @@ import ThemeToggle from "@/components/theme-toggle";
 
 const LINKS = [
   { href: "/app", label: "This week" },
+  { href: "/app/report", label: "Report" },
+  { href: "/app/ask", label: "Ask" },
   { href: "/app/opportunities", label: "Opportunities" },
   { href: "/app/campaigns", label: "Campaigns" },
   { href: "/app/results", label: "Results" },

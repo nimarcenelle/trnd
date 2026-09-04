@@ -13,16 +13,7 @@ const fmtMoney = (cents: number | null) =>
 const fmtNum = (n: number | null) => (n === null ? "—" : n.toLocaleString("en-US"));
 const fmtPct = (r: number | null) => (r === null ? "—" : `${(r * 100).toFixed(2)}%`);
 
-/** Illustrative paid-social CTR benchmarks by category (labeled as such). */
-const CTR_BENCHMARKS: Record<string, number> = {
-  "Restaurants & cafés": 0.016,
-  "Home services": 0.012,
-  "Health & beauty": 0.018,
-  "Fitness studios": 0.017,
-  "Retail & boutiques": 0.015,
-  "Auto services": 0.011,
-  "Dental & wellness": 0.013,
-};
+import { CTR_BENCHMARKS } from "@/lib/results/benchmarks";
 
 export default async function ResultsPage() {
   const user = await getSessionUser();
@@ -289,7 +280,7 @@ export default async function ResultsPage() {
                 key={l.id}
                 className="pill"
                 style={l.source === "seed" ? { borderStyle: "dashed", color: "var(--ink-faint)" } : undefined}
-                title={l.source === "seed" ? "Seeded prior — illustrative until real results replace it" : `${l.sample_size} recorded results`}
+                title={l.source === "seed" ? "Example data — replaced by your first real result" : `${l.sample_size} recorded results`}
               >
                 {l.angle_type.replace(/_/g, " ")} · lift {Number(l.lift).toFixed(2)} ·{" "}
                 {l.source === "seed" ? "illustrative" : `n=${l.sample_size}`}

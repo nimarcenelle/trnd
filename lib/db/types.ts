@@ -24,6 +24,8 @@ export type SignalSource =
   | "tiktok"
   | "meta_ads"
   | "weather"
+  | "dataforseo"
+  | "snapshot"
   | "seed";
 export type OpportunityStatus = "new" | "accepted" | "dismissed" | "launched";
 export type CampaignStatus = "draft" | "exported" | "live" | "complete";
@@ -102,6 +104,9 @@ export interface Opportunity {
   rationale: string;
   matched_service_id: string | null;
   competitor_gap: string | null;
+  /** The relevance judge's 0–1 fit, when this ranking was judged. Lets
+   * screens re-derive the same gated components the stored score used. */
+  relevance: number | null;
   status: OpportunityStatus;
   created_at: string;
 }
@@ -126,6 +131,10 @@ export interface Campaign {
   audience: CampaignAudience;
   channel: CampaignChannel;
   status: CampaignStatus;
+  /** The platform's campaign id once launched through a connected account. */
+  external_id: string | null;
+  /** Platform-side status at last sync (e.g. PAUSED, ACTIVE). */
+  external_status: string | null;
   model_used: string;
   prompt_version: string;
   created_at: string;
@@ -221,6 +230,107 @@ export interface Subscription {
   updated_at: string;
 }
 
+/* ------------------------- connections & intel ------------------------- */
+
+export type ConnectionProvider = "meta" | "google_ads" | "google_business";
+export type ConnectionStatus = "connected" | "error" | "revoked";
+
+/** An OAuth link to an external account (ad platform, business profile). */
+export interface Connection {
+  id: string;
+  business_id: string;
+  provider: ConnectionProvider;
+  status: ConnectionStatus;
+  /** Platform account id (e.g. Meta act_… or a Places place_id). */
+  account_id: string | null;
+  account_name: string | null;
+  access_token: string;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  scopes: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** A named local rival the owner asked TRND to watch. */
+export interface Competitor {
+  id: string;
+  business_id: string;
+  name: string;
+  website: string | null;
+  /** Google Places id once resolved — unlocks rating/review reads. */
+  place_id: string | null;
+  created_at: string;
+}
+
+export type CompetitorReadKind = "ads" | "reviews" | "site";
+
+/** One dated observation about a competitor (ad count, rating, site change). */
+export interface CompetitorRead {
+  id: string;
+  competitor_id: string;
+  business_id: string;
+  kind: CompetitorReadKind;
+  /** ads: active ad count · reviews: review count · site: null */
+  value: number | null;
+  /** reviews: current star rating. */
+  rating: number | null;
+  /** One-line human read ("2 new ads since last week"). */
+  summary: string;
+  raw: unknown;
+  captured_at: string;
+}
+
+/** A customer review — the business's own (competitor_id null) or a rival's. */
+export interface Review {
+  id: string;
+  business_id: string;
+  competitor_id: string | null;
+  author: string;
+  rating: number;
+  text: string;
+  published_at: string | null;
+  source: "google" | "seed";
+  captured_at: string;
+}
+
+/** Mined themes from the business's own reviews — regenerates as reviews land. */
+export interface ReviewDigest {
+  id: string;
+  business_id: string;
+  review_count: number;
+  /** What customers consistently praise. */
+  themes: string[];
+  /** Phrases customers actually use — ready-made ad copy hooks. */
+  copy_hooks: string[];
+  /** Recurring complaints — what ads must not overpromise. */
+  watchouts: string[];
+  model_used: string;
+  created_at: string;
+}
+
+export type AlertKind =
+  | "demand_spike"
+  | "competitor_ads"
+  | "seasonal_window"
+  | "campaign_performance"
+  | "report_ready";
+
+/** A proactive nudge — TRND noticed something the owner didn't ask about. */
+export interface Alert {
+  id: string;
+  business_id: string;
+  kind: AlertKind;
+  title: string;
+  body: string;
+  /** In-app destination for the alert. */
+  href: string;
+  /** Stable key so re-evaluation never duplicates an alert. */
+  dedupe_key: string;
+  read_at: string | null;
+  created_at: string;
+}
+
 export interface DemoRequest {
   id: string;
   full_name: string;
@@ -235,13 +345,36 @@ export interface DemoRequest {
 
 export type NewBusiness = Omit<Business, "id" | "created_at">;
 export type NewService = Omit<Service, "id">;
+/**
+ * The analyst note that opens a week's intel report — the one AI-written (or
+ * deterministic-fallback) block on an otherwise fully data-derived page.
+ * Persisted per (business, week) so the report is stable within a week.
+ */
+export interface IntelNote {
+  id: string;
+  business_id: string;
+  week_of: string; // yyyy-mm-dd (Monday)
+  /** One-sentence verdict for the week. */
+  headline: string;
+  /** 2-3 short analyst paragraphs. */
+  narrative: string[];
+  /** 2-4 concrete do-this items. */
+  actions: string[];
+  model_used: string;
+  prompt_version: string;
+  created_at: string;
+}
+export type NewIntelNote = Omit<IntelNote, "id" | "created_at">;
+
 export type NewSignal = Omit<Signal, "id" | "captured_at"> & { captured_at?: string };
 export type NewSeriesPoint = Omit<SignalSeriesPoint, "id">;
 export type NewOpportunity = Omit<Opportunity, "id" | "created_at" | "status"> & {
   status?: OpportunityStatus;
 };
-export type NewCampaign = Omit<Campaign, "id" | "created_at" | "status"> & {
+export type NewCampaign = Omit<Campaign, "id" | "created_at" | "status" | "external_id" | "external_status"> & {
   status?: CampaignStatus;
+  external_id?: string | null;
+  external_status?: string | null;
 };
 export type NewCreative = Omit<Creative, "id">;
 export type NewCampaignResult = Omit<CampaignResult, "id" | "recorded_at">;
@@ -249,3 +382,9 @@ export type NewLearning = Omit<Learning, "id" | "updated_at">;
 export type NewBusinessBrief = Omit<BusinessBrief, "id" | "created_at">;
 export type NewDemoRequest = Omit<DemoRequest, "id" | "created_at">;
 export type NewSubscription = Omit<Subscription, "id" | "created_at" | "updated_at">;
+export type NewConnection = Omit<Connection, "id" | "created_at" | "updated_at">;
+export type NewCompetitor = Omit<Competitor, "id" | "created_at">;
+export type NewCompetitorRead = Omit<CompetitorRead, "id" | "captured_at"> & { captured_at?: string };
+export type NewReview = Omit<Review, "id" | "captured_at">;
+export type NewReviewDigest = Omit<ReviewDigest, "id" | "created_at">;
+export type NewAlert = Omit<Alert, "id" | "created_at" | "read_at">;

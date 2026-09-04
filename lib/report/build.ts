@@ -1,0 +1,342 @@
+import type { Repo } from "@/lib/db/repo";
+import type { Business, BusinessBrief, ReviewDigest, Signal, SignalSource } from "@/lib/db/types";
+import { gradeFor, type Grade } from "@/lib/recommend/grade";
+import { weekOf } from "@/lib/recommend/recommend";
+import { upcomingMoments, type UpcomingMoment } from "@/lib/recommend/seasonal";
+import { buildResultsTakeaway } from "@/lib/recommend/insights";
+import { benchmarkFor } from "@/lib/results/benchmarks";
+import { normalizeTerm } from "@/lib/signals/normalize";
+
+/**
+ * The weekly intel report: every number on the page assembled here, each one
+ * traceable to a stored signal (source + capture date) or a recorded result.
+ * The only generated prose is the analyst note (lib/report/note.ts) — the
+ * rest is data. Merciv-style rules: cite everything, and where the evidence
+ * is thin say so instead of filling the gap.
+ */
+
+export interface RankedRow {
+  rank: number;
+  opportunityId: string;
+  term: string;
+  source: SignalSource;
+  metric: string;
+  deltaPct: number | null;
+  score: number;
+  grade: Grade;
+  matchedServiceName: string | null;
+  /** The relevance judge's one-line reason, when the ranking stored one. */
+  snapshotReason: string | null;
+  competitorGap: string | null;
+  hasCampaign: boolean;
+  status: string;
+}
+
+export interface DemandRow {
+  term: string;
+  /** Weekly delta from a live interest read, when one landed. */
+  deltaPct: number | null;
+  /** Latest 0-100 search-interest level (Google Trends scale, 7-day mean). */
+  interestLevel: number | null;
+  /** The read window's low-high bounds behind that level. */
+  interestRange: { min: number; max: number } | null;
+  /** True when the term is too small for Google's regional sampling —
+   * mostly-zero days; shown as "low search volume", never a fake zero. */
+  interestSparse: boolean;
+  /** When the read had to widen to land ("cold plunge · US-wide"), what was
+   * actually measured — always shown next to the number. */
+  interestMeasuredAs: string | null;
+  interestSource: SignalSource | null;
+  /** Recent local news mentions (null = no read captured). */
+  coverageCount: number | null;
+  /** Active Meta ads matching the term near the business (null = no read). */
+  adCount: number | null;
+  /** Most recent capture date across this term's reads, yyyy-mm-dd. */
+  lastRead: string | null;
+}
+
+export interface CompetitorRow {
+  term: string;
+  adCount: number;
+  ads: { advertiser: string; snippet: string }[];
+  capturedAt: string;
+}
+
+export interface MoverRow {
+  term: string;
+  deltaPct: number;
+  metric: string;
+  source: SignalSource;
+}
+
+/** A named competitor's latest reads — the "competitor moves" section. */
+export interface WatchedCompetitor {
+  name: string;
+  ads: {
+    count: number | null;
+    /** The read's honest one-liner (franchise-scale totals are labeled). */
+    summary: string;
+    day: string;
+    creatives: { advertiser: string; snippet: string }[];
+  } | null;
+  reviews: { rating: number | null; count: number | null; day: string } | null;
+  /** Ad count a week earlier, when we hold one — the delta the owner feels. */
+  previousAdCount: number | null;
+}
+
+export interface SourceCount {
+  source: SignalSource;
+  count: number;
+  /** Most recent capture, yyyy-mm-dd. */
+  latest: string;
+}
+
+export interface IntelReport {
+  week: string;
+  weekEnd: string;
+  generatedAt: string;
+  signalsWatched: number;
+  sourceCounts: SourceCount[];
+  ranked: RankedRow[];
+  demand: DemandRow[];
+  competitors: CompetitorRow[];
+  movers: MoverRow[];
+  seasonal: UpcomingMoment[];
+  competitorsWatched: WatchedCompetitor[];
+  voice: ReviewDigest | null;
+  results: {
+    launched: number;
+    totalCampaigns: number;
+    avgCtr: number | null;
+    benchmark: number;
+    roas: number | null;
+    takeaway: string | null;
+  };
+  brief: BusinessBrief | null;
+}
+
+const day = (iso: string) => iso.slice(0, 10);
+
+export async function buildIntelReport(repo: Repo, business: Business): Promise<IntelReport> {
+  const week = weekOf();
+  const weekEnd = day(new Date(new Date(`${week}T00:00:00Z`).getTime() + 6 * 86400_000).toISOString());
+
+  const [signals, opportunities, campaigns, results, services, brief, namedCompetitors, competitorReads, voice] =
+    await Promise.all([
+      repo.listSignalsForCategory(business.category, {
+        sinceDays: 14,
+        geo: business.region ? `US-${business.region.toUpperCase()}` : undefined,
+      }),
+      repo.listOpportunities(business.id, week),
+      repo.listCampaigns(business.id),
+      repo.listResultsForBusiness(business.id),
+      repo.listServices(business.id),
+      repo.getBusinessBrief(business.id),
+      repo.listCompetitors(business.id),
+      repo.listCompetitorReads(business.id, { sinceDays: 30 }),
+      repo.getReviewDigest(business.id),
+    ]);
+
+  const serviceById = new Map(services.map((s) => [s.id, s]));
+  const campaignOppIds = new Set(campaigns.map((c) => c.opportunity_id));
+
+  // ---- ranked opportunities, each with its signal and judge reason
+  const active = opportunities.filter((o) => o.status !== "dismissed");
+  const ranked: RankedRow[] = [];
+  for (const [i, o] of active.entries()) {
+    const signal = await repo.getSignal(o.signal_id);
+    if (!signal) continue;
+    ranked.push({
+      rank: i + 1,
+      opportunityId: o.id,
+      term: signal.term,
+      source: signal.source,
+      metric: signal.metric_type,
+      deltaPct: signal.delta_pct,
+      score: Number(o.score),
+      grade: gradeFor(Number(o.score)),
+      matchedServiceName: o.matched_service_id
+        ? (serviceById.get(o.matched_service_id)?.name ?? null)
+        : null,
+      snapshotReason: o.rationale?.match(/Snapshot read: (.+)$/)?.[1] ?? null,
+      competitorGap: o.competitor_gap,
+      hasCampaign: campaignOppIds.has(o.id),
+      status: o.status,
+    });
+  }
+
+  // ---- demand tracker: the snapshot's watch terms and what we hold on each
+  const byNormalized = new Map<string, Signal[]>();
+  for (const s of signals) {
+    const list = byNormalized.get(s.normalized_term) ?? [];
+    list.push(s);
+    byNormalized.set(s.normalized_term, list);
+  }
+  const readsFor = (normalized: string): Signal[] => {
+    const exact = byNormalized.get(normalized) ?? [];
+    // Ad-library reads are stored as "<term> <city>" — include prefix rows.
+    const prefixed = [...byNormalized.entries()]
+      .filter(([key]) => key.startsWith(`${normalized}_`))
+      .flatMap(([, rows]) => rows);
+    return [...exact, ...prefixed];
+  };
+  const demand: DemandRow[] = (brief?.watch_terms ?? []).map((term) => {
+    const reads = readsFor(normalizeTerm(term));
+    // Prefer a real interest/volume read (level + delta); any scorable read
+    // with a delta still carries the trend column.
+    const interest =
+      reads.find((s) => s.metric_type === "search_interest" || s.metric_type === "search_volume") ??
+      reads.find(
+        (s) =>
+          typeof s.delta_pct === "number" &&
+          s.metric_type !== "news_coverage" &&
+          s.metric_type !== "ad_saturation",
+      );
+    const interestRaw = interest?.raw as
+      | {
+          min?: number | null;
+          max?: number | null;
+          sparse?: boolean;
+          adjusted?: boolean;
+          measuredTerm?: string;
+          measuredGeo?: string;
+        }
+      | null
+      | undefined;
+    const interestRange =
+      typeof interestRaw?.min === "number" && typeof interestRaw?.max === "number"
+        ? { min: interestRaw.min, max: interestRaw.max }
+        : null;
+    const interestSparse = interestRaw?.sparse === true;
+    const interestMeasuredAs =
+      interestRaw?.adjusted && interestRaw.measuredTerm
+        ? `${interestRaw.measuredTerm}${interestRaw.measuredGeo === "US" ? " · US-wide" : ""}`
+        : null;
+    const coverage = reads.find((s) => s.metric_type === "news_coverage" && typeof s.value === "number");
+    const adRead = reads.find((s) => s.metric_type === "ad_saturation" && typeof s.value === "number");
+    const lastRead = reads.length
+      ? reads.map((s) => day(s.captured_at)).sort().at(-1)!
+      : null;
+    return {
+      term,
+      deltaPct: interest?.delta_pct ?? null,
+      interestLevel: typeof interest?.value === "number" ? interest.value : null,
+      interestRange,
+      interestSparse,
+      interestMeasuredAs,
+      interestSource: interest?.source ?? null,
+      coverageCount: (coverage?.value as number | undefined) ?? null,
+      adCount: (adRead?.value as number | undefined) ?? null,
+      lastRead,
+    };
+  });
+
+  // ---- competitor intelligence: real Meta Ad Library reads with the ads
+  const competitors: CompetitorRow[] = signals
+    .filter((s) => s.metric_type === "ad_saturation" && typeof s.value === "number")
+    .sort((a, b) => b.captured_at.localeCompare(a.captured_at))
+    .slice(0, 6)
+    .map((s) => ({
+      term: s.term,
+      adCount: s.value as number,
+      ads: (((s.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads) ?? []).slice(0, 3),
+      capturedAt: day(s.captured_at),
+    }))
+    .filter((row) => row.adCount > 0 || row.ads.length > 0);
+
+  // ---- market pulse: category movers, context only
+  const movers: MoverRow[] = signals
+    .filter(
+      (s): s is Signal & { delta_pct: number } =>
+        typeof s.delta_pct === "number" &&
+        s.metric_type !== "news_coverage" &&
+        s.metric_type !== "ad_saturation",
+    )
+    .sort((a, b) => b.delta_pct - a.delta_pct)
+    .slice(0, 6)
+    .map((s) => ({ term: s.term, deltaPct: s.delta_pct, metric: s.metric_type, source: s.source }));
+
+  // ---- named-competitor moves: latest read per kind, plus the week-ago
+  // ad count so "they scaled" is a number, not a vibe
+  const competitorsWatched: WatchedCompetitor[] = namedCompetitors.map((c) => {
+    const mine = competitorReads
+      .filter((r) => r.competitor_id === c.id)
+      .sort((a, b) => b.captured_at.localeCompare(a.captured_at));
+    const latestAds = mine.find((r) => r.kind === "ads") ?? null;
+    const latestReviews = mine.find((r) => r.kind === "reviews") ?? null;
+    const weekAgoAds =
+      mine.find(
+        (r) =>
+          r.kind === "ads" &&
+          latestAds !== null &&
+          r.captured_at < latestAds.captured_at &&
+          new Date(latestAds.captured_at).getTime() - new Date(r.captured_at).getTime() >= 5 * 86400_000,
+      ) ?? null;
+    return {
+      name: c.name,
+      ads: latestAds
+        ? {
+            count: latestAds.value,
+            summary: latestAds.summary,
+            day: day(latestAds.captured_at),
+            creatives: (((latestAds.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads) ?? []).slice(0, 2),
+          }
+        : null,
+      reviews: latestReviews
+        ? { rating: latestReviews.rating, count: latestReviews.value, day: day(latestReviews.captured_at) }
+        : null,
+      previousAdCount: weekAgoAds?.value ?? null,
+    };
+  });
+
+  // ---- source provenance
+  const bySource = new Map<SignalSource, { count: number; latest: string }>();
+  for (const s of signals) {
+    const cur = bySource.get(s.source) ?? { count: 0, latest: "" };
+    cur.count += 1;
+    const d = day(s.captured_at);
+    if (d > cur.latest) cur.latest = d;
+    bySource.set(s.source, cur);
+  }
+  const sourceCounts: SourceCount[] = [...bySource.entries()]
+    .map(([source, v]) => ({ source, ...v }))
+    .sort((a, b) => b.count - a.count);
+
+  // ---- results to date
+  const launched = campaigns.filter((c) => c.status === "live" || c.status === "complete").length;
+  const ctrs = results.map((r) => (r.ctr === null ? null : Number(r.ctr))).filter((v): v is number => v !== null);
+  const avgCtr = ctrs.length ? ctrs.reduce((a, b) => a + b, 0) / ctrs.length : null;
+  const sum = (f: (r: (typeof results)[number]) => number | null) =>
+    results.reduce((acc, r) => acc + (f(r) ?? 0), 0);
+  const totalSpend = sum((r) => r.spend_cents);
+  const roas = totalSpend > 0 ? sum((r) => r.revenue_cents) / totalSpend : null;
+  const benchmark = benchmarkFor(business.category);
+
+  const watched = signals.filter(
+    (s) => s.metric_type !== "news_coverage" && s.metric_type !== "ad_saturation",
+  );
+
+  return {
+    week,
+    weekEnd,
+    generatedAt: new Date().toISOString(),
+    signalsWatched: watched.length,
+    sourceCounts,
+    ranked,
+    demand,
+    competitors,
+    movers,
+    seasonal: upcomingMoments(business.category),
+    competitorsWatched,
+    voice,
+    results: {
+      launched,
+      totalCampaigns: campaigns.length,
+      avgCtr,
+      benchmark,
+      roas,
+      takeaway: buildResultsTakeaway({ avgCtr, benchmark, roas }),
+    },
+    brief,
+  };
+}

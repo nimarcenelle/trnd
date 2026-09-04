@@ -118,7 +118,7 @@ export default function Styleguide() {
           <div className="mono-label">COFFEE SHOPS &amp; CAFÉS</div>
         </div>
         <div className="card-lg" style={{ padding: 20, borderColor: "var(--amber)", background: "linear-gradient(180deg, var(--amber-soft), transparent)" }}>
-          <span className="mono-label" style={{ color: "var(--amber)" }}>
+          <span className="mono-label" style={{ color: "var(--amber-text)" }}>
             ● this week
           </span>
           <div style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 18, marginTop: 8 }}>

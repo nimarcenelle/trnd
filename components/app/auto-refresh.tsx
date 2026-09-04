@@ -3,13 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-/** Re-fetches server data on an interval — for screens waiting on a
- * background job (e.g. the founding analysis) to land. */
-export default function AutoRefresh({ everyMs = 6000 }: { everyMs?: number }) {
+/** Quietly re-fetches the page while a background job (the founding
+ * analysis, the first ranking) is landing — the user never has to reload. */
+export default function AutoRefresh({ everyMs = 12000 }: { everyMs?: number }) {
   const router = useRouter();
   useEffect(() => {
-    const iv = setInterval(() => router.refresh(), everyMs);
-    return () => clearInterval(iv);
+    const id = setInterval(() => router.refresh(), everyMs);
+    return () => clearInterval(id);
   }, [router, everyMs]);
   return null;
 }

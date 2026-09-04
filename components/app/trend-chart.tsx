@@ -34,7 +34,21 @@ export default function TrendChart({ points }: { points: SignalSeriesPoint[] }) 
     const hi = max + (max - min) * 0.1 || max + 1;
     const x = (i: number) => PAD.l + ((W - PAD.l - PAD.r) * i) / (points.length - 1);
     const y = (v: number) => PAD.t + (H - PAD.t - PAD.b) * (1 - (v - lo) / (hi - lo || 1));
-    const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.value).toFixed(1)}`).join(" ");
+    // Catmull-Rom → cubic bézier: the measured points stay exact, the line
+    // between them reads as a trend instead of a polyline.
+    const px = points.map((p, i) => ({ cx: x(i), cy: y(p.value) }));
+    let line = `M${px[0].cx.toFixed(1)} ${px[0].cy.toFixed(1)}`;
+    for (let i = 0; i < px.length - 1; i++) {
+      const p0 = px[Math.max(0, i - 1)];
+      const p1 = px[i];
+      const p2 = px[i + 1];
+      const p3 = px[Math.min(px.length - 1, i + 2)];
+      const c1x = p1.cx + (p2.cx - p0.cx) / 6;
+      const c1y = p1.cy + (p2.cy - p0.cy) / 6;
+      const c2x = p2.cx - (p3.cx - p1.cx) / 6;
+      const c2y = p2.cy - (p3.cy - p1.cy) / 6;
+      line += ` C${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.cx.toFixed(1)} ${p2.cy.toFixed(1)}`;
+    }
     const area = `${line} L${x(points.length - 1).toFixed(1)} ${(H - PAD.b).toFixed(1)} L${PAD.l} ${(H - PAD.b).toFixed(1)} Z`;
     // Round-number gridlines: pick a 1/2/5×10ⁿ step, draw the ticks that fit.
     const span = hi - lo || 1;
@@ -70,6 +84,13 @@ export default function TrendChart({ points }: { points: SignalSeriesPoint[] }) 
 
   return (
     <div className="trend-chart" ref={wrapRef}>
+      <div className="trend-chart__summary">
+        <span className="trend-chart__now">{Math.round(last.value)}</span>
+        <span className={`delta-chip${delta < 0 ? " delta-chip--down" : ""}`}>
+          {delta >= 0 ? "↑" : "↓"}
+          {Math.abs(delta)}% · 30d
+        </span>
+      </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"
@@ -101,10 +122,18 @@ export default function TrendChart({ points }: { points: SignalSeriesPoint[] }) 
           </text>
         ))}
         {/* area + line */}
-        <path d={geom.area} fill="var(--mint)" opacity="0.1" />
-        <path d={geom.line} fill="none" stroke="var(--mint)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        {/* endpoint dot + always-on value label */}
-        <circle cx={geom.x(points.length - 1)} cy={geom.y(last.value)} r="3.5" fill="var(--mint)" />
+        <defs>
+          <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--mint)" stopOpacity="0.22" />
+            <stop offset="70%" stopColor="var(--mint)" stopOpacity="0.04" />
+            <stop offset="100%" stopColor="var(--mint)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={geom.area} fill="url(#trendFill)" />
+        <path d={geom.line} fill="none" stroke="var(--mint)" strokeWidth="2.25" strokeLinejoin="round" strokeLinecap="round" />
+        {/* endpoint: soft halo + dot + always-on value label */}
+        <circle cx={geom.x(points.length - 1)} cy={geom.y(last.value)} r="9" fill="var(--mint)" opacity="0.15" />
+        <circle cx={geom.x(points.length - 1)} cy={geom.y(last.value)} r="3.5" fill="var(--mint)" stroke="var(--bg-1)" strokeWidth="1.5" />
         <text
           x={geom.x(points.length - 1) + 8}
           y={geom.y(last.value) + 3.5}

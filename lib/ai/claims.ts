@@ -71,16 +71,26 @@ export function buildClaimFacts(ctx: {
   const allowed = new Set<number>();
   const lines: string[] = [];
 
+  const prices: number[] = [];
   for (const s of ctx.services.filter((s) => s.is_active)) {
     if (s.price_cents != null) {
       const dollars = s.price_cents / 100;
       allowed.add(dollars);
       allowed.add(Math.round(dollars));
+      prices.push(dollars);
       lines.push(`- ${s.name}: $${dollars % 1 === 0 ? dollars : dollars.toFixed(2)}`);
     } else {
       lines.push(`- ${s.name}: no price on file`);
     }
     for (const n of ownerNumbers(`${s.name} ${s.description ?? ""}`)) allowed.add(n);
+  }
+  // Verifiable arithmetic on real prices is a legitimate claim — "two pairs
+  // for $90" when denim is $45, "session plus drop-in for $105". Admit small
+  // multiples and pairwise sums; everything else stays flagged.
+  for (const p of prices) {
+    allowed.add(Math.round(p * 2));
+    allowed.add(Math.round(p * 3));
+    for (const q of prices) allowed.add(Math.round(p + q));
   }
   allowed.add(ctx.business.radius_miles);
   lines.push(`- service radius: ${ctx.business.radius_miles} miles`);
@@ -133,8 +143,8 @@ export function buildClaimsRewritePrompt(
   return [
     `You are fact-checking finished ad copy for ${business.name} before the owner sees it.`,
     `The copy below states numbers that are NOT among the facts the owner provided. For each flagged number, decide:`,
-    `- If it is a claim about ${business.name} itself (its water temperature, session length, results, history, prices), it is INVENTED — remove it or soften it to a non-numeric phrase ("cold" instead of "50-degree", "a quick session" instead of "45 minutes").`,
-    `- If it is plainly about the wider world or the trend, not this business ("IV drips take about an hour"), it may stay.`,
+    `- If it is a claim about ${business.name} itself — its water temperature, session length or duration, results, history, prices — it is INVENTED: remove it or soften it to a non-numeric phrase ("cold" instead of "50-degree", "a quick session" instead of "45 minutes"). Any duration attached to this business's own service or visit ("a 60-minute session", "in and out in 20 minutes") is a business claim, never a world fact.`,
+    `- Only a number plainly about the wider world or the trend itself, detached from this business ("IV drips take about an hour"), may stay — and when in doubt, strip the number.`,
     `Never introduce new numbers. Keep every edit minimal — same voice, same structure, same asset counts; copy that is not flagged stays word-for-word identical.`,
     ``,
     `FACTS THE OWNER PROVIDED (the only numbers the copy may claim about the business):`,

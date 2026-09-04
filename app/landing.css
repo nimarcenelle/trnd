@@ -51,7 +51,9 @@
   gap: 18px;
 }
 
-/* ---------- TICKER ---------- */
+/* ---------- TICKER ----------
+   The live-signal strip right under the nav — first proof on the page that
+   TRND is watching something real. */
 .ticker {
   background: var(--bg-1);
   border-bottom: 1px solid var(--line);
@@ -80,9 +82,8 @@
   }
 }
 .ticker__item {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  font-family: var(--body);
+  font-size: 12.5px;
   padding: 0 22px;
   display: inline-flex;
   align-items: center;
@@ -91,6 +92,8 @@
   color: var(--ink-soft);
 }
 .ticker__item b {
+  font-family: var(--mono);
+  font-size: 12px;
   color: var(--mint-text);
   font-weight: 600;
 }
@@ -98,66 +101,80 @@
   color: var(--amber-text);
 }
 
-/* ---------- HERO ---------- */
+/* ---------- HERO ----------
+   Centered and quiet, Merciv-style: one badge, an all-ink headline, one
+   CTA pair — and the product below, wide, as the only visual. */
 .hero {
-  padding: 84px 0 40px;
+  padding: 96px 0 76px;
   position: relative;
 }
 .hero__texture {
   position: absolute;
   inset: 0;
   top: 0;
-  height: 520px;
+  height: 560px;
   pointer-events: none;
-  opacity: 0.5;
-  background-image: radial-gradient(circle at 1px 1px, var(--texture-dot) 1px, transparent 1px);
-  background-size: 26px 26px;
+  opacity: 0.4;
+  background-image:
+    radial-gradient(ellipse 920px 460px at 50% -12%, var(--amber-glow), transparent 70%),
+    radial-gradient(circle at 1px 1px, var(--texture-dot) 1px, transparent 1px);
+  background-size:
+    auto,
+    26px 26px;
   mask-image: linear-gradient(to bottom, black, transparent 85%);
 }
-.hero__grid {
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 48px;
+.hero__inner {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  text-align: center;
   position: relative;
 }
 .hero h1 {
   font-family: var(--disp);
   font-weight: 700;
-  font-size: clamp(36px, 4.6vw, 58px);
-  line-height: 1.04;
+  font-size: clamp(38px, 5vw, 62px);
+  line-height: 1.06;
   letter-spacing: -0.02em;
-  margin: 0 0 24px;
+  max-width: 840px;
+  margin: 0 0 22px;
 }
 .hero h1 em {
   font-style: normal;
-  color: var(--amber);
+  color: inherit;
 }
 .hero__sub {
   font-family: var(--body);
   font-size: 18px;
   line-height: 1.6;
   color: var(--ink-soft);
-  max-width: 520px;
+  max-width: 620px;
   margin: 0 0 32px;
+  text-wrap: pretty;
 }
 .hero__ctas {
   display: flex;
+  justify-content: center;
   gap: 14px;
   flex-wrap: wrap;
-  margin-bottom: 34px;
+  margin-bottom: 26px;
 }
 .hero__proof {
   display: flex;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 10px;
 }
 
 /* ---------- HERO PRODUCT FRAME ----------
    The actual dashboard, framed as a browser window — software, not
-   illustration. */
+   illustration. Full-width below the hero copy, two columns inside. */
 .pframe {
   position: relative;
+  width: 100%;
+  max-width: 880px;
+  margin-top: 64px;
+  text-align: left;
   border: 1px solid var(--line-strong);
   border-radius: 14px;
   background: var(--bg-1);
@@ -195,7 +212,16 @@
   color: var(--ink-faint);
 }
 .pframe__body {
-  padding: 20px 22px 18px;
+  padding: 26px 30px 24px;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 40px;
+  align-items: center;
+}
+.pframe__side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .pframe__top {
   display: flex;
@@ -213,9 +239,13 @@
 }
 .pframe__delta {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--mint-text);
+  background: var(--mint-soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+  align-self: flex-start;
 }
 .pframe__title {
   font-family: var(--disp);
@@ -241,7 +271,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding-top: 14px;
+  margin-top: 18px;
+  padding-top: 16px;
   border-top: 1px dashed var(--line);
 }
 .pframe__score {
@@ -258,7 +289,7 @@
   font-family: var(--disp);
   font-size: 20px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--mint-text);
   line-height: 1;
 }
 .pframe__score span {
@@ -277,9 +308,12 @@
   padding: 10px 16px;
   border-radius: 999px;
   white-space: nowrap;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 4px 12px var(--amber-glow);
 }
 .pframe__foot {
-  margin-top: 14px;
+  margin-top: 8px;
   font-family: var(--mono);
   font-size: 10.5px;
   letter-spacing: 0.03em;
@@ -317,8 +351,8 @@
 }
 
 #sparkPath {
-  stroke-dasharray: 420;
-  stroke-dashoffset: 420;
+  stroke-dasharray: 470;
+  stroke-dashoffset: 470;
   animation: drawSpark 1.6s ease-out forwards 0.2s;
 }
 @keyframes drawSpark {
@@ -913,14 +947,13 @@ hr.rule {
 }
 
 @media (max-width: 900px) {
-  .hero__grid {
-    grid-template-columns: 1fr;
-  }
   .pframe {
-    order: -1;
-    max-width: 420px;
-    width: 100%;
-    margin: 0 auto 20px;
+    max-width: 520px;
+    margin-top: 44px;
+  }
+  .pframe__body {
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
   .split {
     grid-template-columns: 1fr;
@@ -1100,4 +1133,21 @@ hr.rule {
   .tier__promise {
     min-height: 0;
   }
+}
+
+/* ---------- INVITING PASS (Merciv-inspired) ----------
+   Landing-only: one bordered badge in the hero — section eyebrows stay
+   plain so the page reads editorial, not busy. Hero proof pills drop the
+   mono voice — mono stays reserved for data. */
+.hero .eyebrow {
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 7px 15px;
+}
+.hero__proof .pill {
+  font-family: var(--body);
+  font-size: 12.5px;
+  letter-spacing: 0;
+  background: var(--bg-1);
 }

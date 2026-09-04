@@ -38,6 +38,37 @@ Each is implemented behind its interface and registered unavailable at runtime.
 - No Vercel credentials; config is present (`vercel.json` with cron schedules) but no
   deploy was attempted, per the brief.
 
+## Meta ad-account connect / launch / results sync
+- Needs a Meta developer app with Marketing API access. Until its keys exist, Settings
+  shows the connect card as "awaiting platform credentials", launch stays copy-paste,
+  and results stay manual entry.
+- **Seam**: create an app at developers.facebook.com (type Business), add the Marketing
+  API product, request `ads_read` + `ads_management` in App Review (business
+  verification required for public use; app works immediately for admins/testers of the
+  app). Set `META_APP_ID`, `META_APP_SECRET`, and `NEXT_PUBLIC_APP_URL` (the OAuth
+  redirect is `<APP_URL>/api/connect/meta/callback` — add it to the app's Valid OAuth
+  Redirect URIs). Everything else — connect button, paused launch, daily sync cron —
+  activates on its own.
+
+## Google Places (reviews & competitor ratings)
+- **Seam**: a Google Cloud project with "Places API (New)" enabled; set
+  `GOOGLE_PLACES_API_KEY`. Unlocks own-review mining (voice of customer) and daily
+  competitor rating reads. ~$0 at SMB volumes (monthly free tier covers it).
+
+## DataForSEO (search-volume backbone)
+- **Seam**: an account at dataforseo.com; set `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD`.
+  Watch terms then get real monthly search volumes + deltas daily (~$0.05/1k keywords),
+  replacing dependence on Google's fragile unofficial trends endpoint.
+
+## Weekly email (Resend)
+- **Seam**: a Resend account with a verified sending domain; set `RESEND_API_KEY` and
+  `EMAIL_FROM`. The Monday report email + cron are already wired (`/api/cron/weekly-email`).
+
+## Google Ads (second ad platform)
+- OAuth client + developer-token config exists in `lib/env.ts`
+  (`GOOGLE_ADS_CLIENT_ID/SECRET/DEVELOPER_TOKEN`) but no sync/launch implementation yet —
+  Meta ships first; the Google Ads API requires a developer token application anyway.
+
 ## Website import (in this container only)
 - Onboarding's "read your website" fetch is blocked by the sandbox egress policy, so
   here it always takes the graceful manual-entry path. The fetch + extractor

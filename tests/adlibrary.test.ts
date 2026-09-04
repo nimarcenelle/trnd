@@ -57,10 +57,10 @@ describe("competitor gap with real ad counts", () => {
   it("prefers the Meta count over the news proxy and scales sensibly", () => {
     const low = competitorGap({ coverageCount: 14, adCount: 3 });
     expect(low.score).toBeGreaterThan(0.9);
-    expect(low.reason).toContain("3 active Meta ads");
+    expect(low.reason).toContain("3 competitor ads");
     const high = competitorGap({ coverageCount: null, adCount: 180 });
     expect(high.score).toBe(0);
-    expect(high.reason).toContain("high saturation");
+    expect(high.reason).toContain("crowded field");
   });
 });
 

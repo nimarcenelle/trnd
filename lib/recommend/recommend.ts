@@ -1,8 +1,9 @@
 import type { Repo } from "@/lib/db/repo";
-import type { Business, NewOpportunity } from "@/lib/db/types";
+import type { Business, NewOpportunity, NewSignal, Signal } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
-import { applyRelevance, scoreOpportunity } from "@/lib/scoring";
+import { applyRelevance, scoreOpportunity, tokens, type ScoredOpportunity } from "@/lib/scoring";
 import { localityFor } from "@/lib/signals/geo";
+import { normalizeTerm } from "@/lib/signals/normalize";
 
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
@@ -18,6 +19,8 @@ const TOP_N = 5;
 /** Wider pool for the relevance pass — a relevant #15 can outrank a junk #1
  * now that per-business watchlists put more genuinely-relevant terms in play. */
 const CANDIDATE_POOL = 20;
+/** Snapshot-anchored signals admitted past the momentum cutoff. */
+const ANCHOR_EXTRA = 6;
 
 /**
  * "personal hygiene routines" and "hygiene routines" are the same trend
@@ -39,6 +42,69 @@ export function dedupeByTerm<T extends { normalized_term: string; delta_pct: num
   return kept.map((k) => k.sig);
 }
 
+/**
+ * The judged candidate pool: the top of the raw ranking, plus signals
+ * matching the given anchor texts (snapshot watch terms, menu items) admitted
+ * past the momentum cutoff. The judge can only demote what it sees — never
+ * promote what the cutoff dropped — so the business's own demand terms must
+ * always reach it. `allScored` must be sorted best-first; the union keeps
+ * that order because extras come from the sorted remainder.
+ */
+export function buildCandidatePool<T extends { signal: { id: string; term: string } }>(
+  allScored: T[],
+  anchorTexts: string[],
+): T[] {
+  const pool = allScored.slice(0, CANDIDATE_POOL);
+  const anchors = tokens(anchorTexts.join(" "));
+  if (anchors.size === 0) return pool;
+  const pooled = new Set(pool.map((e) => e.signal.id));
+  const extras = allScored
+    .filter(
+      (e) => !pooled.has(e.signal.id) && [...tokens(e.signal.term)].some((t) => anchors.has(t)),
+    )
+    .slice(0, ANCHOR_EXTRA);
+  return [...pool, ...extras];
+}
+
+/** How many snapshot watch terms become evergreen candidates. */
+const EVERGREEN_MAX = 6;
+
+/**
+ * Evergreen candidates: the snapshot's own demand terms, entered into the
+ * ranking as steady-demand signals. On a week when no trend fits, the pick
+ * becomes "run what you actually sell" — a term real customers search
+ * year-round, backed by the same coverage and ad-saturation reads — instead
+ * of least-bad junk from the category pool. Terms already present as a
+ * scorable signal (a live trend read) are skipped; the trend wins.
+ */
+export function evergreenSignalInputs(
+  business: Business,
+  watchTerms: string[],
+  existing: Pick<Signal, "normalized_term" | "metric_type">[],
+): NewSignal[] {
+  const present = new Set(
+    existing
+      .filter((s) => s.metric_type !== "news_coverage" && s.metric_type !== "ad_saturation")
+      .map((s) => s.normalized_term),
+  );
+  return watchTerms
+    .slice(0, EVERGREEN_MAX)
+    .map((t) => ({ term: t.trim(), normalized: normalizeTerm(t) }))
+    .filter(({ term, normalized }) => term.length > 0 && !present.has(normalized))
+    .map(({ term, normalized }) => ({
+      source: "snapshot" as const,
+      term,
+      normalized_term: normalized,
+      category: business.category,
+      geo: business.region ? `US-${business.region.toUpperCase()}` : "US",
+      metric_type: "steady_demand",
+      value: null,
+      delta_pct: null,
+      window_days: 7,
+      raw: { origin: "brief_watch_term" },
+    }));
+}
+
 export interface RecommendBusinessResult {
   businessId: string;
   created: number;
@@ -55,15 +121,43 @@ export async function recommendForBusiness(
   repo: Repo,
   business: Business,
 ): Promise<RecommendBusinessResult> {
-  const [signals, services, learnings] = await Promise.all([
-    repo.listSignalsForCategory(business.category, {
-      sinceDays: 14,
-      // Local state signals rank alongside national ones.
-      geo: business.region ? `US-${business.region.toUpperCase()}` : undefined,
-    }),
+  const signalOpts = {
+    sinceDays: 14,
+    // Local state signals rank alongside national ones.
+    geo: business.region ? `US-${business.region.toUpperCase()}` : undefined,
+  };
+  const [firstSignals, services, learnings, brief] = await Promise.all([
+    repo.listSignalsForCategory(business.category, signalOpts),
     repo.listServices(business.id),
     repo.listLearnings(business.category),
+    repo.getBusinessBrief(business.id),
   ]);
+  let signals = firstSignals;
+
+  // A configured judge with no analysis yet would produce exactly the thing
+  // this pipeline must never ship: an unjudged ranking wearing confident
+  // grades. New businesses hold an empty week for the minute or two until
+  // the analysis lands — its write re-ranks immediately. (Without Gemini
+  // there is no judge either way; the deterministic ranking stands.)
+  if (isGeminiConfigured && !brief) {
+    const existing = await repo.listOpportunities(business.id, weekOf());
+    return {
+      businessId: business.id,
+      created: 0,
+      topScore: existing[0] ? Number(existing[0].score) : null,
+      opportunityIds: existing.map((o) => o.id),
+    };
+  }
+
+  // Seed this week's evergreen candidates (idempotent — the daily unique
+  // index drops re-runs, and terms already live as a trend read are skipped).
+  if (brief?.watch_terms?.length) {
+    const evergreen = evergreenSignalInputs(business, brief.watch_terms, signals);
+    if (evergreen.length > 0) {
+      await repo.upsertSignals(evergreen);
+      signals = await repo.listSignalsForCategory(business.category, signalOpts);
+    }
+  }
 
   // News coverage is the saturation proxy; real Meta Ad Library counts beat
   // it when present. Ad reads are queried as "<term> <city>", so match on
@@ -89,7 +183,8 @@ export async function recommendForBusiness(
   const scorable = dedupeByTerm(
     signals.filter((s) => s.metric_type !== "news_coverage" && s.metric_type !== "ad_saturation"),
   );
-  let scored = scorable
+  type Candidate = { signal: Signal; result: ScoredOpportunity; relevance: number | null };
+  const allScored: Candidate[] = scorable
     .map((signal) => ({
       signal,
       result: scoreOpportunity(
@@ -104,11 +199,15 @@ export async function recommendForBusiness(
         // same demand measured nationally.
         { locality: localityFor(signal.geo, business.region) },
       ),
+      relevance: null,
     }))
-    .sort((a, b) => b.result.score - a.result.score)
-    .slice(0, CANDIDATE_POOL);
-
-  const brief = await repo.getBusinessBrief(business.id);
+    .sort((a, b) => b.result.score - a.result.score);
+  // A modest "cold plunge" read loses to a ↑100% skincare hashtag on raw
+  // score — the pool union keeps the business's own demand terms judgeable.
+  let scored = buildCandidatePool(allScored, [
+    ...(brief?.watch_terms ?? []),
+    ...services.filter((s) => s.is_active).map((s) => s.name),
+  ]);
 
   // Deterministic fit gate — always on, key or no key. Category matching
   // says an espresso-martini trend "fits" a BBQ smokehouse because both are
@@ -155,7 +254,11 @@ export async function recommendForBusiness(
           .map((entry, i) => {
             const j = map.get(i);
             return j
-              ? { ...entry, result: applyRelevance(entry.result, j.relevance, j.reason) }
+              ? {
+                  ...entry,
+                  relevance: j.relevance,
+                  result: applyRelevance(entry.result, j.relevance, j.reason),
+                }
               : entry;
           })
           .sort((a, b) => b.result.score - a.result.score);
@@ -189,7 +292,7 @@ export async function recommendForBusiness(
   }
 
   const week = weekOf();
-  const inputs: NewOpportunity[] = scored.map(({ signal, result }) => ({
+  const inputs: NewOpportunity[] = scored.map(({ signal, result, relevance }) => ({
     business_id: business.id,
     signal_id: signal.id,
     week_of: week,
@@ -197,6 +300,7 @@ export async function recommendForBusiness(
     rationale: result.rationale,
     matched_service_id: result.matchedService?.id ?? null,
     competitor_gap: result.competitorGapText,
+    relevance,
   }));
   const rows = await repo.upsertOpportunities(inputs);
 

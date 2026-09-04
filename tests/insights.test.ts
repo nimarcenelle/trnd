@@ -88,7 +88,7 @@ describe("history insight provenance", () => {
     const seedOnly = learnings.filter((l) => l.source === "seed");
     const out = buildInsights(signal(), scored(), { learnings: seedOnly });
     const history = out.find((i) => i.kind === "history")!;
-    expect(history.headline).toMatch(/Illustrative prior/);
+    expect(history.headline).toMatch(/Example history/);
     expect(history.detail).not.toMatch(/\d+ recorded/);
   });
   it("counts only measured results as track record", () => {

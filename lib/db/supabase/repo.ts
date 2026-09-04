@@ -132,11 +132,17 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
     },
     async upsertSeriesPoints(points) {
       if (points.length === 0) return 0;
+      // One batch can carry the same (term, geo, day) twice — e.g. two TikTok
+      // hashtags humanizing to one term. Postgres rejects updating a row twice
+      // in a single ON CONFLICT statement; keep the last write per key.
+      const byKey = new Map<string, (typeof points)[number]>();
+      for (const p of points) byKey.set(`${p.normalized_term}|${p.geo}|${p.day}`, p);
+      const rows = [...byKey.values()];
       const { error, count } = await sb
         .from("signal_series")
-        .upsert(points, { onConflict: "normalized_term,geo,day", count: "exact" });
+        .upsert(rows, { onConflict: "normalized_term,geo,day", count: "exact" });
       throwIf(error, "upsertSeriesPoints");
-      return count ?? points.length;
+      return count ?? rows.length;
     },
     async getSeries(normalizedTerm, geo, days = 30) {
       const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);

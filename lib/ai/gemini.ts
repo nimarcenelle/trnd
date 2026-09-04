@@ -261,23 +261,30 @@ export async function generateWithGemini(
   const flagged = findUnsupportedClaims(campaignTexts(result.angle, result.assets), facts);
   if (flagged.length > 0) {
     onStatus("Fact-checking every number in the copy…");
-    try {
-      const rewritten = await structuredCall(
-        models.pro,
-        buildClaimsRewritePrompt(ctx.business, result.angle, result.assets, flagged, facts),
-        generationResponseSchema,
-        (d) => GenerationSchema.parse(d),
-      );
-      const remaining = findUnsupportedClaims(campaignTexts(rewritten.angle, rewritten.assets), facts);
-      console.log(
-        `[ai] claims guard: ${flagged.length} unsupported number(s) flagged, ${remaining.length} after rewrite`,
-      );
-      result = rewritten;
-    } catch (err) {
-      console.warn(
-        `[ai] claims rewrite failed — shipping original with ${flagged.length} flagged number(s):`,
-        (err as Error).message,
-      );
+    // Up to two passes: the first rewrite occasionally re-derives a number
+    // in fresh phrasing; the second pass sees it flagged and strips it.
+    let toFix = flagged;
+    for (let pass = 0; pass < 2 && toFix.length > 0; pass++) {
+      try {
+        const rewritten = await structuredCall(
+          models.pro,
+          buildClaimsRewritePrompt(ctx.business, result.angle, result.assets, toFix, facts),
+          generationResponseSchema,
+          (d) => GenerationSchema.parse(d),
+        );
+        const remaining = findUnsupportedClaims(campaignTexts(rewritten.angle, rewritten.assets), facts);
+        console.log(
+          `[ai] claims guard pass ${pass + 1}: ${toFix.length} unsupported number(s) flagged, ${remaining.length} after rewrite`,
+        );
+        result = rewritten;
+        toFix = remaining;
+      } catch (err) {
+        console.warn(
+          `[ai] claims rewrite failed — shipping current copy with ${toFix.length} flagged number(s):`,
+          (err as Error).message,
+        );
+        break;
+      }
     }
   }
 

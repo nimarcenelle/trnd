@@ -20,8 +20,10 @@ pnpm seed                    # ~60 illustrative signals so the app demos instant
 pnpm dev                     # http://localhost:3000
 ```
 
-Sign up, complete onboarding, and `/app` shows a scored recommendation immediately.
-Click **Build the campaign** for the full creative package.
+Sign in with the seeded **master login — `demo@usetrnd.com` / `trnd-demo`** (demo mode
+only; created by `pnpm seed` with a ready med-spa business and an A-grade week) — or sign
+up fresh and complete onboarding. Either way `/app` shows a scored recommendation
+immediately; click **Build the campaign** for the full creative package.
 
 ### Demo mode vs. real mode
 

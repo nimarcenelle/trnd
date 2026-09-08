@@ -52,6 +52,11 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           />
         </div>
         {state.error && <p className="form-error">{state.error}</p>}
+        {state.notice && (
+          <p style={{ fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--mint)", lineHeight: 1.5 }}>
+            {state.notice}
+          </p>
+        )}
         <button
           type="submit"
           className="btn btn-primary"

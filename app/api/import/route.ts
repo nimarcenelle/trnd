@@ -5,6 +5,7 @@ import {
   fetchSiteCorpus,
   inferPriceBand,
   normalizeUrl,
+  probeStorefrontProducts,
   type ImportEvent,
 } from "@/lib/import/website";
 
@@ -71,6 +72,14 @@ export async function POST(req: Request): Promise<Response> {
         });
 
         let data = extractFromPages(corpus.pages);
+        // JS-rendered storefronts (Shopify, Woo) hide the catalog from the
+        // HTML crawl — their public JSON endpoints carry it instead. This is
+        // the only product read that works in serverless prod for such sites.
+        if (data.services.length === 0) {
+          send({ type: "status", label: "Checking the online store for products…" });
+          data.services = await probeStorefrontProducts(url, corpus.pages[0].html);
+          data.priceBand = data.priceBand ?? inferPriceBand(data.services, data.category);
+        }
         if (data.services.length > 0 || data.name || data.city) {
           send({ type: "partial", data });
         }

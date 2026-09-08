@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { getAdminRepo } from "@/lib/db/admin";
 import { rerankWeek } from "@/lib/recommend/rerank";
 
 /**
@@ -20,6 +21,8 @@ export async function refreshRankingAction(): Promise<void> {
   const business = await repo.getBusinessByOwner(user.id);
   if (!business) redirect("/onboarding");
 
-  await rerankWeek(repo, business);
+  // The re-rank writes shared tables RLS keeps read-only for user sessions;
+  // ownership is established above, the job runs on the service repo.
+  await rerankWeek(getAdminRepo(), business);
   revalidatePath("/app", "layout");
 }

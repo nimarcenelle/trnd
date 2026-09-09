@@ -503,34 +503,6 @@ export default async function AppHome() {
               </div>
             )}
 
-            {howto && (
-              <details className="howto" open>
-                <summary>
-                  How to run it well
-                  <svg className="chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                  </svg>
-                </summary>
-                <div className="howto-body">
-                  <div className="howto-col">
-                    <span className="k">Content angle</span>
-                    <p>{howto.contentAngle}</p>
-                  </div>
-                  <div className="howto-col">
-                    <span className="k">Caption direction</span>
-                    <p>{howto.captionDirection}</p>
-                  </div>
-                  <div className="howto-col">
-                    <span className="k">Hashtags to use</span>
-                    <div className="tag-row">
-                      {howto.hashtags.map((h) => (
-                        <span key={h}>#{h}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </details>
-            )}
           </div>
 
           <div style={{ flex: "1 1 300px", minWidth: 280, maxWidth: 400, display: "flex", flexDirection: "column", gap: 18, alignItems: "center" }}>
@@ -542,6 +514,37 @@ export default async function AppHome() {
             )}
           </div>
         </div>
+
+        {/* Full card width, like the meta row below it — inside the left
+            column it left a dead zone under the grade ring on wide screens. */}
+        {howto && (
+          <details className="howto" open>
+            <summary>
+              How to run it well
+              <svg className="chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </svg>
+            </summary>
+            <div className="howto-body">
+              <div className="howto-col">
+                <span className="k">Content angle</span>
+                <p>{howto.contentAngle}</p>
+              </div>
+              <div className="howto-col">
+                <span className="k">Caption direction</span>
+                <p>{howto.captionDirection}</p>
+              </div>
+              <div className="howto-col">
+                <span className="k">Hashtags to use</span>
+                <div className="tag-row">
+                  {howto.hashtags.map((h) => (
+                    <span key={h}>#{h}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </details>
+        )}
 
         <div className="meta-row">
           <div>

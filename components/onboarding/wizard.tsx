@@ -76,7 +76,7 @@ export default function OnboardingWizard() {
       importedVoice.current = d.voiceHint;
     }
     if ((d.photos ?? []).length > 0) setPhotos(d.photos ?? []);
-    const chips = d.services.slice(0, 6).map((sv) => `${sv.name} — $${sv.price}`);
+    const chips = d.services.slice(0, 6).map((sv) => (sv.price ? `${sv.name} — $${sv.price}` : sv.name));
     if (d.services.length > 6) chips.push(`+${d.services.length - 6} more`);
     if (d.city) chips.push(`${d.city}${d.region ? `, ${d.region}` : ""}`);
     setFoundChips(chips);
@@ -84,7 +84,7 @@ export default function OnboardingWizard() {
 
   function finishImport(d: SiteImport) {
     const found: string[] = [];
-    if (d.services.length > 0) found.push(`${d.services.length} offering${d.services.length === 1 ? "" : "s"} with prices`);
+    if (d.services.length > 0) found.push(`${d.services.length} offering${d.services.length === 1 ? "" : "s"}`);
     if (d.city) found.push("your location");
     if (d.category) found.push("your category");
     if (d.priceBand) found.push("your price range");

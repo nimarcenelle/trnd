@@ -1156,7 +1156,7 @@ details.section-disclosure[open] .summary-open-hint {
 .howto {
   border-top: 1px dashed var(--line-strong);
   padding-top: 18px;
-  margin-top: 4px;
+  margin-top: 22px;
 }
 .howto summary {
   list-style: none;

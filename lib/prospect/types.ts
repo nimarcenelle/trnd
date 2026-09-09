@@ -31,5 +31,12 @@ export type RunEvent =
   | { type: "counts"; discovered: number; crawled: number; verified: number; ready: number }
   | { type: "status"; label: string }
   | { type: "lead"; lead: ProspectLead }
-  | { type: "done"; discovered: number; ready: number; skippedKnown: number; filteredAds: number }
+  | {
+      type: "done";
+      discovered: number;
+      ready: number;
+      skippedKnown: number;
+      filteredAds: number;
+      filteredNoEmail: number;
+    }
   | { type: "error"; reason: string };

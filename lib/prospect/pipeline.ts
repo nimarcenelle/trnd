@@ -16,6 +16,9 @@ export interface RunParams {
   categories: string[];
   cap: number;
   onlyNoAds: boolean;
+  /** Drop leads with no deliverable email — the run only lands leads you can
+   * actually queue for outreach. */
+  onlyWithEmail: boolean;
 }
 
 const CRAWL_CONCURRENCY = 4;
@@ -55,6 +58,7 @@ export async function runProspectPipeline(
 
   send({ type: "stage", stage: 1 });
   let filteredAds = 0;
+  let filteredNoEmail = 0;
 
   const processOne = async (place: DiscoveredPlace): Promise<void> => {
     if (overBudget()) return;
@@ -74,6 +78,10 @@ export async function runProspectPipeline(
       emailStatus = await verifyEmailDomain(bestEmail);
       counts.verified++;
       emitCounts();
+    }
+    if (params.onlyWithEmail && emailStatus === "none") {
+      filteredNoEmail++;
+      return;
     }
     const lead: ProspectLead = {
       placeId: place.placeId,
@@ -124,5 +132,6 @@ export async function runProspectPipeline(
     ready: counts.ready,
     skippedKnown,
     filteredAds,
+    filteredNoEmail,
   });
 }

@@ -25,7 +25,14 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
 
-  let body: { location?: string; radiusMiles?: number; categories?: string[]; cap?: number; onlyNoAds?: boolean };
+  let body: {
+    location?: string;
+    radiusMiles?: number;
+    categories?: string[];
+    cap?: number;
+    onlyNoAds?: boolean;
+    onlyWithEmail?: boolean;
+  };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -42,6 +49,7 @@ export async function POST(req: Request): Promise<Response> {
     radiusMiles: Math.min(Math.max(Number(body.radiusMiles) || 25, 1), 100),
     cap: Math.min(Math.max(Number(body.cap) || 50, 1), 200),
     onlyNoAds: Boolean(body.onlyNoAds),
+    onlyWithEmail: Boolean(body.onlyWithEmail),
   };
 
   const encoder = new TextEncoder();

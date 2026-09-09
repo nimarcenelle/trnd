@@ -62,6 +62,7 @@ export function ProspectorClient() {
   const [category, setCategory] = useState("coffee shops, restaurants, fitness studios");
   const [cap, setCap] = useState(50);
   const [onlyNoAds, setOnlyNoAds] = useState(true);
+  const [onlyWithEmail, setOnlyWithEmail] = useState(true);
 
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
@@ -108,7 +109,8 @@ export function ProspectorClient() {
       setStatusLine(
         `${event.ready} new lead${event.ready === 1 ? "" : "s"}` +
           (event.skippedKnown > 0 ? ` · ${event.skippedKnown} already known` : "") +
-          (event.filteredAds > 0 ? ` · ${event.filteredAds} filtered (ads running)` : ""),
+          (event.filteredAds > 0 ? ` · ${event.filteredAds} filtered (ads running)` : "") +
+          (event.filteredNoEmail > 0 ? ` · ${event.filteredNoEmail} filtered (no email)` : ""),
       );
     } else if (event.type === "error") {
       setStatusLine(null);
@@ -132,6 +134,7 @@ export function ProspectorClient() {
           categories: category.split(",").map((c) => c.trim()).filter(Boolean),
           cap,
           onlyNoAds,
+          onlyWithEmail,
         }),
       });
       if (!res.ok || !res.body) {
@@ -296,6 +299,10 @@ export function ProspectorClient() {
             <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 13, color: T.dim }}>
               <input type="checkbox" checked={onlyNoAds} onChange={(e) => setOnlyNoAds(e.target.checked)} style={{ accentColor: T.amber }} />
               Only businesses with no ad pixel
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 13, color: T.dim }}>
+              <input type="checkbox" checked={onlyWithEmail} onChange={(e) => setOnlyWithEmail(e.target.checked)} style={{ accentColor: T.amber }} />
+              Only leads with a reachable email
             </label>
             <button onClick={run} disabled={running}
               style={{ background: running ? T.panelSoft : T.amber, color: running ? T.dim : "#141414", fontWeight: 600, fontSize: 14, padding: "10px 0", borderRadius: 6, border: "none", cursor: running ? "default" : "pointer", letterSpacing: "0.02em" }}>

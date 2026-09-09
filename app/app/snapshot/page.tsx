@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
@@ -109,10 +110,29 @@ export default async function SnapshotPage() {
             </div>
           )}
 
+          {(brief.first_moves ?? []).length > 0 && (
+            <div className="note-card" style={{ borderColor: "var(--amber)" }}>
+              <span className="t" style={{ color: "var(--amber-text)" }}>Your first moves — run these in order</span>
+              <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 8, fontFamily: "var(--body)", fontSize: 14, lineHeight: 1.65, color: "var(--ink)" }}>
+                {brief.first_moves.map((t, i) => (
+                  <li key={i}>{t}</li>
+                ))}
+              </ol>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 16, flexWrap: "wrap" }}>
+                <Link href="/app/opportunities" className="btn btn-primary btn-sm">
+                  See this week&apos;s ranked plays →
+                </Link>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-faint)" }}>
+                  every week, live demand is ranked against this analysis
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="snap-cols">
             <div className="snap-col snap-col--good">
               <div className="icon">{CheckIcon}</div>
-              <h4>What you do well</h4>
+              <h4>What you do well — claim it in copy</h4>
               <ul>
                 {brief.does_well.map((t, i) => (
                   <li key={i}>{t}</li>
@@ -130,7 +150,7 @@ export default async function SnapshotPage() {
             </div>
             <div className="snap-col snap-col--watch">
               <div className="icon">{WatchIcon}</div>
-              <h4>Watch-outs</h4>
+              <h4>Watch-outs — don&apos;t run these</h4>
               <ul>
                 {brief.watchouts.map((t, i) => (
                   <li key={i}>{t}</li>
@@ -150,7 +170,7 @@ export default async function SnapshotPage() {
                       <path d="M1.5 13c.4-2.4 1.9-3.7 3.5-3.7s3.1 1.3 3.5 3.7M9 12.7c.3-1.8 1.4-2.8 2.6-2.8 1 0 1.9.7 2.4 2" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
                     </svg>
                   </div>
-                  <h4>Who&apos;s buying</h4>
+                  <h4>Who&apos;s buying — pick one per ad</h4>
                   <ul>
                     {brief.customer_segments.map((t, i) => (
                       <li key={i}>{t}</li>
@@ -165,7 +185,7 @@ export default async function SnapshotPage() {
                       <path d="M1.5 12.5L5 8l3 2.5 5.5-7" stroke="currentColor" strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
-                  <h4>Your local market</h4>
+                  <h4>Your market — the opening for ads</h4>
                   <p>{brief.market_context}</p>
                 </div>
               )}
@@ -176,14 +196,14 @@ export default async function SnapshotPage() {
                       <path d="M7.5 1.5v12M10.7 3.8H6a2 2 0 0 0 0 4h3a2 2 0 0 1 0 4H4.1" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
                     </svg>
                   </div>
-                  <h4>Your pricing, read</h4>
+                  <h4>Your pricing — the anchor number</h4>
                   <p>{brief.pricing_read}</p>
                 </div>
               )}
             </div>
           )}
 
-          {(brief.seasonality || (brief.first_moves ?? []).length > 0) && (
+          {(brief.seasonality || brief.moat) && (
             <div className="snap-cols" style={{ gridTemplateColumns: "1fr 1fr" }}>
               {brief.seasonality && (
                 <div className="snap-col snap-col--good">
@@ -193,23 +213,19 @@ export default async function SnapshotPage() {
                       <path d="M7.5 4v3.5l2.5 1.7" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
                     </svg>
                   </div>
-                  <h4>When demand moves</h4>
+                  <h4>When to spend — and when it&apos;s cheap</h4>
                   <p>{brief.seasonality}</p>
                 </div>
               )}
-              {(brief.first_moves ?? []).length > 0 && (
+              {brief.moat && (
                 <div className="snap-col snap-col--edge">
                   <div className="icon">
                     <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-                      <path d="M2 13L13 2M13 2H7M13 2v6" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M7.5 1.5L13 3.5v4c0 3.4-2.3 5.6-5.5 6.5C4.3 13.1 2 10.9 2 7.5v-4z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinejoin="round" />
                     </svg>
                   </div>
-                  <h4>Your first moves</h4>
-                  <ol>
-                    {brief.first_moves.map((t, i) => (
-                      <li key={i}>{t}</li>
-                    ))}
-                  </ol>
+                  <h4>What competitors can&apos;t copy</h4>
+                  <p>{brief.moat}</p>
                 </div>
               )}
             </div>
@@ -224,21 +240,25 @@ export default async function SnapshotPage() {
                 ))}
               </div>
               <p style={{ fontSize: 12.5 }}>
-                Search phrases your customers actually use — pulled from this analysis and fed into
-                the daily market scan, alongside your category&apos;s stock terms.
+                Search phrases your customers actually type, watched daily in your own metro. When one
+                of them moves, it shows up ranked in{" "}
+                <Link href="/app" style={{ color: "var(--amber-text)" }}>This week</Link> with a campaign
+                ready to build — that&apos;s the point of this page.
               </p>
             </div>
           )}
 
           <div className="note-card">
-            <span className="t">How we built this</span>
+            <span className="t">Where this analysis goes to work</span>
             <p>
-              Read from {business.website ? "your website and " : ""}your profile — category, location,
-              services, and prices — {isTemplate ? "using TRND's category playbooks" : "then analyzed by AI"}
-              {generatedOn ? ` on ${generatedOn}` : ""}. It regenerates when your profile changes, or on
-              demand with the refresh button above.
+              This isn&apos;t a report to file — it&apos;s the lens the rest of TRND looks through. The
+              watch terms above feed the daily demand scan; every trend that scan finds is judged against
+              your positioning and menu before it&apos;s allowed to rank; and when you build a campaign,
+              the copy is written from your edge, your prices, and your voice — not a template.
               <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-faint)", display: "block", marginTop: 8 }}>
-                {brief.model_used} · {brief.prompt_version}
+                {isTemplate ? "TRND category playbooks" : "AI analysis"} of your profile
+                {business.website ? " + website" : ""}{generatedOn ? ` · ${generatedOn}` : ""} · regenerates
+                when your profile changes · {brief.model_used} · {brief.prompt_version}
               </span>
             </p>
           </div>

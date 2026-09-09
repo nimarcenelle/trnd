@@ -19,8 +19,9 @@ const TOP_N = 5;
 /** Wider pool for the relevance pass — a relevant #15 can outrank a junk #1
  * now that per-business watchlists put more genuinely-relevant terms in play. */
 const CANDIDATE_POOL = 20;
-/** Snapshot-anchored signals admitted past the momentum cutoff. */
-const ANCHOR_EXTRA = 6;
+/** Snapshot-anchored signals admitted past the momentum cutoff — exact
+ * watch-term matches seat first, then two-token near matches. */
+const ANCHOR_EXTRA = 8;
 
 /**
  * "personal hygiene routines" and "hygiene routines" are the same trend
@@ -58,11 +59,27 @@ export function buildCandidatePool<T extends { signal: { id: string; term: strin
   const anchors = tokens(anchorTexts.join(" "));
   if (anchors.size === 0) return pool;
   const pooled = new Set(pool.map((e) => e.signal.id));
-  const extras = allScored
-    .filter(
-      (e) => !pooled.has(e.signal.id) && [...tokens(e.signal.term)].some((t) => anchors.has(t)),
-    )
-    .slice(0, ANCHOR_EXTRA);
+  const extras: T[] = [];
+  const take = (e: T) => {
+    extras.push(e);
+    pooled.add(e.signal.id);
+  };
+  // The business's own demand terms — watch terms, service names — get their
+  // seats outright: a momentum-saturated category pool must not crowd out
+  // the exact terms the analysis said to watch.
+  const exact = new Set(anchorTexts.map((a) => a.toLowerCase().trim()));
+  for (const e of allScored) {
+    if (extras.length >= ANCHOR_EXTRA) break;
+    if (!pooled.has(e.signal.id) && exact.has(e.signal.term.toLowerCase().trim())) take(e);
+  }
+  // Then near matches — two shared tokens minimum, so "back acne treatments"
+  // can't ride in on the single word it shares with "back pain relief".
+  for (const e of allScored) {
+    if (extras.length >= ANCHOR_EXTRA) break;
+    if (pooled.has(e.signal.id)) continue;
+    const overlap = [...tokens(e.signal.term)].filter((t) => anchors.has(t)).length;
+    if (overlap >= 2) take(e);
+  }
   return [...pool, ...extras];
 }
 

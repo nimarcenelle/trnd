@@ -34,9 +34,24 @@ describe("buildCandidatePool", () => {
   });
 
   it("caps the number of admitted extras", () => {
-    const extras = Array.from({ length: 10 }, (_, i) => entry(`extra-${i}`, `cold plunge angle ${i}`));
+    const extras = Array.from({ length: 12 }, (_, i) => entry(`extra-${i}`, `cold plunge angle ${i}`));
     const pool = buildCandidatePool([...junkPool, ...extras], ["cold plunge"]);
-    expect(pool.length).toBeLessThanOrEqual(20 + 6);
+    expect(pool.length).toBeLessThanOrEqual(20 + 8);
+  });
+
+  it("refuses a single shared generic token — 'back' alone buys no seat", () => {
+    const allScored = [...junkPool, entry("miss", "back acne treatments")];
+    const pool = buildCandidatePool(allScored, ["back pain relief natural"]);
+    expect(pool.map((e) => e.signal.id)).not.toContain("miss");
+  });
+
+  it("seats exact watch-term matches before higher-scored near matches", () => {
+    // Near matches outrank the exact one on raw score (earlier in the list),
+    // but the business's own term must never lose its seat to them.
+    const near = Array.from({ length: 8 }, (_, i) => entry(`near-${i}`, `infrared sauna deal ${i}`));
+    const allScored = [...junkPool, ...near, entry("own", "infrared sauna near me")];
+    const pool = buildCandidatePool(allScored, ["infrared sauna near me"]);
+    expect(pool.map((e) => e.signal.id)).toContain("own");
   });
 });
 

@@ -27,6 +27,7 @@ export type FounderEvent =
       email: string;
       businessName: string;
       category: string | null;
+      website: string | null;
       monthlySpend: string | null;
     }
   | { kind: "signup"; email: string; businessName: string; category: string; city: string };
@@ -40,8 +41,11 @@ export function formatFounderEvent(event: FounderEvent): { subject: string; body
         `New demo request`,
         `Business: ${event.businessName}${event.category ? ` (${event.category})` : ""}`,
         `Contact: ${event.fullName} <${event.email}>`,
+        event.website ? `Website: ${event.website}` : null,
         event.monthlySpend ? `Monthly ad spend: ${event.monthlySpend}` : null,
-        `They were promised a live example for their category before the call.`,
+        event.website
+          ? `They were promised a live example built from their site before the call.`
+          : `They were promised a live example for their kind of business before the call.`,
       ]
         .filter(Boolean)
         .join("\n"),

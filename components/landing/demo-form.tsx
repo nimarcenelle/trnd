@@ -48,27 +48,32 @@ export default function DemoForm() {
           <input id="fBiz" name="business_name" type="text" placeholder="Corner Coffee Co." autoComplete="organization" />
         </div>
         <div className="field">
-          <label htmlFor="fCat">Category</label>
-          <select id="fCat" name="category" defaultValue="">
-            <option value="">Select one</option>
-            <option>Restaurant &amp; food</option>
-            <option>Home services</option>
-            <option>Health &amp; beauty</option>
-            <option>Fitness &amp; wellness</option>
-            <option>Retail &amp; boutique</option>
-            <option>Other</option>
-          </select>
+          <label htmlFor="fSite">Website — we&apos;ll build your sample from it</label>
+          <input id="fSite" name="website" type="text" inputMode="url" placeholder="yourbusiness.com" autoComplete="url" />
         </div>
       </div>
-      <div className="field">
-        <label htmlFor="fSpend">Monthly ad spend</label>
-        <select id="fSpend" name="monthly_spend" defaultValue="">
-          <option value="">Select a range</option>
-          <option>Under $1,000</option>
-          <option>$1,000 – $5,000</option>
-          <option>$5,000 – $20,000</option>
-          <option>$20,000+</option>
-        </select>
+      <div className="field-row">
+        <div className="field">
+          <label htmlFor="fCat">What&apos;s your business</label>
+          <input
+            id="fCat"
+            name="category"
+            type="text"
+            maxLength={60}
+            placeholder="e.g. Contrast therapy & recovery studio"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="fSpend">Monthly ad spend</label>
+          <select id="fSpend" name="monthly_spend" defaultValue="">
+            <option value="">Select a range</option>
+            <option>Not spending yet</option>
+            <option>Under $1,000</option>
+            <option>$1,000 – $5,000</option>
+            <option>$5,000 – $20,000</option>
+            <option>$20,000+</option>
+          </select>
+        </div>
       </div>
       {state.error && <p className="form-error">{state.error}</p>}
       <button

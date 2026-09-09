@@ -540,7 +540,14 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
     },
 
     async insertDemoRequest(input) {
-      const { data, error } = await sb.from("demo_requests").insert(input).select().single();
+      let { data, error } = await sb.from("demo_requests").insert(input).select().single();
+      if (error && /website/i.test(error.message)) {
+        // Migration 0015 not applied yet — the website still reaches the
+        // founder notification; store the rest rather than losing the lead.
+        const rest = { ...input };
+        delete (rest as { website?: unknown }).website;
+        ({ data, error } = await sb.from("demo_requests").insert(rest).select().single());
+      }
       throwIf(error, "insertDemoRequest");
       return data as DemoRequest;
     },

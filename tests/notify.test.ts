@@ -10,10 +10,12 @@ describe("founder notifications", () => {
       email: "jordan@ellemes.com",
       businessName: "Ellemes Medical Spa",
       category: "Health & beauty",
+      website: "ellemes.com",
       monthlySpend: "$1k–5k",
     });
     expect(subject).toContain("Ellemes Medical Spa");
     expect(body).toContain("jordan@ellemes.com");
+    expect(body).toContain("ellemes.com");
     expect(body).toContain("$1k–5k");
   });
 
@@ -24,6 +26,7 @@ describe("founder notifications", () => {
       email: "sam@x.co",
       businessName: "Sam's",
       category: null,
+      website: null,
       monthlySpend: null,
     });
     expect(body).not.toContain("null");

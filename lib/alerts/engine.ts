@@ -47,7 +47,12 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
     if (![...tokens(s.term)].some((t) => anchors.has(t))) continue;
     await add({
       kind: "demand_spike",
-      title: `"${titleCase(s.term)}" is up ${Math.round(s.delta_pct)}% this week`,
+      // Deltas clamp at 100 — "up 100%" really means doubled-or-more, and a
+      // feed full of identical percentages reads as broken.
+      title:
+        s.delta_pct >= 100
+          ? `"${titleCase(s.term)}" doubled or more this week`
+          : `"${titleCase(s.term)}" is up ${Math.round(s.delta_pct)}% this week`,
       body: `Demand you can serve is moving — it's in this week's ranking with a full read.`,
       href: "/app",
       dedupe_key: `spike:${s.normalized_term}:${week}`,

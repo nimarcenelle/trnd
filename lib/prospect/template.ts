@@ -8,23 +8,27 @@ import type { ProspectLead } from "./types";
  * appears when the crawl actually found no pixel — never a guess.
  */
 
-export const DEFAULT_SUBJECT = "Quick question about {{name}}";
+// Cold-email craft, for the default: short enough to read on a phone lock
+// screen, one concrete personalized observation, one CTA answerable with a
+// single word, and an explicit easy out. No links beyond the domain mention —
+// link-heavy cold email trips spam filters and reads like a blast.
+export const DEFAULT_SUBJECT = "idea for {{name}}";
 
-export const DEFAULT_BODY = `Hi — I'm Nick. I build TRND (usetrnd.com), a tool for local businesses.
+export const DEFAULT_BODY = `Hi — Nick here. Founder, not an agency, so I'll keep this short.
 
-I came across {{name}} while looking at businesses around {{city}}.{{no_ads_line}}
+I was looking at {{category}} spots around {{city}} and found {{name}}.{{no_ads_line}}
 
-TRND watches what people near you are actually searching and talking about, and turns it into a ready-to-run ad campaign for your business — every day. Built for owners, not agencies.
+I built a tool called TRND that reads what people near {{city}} are searching and talking about right now, and turns it into a ready-to-run ad for your business — automatically, every day.
 
-If you'd like a free demand snapshot for {{name}} — what's trending in your area right now that you could act on this week — just reply and I'll send it over. No signup needed.
+Can I send you a free demand snapshot for {{name}}? One page: the three things trending in your area this week you could put an offer on. Reply "sure" and it's yours — no signup, no call, nothing to cancel.
 
-If you'd rather not hear from me, reply "no thanks" and I won't email again.
+And if this isn't for you, reply "no thanks" and that's the last you'll hear from me.
 
-— Nick
-TRND · usetrnd.com`;
+— Nick, founder of TRND
+usetrnd.com`;
 
 const NO_ADS_LINE =
-  " Noticed you're not running paid ads at the moment — that's usually who TRND helps most.";
+  " Noticed you're not running any paid ads right now — that usually means you're leaving the easy demand to whoever is.";
 
 export function renderTemplate(template: string, lead: ProspectLead): string {
   return template

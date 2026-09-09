@@ -50,8 +50,17 @@ const STATUS_META: Record<ProspectLead["status"], { label: string; color: string
 const selectable = (l: ProspectLead) =>
   Boolean(l.bestEmail) && (l.status === "new" || l.status === "queued");
 
+type View = "run" | "all" | "queued" | "sent" | "opted_out";
+const VIEWS: { key: View; label: string }[] = [
+  { key: "run", label: "LAST RUN" },
+  { key: "all", label: "ALL" },
+  { key: "queued", label: "QUEUED" },
+  { key: "sent", label: "SENT" },
+  { key: "opted_out", label: "OPTED OUT" },
+];
+
 function toCsv(leads: ProspectLead[]): string {
-  const cols = ["name", "category", "address", "city", "region", "phone", "website", "platform", "bestEmail", "emailStatus", "signal", "status"] as const;
+  const cols = ["name", "category", "address", "city", "region", "phone", "website", "platform", "bestEmail", "emailStatus", "signal", "status", "sentAt"] as const;
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   return [cols.join(","), ...leads.map((l) => cols.map((c) => esc(l[c])).join(","))].join("\n");
 }
@@ -69,6 +78,8 @@ export function ProspectorClient() {
   const [counts, setCounts] = useState({ discovered: 0, crawled: 0, verified: 0, ready: 0 });
   const [statusLine, setStatusLine] = useState<string | null>(null);
   const [leads, setLeads] = useState<ProspectLead[]>([]);
+  const [view, setView] = useState<View>("all");
+  const [runIds, setRunIds] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
   const [body, setBody] = useState(DEFAULT_BODY);
@@ -105,6 +116,7 @@ export function ProspectorClient() {
       setStatusLine(event.label);
     } else if (event.type === "lead") {
       setLeads((prev) => [event.lead, ...prev.filter((l) => l.placeId !== event.lead.placeId)]);
+      setRunIds((prev) => new Set(prev).add(event.lead.placeId));
     } else if (event.type === "done") {
       setStatusLine(
         `${event.ready} new lead${event.ready === 1 ? "" : "s"}` +
@@ -124,6 +136,11 @@ export function ProspectorClient() {
     setDone(false);
     setCounts({ discovered: 0, crawled: 0, verified: 0, ready: 0 });
     setStatusLine("Starting…");
+    // A fresh search starts a fresh view — earlier leads stay saved under
+    // the ALL / QUEUED / SENT tabs.
+    setRunIds(new Set());
+    setView("run");
+    setSelected(new Set());
     try {
       const res = await fetch("/api/admin/prospector/run", {
         method: "POST",
@@ -225,8 +242,15 @@ export function ProspectorClient() {
     }
   };
 
+  const visible =
+    view === "run"
+      ? leads.filter((l) => runIds.has(l.placeId))
+      : view === "all"
+        ? leads
+        : leads.filter((l) => l.status === view);
+
   const exportCsv = () => {
-    const blob = new Blob([toCsv(leads)], { type: "text/csv" });
+    const blob = new Blob([toCsv(visible)], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "trnd-leads.csv";
@@ -242,14 +266,14 @@ export function ProspectorClient() {
       else n.add(id);
       return n;
     });
-  const eligible = leads.filter(selectable).map((l) => l.placeId);
+  const eligible = visible.filter(selectable).map((l) => l.placeId);
   const toggleAll = () =>
     setSelected((s) => (s.size === eligible.length ? new Set() : new Set(eligible)));
 
   const countValues = [counts.discovered, counts.crawled, counts.verified, counts.ready];
   const stageIdx = !running ? -1 : counts.ready > 0 ? 3 : counts.verified > 0 ? 2 : counts.crawled > 0 ? 1 : 0;
   const nSel = selected.size;
-  const nVerified = leads.filter((l) => l.emailStatus === "verified").length;
+  const nVerified = visible.filter((l) => l.emailStatus === "verified").length;
   const previewLead = queued[0] ?? leads.find(selectable) ?? null;
 
   return (
@@ -335,6 +359,31 @@ export function ProspectorClient() {
               })}
             </div>
 
+            {/* view tabs */}
+            <div className="flex items-center gap-1 mb-3">
+              {VIEWS.map((v) => {
+                const n =
+                  v.key === "run"
+                    ? runIds.size
+                    : v.key === "all"
+                      ? leads.length
+                      : leads.filter((l) => l.status === v.key).length;
+                const active = view === v.key;
+                return (
+                  <button key={v.key} onClick={() => { setView(v.key); setSelected(new Set()); }}
+                    style={{
+                      background: active ? T.amberSoft : "transparent",
+                      color: active ? T.amber : T.dim,
+                      border: `1px solid ${active ? T.amber : T.line}`,
+                      fontFamily: T.mono, fontSize: 10, letterSpacing: "0.08em",
+                      padding: "5px 10px", borderRadius: 4, cursor: "pointer",
+                    }}>
+                    {v.label} {n > 0 ? n : ""}
+                  </button>
+                );
+              })}
+            </div>
+
             {/* table */}
             <div className="rounded overflow-x-auto" style={{ border: `1px solid ${T.line}` }}>
               <table className="w-full" style={{ borderCollapse: "collapse", fontSize: 13, minWidth: 760 }}>
@@ -353,14 +402,20 @@ export function ProspectorClient() {
                   </tr>
                 </thead>
                 <tbody>
-                  {leads.length === 0 && (
+                  {visible.length === 0 && (
                     <tr>
                       <td colSpan={8} style={{ padding: "40px 16px", textAlign: "center", color: T.faint, fontSize: 13 }}>
-                        {running ? "Pipeline running — leads land here as verification completes." : "Set your search and run discovery to build a lead list."}
+                        {running
+                          ? "Pipeline running — leads land here as verification completes."
+                          : view === "run"
+                            ? "No results from the last run yet — run discovery, or switch tabs to browse saved leads."
+                            : view === "all"
+                              ? "Set your search and run discovery to build a lead list."
+                              : "Nothing here yet."}
                       </td>
                     </tr>
                   )}
-                  {leads.map((l) => {
+                  {visible.map((l) => {
                     const em = EMAIL_META[l.emailStatus];
                     const sm = STATUS_META[l.status];
                     return (
@@ -383,6 +438,11 @@ export function ProspectorClient() {
                         <td style={{ ...tdStyle, fontSize: 11, color: T.dim }}>{l.signal}</td>
                         <td style={tdStyle}>
                           <span style={{ background: sm.bgc, color: sm.color, fontFamily: T.mono, fontSize: 9, letterSpacing: "0.08em", padding: "3px 7px", borderRadius: 3 }}>{sm.label}</span>
+                          {l.sentAt && (
+                            <div style={{ fontFamily: T.mono, fontSize: 10, color: T.faint, marginTop: 4 }}>
+                              {new Date(l.sentAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -394,10 +454,10 @@ export function ProspectorClient() {
             {/* actions */}
             <div className="flex flex-wrap items-center gap-3 mt-4">
               <span style={{ fontFamily: T.mono, fontSize: 11, color: T.dim }}>
-                {leads.length} leads · {nVerified} verified · {nSel} selected · {queued.length} queued
+                {visible.length} shown · {nVerified} verified · {nSel} selected · {queued.length} queued
               </span>
               <div className="flex-1" />
-              <button onClick={exportCsv} style={ghostBtn} disabled={leads.length === 0}>Export CSV</button>
+              <button onClick={exportCsv} style={ghostBtn} disabled={visible.length === 0}>Export CSV</button>
               <button onClick={optOutSelected} style={{ ...ghostBtn, color: T.red }} disabled={nSel === 0}>Mark opted out</button>
               <button onClick={queueSelected} disabled={nSel === 0}
                 style={{ ...ghostBtn, background: nSel > 0 ? T.amber : T.panelSoft, color: nSel > 0 ? "#141414" : T.dim, border: "none", fontWeight: 600 }}>

@@ -111,12 +111,13 @@ describe("outreach template", () => {
     const noAds = renderTemplate(DEFAULT_BODY, lead());
     expect(noAds).toContain("Frontier Café");
     expect(noAds).toContain("Yucca Valley");
-    expect(noAds).toContain("not running paid ads");
+    expect(noAds).toContain("not running any paid ads");
     expect(noAds).toContain('reply "no thanks"');
+    expect(noAds).toContain("coffee shop");
 
     const running = renderTemplate(DEFAULT_BODY, lead({ adPixels: ["meta"] }));
-    expect(running).not.toContain("not running paid ads");
-    expect(renderTemplate(DEFAULT_SUBJECT, lead())).toBe("Quick question about Frontier Café");
+    expect(running).not.toContain("not running any paid ads");
+    expect(renderTemplate(DEFAULT_SUBJECT, lead())).toBe("idea for Frontier Café");
   });
 
   it("escapes HTML in the body render", () => {

@@ -55,14 +55,29 @@ export async function POST(req: Request): Promise<Response> {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (event: RunEvent) =>
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      // The client can vanish mid-run (tab closed, fetch aborted) — the
+      // pipeline keeps finishing and saving, it just stops narrating.
+      let closed = false;
+      const send = (event: RunEvent) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        } catch {
+          closed = true;
+        }
+      };
       try {
         await runProspectPipeline(params, send);
       } catch (err) {
         send({ type: "error", reason: err instanceof Error ? err.message : "Pipeline failed." });
       } finally {
-        controller.close();
+        if (!closed) {
+          try {
+            controller.close();
+          } catch {
+            /* already torn down by the disconnect */
+          }
+        }
       }
     },
   });

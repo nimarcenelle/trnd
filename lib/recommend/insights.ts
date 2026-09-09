@@ -56,15 +56,20 @@ export function buildInsights(
     });
   } else if (typeof delta === "number") {
     const speed =
-      delta >= 40
-        ? "One of the fastest risers in your category right now."
-        : delta >= 20
-          ? "Well above normal weekly movement for your category."
-          : "A steady climb — lower risk of a fad spike.";
+      delta < 0
+        ? "Coming off its peak — attention is cheaper here, but the wave is receding."
+        : delta >= 40
+          ? "One of the fastest risers in your category right now."
+          : delta >= 20
+            ? "Well above normal weekly movement for your category."
+            : "A steady climb — lower risk of a fad spike.";
     insights.push({
       kind: "momentum",
-      headline: `↑${Math.round(delta)}% ${metricLabel(signal.metric_type)} this week`,
-      detail: `${speed} Rises like this typically crest within a few weeks — the window matters.`,
+      headline: `${delta >= 0 ? "↑" : "↓"}${Math.abs(Math.round(delta))}% ${metricLabel(signal.metric_type)} vs last week`,
+      detail:
+        delta < 0
+          ? speed
+          : `${speed} Rises like this typically crest within a few weeks — the window matters.`,
     });
   } else {
     insights.push({

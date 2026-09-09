@@ -39,8 +39,11 @@ function fmtDate(d: string | Date, opts: Intl.DateTimeFormatOptions = { month: "
 
 // Source deltas clamp at ±100, so "↑100%" really means "doubled or more" —
 // and a column of five identical ↑100% chips reads as a bug, not a signal.
+// "↑0%" and "↑-12%" read as bugs too: flat is "steady", down gets its arrow.
 function deltaShort(d: number) {
-  return d >= 100 ? "2×+" : `↑${Math.round(d)}%`;
+  if (Math.abs(d) < 1) return "steady";
+  if (d >= 100) return "2×+";
+  return d > 0 ? `↑${Math.round(d)}%` : `↓${Math.abs(Math.round(d))}%`;
 }
 
 export default async function AppHome() {
@@ -475,7 +478,11 @@ export default async function AppHome() {
               <span className="badge badge--amber"><i />{thin ? "Closest trend — market context, not a pick" : "#1 this week"}</span>
               {signal && <SourceBadge source={signal.source} metric={signal.metric_type} />}
               {typeof signal?.delta_pct === "number" && (
-                <span className="delta-chip">{deltaShort(signal.delta_pct)} this week</span>
+                <span className="delta-chip">
+                  {deltaShort(signal.delta_pct) === "steady"
+                    ? "steady this week"
+                    : `${deltaShort(signal.delta_pct)} vs last week`}
+                </span>
               )}
             </div>
             <h2 className="h-disp" style={{ fontSize: thin ? "clamp(20px,2.4vw,26px)" : "clamp(26px,3.2vw,38px)", margin: "0 0 16px", lineHeight: 1.08, letterSpacing: "-0.02em" }}>
@@ -612,7 +619,15 @@ export default async function AppHome() {
               {signal?.source === "seed" ? " · illustrative" : ""}
             </span>
           </div>
-          <TrendChart points={series} />
+          <TrendChart
+            points={series}
+            weeklyDeltaPct={typeof signal?.delta_pct === "number" ? signal.delta_pct : null}
+            unitHint={
+              signal?.source === "dataforseo"
+                ? "monthly searches for this term, by day observed"
+                : "search interest index — 100 is this term's recent peak, 0 its quietest day"
+            }
+          />
         </section>
       )}
 
@@ -667,7 +682,7 @@ export default async function AppHome() {
         <section className="panel">
           <div className="panel__head">
             <span className="panel__title mint">Market pulse · 7d</span>
-            <span className="panel__meta">{business.category.toLowerCase()}</span>
+            <span className="panel__meta">{business.category.toLowerCase()} · change vs the week before</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             {movers.map((s, i) => (

@@ -112,7 +112,7 @@ export default async function OpportunitiesPage() {
                 </div>
                 <p className="why" style={{ marginTop: 6, fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--mint-text)" }}>
                   {typeof signal?.delta_pct === "number"
-                    ? `↑${Math.round(signal.delta_pct)}% ${signal.metric_type.replace(/_/g, " ")}`
+                    ? `${signal.delta_pct >= 0 ? "↑" : "↓"}${Math.abs(Math.round(signal.delta_pct))}% ${signal.metric_type.replace(/_/g, " ")} vs last week`
                     : signal
                       ? signal.metric_type.replace(/_/g, " ")
                       : ""}

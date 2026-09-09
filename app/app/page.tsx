@@ -37,6 +37,12 @@ function fmtDate(d: string | Date, opts: Intl.DateTimeFormatOptions = { month: "
   return date.toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
 }
 
+// Source deltas clamp at ±100, so "↑100%" really means "doubled or more" —
+// and a column of five identical ↑100% chips reads as a bug, not a signal.
+function deltaShort(d: number) {
+  return d >= 100 ? "2×+" : `↑${Math.round(d)}%`;
+}
+
 export default async function AppHome() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -268,10 +274,13 @@ export default async function AppHome() {
     ),
   );
 
-  // Market pulse: this week's top movers in the category.
+  // Market pulse: this week's top movers in the category — one row per term
+  // (the same term arrives on several metrics/geos and must not list twice).
+  const moverSeen = new Set<string>();
   const movers = [...watched]
     .filter((s) => typeof s.delta_pct === "number")
     .sort((a, b) => (b.delta_pct ?? 0) - (a.delta_pct ?? 0))
+    .filter((s) => (moverSeen.has(s.normalized_term) ? false : (moverSeen.add(s.normalized_term), true)))
     .slice(0, 5);
 
   // Known demand moments ahead — the calendar half of timing.
@@ -415,18 +424,54 @@ export default async function AppHome() {
         </section>
       )}
 
-      {/* ---------- HERO RECOMMENDATION ---------- */}
-      <section className="panel panel--hero" style={{ padding: "30px 32px 28px" }}>
+      {/* ---------- THIN WEEK: THE ANSWER FIRST ----------
+          When no trend clears the bar, the recommendation IS the
+          service-anchored moves from the analysis — they lead, in the hero
+          slot, and the closest trend demotes to market context below. */}
+      {thin && brief && brief.first_moves.length > 0 && (
+        <section className="panel panel--hero" style={{ marginTop: 18, padding: "30px 32px 28px" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+            <span className="badge badge--amber"><i />This week&apos;s play</span>
+            <span className="panel__meta">no trend fits — run what your analysis backs</span>
+          </div>
+          <h2 className="h-disp" style={{ fontSize: "clamp(22px,2.6vw,30px)", margin: "0 0 8px", lineHeight: 1.12, letterSpacing: "-0.02em" }}>
+            Nothing in the market beats your own moves this week.
+          </h2>
+          <p style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-soft)", margin: "0 0 22px", maxWidth: 640 }}>
+            These come from your founding analysis — anchored to what you actually sell and
+            priced off your own menu, not a trend that doesn&apos;t map to you.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
+            {brief.first_moves.slice(0, 3).map((move, i) => (
+              <div key={move} style={{ borderLeft: "2px solid var(--amber)", paddingLeft: 14 }}>
+                <span className="mono-label" style={{ display: "block", marginBottom: 6 }}>Move {i + 1}</span>
+                <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "var(--ink)", margin: 0 }}>{move}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>
+            <Link href="/app/snapshot" className="btn btn-primary">
+              See the full analysis →
+            </Link>
+            <Link href="/app/report" className="btn btn-ghost btn-sm">
+              This week&apos;s intel report →
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* ---------- HERO RECOMMENDATION (market context when thin) ---------- */}
+      <section className={thin ? "panel" : "panel panel--hero"} style={{ padding: "30px 32px 28px", marginTop: thin ? 18 : undefined }}>
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
           <div style={{ flex: "1 1 400px", minWidth: 280 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
-              <span className="badge badge--amber"><i />{thin ? "Closest fit — not a pick" : "#1 this week"}</span>
+              <span className="badge badge--amber"><i />{thin ? "Closest trend — market context, not a pick" : "#1 this week"}</span>
               {signal && <SourceBadge source={signal.source} metric={signal.metric_type} />}
               {typeof signal?.delta_pct === "number" && (
-                <span className="delta-chip">↑{Math.round(signal.delta_pct)}% this week</span>
+                <span className="delta-chip">{deltaShort(signal.delta_pct)} this week</span>
               )}
             </div>
-            <h2 className="h-disp" style={{ fontSize: "clamp(26px,3.2vw,38px)", margin: "0 0 16px", lineHeight: 1.08, letterSpacing: "-0.02em" }}>
+            <h2 className="h-disp" style={{ fontSize: thin ? "clamp(20px,2.4vw,26px)" : "clamp(26px,3.2vw,38px)", margin: "0 0 16px", lineHeight: 1.08, letterSpacing: "-0.02em" }}>
               {signal ? titleCase(signal.term) : "This week's opportunity"}
             </h2>
 
@@ -511,7 +556,9 @@ export default async function AppHome() {
             <span className="k">Do this next</span>
             <div className="v">
               {thin
-                ? "Thin week — nothing squarely fits what you sell. Wait, or build only if the creative is trivial."
+                ? brief && brief.first_moves.length > 0
+                  ? "Run this week's play above — it's anchored to your menu. Build this trend only if the creative is trivial."
+                  : "Thin week — nothing squarely fits what you sell. Wait, or build only if the creative is trivial."
                 : campaign
                   ? nextAction.label
                   : `${nextAction.label} — launch by ${launchBy}`}
@@ -543,29 +590,6 @@ export default async function AppHome() {
           </div>
         )}
       </section>
-
-      {/* ---------- THIN WEEK: WHAT TO RUN INSTEAD ----------
-          When no trend fits, the useful advice isn't a trend at all — it's
-          the service-anchored first moves from the founding analysis. */}
-      {thin && brief && brief.first_moves.length > 0 && (
-        <section className="panel" style={{ marginTop: 18 }}>
-          <div className="panel__head">
-            <span className="panel__title">Worth running instead</span>
-            <span className="panel__meta">from your analysis — anchored to what you actually sell</span>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
-            {brief.first_moves.slice(0, 3).map((move, i) => (
-              <div key={move} style={{ borderLeft: "2px solid var(--amber)", paddingLeft: 14 }}>
-                <span className="mono-label" style={{ display: "block", marginBottom: 6 }}>Move {i + 1}</span>
-                <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "var(--ink)", margin: 0 }}>{move}</p>
-              </div>
-            ))}
-          </div>
-          <Link href="/app/snapshot" className="btn btn-ghost btn-sm" style={{ marginTop: 18 }}>
-            See the full analysis →
-          </Link>
-        </section>
-      )}
 
       {/* ---------- TREND CHART (only when we hold a series worth reading:
           a sparse, mostly-zero niche series would headline a fake "0") ---------- */}
@@ -618,7 +642,7 @@ export default async function AppHome() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5 }}>{s ? titleCase(s.term) : ""}</span>
                       <span className="panel__meta" style={{ display: "block", marginTop: 2 }}>
-                        {typeof s?.delta_pct === "number" ? `↑${Math.round(s.delta_pct)}% · ` : ""}
+                        {typeof s?.delta_pct === "number" ? `${deltaShort(s.delta_pct)} · ` : ""}
                         {s?.metric_type.replace(/_/g, " ")}
                       </span>
                     </div>
@@ -649,7 +673,7 @@ export default async function AppHome() {
                 }}
               >
                 <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>{titleCase(s.term)}</span>
-                <span className="delta-chip">↑{Math.round(s.delta_pct ?? 0)}%</span>
+                <span className="delta-chip">{deltaShort(s.delta_pct ?? 0)}</span>
               </div>
             ))}
             {movers.length === 0 && (

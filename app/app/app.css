@@ -1855,3 +1855,52 @@ details.section-disclosure[open] .summary-open-hint {
   color: var(--ink-soft);
   background: var(--bg-2);
 }
+
+/* ------------------------- founding-analysis wait ------------------------- */
+.an-progress {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.an-progress__row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  transition: color 0.3s ease;
+}
+.an-progress__row.is-done {
+  color: var(--ink-soft);
+}
+.an-progress__row.is-current {
+  color: var(--ink);
+}
+.an-progress__mark::before {
+  content: "○";
+}
+.an-progress__row.is-done .an-progress__mark::before {
+  content: "✓";
+  color: var(--mint-text);
+}
+.an-progress__row.is-current .an-progress__mark::before {
+  content: "●";
+  color: var(--amber);
+  display: inline-block;
+  animation: anPulse 1s ease-in-out infinite;
+}
+@keyframes anPulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.an-progress__slow {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}

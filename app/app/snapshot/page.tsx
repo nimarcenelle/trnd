@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import AnalysisProgress from "@/components/app/analysis-progress";
 import AutoRefresh from "@/components/app/auto-refresh";
 import SubmitButton from "@/components/app/submit-button";
 import { briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
@@ -95,6 +96,9 @@ export default async function SnapshotPage() {
             TRND is reading {business.name} — positioning, who buys, the local market, pricing,
             and your first moves. Usually under two minutes; this page refreshes itself.
           </p>
+          <div style={{ display: "inline-block", textAlign: "left" }}>
+            <AnalysisProgress startedAt={business.created_at} />
+          </div>
         </div>
       ) : (
         <>

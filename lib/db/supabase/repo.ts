@@ -121,7 +121,10 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       // National rows, the business's state, and any metro inside it
       // ("US-GA-524" for a "US-GA" query) rank together.
       if (opts?.geo) q = q.or(`geo.eq.US,geo.eq.${opts.geo},geo.like.${opts.geo}-%`);
-      const { data, error } = await q.order("delta_pct", { ascending: false });
+      // nullsFirst: false — Postgres puts NULLs first on DESC by default,
+      // which let a term's null-delta evergreen row shadow its measured
+      // sibling (same term, real delta) at the dedupe step downstream.
+      const { data, error } = await q.order("delta_pct", { ascending: false, nullsFirst: false });
       throwIf(error, "listSignalsForCategory");
       return (data ?? []) as Signal[];
     },

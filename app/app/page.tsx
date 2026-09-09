@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import AnalysisProgress from "@/components/app/analysis-progress";
 import AutoRefresh from "@/components/app/auto-refresh";
 import ScoreBreakdown from "@/components/app/score-breakdown";
 import GradePill from "@/components/app/grade-pill";
@@ -121,7 +122,7 @@ export default async function AppHome() {
       }
       return (
         <div className="page">
-          <AutoRefresh />
+          <AutoRefresh everyMs={8000} />
           <div className="page-head">
             <div>
               <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
@@ -138,6 +139,7 @@ export default async function AppHome() {
               TRND never shows a ranking that hasn&apos;t been judged against what you actually
               sell — a minute of honest silence beats a week of confident nonsense.
             </p>
+            <AnalysisProgress startedAt={business.created_at} />
             <Link className="btn btn-ghost btn-sm" href="/app/snapshot" style={{ marginTop: 18 }}>
               Watch the analysis land →
             </Link>

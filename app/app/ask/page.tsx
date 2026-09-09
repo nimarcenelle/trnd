@@ -38,9 +38,9 @@ export default async function AskPage() {
           <span className="eyebrow" style={{ margin: 0 }}>Ask TRND</span>
           <h1>Ask your analyst anything.</h1>
           <p className="context">
-            Answers come only from {business.name}&apos;s own data — signals, ranking, reviews,
-            competitor reads, results — with the sources shown. Where the data can&apos;t answer,
-            it says so.
+            Grounded in {business.name}&apos;s own data — signals, ranking, reviews, competitor
+            reads — and reasoned like an analyst on top: estimates show their assumptions so
+            you can correct them, and follow-ups keep the thread.
           </p>
         </div>
       </div>

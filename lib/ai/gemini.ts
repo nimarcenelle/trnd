@@ -558,6 +558,7 @@ const askResponseSchema: Schema = {
         required: ["claim", "source"],
       },
     },
+    assumptions: { type: Type.ARRAY, items: { type: Type.STRING } },
     insufficient: { type: Type.BOOLEAN },
   },
   required: ["answer", "citations", "insufficient"],
@@ -572,22 +573,35 @@ export async function answerAskWithGemini(
   business: Business,
   context: string,
   question: string,
+  history: { question: string; answer: string[] }[] = [],
 ): Promise<{ value: AskAnswerResult; model: string }> {
   const models = await resolveModels();
+  const thread = history
+    .slice(-5)
+    .map((t) => `OWNER: ${t.question}\nYOU: ${t.answer.join(" ")}`)
+    .join("\n\n");
   const prompt = [
-    `You are TRND's analyst for ${business.name} — ${business.category} in ${business.city}. Answer the owner's question using ONLY the context below.`,
+    `You are TRND's analyst for ${business.name} — ${business.category} in ${business.city}, in an ongoing conversation with the owner. Answer the newest question in the context of what came before; a follow-up ("what about weekends", "double it") refers to the thread.`,
     ``,
     `CONTEXT (everything TRND currently holds for this business):`,
     context,
     ``,
-    `QUESTION: ${question}`,
+    thread ? `CONVERSATION SO FAR:\n${thread}\n` : ``,
+    `NEWEST QUESTION: ${question}`,
+    ``,
+    `How to answer:`,
+    `- Ground every claim about THEIR business in the context — never invent their reviews, competitors, results, prices, or history.`,
+    `- Where the context runs out, REASON like an analyst instead of refusing: combine their real numbers with clearly-labeled assumptions (typical capacity, session durations, close rates, spend efficiency for a business like theirs) and show the arithmetic, landing on a range rather than false precision. "What could I make per month" deserves a math sketch from their actual menu prices and a reasonable session volume — never "the data doesn't say".`,
+    `- Every assumed number goes in assumptions, phrased so the owner can correct it ("Assumed ~2 sessions a day, 5 days a week — tell me your real capacity and I'll tighten this").`,
     ``,
     `Return JSON:`,
-    `- answer: 1-3 short paragraphs, plain language, written to the owner as "you".`,
-    `- citations: for each factual claim, the context line it came from (source name + what it said, compressed).`,
-    `- insufficient: true when the context genuinely cannot answer — then the answer must say what data is missing and how TRND would get it, never a guess.`,
-    `Never invent numbers, competitors, trends, or reviews. An honest "the data doesn't show that yet" beats a plausible guess.`,
-  ].join("\n");
+    `- answer: 1-4 short paragraphs, plain language, written to the owner as "you". Arithmetic reads as prose, not a table.`,
+    `- citations: only for claims grounded in the context (source name + what it said, compressed) — reasoning steps are not citations.`,
+    `- assumptions: the assumed numbers behind any estimate (empty when none were needed).`,
+    `- insufficient: true ONLY when even a reasoned, assumption-labeled estimate would be dishonest.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
   const value = await structuredCall(models.flash, prompt, askResponseSchema, (d) =>
     AskAnswerSchema.parse(d),
   );

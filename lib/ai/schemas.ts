@@ -94,9 +94,13 @@ export const ReviewDigestSchema = z.object({
 export type ReviewDigestResult = z.infer<typeof ReviewDigestSchema>;
 
 export const AskAnswerSchema = z.object({
-  answer: z.array(z.string().min(20)).min(1).max(3),
+  answer: z.array(z.string().min(20)).min(1).max(4),
   citations: z.array(z.object({ claim: z.string().min(6), source: z.string().min(3) })).max(6),
-  /** True when the honest answer is "the data doesn't say". */
+  /** Assumed numbers used in the reasoning — each phrased so the owner can
+   * correct it and re-ask. */
+  assumptions: z.array(z.string().min(6)).max(5),
+  /** True only when even a reasoned, assumption-labeled estimate would be
+   * dishonest — not merely "the context lacks this number". */
   insufficient: z.boolean(),
 });
 export type AskAnswerResult = z.infer<typeof AskAnswerSchema>;

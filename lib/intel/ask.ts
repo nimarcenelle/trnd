@@ -7,8 +7,16 @@ import { reportFacts } from "@/lib/report/note";
 export interface AskAnswer {
   answer: string[];
   citations: { claim: string; source: string }[];
+  /** Assumed numbers behind any estimate — each correctable by the owner. */
+  assumptions: string[];
   insufficient: boolean;
   model: string;
+}
+
+/** One prior exchange, replayed to the model so follow-ups keep the thread. */
+export interface AskTurn {
+  question: string;
+  answer: string[];
 }
 
 /**
@@ -72,6 +80,7 @@ export async function answerAsk(
   repo: Repo,
   business: Business,
   question: string,
+  history: AskTurn[] = [],
 ): Promise<AskAnswer> {
   if (!isGeminiConfigured) {
     return {
@@ -79,12 +88,13 @@ export async function answerAsk(
         "Ask needs the model connection (GEMINI_API_KEY) to reason over your data. Everything it would cite is already on your intel report — open it for the current picture.",
       ],
       citations: [],
+      assumptions: [],
       insufficient: true,
       model: "unconfigured",
     };
   }
   const context = await buildAskContext(repo, business);
   const { answerAskWithGemini } = await import("@/lib/ai/gemini");
-  const { value, model } = await answerAskWithGemini(business, context, question);
+  const { value, model } = await answerAskWithGemini(business, context, question, history);
   return { ...value, model };
 }

@@ -58,7 +58,7 @@ export default function Home() {
         <div className="nav__links">
           <a href="#product">Product</a>
           <a href="#how">How it works</a>
-          <a href="#signals">Proof</a>
+          <a href="#signals">Signal</a>
           <a href="#vision">Vision</a>
           <a href="#pricing">Pricing</a>
         </div>
@@ -67,9 +67,9 @@ export default function Home() {
             Sign in
           </Link>
           <ThemeToggle />
-          <a href="#demo" className="btn btn-primary btn-sm">
-            Request a demo
-          </a>
+          <Link href="/signup" className="btn btn-primary btn-sm">
+            Start free
+          </Link>
         </div>
       </nav>
 
@@ -88,12 +88,12 @@ export default function Home() {
             for small businesses, not agencies with a quarter to spare.
           </p>
           <div className="hero__ctas">
-            <a href="#demo" className="btn btn-primary">
-              Request a demo
-            </a>
-            <Link href="/signup" className="btn btn-ghost">
+            <Link href="/signup" className="btn btn-primary">
               Start free — set up in 2 minutes
             </Link>
+            <a href="#demo" className="btn btn-ghost">
+              Request a demo
+            </a>
           </div>
           <div className="hero__proof">
             <span className="pill">No agency retainer</span>
@@ -169,9 +169,9 @@ export default function Home() {
       <section className="block" id="signals">
         <div className="wrap">
           <div className="head reveal">
-            <span className="eyebrow">Proof</span>
+            <span className="eyebrow">The signal</span>
             <h2>What &quot;signal&quot; actually looks like.</h2>
-            <p>A sample of what TRND is watching this week, across a few different kinds of small businesses.</p>
+            <p>A sample of what TRND watches, across a few different kinds of small businesses.</p>
           </div>
           <div className="signals reveal">
             {SIG_CARDS.map((c) => (
@@ -398,7 +398,7 @@ export default function Home() {
                 <h3>Product</h3>
                 <a href="#product">Overview</a>
                 <a href="#how">How it works</a>
-                <a href="#signals">Proof</a>
+                <a href="#signals">The signal</a>
               </div>
               <div className="foot-col">
                 <h3>Company</h3>
@@ -414,7 +414,7 @@ export default function Home() {
             </div>
           </div>
           <div className="foot-bottom">
-            <span>© 2026 TRND, Inc.</span>
+            <span>© 2026 TRND</span>
             <span>Trend data shown throughout is illustrative.</span>
           </div>
         </div>

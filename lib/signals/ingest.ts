@@ -110,6 +110,25 @@ export async function runSignalIngestForBusiness(
   return written;
 }
 
+/** Rejects with "timed out" when the adapter call outlives its slice — the
+ * underlying promise is abandoned, not cancelled (fetch keys off its own
+ * signal internally; we just stop waiting). */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timed out")), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
 function defaultAdapters(): SignalAdapter[] {
   // Reliable + keyless first (RSS, weather, autocomplete), then Reddit,
   // News, TikTok Creative Center (unofficial, per-industry), the fragile
@@ -141,11 +160,28 @@ function defaultAdapters(): SignalAdapter[] {
  */
 export async function runIngest(
   repo: Repo,
-  opts: { geo?: string; windowDays?: number; adapters?: SignalAdapter[] } = {},
+  opts: {
+    geo?: string;
+    windowDays?: number;
+    adapters?: SignalAdapter[];
+    /** Wall-clock cap for the whole run — adapters not yet started when it's
+     * spent are skipped, so the cron route answers inside Vercel's 300s
+     * maxDuration instead of 504ing (a hung adapter used to eat the rest of
+     * the run). */
+    budgetMs?: number;
+    /** Cap for a single adapter fetch/fetchSeries call. */
+    adapterTimeoutMs?: number;
+  } = {},
 ): Promise<IngestSummary> {
+  const startedAt = Date.now();
   const geo = opts.geo ?? "US";
   const windowDays = opts.windowDays ?? 7;
   const adapters = opts.adapters ?? defaultAdapters();
+  const budgetMs = opts.budgetMs ?? 240_000;
+  const adapterTimeoutMs = opts.adapterTimeoutMs ?? 60_000;
+  // A call's slice never exceeds what's left of the whole-run budget.
+  const sliceMs = () =>
+    Math.min(adapterTimeoutMs, Math.max(budgetMs - (Date.now() - startedAt), 0));
   const watchTerms = CATEGORY_CONFIGS.flatMap((c) => c.watchTerms.slice(0, 3));
 
   // The personalized half of the watchlist: every business's snapshot names
@@ -215,6 +251,12 @@ export async function runIngest(
 
   for (const adapter of adapters) {
     const report: AdapterRunReport = { adapter: adapter.name, ok: false, signals: 0, seriesPoints: 0 };
+    if (Date.now() - startedAt >= budgetMs) {
+      report.skipped = "time budget exhausted";
+      report.ok = true;
+      reports.push(report);
+      continue;
+    }
     try {
       if (!(await adapter.isAvailable())) {
         report.skipped = "unavailable (missing key or open circuit)";
@@ -222,10 +264,16 @@ export async function runIngest(
         reports.push(report);
         continue;
       }
-      const raw = await adapter.fetch({ terms: watchTerms, watch, places, subreddits, geo, windowDays });
+      const raw = await withTimeout(
+        adapter.fetch({ terms: watchTerms, watch, places, subreddits, geo, windowDays }),
+        sliceMs(),
+      );
       report.signals = await repo.upsertSignals(toSignalRows(raw));
       if (adapter.fetchSeries) {
-        const series = await adapter.fetchSeries({ terms: watchTerms, watch, places, subreddits, geo, windowDays });
+        const series = await withTimeout(
+          adapter.fetchSeries({ terms: watchTerms, watch, places, subreddits, geo, windowDays }),
+          sliceMs(),
+        );
         report.seriesPoints = await repo.upsertSeriesPoints(
           series.map((p) => ({
             normalized_term: normalizeTerm(p.term),

@@ -444,8 +444,10 @@ export default async function AppHome() {
       )}
 
       {unreadAlerts.length > 0 && (
-        <section className="panel" style={{ marginTop: 18 }}>
-          <div className="panel__head">
+        // A notification strip, not a content panel — one alert must read as
+        // one compact line, not a card that is mostly padding.
+        <section className="panel" style={{ marginTop: 18, padding: "14px 26px 12px" }}>
+          <div className="panel__head" style={{ marginBottom: 4 }}>
             <span className="panel__title">What changed</span>
             <form action={markAlertsReadAction}>
               <button type="submit" className="panel__meta" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--amber-text)", fontFamily: "var(--mono)" }}>
@@ -463,7 +465,7 @@ export default async function AppHome() {
                   display: "flex",
                   gap: 12,
                   alignItems: "baseline",
-                  padding: "10px 0",
+                  padding: "8px 0",
                   borderBottom: i < unreadAlerts.length - 1 ? "1px dashed var(--line)" : "none",
                 }}
               >

@@ -1,0 +1,30 @@
+<!-- Supabase Auth template: Magic Link.
+     Paste into Dashboard → Authentication → Emails → Magic Link.
+     Suggested subject: Your TRND sign-in link -->
+<div style="background:#f6f4ee;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <div style="max-width:480px;margin:0 auto;">
+    <div style="margin-bottom:20px;">
+      <span style="display:inline-block;width:11px;height:11px;border-radius:999px;background:#1ea7ae;vertical-align:middle;"></span>
+      <span style="font-size:17px;font-weight:700;letter-spacing:6px;color:#23201a;vertical-align:middle;padding-left:10px;">TRND</span>
+    </div>
+    <div style="background:#ffffff;border:1px solid #e3dfd1;border-radius:14px;padding:32px 28px;">
+      <h1 style="margin:0 0 10px;font-size:21px;color:#23201a;">Sign in to TRND</h1>
+      <p style="margin:0 0 24px;font-size:14.5px;line-height:1.65;color:#5d564a;">
+        One click and you're back to this week's recommendation. This link works once and
+        expires in an hour.
+      </p>
+      <a href="{{ .ConfirmationURL }}"
+         style="display:inline-block;background:#d99a12;color:#2b1b08;font-weight:600;font-size:15px;text-decoration:none;padding:12px 26px;border-radius:999px;">
+        Sign in →
+      </a>
+      <p style="margin:24px 0 0;font-size:12.5px;line-height:1.6;color:#6f6759;">
+        Didn't request this? Ignore it — the link only works from this email, and your
+        account is untouched.
+      </p>
+    </div>
+    <p style="margin:18px 4px 0;font-size:12px;line-height:1.6;color:#6f6759;">
+      TRND — know what to advertise, before your competitors do.<br />
+      <a href="https://www.usetrnd.com" style="color:#8a6208;">usetrnd.com</a>
+    </p>
+  </div>
+</div>

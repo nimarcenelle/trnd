@@ -80,6 +80,24 @@ export async function POST(req: Request): Promise<Response> {
   });
 }
 
+/**
+ * Poll target for a build the client lost sight of — the tab slept, the user
+ * navigated away and came back, the stream dropped. The build keeps running
+ * server-side; this answers "has the campaign landed yet?".
+ */
+export async function GET(req: Request): Promise<Response> {
+  const user = await getSessionUser();
+  if (!user) return Response.json({ error: "Not signed in." }, { status: 401 });
+  const opportunityId = new URL(req.url).searchParams.get("opportunity_id") ?? "";
+  if (!opportunityId) return Response.json({ error: "Missing opportunity." }, { status: 400 });
+  const repo = await getUserRepo(user.id);
+  const campaign = await repo.getCampaignByOpportunity(opportunityId);
+  return Response.json(
+    { campaignId: campaign?.id ?? null },
+    { headers: { "cache-control": "no-store" } },
+  );
+}
+
 function line(event: BuildEvent, status: number): Response {
   return new Response(`${JSON.stringify(event)}\n`, {
     status,

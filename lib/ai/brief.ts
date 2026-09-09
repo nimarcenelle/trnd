@@ -3,7 +3,7 @@ import { isGeminiConfigured } from "@/lib/env";
 import { CATEGORY_CONFIGS } from "@/lib/signals/category-terms";
 
 export const BRIEF_FALLBACK_MODEL = "trnd-template/v3";
-export const BRIEF_PROMPT_VERSION = "brief-5";
+export const BRIEF_PROMPT_VERSION = "brief-6";
 
 /**
  * The full analysis a business gets when it joins: positioning, who buys,

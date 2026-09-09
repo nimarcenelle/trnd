@@ -24,7 +24,7 @@ import { buildHowTo, tiktokHashtag } from "@/lib/recommend/howto";
 import { buildOrganicPost } from "@/lib/recommend/post";
 import { upcomingMoments } from "@/lib/recommend/seasonal";
 import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
-import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
+import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, businessJustOnboarded, generateBusinessBrief } from "@/lib/ai/brief";
 import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { geoLabel } from "@/lib/signals/geo";
@@ -156,22 +156,64 @@ export default async function AppHome() {
         </div>
       );
     }
+    // The product's job is to hand them an analysis — scan automatically
+    // instead of asking. Guarded so it can't loop-spend on adapters: only a
+    // freshly onboarded business (the case where onboarding's own scan
+    // hiccuped), and only when today holds no reads for this identity yet.
+    const scannedToday =
+      (await repo.listSignalsForCategory(business.category, { sinceDays: 1 })).length > 0;
+    const freshBusiness = businessJustOnboarded(business.created_at);
+    if (pendingBrief && isSupabaseConfigured && freshBusiness && !scannedToday) {
+      after(async () => {
+        try {
+          const jobRepo = getAdminRepo();
+          const { runSignalIngestForBusiness } = await import("@/lib/signals/ingest");
+          await runSignalIngestForBusiness(jobRepo, business);
+          const { rerankWeek } = await import("@/lib/recommend/rerank");
+          await rerankWeek(jobRepo, business);
+        } catch (err) {
+          console.warn("[app] auto market scan failed (non-fatal):", (err as Error).message);
+        }
+      });
+      return (
+        <div className="page">
+          <AutoRefresh everyMs={8000} />
+          <div className="page-head">
+            <div>
+              <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
+              <h1>Scanning your market now.</h1>
+              <p className="context">
+                Live demand reads for <b>{business.category}</b> around {business.city} —
+                search volume, news, what competitors are running — then a judged ranking.
+              </p>
+            </div>
+          </div>
+          <div className="panel" style={{ maxWidth: 620 }}>
+            <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
+              Your analysis named the search terms your customers actually use — TRND is
+              reading live demand for each one right now. A minute or two; this page
+              refreshes itself.
+            </p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="page">
         <div className="page-head">
           <div>
             <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
-            <h1>Nothing ranked for you yet.</h1>
+            <h1>Nothing cleared the bar this week.</h1>
             <p className="context">
-              No demand reads for <b>{business.category}</b> around {business.city} in the
-              last two weeks — or everything this week was dismissed.
+              Today&apos;s reads for <b>{business.category}</b> around {business.city} didn&apos;t
+              produce a ranking worth your money — or everything this week was dismissed.
             </p>
           </div>
         </div>
         <div className="panel" style={{ maxWidth: 620 }}>
           <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
-            TRND scans your market every day on its own. You can also kick one off right
-            now — it reads live demand for your watch terms and ranks what it finds.
+            The daily scan keeps watching your terms and your broader market. You can also
+            re-read the market right now.
           </p>
           {!isSupabaseConfigured && (
             <p style={{ margin: "12px 0 0", fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--ink-faint)" }}>

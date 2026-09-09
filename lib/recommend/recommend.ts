@@ -146,8 +146,19 @@ export async function recommendForBusiness(
   };
   // category is the business's free-text identity; its own signals (watch
   // terms, snapshot, weather) are tagged with that exact string. The stock
-  // market backdrop is tagged by vertical — fetch both when they differ.
-  const vertical = verticalKey(business.category);
+  // market backdrop is tagged by vertical — and a niche identity ("personal
+  // color analysis studio") must still borrow its broader market's backdrop,
+  // so the vertical is resolved from the analysis's own vocabulary (services,
+  // lexicon, watch terms), not just the identity string.
+  const [services, brief] = await Promise.all([
+    repo.listServices(business.id),
+    repo.getBusinessBrief(business.id),
+  ]);
+  const vertical = verticalKey(business.category, [
+    ...services.map((s) => s.name),
+    ...(brief?.lexicon ?? []),
+    ...(brief?.watch_terms ?? []),
+  ]);
   const fetchPool = async () => {
     const own = await repo.listSignalsForCategory(business.category, signalOpts);
     if (vertical === business.category) return own;
@@ -155,11 +166,9 @@ export async function recommendForBusiness(
     const seen = new Set(own.map((s) => s.id));
     return [...own, ...backdrop.filter((s) => !seen.has(s.id))];
   };
-  const [firstSignals, services, learnings, brief] = await Promise.all([
+  const [firstSignals, learnings] = await Promise.all([
     fetchPool(),
-    repo.listServices(business.id),
     repo.listLearnings(vertical),
-    repo.getBusinessBrief(business.id),
   ]);
   let signals = firstSignals;
 

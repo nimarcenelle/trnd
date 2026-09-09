@@ -203,10 +203,9 @@ export default async function ReportPage() {
                   {r.competitorGap ? ` ${r.competitorGap.charAt(0).toUpperCase()}${r.competitorGap.slice(1)}.` : ""}
                 </p>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                <GradePill score={r.score} lead={r.rank === 1} />
-                <span className="mono-label">{r.score.toFixed(1)}/10</span>
-              </div>
+              {/* The letter IS the verdict — a second number under it just
+                  invites reconciling two scales. */}
+              <GradePill score={r.score} lead={r.rank === 1} />
             </div>
           ))}
         </div>

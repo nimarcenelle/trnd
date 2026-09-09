@@ -1,4 +1,5 @@
 import type { Business, BusinessBrief, Service } from "@/lib/db/types";
+import { verticalKey } from "@/lib/signals/vertical";
 
 /**
  * Deterministic relevance judge — the keyless half of "does this trend make
@@ -122,13 +123,14 @@ function matchesAny(text: string, keywords: string[]): boolean {
   return keywords.some((kw) => keywordRe(kw).test(text));
 }
 
-/** Concepts a piece of text touches, for one category. */
+/** Concepts a piece of text touches, for one business identity — the maps
+ * are keyed by vertical, so free-text categories resolve first. */
 export function conceptsForText(text: string, category: string): Concept[] {
-  return (CATEGORY_CONCEPTS[category] ?? []).filter((c) => matchesAny(text, c.keywords));
+  return (CATEGORY_CONCEPTS[verticalKey(category)] ?? []).filter((c) => matchesAny(text, c.keywords));
 }
 
 function isGeneralTerm(term: string, category: string): boolean {
-  return matchesAny(term, GENERAL_KEYWORDS[category] ?? []);
+  return matchesAny(term, GENERAL_KEYWORDS[verticalKey(category)] ?? []);
 }
 
 const STOPWORDS = new Set([

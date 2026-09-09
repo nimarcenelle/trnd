@@ -4,6 +4,12 @@
  * passthrough and the demo store constructs identical shapes.
  */
 
+/** Internal signal VERTICALS — they seed the daily market scan and key the
+ * deterministic playbooks (stock terms, concept maps, seasonal moments,
+ * content angles). NOT a business identity: `business.category` is free
+ * text in the customer's words ("contrast therapy & recovery studio"),
+ * bridged to a vertical by lib/signals/vertical.ts where keyed machinery
+ * needs it. */
 export const CATEGORIES = [
   "Restaurants & cafés",
   "Home services",

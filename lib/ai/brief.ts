@@ -1,6 +1,7 @@
 import type { Business, NewBusinessBrief, Service } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
 import { CATEGORY_CONFIGS } from "@/lib/signals/category-terms";
+import { verticalKey } from "@/lib/signals/vertical";
 
 export const BRIEF_FALLBACK_MODEL = "trnd-template/v3";
 export const BRIEF_PROMPT_VERSION = "brief-6";
@@ -158,6 +159,8 @@ const fmt = (n: number) => `$${n % 1 === 0 ? n : n.toFixed(2)}`;
 
 export function buildFallbackBrief(business: Business, services: Service[]): NewBusinessBrief {
   const active = services.filter((s) => s.is_active);
+  // Free-text identity; the stock playbooks are keyed by vertical.
+  const vertical = verticalKey(business.category, active.map((s) => s.name));
   const named = active.slice(0, 3).map((s) => s.name);
   const place = `${business.city}${business.region ? `, ${business.region}` : ""}`;
   const band = business.price_band ?? "$$";
@@ -181,7 +184,7 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
     "One clear offer per ad, priced from your actual menu — specificity beats cleverness in this category.",
   ];
 
-  const watchouts = WATCHOUTS[business.category] ?? [
+  const watchouts = WATCHOUTS[vertical] ?? [
     "Don't compete on price alone — sell the thing only you can claim.",
     "One offer per ad; stacked offers depress conversion.",
   ];
@@ -213,7 +216,7 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
   // Watchlist without an LLM: the actual offerings, their "near me" intent
   // variants, and the category's full stock list — regenerated properly
   // (deeper, with lexicon and subreddits) once Gemini runs.
-  const categoryConfig = CATEGORY_CONFIGS.find((c) => c.category === business.category);
+  const categoryConfig = CATEGORY_CONFIGS.find((c) => c.category === vertical);
   const seenTerms = new Set<string>();
   const watchTerms = [
     ...active.slice(0, 10).map((s) => s.name.toLowerCase()),
@@ -237,19 +240,19 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
   return {
     business_id: business.id,
     positioning,
-    customer_segments: SEGMENTS[business.category] ?? [
+    customer_segments: SEGMENTS[vertical] ?? [
       "Nearby customers with immediate intent — they choose among whoever is visible and close when the need hits.",
       "Repeat customers whose only comparison is their last visit — consistency is what keeps them.",
     ],
     market_context:
-      MARKET_CONTEXT[business.category] ??
+      MARKET_CONTEXT[vertical] ??
       `Local ${business.category.toLowerCase()} is won inside the radius: visibility when nearby intent appears, and a reason to be chosen over the incumbent habit.`,
     pricing_read: pricingRead,
     seasonality:
-      SEASONALITY[business.category] ??
+      SEASONALITY[vertical] ??
       "Local demand follows the calendar — holidays, seasons, and paydays. Watch your own busiest weeks and advertise into the two weeks before them.",
     does_well: doesWell,
-    moat: MOATS[business.category] ?? "Local trust, earned in person, that bigger players can't buy.",
+    moat: MOATS[vertical] ?? "Local trust, earned in person, that bigger players can't buy.",
     advantages,
     watchouts,
     first_moves: firstMoves,

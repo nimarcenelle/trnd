@@ -176,25 +176,40 @@ export default function OnboardingWizard() {
     setServices((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
 
+  // Free text — the business's identity in the customer's words. The stock
+  // verticals are one-tap starting points, not the only allowed answers.
   const categoryPicker = (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }} role="radiogroup" aria-label="Business category">
-      {CATEGORIES.map((c) => (
-        <button
-          key={c}
-          type="button"
-          role="radio"
-          aria-checked={category === c}
-          onClick={() => setCategory(c)}
-          className="pill"
-          style={
-            category === c
-              ? { background: "var(--amber)", color: "var(--amber-ink)", borderColor: "var(--amber)", cursor: "pointer", fontWeight: 600 }
-              : { cursor: "pointer", background: "var(--bg-1)" }
-          }
-        >
-          {c}
-        </button>
-      ))}
+    <div>
+      <input
+        aria-label="What your business is"
+        type="text"
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        placeholder="e.g. Contrast therapy & recovery studio"
+        maxLength={60}
+        style={{ ...inputStyle, width: "100%", marginBottom: 12 }}
+      />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }} aria-label="Common kinds of business">
+        {CATEGORIES.map((c) => (
+          <button
+            key={c}
+            type="button"
+            aria-pressed={category === c}
+            onClick={() => setCategory(c)}
+            className="pill"
+            style={
+              category === c
+                ? { background: "var(--amber)", color: "var(--amber-ink)", borderColor: "var(--amber)", cursor: "pointer", fontWeight: 600 }
+                : { cursor: "pointer", background: "var(--bg-1)" }
+            }
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+      <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--ink-faint)" }}>
+        Say what customers would call you — specific beats broad. It shapes every recommendation.
+      </p>
     </div>
   );
 

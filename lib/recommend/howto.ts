@@ -1,9 +1,10 @@
 /**
  * "How to run it well" — practical creative guidance for the week's
  * recommendation: what to shoot, how to write the caption, which tags to
- * ride. Deterministic and category-keyed; the campaign builder's generated
+ * ride. Deterministic and vertical-keyed; the campaign builder's generated
  * assets go deeper, this is the owner's 30-second orientation.
  */
+import { verticalKey } from "@/lib/signals/vertical";
 
 export interface HowTo {
   contentAngle: string;
@@ -71,18 +72,20 @@ export function buildHowTo(opts: {
   const termTag = tagify(opts.term);
   const cityTag = tagify(opts.city);
   const serviceTag = opts.serviceName ? tagify(opts.serviceName) : "";
+  // category is free-text identity; the playbooks are keyed by vertical.
+  const vertical = verticalKey(opts.category);
   const hashtags = [
     ...(termTag ? [termTag] : []),
     ...(serviceTag && serviceTag !== termTag ? [serviceTag] : []),
-    ...(opts.source === "snapshot" ? ["supportlocal"] : (CATEGORY_TAGS[opts.category] ?? ["supportlocal"])),
+    ...(opts.source === "snapshot" ? ["supportlocal"] : (CATEGORY_TAGS[vertical] ?? ["supportlocal"])),
     ...(cityTag ? [cityTag] : []),
   ].slice(0, 5);
   return {
     contentAngle:
-      CONTENT_ANGLE[opts.category] ??
+      CONTENT_ANGLE[vertical] ??
       "Shoot the real thing — your product, your space, your people. Authentic beats polished for local paid social.",
     captionDirection:
-      CAPTION_DIRECTION[opts.category] ??
+      CAPTION_DIRECTION[vertical] ??
       "Say what it is, what it costs, and how to get it — in the voice you'd use across the counter.",
     hashtags,
   };

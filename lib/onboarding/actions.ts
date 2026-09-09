@@ -6,7 +6,6 @@ import { after } from "next/server";
 import { generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
-import { CATEGORIES } from "@/lib/db/types";
 
 export interface OnboardingState {
   error?: string;
@@ -34,8 +33,8 @@ export async function completeOnboardingAction(
   const radius = Number(formData.get("radius_miles") ?? 20);
 
   if (!name) return { error: "Business name is required." };
-  if (!(CATEGORIES as readonly string[]).includes(category)) {
-    return { error: "Pick a category." };
+  if (category.length < 3 || category.length > 60) {
+    return { error: "Describe what your business is (a few words)." };
   }
   if (!city) return { error: "City is required." };
 

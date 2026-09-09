@@ -148,10 +148,16 @@ describe("tiktok hashtag humanization", () => {
 
   it("adapter translates via the injected humanizer consistently", async () => {
     const { createTiktokCcAdapter } = await import("../lib/signals/adapters/tiktok-cc");
-    const adapter = createTiktokCcAdapter({ humanize: async (tags) => tags.map((t) => `nice ${t}`) });
-    // No network in unit tests: fetch() will fail per-industry and produce
-    // zero signals, but must not throw.
-    const signals = await adapter.fetch({ terms: [], watch: [], geo: "ZZ", windowDays: 7 });
-    expect(Array.isArray(signals)).toBe(true);
+    const adapter = createTiktokCcAdapter({
+      humanize: async (tags) => tags.map((t) => `nice ${t}`),
+      fetchJson: async <T,>() => CC_FIXTURE as T,
+    });
+    const input = { terms: [], watch: [], geo: "US", windowDays: 7 };
+    const signals = await adapter.fetch(input);
+    expect(signals.length).toBeGreaterThan(0);
+    expect(signals.every((s) => s.term === "nice babylist")).toBe(true);
+    const series = (await adapter.fetchSeries?.(input)) ?? [];
+    expect(series.length).toBeGreaterThan(0);
+    expect(series.every((p) => p.term === "nice_babylist")).toBe(true);
   });
 });

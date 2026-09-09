@@ -7,6 +7,7 @@ import PrintButton from "@/components/app/print-button";
 import SourceBadge from "@/components/app/source-badge";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { getAdminRepo } from "@/lib/db/admin";
 import { isGeminiConfigured } from "@/lib/env";
 import { WEIGHTS } from "@/lib/scoring";
 import { buildIntelReport } from "@/lib/report/build";
@@ -40,16 +41,23 @@ export default async function ReportPage() {
   if (!business) redirect("/onboarding");
 
   // The report reads this week's ranking — make sure one exists first.
+  // Ranking writes shared tables RLS keeps read-only for user sessions, so
+  // it runs on the service repo; a failed rank renders the report without
+  // picks instead of the error boundary.
   const week = weekOf();
   if ((await repo.listOpportunities(business.id, week)).length === 0) {
-    await recommendForBusiness(repo, business);
+    try {
+      await recommendForBusiness(getAdminRepo(), business);
+    } catch (err) {
+      console.warn("[report] ranking failed (non-fatal):", (err as Error).message);
+    }
   }
   // Businesses whose Google listing was never resolved get their intel
   // pulled in the background — voice-of-customer fills in on the next view.
   after(async () => {
     try {
       const { ensureIntelFresh } = await import("@/lib/intel/ingest");
-      await ensureIntelFresh(repo, business);
+      await ensureIntelFresh(getAdminRepo(), business);
     } catch (err) {
       console.warn("[report] intel self-heal failed (non-fatal):", (err as Error).message);
     }

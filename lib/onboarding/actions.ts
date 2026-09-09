@@ -122,6 +122,12 @@ export async function completeOnboardingAction(
 
   const siteText = String(formData.get("site_text") ?? "").slice(0, 12_000) || undefined;
   after(async () => {
+    // Ingest and ranking write shared tables (signals, signal_series,
+    // opportunities) that RLS keeps read-only for user sessions — the jobs
+    // run on the service repo, same as the crons. Ownership was already
+    // established above through the user-scoped repo.
+    const { getAdminRepo } = await import("@/lib/db/admin");
+    const jobRepo = getAdminRepo();
     try {
       const brief = await generateBusinessBrief(business, createdServices, siteText);
       await repo.upsertBusinessBrief(brief);
@@ -129,14 +135,14 @@ export async function completeOnboardingAction(
       // volume) — tolerated failure; the ranking works without them.
       try {
         const { runSignalIngestForBusiness } = await import("@/lib/signals/ingest");
-        await runSignalIngestForBusiness(repo, business);
+        await runSignalIngestForBusiness(jobRepo, business);
       } catch (err) {
         console.warn("[onboarding] day-one signal ingest failed (non-fatal):", (err as Error).message);
       }
       // The dashboard's first ranking ran before the analysis existed —
       // re-rank now so it's snapshot-judged, not category-matched.
       const { rerankWeek } = await import("@/lib/recommend/rerank");
-      await rerankWeek(repo, business);
+      await rerankWeek(jobRepo, business);
     } catch (err) {
       console.warn("[onboarding] brief generation failed (non-fatal):", (err as Error).message);
     }
@@ -145,7 +151,7 @@ export async function completeOnboardingAction(
     // from the first session.
     try {
       const { runIntelIngestForBusiness } = await import("@/lib/intel/ingest");
-      await runIntelIngestForBusiness(repo, business);
+      await runIntelIngestForBusiness(jobRepo, business);
     } catch (err) {
       console.warn("[onboarding] intel ingest failed (non-fatal):", (err as Error).message);
     }

@@ -562,6 +562,89 @@ export function htmlToText(html: string): string {
   return stripHtml(html).text;
 }
 
+/* -------------------------- storefront JSON probes -------------------------
+ * Shopify and WooCommerce render their catalogs with JavaScript, so the HTML
+ * crawl sees a husk — but both expose the same catalog as public JSON. In
+ * serverless prod (no Playwright) these probes are the only way to read
+ * products off such sites; a non-storefront host just 404s in one request.
+ */
+
+async function fetchJson(url: string): Promise<unknown> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "user-agent": UA, accept: "application/json" },
+      redirect: "follow",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()) as unknown;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function cleanProductName(raw: string): string | null {
+  const name = decodeEntities(raw).replace(/\s+/g, " ").trim().slice(0, 60);
+  return name.length >= 3 && !JUNK_SERVICE_NAME.test(name) ? name : null;
+}
+
+/** Shopify's public catalog: /products.json. */
+async function probeShopify(origin: string): Promise<ImportedService[]> {
+  const data = (await fetchJson(`${origin}/products.json?limit=50`)) as {
+    products?: { title?: string; variants?: { price?: string | number }[] }[];
+  };
+  const out: ImportedService[] = [];
+  for (const p of data.products ?? []) {
+    const name = typeof p.title === "string" ? cleanProductName(p.title) : null;
+    const price = priceFrom(p.variants?.[0]?.price);
+    if (name && price) out.push({ name, price });
+    if (out.length >= 15) break;
+  }
+  return out;
+}
+
+/** WooCommerce's public Store API: prices arrive in minor units. */
+async function probeWooCommerce(origin: string): Promise<ImportedService[]> {
+  const data = (await fetchJson(`${origin}/wp-json/wc/store/v1/products?per_page=50`)) as {
+    name?: string;
+    prices?: { price?: string; currency_minor_unit?: number };
+  }[];
+  if (!Array.isArray(data)) return [];
+  const out: ImportedService[] = [];
+  for (const p of data) {
+    const name = typeof p.name === "string" ? cleanProductName(p.name) : null;
+    const minor = Number(p.prices?.price);
+    const unit = p.prices?.currency_minor_unit ?? 2;
+    if (name && Number.isFinite(minor) && minor > 0) {
+      out.push({ name, price: (minor / 10 ** unit).toFixed(unit).replace(/\.00$/, "") });
+    }
+    if (out.length >= 15) break;
+  }
+  return out;
+}
+
+/**
+ * When the HTML crawl found no offerings, ask the storefront platforms
+ * directly. Tries the platform the HTML hints at first; failures return [].
+ */
+export async function probeStorefrontProducts(url: string, html: string): Promise<ImportedService[]> {
+  const origin = new URL(url).origin;
+  const probes = /shopify|\/cdn\/shop\//i.test(html)
+    ? [probeShopify, probeWooCommerce]
+    : [probeWooCommerce, probeShopify];
+  for (const probe of probes) {
+    try {
+      const services = await probe(origin);
+      if (services.length > 0) return services;
+    } catch {
+      /* not that platform — try the next */
+    }
+  }
+  return [];
+}
+
 const JUNK_IMAGE = /logo|icon|favicon|sprite|placeholder|avatar|badge|pixel|tracking/i;
 
 /** Real photos on the page: og:image first, then content <img>s that look

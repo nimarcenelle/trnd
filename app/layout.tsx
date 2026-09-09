@@ -12,7 +12,7 @@ import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://usetrnd.com";
-const TITLE = "TRND — Know what to advertise, before your competitors do";
+const TITLE = "TRND — Know what to advertise, before it's obvious";
 const DESCRIPTION =
   "TRND reads real-time demand signal and turns it into a finished ad campaign for your business — every day. Built for small businesses, not agencies.";
 
@@ -20,19 +20,20 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: TITLE,
   description: DESCRIPTION,
+  // og:image / twitter:image come from app/opengraph-image.tsx (generated at
+  // build, always in step with the slogan) — no listing here, or the stale
+  // static file would win.
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
     url: "/",
     siteName: "TRND",
     type: "website",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "TRND" }],
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
-    images: ["/og.png"],
   },
 };
 

@@ -15,6 +15,7 @@ import BuildCampaignButton from "@/components/app/build-campaign-button";
 import { markAlertsReadAction } from "@/lib/intel/actions";
 import { refreshRankingAction } from "@/lib/recommend/actions";
 import { getUserRepo } from "@/lib/db";
+import { getAdminRepo } from "@/lib/db/admin";
 import type { Signal } from "@/lib/db/types";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import CopyBlock from "@/components/app/copy-block";
@@ -46,9 +47,16 @@ export default async function AppHome() {
   let opportunities = await repo.listOpportunities(business.id, week);
   if (opportunities.length === 0) {
     // First visit of the week: score what we have right now so the screen is
-    // never empty. The weekly cron does the same in bulk.
-    await recommendForBusiness(repo, business);
-    opportunities = await repo.listOpportunities(business.id, week);
+    // never empty. The weekly cron does the same in bulk. Ranking writes to
+    // shared tables (signals, opportunities) that RLS keeps read-only for
+    // user sessions, so the job runs on the service repo — and a failed rank
+    // degrades to the empty state, never the error boundary.
+    try {
+      await recommendForBusiness(getAdminRepo(), business);
+      opportunities = await repo.listOpportunities(business.id, week);
+    } catch (err) {
+      console.warn("[app] first-visit ranking failed (non-fatal):", (err as Error).message);
+    }
   }
 
   const active = opportunities.filter((o) => o.status !== "dismissed");
@@ -105,7 +113,7 @@ export default async function AppHome() {
               await generateBusinessBrief(business, await repo.listServices(business.id)),
             );
             const { rerankWeek } = await import("@/lib/recommend/rerank");
-            await rerankWeek(repo, business);
+            await rerankWeek(getAdminRepo(), business);
           } catch (err) {
             console.warn("[app] brief recovery failed (non-fatal):", (err as Error).message);
           }
@@ -288,7 +296,7 @@ export default async function AppHome() {
         // against it — rebuild. (Version upgrades keep the week stable.)
         if (!hadBrief) {
           const { rerankWeek } = await import("@/lib/recommend/rerank");
-          await rerankWeek(repo, business);
+          await rerankWeek(getAdminRepo(), business);
         }
       } catch (err) {
         console.warn("[app] brief refresh failed (non-fatal):", (err as Error).message);

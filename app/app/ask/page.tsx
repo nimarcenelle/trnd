@@ -4,6 +4,7 @@ import { after } from "next/server";
 import AskPanel from "@/components/app/ask-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { getAdminRepo } from "@/lib/db/admin";
 import { ensureIntelFresh } from "@/lib/intel/ingest";
 
 export const metadata = { title: "Ask — TRND" };
@@ -24,7 +25,7 @@ export default async function AskPage() {
   // the next question has reviews and ratings to reason over.
   after(async () => {
     try {
-      await ensureIntelFresh(repo, business);
+      await ensureIntelFresh(getAdminRepo(), business);
     } catch (err) {
       console.warn("[ask] intel self-heal failed (non-fatal):", (err as Error).message);
     }

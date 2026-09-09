@@ -38,12 +38,18 @@ export async function signUpAction(
 
   if (isSupabaseConfigured) {
     const sb = await createServerSupabase();
-    const { error } = await sb.auth.signUp({
+    const { data, error } = await sb.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName } },
     });
     if (error) return { error: error.message };
+    // Email confirmation on: signUp succeeds but starts no session, and
+    // redirecting to /onboarding would just bounce back to /login. Say what
+    // actually has to happen next.
+    if (!data.session) {
+      return { notice: "Almost there — check your email and click the confirmation link to finish signing up." };
+    }
     redirect("/onboarding");
   }
 
@@ -64,7 +70,21 @@ export async function signInAction(
   if (isSupabaseConfigured) {
     const sb = await createServerSupabase();
     const { error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
+    // Supabase's raw messages assume the reader knows the auth model. The
+    // common real cause of "Invalid login credentials" here is an account
+    // created via magic link — it has no password until one is set.
+    if (error) {
+      if (/invalid login credentials/i.test(error.message)) {
+        return {
+          error:
+            "That email and password don't match. If you usually sign in with an emailed link, this account may not have a password yet — use “Email me a magic link” below, or set one via “Forgot password?”.",
+        };
+      }
+      if (/email not confirmed/i.test(error.message)) {
+        return { error: "This email hasn't been confirmed yet — click the link in your signup email first." };
+      }
+      return { error: error.message };
+    }
     redirect("/app");
   }
 

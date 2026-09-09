@@ -29,7 +29,8 @@ function refreshBriefAfterResponse(userId: string) {
       await repo.upsertBusinessBrief(await generateBusinessBrief(business, services));
       // The profile (and so the analysis) changed — what fits changed too.
       const { rerankWeek } = await import("@/lib/recommend/rerank");
-      await rerankWeek(repo, business);
+      const { getAdminRepo } = await import("@/lib/db/admin");
+      await rerankWeek(getAdminRepo(), business);
     } catch (err) {
       console.warn("[settings] brief refresh failed (non-fatal):", (err as Error).message);
     }

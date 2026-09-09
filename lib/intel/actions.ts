@@ -7,6 +7,7 @@ import { after } from "next/server";
 import { launchPausedCampaign } from "@/lib/ads/meta";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { getAdminRepo } from "@/lib/db/admin";
 import { isMetaAdsConfigured } from "@/lib/env";
 import { runIntelIngestForBusiness } from "@/lib/intel/ingest";
 import { budgetFor } from "@/lib/recommend/insights";
@@ -24,7 +25,7 @@ export async function addCompetitorAction(formData: FormData): Promise<void> {
   await repo.createCompetitor({ business_id: business.id, name, website, place_id: null });
   after(async () => {
     try {
-      await runIntelIngestForBusiness(repo, business);
+      await runIntelIngestForBusiness(getAdminRepo(), business);
     } catch (err) {
       console.warn("[intel] first competitor read failed (non-fatal):", (err as Error).message);
     }

@@ -12,7 +12,7 @@ import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://usetrnd.com";
-const TITLE = "TRND — Know what to advertise, before it's obvious";
+const TITLE = "TRND — Know what to advertise, before your competitors do";
 const DESCRIPTION =
   "TRND reads real-time demand signal and turns it into a finished ad campaign for your business — every day. Built for small businesses, not agencies.";
 

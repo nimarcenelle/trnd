@@ -1,4 +1,5 @@
 import { CATEGORIES } from "@/lib/db/types";
+import { verticalKey } from "@/lib/signals/vertical";
 
 import type { Renderer } from "./render";
 
@@ -17,7 +18,7 @@ export interface ImportedService {
 
 export interface SiteImport {
   name?: string;
-  category?: (typeof CATEGORIES)[number];
+  category?: string;
   city?: string;
   region?: string;
   services: ImportedService[];
@@ -700,7 +701,7 @@ export function inferPriceBand(
   services: ImportedService[],
   category?: string,
 ): string | undefined {
-  const thresholds = category ? PRICE_BAND_THRESHOLDS[category] : undefined;
+  const thresholds = category ? PRICE_BAND_THRESHOLDS[verticalKey(category)] : undefined;
   if (!thresholds) return undefined;
   const prices = services
     .map((s) => parseFloat(s.price))

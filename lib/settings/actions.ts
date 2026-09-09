@@ -7,7 +7,6 @@ import { after } from "next/server";
 import { generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
-import { CATEGORIES } from "@/lib/db/types";
 
 export interface SettingsState {
   error?: string;
@@ -51,7 +50,7 @@ export async function updateBusinessAction(
   const category = String(formData.get("category") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
   if (!name || !city) return { error: "Name and city are required." };
-  if (!(CATEGORIES as readonly string[]).includes(category)) return { error: "Pick a category." };
+  if (category.length < 3 || category.length > 60) return { error: "Describe what your business is (a few words)." };
 
   const radius = Number(formData.get("radius_miles") ?? business.radius_miles);
   await repo.updateBusiness(business.id, {

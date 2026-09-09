@@ -4,6 +4,7 @@ import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity, tokens, type ScoredOpportunity } from "@/lib/scoring";
 import { localityFor } from "@/lib/signals/geo";
 import { normalizeTerm } from "@/lib/signals/normalize";
+import { verticalKey } from "@/lib/signals/vertical";
 
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
@@ -143,10 +144,21 @@ export async function recommendForBusiness(
     // Local state signals rank alongside national ones.
     geo: business.region ? `US-${business.region.toUpperCase()}` : undefined,
   };
+  // category is the business's free-text identity; its own signals (watch
+  // terms, snapshot, weather) are tagged with that exact string. The stock
+  // market backdrop is tagged by vertical — fetch both when they differ.
+  const vertical = verticalKey(business.category);
+  const fetchPool = async () => {
+    const own = await repo.listSignalsForCategory(business.category, signalOpts);
+    if (vertical === business.category) return own;
+    const backdrop = await repo.listSignalsForCategory(vertical, signalOpts);
+    const seen = new Set(own.map((s) => s.id));
+    return [...own, ...backdrop.filter((s) => !seen.has(s.id))];
+  };
   const [firstSignals, services, learnings, brief] = await Promise.all([
-    repo.listSignalsForCategory(business.category, signalOpts),
+    fetchPool(),
     repo.listServices(business.id),
-    repo.listLearnings(business.category),
+    repo.listLearnings(vertical),
     repo.getBusinessBrief(business.id),
   ]);
   let signals = firstSignals;
@@ -172,7 +184,7 @@ export async function recommendForBusiness(
     const evergreen = evergreenSignalInputs(business, brief.watch_terms, signals);
     if (evergreen.length > 0) {
       await repo.upsertSignals(evergreen);
-      signals = await repo.listSignalsForCategory(business.category, signalOpts);
+      signals = await fetchPool();
     }
   }
 

@@ -3,6 +3,7 @@
  * lead time an owner actually needs to be ready. Untrained operators are
  * worst at timing — this removes it. Our own data, no model.
  */
+import { verticalKey } from "@/lib/signals/vertical";
 
 export interface SeasonalMoment {
   label: string;
@@ -72,7 +73,7 @@ export function upcomingMoments(
   now: Date = new Date(),
   horizonDays = 70,
 ): UpcomingMoment[] {
-  const moments = MOMENTS[category] ?? [];
+  const moments = MOMENTS[verticalKey(category)] ?? [];
   const out: UpcomingMoment[] = [];
   for (const m of moments) {
     let peak = new Date(Date.UTC(now.getUTCFullYear(), m.month - 1, m.day));

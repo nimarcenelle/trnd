@@ -20,12 +20,20 @@ export default function BusinessSettingsForm({ business }: { business: Business 
           <input id="st-name" name="name" defaultValue={business.name} />
         </div>
         <div className="field">
-          <label htmlFor="st-cat">Category</label>
-          <select id="st-cat" name="category" defaultValue={business.category}>
+          <label htmlFor="st-cat">What you are</label>
+          <input
+            id="st-cat"
+            name="category"
+            defaultValue={business.category}
+            maxLength={60}
+            placeholder="e.g. Contrast therapy & recovery studio"
+            list="st-cat-suggestions"
+          />
+          <datalist id="st-cat-suggestions">
             {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
+              <option key={c} value={c} />
             ))}
-          </select>
+          </datalist>
         </div>
       </div>
       <div className="field-row">

@@ -85,12 +85,13 @@ export async function discoverPlaces(opts: {
   for (const category of opts.categories) {
     let pageToken: string | undefined;
     for (let page = 0; page < 3 && out.length < opts.cap; page++) {
-      const body: Record<string, unknown> = pageToken
-        ? { textQuery: `${category} near ${opts.location}`, pageToken }
-        : {
-            textQuery: `${category} near ${opts.location}`,
-            ...(center ? { locationBias: { circle: { center, radius: radiusMeters } } } : {}),
-          };
+      // Paging requests must repeat the initial request's parameters exactly
+      // (the API 400s otherwise) — only pageToken is added.
+      const body: Record<string, unknown> = {
+        textQuery: `${category} near ${opts.location}`,
+        ...(center ? { locationBias: { circle: { center, radius: radiusMeters } } } : {}),
+        ...(pageToken ? { pageToken } : {}),
+      };
       const data = await searchText(body, PAGE_FIELDS);
       for (const p of data?.places ?? []) {
         if (out.length >= opts.cap || seen.has(p.id)) continue;

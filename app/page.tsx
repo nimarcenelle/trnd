@@ -360,8 +360,9 @@ export default function Home() {
               <span className="eyebrow">Request a demo</span>
               <h2>See what TRND would recommend for your business this week.</h2>
               <p>
-                Tell us a bit about your business. We&apos;ll pull a live example ahead of the
-                call, using real signal from your category and area.
+                Drop your website and we&apos;ll come to the call with a live example already
+                built — from what you actually sell, where you sell it. Not a deck about
+                businesses like yours; a recommendation for yours.
               </p>
               <div className="demo__bullets">
                 <div>

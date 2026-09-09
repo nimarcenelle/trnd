@@ -342,7 +342,10 @@ export interface DemoRequest {
   full_name: string;
   email: string;
   business_name: string;
+  /** Free-text identity in the customer's words, like business.category. */
   category: string | null;
+  /** Their site — the pre-call sample gets built from it. */
+  website: string | null;
   monthly_spend: string | null;
   created_at: string;
 }

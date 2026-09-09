@@ -17,7 +17,8 @@ export async function submitDemoRequestAction(
   const fullName = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const businessName = String(formData.get("business_name") ?? "").trim();
-  const category = String(formData.get("category") ?? "").trim();
+  const category = String(formData.get("category") ?? "").trim().slice(0, 60);
+  const website = String(formData.get("website") ?? "").trim().slice(0, 200);
   const monthlySpend = String(formData.get("monthly_spend") ?? "").trim();
 
   if (!fullName || !businessName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -30,6 +31,7 @@ export async function submitDemoRequestAction(
     email,
     business_name: businessName,
     category: category || null,
+    website: website || null,
     monthly_spend: monthlySpend || null,
   });
   // A lead that lands silently in a table is a lead lost — tell the founder,
@@ -41,6 +43,7 @@ export async function submitDemoRequestAction(
       email,
       businessName,
       category: category || null,
+      website: website || null,
       monthlySpend: monthlySpend || null,
     }),
   );

@@ -14,7 +14,7 @@ import InsightList from "@/components/app/insight-list";
 import { getSessionUser } from "@/lib/auth/session";
 import BuildCampaignButton from "@/components/app/build-campaign-button";
 import { markAlertsReadAction } from "@/lib/intel/actions";
-import { refreshRankingAction } from "@/lib/recommend/actions";
+import { refreshRankingAction, scanMarketNowAction } from "@/lib/recommend/actions";
 import { getUserRepo } from "@/lib/db";
 import { getAdminRepo } from "@/lib/db/admin";
 import type { Signal } from "@/lib/db/types";
@@ -158,26 +158,33 @@ export default async function AppHome() {
         <div className="page-head">
           <div>
             <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
-            <h1>No live signal for your category yet.</h1>
+            <h1>Nothing ranked for you yet.</h1>
             <p className="context">
-              Ingestion hasn&apos;t captured signal for <b>{business.category}</b> in the last
-              two weeks — or everything this week was dismissed.
+              No demand reads for <b>{business.category}</b> around {business.city} in the
+              last two weeks — or everything this week was dismissed.
             </p>
           </div>
         </div>
         <div className="panel" style={{ maxWidth: 620 }}>
           <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
-            TRND reads the market for you every day — the first ranking appears as soon as a
-            read lands for your area. Nothing for you to do; check back soon.
+            TRND scans your market every day on its own. You can also kick one off right
+            now — it reads live demand for your watch terms and ranks what it finds.
           </p>
           {!isSupabaseConfigured && (
             <p style={{ margin: "12px 0 0", fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--ink-faint)" }}>
               dev note: run <code>pnpm seed</code> for illustrative data or <code>pnpm job:ingest</code> for live sources.
             </p>
           )}
-          <Link className="btn btn-ghost btn-sm" href="/app/opportunities" style={{ marginTop: 18 }}>
-            Review dismissed opportunities
-          </Link>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
+            <form action={scanMarketNowAction}>
+              <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Scanning your market…">
+                Scan my market now
+              </SubmitButton>
+            </form>
+            <Link className="btn btn-ghost btn-sm" href="/app/opportunities">
+              Review dismissed opportunities
+            </Link>
+          </div>
         </div>
       </div>
     );

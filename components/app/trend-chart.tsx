@@ -21,7 +21,19 @@ function fmtDay(day: string): string {
   });
 }
 
-export default function TrendChart({ points }: { points: SignalSeriesPoint[] }) {
+export default function TrendChart({
+  points,
+  weeklyDeltaPct = null,
+  unitHint = "relative demand for this term — higher means more people searching",
+}: {
+  points: SignalSeriesPoint[];
+  /** The ranking's week-over-week read for this term — shown beside the
+   * 30-day read so the two windows explain each other instead of appearing
+   * to contradict. */
+  weeklyDeltaPct?: number | null;
+  /** One plain-language line saying what the y-axis number IS. */
+  unitHint?: string;
+}) {
   const [hover, setHover] = useState<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -71,7 +83,21 @@ export default function TrendChart({ points }: { points: SignalSeriesPoint[] }) 
 
   const last = points[points.length - 1];
   const first = points[0];
-  const delta = first.value > 0 ? Math.round(((last.value - first.value) / first.value) * 100) : 0;
+  // Month read from week-sized averages, not two endpoint days — a single
+  // dip on the first or last day must not fake a trend.
+  const win = Math.max(2, Math.min(7, Math.floor(points.length / 2)));
+  const avg = (arr: SignalSeriesPoint[]) => arr.reduce((a, p) => a + p.value, 0) / arr.length;
+  const early = avg(points.slice(0, win));
+  const late = avg(points.slice(-win));
+  const delta = early > 0 ? Math.round(((late - early) / early) * 100) : 0;
+  const weekly = typeof weeklyDeltaPct === "number" ? Math.round(weeklyDeltaPct) : null;
+  // The two windows disagreeing is information, not a bug — say so.
+  const crossNote =
+    weekly !== null && Math.abs(weekly) >= 5 && Math.abs(delta) >= 5 && weekly > 0 !== delta > 0
+      ? weekly > 0
+        ? "Both reads are true: this week is up inside a month that's been cooling — a fresh push worth catching early, not a peak you missed."
+        : "Both reads are true: this week dipped inside a month that's still up — watch next week before calling it a fade."
+      : null;
   const mid = points[Math.floor(points.length / 2)];
   const h = hover !== null ? points[hover] : null;
 
@@ -84,13 +110,33 @@ export default function TrendChart({ points }: { points: SignalSeriesPoint[] }) 
 
   return (
     <div className="trend-chart" ref={wrapRef}>
-      <div className="trend-chart__summary">
+      <div className="trend-chart__summary" style={{ flexWrap: "wrap", rowGap: 6 }}>
         <span className="trend-chart__now">{Math.round(last.value)}</span>
-        <span className={`delta-chip${delta < 0 ? " delta-chip--down" : ""}`}>
+        {weekly !== null && (
+          <span
+            className={`delta-chip${weekly < 0 ? " delta-chip--down" : ""}`}
+            title="Change against the week before — the number the ranking scores on"
+          >
+            {weekly >= 0 ? "↑" : "↓"}
+            {Math.abs(weekly)}% vs last week
+          </span>
+        )}
+        <span
+          className={`delta-chip${delta < 0 ? " delta-chip--down" : ""}`}
+          title="Average of the last week of this window against its first week"
+        >
           {delta >= 0 ? "↑" : "↓"}
-          {Math.abs(delta)}% · 30d
+          {Math.abs(delta)}% over 30 days
         </span>
       </div>
+      <p style={{ margin: "2px 0 10px", fontSize: 11.5, fontFamily: "var(--mono)", color: "var(--ink-faint)" }}>
+        {unitHint}
+      </p>
+      {crossNote && (
+        <p style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)" }}>
+          {crossNote}
+        </p>
+      )}
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"

@@ -39,6 +39,13 @@ export const env = {
   /** DataForSEO — the sturdy search-volume backbone for watch terms. */
   dataForSeoLogin: process.env.DATAFORSEO_LOGIN ?? "",
   dataForSeoPassword: process.env.DATAFORSEO_PASSWORD ?? "",
+  /** Comma-separated emails allowed into /admin — the internal growth tools. */
+  adminEmails: (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+  /** Prospector outreach sender — falls back to the report sender. */
+  outreachFrom: process.env.OUTREACH_FROM || process.env.EMAIL_FROM || "TRND <reports@usetrnd.com>",
 };
 
 export const isSupabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey);

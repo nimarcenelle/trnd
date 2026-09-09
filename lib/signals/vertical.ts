@@ -24,7 +24,7 @@ const VERTICAL_KEYWORDS: [Category, RegExp[]][] = [
   ],
   [
     "Health & beauty",
-    [/spa\b|medspa|med spa/, /botox|filler|aesthetic|cosmetic(?!\s+dentist)/, /facial|skincare|skin\b/, /salon|barber|hair\b|lash|brow|nail|waxing/, /sauna|cold plunge|ice bath|contrast therapy|cryotherapy|float/, /recovery|wellness(?!\s+clinic)/, /massage|bodywork/, /iv\b|iv drip|vitamin/, /red light|infrared/],
+    [/spa\b|medspa|med spa/, /botox|filler|aesthetic|cosmetic(?!\s+dentist)/, /facial|skincare|skin\b/, /salon|barber|hair\b|lash|brow|nail|waxing/, /sauna|cold plunge|ice bath|contrast therapy|cryotherapy|float/, /recovery|wellness(?!\s+clinic)/, /massage|bodywork/, /iv\b|iv drip|vitamin/, /red light|infrared/, /makeup|beauty|bridal|glam/, /color analysis|color season|undertone|palette|image consult|personal styl/],
   ],
   [
     "Home services",

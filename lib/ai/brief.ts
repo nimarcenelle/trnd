@@ -289,6 +289,12 @@ export function briefLikelyInFlight(businessCreatedAt: string): boolean {
   return Date.now() - new Date(businessCreatedAt).getTime() < 5 * 60_000;
 }
 
+/** True within the first two days — the window where an empty week means
+ * onboarding's own scan hiccuped, not that the market is quiet. */
+export function businessJustOnboarded(businessCreatedAt: string): boolean {
+  return Date.now() - new Date(businessCreatedAt).getTime() < 48 * 3600_000;
+}
+
 export async function generateBusinessBrief(
   business: Business,
   services: Service[],

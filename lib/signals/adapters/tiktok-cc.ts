@@ -120,7 +120,10 @@ export function ccSeries(
 export function createTiktokCcAdapter(opts: {
   /** Injectable for tests; defaults to the Gemini pass when configured. */
   humanize?: (hashtags: string[]) => Promise<string[]>;
+  /** Injectable for tests; defaults to the hardened fetchJson. */
+  fetchJson?: typeof fetchJson;
 } = {}): SignalAdapter {
+  const doFetchJson = opts.fetchJson ?? fetchJson;
   const breaker = new CircuitBreaker("tiktok_cc");
   const cache = new Map<string, CcPayload>();
   // hashtag slug → readable trend phrase, built once per run over every
@@ -159,7 +162,7 @@ export function createTiktokCcAdapter(opts: {
     const key = `${industryId}:${geo}`;
     const cached = cache.get(key);
     if (cached) return cached;
-    const payload = await fetchJson<CcPayload>(API_URL, {
+    const payload = await doFetchJson<CcPayload>(API_URL, {
       method: "POST",
       headers: HEADERS,
       body: JSON.stringify({

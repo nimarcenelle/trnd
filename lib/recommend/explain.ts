@@ -1,6 +1,7 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, Opportunity, Signal } from "@/lib/db/types";
 import { applyRelevance, scoreOpportunity, type ScoredOpportunity } from "@/lib/scoring";
+import { assessAdRead } from "@/lib/signals/ad-relevance";
 
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
@@ -29,12 +30,27 @@ export async function explainOpportunity(
   const coverage = categorySignals.find(
     (s) => s.metric_type === "news_coverage" && s.normalized_term === signal.normalized_term,
   );
+  // The same Ad Library read the ranking used (queried as "<term> <city>",
+  // so match the prefix too), gated by the same relevance check.
+  const adRead = categorySignals.find(
+    (s) =>
+      s.metric_type === "ad_saturation" &&
+      typeof s.value === "number" &&
+      (s.normalized_term === signal.normalized_term || s.normalized_term.startsWith(`${signal.normalized_term}_`)),
+  );
+  const adSample = (adRead?.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads;
+  const adCount = adRead
+    ? assessAdRead(adSample, adRead.term, [business.city, business.region ?? ""].filter(Boolean), adRead.value as number).count
+    : null;
   const { localityFor } = await import("@/lib/signals/geo");
   const scored = scoreOpportunity(
     signal,
     services,
     learnings,
-    { coverageCount: typeof coverage?.value === "number" ? coverage.value : null },
+    {
+      coverageCount: typeof coverage?.value === "number" ? coverage.value : null,
+      adCount,
+    },
     { locality: localityFor(signal.geo, business.region), series },
   );
   // A judged ranking persisted its relevance — show exactly what it used.

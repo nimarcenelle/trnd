@@ -4,6 +4,7 @@ import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity, tokens, type ScoredOpportunity } from "@/lib/scoring";
 import { localityFor } from "@/lib/signals/geo";
 import { normalizeTerm } from "@/lib/signals/normalize";
+import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { verticalKey } from "@/lib/signals/vertical";
 
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
@@ -202,12 +203,18 @@ export async function recommendForBusiness(
   // the term prefix too.
   const coverage = new Map<string, number>();
   const adCounts = new Map<string, number>();
+  const geoWords = [business.city, business.region ?? ""].filter(Boolean);
   for (const s of signals) {
     if (s.metric_type === "news_coverage" && typeof s.value === "number") {
       coverage.set(s.normalized_term, s.value);
     }
     if (s.metric_type === "ad_saturation" && typeof s.value === "number") {
-      adCounts.set(s.normalized_term, s.value);
+      // A keyword-matched sample that is mostly other industries or spam
+      // says the count is noise too — competition stays unknown rather
+      // than "crowded" on a motorcycle dealer's ads.
+      const sample = (s.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads;
+      const read = assessAdRead(sample, s.term, geoWords, s.value);
+      if (read.count !== null) adCounts.set(s.normalized_term, read.count);
     }
   }
   const adCountFor = (normalizedTerm: string): number | null => {

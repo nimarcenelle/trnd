@@ -1,16 +1,31 @@
 import type { Business, BusinessBrief, Opportunity, Service, Signal } from "@/lib/db/types";
 
-export const PROMPT_VERSION = "gemini-4";
+export const PROMPT_VERSION = "gemini-5";
 
 export interface PromptCtx {
   business: Business;
   signal: Signal;
   opportunity: Opportunity;
   service: Service | null;
+  services?: Service[];
   brief: BusinessBrief | null;
 }
 
-function businessBlock({ business, service, brief }: PromptCtx): string {
+const price = (s: Service) => (s.price_cents != null ? ` ($${Math.round(s.price_cents / 100)})` : "");
+
+/** The menu is the contract: the copy may promise these and nothing else. */
+function menuBlock({ services, service }: PromptCtx): string {
+  const active = (services ?? (service ? [service] : [])).filter((s) => s.is_active !== false);
+  if (active.length === 0) return "";
+  return [
+    `MENU — every service this business offers, with the price the owner listed:`,
+    ...active.slice(0, 40).map((s) => `- ${s.name}${price(s)}${s.description ? ` — ${s.description}` : ""}`),
+    `HARD RULE: the copy may promise ONLY what is on this menu. If pickup, a van, house calls, same-day turnaround, free anything, guarantees, financing, loaners, or specific hours are not listed here, they do not exist — do not offer them, do not imply them. A listed "Delivery" means you deliver it back; it does not mean you pick it up. Every offer names a real menu item at its listed price.`,
+  ].join("\n");
+}
+
+function businessBlock(ctx: PromptCtx): string {
+  const { business, service, brief } = ctx;
   return [
     `BUSINESS: ${business.name} — ${business.category} in ${business.city}${business.region ? ", " + business.region : ""}.`,
     `Radius: ${business.radius_miles} miles. Price band: ${business.price_band ?? "unknown"}.`,
@@ -18,6 +33,7 @@ function businessBlock({ business, service, brief }: PromptCtx): string {
       ? `Matched service: ${service.name}${service.price_cents ? ` ($${Math.round(service.price_cents / 100)})` : ""}.`
       : "No direct service match — recommend a sensible new offer.",
     business.brand_voice_notes ? `Owner's voice notes: ${business.brand_voice_notes}` : "",
+    menuBlock(ctx),
     ...(brief
       ? [
           `SNAPSHOT (how TRND reads this business — the campaign must fit it):`,

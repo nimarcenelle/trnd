@@ -104,9 +104,17 @@ describe("buildInsights for an evergreen pick", () => {
       competitorGapText: "",
       localityBonus: 0,
     };
-    const insights = buildInsights(signal, scored, { learnings: [] });
+    const insights = buildInsights(signal, { ...scored, unmeasured: true, weekPct: null }, { learnings: [] });
     const momentum = insights.find((i) => i.kind === "momentum")!;
-    expect(momentum.headline).toBe("Steady demand — not a spike");
+    expect(momentum.headline).toBe("Year-round demand — no weekly read yet");
+    expect(momentum.detail).toMatch(/sure play, not a measured wave/);
+    // With a measured week, the headline carries the number.
+    const measured = buildInsights(signal, { ...scored, weekPct: -11, monthPct: 48 }, { learnings: [] });
+    expect(measured.find((i) => i.kind === "momentum")!.headline).toBe("Year-round demand · ↓11% this week");
+    expect(measured.find((i) => i.kind === "momentum")!.detail).toMatch(/up 48%/);
+    // No ad read: the gap line says unknown, never "competitors haven't moved".
+    const unknown = buildInsights(signal, { ...scored, competitorBasis: "none", components: { ...scored.components, competitorGap: 0.55 } }, { learnings: [] });
+    expect(unknown.find((i) => i.kind === "gap")!.headline).toBe("No competitor read yet");
   });
 });
 

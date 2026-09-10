@@ -56,15 +56,34 @@ export function momentum(
   deltaPct: number | null,
   series?: Pick<SignalSeriesPoint, "value">[],
   opts: { sparse?: boolean } = {},
-): { score: number; monthPct: number | null } {
+): { score: number; monthPct: number | null; weekPct: number | null } {
   // Sparse = Google measured it and found almost nothing. That is not the
   // "unknown" neutral 0.5 — it is a low read, and the stars say so.
   const week = opts.sparse ? 0.15 : normalizedDelta(deltaPct);
   const monthPct = series ? trendPct(series) : null;
-  if (monthPct === null) return { score: week, monthPct: null };
+  const weekPct = opts.sparse ? null : deltaPct;
+  if (monthPct === null) return { score: week, monthPct: null, weekPct };
   const month = Math.min(1, Math.max(0, monthPct / 50));
-  return { score: Math.round((0.5 * week + 0.5 * month) * 1000) / 1000, monthPct };
+  return { score: Math.round((0.5 * week + 0.5 * month) * 1000) / 1000, monthPct, weekPct };
 }
+
+/** This week against last, read off a daily series when the signal itself
+ * stored no weekly delta (an evergreen watch term, for one). Null when the
+ * series is too short to hold two weeks. */
+export function weekPctFromSeries(series: Pick<SignalSeriesPoint, "value">[]): number | null {
+  if (series.length < 14) return null;
+  const mean = (xs: Pick<SignalSeriesPoint, "value">[]) => xs.reduce((a, p) => a + p.value, 0) / xs.length;
+  const prev = mean(series.slice(-14, -7));
+  const last = mean(series.slice(-7));
+  if (prev <= 0) return last > 0 ? 100 : 0;
+  return ((last - prev) / prev) * 100;
+}
+
+/** A term with no measured weekly movement at all is a sure play, not a
+ * wave: its momentum sits below neutral and the total is scaled so it
+ * lands as a B, never an A, until a real read arrives. */
+export const UNMEASURED_WEEK = 0.3;
+export const UNMEASURED_EVIDENCE_GATE = 0.85;
 
 const STOPWORDS = new Set([
   "the", "a", "an", "and", "or", "for", "of", "to", "in", "on", "near", "me",
@@ -119,32 +138,47 @@ export interface GapInput {
   adCount?: number | null;
 }
 
+export type CompetitorBasis = "ads" | "none";
+
+/** Unknown competition scores as unknown — a hair under neutral, never "open". */
+export const GAP_UNKNOWN = 0.55;
+
 /** Inverse of saturation. Few competitors on a rising term = open door.
- * A real Meta Ad Library count beats the news-coverage proxy. */
-export function competitorGap({ coverageCount, adCount }: GapInput): { score: number; reason: string } {
-  // A national keyword total says nothing about this owner's block — fall
-  // through to the news read rather than scoring phantom competition.
-  if (typeof adCount === "number" && adCount > AD_COUNT_LOCAL_MAX) adCount = null;
+ * Only a real Meta Ad Library count is a competitor read: a national keyword
+ * total says nothing about this owner's block, and local news mentions are
+ * context, not rivals — both leave competition UNKNOWN, and the copy says so
+ * instead of promising an open field nobody measured. */
+export function competitorGap({ coverageCount, adCount }: GapInput): {
+  score: number;
+  reason: string;
+  basis: CompetitorBasis;
+} {
+  if (typeof adCount === "number" && adCount > AD_COUNT_LOCAL_MAX) {
+    return {
+      score: GAP_UNKNOWN,
+      basis: "none",
+      reason: `the Meta read on this is ${adCount} national keyword matches, not a local competitor count — competition scored as unknown`,
+    };
+  }
   if (typeof adCount === "number") {
     const score = 1 - Math.min(1, adCount / 60);
     const phrase =
       score > 0.66 ? "the field is open" : score > 0.33 ? "some competition already" : "a crowded field";
     return {
       score,
+      basis: "ads",
       reason: `${adCount} competitor ad${adCount === 1 ? "" : "s"} running on this near you — ${phrase}`,
     };
   }
-  if (coverageCount === null) {
-    return { score: 0.6, reason: "few competitors seem to be on this yet (estimated — no direct ad read)" };
-  }
-  const score = 1 - Math.min(1, coverageCount / 15);
-  const reason =
-    score > 0.66
-      ? `hardly any local buzz on this yet (${coverageCount} news mention${coverageCount === 1 ? "" : "s"}) — room to own it`
-      : score > 0.33
-        ? `some local buzz already (${coverageCount} news mentions)`
-        : `this is all over local news (${coverageCount} mentions) — crowded`;
-  return { score, reason };
+  const context =
+    typeof coverageCount === "number"
+      ? ` (${coverageCount} local news mention${coverageCount === 1 ? "" : "s"} is context, not competition)`
+      : "";
+  return {
+    score: GAP_UNKNOWN,
+    basis: "none",
+    reason: `no competitor-ad read on this yet — competition scored as unknown, not open${context}`,
+  };
 }
 
 /** Average lift from learnings for this category; neutral 0.5 when empty. */
@@ -190,6 +224,14 @@ export interface ScoredOpportunity {
   localityBonus: number;
   /** The 30-day trajectory behind the momentum read, when a series existed. */
   monthPct?: number | null;
+  /** The weekly movement the momentum read actually used — the signal's own
+   * delta, or one derived from its daily series. Null = unmeasured. */
+  weekPct?: number | null;
+  /** True when no weekly read existed at all (an evergreen term with no
+   * series yet) — momentum was scored below neutral and the total gated. */
+  unmeasured?: boolean;
+  /** What the competitor-gap component was read from. */
+  competitorBasis?: CompetitorBasis;
   /** True when the interest read was below Google's regional meter. */
   sparse?: boolean;
   /** Multiplier on the weighted sum (1 = full evidence). A sparse read is an
@@ -240,9 +282,19 @@ export function scoreOpportunity(
   opts: { locality?: SignalLocality; series?: Pick<SignalSeriesPoint, "value">[] } = {},
 ): ScoredOpportunity {
   const sparse = (signal.raw as { sparse?: boolean } | null | undefined)?.sparse === true;
-  const mo = momentum(signal.delta_pct, opts.series, { sparse });
+  // No stored weekly delta: read this week off the daily series when one
+  // exists; otherwise the week is unmeasured, and scored as such.
+  const seriesWeek =
+    signal.delta_pct === null && !sparse && opts.series ? weekPctFromSeries(opts.series) : null;
+  const weekInput = signal.delta_pct ?? seriesWeek;
+  const unmeasured = !sparse && weekInput === null;
+  const mo = momentum(weekInput, opts.series, { sparse });
+  if (unmeasured) {
+    const month = typeof mo.monthPct === "number" ? Math.min(1, Math.max(0, mo.monthPct / 50)) : null;
+    mo.score = month === null ? UNMEASURED_WEEK : Math.round((0.5 * UNMEASURED_WEEK + 0.5 * month) * 1000) / 1000;
+  }
   const nd = mo.score;
-  const evidenceGate = sparse ? SPARSE_EVIDENCE_GATE : 1;
+  const evidenceGate = sparse ? SPARSE_EVIDENCE_GATE : unmeasured ? UNMEASURED_EVIDENCE_GATE : 1;
   const sm = matchService(signal, services);
   const cg = competitorGap(gap);
   const hl = historicalLift(learnings);
@@ -263,11 +315,15 @@ export function scoreOpportunity(
     typeof mo.monthPct === "number"
       ? ` and ${mo.monthPct >= 0 ? "up" : "down"} ${Math.abs(Math.round(mo.monthPct))}% across 30 days`
       : "";
+  const metricText = signal.metric_type.replace(/_/g, " ");
+  const evergreen = signal.source === "snapshot";
   const deltaText = sparse
     ? `too small for Google's meter in ${signal.geo} — an idea that fits, not a measured wave`
-    : signal.delta_pct !== null
-      ? `${signal.delta_pct >= 0 ? "up" : "down"} ${Math.abs(Math.round(signal.delta_pct))}% ${signal.metric_type.replace(/_/g, " ")} this week${monthText}`
-      : `trending in ${signal.metric_type.replace(/_/g, " ")} right now${monthText}`;
+    : typeof mo.weekPct === "number"
+      ? `${mo.weekPct >= 0 ? "up" : "down"} ${Math.abs(Math.round(mo.weekPct))}% ${evergreen ? "search interest" : metricText} this week${monthText}`
+      : evergreen
+        ? `a year-round search term for what you sell — no weekly read yet, so momentum is scored conservatively${monthText}`
+        : `showing ${metricText} right now — no weekly read yet, so momentum is scored conservatively${monthText}`;
   const localityText = LOCALITY_TEXT[locality] ? ` (${LOCALITY_TEXT[locality]})` : "";
 
   return {
@@ -280,8 +336,11 @@ export function scoreOpportunity(
     },
     localityBonus,
     monthPct: mo.monthPct,
+    weekPct: mo.weekPct,
+    unmeasured,
     sparse,
     evidenceGate,
+    competitorBasis: cg.basis,
     matchedService: sm.service,
     rationale: `"${signal.term}" is ${deltaText}${localityText}; ${sm.reason}; ${cg.reason}; ${hl.reason}.`,
     competitorGapText: cg.reason,

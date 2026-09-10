@@ -162,13 +162,13 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
     actions.push(
       open.adCount === 0
         ? `Put a search ad on "${open.term}" while nobody in ${business.city} is advertising it.`
-        : `Put a search ad on "${open.term}" — only ${open.adCount} rival ad${open.adCount === 1 ? "" : "s"} is running on it near you.`,
+        : `Put a search ad on "${open.term}" — only ${open.adCount} rival ad${open.adCount === 1 ? " is" : "s are"} running on it near you.`,
     );
   } else {
-    const crowded = report.competitors[0];
+    const crowded = report.competitors.find((c) => c.estimate !== null && c.estimate > 5 && c.estimate <= 300);
     if (crowded) {
       actions.push(
-        `Don't out-bid the ${crowded.adCount} rival ads on "${crowded.term}" — out-say them: name your price and your neighborhood in the first line.`,
+        `Don't out-bid the ${crowded.estimate} rival ads on "${crowded.term}" — out-say them: name your price and your neighborhood in the first line.`,
       );
     }
   }

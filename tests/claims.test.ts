@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildClaimFacts,
+  buildClaimsRewritePrompt,
   extractNumericClaims,
   findUnsupportedClaims,
+  findUnsupportedPromises,
 } from "../lib/ai/claims";
 import type { Business, Opportunity, Service, Signal } from "../lib/db/types";
 
@@ -82,5 +84,60 @@ describe("findUnsupportedClaims", () => {
     const flagged = findUnsupportedClaims(texts, facts());
     // "38-degree" twice collapses to one; "38 degrees" phrases differently.
     expect(flagged).toHaveLength(2);
+  });
+});
+
+describe("findUnsupportedPromises", () => {
+  const shop = { ...business, name: "Bicycle Habitat", category: "full-service bicycle shop" } as unknown as Business;
+  const menu = [
+    { id: "m1", name: "Basic Tune-Up", price_cents: 9900, is_active: true },
+    { id: "m2", name: "Bike Delivery", price_cents: 5000, is_active: true },
+  ] as unknown as Service[];
+  const shopFacts = () =>
+    buildClaimFacts({ business: shop, services: menu, signal: { term: "bike tune up nyc", delta_pct: null } as unknown as Signal, opportunity });
+
+  it("flags services the menu never listed — pickup, a van, same-day, free, guarantees", () => {
+    const copy = [
+      "Skip the subway stairs. We pick up your bike.",
+      "Our van will come to your address for a flat fee — same-day, guaranteed, with a free wash.",
+    ];
+    const flagged = findUnsupportedPromises(copy, shopFacts());
+    const labels = new Set(flagged.map((f) => f.label));
+    expect(labels).toContain("pickup");
+    expect(labels).toContain("vehicle / mobile service");
+    expect(labels).toContain("same-day / speed");
+    expect(labels).toContain("free");
+    expect(labels).toContain("guarantee / warranty");
+  });
+
+  it("allows what the owner actually listed — delivery, and door phrasing that delivery implies", () => {
+    const copy = ["Book the $99 Basic Tune-Up and we deliver it back to your door."];
+    expect(findUnsupportedPromises(copy, shopFacts())).toEqual([]);
+  });
+
+  it("allows a promise the owner's own service text makes", () => {
+    const withPickup = [
+      ...menu,
+      { id: "m3", name: "Pickup & Delivery", price_cents: 5000, is_active: true },
+    ] as unknown as Service[];
+    const facts = buildClaimFacts({ business: shop, services: withPickup, signal: { term: "x", delta_pct: null } as unknown as Signal, opportunity });
+    expect(findUnsupportedPromises(["We pick up your bike."], facts)).toEqual([]);
+  });
+
+  it("the rewrite prompt lists flagged promises and forbids inventing new ones", () => {
+    const facts = shopFacts();
+    const promised = findUnsupportedPromises(["We pick up your bike."], facts);
+    const prompt = buildClaimsRewritePrompt(
+      shop,
+      { angle: "a", hook: "h", offer: "o", audience: { description: "d", age_range: "25-45", radius_miles: 5, angle_type: "offer" } } as never,
+      { headlines: [], primary_texts: [], scripts: [], static_briefs: [], landing_copy: "" } as never,
+      [],
+      facts,
+      promised,
+    );
+    expect(prompt).toContain("FLAGGED PROMISES");
+    expect(prompt).toContain('"pick up" (pickup)');
+    expect(prompt).not.toContain("FLAGGED NUMBERS");
+    expect(prompt).toMatch(/never "we pick it up"/);
   });
 });

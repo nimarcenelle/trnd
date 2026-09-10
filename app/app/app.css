@@ -1051,6 +1051,35 @@ details.section-disclosure[open] .summary-open-hint {
     width: 100%;
   }
 }
+/* Phone: logo, business, and controls share one row; the tabs take the
+   second. The pick must be reachable without scrolling past a three-row
+   header. */
+@media (max-width: 640px) {
+  .app-shell-nav {
+    padding: 8px 12px;
+    gap: 6px 8px;
+  }
+  .app-shell-nav__left {
+    flex: 1 1 auto;
+    gap: 10px;
+  }
+  .app-shell-nav__biz {
+    max-width: 120px;
+    padding-left: 10px;
+    font-size: 10.5px;
+  }
+  .app-shell-nav__right {
+    gap: 6px;
+  }
+  .app-shell-nav__right .btn {
+    padding: 6px 10px;
+    font-size: 12.5px;
+  }
+  .app-tabs a {
+    padding: 6px 11px;
+    font-size: 12.5px;
+  }
+}
 
 /* ---------- Grade ring + pills ---------- */
 .grade-ring {

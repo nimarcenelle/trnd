@@ -49,12 +49,27 @@ export function buildInsights(
       detail: `${raw?.detail ?? "The forecast crosses a seasonal threshold this week."} Demand estimate is forecast-derived, not a measured trend.`,
     });
   } else if (signal.source === "snapshot") {
-    insights.push({
-      kind: "momentum",
-      headline: "Steady demand — not a spike",
-      detail:
-        "One of your snapshot's demand terms: people search this year-round when they want what you sell. There's no trend window to miss — it's ready whenever you are.",
-    });
+    // An evergreen watch term. Say what was measured — and when nothing
+    // was, say that, instead of dressing an unread term as "steady".
+    const week = typeof scored.weekPct === "number" ? scored.weekPct : null;
+    const month = typeof scored.monthPct === "number" ? scored.monthPct : null;
+    const monthText =
+      month !== null
+        ? ` Across 30 days it's ${month >= 0 ? "up" : "down"} ${Math.abs(Math.round(month))}% (last week's average against the first).`
+        : "";
+    if (week !== null) {
+      insights.push({
+        kind: "momentum",
+        headline: `Year-round demand · ${week >= 0 ? "↑" : "↓"}${Math.abs(Math.round(week))}% this week`,
+        detail: `One of your snapshot's demand terms — people search it whenever they need what you sell, so there's no window to miss. This week's search interest is ${week >= 0 ? "up" : "down"} ${Math.abs(Math.round(week))}% against last week.${monthText}`,
+      });
+    } else {
+      insights.push({
+        kind: "momentum",
+        headline: "Year-round demand — no weekly read yet",
+        detail: `One of your snapshot's demand terms — people search it whenever they need what you sell. Google hasn't returned a weekly read on it yet, so momentum is scored below neutral and the total is held down: this ranks as a sure play, not a measured wave.${monthText}`,
+      });
+    }
   } else if (scored.sparse) {
     insights.push({
       kind: "momentum",
@@ -135,9 +150,16 @@ export function buildInsights(
     });
   }
 
-  // ---- competitor gap
+  // ---- competitor gap: only a real ad read can say the field is open.
   const gap = scored.components.competitorGap;
-  if (gap > 0.66) {
+  if (scored.competitorBasis === "none") {
+    insights.push({
+      kind: "gap",
+      headline: "No competitor read yet",
+      detail:
+        "We haven't captured a usable Meta Ad Library read on this term near you — the score treats competition as unknown, not open. A national keyword total or local news mentions don't count as rivals.",
+    });
+  } else if (gap > 0.66) {
     insights.push({
       kind: "gap",
       headline: "Competitors haven't moved",
@@ -204,21 +226,38 @@ export function budgetFor(priceBand: string | null): { daily: string; test: stri
   }
 }
 
+/**
+ * The "do this next" line is a move in the real world — what to put on the
+ * counter, what to quote, what to say — never a chore about using TRND.
+ * The campaign button sits right beside it; it doesn't need a second ad.
+ */
 export function buildNextAction(opts: {
   hasCampaign: boolean;
   launchBy: string; // e.g. "Aug 27"
   priceBand: string | null;
+  /** This week's term, in the customer's words. */
+  term?: string;
+  /** The matched menu item and its price, when there is one. */
+  serviceName?: string | null;
+  servicePrice?: string | null;
 }): NextAction {
   const budget = budgetFor(opts.priceBand);
+  const term = opts.term ? `“${opts.term}”` : "this";
   if (opts.hasCampaign) {
     return {
-      label: "Review and launch your campaign",
-      detail: `Everything is copy-paste ready. Aim to be live by ${opts.launchBy} at ${budget.daily}/day to ride the rise.`,
+      label: `Get the ad live by ${opts.launchBy} at ${budget.daily}/day`,
+      detail: `Copy-paste ready. Everyone who asks about ${term} this week hears the same offer the ad makes${opts.servicePrice ? ` — ${opts.serviceName} at ${opts.servicePrice}` : ""}.`,
+    };
+  }
+  if (opts.serviceName) {
+    return {
+      label: `Quote ${opts.serviceName}${opts.servicePrice ? ` at ${opts.servicePrice}` : ""} to everyone asking about ${term}`,
+      detail: `Put it where walk-ins see it first, price on it, this week. Then run the ad — live by ${opts.launchBy} at ${budget.daily}/day.`,
     };
   }
   return {
-    label: "Build the campaign — under a minute",
-    detail: `You'll get headlines, scripts, statics, and targeting. Aim to be live by ${opts.launchBy} at ${budget.daily}/day.`,
+    label: `Name a price for ${term} before you advertise it`,
+    detail: `A concrete offer is what makes the ad land. Then run it — live by ${opts.launchBy} at ${budget.daily}/day.`,
   };
 }
 

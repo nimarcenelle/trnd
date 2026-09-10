@@ -446,7 +446,7 @@ export default async function AppHome() {
       {unreadAlerts.length > 0 && (
         // A notification strip, not a content panel — one alert must read as
         // one compact line, not a card that is mostly padding.
-        <section className="panel" style={{ marginTop: 18, padding: "14px 26px 12px" }}>
+        <section className="panel" style={{ margin: "18px 0", padding: "14px 26px 12px" }}>
           <div className="panel__head" style={{ marginBottom: 4 }}>
             <span className="panel__title">What changed</span>
             <form action={markAlertsReadAction}>
@@ -515,7 +515,9 @@ export default async function AppHome() {
       )}
 
       {/* ---------- HERO RECOMMENDATION (market context when thin) ---------- */}
-      <section className={thin ? "panel" : "panel panel--hero"} style={{ padding: "30px 32px 28px", marginTop: thin ? 18 : undefined }}>
+      {/* marginTop collapses with whatever sits above (alerts strip, stat
+          row), so the hero never touches its neighbor and never doubles up. */}
+      <section className={thin ? "panel" : "panel panel--hero"} style={{ padding: "30px 32px 28px", marginTop: 18 }}>
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
           <div style={{ flex: "1 1 400px", minWidth: 280 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>

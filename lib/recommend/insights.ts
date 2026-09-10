@@ -227,6 +227,15 @@ export function budgetFor(priceBand: string | null): { daily: string; test: stri
 }
 
 /**
+ * Three days into the week, but never today or earlier — "live by" a date
+ * that has passed is a deadline nobody can meet. YYYY-MM-DD.
+ */
+export function launchByFor(week: string, now: number = Date.now()): string {
+  const target = Math.max(new Date(`${week}T00:00:00Z`).getTime() + 3 * 86400_000, now + 86400_000);
+  return new Date(target).toISOString().slice(0, 10);
+}
+
+/**
  * The "do this next" line is a move in the real world — what to put on the
  * counter, what to quote, what to say — never a chore about using TRND.
  * The campaign button sits right beside it; it doesn't need a second ad.

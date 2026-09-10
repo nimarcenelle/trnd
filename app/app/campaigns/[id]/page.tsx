@@ -10,6 +10,7 @@ import StatusTimeline from "@/components/app/status-timeline";
 import { getSessionUser } from "@/lib/auth/session";
 import { markLaunchedAction } from "@/lib/campaigns/actions";
 import { tiktokHashtag, trendLinks } from "@/lib/recommend/howto";
+import { forecastFlight, forecastLine } from "@/lib/recommend/forecast";
 import { budgetFor } from "@/lib/recommend/insights";
 import { titleCase } from "@/lib/text";
 import { getUserRepo } from "@/lib/db";
@@ -253,6 +254,12 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           <div className="t-box">
             <span className="k">Suggested budget</span>
             <div className="v">{budget.daily} / day</div>
+          </div>
+          <div className="t-box" style={{ gridColumn: "1 / -1" }}>
+            <span className="k">What a 6-day test should return</span>
+            <div className="v" style={{ fontSize: 13.5, lineHeight: 1.5 }}>
+              {forecastLine(forecastFlight({ daily: budget.daily, category: business?.category ?? "" }))}
+            </div>
           </div>
           <div className="t-box">
             <span className="k">Radius</span>

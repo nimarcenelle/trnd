@@ -25,10 +25,38 @@ export const PLAN_LABELS: Record<PlanId, string> = {
   pro: "TRND Pro",
 };
 
+/**
+ * Priced against the market a small business actually compares us to:
+ * AI ad-creative tools ($39–249/mo), ad-spy tools ($129–269/mo), and
+ * local-marketing suites ($244–399/mo). TRND is all three for one shop, so
+ * the entry tier sits at the single-tool price and Pro at the suite price.
+ * Founding businesses lock whatever they start on for life.
+ */
 export const PLAN_PRICES: Record<Exclude<PlanId, "trial">, string> = {
-  baseline: "$250/mo",
-  pro: "$500/mo",
+  baseline: "$149/mo",
+  pro: "$299/mo",
 };
+
+/** Annual, two months free — the same numbers the landing page prints. */
+export const PLAN_PRICES_ANNUAL: Record<Exclude<PlanId, "trial">, string> = {
+  baseline: "$1,490/yr",
+  pro: "$2,990/yr",
+};
+
+/** What Pro adds — one list, printed everywhere the plans are compared. */
+export const PRO_FEATURES = [
+  "Your five nearest rivals found for you, their Meta ads and Google ratings read daily",
+  "Rival moves in your weekly report and as alerts",
+  "The Monday intel report in your inbox",
+  "Unlimited campaign builds",
+] as const;
+
+export const BASELINE_FEATURES = [
+  "This week's pick, graded and explained — every number linked to its source",
+  "A finished campaign every week: headlines, primary texts, scripts, statics, targeting, Meta CSV",
+  "Your founding analysis: positioning, customers, pricing, seasonality, what never to run",
+  "Results tracking that sharpens next week",
+] as const;
 
 export interface PlanState {
   plan: PlanId;

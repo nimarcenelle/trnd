@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildInsights,
   buildNextAction,
+  launchByFor,
   buildResultsTakeaway,
 } from "../lib/recommend/insights";
 import type { Learning, Signal } from "../lib/db/types";
@@ -85,6 +86,12 @@ describe("insight engine", () => {
     expect(bare.label).not.toMatch(/build the campaign/i);
     const live = buildNextAction({ hasCampaign: true, launchBy: "Aug 27", priceBand: "$$", term: "bike tune up nyc" });
     expect(live.label).toMatch(/live by Aug 27/);
+  });
+
+  it("launch-by is three days into the week but never today or earlier", () => {
+    const monday = Date.UTC(2026, 8, 7);
+    expect(launchByFor("2026-09-07", monday)).toBe("2026-09-10");
+    expect(launchByFor("2026-09-07", Date.UTC(2026, 8, 10, 15))).toBe("2026-09-11");
   });
 
   it("results takeaway is one line, never a paragraph", () => {

@@ -145,6 +145,15 @@ export async function completeOnboardingAction(
     } catch (err) {
       console.warn("[onboarding] brief generation failed (non-fatal):", (err as Error).message);
     }
+    // The rivals an owner would name, found for them — before the first
+    // intel read so day one already holds their ads and ratings.
+    try {
+      const { seedCompetitors } = await import("@/lib/intel/seed-competitors");
+      const seeded = await seedCompetitors(jobRepo, business);
+      if (seeded.note) console.log(`[onboarding] rivals: ${seeded.note}`);
+    } catch (err) {
+      console.warn("[onboarding] rival discovery failed (non-fatal):", (err as Error).message);
+    }
     // Day-one intel, not cron-day intel: resolve the Google listing, pull
     // reviews, mine the digest — so Ask and the report have voice-of-customer
     // from the first session.

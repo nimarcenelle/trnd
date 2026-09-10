@@ -50,10 +50,19 @@ function Stars({ value, label }: { value: number; label: string }) {
  * The four scoring components as star ratings — the score's "show your
  * work". Weights are printed so the formula is never a black box.
  */
-export default function ScoreBreakdown({ components }: { components: BreakdownData }) {
+export default function ScoreBreakdown({
+  components,
+  showTrackRecord = true,
+}: {
+  components: BreakdownData;
+  /** False until a real result has been recorded — a meter that shows the
+   * same 2.5 stars for every business for months is dead weight. */
+  showTrackRecord?: boolean;
+}) {
+  const rows = showTrackRecord ? ROWS : ROWS.filter((r) => r.key !== "historicalLift");
   return (
     <div className="breakdown breakdown--stars">
-      {ROWS.map((row) => {
+      {rows.map((row) => {
         const v = components[row.key];
         return (
           <div className="breakdown__row breakdown__row--stars" key={row.key}>
@@ -65,6 +74,11 @@ export default function ScoreBreakdown({ components }: { components: BreakdownDa
           </div>
         );
       })}
+      {!showTrackRecord && (
+        <p style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--ink-faint)" }}>
+          Track record ({Math.round(WEIGHTS.historicalLift * 100)}%) is scored neutral until you record a result.
+        </p>
+      )}
     </div>
   );
 }

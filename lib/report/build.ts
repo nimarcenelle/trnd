@@ -33,6 +33,8 @@ export interface RankedRow {
   status: string;
   /** The page the read was taken from, when the source has one. */
   sourceUrl: string | null;
+  /** True when Google's regional sample was mostly zeros — an idea, not a wave. */
+  sparse: boolean;
 }
 
 export interface DemandRow {
@@ -169,6 +171,7 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
       hasCampaign: campaignOppIds.has(o.id),
       status: o.status,
       sourceUrl: sourceUrl(signal),
+      sparse: (signal.raw as { sparse?: boolean } | null)?.sparse === true,
     });
   }
 

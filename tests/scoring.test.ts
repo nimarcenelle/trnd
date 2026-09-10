@@ -147,6 +147,23 @@ describe("applyRelevance", () => {
     expect(typeof momentum(4, climb).monthPct).toBe("number");
   });
 
+  it("a read below Google's meter is an idea, not an A-grade wave", () => {
+    const measured = scoreOpportunity(signal({ delta_pct: null }), [service("Cold plunge session")], [], { coverageCount: 0 });
+    const sparse = scoreOpportunity(
+      signal({ delta_pct: null, raw: { sparse: true } }),
+      [service("Cold plunge session")],
+      [],
+      { coverageCount: 0 },
+    );
+    expect(sparse.sparse).toBe(true);
+    expect(sparse.components.normalizedDelta).toBeLessThan(measured.components.normalizedDelta);
+    expect(sparse.score).toBeLessThan(measured.score);
+    expect(sparse.rationale).toContain("too small for Google's meter");
+    // The gate survives the relevance pass — a perfect fit can't undo it.
+    const judged = applyRelevance(sparse, 1, "Exactly what they sell.");
+    expect(judged.score).toBeLessThan(applyRelevance(measured, 1, "Exactly what they sell.").score);
+  });
+
   it("keeps an irrelevant trend in the C range no matter the momentum", () => {
     const hot = scoreOpportunity(signal({ delta_pct: 100 }), [], [], { coverageCount: 0 });
     const after = applyRelevance(hot, 0.05, "Completely outside this business.");

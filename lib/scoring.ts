@@ -18,6 +18,10 @@ import type { Learning, Service, Signal, SignalSeriesPoint } from "@/lib/db/type
  * local read — excluded from scoring and labeled in every surface. */
 export const AD_COUNT_LOCAL_MAX = 300;
 
+/** A read below Google's regional meter keeps its fit and its open field,
+ * but the total is scaled down so it lands as a B/C idea, never an A wave. */
+export const SPARSE_EVIDENCE_GATE = 0.65;
+
 export const WEIGHTS = {
   normalizedDelta: 0.35,
   serviceMatch: 0.25,
@@ -51,8 +55,11 @@ export function trendPct(series: Pick<SignalSeriesPoint, "value">[]): number | n
 export function momentum(
   deltaPct: number | null,
   series?: Pick<SignalSeriesPoint, "value">[],
+  opts: { sparse?: boolean } = {},
 ): { score: number; monthPct: number | null } {
-  const week = normalizedDelta(deltaPct);
+  // Sparse = Google measured it and found almost nothing. That is not the
+  // "unknown" neutral 0.5 — it is a low read, and the stars say so.
+  const week = opts.sparse ? 0.15 : normalizedDelta(deltaPct);
   const monthPct = series ? trendPct(series) : null;
   if (monthPct === null) return { score: week, monthPct: null };
   const month = Math.min(1, Math.max(0, monthPct / 50));
@@ -183,6 +190,11 @@ export interface ScoredOpportunity {
   localityBonus: number;
   /** The 30-day trajectory behind the momentum read, when a series existed. */
   monthPct?: number | null;
+  /** True when the interest read was below Google's regional meter. */
+  sparse?: boolean;
+  /** Multiplier on the weighted sum (1 = full evidence). A sparse read is an
+   * idea that fits, not a measured wave — it cannot outrank real demand. */
+  evidenceGate?: number;
   matchedService: Service | null;
   rationale: string;
   competitorGapText: string;
@@ -209,7 +221,7 @@ export function applyRelevance(
     WEIGHTS.serviceMatch * fit +
     WEIGHTS.competitorGap * c.competitorGap +
     WEIGHTS.historicalLift * c.historicalLift;
-  const total = Math.min(1, weighted * (0.3 + 0.7 * fit) + result.localityBonus);
+  const total = Math.min(1, weighted * (0.3 + 0.7 * fit) * (result.evidenceGate ?? 1) + result.localityBonus);
   return {
     ...result,
     score: Math.round(total * 100) / 10,
@@ -227,8 +239,10 @@ export function scoreOpportunity(
   gap: GapInput,
   opts: { locality?: SignalLocality; series?: Pick<SignalSeriesPoint, "value">[] } = {},
 ): ScoredOpportunity {
-  const mo = momentum(signal.delta_pct, opts.series);
+  const sparse = (signal.raw as { sparse?: boolean } | null | undefined)?.sparse === true;
+  const mo = momentum(signal.delta_pct, opts.series, { sparse });
   const nd = mo.score;
+  const evidenceGate = sparse ? SPARSE_EVIDENCE_GATE : 1;
   const sm = matchService(signal, services);
   const cg = competitorGap(gap);
   const hl = historicalLift(learnings);
@@ -237,10 +251,11 @@ export function scoreOpportunity(
 
   const total = Math.min(
     1,
-    WEIGHTS.normalizedDelta * nd +
+    (WEIGHTS.normalizedDelta * nd +
       WEIGHTS.serviceMatch * sm.score +
       WEIGHTS.competitorGap * cg.score +
-      WEIGHTS.historicalLift * hl.score +
+      WEIGHTS.historicalLift * hl.score) *
+      evidenceGate +
       localityBonus,
   );
 
@@ -248,8 +263,9 @@ export function scoreOpportunity(
     typeof mo.monthPct === "number"
       ? ` and ${mo.monthPct >= 0 ? "up" : "down"} ${Math.abs(Math.round(mo.monthPct))}% across 30 days`
       : "";
-  const deltaText =
-    signal.delta_pct !== null
+  const deltaText = sparse
+    ? `too small for Google's meter in ${signal.geo} — an idea that fits, not a measured wave`
+    : signal.delta_pct !== null
       ? `${signal.delta_pct >= 0 ? "up" : "down"} ${Math.abs(Math.round(signal.delta_pct))}% ${signal.metric_type.replace(/_/g, " ")} this week${monthText}`
       : `trending in ${signal.metric_type.replace(/_/g, " ")} right now${monthText}`;
   const localityText = LOCALITY_TEXT[locality] ? ` (${LOCALITY_TEXT[locality]})` : "";
@@ -264,6 +280,8 @@ export function scoreOpportunity(
     },
     localityBonus,
     monthPct: mo.monthPct,
+    sparse,
+    evidenceGate,
     matchedService: sm.service,
     rationale: `"${signal.term}" is ${deltaText}${localityText}; ${sm.reason}; ${cg.reason}; ${hl.reason}.`,
     competitorGapText: cg.reason,

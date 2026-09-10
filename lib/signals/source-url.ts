@@ -59,8 +59,14 @@ export function sourceUrl(ref: SourceRef): string | null {
   // Trends accepts "US" or "US-NC"; anything else falls back to US-wide.
   const geo = ref.geo && /^[A-Z]{2}(-[A-Z0-9]{1,3})?$/.test(ref.geo) ? ref.geo : "US";
   switch (ref.source) {
-    case "google_trends":
-      return `https://trends.google.com/trends/explore?date=today%201-m&geo=${geo}&q=${q}`;
+    case "google_trends": {
+      // A widened read was measured on the core term, nationally — link to
+      // that page, not to a local one Google will say has no data for.
+      const raw = ref.raw as { adjusted?: boolean; measuredTerm?: string; measuredGeo?: string } | null | undefined;
+      const mTerm = raw?.adjusted && raw.measuredTerm ? encodeURIComponent(raw.measuredTerm) : q;
+      const mGeo = raw?.adjusted && raw.measuredGeo ? raw.measuredGeo : geo;
+      return `https://trends.google.com/trends/explore?date=today%201-m&geo=${mGeo}&q=${mTerm}`;
+    }
     case "google_suggest":
     case "dataforseo":
       return `https://www.google.com/search?q=${q}`;

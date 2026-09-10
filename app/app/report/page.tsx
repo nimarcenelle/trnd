@@ -192,6 +192,11 @@ export default async function ReportPage() {
                   <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 15 }}>{titleCase(r.term)}</span>
                   <SourceBadge source={r.source} metric={r.metric} href={r.sourceUrl} />
                   {typeof r.deltaPct === "number" && <DeltaChip delta={r.deltaPct} href={r.sourceUrl} />}
+                  {r.sparse && (
+                    <span className="badge badge--faint" title="Google's regional sample for this term is mostly zeros — ranked as an idea that fits, not a measured trend">
+                      <i />below Google&apos;s meter
+                    </span>
+                  )}
                   {r.hasCampaign && (
                     <span className="badge badge--mint"><i />campaign built</span>
                   )}

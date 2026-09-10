@@ -54,6 +54,13 @@ export function buildInsights(
       detail:
         "One of your snapshot's demand terms: people search this year-round when they want what you sell. There's no trend window to miss — it's ready whenever you are.",
     });
+  } else if (scored.sparse) {
+    insights.push({
+      kind: "momentum",
+      headline: `Below Google's meter in ${signal.geo === "US" ? "the US" : signal.geo.replace(/^US-/, "")}`,
+      detail:
+        "Google can't chart this term at your level yet — too few searches to measure. It ranks as an idea that fits you, not a measured wave, and the score is scaled down to say so.",
+    });
   } else if (typeof delta === "number") {
     const month = typeof scored.monthPct === "number" ? scored.monthPct : null;
     const monthText =

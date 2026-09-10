@@ -34,6 +34,34 @@ export async function addCompetitorAction(formData: FormData): Promise<void> {
   revalidatePath("/app/report");
 }
 
+/** Find the nearest same-category rivals and start watching them. */
+export async function seedCompetitorsAction(): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const repo = await getUserRepo(user.id);
+  const business = await repo.getBusinessByOwner(user.id);
+  if (!business) redirect("/onboarding");
+  const { seedCompetitors } = await import("@/lib/intel/seed-competitors");
+  let created = 0;
+  try {
+    created = (await seedCompetitors(repo, business)).created.length;
+  } catch (err) {
+    console.warn("[intel] rival discovery failed:", (err as Error).message);
+  }
+  if (created > 0) {
+    after(async () => {
+      try {
+        await runIntelIngestForBusiness(getAdminRepo(), business);
+      } catch (err) {
+        console.warn("[intel] first rival read failed (non-fatal):", (err as Error).message);
+      }
+    });
+  }
+  revalidatePath("/app/settings");
+  revalidatePath("/app/report");
+  revalidatePath("/app");
+}
+
 export async function deleteCompetitorAction(formData: FormData): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");

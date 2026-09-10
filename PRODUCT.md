@@ -16,7 +16,7 @@ support — not a dashboard of mentions.
 ### 1. Landing page (`/`)
 Marketing site in the brand system: hero, "old way vs TRND way" split, the five-step
 interactive explainer, signal proof cards, flywheel diagram, roadmap, pricing band
-(**$250/mo TRND · $500/mo Pro early-access · case-by-case**), and a demo-request form.
+(**$149/mo TRND · $299/mo Pro · case-by-case; annual two months free**), and a demo-request form.
 Footer links Terms and Privacy. Two funnels: **Start free** → signup, and the demo form —
 which writes to the database *and* alerts the founder on Slack/email the moment a lead
 lands (as does every new signup).
@@ -159,8 +159,8 @@ Marketing API sync drops in without a schema change.
 | Plan | Price | What it is |
 |---|---|---|
 | Free trial | 14 days | Full product, no card required |
-| **TRND** | **$250/mo** | The weekly decision + finished campaign, results tracking |
-| **TRND Pro** | **$500/mo** | Everything in TRND + connected ad account as it rolls out |
+| **TRND** | **$149/mo** | The weekly decision + finished campaign, results tracking |
+| **TRND Pro** | **$299/mo** | Everything in TRND + five nearest rivals read daily, Monday email, unlimited builds |
 | Case by case | Let's talk | Hands-on lighthouse tier |
 
 Founding businesses lock their price for life. The campaigns generated are the

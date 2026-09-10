@@ -1,3 +1,4 @@
+import { BASELINE_FEATURES, PRO_FEATURES } from "@/lib/billing";
 import Link from "next/link";
 
 import DemoForm from "@/components/landing/demo-form";
@@ -34,7 +35,7 @@ const SIG_CARDS = [
 
 const FLY_ITEMS = [
   { n: "01", h: "TRND reads your business on day one", p: "Your services, prices, neighborhood, and voice become the founding analysis every recommendation is judged against." },
-  { n: "02", h: "Your campaigns run in the real world", p: "Clicks, bookings, cost per result — pulled from your ad account, not industry averages." },
+  { n: "02", h: "Your campaigns run in the real world", p: "Clicks, bookings, cost per result — a one-minute entry after each flight, or synced from your ad account when you connect it." },
   { n: "03", h: "The model learns what converts for you", p: "Not in general — for your offer, your price point, your neighborhood." },
   { n: "04", h: "Next week's recommendation is sharper", p: "Built on everything TRND now knows about your business that it didn't last week." },
 ];
@@ -271,28 +272,28 @@ export default function Home() {
         <div className="wrap">
           <div className="head reveal">
             <span className="eyebrow">Pricing</span>
-            <h2>No agency retainer. No annual contract.</h2>
+            <h2>Less than one freelance campaign a month.</h2>
             <p>
-              Month to month, priced to pay for itself with one landed campaign. Cancel anytime —
-              the campaigns you generated are yours.
+              A finished campaign a week, the intelligence behind it, and your rivals watched
+              daily — for less than a freelancer charges for one campaign. Month to month, cancel
+              anytime; the campaigns you generated are yours. Pay yearly and get two months free.
             </p>
           </div>
 
           <div className="tiers reveal">
             <div className="tier">
-              <span className="tier__badge">Baseline</span>
+              <span className="tier__badge">Starter</span>
               <h3 className="tier__name">TRND</h3>
               <div className="tier__price">
-                $250<small>/ MO</small>
+                $149<small>/ MO</small>
               </div>
               <p className="tier__promise">
-                The insights to power your next winning ad campaign. That&apos;s the promise.
+                Know what to run this week, and have it written. Or $1,490 a year.
               </p>
               <div className="tier__list">
-                <div><IcoCheck />This week&apos;s recommendation, scored and explained</div>
-                <div><IcoCheck />A finished campaign every week — copy, scripts, statics, targeting</div>
-                <div><IcoCheck />Your positioning read: strengths, moat, what to avoid</div>
-                <div><IcoCheck />Manual results tracking that sharpens next week</div>
+                {BASELINE_FEATURES.map((f) => (
+                  <div key={f}><IcoCheck />{f}</div>
+                ))}
               </div>
               <Link href="/signup" className="btn btn-primary" style={{ justifyContent: "center" }}>
                 Start free
@@ -301,25 +302,24 @@ export default function Home() {
             </div>
 
             <div className="tier tier--featured">
-              <span className="tier__badge">● Pro — early access</span>
+              <span className="tier__badge">● Pro</span>
               <h3 className="tier__name">TRND Pro</h3>
               <div className="tier__price">
-                $500<small>/ MO</small>
+                $299<small>/ MO</small>
               </div>
               <p className="tier__promise">
-                Your ideator and your analyst. Synced with your ads platform, reading performance
-                in real time.
+                Everything in TRND, plus your rivals watched every day. Or $2,990 a year.
               </p>
               <div className="tier__list">
                 <div><IcoCheck />Everything in TRND</div>
-                <div><IcoCheck />Connected ad account — results flow back automatically</div>
-                <div><IcoCheck />Real-time performance tracking against category benchmarks</div>
-                <div><IcoCheck />Recommendations tuned by what actually converted for you</div>
+                {PRO_FEATURES.map((f) => (
+                  <div key={f}><IcoCheck />{f}</div>
+                ))}
               </div>
-              <a href="#demo" className="btn btn-primary" style={{ justifyContent: "center" }}>
-                Get early access
-              </a>
-              <span className="tier__foot">rolling out with connected-account sync</span>
+              <Link href="/signup" className="btn btn-primary" style={{ justifyContent: "center" }}>
+                Start free
+              </Link>
+              <span className="tier__foot">14-day trial of Pro · no card required · connected-account sync next</span>
             </div>
 
             <div className="tier">

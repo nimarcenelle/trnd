@@ -1,3 +1,4 @@
+import { isDataForSeoConfigured } from "@/lib/env";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
@@ -241,7 +242,7 @@ export default async function SnapshotPage() {
                 ))}
               </div>
               <p style={{ fontSize: 12.5 }}>
-                Search phrases your customers actually type, watched daily in your own metro. When one
+                Search phrases your customers actually type, read daily{isDataForSeoConfigured ? " in your own metro" : " — nationally until the metro volume feed is switched on"}. When one
                 of them moves, it shows up ranked in{" "}
                 <Link href="/app" style={{ color: "var(--amber-text)" }}>This week</Link> with a campaign
                 ready to build — that&apos;s the point of this page.

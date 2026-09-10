@@ -24,11 +24,15 @@ import CopyBlock from "@/components/app/copy-block";
 import { buildHowTo, tiktokHashtag } from "@/lib/recommend/howto";
 import { buildOrganicPost } from "@/lib/recommend/post";
 import { upcomingMoments } from "@/lib/recommend/seasonal";
-import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
+import { budgetFor, buildInsights, buildNextAction, launchByFor } from "@/lib/recommend/insights";
 import { AD_COUNT_LOCAL_MAX } from "@/lib/scoring";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
+import { previousWeek, rankingChanges, rivalChanges } from "@/lib/recommend/diff";
+import { forecastFlight, forecastLine } from "@/lib/recommend/forecast";
+import { getPlanState } from "@/lib/billing";
+import { seedCompetitorsAction } from "@/lib/intel/actions";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, businessJustOnboarded, generateBusinessBrief } from "@/lib/ai/brief";
-import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
+import { isGeminiConfigured, isPlacesConfigured, isSupabaseConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { geoLabel } from "@/lib/signals/geo";
 import { deltaWindowLabel, sourceUrl } from "@/lib/signals/source-url";
@@ -341,18 +345,7 @@ export default async function AppHome({
           snapshotReason,
         })
       : [];
-  // Three days into the week, but never today or earlier — "live by" a
-  // date that has passed is a deadline nobody can meet.
-  const launchBy = fmtDate(
-    new Date(
-      Math.max(
-        new Date(`${week}T00:00:00Z`).getTime() + 3 * 86400_000,
-        Date.now() + 86400_000,
-      ),
-    )
-      .toISOString()
-      .slice(0, 10),
-  );
+  const launchBy = fmtDate(launchByFor(week));
   const nextAction = buildNextAction({
     hasCampaign: Boolean(campaign),
     launchBy,
@@ -423,6 +416,37 @@ export default async function AppHome({
 
   const recentCampaigns = campaigns.slice(0, 4);
 
+  // What changed since last week, the rivals, and the plan that gates
+  // rival tracking — read together; each is small.
+  const [lastWeekOpps, competitors, competitorReads, plan] = await Promise.all([
+    repo.listOpportunities(business.id, previousWeek(week)),
+    repo.listCompetitors(business.id),
+    repo.listCompetitorReads(business.id, { sinceDays: 14 }),
+    getPlanState(repo, business),
+  ]);
+  const withSignals = async (rows: typeof active) =>
+    Promise.all(rows.map(async (o) => ({ opportunity: o, signal: pickSignals.get(o.id) ?? (await repo.getSignal(o.signal_id)) })));
+  const changes = [
+    ...rankingChanges(await withSignals(active), await withSignals(lastWeekOpps.filter((o) => o.status !== "dismissed"))),
+    ...rivalChanges(competitors, competitorReads),
+  ];
+  // Week one: every pick is an evergreen watch term with no measured week.
+  const baselineWeek =
+    picks.length > 0 &&
+    picks.every((o) => pickSignals.get(o.id)?.source === "snapshot") &&
+    (explained?.unmeasured ?? true);
+  const firstMeasuredBy = fmtDate(
+    new Date(new Date(`${week}T00:00:00Z`).getTime() + 7 * 86400_000).toISOString().slice(0, 10),
+  );
+  const rankedAt = lead ? new Date(lead.created_at) : null;
+  const rivalsGated = plan.plan === "baseline" && plan.status === "active";
+  const latestRead = (competitorId: string, kind: "ads" | "reviews") =>
+    competitorReads
+      .filter((r) => r.competitor_id === competitorId && r.kind === kind)
+      .sort((a, b) => b.captured_at.localeCompare(a.captured_at))[0] ?? null;
+  const measuredResults = learnings.some((l) => l.source === "measured") || results.length > 0;
+  const forecast = forecastLine(forecastFlight({ daily: budgetFor(business.price_band).daily, category: business.category }));
+
   return (
     <div className="page">
       <div className="page-head">
@@ -431,8 +455,10 @@ export default async function AppHome({
           <h1>{business.name.endsWith("s") ? `${business.name}’` : `${business.name}’s`} week, read for you.</h1>
           <p className="context">
             <b>{titleCase(business.category)}</b> · {business.city}
-            {business.region ? `, ${business.region}` : ""} · {business.radius_miles} mile radius ·
-            signal refreshes daily
+            {business.region ? `, ${business.region}` : ""} · {business.radius_miles} mile radius ·{" "}
+            {rankedAt
+              ? `ranked ${rankedAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+              : "signal refreshes daily"}
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -448,6 +474,34 @@ export default async function AppHome({
         </div>
       </div>
 
+      {/* ---------- WHAT CHANGED SINCE LAST WEEK ---------- */}
+      {changes.length > 0 && (
+        <section className="panel" style={{ marginTop: 18, padding: "14px 20px" }}>
+          <span className="mono-label" style={{ display: "block", marginBottom: 8 }}>What changed since last week</span>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+            {changes.slice(0, 6).map((c) => (
+              <li key={c.text} style={{ fontSize: 13.5, lineHeight: 1.5, color: c.kind === "rival" ? "var(--amber-text)" : "var(--ink-soft)" }}>
+                {c.text}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ---------- BASELINE WEEK ---------- */}
+      {baselineWeek && (
+        <section className="panel" style={{ marginTop: 18, padding: "14px 20px", borderStyle: "dashed" }}>
+          <span className="mono-label" style={{ display: "block", marginBottom: 4 }}>Baseline week</span>
+          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--ink-soft)" }}>
+            Your ranking is your own menu this week — the demand terms from your analysis, before any of
+            them has two weeks of reads. Grades are held down until the first measured movement lands,
+            usually by {firstMeasuredBy}. The campaign is still worth building: it&apos;s your strongest
+            offer, written.
+          </p>
+        </section>
+      )}
+
+      {(launched.length > 0 || results.length > 0) && (
       <div className="kpi-row">
         <div className="kpi">
           <span className="k">Market reads · 7d</span>
@@ -475,6 +529,7 @@ export default async function AppHome({
           </span>
         </div>
       </div>
+      )}
 
       {ledger.spendCents > 0 && (
         <div className="panel" style={{ marginTop: 18, padding: "14px 20px", display: "flex", gap: 24, alignItems: "baseline", flexWrap: "wrap" }}>
@@ -672,17 +727,11 @@ export default async function AppHome({
               </Link>
             </div>
 
-            {organicPost && (
-              <div style={{ marginBottom: 18 }}>
-                <CopyBlock label="No ad budget this week? Post this today — free" content={organicPost} />
-              </div>
-            )}
-
           </div>
 
           <div className="score-card score-card--hero">
             <GradeRing score={Number(top.score)} />
-            {explained && <ScoreBreakdown components={explained.components} />}
+            {explained && <ScoreBreakdown components={explained.components} showTrackRecord={measuredResults} />}
           </div>
         </div>
 
@@ -745,6 +794,10 @@ export default async function AppHome({
             <div className="v">
               {business.city} · {business.radius_miles} miles
             </div>
+          </div>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <span className="k">What a 6-day test should return</span>
+            <div className="v" style={{ fontSize: 13, lineHeight: 1.5, color: "var(--ink-soft)" }}>{forecast}</div>
           </div>
         </div>
 
@@ -874,6 +927,68 @@ export default async function AppHome({
           </div>
         </section>
       </div>
+
+      {/* ---------- YOUR RIVALS ---------- */}
+      <section className="panel" style={{ marginTop: 18 }}>
+        <div className="panel__head">
+          <span className="panel__title">Your rivals · read daily</span>
+          <Link href="/app/settings" className="panel__meta" style={{ color: "var(--amber-text)" }}>
+            {competitors.length > 0 ? "manage →" : "settings →"}
+          </Link>
+        </div>
+        {rivalsGated ? (
+          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--ink-soft)" }}>
+            Rival tracking is part of Pro: your five nearest same-category shops found for you, their Meta ads and Google
+            ratings read daily, moves surfaced here and in your report.{" "}
+            <Link href="/app/settings#billing" style={{ color: "var(--amber-text)" }}>Upgrade →</Link>
+          </p>
+        ) : competitors.length === 0 ? (
+          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--ink-soft)", flex: "1 1 320px" }}>
+              No rivals watched yet. TRND can find the nearest same-category shops and start reading their ads and ratings today.
+            </p>
+            {isPlacesConfigured && (
+              <form action={seedCompetitorsAction}>
+                <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Finding your rivals…">
+                  Find my nearest rivals
+                </SubmitButton>
+              </form>
+            )}
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+            {competitors.slice(0, 6).map((c) => {
+              const ads = latestRead(c.id, "ads");
+              const rev = latestRead(c.id, "reviews");
+              return (
+                <div key={c.id} style={{ border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", padding: "12px 14px", background: "var(--bg-1)" }}>
+                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14, display: "block", marginBottom: 6 }}>{c.name}</span>
+                  <span className="mono-label" style={{ display: "block" }}>
+                    {ads && typeof ads.value === "number"
+                      ? `${ads.value} active Meta ad${ads.value === 1 ? "" : "s"}`
+                      : "ads: first read tonight"}
+                  </span>
+                  <span className="mono-label" style={{ display: "block", marginTop: 3 }}>
+                    {rev && typeof rev.rating === "number"
+                      ? `${rev.rating.toFixed(1)}★ · ${rev.value ?? "—"} reviews`
+                      : "rating: first read tonight"}
+                  </span>
+                  {(ads?.summary || rev?.summary) && (
+                    <p style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.45, color: "var(--ink-soft)" }}>{ads?.summary ?? rev?.summary}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ---------- THE FREE MOVE ---------- */}
+      {organicPost && (
+        <section className="panel" style={{ marginTop: 18 }}>
+          <CopyBlock label="No ad budget this week? Post this today — free" content={organicPost} />
+        </section>
+      )}
 
       {/* ---------- SEASONAL CALENDAR ---------- */}
       {seasonal.length > 0 && (

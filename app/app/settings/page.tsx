@@ -6,6 +6,8 @@ import BusinessSettingsForm from "@/components/app/business-settings-form";
 import { getSessionUser } from "@/lib/auth/session";
 import { getPlanState, PLAN_LABELS, PLAN_PRICES } from "@/lib/billing";
 import { openBillingPortalAction, startCheckoutAction } from "@/lib/billing/actions";
+import { seedCompetitorsAction } from "@/lib/intel/actions";
+import SubmitButton from "@/components/app/submit-button";
 import { getUserRepo } from "@/lib/db";
 import {
   isDataForSeoConfigured,
@@ -114,9 +116,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
     },
     {
       name: "Signal sources",
-      detail: "Trends (metro) · Weather · Autocomplete · Reddit · News · TikTok · YouTube",
+      detail: isDataForSeoConfigured
+        ? "Search volume (metro) · Trends · Weather · Autocomplete · Reddit · News · TikTok · YouTube"
+        : "Google Trends (national) · Weather · Autocomplete · Reddit · News · TikTok · YouTube",
       ok: true,
-      note: "Refreshed daily; measured in your metro where possible.",
+      note: isDataForSeoConfigured
+        ? "Refreshed daily; search volume measured in your metro."
+        : "Refreshed daily. Search reads are national until the metro volume feed is switched on.",
       action: null,
     },
     {
@@ -272,8 +278,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                 ? "Everything you generated stays yours. Pick a plan to keep the weekly recommendations and campaign builds coming."
                 : "Full product, no card required. Pick a plan any time — founding businesses lock their price for life."
               : plan.plan === "pro"
-                ? "Everything in TRND plus connected-account sync as it rolls out."
-                : "A finished, scored campaign every week — recorded results sharpen the next one."}
+                ? "Everything in TRND plus your nearest rivals read daily, rival moves as alerts, and the Monday report in your inbox."
+                : "A finished, scored campaign every week — recorded results sharpen the next one. Upgrade to Pro to watch your rivals daily."}
           </p>
         </div>
 
@@ -359,10 +365,18 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           ))}
           {competitors.length === 0 && (
             <p style={{ fontSize: 13.5, color: "var(--ink-faint)", margin: 0 }}>
-              No competitors named yet — add the shop your customers compare you against.
+              No rivals watched yet — let TRND find the nearest ones, or add the shop your customers compare you against.
             </p>
           )}
         </div>
+        {isPlacesConfigured && competitors.length < 5 && (
+          <form action={seedCompetitorsAction} style={{ marginBottom: 14 }}>
+            <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Finding your rivals…">
+              Find my nearest rivals
+            </SubmitButton>
+            <span className="mono-label" style={{ marginLeft: 10 }}>same category · within 10 miles · chains skipped</span>
+          </form>
+        )}
         <form action={addCompetitorAction} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <input
             name="name"

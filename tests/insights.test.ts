@@ -68,10 +68,23 @@ describe("insight engine", () => {
     expect(crowded.find((i) => i.kind === "gap")!.headline).toMatch(/Crowded/);
   });
 
-  it("action names the launch window and stays one sentence of detail", () => {
-    const a = buildNextAction({ hasCampaign: false, launchBy: "Aug 27", priceBand: "$$" });
+  it("action is a move in the real world, never a chore about using TRND", () => {
+    const a = buildNextAction({
+      hasCampaign: false,
+      launchBy: "Aug 27",
+      priceBand: "$$",
+      term: "bike tune up nyc",
+      serviceName: "Basic Tune-Up",
+      servicePrice: "$99",
+    });
+    expect(a.label).toBe("Quote Basic Tune-Up at $99 to everyone asking about “bike tune up nyc”");
+    expect(a.label).not.toMatch(/build the campaign|under a minute/i);
     expect(a.detail).toContain("Aug 27");
     expect(a.detail).toContain("$25–50");
+    const bare = buildNextAction({ hasCampaign: false, launchBy: "Aug 27", priceBand: "$$" });
+    expect(bare.label).not.toMatch(/build the campaign/i);
+    const live = buildNextAction({ hasCampaign: true, launchBy: "Aug 27", priceBand: "$$", term: "bike tune up nyc" });
+    expect(live.label).toMatch(/live by Aug 27/);
   });
 
   it("results takeaway is one line, never a paragraph", () => {

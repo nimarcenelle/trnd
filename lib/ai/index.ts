@@ -20,6 +20,8 @@ export interface GenerationContext {
   signal: Signal;
   opportunity: Opportunity;
   service: Service | null;
+  /** Every active service — the only things the copy may promise. */
+  services?: Service[];
   /** The founding analysis — campaigns are written to fit it. */
   brief: BusinessBrief | null;
 }

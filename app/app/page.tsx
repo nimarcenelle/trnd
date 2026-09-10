@@ -25,6 +25,8 @@ import { buildHowTo, tiktokHashtag } from "@/lib/recommend/howto";
 import { buildOrganicPost } from "@/lib/recommend/post";
 import { upcomingMoments } from "@/lib/recommend/seasonal";
 import { buildInsights, buildNextAction } from "@/lib/recommend/insights";
+import { AD_COUNT_LOCAL_MAX } from "@/lib/scoring";
+import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, businessJustOnboarded, generateBusinessBrief } from "@/lib/ai/brief";
 import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
@@ -295,9 +297,17 @@ export default async function AppHome({
             s.normalized_term.startsWith(`${signal.normalized_term}_`)),
       ) ?? null)
     : null;
-  const competitorAds = (
-    (adRead?.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads ?? []
-  ).slice(0, 2);
+  // Only ads that actually speak to the term — the Ad Library is a keyword
+  // search, and a motorcycle dealer's "tune-up" ad is not this shop's rival.
+  const adAssessment = adRead
+    ? assessAdRead(
+        (adRead.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads,
+        adRead.term,
+        [business.city, business.region ?? ""].filter(Boolean),
+        adRead.value as number,
+      )
+    : null;
+  const competitorAds = (adAssessment?.ads ?? []).slice(0, 2);
   const series = signal ? await repo.getSeries(signal.normalized_term, signal.geo, 30) : [];
   // The interest read for this term (may live on a sibling google_trends row).
   const interestSparse = signal
@@ -331,13 +341,26 @@ export default async function AppHome({
           snapshotReason,
         })
       : [];
+  // Three days into the week, but never today or earlier — "live by" a
+  // date that has passed is a deadline nobody can meet.
   const launchBy = fmtDate(
-    new Date(new Date(`${week}T00:00:00Z`).getTime() + 3 * 86400_000).toISOString().slice(0, 10),
+    new Date(
+      Math.max(
+        new Date(`${week}T00:00:00Z`).getTime() + 3 * 86400_000,
+        Date.now() + 86400_000,
+      ),
+    )
+      .toISOString()
+      .slice(0, 10),
   );
   const nextAction = buildNextAction({
     hasCampaign: Boolean(campaign),
     launchBy,
     priceBand: business.price_band,
+    term: signal?.term,
+    serviceName: matchedService?.name ?? null,
+    servicePrice:
+      matchedService?.price_cents != null ? `$${Math.round(matchedService.price_cents / 100)}` : null,
   });
 
   // The other picks + their signals: hero tabs and the strip below the hero.
@@ -725,10 +748,12 @@ export default async function AppHome({
           </div>
         </div>
 
-        {adRead && competitorAds.length > 0 && (
+        {adRead && adAssessment && competitorAds.length > 0 && (
           <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px dashed var(--line)" }}>
             <span className="mono-label" style={{ display: "block", marginBottom: 12 }}>
-              What competitors are running · {adRead.value} active Meta ad{adRead.value === 1 ? "" : "s"} on this
+              {adAssessment.count !== null && adAssessment.count <= AD_COUNT_LOCAL_MAX
+                ? `What competitors are running · ${adAssessment.count === adRead.value ? "" : "≈"}${adAssessment.count} active Meta ad${adAssessment.count === 1 ? "" : "s"} on this`
+                : `Ads on this term · ${adRead.value} keyword matches on Meta, mostly unrelated — the ones that fit:`}
             </span>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
               {competitorAds.map((ad) => (

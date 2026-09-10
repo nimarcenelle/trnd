@@ -10,6 +10,7 @@ import {
   normalizedDelta,
   trendPct,
   scoreOpportunity,
+  weekPctFromSeries,
 } from "../lib/scoring";
 
 const signal = (over: Partial<Signal> = {}): Signal => ({
@@ -55,10 +56,21 @@ describe("scoring components", () => {
     expect(none.score).toBeLessThan(0.5);
   });
 
-  it("treats low coverage as an open competitor gap", () => {
-    expect(competitorGap({ coverageCount: 0 }).score).toBe(1);
-    expect(competitorGap({ coverageCount: 15 }).score).toBe(0);
-    expect(competitorGap({ coverageCount: null }).score).toBe(0.6);
+  it("scores competition as unknown, never open, without a real ad read", () => {
+    // News mentions are context, not rivals: zero mentions is not an open field.
+    expect(competitorGap({ coverageCount: 0 }).score).toBe(0.55);
+    expect(competitorGap({ coverageCount: 0 }).basis).toBe("none");
+    expect(competitorGap({ coverageCount: 15 }).score).toBe(0.55);
+    expect(competitorGap({ coverageCount: null }).score).toBe(0.55);
+    expect(competitorGap({ coverageCount: null }).reason).toMatch(/unknown, not open/);
+    // A national keyword total is not a local competitor count either.
+    const national = competitorGap({ coverageCount: 1, adCount: 520 });
+    expect(national.score).toBe(0.55);
+    expect(national.basis).toBe("none");
+    expect(national.reason).toMatch(/national keyword matches/);
+    // A real local read is the only thing that can say "open".
+    expect(competitorGap({ coverageCount: null, adCount: 5 }).basis).toBe("ads");
+    expect(competitorGap({ coverageCount: null, adCount: 5 }).score).toBeGreaterThan(0.9);
   });
 
   it("uses neutral prior when learnings are empty", () => {
@@ -143,8 +155,44 @@ describe("applyRelevance", () => {
     // One spike day mid-month does not make a month of flat demand a climb.
     expect(momentum(60, spike).score).toBeLessThan(momentum(60).score);
     // No series: unchanged weekly read, and no month figure to show.
-    expect(momentum(25)).toEqual({ score: 0.5, monthPct: null });
+    expect(momentum(25)).toEqual({ score: 0.5, monthPct: null, weekPct: 25 });
     expect(typeof momentum(4, climb).monthPct).toBe("number");
+  });
+
+  it("an unmeasured term cannot reach an A on neutral guesses alone", () => {
+    // Perfect fit, no ad read, no history — the case that used to score 8.1.
+    const evergreen = scoreOpportunity(
+      signal({ source: "snapshot", metric_type: "steady_demand", delta_pct: null, term: "bike tune up nyc" }),
+      [service("Bike tune up")],
+      [],
+      { coverageCount: 1 },
+      { locality: "state" },
+    );
+    expect(evergreen.unmeasured).toBe(true);
+    expect(evergreen.components.normalizedDelta).toBeLessThan(0.5);
+    expect(evergreen.score).toBeLessThan(7);
+    expect(evergreen.rationale).toMatch(/no weekly read yet/);
+    expect(evergreen.rationale).not.toMatch(/trending in/);
+  });
+
+  it("reads this week off the daily series when the signal stored no delta", () => {
+    // Two flat weeks then a week up ~50%: measured, not guessed.
+    const series = [
+      ...Array.from({ length: 16 }, () => ({ value: 20 })),
+      ...Array.from({ length: 7 }, () => ({ value: 20 })),
+      ...Array.from({ length: 7 }, () => ({ value: 30 })),
+    ];
+    const read = scoreOpportunity(
+      signal({ source: "snapshot", metric_type: "steady_demand", delta_pct: null }),
+      [service("Facial balancing consult")],
+      [],
+      { coverageCount: null },
+      { series },
+    );
+    expect(read.unmeasured).toBe(false);
+    expect(read.weekPct).toBeCloseTo(50, 0);
+    expect(read.rationale).toMatch(/up 50% search interest this week/);
+    expect(weekPctFromSeries(series.slice(0, 10))).toBeNull();
   });
 
   it("a read below Google's meter is an idea, not an A-grade wave", () => {

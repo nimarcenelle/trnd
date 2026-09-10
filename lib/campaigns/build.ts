@@ -33,7 +33,7 @@ export async function buildCampaignForOpportunity(
 
   const service = services.find((s) => s.id === opportunity.matched_service_id) ?? null;
   const generated = await generateCampaign(
-    { business, signal, opportunity, service, brief },
+    { business, signal, opportunity, service, services, brief },
     onStatus,
   );
   const { angle, assets } = generated.result;

@@ -18,6 +18,7 @@ import {
   buildClaimsRewritePrompt,
   campaignTexts,
   findUnsupportedClaims,
+  findUnsupportedPromises,
 } from "./claims";
 import type { GeneratedCampaign, GenerationContext } from "./index";
 import {
@@ -252,39 +253,50 @@ export async function generateWithGemini(
   // Claims guard: any measurement the copy states about this business must
   // trace to a fact the owner gave us. One targeted rewrite; the original
   // survives a failed rewrite (logged) rather than shipping nothing.
+  // Every active service is a fact: a $50 delivery line the copy quotes
+  // must not be flagged just because the matched service was the tune-up.
+  const menu = ctx.services?.length ? ctx.services : ctx.service ? [ctx.service] : [];
   const facts = buildClaimFacts({
     business: ctx.business,
-    services: ctx.service ? [ctx.service] : [],
+    services: menu,
     signal: ctx.signal,
     opportunity: ctx.opportunity,
   });
   const flagged = findUnsupportedClaims(campaignTexts(result.angle, result.assets), facts);
-  if (flagged.length > 0) {
-    onStatus("Fact-checking every number in the copy…");
+  const promised = findUnsupportedPromises(campaignTexts(result.angle, result.assets), facts);
+  if (flagged.length > 0 || promised.length > 0) {
+    onStatus("Fact-checking every number and promise in the copy…");
     // Up to two passes: the first rewrite occasionally re-derives a number
     // in fresh phrasing; the second pass sees it flagged and strips it.
     let toFix = flagged;
-    for (let pass = 0; pass < 2 && toFix.length > 0; pass++) {
+    let toUnpromise = promised;
+    for (let pass = 0; pass < 2 && (toFix.length > 0 || toUnpromise.length > 0); pass++) {
       try {
         const rewritten = await structuredCall(
           models.pro,
-          buildClaimsRewritePrompt(ctx.business, result.angle, result.assets, toFix, facts),
+          buildClaimsRewritePrompt(ctx.business, result.angle, result.assets, toFix, facts, toUnpromise),
           generationResponseSchema,
           (d) => GenerationSchema.parse(d),
         );
-        const remaining = findUnsupportedClaims(campaignTexts(rewritten.angle, rewritten.assets), facts);
+        const texts = campaignTexts(rewritten.angle, rewritten.assets);
+        const remaining = findUnsupportedClaims(texts, facts);
+        const stillPromised = findUnsupportedPromises(texts, facts);
         console.log(
-          `[ai] claims guard pass ${pass + 1}: ${toFix.length} unsupported number(s) flagged, ${remaining.length} after rewrite`,
+          `[ai] claims guard pass ${pass + 1}: ${toFix.length} number(s) + ${toUnpromise.length} promise(s) flagged, ${remaining.length} + ${stillPromised.length} after rewrite`,
         );
         result = rewritten;
         toFix = remaining;
+        toUnpromise = stillPromised;
       } catch (err) {
         console.warn(
-          `[ai] claims rewrite failed — shipping current copy with ${toFix.length} flagged number(s):`,
+          `[ai] claims rewrite failed — shipping current copy with ${toFix.length} flagged number(s) and ${toUnpromise.length} promise(s):`,
           (err as Error).message,
         );
         break;
       }
+    }
+    if (toUnpromise.length > 0) {
+      console.warn(`[ai] copy still promises unlisted services: ${toUnpromise.map((p) => p.text).join(", ")}`);
     }
   }
 

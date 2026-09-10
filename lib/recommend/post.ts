@@ -12,7 +12,8 @@ export function buildOrganicPost(opts: {
   businessName: string;
   /** The built campaign's hook, when one exists — the sharpest line we have. */
   hook?: string | null;
-  /** Customers' literal phrases from the review digest. */
+  /** Customers' literal phrases from the Google-review digest — attributed
+   * as exactly that, never as an anonymous "guest". */
   copyHooks?: string[];
   hashtags: string[];
 }): string {
@@ -27,7 +28,7 @@ export function buildOrganicPost(opts: {
   const quote = (opts.copyHooks ?? []).find((h) => h.length >= 12 && h.length <= 90);
   if (quote) {
     lines.push("");
-    lines.push(`"${quote.replace(/^["“]|["”]$/g, "")}" — a recent guest`);
+    lines.push(`"${quote.replace(/^["“]|["”]$/g, "")}" — from our Google reviews`);
   }
 
   lines.push("");

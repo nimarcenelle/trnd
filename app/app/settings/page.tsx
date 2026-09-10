@@ -63,13 +63,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         ? `${metaConnection?.account_name ?? metaConnection?.account_id ?? "Connected"}`
         : isMetaAdsConfigured
           ? "Ready to connect"
-          : "Awaiting platform credentials",
+          : "Not connected yet",
       ok: metaConnected,
       note: metaConnected
         ? "Launched campaigns sync results back automatically, daily."
         : isMetaAdsConfigured
           ? "Connect to launch campaigns (paused) and auto-sync results."
-          : "Needs META_APP_ID / META_APP_SECRET — results stay manual entry until then.",
+          : "Ad-account sync isn't switched on for this workspace yet — results are entered by hand until then.",
       action: metaConnected ? ("disconnect-meta" as const) : isMetaAdsConfigured ? ("connect-meta" as const) : null,
     },
     {
@@ -78,25 +78,25 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         ? `Google · ${gbpConnection.account_name ?? "resolved"}`
         : isPlacesConfigured
           ? "Resolving your listing…"
-          : "Awaiting Places API key",
+          : "Not connected yet",
       ok: Boolean(gbpConnection),
       note: isPlacesConfigured
         ? "Your reviews and competitors' ratings are read daily."
-        : "Needs GOOGLE_PLACES_API_KEY — unlocks voice-of-customer mining and competitor ratings.",
+        : "Review reading isn't switched on for this workspace yet — it unlocks your customers' own words and competitor ratings.",
       action: null,
     },
     {
       name: "Search-volume backbone",
-      detail: isDataForSeoConfigured ? "DataForSEO — active" : "Awaiting credentials",
+      detail: isDataForSeoConfigured ? "DataForSEO — active" : "Not connected yet",
       ok: isDataForSeoConfigured,
       note: isDataForSeoConfigured
         ? "Real monthly volumes for every watch term, read daily."
-        : "Needs DATAFORSEO_LOGIN / PASSWORD — watch terms ride news + ad reads until then.",
+        : "The monthly search-volume feed isn't switched on yet — your watch terms are read from Google Trends, local news, and Meta ads until it is.",
       action: null,
     },
     {
       name: "Weekly email",
-      detail: isEmailConfigured ? "Resend — active" : "Awaiting RESEND_API_KEY",
+      detail: isEmailConfigured ? "Resend — active" : "Not sending yet",
       ok: isEmailConfigured,
       note: isEmailConfigured
         ? "The Monday intel report lands in your inbox."
@@ -109,7 +109,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       ok: isGeminiConfigured,
       note: isGeminiConfigured
         ? "Structured output, validated before it reaches you."
-        : "Add GEMINI_API_KEY to unlock model-written campaigns.",
+        : "Model-written campaigns aren't switched on for this workspace yet.",
       action: null,
     },
     {

@@ -413,7 +413,11 @@ export default async function ReportPage() {
                         )}
                       </td>
                       <td>
-                        {typeof d.adCount === "number" ? (
+                        {typeof d.adMatchesUnusable === "number" ? (
+                          <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
+                            {d.adMatchesUnusable} keyword match{d.adMatchesUnusable === 1 ? "" : "es"}<span className="mono-cell" style={{ marginLeft: 6 }}>unrelated advertisers</span>
+                          </span>
+                        ) : typeof d.adCount === "number" ? (
                           d.adCount > 300 ? (
                             <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
                               broad term<span className="mono-cell" style={{ marginLeft: 6 }}>{d.adCount} matches nationally</span>
@@ -438,7 +442,7 @@ export default async function ReportPage() {
           <div className="panel" style={{ marginTop: 14 }}>
             <div className="panel__head">
               <span className="panel__title">Ads running on your terms</span>
-              <span className="panel__meta">live Meta Ad Library reads near you</span>
+              <span className="panel__meta">Meta Ad Library reads on your terms, filtered to advertisers in your line of work</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
               {report.competitors.map((c) => (
@@ -446,11 +450,25 @@ export default async function ReportPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline", marginBottom: 8 }}>
                     <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 13.5 }}>{titleCase(c.term)}</span>
                     <span className="mono-label" style={{ whiteSpace: "nowrap" }}>
-                      {c.adCount > 300 ? `${c.adCount} national matches` : `${c.adCount} ad${c.adCount === 1 ? "" : "s"}`} · {fmtDate(c.capturedAt)}
+                      {c.estimate === null || c.adCount > 300
+                        ? `${c.adCount} keyword matches`
+                        : c.estimate === c.adCount
+                          ? `${c.adCount} ad${c.adCount === 1 ? "" : "s"}`
+                          : `≈${c.estimate} rival ad${c.estimate === 1 ? "" : "s"} of ${c.adCount} matches`} · {fmtDate(c.capturedAt)}
                     </span>
                   </div>
-                  {c.ads.length === 0 && (
+                  {c.ads.length === 0 && c.unrelated === 0 && (
                     <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-faint)" }}>No competitor is running ads on this — open ground.</p>
+                  )}
+                  {c.ads.length === 0 && c.unrelated > 0 && (
+                    <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-faint)" }}>
+                      None of the {c.unrelated} sampled ads is a competitor of yours — other industries or spam matching the words. Competition on this term is unknown, not open.
+                    </p>
+                  )}
+                  {c.ads.length > 0 && c.unrelated > 0 && (
+                    <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--ink-faint)" }}>
+                      {c.unrelated} unrelated match{c.unrelated === 1 ? "" : "es"} dropped from the sample.
+                    </p>
                   )}
                   {c.ads.map((ad) => (
                     <p key={ad.advertiser} style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-soft)", margin: "0 0 8px" }}>

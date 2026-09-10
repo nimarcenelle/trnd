@@ -58,6 +58,22 @@ const CATEGORY_TAGS: Record<string, string[]> = {
 
 const tagify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
+/** A term or menu item that is work done, not a thing sold. The vertical
+ * playbooks are product-shaped for retail ("the piece, where it's from");
+ * a tune-up or a brake bleed needs the service playbook whatever the shop
+ * sells the rest of the week. */
+const SERVICE_WORDS =
+  /\b(tune[- ]?ups?|repairs?|fix(es|ing)?|bleed|setup|install(ation)?|assembl(y|e)|clean(ing)?|maintenance|overhaul|adjust(ment)?|replace(ment)?|fitting|lessons?|class(es)?|service|servicing|rebuild|restor(e|ation)|alignment|inspection|consult(ation)?|treatment|session)\b/i;
+
+export function isServiceTerm(term: string, serviceName?: string | null): boolean {
+  return SERVICE_WORDS.test(term) || (serviceName ? SERVICE_WORDS.test(serviceName) : false);
+}
+
+const SERVICE_ANGLE =
+  "Show the work and the person doing it — the job in progress on your bench, then the finished result. Hands on the real thing beat any product shot for a service term.";
+const SERVICE_CAPTION =
+  "State the problem in the customer's words, the price, and how fast they get it back. End with one clear way to book.";
+
 export function buildHowTo(opts: {
   term: string;
   category: string;
@@ -80,23 +96,39 @@ export function buildHowTo(opts: {
     ...(opts.source === "snapshot" ? ["supportlocal"] : (CATEGORY_TAGS[vertical] ?? ["supportlocal"])),
     ...(cityTag ? [cityTag] : []),
   ].slice(0, 5);
+  const serviceTerm = isServiceTerm(opts.term, opts.serviceName);
   return {
-    contentAngle:
-      CONTENT_ANGLE[vertical] ??
-      "Shoot the real thing — your product, your space, your people. Authentic beats polished for local paid social.",
-    captionDirection:
-      CAPTION_DIRECTION[vertical] ??
-      "Say what it is, what it costs, and how to get it — in the voice you'd use across the counter.",
+    contentAngle: serviceTerm
+      ? SERVICE_ANGLE
+      : (CONTENT_ANGLE[vertical] ??
+        "Shoot the real thing — your product, your space, your people. Authentic beats polished for local paid social."),
+    captionDirection: serviceTerm
+      ? SERVICE_CAPTION
+      : (CAPTION_DIRECTION[vertical] ??
+        "Say what it is, what it costs, and how to get it — in the voice you'd use across the counter."),
     hashtags,
   };
 }
 
-/** Live trend-surf links for a term — where to see what's working right now. */
-export function trendLinks(term: string): { tiktok: string; instagram: string } {
-  const tag = tagify(term);
+/**
+ * Live trend-surf links for a term — where to see what's working right now.
+ * A search phrase ("bike tune up nyc") is not a hashtag: its tag page is
+ * empty, which proves the opposite of the link's promise. Only a real
+ * community tag (from a TikTok signal) links to a tag page; everything
+ * else opens the platform's search, which shows the actual videos.
+ */
+export function trendLinks(term: string, opts: { hashtag?: string | null } = {}): { tiktok: string; instagram: string } {
+  if (opts.hashtag) {
+    const tag = tagify(opts.hashtag);
+    return {
+      tiktok: `https://www.tiktok.com/tag/${tag}`,
+      instagram: `https://www.instagram.com/explore/tags/${tag}/`,
+    };
+  }
+  const q = encodeURIComponent(term.trim());
   return {
-    tiktok: `https://www.tiktok.com/tag/${tag}`,
-    instagram: `https://www.instagram.com/explore/tags/${tag}/`,
+    tiktok: `https://www.tiktok.com/search?q=${q}`,
+    instagram: `https://www.instagram.com/explore/search/keyword/?q=${q}`,
   };
 }
 

@@ -6,6 +6,7 @@ import { upcomingMoments, type UpcomingMoment } from "@/lib/recommend/seasonal";
 import { buildResultsTakeaway } from "@/lib/recommend/insights";
 import { benchmarkFor } from "@/lib/results/benchmarks";
 import { normalizeTerm } from "@/lib/signals/normalize";
+import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { sourceUrl } from "@/lib/signals/source-url";
 
 /**
@@ -54,6 +55,9 @@ export interface DemandRow {
   interestSource: SignalSource | null;
   /** Where the interest read can be checked, when the source has a page. */
   interestUrl: string | null;
+  /** Raw Meta keyword matches when the sample was mostly other industries
+   * or spam — shown as matches, never as competitors, and never scored. */
+  adMatchesUnusable: number | null;
   /** Recent local news mentions (null = no read captured). */
   coverageCount: number | null;
   /** Active Meta ads matching the term near the business (null = no read). */
@@ -65,7 +69,15 @@ export interface DemandRow {
 export interface CompetitorRow {
   term: string;
   adCount: number;
+  /** Sample ads that actually speak to the term. */
   ads: { advertiser: string; snippet: string }[];
+  /** Sample ads dropped as keyword noise — other industries, spam. */
+  unrelated: number;
+  /** False when the sample was mostly noise: the count is noise too. */
+  countUsable: boolean;
+  /** Keyword total scaled by the relevant share of the sample — the number
+   * a rival count should quote. Null when unusable. */
+  estimate: number | null;
   capturedAt: string;
 }
 
@@ -224,6 +236,14 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
         : null;
     const coverage = reads.find((s) => s.metric_type === "news_coverage" && typeof s.value === "number");
     const adRead = reads.find((s) => s.metric_type === "ad_saturation" && typeof s.value === "number");
+    const adAssessed = adRead
+      ? assessAdRead(
+          (adRead.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads,
+          adRead.term,
+          [business.city, business.region ?? ""].filter(Boolean),
+          adRead.value as number,
+        )
+      : null;
     const lastRead = reads.length
       ? reads.map((s) => day(s.captured_at)).sort().at(-1)!
       : null;
@@ -237,7 +257,8 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
       interestSource: interest?.source ?? null,
       interestUrl: interest ? sourceUrl(interest) : null,
       coverageCount: (coverage?.value as number | undefined) ?? null,
-      adCount: (adRead?.value as number | undefined) ?? null,
+      adCount: adAssessed?.count ?? null,
+      adMatchesUnusable: adAssessed && adAssessed.count === null ? (adRead!.value as number) : null,
       lastRead,
     };
   });
@@ -247,12 +268,23 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
     .filter((s) => s.metric_type === "ad_saturation" && typeof s.value === "number")
     .sort((a, b) => b.captured_at.localeCompare(a.captured_at))
     .slice(0, 6)
-    .map((s) => ({
-      term: s.term,
-      adCount: s.value as number,
-      ads: (((s.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads) ?? []).slice(0, 3),
-      capturedAt: day(s.captured_at),
-    }))
+    .map((s) => {
+      const read = assessAdRead(
+        (s.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads,
+        s.term,
+        [business.city, business.region ?? ""].filter(Boolean),
+        s.value as number,
+      );
+      return {
+        term: s.term,
+        adCount: s.value as number,
+        ads: read.ads.slice(0, 3),
+        unrelated: read.unrelated,
+        countUsable: read.countUsable,
+        estimate: read.count,
+        capturedAt: day(s.captured_at),
+      };
+    })
     .filter((row) => row.adCount > 0 || row.ads.length > 0);
 
   // ---- market pulse: category movers, context only

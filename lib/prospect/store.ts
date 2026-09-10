@@ -28,12 +28,21 @@ function toRow(l: ProspectLead): Row {
     email_status: l.emailStatus,
     signal: l.signal,
     ad_pixels: l.adPixels,
+    ...(FIT_COLUMNS_MISSING ? {} : fitColumns(l)),
     status: l.status,
     search_query: l.searchQuery,
     sent_at: l.sentAt,
     updated_at: new Date().toISOString(),
   };
 }
+
+/** Columns added by migration 0016 — split out so a save can retry without them. */
+function fitColumns(l: ProspectLead): Row {
+  return { rating: l.rating, review_count: l.reviewCount, distance_miles: l.distanceMiles };
+}
+// Flips on the first "column does not exist" save error so later saves skip
+// the columns instead of failing twice each. Resets on redeploy.
+let FIT_COLUMNS_MISSING = false;
 
 function fromRow(r: Row): ProspectLead {
   return {
@@ -51,6 +60,9 @@ function fromRow(r: Row): ProspectLead {
     emailStatus: r.email_status,
     signal: r.signal ?? "",
     adPixels: r.ad_pixels ?? [],
+    rating: typeof r.rating === "number" ? r.rating : r.rating != null ? Number(r.rating) : null,
+    reviewCount: typeof r.review_count === "number" ? r.review_count : null,
+    distanceMiles: r.distance_miles != null ? Number(r.distance_miles) : null,
     status: r.status,
     searchQuery: r.search_query ?? "",
     sentAt: r.sent_at,
@@ -84,13 +96,31 @@ export async function knownPlaceIds(): Promise<Set<string>> {
   return new Set((data ?? []).map((r) => r.place_id as string));
 }
 
+/** Every email already on file, lowercased — one founder email per inbox, ever. */
+export async function knownEmails(): Promise<Set<string>> {
+  if (!isSupabaseConfigured) {
+    return new Set([...memory.values()].flatMap((l) => (l.bestEmail ? [l.bestEmail.toLowerCase()] : [])));
+  }
+  const sb = createAdminSupabase();
+  const { data, error } = await sb.from(TABLE).select("best_email").not("best_email", "is", null).limit(5000);
+  if (error) throw new Error(`prospect email dedupe read failed: ${error.message}`);
+  return new Set((data ?? []).map((r) => String(r.best_email).toLowerCase()));
+}
+
 export async function saveLead(lead: ProspectLead): Promise<void> {
   if (!isSupabaseConfigured) {
     memory.set(lead.placeId, lead);
     return;
   }
   const sb = createAdminSupabase();
-  const { error } = await sb.from(TABLE).upsert(toRow(lead), { onConflict: "place_id" });
+  let { error } = await sb.from(TABLE).upsert(toRow(lead), { onConflict: "place_id" });
+  // PostgREST PGRST204: schema cache has no such column — migration 0016 not
+  // applied yet. Save what the table can hold rather than losing the lead.
+  if (error && !FIT_COLUMNS_MISSING && /column|PGRST204/i.test(`${error.code} ${error.message}`)) {
+    FIT_COLUMNS_MISSING = true;
+    console.warn("[prospect] rating/review_count/distance_miles columns missing — apply migration 0016_prospector_fit.sql");
+    ({ error } = await sb.from(TABLE).upsert(toRow(lead), { onConflict: "place_id" }));
+  }
   if (error) throw new Error(`prospect save failed: ${error.message}`);
 }
 

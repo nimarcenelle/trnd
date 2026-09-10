@@ -32,6 +32,9 @@ export async function POST(req: Request): Promise<Response> {
     cap?: number;
     onlyNoAds?: boolean;
     onlyWithEmail?: boolean;
+    onlyVerified?: boolean;
+    skipChains?: boolean;
+    minFit?: number;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -50,6 +53,9 @@ export async function POST(req: Request): Promise<Response> {
     cap: Math.min(Math.max(Number(body.cap) || 50, 1), 200),
     onlyNoAds: Boolean(body.onlyNoAds),
     onlyWithEmail: Boolean(body.onlyWithEmail),
+    onlyVerified: Boolean(body.onlyVerified),
+    skipChains: body.skipChains !== false,
+    minFit: Math.min(Math.max(Number(body.minFit) || 0, 0), 100),
   };
 
   const encoder = new TextEncoder();

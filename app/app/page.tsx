@@ -36,7 +36,7 @@ import { isGeminiConfigured, isPlacesConfigured, isSupabaseConfigured } from "@/
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { geoLabel } from "@/lib/signals/geo";
 import { deltaWindowLabel, sourceUrl } from "@/lib/signals/source-url";
-import { titleCase } from "@/lib/text";
+import { sentenceCase, titleCase } from "@/lib/text";
 
 export const metadata = { title: "This week — TRND" };
 
@@ -773,7 +773,7 @@ export default async function AppHome({
           </div>
           <div>
             <span className="k">Competition</span>
-            <div className="v">{top.competitor_gap ?? "No ad read yet"}</div>
+            <div className="v">{top.competitor_gap ? sentenceCase(top.competitor_gap) : "No ad read yet"}</div>
           </div>
           <div>
             <span className="k">Do this next</span>

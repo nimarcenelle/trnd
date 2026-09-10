@@ -71,3 +71,15 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
   49→149 tripling felt steep at this altitude). Landing pricing copy reframed from
   "$30 a day of ad spend" math to "pays for itself with one landed campaign," which is
   the honest claim at $250 in high-LTV verticals. Playbook updated to match.
+- **The read on a pick is model-only; the insight lines are the fallback.** The
+  deterministic insight/how-to text is already the keyless read — a second templated
+  paragraph would say the same thing in more words. So `pick_reads` is written only when
+  Gemini is keyed (at rank time for the top 3, self-healed on the dashboard), cached per
+  opportunity, and keyed on a fingerprint of the facts it was written from: a read whose
+  facts moved is rewritten, never shown stale.
+- **Ask lives on the pick, and an answer can steer the build.** The page-level Ask stays
+  for market/money questions; the hero gets its own box seeded with pick-specific
+  questions. A question that asks to run the pick differently comes back with a one-line
+  `direction`, which the build prompts treat as outranking the judge's taste but never the
+  menu. Rebuilds rewrite the campaign in place (same id — links and results keep pointing
+  at it) and refuse once it has launched: launched campaigns are the record.

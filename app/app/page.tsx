@@ -12,6 +12,7 @@ import DeltaChip from "@/components/app/delta-chip";
 import SourceBadge from "@/components/app/source-badge";
 import TrendChart from "@/components/app/trend-chart";
 import InsightList from "@/components/app/insight-list";
+import PickAsk from "@/components/app/pick-ask";
 import { getSessionUser } from "@/lib/auth/session";
 import BuildCampaignButton from "@/components/app/build-campaign-button";
 import { markAlertsReadAction } from "@/lib/intel/actions";
@@ -19,7 +20,10 @@ import { refreshRankingAction, scanMarketNowAction } from "@/lib/recommend/actio
 import { getUserRepo } from "@/lib/db";
 import { getAdminRepo } from "@/lib/db/admin";
 import type { Signal } from "@/lib/db/types";
+import { campaignRebuildable } from "@/lib/campaigns/build";
 import { explainOpportunity } from "@/lib/recommend/explain";
+import { buildPickFacts } from "@/lib/recommend/pick-facts";
+import { ensurePickRead, readIsCurrent } from "@/lib/recommend/read";
 import CopyBlock from "@/components/app/copy-block";
 import { buildHowTo, tiktokHashtag } from "@/lib/recommend/howto";
 import { buildOrganicPost } from "@/lib/recommend/post";
@@ -345,6 +349,25 @@ export default async function AppHome({
           snapshotReason,
         })
       : [];
+  // The read on this pick — the analyst's paragraphs over the same facts the
+  // meters show. Model-written and cached per pick; when its facts moved (a
+  // re-rank, a new match) it's rewritten after the response and lands on the
+  // next load. Keyless installs keep the deterministic insight lines alone.
+  const pickFacts = signal ? await buildPickFacts(repo, business, top, signal) : null;
+  const storedRead = await repo.getPickRead(top.id);
+  const read = pickFacts && readIsCurrent(storedRead, pickFacts) ? storedRead : null;
+  const readInFlight = Boolean(pickFacts && !read && isGeminiConfigured);
+  if (readInFlight && pickFacts) {
+    after(async () => {
+      try {
+        await ensurePickRead(repo, business, top, { signal, facts: pickFacts });
+      } catch (err) {
+        console.warn("[app] pick read failed (non-fatal):", (err as Error).message);
+      }
+    });
+  }
+  const askQuestions = read?.questions ?? pickFacts?.questions ?? [];
+
   const launchBy = fmtDate(launchByFor(week));
   const nextAction = buildNextAction({
     hasCampaign: Boolean(campaign),
@@ -449,6 +472,7 @@ export default async function AppHome({
 
   return (
     <div className="page">
+      {readInFlight && <AutoRefresh everyMs={8000} times={3} />}
       <div className="page-head">
         <div>
           <span className="eyebrow" style={{ margin: 0 }}>This week&apos;s recommendation · {weekRange}</span>
@@ -705,6 +729,29 @@ export default async function AppHome({
               {signal ? titleCase(signal.term) : "This week's opportunity"}
             </h2>
 
+            {read && (
+              <div style={{ margin: "0 0 18px", maxWidth: 640 }}>
+                {read.paragraphs.map((p, i) => (
+                  <p
+                    key={p.slice(0, 40)}
+                    style={{
+                      fontSize: i === 0 ? 15.5 : 14,
+                      fontWeight: i === 0 ? 500 : 400,
+                      lineHeight: 1.65,
+                      color: i === 0 ? "var(--ink)" : "var(--ink-soft)",
+                      margin: "0 0 10px",
+                    }}
+                  >
+                    {p}
+                  </p>
+                ))}
+              </div>
+            )}
+            {readInFlight && (
+              <p style={{ margin: "0 0 14px", fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-faint)" }}>
+                TRND is writing the read on this pick — it lands in a moment.
+              </p>
+            )}
             <InsightList
               insights={insights}
               footnote={top.competitor_gap ? `Saturation read: ${top.competitor_gap}.` : null}
@@ -820,6 +867,14 @@ export default async function AppHome({
             </div>
           </div>
         )}
+
+        <PickAsk
+          opportunityId={top.id}
+          term={signal ? titleCase(signal.term) : "this pick"}
+          questions={askQuestions}
+          hasCampaign={Boolean(campaign)}
+          rebuildable={campaign ? campaignRebuildable(campaign.status) : true}
+        />
       </section>
 
       {/* ---------- TREND CHART (only when we hold a series worth reading:

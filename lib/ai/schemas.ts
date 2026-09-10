@@ -102,8 +102,19 @@ export const AskAnswerSchema = z.object({
   /** True only when even a reasoned, assumption-labeled estimate would be
    * dishonest — not merely "the context lacks this number". */
   insufficient: z.boolean(),
+  /** Pick-scoped asks only: when the owner's question implies a different
+   * way to run the campaign (another service, offer, audience, or angle), a
+   * one-sentence build directive in the imperative. Null when the question
+   * was just a question. */
+  direction: z.string().nullable().optional(),
 });
 export type AskAnswerResult = z.infer<typeof AskAnswerSchema>;
+
+export const PickReadSchema = z.object({
+  paragraphs: z.array(z.string().min(40)).min(2).max(3),
+  questions: z.array(z.string().min(12)).min(2).max(3),
+});
+export type PickReadResult = z.infer<typeof PickReadSchema>;
 
 export const HumanizeSchema = z.object({
   terms: z.array(z.string().min(2)).min(1),

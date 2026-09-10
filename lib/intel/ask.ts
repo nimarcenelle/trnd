@@ -1,6 +1,7 @@
 import type { Repo } from "@/lib/db/repo";
-import type { Business } from "@/lib/db/types";
+import type { Business, Opportunity } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
+import { buildPickFacts } from "@/lib/recommend/pick-facts";
 import { buildIntelReport } from "@/lib/report/build";
 import { reportFacts } from "@/lib/report/note";
 
@@ -10,7 +11,27 @@ export interface AskAnswer {
   /** Assumed numbers behind any estimate — each correctable by the owner. */
   assumptions: string[];
   insufficient: boolean;
+  /** Pick-scoped asks: a one-line build directive when the question asked
+   * to run the pick differently; the UI offers to build it that way. */
+  direction: string | null;
   model: string;
+}
+
+const UNCONFIGURED: AskAnswer = {
+  answer: [
+    "Ask needs the model connection (GEMINI_API_KEY) to reason over your data. Everything it would cite is already on your intel report — open it for the current picture.",
+  ],
+  citations: [],
+  assumptions: [],
+  insufficient: true,
+  direction: null,
+  model: "unconfigured",
+};
+
+/** A directive is a sentence, not a stray token or an empty string. */
+function normalizeDirection(d: string | null | undefined): string | null {
+  const t = (d ?? "").replace(/\s+/g, " ").trim();
+  return t.length >= 12 ? t.slice(0, 300) : null;
 }
 
 /** One prior exchange, replayed to the model so follow-ups keep the thread. */
@@ -82,19 +103,32 @@ export async function answerAsk(
   question: string,
   history: AskTurn[] = [],
 ): Promise<AskAnswer> {
-  if (!isGeminiConfigured) {
-    return {
-      answer: [
-        "Ask needs the model connection (GEMINI_API_KEY) to reason over your data. Everything it would cite is already on your intel report — open it for the current picture.",
-      ],
-      citations: [],
-      assumptions: [],
-      insufficient: true,
-      model: "unconfigured",
-    };
-  }
+  if (!isGeminiConfigured) return UNCONFIGURED;
   const context = await buildAskContext(repo, business);
   const { answerAskWithGemini } = await import("@/lib/ai/gemini");
   const { value, model } = await answerAskWithGemini(business, context, question, history);
-  return { ...value, model };
+  return { ...value, direction: null, model };
+}
+
+/**
+ * Ask about one pick: the same grounded analyst, with the pick's own facts
+ * in front of it — so "why this over #2", "is $25 a day enough", and "do
+ * this for my other service instead" get answered from the numbers on the
+ * hero, and the last kind comes back with a direction the build can follow.
+ */
+export async function answerPickAsk(
+  repo: Repo,
+  business: Business,
+  opportunity: Opportunity,
+  question: string,
+  history: AskTurn[] = [],
+): Promise<AskAnswer> {
+  if (!isGeminiConfigured) return UNCONFIGURED;
+  const [context, facts] = await Promise.all([
+    buildAskContext(repo, business),
+    buildPickFacts(repo, business, opportunity),
+  ]);
+  const { answerAskWithGemini } = await import("@/lib/ai/gemini");
+  const { value, model } = await answerAskWithGemini(business, context, question, history, facts?.text ?? null);
+  return { ...value, direction: normalizeDirection(value.direction), model };
 }

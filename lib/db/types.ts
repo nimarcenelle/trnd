@@ -375,6 +375,27 @@ export interface IntelNote {
 }
 export type NewIntelNote = Omit<IntelNote, "id" | "created_at">;
 
+/**
+ * The read on one pick — the analyst's paragraphs on why this term, for this
+ * business, this week, written from the same facts the score meters show.
+ * Model-written only; without a model the deterministic insight lines stand
+ * alone. One per opportunity, regenerated when its facts move.
+ */
+export interface PickRead {
+  id: string;
+  opportunity_id: string;
+  business_id: string;
+  /** 2-3 short paragraphs: the verdict first, then the why. */
+  paragraphs: string[];
+  /** 2-3 questions the owner would naturally ask next about this pick. */
+  questions: string[];
+  model_used: string;
+  /** Prompt version + a fingerprint of the facts it was written from. */
+  prompt_version: string;
+  created_at: string;
+}
+export type NewPickRead = Omit<PickRead, "id" | "created_at">;
+
 export type NewSignal = Omit<Signal, "id" | "captured_at"> & { captured_at?: string };
 export type NewSeriesPoint = Omit<SignalSeriesPoint, "id">;
 export type NewOpportunity = Omit<Opportunity, "id" | "created_at" | "status"> & {

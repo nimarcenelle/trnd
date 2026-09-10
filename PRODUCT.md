@@ -58,11 +58,28 @@ bands) on a ring, and four scored meters:
 | **Open door** | Competitor ad saturation — real Meta Ad Library counts when captured |
 | **Track record** | Measured learnings; seeded priors labeled illustrative |
 
+**The read** sits above the meters when Gemini is keyed: two or three model-written
+paragraphs — the verdict first (run it, run it small, skip it) and the one fact that
+decides it, then why the numbers land where they do for *this* business (the menu item
+and price it maps to, where the movement was measured, who else is advertising it, what
+the calendar says). Written from the same facts the meters show, cached per pick, and
+rewritten only when those facts move. Keyless installs keep the deterministic insight
+lines alone.
+
 Plus: four scannable insight lines with expandable detail, "how to run it well" creative
 guidance, the demand chart, what competitors are running, the runner-up list, a
 market-pulse panel, and the **seasonal calendar** ("Holiday party bookings — start now,
 6 weeks lead"). A re-rank button rebuilds the week on demand. KPI row: signals watched,
 ranked count, campaigns launched, average CTR.
+
+**Ask about this pick** closes the hero. It opens with the questions this owner would
+ask about this pick — model-written with the read ("Why this over the brow lamination?",
+"Is $25 a day enough?") or deterministic until then — and answers from the pick's own
+facts plus everything Ask-TRND holds. When a question asks to run the pick differently
+("do this for my other service instead", "aim at parents", "lead with the Tuesday
+special"), the answer ends in a one-line direction and a button that **builds the
+campaign that way** — or rewrites the pick's existing campaign in place, as long as it
+hasn't launched. A pick has more than two verbs now.
 
 ### 6. Opportunities (`/app/opportunities`)
 The week's full ranked list — one line each with grade, insight chips, and an expandable
@@ -84,7 +101,11 @@ package as a four-step launch guide:
 
 All copy is brand-voiced, priced from the real menu, and category-correct — a restaurant
 gets "$24, this week only," never "consult, applied to your first visit." Gemini-generated
-with schema validation when keyed; a deterministic brand-voiced generator otherwise.
+with schema validation when keyed; a deterministic brand-voiced generator otherwise. A
+build steered from the pick's Ask box carries the owner's direction into every call —
+it decides which service, offer, audience, or angle leads, and can never add a promise
+the menu doesn't list. Rewrites keep the campaign's id, so links and results still
+point at it; a launched campaign is never rewritten.
 
 ### 8. Results (`/app/results`) — the flywheel
 Each live campaign gets a manual entry row (impressions, clicks, spend, bookings,

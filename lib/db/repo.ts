@@ -23,6 +23,7 @@ import type {
   NewCreative,
   NewDemoRequest,
   NewIntelNote,
+  NewPickRead,
   NewLearning,
   NewOpportunity,
   NewReview,
@@ -33,6 +34,7 @@ import type {
   NewSubscription,
   Opportunity,
   OpportunityStatus,
+  PickRead,
   Profile,
   Review,
   ReviewDigest,
@@ -86,6 +88,13 @@ export interface Repo {
   createCampaign(input: NewCampaign, creatives: Omit<NewCreative, "campaign_id">[]): Promise<Campaign>;
   getCampaign(id: string): Promise<Campaign | null>;
   getCampaignByOpportunity(opportunityId: string): Promise<Campaign | null>;
+  /** Rewrite a draft campaign in place — same id (links and results keep
+   * pointing at it), new angle and a fresh set of creatives. */
+  replaceCampaign(
+    id: string,
+    patch: Pick<Campaign, "angle" | "hook" | "offer" | "audience" | "model_used" | "prompt_version">,
+    creatives: Omit<NewCreative, "campaign_id">[],
+  ): Promise<Campaign>;
   listCampaigns(businessId: string): Promise<Campaign[]>;
   listCreatives(campaignId: string): Promise<Creative[]>;
   setCampaignStatus(id: string, status: Campaign["status"]): Promise<Campaign>;
@@ -109,6 +118,10 @@ export interface Repo {
   /* intel notes — the analyst note opening each week's report */
   upsertIntelNote(input: NewIntelNote): Promise<IntelNote>;
   getIntelNote(businessId: string, weekOf: string): Promise<IntelNote | null>;
+
+  /** The analyst's read on one pick — see PickRead. */
+  upsertPickRead(input: NewPickRead): Promise<PickRead>;
+  getPickRead(opportunityId: string): Promise<PickRead | null>;
 
   /* connections — OAuth links to ad platforms & business profiles */
   upsertConnection(input: NewConnection): Promise<Connection>;

@@ -23,10 +23,16 @@ export default function BuildCampaignButton({
   opportunityId,
   className = "btn btn-primary",
   children = "Build the campaign",
+  direction = null,
+  rebuild = false,
 }: {
   opportunityId: string;
   className?: string;
   children?: React.ReactNode;
+  /** The owner's steer for this build, from the pick's Ask box. */
+  direction?: string | null;
+  /** Rewrite the pick's existing (unlaunched) campaign in place. */
+  rebuild?: boolean;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<string | null>(null);
@@ -61,8 +67,16 @@ export default function BuildCampaignButton({
     }
   };
 
-  /** Watch for the campaign to land, however long the stream survived. */
+  /** Watch for the campaign to land, however long the stream survived. A
+   * rebuild can't be polled for (the old campaign already exists), so a
+   * dropped stream there says so instead of navigating to stale copy. */
   async function pollUntilDone(startedAtMs: number) {
+    if (rebuild) {
+      markDone();
+      setStatus(null);
+      setError("Still rewriting it — open the campaign in a minute to see the new version.");
+      return;
+    }
     if (polling.current) return;
     polling.current = true;
     try {
@@ -130,7 +144,7 @@ export default function BuildCampaignButton({
       res = await fetch("/api/campaigns/build", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ opportunity_id: opportunityId }),
+        body: JSON.stringify({ opportunity_id: opportunityId, direction, rebuild }),
       });
     } catch {
       // The request never reached the server — nothing is building.

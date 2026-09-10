@@ -20,7 +20,7 @@ test("signup → onboarding → recommendation → campaign → launch", async (
   await page.getByLabel("Business name").fill("Glow Aesthetics Studio");
   await page.getByRole("button", { name: "Continue →" }).click();
 
-  await page.getByRole("radio", { name: "Health & beauty" }).click();
+  await page.getByRole("button", { name: "Health & beauty" }).click();
   await page.getByRole("button", { name: "Continue →" }).click();
 
   await page.getByLabel("City").fill("Atlanta");

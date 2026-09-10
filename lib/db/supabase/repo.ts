@@ -15,6 +15,7 @@ import type {
   IntelNote,
   Learning,
   Opportunity,
+  PickRead,
   Review,
   ReviewDigest,
   Profile,
@@ -247,6 +248,20 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwIf(error, "getCampaignByOpportunity");
       return (data as Campaign | null) ?? null;
     },
+    async replaceCampaign(id, patch, creatives) {
+      const { data, error } = await sb.from("campaigns").update(patch).eq("id", id).select().single();
+      throwIf(error, "replaceCampaign");
+      const campaign = data as Campaign;
+      const { error: dErr } = await sb.from("creatives").delete().eq("campaign_id", id);
+      throwIf(dErr, "replaceCampaign:clear");
+      if (creatives.length > 0) {
+        const { error: cErr } = await sb
+          .from("creatives")
+          .insert(creatives.map((c) => ({ ...c, campaign_id: id })));
+        throwIf(cErr, "replaceCampaign:creatives");
+      }
+      return campaign;
+    },
     async listCampaigns(businessId) {
       const { data, error } = await sb
         .from("campaigns")
@@ -379,6 +394,24 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .maybeSingle();
       throwIf(error, "getIntelNote");
       return (data as IntelNote | null) ?? null;
+    },
+    async upsertPickRead(input) {
+      const { data, error } = await sb
+        .from("pick_reads")
+        .upsert(input, { onConflict: "opportunity_id" })
+        .select()
+        .single();
+      throwIf(error, "upsertPickRead");
+      return data as PickRead;
+    },
+    async getPickRead(opportunityId) {
+      const { data, error } = await sb
+        .from("pick_reads")
+        .select("*")
+        .eq("opportunity_id", opportunityId)
+        .maybeSingle();
+      throwIf(error, "getPickRead");
+      return (data as PickRead | null) ?? null;
     },
 
     async upsertConnection(input) {

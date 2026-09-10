@@ -7,6 +7,7 @@ import AutoRefresh from "@/components/app/auto-refresh";
 import SubmitButton from "@/components/app/submit-button";
 import { briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
+import { titleCase } from "@/lib/text";
 import { getUserRepo } from "@/lib/db";
 import { refreshSnapshotAction } from "@/lib/snapshot/actions";
 
@@ -65,7 +66,7 @@ export default async function SnapshotPage() {
           <span className="eyebrow" style={{ margin: 0 }}>Company snapshot · your founding analysis</span>
           <h1>{business.name}, on paper.</h1>
           <p className="context">
-            <b>{business.category}</b> · {business.city}
+            <b>{titleCase(business.category)}</b> · {business.city}
             {business.region ? `, ${business.region}` : ""} · shapes every recommendation you get
           </p>
         </div>
@@ -77,7 +78,7 @@ export default async function SnapshotPage() {
       </div>
 
       <div className="profile-bar">
-        <div className="p-stat"><span className="k">Category</span><div className="v" style={{ fontSize: 15 }}>{business.category}</div></div>
+        <div className="p-stat"><span className="k">Category</span><div className="v" style={{ fontSize: 15 }}>{titleCase(business.category)}</div></div>
         <div className="p-stat"><span className="k">Home base</span><div className="v" style={{ fontSize: 15 }}>{business.city}{business.region ? `, ${business.region}` : ""}</div></div>
         <div className="p-stat"><span className="k">Reach</span><div className="v">{business.radius_miles} mi</div></div>
         <div className="p-stat"><span className="k">Services</span><div className="v">{activeServices.length} active</div></div>

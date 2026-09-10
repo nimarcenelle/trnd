@@ -10,7 +10,7 @@ import { createDemoRepo } from "../lib/db/demo/repo";
 import { resetStore } from "../lib/db/demo/store";
 import type { NewBusiness } from "../lib/db/types";
 import { buildIntelReport } from "../lib/report/build";
-import { buildFallbackIntelNote, reportFacts } from "../lib/report/note";
+import { buildFallbackIntelNote, noteFingerprint, reportFacts } from "../lib/report/note";
 import { weekOf } from "../lib/recommend/recommend";
 
 const bizInput = (ownerId: string): NewBusiness => ({
@@ -167,6 +167,20 @@ describe("intel note", () => {
     expect(note.headline).not.toContain("Hold");
     expect(note.actions.length).toBeGreaterThanOrEqual(2);
     expect(note.week_of).toBe(weekOf());
+  });
+
+  it("an empty week still gets a move — never a wait", async () => {
+    const { user, biz } = await seed();
+    const full = await buildIntelReport(user, biz);
+    const empty = { ...full, ranked: [] };
+    const note = buildFallbackIntelNote(biz, empty);
+    const text = [note.headline, ...note.narrative, ...note.actions].join(" ");
+    expect(text).not.toMatch(/wait|check back|enough data|ingest|as soon as|picks up/i);
+    expect(note.actions.length).toBeGreaterThanOrEqual(2);
+    expect(reportFacts(empty)).toContain("Standing moves from the analysis");
+    // The stored note is keyed to what it was written from: once picks land
+    // the empty-week note is stale and regenerated, not shown.
+    expect(noteFingerprint(empty)).not.toBe(noteFingerprint(full));
   });
 
   it("facts block carries the reads the model is allowed to cite", async () => {

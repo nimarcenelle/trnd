@@ -4,6 +4,7 @@ import { after } from "next/server";
 
 import GradePill from "@/components/app/grade-pill";
 import PrintButton from "@/components/app/print-button";
+import DeltaChip from "@/components/app/delta-chip";
 import SourceBadge from "@/components/app/source-badge";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
@@ -15,7 +16,7 @@ import {
   buildFallbackIntelNote,
   generateIntelNote,
   INTEL_NOTE_FALLBACK_MODEL,
-  INTEL_NOTE_PROMPT_VERSION,
+  noteFingerprint,
 } from "@/lib/report/note";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { titleCase } from "@/lib/text";
@@ -52,25 +53,25 @@ export default async function ReportPage() {
       console.warn("[report] ranking failed (non-fatal):", (err as Error).message);
     }
   }
-  // Businesses whose Google listing was never resolved get their intel
-  // pulled in the background — voice-of-customer fills in on the next view.
-  after(async () => {
-    try {
-      const { ensureIntelFresh } = await import("@/lib/intel/ingest");
-      await ensureIntelFresh(getAdminRepo(), business);
-    } catch (err) {
-      console.warn("[report] intel self-heal failed (non-fatal):", (err as Error).message);
-    }
-  });
+  // The report analyzes before it renders: if this business has no demand
+  // reads or no listing yet, pull them now — an owner never opens a report
+  // that tells them to wait for one.
+  try {
+    const { ensureIntelFresh } = await import("@/lib/intel/ingest");
+    await ensureIntelFresh(getAdminRepo(), business);
+  } catch (err) {
+    console.warn("[report] intel refresh failed (non-fatal):", (err as Error).message);
+  }
 
   const report = await buildIntelReport(repo, business);
 
   // The analyst note: stored per week; written in the background on first
   // view (a fallback template upgrades to the real note once Gemini runs).
   const stored = await repo.getIntelNote(business.id, report.week);
+  const fingerprint = noteFingerprint(report);
   if (
     !stored ||
-    stored.prompt_version !== INTEL_NOTE_PROMPT_VERSION ||
+    stored.prompt_version !== fingerprint ||
     (stored.model_used === INTEL_NOTE_FALLBACK_MODEL && isGeminiConfigured)
   ) {
     after(async () => {
@@ -82,9 +83,7 @@ export default async function ReportPage() {
     });
   }
   const note =
-    stored && stored.prompt_version === INTEL_NOTE_PROMPT_VERSION
-      ? stored
-      : buildFallbackIntelNote(business, report);
+    stored && stored.prompt_version === fingerprint ? stored : buildFallbackIntelNote(business, report);
 
   const weekRange = `${fmtDate(report.week)} – ${fmtDate(report.weekEnd)}`;
   const generated = new Date(report.generatedAt).toLocaleDateString("en-US", {
@@ -101,7 +100,7 @@ export default async function ReportPage() {
           <span className="eyebrow" style={{ margin: 0 }}>Weekly report · {weekRange}</span>
           <h1>{business.name} — your week.</h1>
           <p className="context">
-            <b>{business.category}</b> · {business.city}
+            <b>{titleCase(business.category)}</b> · {business.city}
             {business.region ? `, ${business.region}` : ""} · {business.radius_miles}-mile radius ·
             generated {generated}
           </p>
@@ -170,7 +169,7 @@ export default async function ReportPage() {
         </div>
         {report.ranked.length === 0 && (
           <p style={{ margin: 0, fontSize: 13.5, color: "var(--ink-faint)" }}>
-            No scorable signal captured yet — the ranking appears as soon as ingestion lands signal for your category.
+            No trend beat your own menu this week — the move above comes from your positioning, rivals, and calendar instead.
           </p>
         )}
         <div style={{ display: "flex", flexDirection: "column" }}>
@@ -191,8 +190,8 @@ export default async function ReportPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                   <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 15 }}>{titleCase(r.term)}</span>
-                  <SourceBadge source={r.source} metric={r.metric} />
-                  {typeof r.deltaPct === "number" && <span className="delta-chip">↑{Math.round(r.deltaPct)}%</span>}
+                  <SourceBadge source={r.source} metric={r.metric} href={r.sourceUrl} />
+                  {typeof r.deltaPct === "number" && <DeltaChip delta={r.deltaPct} href={r.sourceUrl} />}
                   {r.hasCampaign && (
                     <span className="badge badge--mint"><i />campaign built</span>
                   )}
@@ -349,7 +348,9 @@ export default async function ReportPage() {
                 <thead>
                   <tr>
                     <th>Term</th>
-                    <th>Search interest</th>
+                    <th title="Google's index: 100 = the term's own busiest day in the window. Compare direction, not height.">
+                      Search interest <span style={{ fontWeight: 400, color: "var(--ink-faint)" }}>· index vs own peak</span>
+                    </th>
                     <th>Local news</th>
                     <th>Competing ads</th>
                     <th>Last read</th>
@@ -362,9 +363,7 @@ export default async function ReportPage() {
                       <td>
                         {d.interestLevel !== null && !d.interestSparse ? (
                           <span style={{ display: "inline-flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-                            {typeof d.deltaPct === "number" && (
-                              <span className="delta-chip">{d.deltaPct >= 0 ? "↑" : "↓"}{Math.abs(Math.round(d.deltaPct))}%</span>
-                            )}
+                            {typeof d.deltaPct === "number" && <DeltaChip delta={d.deltaPct} href={d.interestUrl} />}
                             <span>
                               {d.interestLevel}/100
                               {d.interestRange && (
@@ -467,7 +466,7 @@ export default async function ReportPage() {
                   }}
                 >
                   <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>{titleCase(m.term)}</span>
-                  <span className="delta-chip">↑{Math.round(m.deltaPct)}%</span>
+                  <DeltaChip delta={m.deltaPct} href={m.sourceUrl} />
                 </div>
               ))}
             </div>

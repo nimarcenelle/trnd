@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import BuildCampaignButton from "@/components/app/build-campaign-button";
 import GradePill from "@/components/app/grade-pill";
 import ScoreBreakdown from "@/components/app/score-breakdown";
+import DeltaChip from "@/components/app/delta-chip";
 import SourceBadge from "@/components/app/source-badge";
 import Sparkline from "@/components/app/sparkline";
 import { getSessionUser } from "@/lib/auth/session";
@@ -12,6 +13,7 @@ import { getUserRepo } from "@/lib/db";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildInsights } from "@/lib/recommend/insights";
 import { weekOf } from "@/lib/recommend/recommend";
+import { scaleNote, sourceUrl } from "@/lib/signals/source-url";
 import { titleCase } from "@/lib/text";
 
 export const metadata = { title: "Opportunities — TRND" };
@@ -110,13 +112,15 @@ export default async function OpportunitiesPage() {
                     </span>
                   )}
                 </div>
-                <p className="why" style={{ marginTop: 6, fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--mint-text)" }}>
-                  {typeof signal?.delta_pct === "number"
-                    ? `${signal.delta_pct >= 0 ? "↑" : "↓"}${Math.abs(Math.round(signal.delta_pct))}% ${signal.metric_type.replace(/_/g, " ")} vs last week`
-                    : signal
-                      ? signal.metric_type.replace(/_/g, " ")
-                      : ""}
-                  {matched ? ` · matched to ${matched.name}` : ""}
+                <p className="why" style={{ marginTop: 6, fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--mint-text)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  {typeof signal?.delta_pct === "number" && (
+                    <DeltaChip delta={signal.delta_pct} href={sourceUrl(signal)} />
+                  )}
+                  <span>
+                    {signal ? signal.metric_type.replace(/_/g, " ") : ""}
+                    {typeof signal?.delta_pct === "number" ? " vs last week" : ""}
+                    {matched ? ` · matched to ${matched.name}` : ""}
+                  </span>
                 </p>
                 {tags.length > 0 && (
                   <div className="opp-tags">
@@ -146,15 +150,24 @@ export default async function OpportunitiesPage() {
                           </div>
                         ))}
                       </div>
-                      <div style={{ flex: "0 1 280px", display: "flex", flexDirection: "column", gap: 16 }}>
+                      <div className="score-card">
                         {explained && <ScoreBreakdown components={explained.components} />}
-                        <div>
-                          <span className="mono-label" style={{ color: "var(--mint-text)", display: "block", marginBottom: 6 }}>
-                            demand — 30d
+                        <div className="score-card__demand">
+                          <span className="mono-label" style={{ color: "var(--mint-text)", display: "block", marginBottom: 8 }}>
+                            Demand — 30d
                           </span>
-                          <Sparkline points={series} width={220} height={44} />
+                          <Sparkline
+                            points={series}
+                            width={440}
+                            height={72}
+                            fluid
+                            axes
+                            note={signal ? scaleNote(signal.source, signal.metric_type) : null}
+                          />
                         </div>
-                        {signal && <SourceBadge source={signal.source} metric={signal.metric_type} />}
+                        {signal && (
+                          <SourceBadge source={signal.source} metric={signal.metric_type} term={signal.term} geo={signal.geo} raw={signal.raw} />
+                        )}
                       </div>
                     </div>
                   </div>

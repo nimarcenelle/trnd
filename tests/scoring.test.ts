@@ -6,7 +6,9 @@ import {
   competitorGap,
   historicalLift,
   matchService,
+  momentum,
   normalizedDelta,
+  trendPct,
   scoreOpportunity,
 } from "../lib/scoring";
 
@@ -129,6 +131,20 @@ describe("applyRelevance", () => {
     const weighted =
       0.35 * c.normalizedDelta + 0.25 * 0.5 + 0.2 * c.competitorGap + 0.2 * c.historicalLift;
     expect(after.score).toBe(Math.round(weighted * (0.3 + 0.7 * 0.5) * 100) / 10);
+  });
+
+  it("momentum weighs the 30-day line, not just this week's delta", () => {
+    const climb = Array.from({ length: 30 }, (_, i) => ({ value: 20 + i * 2 }));
+    const spike = Array.from({ length: 30 }, (_, i) => ({ value: i === 15 ? 100 : 10 }));
+    expect(trendPct(climb)).toBeGreaterThan(50);
+    expect(trendPct([{ value: 1 }, { value: 2 }])).toBeNull();
+    // A quiet week inside a month-long climb still reads as momentum.
+    expect(momentum(4, climb).score).toBeGreaterThan(momentum(4).score);
+    // One spike day mid-month does not make a month of flat demand a climb.
+    expect(momentum(60, spike).score).toBeLessThan(momentum(60).score);
+    // No series: unchanged weekly read, and no month figure to show.
+    expect(momentum(25)).toEqual({ score: 0.5, monthPct: null });
+    expect(typeof momentum(4, climb).monthPct).toBe("number");
   });
 
   it("keeps an irrelevant trend in the C range no matter the momentum", () => {

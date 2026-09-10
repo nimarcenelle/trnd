@@ -55,22 +55,36 @@ export function buildInsights(
         "One of your snapshot's demand terms: people search this year-round when they want what you sell. There's no trend window to miss — it's ready whenever you are.",
     });
   } else if (typeof delta === "number") {
-    const speed =
-      delta < 0
-        ? "Coming off its peak — attention is cheaper here, but the wave is receding."
-        : delta >= 40
-          ? "One of the fastest risers in your category right now."
-          : delta >= 20
-            ? "Well above normal weekly movement for your category."
-            : "A steady climb — lower risk of a fad spike.";
-    insights.push({
-      kind: "momentum",
-      headline: `${delta >= 0 ? "↑" : "↓"}${Math.abs(Math.round(delta))}% ${metricLabel(signal.metric_type)} vs last week`,
-      detail:
+    const month = typeof scored.monthPct === "number" ? scored.monthPct : null;
+    const monthText =
+      month !== null
+        ? ` Across 30 days it's ${month >= 0 ? "up" : "down"} ${Math.abs(Math.round(month))}% (last week's average against the first).`
+        : "";
+    // A quiet week inside a month-long climb is a climb, not a stall.
+    if (delta < 10 && month !== null && month >= 20) {
+      insights.push({
+        kind: "momentum",
+        headline: `↑${Math.round(month)}% ${metricLabel(signal.metric_type)} over 30 days`,
+        detail: `Flat vs last week (${delta >= 0 ? "+" : ""}${Math.round(delta)}%) but a sustained climb across the month — steadier than a spike, and the stars weigh both.${monthText}`,
+      });
+    } else {
+      const speed =
         delta < 0
-          ? speed
-          : `${speed} Rises like this typically crest within a few weeks — the window matters.`,
-    });
+          ? "Coming off its peak — attention is cheaper here, but the wave is receding."
+          : delta >= 40
+            ? "One of the fastest risers in your category right now."
+            : delta >= 20
+              ? "Well above normal weekly movement for your category."
+              : "A steady climb — lower risk of a fad spike.";
+      insights.push({
+        kind: "momentum",
+        headline: `${delta >= 0 ? "↑" : "↓"}${Math.abs(Math.round(delta))}% ${metricLabel(signal.metric_type)} vs last week`,
+        detail:
+          delta < 0
+            ? `${speed}${monthText}`
+            : `${speed}${monthText} Rises like this typically crest within a few weeks — the window matters.`,
+      });
+    }
   } else {
     insights.push({
       kind: "momentum",

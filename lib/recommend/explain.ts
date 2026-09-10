@@ -19,11 +19,12 @@ export async function explainOpportunity(
   opportunity: Opportunity,
   signal: Signal,
 ): Promise<ScoredOpportunity> {
-  const [services, learnings, categorySignals, brief] = await Promise.all([
+  const [services, learnings, categorySignals, brief, series] = await Promise.all([
     repo.listServices(business.id),
     repo.listLearnings(business.category),
     repo.listSignalsForCategory(business.category, { sinceDays: 14 }),
     repo.getBusinessBrief(business.id),
+    repo.getSeries(signal.normalized_term, signal.geo, 30),
   ]);
   const coverage = categorySignals.find(
     (s) => s.metric_type === "news_coverage" && s.normalized_term === signal.normalized_term,
@@ -34,7 +35,7 @@ export async function explainOpportunity(
     services,
     learnings,
     { coverageCount: typeof coverage?.value === "number" ? coverage.value : null },
-    { locality: localityFor(signal.geo, business.region) },
+    { locality: localityFor(signal.geo, business.region), series },
   );
   // A judged ranking persisted its relevance — show exactly what it used.
   if (opportunity.relevance != null) {

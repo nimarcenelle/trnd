@@ -8,10 +8,10 @@ export interface BreakdownData {
 }
 
 const ROWS = [
-  { key: "normalizedDelta", label: "Momentum", weight: WEIGHTS.normalizedDelta, hint: "how fast it's rising" },
-  { key: "serviceMatch", label: "Fit", weight: WEIGHTS.serviceMatch, hint: "matches what you sell" },
-  { key: "competitorGap", label: "Open door", weight: WEIGHTS.competitorGap, hint: "who else is on it" },
-  { key: "historicalLift", label: "Track record", weight: WEIGHTS.historicalLift, hint: "similar campaigns" },
+  { key: "normalizedDelta", label: "Momentum", weight: WEIGHTS.normalizedDelta, hint: "This week vs last, plus the 30-day line" },
+  { key: "serviceMatch", label: "Fit", weight: WEIGHTS.serviceMatch, hint: "Matches what you sell" },
+  { key: "competitorGap", label: "Open door", weight: WEIGHTS.competitorGap, hint: "Who else is on it" },
+  { key: "historicalLift", label: "Track record", weight: WEIGHTS.historicalLift, hint: "Similar campaigns" },
 ] as const;
 
 const STAR_PATH =
@@ -52,7 +52,7 @@ function Stars({ value, label }: { value: number; label: string }) {
  */
 export default function ScoreBreakdown({ components }: { components: BreakdownData }) {
   return (
-    <div className="breakdown">
+    <div className="breakdown breakdown--stars">
       {ROWS.map((row) => {
         const v = components[row.key];
         return (

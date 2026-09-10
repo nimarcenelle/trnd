@@ -1,7 +1,8 @@
 /**
  * Opportunity scoring — the whole formula in one file, per the brief:
  *
- *   score = 0.35 * normalized_delta   // how fast it's rising
+ *   score = 0.35 * momentum           // how fast it's rising: this week vs
+ *                                     // last, blended with the 30-day line
  *         + 0.25 * service_match      // does this business already sell it
  *         + 0.20 * competitor_gap     // inverse of local ad saturation (proxy)
  *         + 0.20 * historical_lift    // from `learnings`, 0.5 neutral when empty
@@ -11,7 +12,7 @@
  * refuses to be — buildRationale() turns the components into plain English.
  */
 
-import type { Learning, Service, Signal } from "@/lib/db/types";
+import type { Learning, Service, Signal, SignalSeriesPoint } from "@/lib/db/types";
 
 /** Above this, a keyword-matched ad count is brand/national noise, not a
  * local read — excluded from scoring and labeled in every surface. */
@@ -28,6 +29,34 @@ export const WEIGHTS = {
 export function normalizedDelta(deltaPct: number | null): number {
   if (deltaPct === null || !Number.isFinite(deltaPct)) return 0.5;
   return Math.min(1, Math.max(0, deltaPct / 50));
+}
+
+/** The 30-day trajectory as a percentage: the last 7 days' mean against the
+ * first 7 days'. Null when the series is too short to say. */
+export function trendPct(series: Pick<SignalSeriesPoint, "value">[]): number | null {
+  if (series.length < 14) return null;
+  const mean = (xs: Pick<SignalSeriesPoint, "value">[]) => xs.reduce((a, p) => a + p.value, 0) / xs.length;
+  const start = mean(series.slice(0, 7));
+  const end = mean(series.slice(-7));
+  if (start <= 0) return end > 0 ? 100 : 0;
+  return ((end - start) / start) * 100;
+}
+
+/**
+ * Momentum: what the owner sees on the demand line must be what the stars
+ * say. A one-week delta alone calls a month-long climb "flat" the week it
+ * pauses, and a single spike "hot" — so when a 30-day series exists the
+ * weekly read and the month's trajectory carry equal weight.
+ */
+export function momentum(
+  deltaPct: number | null,
+  series?: Pick<SignalSeriesPoint, "value">[],
+): { score: number; monthPct: number | null } {
+  const week = normalizedDelta(deltaPct);
+  const monthPct = series ? trendPct(series) : null;
+  if (monthPct === null) return { score: week, monthPct: null };
+  const month = Math.min(1, Math.max(0, monthPct / 50));
+  return { score: Math.round((0.5 * week + 0.5 * month) * 1000) / 1000, monthPct };
 }
 
 const STOPWORDS = new Set([
@@ -152,6 +181,8 @@ export interface ScoredOpportunity {
   };
   /** 0..0.05 added after the weighted sum; survives applyRelevance. */
   localityBonus: number;
+  /** The 30-day trajectory behind the momentum read, when a series existed. */
+  monthPct?: number | null;
   matchedService: Service | null;
   rationale: string;
   competitorGapText: string;
@@ -194,9 +225,10 @@ export function scoreOpportunity(
   services: Service[],
   learnings: Learning[],
   gap: GapInput,
-  opts: { locality?: SignalLocality } = {},
+  opts: { locality?: SignalLocality; series?: Pick<SignalSeriesPoint, "value">[] } = {},
 ): ScoredOpportunity {
-  const nd = normalizedDelta(signal.delta_pct);
+  const mo = momentum(signal.delta_pct, opts.series);
+  const nd = mo.score;
   const sm = matchService(signal, services);
   const cg = competitorGap(gap);
   const hl = historicalLift(learnings);
@@ -212,10 +244,14 @@ export function scoreOpportunity(
       localityBonus,
   );
 
+  const monthText =
+    typeof mo.monthPct === "number"
+      ? ` and ${mo.monthPct >= 0 ? "up" : "down"} ${Math.abs(Math.round(mo.monthPct))}% across 30 days`
+      : "";
   const deltaText =
     signal.delta_pct !== null
-      ? `up ${Math.round(signal.delta_pct)}% ${signal.metric_type.replace(/_/g, " ")} this week`
-      : `trending in ${signal.metric_type.replace(/_/g, " ")} right now`;
+      ? `${signal.delta_pct >= 0 ? "up" : "down"} ${Math.abs(Math.round(signal.delta_pct))}% ${signal.metric_type.replace(/_/g, " ")} this week${monthText}`
+      : `trending in ${signal.metric_type.replace(/_/g, " ")} right now${monthText}`;
   const localityText = LOCALITY_TEXT[locality] ? ` (${LOCALITY_TEXT[locality]})` : "";
 
   return {
@@ -227,6 +263,7 @@ export function scoreOpportunity(
       historicalLift: hl.score,
     },
     localityBonus,
+    monthPct: mo.monthPct,
     matchedService: sm.service,
     rationale: `"${signal.term}" is ${deltaText}${localityText}; ${sm.reason}; ${cg.reason}; ${hl.reason}.`,
     competitorGapText: cg.reason,

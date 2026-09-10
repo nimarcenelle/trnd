@@ -497,7 +497,7 @@ export async function generateIntelNoteWithGemini(
     facts,
     ``,
     `Return JSON:`,
-    `- headline: one plain sentence telling the owner what to do this week. A person, not a strategy deck: "Run the sports massage ad this week — nobody else nearby is advertising it." When nothing is worth running, say to hold and why in the same plain way.`,
+    `- headline: one plain sentence telling the owner what to do this week. A person, not a strategy deck: "Run the sports massage ad this week — nobody else nearby is advertising it." When no trend is worth paid spend, the headline is still a move — the best one the rest of the facts support (a competitor gap, a review theme, a calendar moment, their strongest offer).`,
     `- actions: 2-4 numbered moves the owner could literally start today, each one sentence, verbs first, naming the real service, dollar amount, or day from the facts ("Turn on the ad", "Reply to", "Post a photo of").`,
     `- narrative: 2-3 SHORT paragraphs saying why, in the owner's language. Explain like a sharp friend who runs ads, not a consultant.`,
     ``,
@@ -505,6 +505,7 @@ export async function generateIntelNoteWithGemini(
     `- Everyday words and short sentences. Say "competitors' ads" not "competitor ad saturation"; "more people searching" not "demand signals"; "your Google reviews" not "sentiment data".`,
     `- Banned words: deploy, capture, leverage, saturation, delta, proxy, footprint, signals, cadence, optimize, synergy.`,
     `- Every claim must come from the FACTS block — never invent numbers, competitors, or trends. Write to the owner as "you". No hedging filler, no exclamation marks.`,
+    `- TRND has already done the analysis. Never tell the owner to wait — not for data, tracking, a future report, or "more searches". Never say there isn't enough information. Thin facts mean a smaller, surer move (their own offer, their own reviews, the calendar), never a pause.`,
   ].join("\n");
   const value = await structuredCall(models.flash, prompt, intelNoteResponseSchema, (d) =>
     IntelNoteSchema.parse(d),

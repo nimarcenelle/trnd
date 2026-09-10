@@ -222,24 +222,30 @@ export async function recommendForBusiness(
     signals.filter((s) => s.metric_type !== "news_coverage" && s.metric_type !== "ad_saturation"),
   );
   type Candidate = { signal: Signal; result: ScoredOpportunity; relevance: number | null };
-  const allScored: Candidate[] = scorable
-    .map((signal) => ({
-      signal,
-      result: scoreOpportunity(
+  const allScored: Candidate[] = (
+    await Promise.all(
+      scorable.map(async (signal) => ({
         signal,
-        services,
-        learnings,
-        {
-          coverageCount: coverage.get(signal.normalized_term) ?? null,
-          adCount: adCountFor(signal.normalized_term),
-        },
-        // Demand measured in the business's own metro or state outranks the
-        // same demand measured nationally.
-        { locality: localityFor(signal.geo, business.region) },
-      ),
-      relevance: null,
-    }))
-    .sort((a, b) => b.result.score - a.result.score);
+        result: scoreOpportunity(
+          signal,
+          services,
+          learnings,
+          {
+            coverageCount: coverage.get(signal.normalized_term) ?? null,
+            adCount: adCountFor(signal.normalized_term),
+          },
+          {
+            // Demand measured in the business's own metro or state outranks
+            // the same demand measured nationally.
+            locality: localityFor(signal.geo, business.region),
+            // The 30-day line the owner sees is part of the momentum read.
+            series: await repo.getSeries(signal.normalized_term, signal.geo, 30),
+          },
+        ),
+        relevance: null,
+      })),
+    )
+  ).sort((a, b) => b.result.score - a.result.score);
   // A modest "cold plunge" read loses to a ↑100% skincare hashtag on raw
   // score — the pool union keeps the business's own demand terms judgeable.
   let scored = buildCandidatePool(allScored, [

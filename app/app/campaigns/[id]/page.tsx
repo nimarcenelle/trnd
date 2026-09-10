@@ -74,7 +74,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           <div style={{ maxWidth: 620 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
               <span className="badge badge--amber"><i />finished campaign</span>
-              {signal && <SourceBadge source={signal.source} />}
+              {signal && <SourceBadge source={signal.source} term={signal.term} geo={signal.geo} raw={signal.raw} />}
               <span className="badge"><i />{campaign.channel} · paid social</span>
             </div>
             <h1 className="h-disp" style={{ fontSize: "clamp(24px,3vw,34px)", margin: "0 0 12px", lineHeight: 1.12 }}>

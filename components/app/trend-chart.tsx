@@ -25,6 +25,7 @@ export default function TrendChart({
   points,
   weeklyDeltaPct = null,
   unitHint = "relative demand for this term — higher means more people searching",
+  sourceHref = null,
 }: {
   points: SignalSeriesPoint[];
   /** The ranking's week-over-week read for this term — shown beside the
@@ -33,6 +34,8 @@ export default function TrendChart({
   weeklyDeltaPct?: number | null;
   /** One plain-language line saying what the y-axis number IS. */
   unitHint?: string;
+  /** The page this series was read from — every number one click from its source. */
+  sourceHref?: string | null;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -121,13 +124,27 @@ export default function TrendChart({
             {Math.abs(weekly)}% vs last week
           </span>
         )}
-        <span
-          className={`delta-chip${delta < 0 ? " delta-chip--down" : ""}`}
-          title="Average of the last week of this window against its first week"
-        >
-          {delta >= 0 ? "↑" : "↓"}
-          {Math.abs(delta)}% over 30 days
-        </span>
+        {sourceHref ? (
+          <a
+            className={`delta-chip delta-chip--link${delta < 0 ? " delta-chip--down" : ""}`}
+            href={sourceHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Average of the last week of this window against its first week — opens the source"
+          >
+            {delta >= 0 ? "↑" : "↓"}
+            {Math.abs(delta)}% over 30 days
+            <span className="src-arrow" aria-hidden="true">↗</span>
+          </a>
+        ) : (
+          <span
+            className={`delta-chip${delta < 0 ? " delta-chip--down" : ""}`}
+            title="Average of the last week of this window against its first week"
+          >
+            {delta >= 0 ? "↑" : "↓"}
+            {Math.abs(delta)}% over 30 days
+          </span>
+        )}
       </div>
       <p style={{ margin: "2px 0 10px", fontSize: 11.5, fontFamily: "var(--mono)", color: "var(--ink-faint)" }}>
         {unitHint}

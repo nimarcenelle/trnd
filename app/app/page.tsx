@@ -8,6 +8,7 @@ import ScoreBreakdown from "@/components/app/score-breakdown";
 import GradePill from "@/components/app/grade-pill";
 import GradeRing from "@/components/app/grade-ring";
 import SubmitButton from "@/components/app/submit-button";
+import DeltaChip from "@/components/app/delta-chip";
 import SourceBadge from "@/components/app/source-badge";
 import TrendChart from "@/components/app/trend-chart";
 import InsightList from "@/components/app/insight-list";
@@ -28,6 +29,7 @@ import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, busine
 import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { geoLabel } from "@/lib/signals/geo";
+import { sourceUrl } from "@/lib/signals/source-url";
 import { titleCase } from "@/lib/text";
 
 export const metadata = { title: "This week — TRND" };
@@ -46,7 +48,11 @@ function deltaShort(d: number) {
   return d > 0 ? `↑${Math.round(d)}%` : `↓${Math.abs(Math.round(d))}%`;
 }
 
-export default async function AppHome() {
+export default async function AppHome({
+  searchParams,
+}: {
+  searchParams: Promise<{ pick?: string | string[] }>;
+}) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
@@ -56,11 +62,18 @@ export default async function AppHome() {
   const week = weekOf();
   let opportunities = await repo.listOpportunities(business.id, week);
   if (opportunities.length === 0) {
-    // First visit of the week: score what we have right now so the screen is
-    // never empty. The weekly cron does the same in bulk. Ranking writes to
-    // shared tables (signals, opportunities) that RLS keeps read-only for
-    // user sessions, so the job runs on the service repo — and a failed rank
+    // First visit of the week: pull this business's market reads if none
+    // exist yet, then score what we have right now so the screen is never
+    // empty. The weekly cron does the same in bulk. Ranking writes to shared
+    // tables (signals, opportunities) that RLS keeps read-only for user
+    // sessions, so the job runs on the service repo — and a failed rank
     // degrades to the empty state, never the error boundary.
+    try {
+      const { ensureIntelFresh } = await import("@/lib/intel/ingest");
+      await ensureIntelFresh(getAdminRepo(), business);
+    } catch (err) {
+      console.warn("[app] first-visit intel refresh failed (non-fatal):", (err as Error).message);
+    }
     try {
       await recommendForBusiness(getAdminRepo(), business);
       opportunities = await repo.listOpportunities(business.id, week);
@@ -70,7 +83,15 @@ export default async function AppHome() {
   }
 
   const active = opportunities.filter((o) => o.status !== "dismissed");
-  const top = active[0] ?? null;
+  // The hero shows one of the week's top picks — #1 by default, any of the
+  // first five via ?pick=n so the owner can page through them in full.
+  const picks = active.slice(0, 5);
+  const pickParam = (await searchParams).pick;
+  const requested = Number.parseInt(Array.isArray(pickParam) ? (pickParam[0] ?? "") : (pickParam ?? ""), 10);
+  const pickIndex = Number.isFinite(requested) && requested >= 1 && requested <= picks.length ? requested - 1 : 0;
+  const lead = active[0] ?? null;
+  const top = picks[pickIndex] ?? null;
+  const isLead = pickIndex === 0;
 
   const weekEnd = new Date(new Date(`${week}T00:00:00Z`).getTime() + 6 * 86400_000);
   const weekRange = `${fmtDate(week)} – ${fmtDate(weekEnd)}`;
@@ -205,15 +226,16 @@ export default async function AppHome() {
             <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
             <h1>Nothing cleared the bar this week.</h1>
             <p className="context">
-              Today&apos;s reads for <b>{business.category}</b> around {business.city} didn&apos;t
+              Today&apos;s reads for <b>{titleCase(business.category)}</b> around {business.city} didn&apos;t
               produce a ranking worth your money — or everything this week was dismissed.
             </p>
           </div>
         </div>
         <div className="panel" style={{ maxWidth: 620 }}>
           <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
-            The daily scan keeps watching your terms and your broader market. You can also
-            re-read the market right now.
+            Your intel report still has the week&apos;s move — built from your positioning, your rivals&apos;
+            ads, and the calendar. The daily scan keeps watching your terms and your broader market, and
+            you can re-read the market right now.
           </p>
           {!isSupabaseConfigured && (
             <p style={{ margin: "12px 0 0", fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--ink-faint)" }}>
@@ -226,6 +248,9 @@ export default async function AppHome() {
                 Scan my market now
               </SubmitButton>
             </form>
+            <Link className="btn btn-ghost btn-sm" href="/app/report">
+              Read this week&apos;s report →
+            </Link>
             <Link className="btn btn-ghost btn-sm" href="/app/opportunities">
               Review dismissed opportunities
             </Link>
@@ -245,6 +270,9 @@ export default async function AppHome() {
   // The screen must not dress it up — no creative playbook, no "capture this
   // demand" pitch — just the honest read and what to run instead.
   const thin = Number(top.score) < 4.3;
+  // The week is thin when even #1 sits below the bar — that drives the
+  // "run your own moves" section regardless of which pick is being viewed.
+  const weekThin = lead ? Number(lead.score) < 4.3 : thin;
   const snapshotReason = top.rationale?.match(/Snapshot read: (.+)$/)?.[1] ?? null;
   const howto =
     signal && !thin
@@ -312,11 +340,14 @@ export default async function AppHome() {
     priceBand: business.price_band,
   });
 
-  // Runner-ups + their signals for the strip below the hero.
-  const runnerUps = active.slice(1, 4);
-  const runnerSignals = new Map<string, Signal | null>(
-    await Promise.all(runnerUps.map(async (o) => [o.id, await repo.getSignal(o.signal_id)] as const)),
+  // The other picks + their signals: hero tabs and the strip below the hero.
+  const pickSignals = new Map<string, Signal | null>(
+    await Promise.all(
+      picks.map(async (o) => [o.id, o.id === top.id ? signal : await repo.getSignal(o.signal_id)] as const),
+    ),
   );
+  const runnerUps = picks.filter((o) => o.id !== top.id);
+  const runnerSignals = pickSignals;
   const runnerExplained = new Map(
     await Promise.all(
       runnerUps.map(async (o) => {
@@ -376,7 +407,7 @@ export default async function AppHome() {
           <span className="eyebrow" style={{ margin: 0 }}>This week&apos;s recommendation · {weekRange}</span>
           <h1>{business.name.endsWith("s") ? `${business.name}’` : `${business.name}’s`} week, read for you.</h1>
           <p className="context">
-            <b>{business.category}</b> · {business.city}
+            <b>{titleCase(business.category)}</b> · {business.city}
             {business.region ? `, ${business.region}` : ""} · {business.radius_miles} mile radius ·
             signal refreshes daily
           </p>
@@ -398,7 +429,7 @@ export default async function AppHome() {
         <div className="kpi">
           <span className="k">Market reads · 7d</span>
           <span className="v">{watched.length}</span>
-          <span className="s">across {business.category.toLowerCase()}</span>
+          <span className="s">across {titleCase(business.category)}</span>
         </div>
         <div className="kpi">
           <span className="k">Ranked this week</span>
@@ -482,7 +513,7 @@ export default async function AppHome() {
           When no trend clears the bar, the recommendation IS the
           service-anchored moves from the analysis — they lead, in the hero
           slot, and the closest trend demotes to market context below. */}
-      {thin && brief && brief.first_moves.length > 0 && (
+      {weekThin && brief && brief.first_moves.length > 0 && (
         <section className="panel panel--hero" style={{ marginTop: 18, padding: "30px 32px 28px" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
             <span className="badge badge--amber"><i />This week&apos;s play</span>
@@ -518,18 +549,65 @@ export default async function AppHome() {
       {/* marginTop collapses with whatever sits above (alerts strip, stat
           row), so the hero never touches its neighbor and never doubles up. */}
       <section className={thin ? "panel" : "panel panel--hero"} style={{ padding: "30px 32px 28px", marginTop: 18 }}>
+        {picks.length > 1 && (
+          <nav className="pick-tabs" aria-label="This week's picks">
+            <Link
+              href={pickIndex === 0 ? `/app?pick=${picks.length}` : pickIndex === 1 ? "/app" : `/app?pick=${pickIndex}`}
+              scroll={false}
+              className="pick-tabs__arrow"
+              aria-label="Previous pick"
+            >
+              ‹
+            </Link>
+            <div className="pick-tabs__list">
+              {picks.map((o, i) => {
+                const s = pickSignals.get(o.id);
+                const on = i === pickIndex;
+                return (
+                  <Link
+                    key={o.id}
+                    href={i === 0 ? "/app" : `/app?pick=${i + 1}`}
+                    scroll={false}
+                    className={`pick-tab${on ? " pick-tab--on" : ""}`}
+                    aria-current={on ? "page" : undefined}
+                  >
+                    <span className="pick-tab__rank">#{i + 1}</span>
+                    <span className="pick-tab__term">{s ? titleCase(s.term) : "Opportunity"}</span>
+                    <GradePill score={Number(o.score)} />
+                  </Link>
+                );
+              })}
+            </div>
+            <Link
+              href={pickIndex + 1 >= picks.length ? "/app" : `/app?pick=${pickIndex + 2}`}
+              scroll={false}
+              className="pick-tabs__arrow"
+              aria-label="Next pick"
+            >
+              ›
+            </Link>
+          </nav>
+        )}
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
           <div style={{ flex: "1 1 400px", minWidth: 280 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
-              <span className="badge badge--amber"><i />{thin ? "Closest trend — market context, not a pick" : "#1 this week"}</span>
-              {signal && <SourceBadge source={signal.source} metric={signal.metric_type} />}
-              {typeof signal?.delta_pct === "number" && (
-                <span className="delta-chip">
-                  {deltaShort(signal.delta_pct) === "steady"
-                    ? "steady this week"
-                    : `${deltaShort(signal.delta_pct)} vs last week`}
-                </span>
+              <span className="badge badge--amber">
+                <i />
+                {isLead
+                  ? thin
+                    ? "Closest trend — market context, not a pick"
+                    : "#1 this week"
+                  : `#${pickIndex + 1} this week${thin ? " — below the bar" : ""}`}
+              </span>
+              {signal && (
+                <SourceBadge source={signal.source} metric={signal.metric_type} term={signal.term} geo={signal.geo} raw={signal.raw} />
               )}
+              {typeof signal?.delta_pct === "number" &&
+                (deltaShort(signal.delta_pct) === "steady" ? (
+                  <span className="delta-chip">steady this week</span>
+                ) : (
+                  <DeltaChip delta={signal.delta_pct} suffix="vs last week" href={sourceUrl(signal)} />
+                ))}
             </div>
             <h2 className="h-disp" style={{ fontSize: thin ? "clamp(20px,2.4vw,26px)" : "clamp(26px,3.2vw,38px)", margin: "0 0 16px", lineHeight: 1.08, letterSpacing: "-0.02em" }}>
               {signal ? titleCase(signal.term) : "This week's opportunity"}
@@ -565,13 +643,9 @@ export default async function AppHome() {
 
           </div>
 
-          <div style={{ flex: "1 1 300px", minWidth: 280, maxWidth: 400, display: "flex", flexDirection: "column", gap: 18, alignItems: "center" }}>
+          <div className="score-card score-card--hero">
             <GradeRing score={Number(top.score)} />
-            {explained && (
-              <div style={{ width: "100%" }}>
-                <ScoreBreakdown components={explained.components} />
-              </div>
-            )}
+            {explained && <ScoreBreakdown components={explained.components} />}
           </div>
         </div>
 
@@ -619,9 +693,11 @@ export default async function AppHome() {
             <span className="k">Do this next</span>
             <div className="v">
               {thin
-                ? brief && brief.first_moves.length > 0
+                ? weekThin && brief && brief.first_moves.length > 0
                   ? "Run this week's play above — it's anchored to your menu. Build this trend only if the creative is trivial."
-                  : "Thin week — nothing squarely fits what you sell. Wait, or build only if the creative is trivial."
+                  : isLead
+                    ? "Nothing squarely fits what you sell — lead with your own menu, and build this only if the creative is trivial."
+                    : "Below the bar for paid spend — the higher-ranked picks are the better bet this week."
                 : campaign
                   ? nextAction.label
                   : `${nextAction.label} — launch by ${launchBy}`}
@@ -673,6 +749,7 @@ export default async function AppHome() {
                 ? "monthly searches for this term, by day observed"
                 : "search interest index — 100 is this term's recent peak, 0 its quietest day"
             }
+            sourceHref={signal ? sourceUrl(signal) : null}
           />
         </section>
       )}
@@ -682,12 +759,12 @@ export default async function AppHome() {
         {runnerUps.length > 0 && (
           <section className="panel">
             <div className="panel__head">
-              <span className="panel__title">Next in line</span>
+              <span className="panel__title">{isLead ? "Next in line" : "Also this week"}</span>
               <Link href="/app/opportunities" className="panel__meta" style={{ color: "var(--amber-text)" }}>
                 view all →
               </Link>
             </div>
-            {thin && (
+            {weekThin && (
               <p style={{ margin: "0 0 8px", fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-faint)" }}>
                 None of these fit what you sell this week — shown as market context, graded accordingly.
               </p>
@@ -696,9 +773,13 @@ export default async function AppHome() {
               {runnerUps.map((o, i) => {
                 const s = runnerSignals.get(o.id);
                 const ex = runnerExplained.get(o.id);
+                const rank = active.indexOf(o) + 1;
                 return (
-                  <div
+                  <Link
                     key={o.id}
+                    href={rank === 1 ? "/app" : `/app?pick=${rank}`}
+                    scroll={false}
+                    className="runner-link"
                     style={{
                       display: "flex",
                       gap: 14,
@@ -708,7 +789,7 @@ export default async function AppHome() {
                     }}
                   >
                     <span style={{ fontFamily: "var(--disp)", fontWeight: 700, color: "var(--ink-faint)", fontSize: 14, width: 22 }}>
-                      #{i + 2}
+                      #{rank}
                     </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5 }}>{s ? titleCase(s.term) : ""}</span>
@@ -718,7 +799,8 @@ export default async function AppHome() {
                       </span>
                     </div>
                     {ex && <GradePill score={Number(o.score)} />}
-                  </div>
+                    <span className="runner-link__go" aria-hidden="true">›</span>
+                  </Link>
                 );
               })}
             </div>
@@ -728,7 +810,7 @@ export default async function AppHome() {
         <section className="panel">
           <div className="panel__head">
             <span className="panel__title mint">Market pulse · 7d</span>
-            <span className="panel__meta">{business.category.toLowerCase()} · change vs the week before</span>
+            <span className="panel__meta">{titleCase(business.category)} · change vs the week before</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             {movers.map((s, i) => (
@@ -744,7 +826,7 @@ export default async function AppHome() {
                 }}
               >
                 <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>{titleCase(s.term)}</span>
-                <span className="delta-chip">{deltaShort(s.delta_pct ?? 0)}</span>
+                <DeltaChip delta={s.delta_pct ?? 0} href={sourceUrl(s)} />
               </div>
             ))}
             {movers.length === 0 && (
@@ -759,7 +841,7 @@ export default async function AppHome() {
         <section className="panel" style={{ marginTop: 18 }}>
           <div className="panel__head">
             <span className="panel__title">Coming up — plan ahead</span>
-            <span className="panel__meta">known demand moments for {business.category.toLowerCase()}</span>
+            <span className="panel__meta">known demand moments for {titleCase(business.category)}</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
             {seasonal.map((m) => (
@@ -802,7 +884,7 @@ export default async function AppHome() {
             <div>
               <h4>How TRND reads {business.name}</h4>
               <p>
-                {business.category} · {business.city}
+                {titleCase(business.category)} · {business.city}
                 {business.region ? `, ${business.region}` : ""} · {services.filter((s) => s.is_active).length} services on file
               </p>
             </div>

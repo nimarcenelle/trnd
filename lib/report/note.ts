@@ -5,8 +5,8 @@ import { titleCase } from "@/lib/text";
 import type { IntelReport } from "./build";
 
 export const INTEL_NOTE_FALLBACK_MODEL = "trnd-template/v1";
-/** intel-2: owner voice — actions-first, plain words, analyst register banned. */
-export const INTEL_NOTE_PROMPT_VERSION = "intel-2";
+/** intel-3: never tells the owner to wait — thin weeks get a move from the analysis, not a pause. */
+export const INTEL_NOTE_PROMPT_VERSION = "intel-3";
 
 /** The same worth-running bar the dashboard uses. */
 const THIN_BAR = 4.3;
@@ -28,7 +28,9 @@ export function reportFacts(report: IntelReport): string {
       `Ranked #${r.rank}: "${titleCase(r.term)}" — grade ${r.grade.letter} (${r.score}/10), ${r.metric.replace(/_/g, " ")}${typeof r.deltaPct === "number" ? ` up ${Math.round(r.deltaPct)}% this week` : ""}${r.matchedServiceName ? `, matches your ${r.matchedServiceName}` : ", no menu match"}${r.snapshotReason ? `. Judge: ${r.snapshotReason}` : ""}${r.competitorGap ? ` Saturation: ${r.competitorGap}.` : ""}${r.hasCampaign ? " (campaign already built)" : ""}`,
     );
   }
-  if (report.ranked.length === 0) lines.push(`Ranked: nothing this week — no scorable signal for the category yet.`);
+  if (report.ranked.length === 0) {
+    lines.push(`Ranked: no trend cleared the bar for paid spend this week — the move comes from the rest of these facts.`);
+  }
   for (const d of report.demand) {
     const reads: string[] = [];
     if (d.interestSparse) {
@@ -77,6 +79,10 @@ export function reportFacts(report: IntelReport): string {
       : `Results to date: ${res.totalCampaigns} campaign${res.totalCampaigns === 1 ? "" : "s"} generated, no recorded results yet.`,
   );
   if (report.brief?.positioning) lines.push(`Positioning: ${report.brief.positioning}`);
+  if (report.brief?.customer_segments?.length) lines.push(`Who buys: ${report.brief.customer_segments.join(" | ")}`);
+  if (report.brief?.advantages?.length) lines.push(`Edges: ${report.brief.advantages.join(" | ")}`);
+  if (report.brief?.first_moves?.length) lines.push(`Standing moves from the analysis: ${report.brief.first_moves.join(" | ")}`);
+  if (report.brief?.seasonality) lines.push(`Seasonality read: ${report.brief.seasonality}`);
   return lines.join("\n");
 }
 
@@ -91,7 +97,9 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
     ? thin
       ? `Hold your spend this week — nothing in the pool squarely fits what you sell.`
       : `Run "${titleCase(top.term)}" this week — ${top.grade.label.toLowerCase()} at grade ${top.grade.letter}.`
-    : `No scorable signal captured for ${business.category.toLowerCase()} yet — the report fills in as ingestion runs.`;
+    : report.brief?.first_moves?.[0]
+      ? report.brief.first_moves[0]
+      : `Lead with your strongest offer this week — no trend beat it, so your own menu is the play.`;
 
   const narrative: string[] = [];
   if (top) {
@@ -102,8 +110,11 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
     );
   } else {
     narrative.push(
-      `No scorable demand signal has been captured for your category in the last two weeks, so this report holds market context only. Ingestion runs daily; the ranking appears as soon as signal lands.`,
+      report.brief?.positioning
+        ? `No trend in ${business.city} beat what you already sell this week, so the play is your own positioning: ${report.brief.positioning}`
+        : `No trend in ${business.city} beat what you already sell this week, so the play is your own menu — one specific offer, priced, aimed at the ${business.radius_miles}-mile radius.`,
     );
+    if (report.brief?.moat) narrative.push(report.brief.moat);
   }
   const lowSat = report.demand.filter((d) => typeof d.adCount === "number" && d.adCount <= 5);
   const withReads = report.demand.filter((d) => d.lastRead !== null);
@@ -127,12 +138,14 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
         : `Build the "${titleCase(top.term)}" campaign — it takes under a minute.`,
     );
   }
-  if (thin && report.brief?.first_moves?.[0]) actions.push(report.brief.first_moves[0]);
+  if ((thin || !top) && report.brief?.first_moves?.length) {
+    actions.push(...report.brief.first_moves.slice(0, top ? 1 : 2));
+  }
   if (nextMoment?.prepNow) actions.push(`Start creative for ${nextMoment.label} now — inside the ${nextMoment.leadWeeks}-week prep window.`);
   if (report.results.avgCtr === null && report.results.totalCampaigns > 0) {
     actions.push(`Record results for your ${report.results.totalCampaigns === 1 ? "campaign" : "campaigns"} — every number sharpens next week's ranking.`);
   }
-  if (actions.length < 2) actions.push(`Check the demand tracker below — every term is read daily with sources cited.`);
+  if (actions.length < 2) actions.push(`Read the competitor and customer-voice sections below — the ad angle is usually sitting in one of them.`);
 
   return {
     business_id: business.id,
@@ -141,8 +154,24 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
     narrative: narrative.slice(0, 3),
     actions: actions.slice(0, 4),
     model_used: INTEL_NOTE_FALLBACK_MODEL,
-    prompt_version: INTEL_NOTE_PROMPT_VERSION,
+    prompt_version: noteFingerprint(report),
   };
+}
+
+/**
+ * What the note was written from, coarsely: the ranked terms plus whether any
+ * demand read exists. A stored note whose fingerprint no longer matches was
+ * written before the analysis landed and is regenerated, not shown.
+ */
+export function noteFingerprint(report: IntelReport): string {
+  const key = [
+    report.ranked.map((r) => r.term).join(","),
+    report.demand.some((d) => d.lastRead !== null) ? "reads" : "noreads",
+    report.competitorsWatched.some((w) => w.ads || w.reviews) ? "rivals" : "norivals",
+  ].join("|");
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return `${INTEL_NOTE_PROMPT_VERSION}/${(h >>> 0).toString(36)}`;
 }
 
 export async function generateIntelNote(
@@ -158,7 +187,7 @@ export async function generateIntelNote(
         week_of: report.week,
         ...value,
         model_used: model,
-        prompt_version: INTEL_NOTE_PROMPT_VERSION,
+        prompt_version: noteFingerprint(report),
       };
     } catch (err) {
       console.warn("[report] Gemini intel note failed — using deterministic fallback:", (err as Error).message);

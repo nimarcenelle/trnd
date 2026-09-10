@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "trnd-dev",
-      "runtimeExecutable": "./node_modules/.bin/next",
-      "runtimeArgs": ["dev", "-p", "3000"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
       "port": 3000
     }
   ]

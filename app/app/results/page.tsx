@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import ResultEntryForm from "@/components/app/result-entry-form";
 import { getSessionUser } from "@/lib/auth/session";
+import { titleCase } from "@/lib/text";
 import { getUserRepo } from "@/lib/db";
 import { buildResultsTakeaway } from "@/lib/recommend/insights";
 
@@ -271,7 +272,7 @@ export default async function ResultsPage() {
       {learnings.length > 0 && (
         <section className="panel">
           <div className="panel__head">
-            <span className="panel__title">What TRND has learned for {business.category}</span>
+            <span className="panel__title">What TRND has learned for {titleCase(business.category)}</span>
             <span className="panel__meta">feeds the track-record component of every score</span>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>

@@ -6,6 +6,7 @@ import { upcomingMoments, type UpcomingMoment } from "@/lib/recommend/seasonal";
 import { buildResultsTakeaway } from "@/lib/recommend/insights";
 import { benchmarkFor } from "@/lib/results/benchmarks";
 import { normalizeTerm } from "@/lib/signals/normalize";
+import { sourceUrl } from "@/lib/signals/source-url";
 
 /**
  * The weekly intel report: every number on the page assembled here, each one
@@ -30,6 +31,8 @@ export interface RankedRow {
   competitorGap: string | null;
   hasCampaign: boolean;
   status: string;
+  /** The page the read was taken from, when the source has one. */
+  sourceUrl: string | null;
 }
 
 export interface DemandRow {
@@ -47,6 +50,8 @@ export interface DemandRow {
    * actually measured — always shown next to the number. */
   interestMeasuredAs: string | null;
   interestSource: SignalSource | null;
+  /** Where the interest read can be checked, when the source has a page. */
+  interestUrl: string | null;
   /** Recent local news mentions (null = no read captured). */
   coverageCount: number | null;
   /** Active Meta ads matching the term near the business (null = no read). */
@@ -67,6 +72,7 @@ export interface MoverRow {
   deltaPct: number;
   metric: string;
   source: SignalSource;
+  sourceUrl: string | null;
 }
 
 /** A named competitor's latest reads — the "competitor moves" section. */
@@ -162,6 +168,7 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
       competitorGap: o.competitor_gap,
       hasCampaign: campaignOppIds.has(o.id),
       status: o.status,
+      sourceUrl: sourceUrl(signal),
     });
   }
 
@@ -225,6 +232,7 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
       interestSparse,
       interestMeasuredAs,
       interestSource: interest?.source ?? null,
+      interestUrl: interest ? sourceUrl(interest) : null,
       coverageCount: (coverage?.value as number | undefined) ?? null,
       adCount: (adRead?.value as number | undefined) ?? null,
       lastRead,
@@ -254,7 +262,7 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
     )
     .sort((a, b) => b.delta_pct - a.delta_pct)
     .slice(0, 6)
-    .map((s) => ({ term: s.term, deltaPct: s.delta_pct, metric: s.metric_type, source: s.source }));
+    .map((s) => ({ term: s.term, deltaPct: s.delta_pct, metric: s.metric_type, source: s.source, sourceUrl: sourceUrl(s) }));
 
   // ---- named-competitor moves: latest read per kind, plus the week-ago
   // ad count so "they scaled" is a number, not a vibe

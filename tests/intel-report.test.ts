@@ -169,6 +169,17 @@ describe("intel note", () => {
     expect(note.week_of).toBe(weekOf());
   });
 
+  it("fallback actions are moves in the world, not chores in the app", async () => {
+    const { user, biz } = await seed();
+    const note = buildFallbackIntelNote(biz, await buildIntelReport(user, biz));
+    const text = note.actions.join(" ");
+    // The owner sees this list every week — anything the software could say
+    // with no data at all ("build the campaign", "record your results") is
+    // filler, and filler is what gets a report skipped.
+    expect(text).not.toMatch(/record (your |the )?results|takes under a minute|check the dashboard/i);
+    expect(text).toMatch(/Cold Plunge Chapel Hill/i);
+  });
+
   it("an empty week still gets a move — never a wait", async () => {
     const { user, biz } = await seed();
     const full = await buildIntelReport(user, biz);

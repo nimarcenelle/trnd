@@ -1,5 +1,5 @@
 import type { SignalSource } from "@/lib/db/types";
-import { sourceUrl } from "@/lib/signals/source-url";
+import { proofName, sourceUrl } from "@/lib/signals/source-url";
 
 const LABELS: Record<SignalSource, string> = {
   google_trends: "Google Trends",
@@ -43,7 +43,9 @@ export default function SourceBadge({
       : source === "snapshot"
         ? "A demand term from your founding analysis, watched daily"
         : link
-          ? `Open this read on ${LABELS[source]}`
+          ? // The destination, not the label — "Open this read on Search
+            // volume" tells nobody where they're going.
+            `See it for yourself on ${proofName(source) ?? LABELS[source]}`
           : `Captured from ${LABELS[source]}`;
   // "Search volume · search volume" (dataforseo's metric IS its label) reads
   // as a glitch — only show the metric when it adds something.

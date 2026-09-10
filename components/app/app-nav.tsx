@@ -9,7 +9,9 @@ import ThemeToggle from "@/components/theme-toggle";
 const LINKS = [
   { href: "/app", label: "This week" },
   { href: "/app/report", label: "Report" },
-  { href: "/app/ask", label: "Ask" },
+  // Ask is pulled from the nav until the answers are worth a tab of their
+  // own — the route and panel still work at /app/ask, so putting it back is
+  // this one line.
   { href: "/app/opportunities", label: "Opportunities" },
   { href: "/app/campaigns", label: "Campaigns" },
   { href: "/app/results", label: "Results" },

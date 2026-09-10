@@ -130,20 +130,75 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
     );
   }
 
+  // Actions are the part the owner acts on, so every line has to carry
+  // something only this week's data could say — the term they're bidding on,
+  // the item it maps to on the menu, how many rivals are on it, a sentence a
+  // real customer wrote. Chores about the software ("build the campaign",
+  // "record your results") read identically every week and get skipped.
   const actions: string[] = [];
+  const topDemand = top ? report.demand.find((d) => d.term.toLowerCase() === top.term.toLowerCase()) ?? null : null;
   if (top && !thin) {
+    const why =
+      typeof top.deltaPct === "number" && top.deltaPct >= 10
+        ? ` — searches for it are up ${Math.round(top.deltaPct)}% this week.`
+        : top.snapshotReason
+          ? ` — ${top.snapshotReason.replace(/\.$/, "").toLowerCase()}.`
+          : ` — it's the strongest fit in this week's read.`;
     actions.push(
       top.hasCampaign
-        ? `Review and launch the "${titleCase(top.term)}" campaign — it's already built.`
-        : `Build the "${titleCase(top.term)}" campaign — it takes under a minute.`,
+        ? `Launch the "${titleCase(top.term)}" campaign that's already written${top.matchedServiceName ? `, pointed at your ${top.matchedServiceName}` : ""}${why}`
+        : top.matchedServiceName
+          ? `Put this week's ad money behind your ${top.matchedServiceName}, in the words people are typing: "${titleCase(top.term)}"${why}`
+          : `Run an ad on "${titleCase(top.term)}" this week${why}`,
     );
   }
   if ((thin || !top) && report.brief?.first_moves?.length) {
     actions.push(...report.brief.first_moves.slice(0, top ? 1 : 2));
   }
+  // Open ground: the cheapest week to advertise a term is the week nobody
+  // else is on it, and that number changes week to week.
+  const open = report.demand.find((d) => typeof d.adCount === "number" && d.adCount <= 5 && d.term !== top?.term);
+  if (open) {
+    actions.push(
+      open.adCount === 0
+        ? `Put a search ad on "${open.term}" while nobody in ${business.city} is advertising it.`
+        : `Put a search ad on "${open.term}" — only ${open.adCount} rival ad${open.adCount === 1 ? "" : "s"} is running on it near you.`,
+    );
+  } else {
+    const crowded = report.competitors[0];
+    if (crowded) {
+      actions.push(
+        `Don't out-bid the ${crowded.adCount} rival ads on "${crowded.term}" — out-say them: name your price and your neighborhood in the first line.`,
+      );
+    }
+  }
+  // Not every move is an ad. A term climbing is also a reason to move the
+  // thing it maps to where a walk-in trips over it — the owner runs a shop,
+  // not a media desk.
+  if (top && !thin && top.matchedServiceName) {
+    actions.push(
+      `Put your ${top.matchedServiceName} where walk-ins see it first, with the price on it — "${titleCase(top.term)}" is what they're coming in asking for.`,
+    );
+  }
+  // Their customers' own words beat anything a copywriter invents.
+  const hook = report.voice?.copy_hooks?.[0];
+  if (hook) actions.push(`Open the ad with a line your own reviewers wrote: "${hook.replace(/^["']|["']$/g, "")}".`);
   if (nextMoment?.prepNow) actions.push(`Start creative for ${nextMoment.label} now — inside the ${nextMoment.leadWeeks}-week prep window.`);
-  if (report.results.avgCtr === null && report.results.totalCampaigns > 0) {
-    actions.push(`Record results for your ${report.results.totalCampaigns === 1 ? "campaign" : "campaigns"} — every number sharpens next week's ranking.`);
+  if (report.results.avgCtr !== null) {
+    const beating = report.results.avgCtr >= report.results.benchmark;
+    actions.push(
+      beating
+        ? `Reuse the hook from your campaign running ${pct(report.results.avgCtr)} clicks — that's above the ${pct(report.results.benchmark)} typical for your category.`
+        : `Swap the opening line on the campaign sitting at ${pct(report.results.avgCtr)} clicks — your category typically runs ${pct(report.results.benchmark)}.`,
+    );
+  }
+  if (actions.length < 2 && topDemand?.interestLevel !== null && topDemand?.interestLevel !== undefined) {
+    actions.push(
+      `Aim at "${topDemand.term}" while interest sits at ${topDemand.interestLevel}/100${topDemand.interestRange ? ` (90-day range ${topDemand.interestRange.min}–${topDemand.interestRange.max})` : ""}.`,
+    );
+  }
+  if (actions.length < 2 && report.brief?.advantages?.length) {
+    actions.push(`Lead with what your rivals can't say: ${report.brief.advantages[0]}`);
   }
   if (actions.length < 2) actions.push(`Read the competitor and customer-voice sections below — the ad angle is usually sitting in one of them.`);
 

@@ -1,5 +1,6 @@
 import type { Learning, Signal } from "@/lib/db/types";
 import type { ScoredOpportunity } from "@/lib/scoring";
+import { deltaWindowLabel } from "@/lib/signals/source-url";
 import { sentenceCase } from "@/lib/text";
 
 /**
@@ -72,7 +73,7 @@ export function buildInsights(
       insights.push({
         kind: "momentum",
         headline: `↑${Math.round(month)}% ${metricLabel(signal.metric_type)} over 30 days`,
-        detail: `Flat vs last week (${delta >= 0 ? "+" : ""}${Math.round(delta)}%) but a sustained climb across the month — steadier than a spike, and the stars weigh both.${monthText}`,
+        detail: `Flat ${deltaWindowLabel(signal.source)} (${delta >= 0 ? "+" : ""}${Math.round(delta)}%) but a sustained climb across the month — steadier than a spike, and the stars weigh both.${monthText}`,
       });
     } else {
       const speed =
@@ -85,7 +86,7 @@ export function buildInsights(
               : "A steady climb — lower risk of a fad spike.";
       insights.push({
         kind: "momentum",
-        headline: `${delta >= 0 ? "↑" : "↓"}${Math.abs(Math.round(delta))}% ${metricLabel(signal.metric_type)} vs last week`,
+        headline: `${delta >= 0 ? "↑" : "↓"}${Math.abs(Math.round(delta))}% ${metricLabel(signal.metric_type)} ${deltaWindowLabel(signal.source)}`,
         detail:
           delta < 0
             ? `${speed}${monthText}`

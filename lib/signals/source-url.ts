@@ -26,6 +26,26 @@ const SOURCE_NAMES: Record<SignalSource, string> = {
   seed: "illustrative data",
 };
 
+/**
+ * Where a link actually lands. Not the same as the source label: a search
+ * volume read is measured by one vendor and verified on another's public
+ * page, and the owner deserves to be told which page they're about to open.
+ */
+const PROOF_NAMES: Partial<Record<SignalSource, string>> = {
+  google_trends: "Google Trends",
+  google_suggest: "Google Trends",
+  dataforseo: "Google Trends",
+  reddit: "Reddit",
+  news: "Google News",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  meta_ads: "Meta Ad Library",
+};
+
+export function proofName(source: SignalSource): string | null {
+  return PROOF_NAMES[source] ?? null;
+}
+
 export function sourceName(source: SignalSource): string {
   return SOURCE_NAMES[source];
 }
@@ -38,8 +58,12 @@ export function sourceName(source: SignalSource): string {
 export function scaleNote(source: SignalSource, metric?: string): string | null {
   switch (source) {
     case "google_trends":
-    case "dataforseo":
       return "Interest index: 100 = this term's own busiest day in the window. Compare direction and shape across terms, not height.";
+    case "dataforseo":
+      // Not an index — these are real monthly searches, so say so. Calling
+      // absolute volume an index is the kind of small lie that costs trust
+      // the moment someone opens the source.
+      return "Monthly Google searches for this term, as counted by Google Ads keyword data. Absolute volume, not an index.";
     case "snapshot":
       return "Steady-demand index, relative to this term's own peak. A flat line here is normal — it's baseline demand.";
     case "tiktok":
@@ -67,9 +91,24 @@ export function sourceUrl(ref: SourceRef): string | null {
       const mGeo = raw?.adjusted && raw.measuredGeo ? raw.measuredGeo : geo;
       return `https://trends.google.com/trends/explore?date=today%201-m&geo=${mGeo}&q=${mTerm}`;
     }
+    case "dataforseo": {
+      // Search volume is Google Ads keyword data (via DataForSEO), which has
+      // no page anyone can open. A results page proves nothing — it's the
+      // same ten blue links whether demand doubled or died. Trends plots the
+      // same demand over a year, free, so the climb we're claiming is on
+      // screen within a second of the click.
+      //
+      // Nationally, though: the volume was measured for the whole country,
+      // and a state-level Trends page for a long-tail term answers "not
+      // enough data" — a link that argues against the number it's proving.
+      const country = geo.slice(0, 2);
+      return `https://trends.google.com/trends/explore?date=today%2012-m&geo=${country}&q=${q}`;
+    }
     case "google_suggest":
-    case "dataforseo":
-      return `https://www.google.com/search?q=${q}`;
+      // Autocomplete means people are typing it. The proof of that is the
+      // curve, not a search page — and, like the volume read, autocomplete is
+      // pulled nationally (gl=us), so the link shows the country it measured.
+      return `https://trends.google.com/trends/explore?date=today%203-m&geo=${geo.slice(0, 2)}&q=${q}`;
     case "reddit":
       return `https://www.reddit.com/search/?q=${q}&sort=new`;
     case "youtube":
@@ -89,4 +128,13 @@ export function sourceUrl(ref: SourceRef): string | null {
     case "seed":
       return null;
   }
+}
+
+/**
+ * What window a source's delta actually covers. Search volume arrives as
+ * monthly totals, so calling its move "vs last week" is a claim the number
+ * can't back — and a reader who opens the source finds months, not days.
+ */
+export function deltaWindowLabel(source: SignalSource): string {
+  return source === "dataforseo" ? "vs last month" : "vs last week";
 }

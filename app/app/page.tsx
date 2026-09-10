@@ -29,7 +29,7 @@ import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, busine
 import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { geoLabel } from "@/lib/signals/geo";
-import { sourceUrl } from "@/lib/signals/source-url";
+import { deltaWindowLabel, sourceUrl } from "@/lib/signals/source-url";
 import { titleCase } from "@/lib/text";
 
 export const metadata = { title: "This week — TRND" };
@@ -550,38 +550,52 @@ export default async function AppHome({
           row), so the hero never touches its neighbor and never doubles up. */}
       <section className={thin ? "panel" : "panel panel--hero"} style={{ padding: "30px 32px 28px", marginTop: 18 }}>
         {picks.length > 1 && (
-          <nav className="pick-tabs" aria-label="This week's picks">
+          /* The switcher used to be a full-width tab strip that shouted louder
+             than the pick it framed. It's a quiet control now — position, arrows,
+             and the full list one click down. */
+          <nav className="pick-switch" aria-label="This week's picks">
             <Link
               href={pickIndex === 0 ? `/app?pick=${picks.length}` : pickIndex === 1 ? "/app" : `/app?pick=${pickIndex}`}
               scroll={false}
-              className="pick-tabs__arrow"
+              className="pick-switch__arrow"
               aria-label="Previous pick"
             >
               ‹
             </Link>
-            <div className="pick-tabs__list">
-              {picks.map((o, i) => {
-                const s = pickSignals.get(o.id);
-                const on = i === pickIndex;
-                return (
-                  <Link
-                    key={o.id}
-                    href={i === 0 ? "/app" : `/app?pick=${i + 1}`}
-                    scroll={false}
-                    className={`pick-tab${on ? " pick-tab--on" : ""}`}
-                    aria-current={on ? "page" : undefined}
-                  >
-                    <span className="pick-tab__rank">#{i + 1}</span>
-                    <span className="pick-tab__term">{s ? titleCase(s.term) : "Opportunity"}</span>
-                    <GradePill score={Number(o.score)} />
-                  </Link>
-                );
-              })}
-            </div>
+            <details className="pick-switch__menu">
+              <summary className="pick-switch__trigger">
+                <span className="pick-switch__label">
+                  Pick <b>{pickIndex + 1}</b> of {picks.length}
+                </span>
+                <svg className="pick-switch__chev" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </svg>
+              </summary>
+              <div className="pick-switch__pop">
+                <p className="mono-label pick-switch__head">This week&apos;s picks</p>
+                {picks.map((o, i) => {
+                  const s = pickSignals.get(o.id);
+                  const on = i === pickIndex;
+                  return (
+                    <Link
+                      key={o.id}
+                      href={i === 0 ? "/app" : `/app?pick=${i + 1}`}
+                      scroll={false}
+                      className={`pick-switch__item${on ? " pick-switch__item--on" : ""}`}
+                      aria-current={on ? "page" : undefined}
+                    >
+                      <span className="pick-switch__rank">#{i + 1}</span>
+                      <span className="pick-switch__term">{s ? titleCase(s.term) : "Opportunity"}</span>
+                      <GradePill score={Number(o.score)} />
+                    </Link>
+                  );
+                })}
+              </div>
+            </details>
             <Link
               href={pickIndex + 1 >= picks.length ? "/app" : `/app?pick=${pickIndex + 2}`}
               scroll={false}
-              className="pick-tabs__arrow"
+              className="pick-switch__arrow"
               aria-label="Next pick"
             >
               ›
@@ -606,7 +620,7 @@ export default async function AppHome({
                 (deltaShort(signal.delta_pct) === "steady" ? (
                   <span className="delta-chip">steady this week</span>
                 ) : (
-                  <DeltaChip delta={signal.delta_pct} suffix="vs last week" href={sourceUrl(signal)} />
+                  <DeltaChip delta={signal.delta_pct} suffix={deltaWindowLabel(signal.source)} href={sourceUrl(signal)} />
                 ))}
             </div>
             <h2 className="h-disp" style={{ fontSize: thin ? "clamp(20px,2.4vw,26px)" : "clamp(26px,3.2vw,38px)", margin: "0 0 16px", lineHeight: 1.08, letterSpacing: "-0.02em" }}>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import AutoRefresh from "@/components/app/auto-refresh";
 import GradePill from "@/components/app/grade-pill";
 import PrintButton from "@/components/app/print-button";
 import DeltaChip from "@/components/app/delta-chip";
@@ -84,6 +85,10 @@ export default async function ReportPage() {
   }
   const note =
     stored && stored.prompt_version === fingerprint ? stored : buildFallbackIntelNote(business, report);
+  // The written note lands in the background a few seconds after this render.
+  // Without a nudge the owner sits on the assembled version until they happen
+  // to reload — which reads as the page being stuck, not as work in progress.
+  const notePending = note.model_used === INTEL_NOTE_FALLBACK_MODEL && isGeminiConfigured;
 
   const weekRange = `${fmtDate(report.week)} – ${fmtDate(report.weekEnd)}`;
   const generated = new Date(report.generatedAt).toLocaleDateString("en-US", {
@@ -155,10 +160,18 @@ export default async function ReportPage() {
           ))}
         </details>
         <p style={{ margin: "18px 0 0", fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--ink-faint)" }}>
-          {note.model_used === INTEL_NOTE_FALLBACK_MODEL
-            ? "Assembled from this week's data — upgrades to the written note automatically."
-            : "From this week's data only — every claim traces to the sections below."}
+          {notePending ? (
+            <span className="note-writing">
+              <i aria-hidden="true" />
+              Straight from this week&apos;s data — the written read lands here in a few seconds.
+            </span>
+          ) : note.model_used === INTEL_NOTE_FALLBACK_MODEL ? (
+            "Assembled from this week's data — every claim traces to the sections below."
+          ) : (
+            "From this week's data only — every claim traces to the sections below."
+          )}
         </p>
+        {notePending && <AutoRefresh everyMs={5000} times={12} />}
       </section>
 
       {/* ---------- RANKED OPPORTUNITIES ---------- */}

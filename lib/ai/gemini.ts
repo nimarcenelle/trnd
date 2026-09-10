@@ -499,6 +499,8 @@ export async function generateIntelNoteWithGemini(
     `Return JSON:`,
     `- headline: one plain sentence telling the owner what to do this week. A person, not a strategy deck: "Run the sports massage ad this week — nobody else nearby is advertising it." When no trend is worth paid spend, the headline is still a move — the best one the rest of the facts support (a competitor gap, a review theme, a calendar moment, their strongest offer).`,
     `- actions: 2-4 numbered moves the owner could literally start today, each one sentence, verbs first, naming the real service, dollar amount, or day from the facts ("Turn on the ad", "Reply to", "Post a photo of").`,
+    `- Actions are not only ads. Rising demand is a reason to move stock to the front counter, put a price on a shelf card, change what the window says, post a photo, or brief whoever is at the register. Mix those with the ad moves — the owner runs a business, not a media buying desk.`,
+    `- Never make an action about using TRND itself — no "build the campaign", "record your results", "check the dashboard". Every action names something outside the software: a term to bid on, an item to put on the counter, a price to quote, a line to write, a rival to answer. If two weeks of facts would produce the same sentence, it is not an action.`,
     `- narrative: 2-3 SHORT paragraphs saying why, in the owner's language. Explain like a sharp friend who runs ads, not a consultant.`,
     ``,
     `Voice rules — hard requirements:`,

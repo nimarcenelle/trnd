@@ -172,7 +172,7 @@ export function competitorGap({ coverageCount, adCount }: GapInput): {
   }
   const context =
     typeof coverageCount === "number"
-      ? ` (${coverageCount} local news mention${coverageCount === 1 ? "" : "s"} is context, not competition)`
+      ? ` (${coverageCount} local news mention${coverageCount === 1 ? "" : "s"} — context, not competition)`
       : "";
   return {
     score: GAP_UNKNOWN,

@@ -698,7 +698,7 @@ export default async function AppHome({
                 (deltaShort(signal.delta_pct) === "steady" ? (
                   <span className="delta-chip">steady this week</span>
                 ) : (
-                  <DeltaChip delta={signal.delta_pct} suffix={deltaWindowLabel(signal.source)} href={sourceUrl(signal)} />
+                  <DeltaChip delta={signal.delta_pct} suffix={deltaWindowLabel(signal.source)} />
                 ))}
             </div>
             <h2 className="h-disp" style={{ fontSize: thin ? "clamp(20px,2.4vw,26px)" : "clamp(26px,3.2vw,38px)", margin: "0 0 16px", lineHeight: 1.08, letterSpacing: "-0.02em" }}>
@@ -918,7 +918,7 @@ export default async function AppHome({
                 }}
               >
                 <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>{titleCase(s.term)}</span>
-                <DeltaChip delta={s.delta_pct ?? 0} href={sourceUrl(s)} />
+                <DeltaChip delta={s.delta_pct ?? 0} />
               </div>
             ))}
             {movers.length === 0 && (

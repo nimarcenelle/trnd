@@ -17,7 +17,7 @@ const SOURCE_NAMES: Record<SignalSource, string> = {
   google_suggest: "Google",
   reddit: "Reddit",
   news: "Google News",
-  youtube: "YouTube",
+  youtube: "YouTube Shorts",
   tiktok: "TikTok",
   meta_ads: "Meta Ad Library",
   weather: "the forecast",
@@ -37,10 +37,31 @@ const PROOF_NAMES: Partial<Record<SignalSource, string>> = {
   dataforseo: "Google Trends",
   reddit: "Reddit",
   news: "Google News",
-  youtube: "YouTube",
+  youtube: "YouTube Shorts",
   tiktok: "TikTok",
   meta_ads: "Meta Ad Library",
 };
+
+/**
+ * A metric said the way the owner would say it. `metric_type` is a column
+ * name — "shortform_views" on a badge reads like a database leak, and the
+ * screens that print it raw were all doing the same `replace(/_/g, " ")`.
+ */
+const METRIC_LABELS: Record<string, string> = {
+  shortform_views: "views on Shorts",
+  search_volume: "search volume",
+  conversation: "posts",
+  video_volume: "videos posted",
+  local_demand: "local demand",
+  weather_trigger: "weather window",
+  ad_count: "competing ads",
+  coverage: "local coverage",
+};
+
+export function metricLabel(metric: string | null | undefined): string {
+  if (!metric) return "activity";
+  return METRIC_LABELS[metric] ?? metric.replace(/_/g, " ");
+}
 
 export function proofName(source: SignalSource): string | null {
   return PROOF_NAMES[source] ?? null;
@@ -68,8 +89,9 @@ export function scaleNote(source: SignalSource, metric?: string): string | null 
       return "Steady-demand index, relative to this term's own peak. A flat line here is normal — it's baseline demand.";
     case "tiktok":
       return "Post volume for this hashtag, relative to its own 30-day peak.";
-    case "reddit":
     case "youtube":
+      return "Views on Shorts posted about this in the last two weeks — this week's against the week before.";
+    case "reddit":
       return `${metric ? metric.replace(/_/g, " ") : "Activity"} relative to this term's own 30-day peak.`;
     default:
       return null;
@@ -111,8 +133,14 @@ export function sourceUrl(ref: SourceRef): string | null {
       return `https://trends.google.com/trends/explore?date=today%203-m&geo=${geo.slice(0, 2)}&q=${q}`;
     case "reddit":
       return `https://www.reddit.com/search/?q=${q}&sort=new`;
-    case "youtube":
-      return `https://www.youtube.com/results?search_query=${q}`;
+    case "youtube": {
+      // The strongest proof of short-form attention is the Short itself —
+      // the one pulling the views this week, watchable in one tap. The
+      // results page is the fallback when we didn't capture one.
+      const top = (ref.raw as { top?: { id?: unknown } } | null | undefined)?.top;
+      const id = typeof top?.id === "string" ? top.id : null;
+      return id ? `https://www.youtube.com/shorts/${encodeURIComponent(id)}` : `https://www.youtube.com/results?search_query=${q}`;
+    }
     case "news":
       return `https://news.google.com/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
     case "tiktok": {

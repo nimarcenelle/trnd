@@ -13,7 +13,7 @@ import { getUserRepo } from "@/lib/db";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildInsights } from "@/lib/recommend/insights";
 import { weekOf } from "@/lib/recommend/recommend";
-import { deltaWindowLabel, scaleNote } from "@/lib/signals/source-url";
+import { deltaWindowLabel, metricLabel, scaleNote } from "@/lib/signals/source-url";
 import { titleCase } from "@/lib/text";
 
 export const metadata = { title: "Opportunities — TRND" };
@@ -117,7 +117,7 @@ export default async function OpportunitiesPage() {
                     <DeltaChip delta={signal.delta_pct} />
                   )}
                   <span>
-                    {signal ? signal.metric_type.replace(/_/g, " ") : ""}
+                    {signal ? metricLabel(signal.metric_type) : ""}
                     {typeof signal?.delta_pct === "number" ? ` ${deltaWindowLabel(signal.source)}` : ""}
                     {matched ? ` · matched to ${matched.name}` : ""}
                   </span>

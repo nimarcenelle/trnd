@@ -81,6 +81,10 @@ export async function runSignalIngestForBusiness(
     locality,
   }));
   const adapters: SignalAdapter[] = [
+    // Short-form first: what a shop can act on this week is what people are
+    // watching, and day one should show that rather than search alone.
+    createYoutubeAdapter(),
+    createTiktokCcAdapter(),
     createDataForSeoAdapter(),
     createGoogleNewsAdapter(),
     createMetaAdsAdapter(),
@@ -130,25 +134,25 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 function defaultAdapters(): SignalAdapter[] {
-  // Reliable + keyless first (RSS, weather, autocomplete), then Reddit,
-  // News, TikTok Creative Center (unofficial, per-industry), the fragile
-  // Trends widget endpoints (interest-over-time + rising related queries),
-  // YouTube (key-gated).
+  // Order is priority, not preference: the run has a wall-clock budget, and
+  // whatever sits at the bottom is what gets skipped on a slow day. Short-
+  // form social leads because it's the basis of the product — YouTube Shorts
+  // per business term (key-gated), then TikTok's trending boards. Search
+  // volume follows as the demand backbone that confirms a trend is being
+  // acted on, then the saturation and context reads, then the fragile
+  // unofficial Trends endpoints last, where a failure costs nothing.
   return [
-    // Paid search-volume backbone first — when keyed, it's the reliable
-    // per-business demand read; the unofficial trends endpoint becomes a
-    // bonus rather than a dependency.
+    createYoutubeAdapter(),
+    createTiktokCcAdapter(),
     createDataForSeoAdapter(),
     createGoogleTrendsRssAdapter(),
     createWeatherAdapter(),
     createSuggestAdapter(),
     createRedditAdapter(),
     createGoogleNewsAdapter(),
-    createTiktokCcAdapter(),
     createMetaAdsAdapter(),
     createTrendsIotAdapter(),
     createTrendsRelatedAdapter(),
-    createYoutubeAdapter(),
   ];
 }
 

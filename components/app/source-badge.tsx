@@ -1,12 +1,12 @@
 import type { SignalSource } from "@/lib/db/types";
-import { proofName, sourceUrl } from "@/lib/signals/source-url";
+import { metricLabel as labelForMetric, proofName, sourceUrl } from "@/lib/signals/source-url";
 
 const LABELS: Record<SignalSource, string> = {
   google_trends: "Google Trends",
   google_suggest: "Google Autocomplete",
   reddit: "Reddit",
   news: "Google News",
-  youtube: "YouTube",
+  youtube: "YouTube Shorts",
   tiktok: "TikTok",
   meta_ads: "Meta Ad Library",
   weather: "Weather forecast",
@@ -48,9 +48,14 @@ export default function SourceBadge({
             `See it for yourself on ${proofName(source) ?? LABELS[source]}`
           : `Captured from ${LABELS[source]}`;
   // "Search volume · search volume" (dataforseo's metric IS its label) reads
-  // as a glitch — only show the metric when it adds something.
-  const metricLabel = metric?.replace(/_/g, " ");
-  const showMetric = metricLabel && metricLabel.toLowerCase() !== LABELS[source].toLowerCase();
+  // as a glitch, and so does "YouTube Shorts · views on Shorts" — only show
+  // the metric when it adds something the source name didn't.
+  const metricLabel = metric ? labelForMetric(metric) : undefined;
+  const words = (s: string) => s.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+  const sourceWords = new Set(words(LABELS[source]));
+  // Any shared word means the metric is restating the source: "YouTube
+  // Shorts · views on Shorts", "Search volume · search volume".
+  const showMetric = metricLabel ? !words(metricLabel).some((w) => sourceWords.has(w)) : false;
   const body = (
     <>
       <i />

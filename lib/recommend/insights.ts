@@ -1,6 +1,6 @@
 import type { Learning, Signal } from "@/lib/db/types";
 import type { ScoredOpportunity } from "@/lib/scoring";
-import { deltaWindowLabel } from "@/lib/signals/source-url";
+import { deltaWindowLabel, metricLabel } from "@/lib/signals/source-url";
 import { sentenceCase } from "@/lib/text";
 
 /**
@@ -22,7 +22,15 @@ export interface NextAction {
   detail: string;
 }
 
-const metricLabel = (m: string) => m.replace(/_/g, " ");
+
+
+/** 1_240_000 → "1.2M" — view counts are the unit of short-form, and nobody
+ * reads seven digits on a phone. */
+export function compactCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, "")}K`;
+  return String(Math.round(n));
+}
 
 export function buildInsights(
   signal: Signal,
@@ -47,6 +55,41 @@ export function buildInsights(
       kind: "momentum",
       headline: "Weather window · next 7 days",
       detail: `${raw?.detail ?? "The forecast crosses a seasonal threshold this week."} Demand estimate is forecast-derived, not a measured trend.`,
+    });
+  } else if (signal.metric_type === "shortform_views") {
+    // Short-form is the basis of the product, so its read gets said in its
+    // own units — what people are watching, and who is making it.
+    const raw = signal.raw as { uploads?: number; uploadsPrev?: number; top?: { title?: string; channel?: string; views?: number } | null } | null;
+    const views = Number(signal.value) || 0;
+    const uploads = typeof raw?.uploads === "number" ? raw.uploads : null;
+    const madeMore = typeof raw?.uploadsPrev === "number" && uploads !== null && uploads > raw.uploadsPrev;
+    const top = raw?.top ?? null;
+    insights.push({
+      kind: "momentum",
+      headline:
+        typeof delta === "number"
+          ? `${delta >= 0 ? "↑" : "↓"}${Math.abs(Math.round(delta))}% views on Shorts this week`
+          : `${compactCount(views)} views on Shorts this week`,
+      detail: [
+        `${compactCount(views)} views across the Shorts posted about this in the last 7 days${
+          uploads !== null ? `, from ${uploads} new video${uploads === 1 ? "" : "s"}` : ""
+        }.`,
+        madeMore ? "More creators posted about it this week than last — the format is still open." : "",
+        top?.title ? `The one pulling the most: "${top.title}"${top.channel ? ` (${top.channel})` : ""} — worth 30 seconds before you shoot yours.` : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    });
+  } else if (signal.source === "tiktok") {
+    const raw = signal.raw as { hashtagName?: string } | null;
+    const posts = Number(signal.value) || 0;
+    insights.push({
+      kind: "momentum",
+      headline:
+        typeof delta === "number"
+          ? `${delta >= 0 ? "↑" : "↓"}${Math.abs(Math.round(delta))}% posts on TikTok this week`
+          : `${compactCount(posts)} TikTok posts on this`,
+      detail: `${compactCount(posts)} posts under ${raw?.hashtagName ? `#${String(raw.hashtagName).replace(/^#/, "")}` : "this hashtag"} — TikTok's own trending board for your industry, national. Local demand is confirmed by the search read below, not by this.`,
     });
   } else if (signal.source === "snapshot") {
     // An evergreen watch term. Say what was measured — and when nothing

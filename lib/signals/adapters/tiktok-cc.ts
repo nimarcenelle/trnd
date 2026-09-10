@@ -56,15 +56,31 @@ export interface CcPayload {
   items?: CcHashtag[];
 }
 
-/** The curve is normalized 0–100 across the window; the trailing point is
- * usually 0 (today, partial). Drop trailing zeros, then read first → last. */
+/**
+ * How much louder this hashtag got across the window.
+ *
+ * The curve is normalized 0–100 against the hashtag's own peak, and the
+ * trailing point is usually 0 (today, still filling). Reading first → last
+ * on that shape made every hashtag on the board report +100%: the first
+ * point is frequently 0 or near it, and dividing by `Math.max(first, 1)`
+ * turned "started from nothing" into "up infinity", clamped. A board where
+ * every row rises the same amount ranks nothing.
+ *
+ * So: compare the tail of the window against the stretch before it, the way
+ * the search series does — halves for a 7-day curve, sevenths for a 30-day
+ * one. When the earlier stretch is genuinely flat at zero the honest answer
+ * is "no read", not a triple-digit spike.
+ */
 export function curveDelta(curve: CcCurvePoint[] | undefined): number | null {
   const points = [...(curve ?? [])];
   while (points.length > 0 && points[points.length - 1].value === 0) points.pop();
-  if (points.length < 2) return null;
-  const first = points[0].value;
-  const last = points[points.length - 1].value;
-  const pct = ((last - first) / Math.max(first, 1)) * 100;
+  if (points.length < 4) return null;
+  const span = points.length >= 14 ? 7 : Math.floor(points.length / 2);
+  const mean = (xs: CcCurvePoint[]) => xs.reduce((sum, p) => sum + p.value, 0) / xs.length;
+  const recent = mean(points.slice(-span));
+  const before = mean(points.slice(-span * 2, -span));
+  if (before <= 0.5) return null;
+  const pct = ((recent - before) / before) * 100;
   return Math.max(-100, Math.min(100, Math.round(pct)));
 }
 
@@ -158,15 +174,22 @@ export function createTiktokCcAdapter(opts: {
   };
   const termFor = (hashtag: string) => termMap.get(hashtag) ?? hashtag;
 
-  const fetchIndustry = async (industryId: string, geo: string, windowDays: number) => {
-    const key = `${industryId}:${geo}`;
+  // Anonymous access returns the top 3 rows per query and refuses to page
+  // (page 2 comes back empty), so the only way to see more of the board is
+  // to ask a different question: the 7-day board is what's spiking now, the
+  // 30-day board is what has held. Both are worth ranking, and a hashtag on
+  // both is a trend rather than a blip.
+  const WINDOWS = [7, 30] as const;
+
+  const fetchBoard = async (industryId: string, geo: string, timeRange: number) => {
+    const key = `${industryId}:${geo}:${timeRange}`;
     const cached = cache.get(key);
     if (cached) return cached;
     const payload = await doFetchJson<CcPayload>(API_URL, {
       method: "POST",
       headers: HEADERS,
       body: JSON.stringify({
-        timeRange: windowDays <= 7 ? 7 : 30,
+        timeRange,
         countryCode: geo,
         page: 1,
         limit: 10,
@@ -178,38 +201,51 @@ export function createTiktokCcAdapter(opts: {
     return payload;
   };
 
+  /** Every industry × both windows, tolerating per-board failures. */
+  const fetchAllBoards = async (geo: string): Promise<{ payload: CcPayload; category: string; windowDays: number }[]> => {
+    const out: { payload: CcPayload; category: string; windowDays: number }[] = [];
+    for (const [industryId, category] of Object.entries(INDUSTRY_TO_CATEGORY)) {
+      for (const timeRange of WINDOWS) {
+        if (breaker.isOpen) return out;
+        try {
+          out.push({ payload: await fetchBoard(industryId, geo, timeRange), category, windowDays: timeRange });
+        } catch (err) {
+          console.warn(`[signals:tiktok_cc] industry ${industryId} (${timeRange}d) failed:`, (err as Error).message);
+        }
+      }
+    }
+    return out;
+  };
+
   return {
     name: "tiktok_cc",
     async isAvailable() {
       return true; // no key needed
     },
     async fetch(input: AdapterFetchInput): Promise<RawSignal[]> {
-      const collected: { payload: CcPayload; category: string }[] = [];
-      for (const [industryId, category] of Object.entries(INDUSTRY_TO_CATEGORY)) {
-        if (breaker.isOpen) break;
-        try {
-          collected.push({ payload: await fetchIndustry(industryId, input.geo, input.windowDays), category });
-        } catch (err) {
-          console.warn(`[signals:tiktok_cc] industry ${industryId} failed:`, (err as Error).message);
+      const boards = await fetchAllBoards(input.geo);
+      await resolveTerms(boards.map((b) => b.payload));
+      // A hashtag on both boards would otherwise land twice for the same day
+      // and the same term; the spiking read (7d) is the one that ranks, and
+      // the 30d board fills in whatever it alone found.
+      const bySeen = new Map<string, RawSignal>();
+      for (const { payload, category, windowDays } of [...boards].sort((a, b) => a.windowDays - b.windowDays)) {
+        for (const sig of ccSignals(payload, category, input.geo, windowDays, termFor)) {
+          const key = `${normalizeTerm(sig.term)}:${sig.category}`;
+          if (!bySeen.has(key)) bySeen.set(key, sig);
         }
       }
-      await resolveTerms(collected.map((c) => c.payload));
-      return collected.flatMap(({ payload, category }) =>
-        ccSignals(payload, category, input.geo, Math.min(input.windowDays, 7), termFor),
-      );
+      return [...bySeen.values()];
     },
     async fetchSeries(input: AdapterFetchInput): Promise<RawSeriesPoint[]> {
-      const payloads: CcPayload[] = [];
-      for (const industryId of Object.keys(INDUSTRY_TO_CATEGORY)) {
-        if (breaker.isOpen) break;
-        try {
-          payloads.push(await fetchIndustry(industryId, input.geo, input.windowDays));
-        } catch {
-          /* logged in fetch() */
-        }
-      }
-      await resolveTerms(payloads);
-      return payloads.flatMap((p) => ccSeries(p, input.geo, termFor));
+      const boards = await fetchAllBoards(input.geo);
+      await resolveTerms(boards.map((b) => b.payload));
+      // Longest window first: the 30-day curve carries the 7-day one's days,
+      // and a later point for the same (term, day) would only overwrite it
+      // with the same value.
+      return [...boards]
+        .sort((a, b) => b.windowDays - a.windowDays)
+        .flatMap(({ payload }) => ccSeries(payload, input.geo, termFor));
     },
   };
 }

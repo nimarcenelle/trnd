@@ -117,3 +117,36 @@ describe("history insight provenance", () => {
     expect(history.detail).toMatch(/14 recorded results/);
   });
 });
+
+describe("short-form momentum insights", () => {
+  it("says the shorts read in views, uploads and the video doing the work", () => {
+    const [momentum] = buildInsights(
+      signal({
+        source: "youtube",
+        metric_type: "shortform_views",
+        value: 1_240_000,
+        delta_pct: 62,
+        raw: { uploads: 14, uploadsPrev: 9, top: { id: "abc", title: "the 60-second color test", channel: "Studio A", views: 400_000 } },
+      }),
+      scored(),
+      { learnings },
+    );
+    expect(momentum.kind).toBe("momentum");
+    expect(momentum.headline).toBe("↑62% views on Shorts this week");
+    expect(momentum.detail).toContain("1.2M views");
+    expect(momentum.detail).toContain("14 new videos");
+    expect(momentum.detail).toContain("More creators posted");
+    expect(momentum.detail).toContain("the 60-second color test");
+  });
+
+  it("is honest that a tiktok board read is national, not local", () => {
+    const [momentum] = buildInsights(
+      signal({ source: "tiktok", metric_type: "conversation", value: 27_888, delta_pct: 24, raw: { hashtagName: "glassskin" } }),
+      scored(),
+      { learnings },
+    );
+    expect(momentum.headline).toBe("↑24% posts on TikTok this week");
+    expect(momentum.detail).toContain("#glassskin");
+    expect(momentum.detail).toMatch(/national/i);
+  });
+});

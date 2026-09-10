@@ -55,6 +55,41 @@ Each is implemented behind its interface and registered unavailable at runtime.
   `GOOGLE_PLACES_API_KEY`. Unlocks own-review mining (voice of customer) and daily
   competitor rating reads. ~$0 at SMB volumes (monthly free tier covers it).
 
+## Short-form social (the basis of the ranking)
+
+TRND ranks on what's moving in short-form video, with search volume as confirmation.
+What each source can and can't give, verified live 2026-09-10:
+
+- **YouTube Shorts** — `lib/signals/adapters/youtube.ts` reads each business's own watch
+  terms: Shorts published in the last 14 days, this week's views against last week's,
+  plus the single Short pulling the most (linked from the badge so the owner can watch
+  the format that's landing). Costs ~101 quota units per term (search 100 + videos 1),
+  capped at 40 terms a run against the free 10,000/day.
+  - **Seam**: create a YouTube Data API v3 key (Google Cloud console, free tier, no
+    billing card) and set `YOUTUBE_API_KEY`. The adapter registers unavailable without
+    it; nothing else changes.
+- **TikTok** — `lib/signals/adapters/tiktok-cc.ts` reads the public Creative Center
+  trending-hashtag boards, keyless. Anonymous access is capped at the **top 3 rows per
+  query with no paging** (page 2 comes back empty), so the run asks each mapped industry
+  for both the 7-day and 30-day board: ~40 national hashtags a day. The per-hashtag
+  detail endpoint answers `InvalidLogin`, and the newer `creative_radar_api` endpoints
+  answer `no permission` without a signed web token — so there is **no per-term TikTok
+  read** at any price of effort here. TikTok reads are national industry trends and the
+  UI says so; local demand is confirmed by the search read, never by the board.
+  - **Seam for per-term TikTok**: either TikTok's Display/Research API (app review,
+    academic-gated) or a commercial scraper API (e.g. Apify TikTok actors) with a token
+    and per-run cost.
+- **Instagram Reels** — no keyless path. The Graph API's `ig_hashtag_search` +
+  `{hashtag-id}/recent_media` gives per-hashtag Reels volume, but needs an Instagram
+  Business account linked to a Facebook Page and App Review for `instagram_basic`
+  (30 unique hashtags per 7 days). The Meta app already exists for ad-account connect
+  (`lib/ads/meta.ts`, scopes `ads_read`/`ads_management`/`business_management`), so the
+  seam is adding `instagram_basic` + `pages_show_list` to `META_SCOPES`, passing review,
+  and writing the adapter. Nothing is implemented for it yet.
+- **Reddit** — `lib/signals/adapters/reddit.ts` uses anonymous JSON, which now returns
+  the HTML page instead of JSON for datacenter IPs (verified). Assume it contributes
+  nothing in production until it's moved to a registered script app + OAuth token.
+
 ## DataForSEO (search-volume backbone)
 - **Seam**: an account at dataforseo.com; set `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD`.
   Watch terms then get real monthly search volumes + deltas daily (~$0.05/1k keywords),

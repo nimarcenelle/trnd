@@ -204,7 +204,7 @@ export default async function ReportPage() {
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                   <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 15 }}>{titleCase(r.term)}</span>
                   <SourceBadge source={r.source} metric={r.metric} href={r.sourceUrl} />
-                  {typeof r.deltaPct === "number" && <DeltaChip delta={r.deltaPct} href={r.sourceUrl} />}
+                  {typeof r.deltaPct === "number" && <DeltaChip delta={r.deltaPct} />}
                   {r.sparse && (
                     <span className="badge badge--faint" title="Google's regional sample for this term is mostly zeros — ranked as an idea that fits, not a measured trend">
                       <i />below Google&apos;s meter
@@ -381,7 +381,7 @@ export default async function ReportPage() {
                       <td>
                         {d.interestLevel !== null && !d.interestSparse ? (
                           <span style={{ display: "inline-flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-                            {typeof d.deltaPct === "number" && <DeltaChip delta={d.deltaPct} href={d.interestUrl} />}
+                            {typeof d.deltaPct === "number" && <DeltaChip delta={d.deltaPct} />}
                             <span>
                               {d.interestLevel}/100
                               {d.interestRange && (
@@ -502,7 +502,7 @@ export default async function ReportPage() {
                   }}
                 >
                   <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>{titleCase(m.term)}</span>
-                  <DeltaChip delta={m.deltaPct} href={m.sourceUrl} />
+                  <DeltaChip delta={m.deltaPct} />
                 </div>
               ))}
             </div>

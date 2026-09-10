@@ -13,7 +13,7 @@ import { getUserRepo } from "@/lib/db";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildInsights } from "@/lib/recommend/insights";
 import { weekOf } from "@/lib/recommend/recommend";
-import { deltaWindowLabel, scaleNote, sourceUrl } from "@/lib/signals/source-url";
+import { deltaWindowLabel, scaleNote } from "@/lib/signals/source-url";
 import { titleCase } from "@/lib/text";
 
 export const metadata = { title: "Opportunities — TRND" };
@@ -114,7 +114,7 @@ export default async function OpportunitiesPage() {
                 </div>
                 <p className="why" style={{ marginTop: 6, fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--mint-text)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   {typeof signal?.delta_pct === "number" && (
-                    <DeltaChip delta={signal.delta_pct} href={sourceUrl(signal)} />
+                    <DeltaChip delta={signal.delta_pct} />
                   )}
                   <span>
                     {signal ? signal.metric_type.replace(/_/g, " ") : ""}

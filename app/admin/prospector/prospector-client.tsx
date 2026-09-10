@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { HOT_MIN, scoreFit, WARM_MIN, type FitTier } from "@/lib/prospect/fit";
 import { DEFAULT_BODY, DEFAULT_SUBJECT, renderTemplate } from "@/lib/prospect/template";
 import type { ProspectLead, RunEvent } from "@/lib/prospect/types";
 
@@ -47,6 +48,12 @@ const STATUS_META: Record<ProspectLead["status"], { label: string; color: string
   skipped: { label: "SKIPPED", color: T.faint, bgc: "rgba(90,100,112,0.15)" },
 };
 
+const FIT_META: Record<FitTier, { label: string; color: string; bgc: string }> = {
+  hot: { label: "HOT", color: T.green, bgc: T.greenSoft },
+  warm: { label: "WARM", color: T.amber, bgc: T.amberSoft },
+  cold: { label: "COLD", color: T.faint, bgc: "rgba(90,100,112,0.15)" },
+};
+
 const selectable = (l: ProspectLead) =>
   Boolean(l.bestEmail) && (l.status === "new" || l.status === "queued");
 
@@ -60,9 +67,16 @@ const VIEWS: { key: View; label: string }[] = [
 ];
 
 function toCsv(leads: ProspectLead[]): string {
-  const cols = ["name", "category", "address", "city", "region", "phone", "website", "platform", "bestEmail", "emailStatus", "signal", "status", "sentAt"] as const;
+  const cols = ["name", "category", "address", "city", "region", "phone", "website", "platform", "bestEmail", "emailStatus", "signal", "rating", "reviewCount", "distanceMiles", "status", "sentAt"] as const;
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  return [cols.join(","), ...leads.map((l) => cols.map((c) => esc(l[c])).join(","))].join("\n");
+  const header = [...cols, "fit", "fitReasons"].join(",");
+  return [
+    header,
+    ...leads.map((l) => {
+      const fit = scoreFit(l);
+      return [...cols.map((c) => esc(l[c])), fit.score, esc(fit.reasons.join(" · "))].join(",");
+    }),
+  ].join("\n");
 }
 
 export function ProspectorClient() {
@@ -72,6 +86,10 @@ export function ProspectorClient() {
   const [cap, setCap] = useState(50);
   const [onlyNoAds, setOnlyNoAds] = useState(true);
   const [onlyWithEmail, setOnlyWithEmail] = useState(true);
+  const [onlyVerified, setOnlyVerified] = useState(false);
+  const [skipChains, setSkipChains] = useState(true);
+  const [minFit, setMinFit] = useState(0);
+  const [sortByFit, setSortByFit] = useState(true);
 
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
@@ -122,7 +140,13 @@ export function ProspectorClient() {
         `${event.ready} new lead${event.ready === 1 ? "" : "s"}` +
           (event.skippedKnown > 0 ? ` · ${event.skippedKnown} already known` : "") +
           (event.filteredAds > 0 ? ` · ${event.filteredAds} filtered (ads running)` : "") +
-          (event.filteredNoEmail > 0 ? ` · ${event.filteredNoEmail} filtered (no email)` : ""),
+          (event.filteredNoEmail > 0 ? ` · ${event.filteredNoEmail} filtered (no email)` : "") +
+          (event.filteredRisky > 0 ? ` · ${event.filteredRisky} filtered (unverified email)` : "") +
+          (event.filteredChains > 0 ? ` · ${event.filteredChains} chains` : "") +
+          (event.filteredClosed > 0 ? ` · ${event.filteredClosed} closed` : "") +
+          (event.filteredFar > 0 ? ` · ${event.filteredFar} out of range` : "") +
+          (event.filteredDupes > 0 ? ` · ${event.filteredDupes} already emailed` : "") +
+          (event.filteredLowFit > 0 ? ` · ${event.filteredLowFit} below min fit` : ""),
       );
     } else if (event.type === "error") {
       setStatusLine(null);
@@ -152,6 +176,9 @@ export function ProspectorClient() {
           cap,
           onlyNoAds,
           onlyWithEmail,
+          onlyVerified,
+          skipChains,
+          minFit,
         }),
       });
       if (!res.ok || !res.body) {
@@ -242,12 +269,17 @@ export function ProspectorClient() {
     }
   };
 
-  const visible =
+  const fits = new Map(leads.map((l) => [l.placeId, scoreFit(l)]));
+  const fitOf = (l: ProspectLead) => fits.get(l.placeId) ?? scoreFit(l);
+  const unsorted =
     view === "run"
       ? leads.filter((l) => runIds.has(l.placeId))
       : view === "all"
         ? leads
         : leads.filter((l) => l.status === view);
+  // Fit order once the run settles; arrival order while rows are still landing.
+  const visible =
+    sortByFit && !running ? [...unsorted].sort((a, b) => fitOf(b).score - fitOf(a).score) : unsorted;
 
   const exportCsv = () => {
     const blob = new Blob([toCsv(visible)], { type: "text/csv" });
@@ -274,6 +306,7 @@ export function ProspectorClient() {
   const stageIdx = !running ? -1 : counts.ready > 0 ? 3 : counts.verified > 0 ? 2 : counts.crawled > 0 ? 1 : 0;
   const nSel = selected.size;
   const nVerified = visible.filter((l) => l.emailStatus === "verified").length;
+  const nHot = visible.filter((l) => fitOf(l).tier === "hot").length;
   const previewLead = queued[0] ?? leads.find(selectable) ?? null;
 
   return (
@@ -328,12 +361,26 @@ export function ProspectorClient() {
               <input type="checkbox" checked={onlyWithEmail} onChange={(e) => setOnlyWithEmail(e.target.checked)} style={{ accentColor: T.amber }} />
               Only leads with a reachable email
             </label>
+            <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 13, color: T.dim }}>
+              <input type="checkbox" checked={onlyVerified} onChange={(e) => setOnlyVerified(e.target.checked)} style={{ accentColor: T.amber }} />
+              Only verified email domains (no bounce risk)
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 13, color: T.dim }}>
+              <input type="checkbox" checked={skipChains} onChange={(e) => setSkipChains(e.target.checked)} style={{ accentColor: T.amber }} />
+              Skip chains and franchises
+            </label>
+            <Field label={`Min fit — ${minFit === 0 ? "any" : minFit}`}>
+              <input type="range" min="0" max="80" step="5" value={minFit} onChange={(e) => setMinFit(+e.target.value)} style={{ width: "100%", accentColor: T.amber }} />
+              <p style={{ fontSize: 11, color: T.faint, marginTop: 6 }}>
+                Hot ≥ {HOT_MIN} · Warm ≥ {WARM_MIN}. Owner-read inbox, DIY site, 15–300 reviews, and ad appetite score highest.
+              </p>
+            </Field>
             <button onClick={run} disabled={running}
               style={{ background: running ? T.panelSoft : T.amber, color: running ? T.dim : "#141414", fontWeight: 600, fontSize: 14, padding: "10px 0", borderRadius: 6, border: "none", cursor: running ? "default" : "pointer", letterSpacing: "0.02em" }}>
               {running ? "Running…" : done ? "Run again" : "Run discovery"}
             </button>
             <p style={{ fontSize: 11, color: T.faint, lineHeight: 1.5 }}>
-              Places search → site crawl for emails + ad pixels → DNS verify → dedupe against the leads table.
+              Places search (open, in range, no chains) → site crawl for emails + ad pixels → DNS verify → fit score → dedupe against the leads table.
             </p>
           </div>
 
@@ -360,7 +407,7 @@ export function ProspectorClient() {
             </div>
 
             {/* view tabs */}
-            <div className="flex items-center gap-1 mb-3">
+            <div className="flex items-center gap-1 mb-3 flex-wrap">
               {VIEWS.map((v) => {
                 const n =
                   v.key === "run"
@@ -382,18 +429,25 @@ export function ProspectorClient() {
                   </button>
                 );
               })}
+              <div className="flex-1" />
+              <button onClick={() => setSortByFit((v) => !v)}
+                style={{ background: "transparent", color: sortByFit ? T.amber : T.dim, border: `1px solid ${T.line}`, fontFamily: T.mono, fontSize: 10, letterSpacing: "0.08em", padding: "5px 10px", borderRadius: 4, cursor: "pointer" }}>
+                SORT: {sortByFit ? "FIT" : "NEWEST"}
+              </button>
             </div>
 
             {/* table */}
             <div className="rounded overflow-x-auto" style={{ border: `1px solid ${T.line}` }}>
-              <table className="w-full" style={{ borderCollapse: "collapse", fontSize: 13, minWidth: 760 }}>
+              <table className="w-full" style={{ borderCollapse: "collapse", fontSize: 13, minWidth: 980 }}>
                 <thead>
                   <tr style={{ background: T.panel, color: T.dim, fontFamily: T.mono, fontSize: 10, letterSpacing: "0.08em" }}>
                     <th style={thStyle}>
                       <input type="checkbox" onChange={toggleAll} checked={nSel > 0 && nSel === eligible.length} style={{ accentColor: T.amber }} aria-label="Select all" />
                     </th>
+                    <th style={thStyle}>FIT</th>
                     <th style={thStyle}>BUSINESS</th>
                     <th style={thStyle}>LOCATION</th>
+                    <th style={thStyle}>REVIEWS</th>
                     <th style={thStyle}>PLATFORM</th>
                     <th style={thStyle}>EMAIL</th>
                     <th style={thStyle}>VERIFY</th>
@@ -404,7 +458,7 @@ export function ProspectorClient() {
                 <tbody>
                   {visible.length === 0 && (
                     <tr>
-                      <td colSpan={8} style={{ padding: "40px 16px", textAlign: "center", color: T.faint, fontSize: 13 }}>
+                      <td colSpan={10} style={{ padding: "40px 16px", textAlign: "center", color: T.faint, fontSize: 13 }}>
                         {running
                           ? "Pipeline running — leads land here as verification completes."
                           : view === "run"
@@ -418,6 +472,8 @@ export function ProspectorClient() {
                   {visible.map((l) => {
                     const em = EMAIL_META[l.emailStatus];
                     const sm = STATUS_META[l.status];
+                    const fit = fitOf(l);
+                    const fm = FIT_META[fit.tier];
                     return (
                       <tr key={l.placeId} className="rowIn" style={{ borderTop: `1px solid ${T.line}`, background: selected.has(l.placeId) ? T.panelSoft : "transparent" }}>
                         <td style={tdStyle}>
@@ -425,11 +481,27 @@ export function ProspectorClient() {
                             <input type="checkbox" checked={selected.has(l.placeId)} onChange={() => toggle(l.placeId)} style={{ accentColor: T.amber }} aria-label={`Select ${l.name}`} />
                           ) : null}
                         </td>
+                        <td style={tdStyle} title={fit.reasons.join("\n")}>
+                          <div className="flex items-center gap-2">
+                            <span style={{ fontFamily: T.mono, fontSize: 14, fontWeight: 600, color: fm.color, minWidth: 22 }}>{fit.score}</span>
+                            <span style={{ background: fm.bgc, color: fm.color, fontFamily: T.mono, fontSize: 9, letterSpacing: "0.08em", padding: "3px 7px", borderRadius: 3 }}>{fm.label}</span>
+                          </div>
+                          <div style={{ fontSize: 10, color: T.faint, marginTop: 3, maxWidth: 200, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {fit.reasons[0] ?? ""}
+                          </div>
+                        </td>
                         <td style={tdStyle}>
                           <div style={{ fontWeight: 600 }}>{l.name}</div>
                           <div style={{ fontSize: 11, color: T.faint }}>{l.category ?? "—"}</div>
                         </td>
-                        <td style={{ ...tdStyle, color: T.dim }}>{l.city ? `${l.city}, ${l.region ?? ""}` : (l.address ?? "—")}</td>
+                        <td style={{ ...tdStyle, color: T.dim }}>
+                          {l.city ? `${l.city}, ${l.region ?? ""}` : (l.address ?? "—")}
+                          {l.distanceMiles !== null && <div style={{ fontSize: 10, color: T.faint }}>{l.distanceMiles} mi</div>}
+                        </td>
+                        <td style={{ ...tdStyle, fontFamily: T.mono, fontSize: 11, color: T.dim, whiteSpace: "nowrap" }}>
+                          {l.rating !== null ? `${l.rating.toFixed(1)}★` : "—"}
+                          {l.reviewCount !== null && <span style={{ color: T.faint }}> · {l.reviewCount}</span>}
+                        </td>
                         <td style={{ ...tdStyle, fontFamily: T.mono, fontSize: 11, color: l.platform === "None" ? T.faint : T.dim }}>{l.platform}</td>
                         <td style={{ ...tdStyle, fontFamily: T.mono, fontSize: 12 }}>{l.bestEmail ?? <span style={{ color: T.faint }}>—</span>}</td>
                         <td style={tdStyle}>
@@ -454,7 +526,7 @@ export function ProspectorClient() {
             {/* actions */}
             <div className="flex flex-wrap items-center gap-3 mt-4">
               <span style={{ fontFamily: T.mono, fontSize: 11, color: T.dim }}>
-                {visible.length} shown · {nVerified} verified · {nSel} selected · {queued.length} queued
+                {visible.length} shown · {nHot} hot · {nVerified} verified · {nSel} selected · {queued.length} queued
               </span>
               <div className="flex-1" />
               <button onClick={exportCsv} style={ghostBtn} disabled={visible.length === 0}>Export CSV</button>

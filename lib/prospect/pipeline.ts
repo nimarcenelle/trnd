@@ -1,13 +1,14 @@
 import { describeSignal, pickBestEmail, readProspectSite } from "./crawl";
 import { discoverPlaces, type DiscoveredPlace } from "./discover";
-import { knownPlaceIds, saveLead } from "./store";
+import { isChainName, isSharedHost, rootDomain, scoreFit } from "./fit";
+import { knownEmails, knownPlaceIds, saveLead } from "./store";
 import type { ProspectLead, RunEvent } from "./types";
 import { verifyEmailDomain } from "./verify";
 
 /**
  * The whole prospecting run: Places discovery → per-site crawl → DNS email
- * check → persist. Streams RunEvents so the UI can narrate; wall-clock
- * budgeted like the ingest cron so a big radius can't 504 the route.
+ * check → fit score → persist. Streams RunEvents so the UI can narrate;
+ * wall-clock budgeted like the ingest cron so a big radius can't 504 the route.
  */
 
 export interface RunParams {
@@ -19,10 +20,28 @@ export interface RunParams {
   /** Drop leads with no deliverable email — the run only lands leads you can
    * actually queue for outreach. */
   onlyWithEmail: boolean;
+  /** Drop leads whose email domain has no MX record (the "risky" tier). */
+  onlyVerified: boolean;
+  /** Drop well-known chain brands and any domain shared by 3+ places in the run. */
+  skipChains: boolean;
+  /** Drop leads scoring below this fit (0 keeps everything). */
+  minFit: number;
 }
 
 const CRAWL_CONCURRENCY = 4;
 const BUDGET_MS = 240_000;
+const CHAIN_DOMAIN_COUNT = 3;
+
+/** Domains that appear on CHAIN_DOMAIN_COUNT+ places in one run — franchises. */
+export function chainDomains(places: Pick<DiscoveredPlace, "website">[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const p of places) {
+    const d = rootDomain(p.website);
+    if (!d || isSharedHost(d)) continue;
+    counts.set(d, (counts.get(d) ?? 0) + 1);
+  }
+  return new Set([...counts].filter(([, n]) => n >= CHAIN_DOMAIN_COUNT).map(([d]) => d));
+}
 
 export async function runProspectPipeline(
   params: RunParams,
@@ -49,16 +68,50 @@ export async function runProspectPipeline(
   counts.discovered = places.length;
   emitCounts();
 
+  const filtered = {
+    closed: 0,
+    far: 0,
+    chains: 0,
+    dupes: 0,
+    ads: 0,
+    noEmail: 0,
+    risky: 0,
+    lowFit: 0,
+  };
+
+  // Cheap pre-crawl filters — everything Places already told us.
   const known = await knownPlaceIds();
-  const fresh = places.filter((p) => !known.has(p.placeId));
-  const skippedKnown = places.length - fresh.length;
-  if (skippedKnown > 0) {
-    send({ type: "status", label: `${skippedKnown} already in the leads table — skipped` });
+  const chains = params.skipChains ? chainDomains(places) : new Set<string>();
+  const fresh: DiscoveredPlace[] = [];
+  let skippedKnown = 0;
+  for (const p of places) {
+    if (known.has(p.placeId)) {
+      skippedKnown++;
+      continue;
+    }
+    if (p.businessStatus && p.businessStatus !== "OPERATIONAL") {
+      filtered.closed++;
+      continue;
+    }
+    if (p.distanceMiles !== null && p.distanceMiles > params.radiusMiles) {
+      filtered.far++;
+      continue;
+    }
+    const domain = rootDomain(p.website);
+    if (params.skipChains && (isChainName(p.name) || (domain && chains.has(domain)))) {
+      filtered.chains++;
+      continue;
+    }
+    fresh.push(p);
   }
+  if (skippedKnown > 0) send({ type: "status", label: `${skippedKnown} already in the leads table — skipped` });
+  const preFiltered = filtered.closed + filtered.far + filtered.chains;
+  if (preFiltered > 0) send({ type: "status", label: `${preFiltered} dropped before crawl (closed, out of range, or chain)` });
+
+  // One founder email per inbox, ever — across runs, not just this one.
+  const seenEmails = await knownEmails();
 
   send({ type: "stage", stage: 1 });
-  let filteredAds = 0;
-  let filteredNoEmail = 0;
 
   const processOne = async (place: DiscoveredPlace): Promise<void> => {
     if (overBudget()) return;
@@ -68,7 +121,7 @@ export async function runProspectPipeline(
       emitCounts();
     }
     if (params.onlyNoAds && read && read.adPixels.length > 0) {
-      filteredAds++;
+      filtered.ads++;
       return;
     }
     const siteHost = place.website ? new URL(place.website).hostname : null;
@@ -80,8 +133,21 @@ export async function runProspectPipeline(
       emitCounts();
     }
     if (params.onlyWithEmail && emailStatus === "none") {
-      filteredNoEmail++;
+      filtered.noEmail++;
       return;
+    }
+    if (params.onlyVerified && bestEmail && emailStatus === "risky") {
+      filtered.risky++;
+      return;
+    }
+    const finalEmail = emailStatus === "none" ? null : bestEmail;
+    if (finalEmail) {
+      const key = finalEmail.toLowerCase();
+      if (seenEmails.has(key)) {
+        filtered.dupes++;
+        return;
+      }
+      seenEmails.add(key);
     }
     const lead: ProspectLead = {
       placeId: place.placeId,
@@ -94,15 +160,22 @@ export async function runProspectPipeline(
       website: place.website,
       platform: place.website ? (read?.platform ?? "Unreadable") : "None",
       emails: read?.emails ?? [],
-      bestEmail: emailStatus === "none" ? null : bestEmail,
+      bestEmail: finalEmail,
       emailStatus,
       signal: describeSignal(read, Boolean(place.website)),
       adPixels: read?.adPixels ?? [],
+      rating: place.rating,
+      reviewCount: place.reviewCount,
+      distanceMiles: place.distanceMiles,
       status: "new",
       searchQuery,
       sentAt: null,
       createdAt: new Date().toISOString(),
     };
+    if (params.minFit > 0 && scoreFit(lead).score < params.minFit) {
+      filtered.lowFit++;
+      return;
+    }
     await saveLead(lead);
     counts.ready++;
     emitCounts();
@@ -131,7 +204,13 @@ export async function runProspectPipeline(
     discovered: places.length,
     ready: counts.ready,
     skippedKnown,
-    filteredAds,
-    filteredNoEmail,
+    filteredAds: filtered.ads,
+    filteredNoEmail: filtered.noEmail,
+    filteredClosed: filtered.closed,
+    filteredFar: filtered.far,
+    filteredChains: filtered.chains,
+    filteredDupes: filtered.dupes,
+    filteredRisky: filtered.risky,
+    filteredLowFit: filtered.lowFit,
   });
 }

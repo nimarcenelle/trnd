@@ -19,6 +19,11 @@ export interface ProspectLead {
   /** Human one-liner for the table — "No ad pixel detected", "Meta pixel live". */
   signal: string;
   adPixels: string[];
+  /** Google rating (1–5) and review count — null when Places didn't return them. */
+  rating: number | null;
+  reviewCount: number | null;
+  /** Straight-line miles from the search center — null when it couldn't be resolved. */
+  distanceMiles: number | null;
   status: LeadStatus;
   searchQuery: string;
   sentAt: string | null;
@@ -38,5 +43,11 @@ export type RunEvent =
       skippedKnown: number;
       filteredAds: number;
       filteredNoEmail: number;
+      filteredClosed: number;
+      filteredFar: number;
+      filteredChains: number;
+      filteredDupes: number;
+      filteredRisky: number;
+      filteredLowFit: number;
     }
   | { type: "error"; reason: string };

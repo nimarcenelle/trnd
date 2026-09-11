@@ -14,7 +14,7 @@ export default function ProductFrame() {
         <i />
         <i />
         <i />
-        <span>usetrnd.com/app — this week</span>
+        <span>Example · this week</span>
       </div>
       <div className="pframe__body">
         <div className="pframe__main">
@@ -46,7 +46,7 @@ export default function ProductFrame() {
                 <span>strong opportunity</span>
               </div>
             </div>
-            <span className="pframe__cta">Build the campaign →</span>
+            <span className="pframe__cta">Open the campaign</span>
           </div>
         </div>
         <div className="pframe__side">

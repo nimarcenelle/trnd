@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Competitor, CompetitorRead, Opportunity, Signal } from "../lib/db/types";
-import { BASELINE_FEATURES, PLAN_PRICES, PRO_FEATURES } from "../lib/billing";
+import { BASELINE_FEATURES, PLAN_PRICES } from "../lib/billing";
 import { isSelf, pickRivals } from "../lib/intel/seed-competitors";
 import type { DiscoveredPlace } from "../lib/prospect/discover";
 import { previousWeek, rankingChanges, rivalChanges } from "../lib/recommend/diff";
@@ -110,10 +110,12 @@ describe("what changed since last week", () => {
 });
 
 describe("pricing", () => {
-  it("prints one price list everywhere", () => {
+  it("sells one plan, and everything is in it", () => {
     expect(PLAN_PRICES.baseline).toBe("$149/mo");
-    expect(PLAN_PRICES.pro).toBe("$299/mo");
-    expect(PRO_FEATURES.some((f) => /rivals/.test(f))).toBe(true);
-    expect(BASELINE_FEATURES.length).toBe(4);
+    // Rivals, the Monday email, and the written-for-you ad all ride on the
+    // one plan — nothing an owner is shown is held behind a second tier.
+    expect(BASELINE_FEATURES.some((f) => /rivals/.test(f))).toBe(true);
+    expect(BASELINE_FEATURES.some((f) => /Monday/.test(f))).toBe(true);
+    expect(BASELINE_FEATURES.some((f) => /written for you/.test(f))).toBe(true);
   });
 });

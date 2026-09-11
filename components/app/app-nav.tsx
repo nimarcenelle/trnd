@@ -6,16 +6,12 @@ import { usePathname } from "next/navigation";
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
 
+// Three tabs for a one-decision product. Report, Opportunities, Snapshot and
+// Ask still exist as routes — This week links into each where it earns it —
+// and Results now live on each campaign.
 const LINKS = [
   { href: "/app", label: "This week" },
-  { href: "/app/report", label: "Report" },
-  // Ask is pulled from the nav until the answers are worth a tab of their
-  // own — the route and panel still work at /app/ask, so putting it back is
-  // this one line.
-  { href: "/app/opportunities", label: "Opportunities" },
   { href: "/app/campaigns", label: "Campaigns" },
-  { href: "/app/results", label: "Results" },
-  { href: "/app/snapshot", label: "Snapshot" },
   { href: "/app/settings", label: "Settings" },
 ] as const;
 

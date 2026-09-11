@@ -1,5 +1,5 @@
 import type { Repo } from "@/lib/db/repo";
-import type { Business, NewOpportunity, NewSignal, Signal } from "@/lib/db/types";
+import type { Business, NewOpportunity, NewSignal, Opportunity, Signal } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity, tokens, type ScoredOpportunity } from "@/lib/scoring";
 import { localityFor } from "@/lib/signals/geo";
@@ -7,15 +7,14 @@ import { normalizeTerm } from "@/lib/signals/normalize";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { verticalKey } from "@/lib/signals/vertical";
 
+import { ensureWeekCampaign } from "@/lib/campaigns/auto";
+
+import { writeTopPickReads } from "./read";
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
-/** Monday (UTC) of the week containing `d` — the opportunity week key. */
-export function weekOf(d = new Date()): string {
-  const day = d.getUTCDay();
-  const diff = (day + 6) % 7; // days since Monday
-  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - diff));
-  return monday.toISOString().slice(0, 10);
-}
+import { weekOf } from "./week";
+
+export { weekOf };
 
 const TOP_N = 5;
 /** Wider pool for the relevance pass — a relevant #15 can outrank a junk #1
@@ -363,12 +362,29 @@ export async function recommendForBusiness(
   };
 }
 
+/** The week's picks for a business, best first, from the ids a ranking returned. */
+export async function rankedPicks(repo: Repo, business: Business, ids: string[]): Promise<Opportunity[]> {
+  if (ids.length === 0) return [];
+  const want = new Set(ids);
+  return (await repo.listOpportunities(business.id, weekOf())).filter((o) => want.has(o.id) && o.status !== "dismissed");
+}
+
 export async function runRecommend(repo: Repo): Promise<RecommendBusinessResult[]> {
   const businesses = await repo.listAllBusinesses();
   const results: RecommendBusinessResult[] = [];
   for (const b of businesses) {
     try {
-      results.push(await recommendForBusiness(repo, b));
+      const result = await recommendForBusiness(repo, b);
+      results.push(result);
+      // The read on the top picks is written from the facts just ranked, so
+      // Monday's first look already has it. Never blocks the ranking: the
+      // dashboard self-heals a missing read after its own response.
+      const picks = await rankedPicks(repo, b, result.opportunityIds);
+      await writeTopPickReads(repo, b, picks);
+      // The finished ad is the product: the #1 pick is written now, so
+      // Monday's email and first look carry it. Thin and locked picks are
+      // left for the owner (see ensureWeekCampaign).
+      if (picks[0]) await ensureWeekCampaign(repo, b, picks[0]);
     } catch (err) {
       console.warn(`[recommend] business ${b.id} failed:`, (err as Error).message);
       results.push({ businessId: b.id, created: 0, topScore: null, opportunityIds: [] });

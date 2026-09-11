@@ -102,48 +102,37 @@ export default async function ReportPage() {
     <div className="page report">
       <div className="page-head">
         <div>
-          <span className="eyebrow" style={{ margin: 0 }}>Weekly report · {weekRange}</span>
-          <h1>{business.name} — your week.</h1>
+          <span className="eyebrow m-0">Weekly report · {weekRange}</span>
+          <h1>Weekly report</h1>
           <p className="context">
             <b>{titleCase(business.category)}</b> · {business.city}
             {business.region ? `, ${business.region}` : ""} · {business.radius_miles}-mile radius ·
             generated {generated}
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }} className="no-print">
+        <div className="no-print flex items-center gap-[10px] flex-wrap">
           <PrintButton />
           <Link href="/app" className="btn btn-ghost btn-sm">
-            This week&apos;s dashboard →
+            This week&apos;s dashboard
           </Link>
         </div>
       </div>
 
       {/* ---------- THE WEEK, OWNER-FIRST: what to do, then why ---------- */}
-      <section className="panel panel--hero" style={{ padding: "28px 32px 24px" }}>
-        <span className="mono-label" style={{ display: "block", marginBottom: 12 }}>This week</span>
+      <section className="panel panel--hero px-8 pt-7 pb-6">
+        <span className="mono-label block mb-3">This week</span>
         <h2 className="h-disp" style={{ fontSize: "clamp(22px,2.6vw,30px)", margin: "0 0 18px", lineHeight: 1.15 }}>
           {note.headline}
         </h2>
         {note.actions.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          <div className="flex flex-col gap-[10px] mb-5">
             {note.actions.map((a, i) => (
               <div
                 key={a.slice(0, 40)}
-                className="report-action"
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "baseline",
-                  fontSize: 15,
-                  lineHeight: 1.55,
-                  fontWeight: 500,
-                  background: "var(--bg-1)",
-                  border: "1px solid var(--line)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: "12px 16px",
-                }}
+                className="report-action flex gap-3 items-baseline text-[15px] leading-[1.55] font-medium bg-bg-1 border border-line rounded-card-sm py-3 px-4"
+               
               >
-                <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 14, color: "var(--amber-text)", flex: "0 0 20px" }}>
+                <span className="font-disp font-bold text-[14px] text-(--amber-text) flex-[0_0_20px]">
                   {i + 1}
                 </span>
                 {a}
@@ -152,14 +141,14 @@ export default async function ReportPage() {
           </div>
         )}
         <details>
-          <summary className="mono-label" style={{ cursor: "pointer" }}>Why — the one-minute read</summary>
+          <summary className="mono-label cursor-pointer">Why</summary>
           {note.narrative.map((p) => (
-            <p key={p.slice(0, 40)} style={{ fontSize: 14.5, lineHeight: 1.65, color: "var(--ink-soft)", margin: "10px 0 0", maxWidth: 760 }}>
+            <p className="text-[14.5px] leading-[1.65] text-ink-soft mx-0 mt-[10px] mb-0 max-w-[760px]" key={p.slice(0, 40)}>
               {p}
             </p>
           ))}
         </details>
-        <p style={{ margin: "18px 0 0", fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--ink-faint)" }}>
+        <p className="mx-0 mt-[18px] mb-0 font-mono text-[10.5px] text-ink-faint">
           {notePending ? (
             <span className="note-writing">
               <i aria-hidden="true" />
@@ -175,17 +164,17 @@ export default async function ReportPage() {
       </section>
 
       {/* ---------- RANKED OPPORTUNITIES ---------- */}
-      <section className="panel" style={{ marginTop: 18 }}>
+      <section className="panel mt-[18px]">
         <div className="panel__head">
-          <span className="panel__title">This week&apos;s picks, ranked</span>
-          <span className="panel__meta">every row judged against what you actually sell</span>
+          <span className="panel__title">Ranked picks</span>
+          <span className="panel__meta">Judged against what you sell</span>
         </div>
         {report.ranked.length === 0 && (
-          <p style={{ margin: 0, fontSize: 13.5, color: "var(--ink-faint)" }}>
+          <p className="m-0 text-[13.5px] text-ink-faint">
             No trend beat your own menu this week — the move above comes from your positioning, rivals, and calendar instead.
           </p>
         )}
-        <div style={{ display: "flex", flexDirection: "column" }}>
+        <div className="flex flex-col">
           {report.ranked.map((r, i) => (
             <div
               key={r.opportunityId}
@@ -197,12 +186,12 @@ export default async function ReportPage() {
                 borderBottom: i < report.ranked.length - 1 ? "1px dashed var(--line)" : "none",
               }}
             >
-              <span style={{ fontFamily: "var(--disp)", fontWeight: 700, color: "var(--ink-faint)", fontSize: 14, width: 26, paddingTop: 2 }}>
+              <span className="font-disp font-bold text-ink-faint text-[14px] w-[26px] pt-[2px]">
                 #{r.rank}
               </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 15 }}>{titleCase(r.term)}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex gap-[10px] items-center flex-wrap">
+                  <span className="font-disp font-semibold text-[15px]">{titleCase(r.term)}</span>
                   <SourceBadge source={r.source} metric={r.metric} href={r.sourceUrl} />
                   {typeof r.deltaPct === "number" && <DeltaChip delta={r.deltaPct} />}
                   {r.sparse && (
@@ -211,10 +200,10 @@ export default async function ReportPage() {
                     </span>
                   )}
                   {r.hasCampaign && (
-                    <span className="badge badge--mint"><i />campaign built</span>
+                    <span className="badge badge--mint"><i />Campaign built</span>
                   )}
                 </div>
-                <p style={{ margin: "6px 0 0", fontSize: 13, lineHeight: 1.55, color: "var(--ink-soft)", maxWidth: 700 }}>
+                <p className="mx-0 mt-[6px] mb-0 text-[13px] leading-[1.55] text-ink-soft max-w-[700px]">
                   {r.matchedServiceName ? `Matches your ${r.matchedServiceName}. ` : ""}
                   {r.snapshotReason ?? ""}
                   {r.competitorGap ? ` ${r.competitorGap.charAt(0).toUpperCase()}${r.competitorGap.slice(1)}.` : ""}
@@ -230,41 +219,41 @@ export default async function ReportPage() {
 
       {/* ---------- COMPETITOR MOVES (named rivals) ---------- */}
       {report.competitorsWatched.length > 0 && (
-        <section className="panel" style={{ marginTop: 18 }}>
+        <section className="panel mt-[18px]">
           <div className="panel__head">
             <span className="panel__title">Competitor moves</span>
-            <span className="panel__meta">the rivals you named, read daily</span>
+            <span className="panel__meta">Read daily</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+          <div className="grid grid-cols-[repeat(auto-fit,_minmax(280px,_1fr))] gap-4">
             {report.competitorsWatched.map((w) => (
-              <div key={w.name} style={{ border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", padding: "14px 16px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline", marginBottom: 8 }}>
-                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14 }}>{w.name}</span>
+              <div className="border border-line rounded-card-sm py-[14px] px-4" key={w.name}>
+                <div className="flex justify-between gap-[10px] items-baseline mb-2">
+                  <span className="font-disp font-semibold text-[14px]">{w.name}</span>
                   {w.reviews && (
-                    <span className="mono-label" style={{ whiteSpace: "nowrap" }}>
+                    <span className="mono-label whitespace-nowrap">
                       {w.reviews.rating ?? "—"}★ · {w.reviews.count ?? 0} reviews
                     </span>
                   )}
                 </div>
                 {w.ads ? (
-                  <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--ink)" }}>
+                  <p className="mx-0 mt-0 mb-2 text-[13px] text-ink">
                     {w.ads.summary.charAt(0).toUpperCase()}
                     {w.ads.summary.slice(1)}
                     {w.previousAdCount !== null &&
                       w.previousAdCount !== w.ads.count &&
                       (w.ads.count ?? 0) <= 300 &&
                       w.previousAdCount <= 300 && (
-                        <span style={{ color: "var(--amber-text)" }}> (was {w.previousAdCount} a week ago)</span>
+                        <span className="text-(--amber-text)"> (was {w.previousAdCount} a week ago)</span>
                       )}
                     <span className="mono-label"> · {fmtDate(w.ads.day)}</span>
                   </p>
                 ) : (
-                  <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "var(--ink-faint)" }}>
+                  <p className="mx-0 mt-0 mb-2 text-[12.5px] text-ink-faint">
                     <span className="report-none">no ad read yet</span> — first read lands with the next daily scan
                   </p>
                 )}
                 {w.ads?.creatives.map((ad) => (
-                  <p key={ad.snippet.slice(0, 40)} style={{ fontSize: 12, lineHeight: 1.5, color: "var(--ink-soft)", margin: "0 0 6px" }}>
+                  <p className="text-[12px] leading-[1.5] text-ink-soft mx-0 mt-0 mb-[6px]" key={ad.snippet.slice(0, 40)}>
                     “{ad.snippet.length > 100 ? `${ad.snippet.slice(0, 97)}…` : ad.snippet}”
                   </p>
                 ))}
@@ -276,29 +265,29 @@ export default async function ReportPage() {
 
       {/* ---------- VOICE OF CUSTOMER ---------- */}
       {report.voice && report.voice.review_count > 0 && (
-        <section className="panel" style={{ marginTop: 18 }}>
+        <section className="panel mt-[18px]">
           <div className="panel__head">
-            <span className="panel__title mint">What your customers say</span>
-            <span className="panel__meta">from {report.voice.review_count} of your Google reviews</span>
+            <span className="panel__title mint">Customer reviews</span>
+            <span className="panel__meta">From {report.voice.review_count} Google reviews</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
+          <div className="grid grid-cols-[repeat(auto-fit,_minmax(240px,_1fr))] gap-[18px]">
             <div>
-              <span className="mono-label" style={{ display: "block", marginBottom: 8 }}>What they praise</span>
+              <span className="mono-label block mb-2">What they praise</span>
               {report.voice.themes.map((t) => (
-                <p key={t.slice(0, 40)} style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)", margin: "0 0 6px" }}>· {t}</p>
+                <p className="text-[12.5px] leading-[1.55] text-ink-soft mx-0 mt-0 mb-[6px]" key={t.slice(0, 40)}>· {t}</p>
               ))}
             </div>
             <div>
-              <span className="mono-label" style={{ display: "block", marginBottom: 8 }}>Their words — use in ads</span>
+              <span className="mono-label block mb-2">Their words — use in ads</span>
               {report.voice.copy_hooks.map((t) => (
-                <p key={t.slice(0, 40)} style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--ink)", margin: "0 0 6px" }}>“{t}”</p>
+                <p className="text-[12.5px] leading-[1.55] text-ink mx-0 mt-0 mb-[6px]" key={t.slice(0, 40)}>“{t}”</p>
               ))}
             </div>
             {report.voice.watchouts.length > 0 && (
               <div>
-                <span className="mono-label" style={{ display: "block", marginBottom: 8 }}>Don&apos;t overpromise</span>
+                <span className="mono-label block mb-2">Don&apos;t overpromise</span>
                 {report.voice.watchouts.map((t) => (
-                  <p key={t.slice(0, 40)} style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)", margin: "0 0 6px" }}>· {t}</p>
+                  <p className="text-[12.5px] leading-[1.55] text-ink-soft mx-0 mt-0 mb-[6px]" key={t.slice(0, 40)}>· {t}</p>
                 ))}
               </div>
             )}
@@ -308,21 +297,21 @@ export default async function ReportPage() {
 
       {/* ---------- CALENDAR AHEAD ---------- */}
       {report.seasonal.length > 0 && (
-        <section className="panel" style={{ marginTop: 18 }}>
+        <section className="panel mt-[18px]">
           <div className="panel__head">
-            <span className="panel__title">Coming up — plan ahead</span>
-            <span className="panel__meta">known demand moments</span>
+            <span className="panel__title">Coming up</span>
+            <span className="panel__meta">Known demand moments</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
+          <div className="grid grid-cols-[repeat(auto-fit,_minmax(240px,_1fr))] gap-[18px]">
             {report.seasonal.map((m) => (
               <div key={m.label} style={{ borderLeft: `2px solid ${m.prepNow ? "var(--amber)" : "var(--line-strong)"}`, paddingLeft: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 13.5 }}>{m.label}</span>
+                <div className="flex justify-between gap-[10px] items-baseline">
+                  <span className="font-disp font-semibold text-[13.5px]">{m.label}</span>
                   <span className="mono-label" style={{ color: m.prepNow ? "var(--amber-text)" : undefined, whiteSpace: "nowrap" }}>
                     {m.daysOut <= 1 ? "now" : `${m.daysOut}d out`}
                   </span>
                 </div>
-                <p style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-soft)", margin: "4px 0 0" }}>{m.advice}</p>
+                <p className="text-[12.5px] leading-[1.5] text-ink-soft mx-0 mt-1 mb-0">{m.advice}</p>
               </div>
             ))}
           </div>
@@ -330,14 +319,14 @@ export default async function ReportPage() {
       )}
 
       {/* ---------- RESULTS ---------- */}
-      <section className="panel" style={{ marginTop: 18 }}>
+      <section className="panel mt-[18px]">
         <div className="panel__head">
           <span className="panel__title">Results to date</span>
-          <Link href="/app/results" className="panel__meta no-print" style={{ color: "var(--amber-text)" }}>
-            record results →
+          <Link href="/app/results" className="panel__meta no-print text-(--amber-text)">
+            record results
           </Link>
         </div>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 760 }}>
+        <p className="m-0 text-[14px] leading-[1.6] text-ink-soft max-w-[760px]">
           {report.results.totalCampaigns === 0
             ? "No campaigns yet — your first one is a click away on the dashboard."
             : `${report.results.launched} of ${report.results.totalCampaigns} generated campaign${report.results.totalCampaigns === 1 ? "" : "s"} launched.`}{" "}
@@ -350,24 +339,24 @@ export default async function ReportPage() {
       <details className="report-appendix">
         <summary>
           The full data — every number, source, and date behind this report
-          <span className="mono-label" style={{ marginLeft: 10 }}>
+          <span className="mono-label ml-[10px]">
             {report.signalsWatched} signals · {report.sourceCounts.length} sources · {report.demand.length} demand terms
           </span>
         </summary>
 
         {report.demand.length > 0 && (
-          <div className="panel" style={{ marginTop: 14 }}>
+          <div className="panel mt-[14px]">
             <div className="panel__head">
               <span className="panel__title mint">Demand tracker</span>
-              <span className="panel__meta">your snapshot&apos;s watch terms, read daily</span>
+              <span className="panel__meta">Your watch terms, read daily</span>
             </div>
-            <div style={{ overflowX: "auto" }}>
+            <div className="overflow-x-auto">
               <table className="report-table">
                 <thead>
                   <tr>
                     <th>Term</th>
                     <th title="Google's index: 100 = the term's own busiest day in the window. Compare direction, not height.">
-                      Search interest <span style={{ fontWeight: 400, color: "var(--ink-faint)" }}>· index vs own peak</span>
+                      Search interest <span className="font-normal text-ink-faint">· index vs own peak</span>
                     </th>
                     <th>Local news</th>
                     <th>Competing ads</th>
@@ -377,28 +366,28 @@ export default async function ReportPage() {
                 <tbody>
                   {report.demand.map((d) => (
                     <tr key={d.term}>
-                      <td style={{ fontFamily: "var(--disp)", fontWeight: 600 }}>{titleCase(d.term)}</td>
+                      <td className="font-disp font-semibold">{titleCase(d.term)}</td>
                       <td>
                         {d.interestLevel !== null && !d.interestSparse ? (
-                          <span style={{ display: "inline-flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                          <span className="inline-flex gap-2 items-baseline flex-wrap">
                             {typeof d.deltaPct === "number" && <DeltaChip delta={d.deltaPct} />}
                             <span>
                               {d.interestLevel}/100
                               {d.interestRange && (
-                                <span className="mono-cell" style={{ marginLeft: 6 }}>
+                                <span className="mono-cell ml-[6px]">
                                   90d {d.interestRange.min}–{d.interestRange.max}
                                 </span>
                               )}
                               {d.interestMeasuredAs && (
-                                <span className="mono-cell" style={{ marginLeft: 6 }}>as “{d.interestMeasuredAs}”</span>
+                                <span className="mono-cell ml-[6px]">as “{d.interestMeasuredAs}”</span>
                               )}
                             </span>
                           </span>
                         ) : d.interestSparse ? (
-                          <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
+                          <span className="text-[12.5px] text-ink-soft">
                             niche term — steady trickle
                             {d.interestMeasuredAs && (
-                              <span className="mono-cell" style={{ marginLeft: 6 }}>even as “{d.interestMeasuredAs}”</span>
+                              <span className="mono-cell ml-[6px]">even as “{d.interestMeasuredAs}”</span>
                             )}
                           </span>
                         ) : (
@@ -414,13 +403,13 @@ export default async function ReportPage() {
                       </td>
                       <td>
                         {typeof d.adMatchesUnusable === "number" ? (
-                          <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
-                            {d.adMatchesUnusable} keyword match{d.adMatchesUnusable === 1 ? "" : "es"}<span className="mono-cell" style={{ marginLeft: 6 }}>unrelated advertisers</span>
+                          <span className="text-[12.5px] text-ink-soft">
+                            {d.adMatchesUnusable} keyword match{d.adMatchesUnusable === 1 ? "" : "es"}<span className="mono-cell ml-[6px]">unrelated advertisers</span>
                           </span>
                         ) : typeof d.adCount === "number" ? (
                           d.adCount > 300 ? (
-                            <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
-                              broad term<span className="mono-cell" style={{ marginLeft: 6 }}>{d.adCount} matches nationally</span>
+                            <span className="text-[12.5px] text-ink-soft">
+                              broad term<span className="mono-cell ml-[6px]">{d.adCount} matches nationally</span>
                             </span>
                           ) : (
                             `${d.adCount} active${d.adCount <= 5 ? " · open ground" : ""}`
@@ -439,17 +428,17 @@ export default async function ReportPage() {
         )}
 
         {report.competitors.length > 0 && (
-          <div className="panel" style={{ marginTop: 14 }}>
+          <div className="panel mt-[14px]">
             <div className="panel__head">
-              <span className="panel__title">Ads running on your terms</span>
-              <span className="panel__meta">Meta Ad Library reads on your terms, filtered to advertisers in your line of work</span>
+              <span className="panel__title">Competitor ads</span>
+              <span className="panel__meta">Meta Ad Library reads on your terms</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+            <div className="grid grid-cols-[repeat(auto-fit,_minmax(280px,_1fr))] gap-4">
               {report.competitors.map((c) => (
-                <div key={c.term} style={{ border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", padding: "14px 16px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline", marginBottom: 8 }}>
-                    <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 13.5 }}>{titleCase(c.term)}</span>
-                    <span className="mono-label" style={{ whiteSpace: "nowrap" }}>
+                <div className="border border-line rounded-card-sm py-[14px] px-4" key={c.term}>
+                  <div className="flex justify-between gap-[10px] items-baseline mb-2">
+                    <span className="font-disp font-semibold text-[13.5px]">{titleCase(c.term)}</span>
+                    <span className="mono-label whitespace-nowrap">
                       {c.estimate === null || c.adCount > 300
                         ? `${c.adCount} keyword matches`
                         : c.estimate === c.adCount
@@ -458,21 +447,21 @@ export default async function ReportPage() {
                     </span>
                   </div>
                   {c.ads.length === 0 && c.unrelated === 0 && (
-                    <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-faint)" }}>No competitor is running ads on this — open ground.</p>
+                    <p className="m-0 text-[12.5px] text-ink-faint">No competitor is running ads on this — open ground.</p>
                   )}
                   {c.ads.length === 0 && c.unrelated > 0 && (
-                    <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-faint)" }}>
+                    <p className="m-0 text-[12.5px] text-ink-faint">
                       None of the {c.unrelated} sampled ads is a competitor of yours — other industries or spam matching the words. Competition on this term is unknown, not open.
                     </p>
                   )}
                   {c.ads.length > 0 && c.unrelated > 0 && (
-                    <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--ink-faint)" }}>
+                    <p className="mx-0 mt-0 mb-2 text-[12px] text-ink-faint">
                       {c.unrelated} unrelated match{c.unrelated === 1 ? "" : "es"} dropped from the sample.
                     </p>
                   )}
                   {c.ads.map((ad) => (
-                    <p key={ad.advertiser} style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-soft)", margin: "0 0 8px" }}>
-                      <b style={{ color: "var(--ink)" }}>{ad.advertiser}</b> — “
+                    <p className="text-[12.5px] leading-[1.5] text-ink-soft mx-0 mt-0 mb-2" key={ad.advertiser}>
+                      <b className="text-ink">{ad.advertiser}</b> — “
                       {ad.snippet.length > 110 ? `${ad.snippet.slice(0, 107)}…` : ad.snippet}”
                     </p>
                   ))}
@@ -483,12 +472,12 @@ export default async function ReportPage() {
         )}
 
         {report.movers.length > 0 && (
-          <div className="panel" style={{ marginTop: 14 }}>
+          <div className="panel mt-[14px]">
             <div className="panel__head">
-              <span className="panel__title mint">Category pulse · 7d</span>
-              <span className="panel__meta">context, not picks</span>
+              <span className="panel__title mint">Market movement</span>
+              <span className="panel__meta">Context</span>
             </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="flex flex-col">
               {report.movers.map((m, i) => (
                 <div
                   key={`${m.term}-${m.source}`}
@@ -501,7 +490,7 @@ export default async function ReportPage() {
                     borderBottom: i < report.movers.length - 1 ? "1px dashed var(--line)" : "none",
                   }}
                 >
-                  <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>{titleCase(m.term)}</span>
+                  <span className="text-[13.5px] leading-[1.4]">{titleCase(m.term)}</span>
                   <DeltaChip delta={m.deltaPct} />
                 </div>
               ))}
@@ -510,46 +499,46 @@ export default async function ReportPage() {
         )}
 
         {brief && (
-          <div className="panel" style={{ marginTop: 14 }}>
+          <div className="panel mt-[14px]">
             <div className="panel__head">
-              <span className="panel__title">How TRND positions you</span>
-              <Link href="/app/snapshot" className="panel__meta no-print" style={{ color: "var(--amber-text)" }}>
-                full analysis →
+              <span className="panel__title">Positioning</span>
+              <Link href="/app/snapshot" className="panel__meta no-print text-(--amber-text)">
+                full analysis
               </Link>
             </div>
-            <p style={{ margin: "0 0 16px", fontSize: 14, lineHeight: 1.65, color: "var(--ink-soft)", maxWidth: 760 }}>
+            <p className="mx-0 mt-0 mb-4 text-[14px] leading-[1.65] text-ink-soft max-w-[760px]">
               {brief.positioning}
             </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
+            <div className="grid grid-cols-[repeat(auto-fit,_minmax(260px,_1fr))] gap-[18px]">
               <div>
-                <span className="mono-label" style={{ display: "block", marginBottom: 8 }}>Edges to press</span>
+                <span className="mono-label block mb-2">Edges to press</span>
                 {brief.advantages.slice(0, 3).map((a) => (
-                  <p key={a.slice(0, 40)} style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)", margin: "0 0 6px" }}>· {a}</p>
+                  <p className="text-[12.5px] leading-[1.55] text-ink-soft mx-0 mt-0 mb-[6px]" key={a.slice(0, 40)}>· {a}</p>
                 ))}
               </div>
               <div>
-                <span className="mono-label" style={{ display: "block", marginBottom: 8 }}>Never do</span>
+                <span className="mono-label block mb-2">Never do</span>
                 {brief.watchouts.slice(0, 3).map((w) => (
-                  <p key={w.slice(0, 40)} style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)", margin: "0 0 6px" }}>· {w}</p>
+                  <p className="text-[12.5px] leading-[1.55] text-ink-soft mx-0 mt-0 mb-[6px]" key={w.slice(0, 40)}>· {w}</p>
                 ))}
               </div>
             </div>
           </div>
         )}
 
-        <div className="panel" style={{ marginTop: 14 }}>
+        <div className="panel mt-[14px]">
           <div className="panel__head">
-            <span className="panel__title">Methodology &amp; sources</span>
-            <span className="panel__meta">every number on this page is traceable</span>
+            <span className="panel__title">Sources</span>
+            <span className="panel__meta">Every number links to its source</span>
           </div>
-          <p style={{ margin: "0 0 14px", fontSize: 13, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 760 }}>
+          <p className="mx-0 mt-0 mb-[14px] text-[13px] leading-[1.6] text-ink-soft max-w-[760px]">
             Scores weight momentum at {Math.round(WEIGHTS.normalizedDelta * 100)}%, fit to your menu at {Math.round(WEIGHTS.serviceMatch * 100)}%,
             competitor gap at {Math.round(WEIGHTS.competitorGap * 100)}%, and category track record at {Math.round(WEIGHTS.historicalLift * 100)}% —
             then a snapshot-aware judge gates the total by how credibly <i>your</i> business could run each trend. Competition marked
             “estimated” uses news coverage in place of a live ad-library read. Where no read has been captured, this report says so
             rather than estimating.
           </p>
-          <div style={{ overflowX: "auto" }}>
+          <div className="overflow-x-auto">
             <table className="report-table">
               <thead>
                 <tr>
@@ -572,7 +561,7 @@ export default async function ReportPage() {
         </div>
       </details>
 
-      <p style={{ margin: "18px 0 0", fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--ink-faint)" }}>
+      <p className="mx-0 mt-[18px] mb-0 font-mono text-[10.5px] text-ink-faint">
         Generated {generated} · week of {fmtDate(report.week)} · TRND for {business.name}
       </p>
     </div>

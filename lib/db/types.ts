@@ -375,6 +375,82 @@ export interface IntelNote {
 }
 export type NewIntelNote = Omit<IntelNote, "id" | "created_at">;
 
+/**
+ * The read on one pick — the analyst's paragraphs on why this term, for this
+ * business, this week, written from the same facts the score meters show.
+ * Model-written only; without a model the deterministic insight lines stand
+ * alone. One per opportunity, regenerated when its facts move.
+ */
+export interface PickRead {
+  id: string;
+  opportunity_id: string;
+  business_id: string;
+  /** 2-3 short paragraphs: the verdict first, then the why. */
+  paragraphs: string[];
+  /** 2-3 questions the owner would naturally ask next about this pick. */
+  questions: string[];
+  model_used: string;
+  /** Prompt version + a fingerprint of the facts it was written from. */
+  prompt_version: string;
+  created_at: string;
+}
+export type NewPickRead = Omit<PickRead, "id" | "created_at">;
+
+/**
+ * A question the owner wants answered every week — "who is advertising
+ * against me?", "is my facial priced right for Atlanta?" — re-answered
+ * each Monday against that week's facts and memory, with what moved since
+ * the last answer. The evergreen loop: the question never closes.
+ */
+export interface StandingQuestion {
+  id: string;
+  business_id: string;
+  question: string;
+  active: boolean;
+  /** The latest answer, 1-4 short paragraphs; empty until first answered. */
+  answer: string[];
+  /** One sentence on what moved since the previous answer; null the first time. */
+  changed: string | null;
+  /** The week (Monday) the latest answer was written for. */
+  answered_week: string | null;
+  previous_answer: string[];
+  model_used: string | null;
+  created_at: string;
+}
+export type NewStandingQuestion = Pick<StandingQuestion, "business_id" | "question">;
+
+export type DocumentKind = "menu" | "sales" | "reviews" | "brand" | "results" | "other";
+
+/** What TRND took from one uploaded document — the facts an analyst may
+ * cite, and the menu items it found, if any. */
+export interface DocumentDigest {
+  kind: DocumentKind;
+  summary: string;
+  facts: string[];
+  services_found: { name: string; price_cents: number | null }[];
+  watchouts: string[];
+}
+
+/**
+ * The owner's own knowledge, next to the market's: a menu PDF, a sales
+ * export, a brand guide, last quarter's ad results. The raw file is never
+ * kept — its text is extracted on upload (by the model for PDFs) and
+ * digested into facts that ride on every read, answer and note.
+ */
+export interface BusinessDocument {
+  id: string;
+  business_id: string;
+  name: string;
+  mime: string;
+  bytes: number;
+  /** Extracted text, capped; empty when nothing could be read. */
+  text: string;
+  digest: DocumentDigest;
+  model_used: string;
+  created_at: string;
+}
+export type NewBusinessDocument = Omit<BusinessDocument, "id" | "created_at">;
+
 export type NewSignal = Omit<Signal, "id" | "captured_at"> & { captured_at?: string };
 export type NewSeriesPoint = Omit<SignalSeriesPoint, "id">;
 export type NewOpportunity = Omit<Opportunity, "id" | "created_at" | "status"> & {

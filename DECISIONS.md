@@ -71,3 +71,59 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
   49→149 tripling felt steep at this altitude). Landing pricing copy reframed from
   "$30 a day of ad spend" math to "pays for itself with one landed campaign," which is
   the honest claim at $250 in high-LTV verticals. Playbook updated to match.
+- **The read on a pick is model-only; the insight lines are the fallback.** The
+  deterministic insight/how-to text is already the keyless read — a second templated
+  paragraph would say the same thing in more words. So `pick_reads` is written only when
+  Gemini is keyed (at rank time for the top 3, self-healed on the dashboard), cached per
+  opportunity, and keyed on a fingerprint of the facts it was written from: a read whose
+  facts moved is rewritten, never shown stale.
+- **Ask lives on the pick, and an answer can steer the build.** The page-level Ask stays
+  for market/money questions; the hero gets its own box seeded with pick-specific
+  questions. A question that asks to run the pick differently comes back with a one-line
+  `direction`, which the build prompts treat as outranking the judge's taste but never the
+  menu. Rebuilds rewrite the campaign in place (same id — links and results keep pointing
+  at it) and refuse once it has launched: launched campaigns are the record.
+- **The week's ad is written without being asked.** The product is the finished ad, and
+  the owner was having to click for it and wait a minute before seeing any value. The #1
+  pick is now built by the Monday cron and self-healed by the dashboard after its
+  response; a unique index on `campaigns(opportunity_id)` plus an in-process guard keep
+  two writers from racing. Thin picks (below 4.3) and locked plans are never built unasked.
+- **The hero is the ad; the evidence is one click down.** Hook, offer, audience, spend,
+  in-feed preview, "Open the campaign" and "Not this one". The read, the insight lines,
+  the grade and meters, the playbook and the rivals' ads all survive, under "Why this
+  pick" — the front page no longer leads with what the tool doesn't know yet.
+- **Three tabs.** This week, Campaigns, Settings. Results moved onto each campaign
+  (the full roll-up stays at /app/results, linked from Campaigns); Report, Opportunities,
+  Snapshot and Ask stay as routes linked from This week.
+- **One plan, $149.** Rivals, the Monday email (which the cron already sent to everyone),
+  and unlimited builds are in it. Pro is not sold; its plan id survives for any
+  subscription that already carries it.
+- **Evergreen means memory plus a question that never closes.** The reason a weekly
+  read feels thin is that each week was computed fresh. Now every pick's facts, the Ask
+  context, and the Monday note carry six weeks of what TRND noticed (rankings, passes,
+  ads, results, rival moves), and the owner keeps up to five standing questions that the
+  Monday cron re-answers with what moved. Both are read from tables that already exist
+  plus one small new one; neither depends on a new signal source.
+- **Thin signal is a keys problem, not a code problem.** Trends' unofficial endpoint
+  cannot be the backbone; DataForSEO, YouTube, Places and Gemini keys are the fix, in that
+  order. `GO-LIVE.md` is the founder's list; nothing on it needs a code change.
+- **Uploads keep the facts, never the file.** No storage bucket, no retention question:
+  a document is read once on upload (text and CSV deterministically; PDFs by the model as
+  bytes), digested into ≤12 citable facts plus any priced items, and the raw bytes are
+  dropped. The digest rides on the report, the pick facts, Ask and the Monday note. Not on
+  the campaign prompts yet — the claims guard would strip numbers it can't trace to the
+  menu, and document facts need their own allow-list first.
+- **Professional means subtraction.** Five passes, each its own commit: (1) no plumbing —
+  env names, the demo strip, keyless fallback strings and "illustrative" badges are gone from
+  customer paths, and production never ranks or cites sample signals; (2) plain language —
+  titles are nouns, buttons verbs, no arrows, no self-narration; (3) one typeface (Inter),
+  sentence-case labels instead of mono caps, chips only for grade and delta, one bare-input
+  class; (4) the landing page promises weekly, labels its examples, sells one plan; (5) This
+  week is the ad, why, ask, standing questions, demand, next in line, competitors, calendar —
+  market pulse, recent campaigns and the analysis teaser are cut. Every static inline style
+  (510 of them) is now a Tailwind utility on the project's own tokens; only dynamic values
+  stay inline. The project CSS sits in `@layer components` so utilities keep the precedence
+  inline styles had.
+- **Word and Excel uploads read on the server, keyless.** `mammoth` unpacks .docx to text;
+  SheetJS turns every sheet of an .xlsx/.xls into CSV (the first sheet is the table the
+  deterministic digest reads). Neither needs the model; PDFs still do.

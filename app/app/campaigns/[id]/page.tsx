@@ -5,7 +5,7 @@ import AdPreview from "@/components/app/ad-preview";
 import CopyAllButton from "@/components/app/copy-all-button";
 import CopyBlock from "@/components/app/copy-block";
 import LaunchToMetaButton from "@/components/app/launch-to-meta-button";
-import SourceBadge from "@/components/app/source-badge";
+import ResultEntryForm from "@/components/app/result-entry-form";
 import StatusTimeline from "@/components/app/status-timeline";
 import { getSessionUser } from "@/lib/auth/session";
 import { markLaunchedAction } from "@/lib/campaigns/actions";
@@ -40,6 +40,9 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
     repo.getConnection(campaign.business_id, "meta"),
   ]);
   const metaReady = metaConnection?.status === "connected" && Boolean(metaConnection.account_id);
+  const campaignResults = (await repo.listResultsForBusiness(campaign.business_id)).filter(
+    (r) => r.campaign_id === campaign.id,
+  );
   const signal = opportunity ? await repo.getSignal(opportunity.signal_id) : null;
 
   const byKind = (kind: Creative["kind"]) => creatives.filter((c) => c.kind === kind);
@@ -65,46 +68,41 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
 
   return (
     <div className="page">
-      <Link href="/app" className="mono-label" style={{ display: "inline-block", marginBottom: 16 }}>
-        ← This week
+      <Link href="/app" className="mono-label inline-block mb-4">
+        Back to this week
       </Link>
 
       {/* ---------- HEADER ---------- */}
-      <header className="panel panel--hero" style={{ padding: "30px 32px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
-          <div style={{ maxWidth: 620 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-              <span className="badge badge--amber"><i />finished campaign</span>
-              {signal && <SourceBadge source={signal.source} term={signal.term} geo={signal.geo} raw={signal.raw} />}
-              <span className="badge"><i />{campaign.channel} · paid social</span>
-            </div>
+      <header className="panel panel--hero py-[30px] px-8">
+        <div className="flex justify-between gap-5 flex-wrap items-start">
+          <div className="max-w-[620px]">
             <h1 className="h-disp" style={{ fontSize: "clamp(24px,3vw,34px)", margin: "0 0 12px", lineHeight: 1.12 }}>
               {campaign.hook}
             </h1>
-            <p style={{ fontSize: 15, lineHeight: 1.65, color: "var(--ink-soft)", margin: 0 }}>{campaign.angle}</p>
+            <p className="text-[15px] leading-[1.65] text-ink-soft m-0">{campaign.angle}</p>
           </div>
           <StatusTimeline status={campaign.status} />
         </div>
 
-        <div className="facts-grid" style={{ marginTop: 24, paddingTop: 20, borderTop: "1px dashed var(--line)" }}>
+        <div className="facts-grid mt-6 pt-5 border-t border-dashed border-line">
           <div>
-            <span className="k" style={{ color: "var(--amber-text)" }}>Offer</span>
-            <p className="v" style={{ fontWeight: 600, fontFamily: "var(--disp)" }}>{campaign.offer}</p>
+            <span className="k text-(--amber-text)">Offer</span>
+            <p className="v font-semibold font-disp">{campaign.offer}</p>
           </div>
           <div>
             <span className="k">Audience</span>
-            <p className="v" style={{ fontSize: 13.5 }}>
+            <p className="v text-[13.5px]">
               {campaign.audience.who} · {campaign.audience.age_range} · {campaign.audience.radius_miles} mi
             </p>
           </div>
           <div>
             <span className="k">Source signal</span>
-            <p className="v" style={{ fontSize: 13.5 }}>{signal ? `"${titleCase(signal.term)}"` : "—"}</p>
+            <p className="v text-[13.5px]">{signal ? `"${titleCase(signal.term)}"` : "—"}</p>
           </div>
           <div>
             <span className="k">Built</span>
-            <p className="v" style={{ fontSize: 13.5 }}>
-              {new Date(campaign.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · every number and promise checked against your menu
+            <p className="v text-[13.5px]">
+              {new Date(campaign.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
             </p>
           </div>
         </div>
@@ -115,11 +113,10 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
       <section className="step-card">
         <div className="step-head">
           <span className="step-num">1</span>
-          <h3>Shoot creative that matches what&apos;s converting</h3>
+          <h3>Creative</h3>
         </div>
         <p className="lede">
-          Each direction describes the shot, not a finished photo — hand one to anyone with a
-          phone. Copy the full brief from the card.
+          Three shot directions. Each can be taken on a phone.
         </p>
         <div className="creative-grid">
           {byKind("static_brief").map((c, i) => {
@@ -151,16 +148,16 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           })}
         </div>
 
-        <details className="section-disclosure" style={{ marginTop: 18 }}>
+        <details className="section-disclosure mt-[18px]">
           <summary>
-            <span className="panel__title">Short-form video scripts</span>
+            <span className="panel__title">Video scripts</span>
             <span className="summary-right">
               <span className="panel__meta">{byKind("script").length} scripts · 20–30s each</span>
               <span className="summary-open-hint">open ↓</span>
             </span>
           </summary>
           <div className="section-body">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
+            <div className="grid grid-cols-[repeat(auto-fill,_minmax(340px,_1fr))] gap-3">
               {byKind("script").map((c) => (
                 <CopyBlock key={c.id} label={`Script ${c.variant_index + 1}`} content={c.content} mono />
               ))}
@@ -173,36 +170,35 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
       <section className="step-card">
         <div className="step-head">
           <span className="step-num">2</span>
-          <h3>Write the copy</h3>
+          <h3>Copy</h3>
         </div>
         <p className="lede">
-          Five headlines and three primary texts, ready to paste. The preview shows how the first
-          pairing reads in-feed.
+          Five headlines and three primary texts.
         </p>
         <div className="two-col" style={{ display: "grid", gridTemplateColumns: "1.35fr 1fr", gap: 18, alignItems: "start" }}>
           <div>
-            <div className="panel__head" style={{ marginBottom: 10 }}>
+            <div className="panel__head mb-[10px]">
               <span className="panel__title">Headlines</span>
               <span className="panel__meta">{headlines.length} variants</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12, marginBottom: 20 }}>
+            <div className="grid grid-cols-[repeat(auto-fill,_minmax(240px,_1fr))] gap-3 mb-5">
               {headlines.map((c) => (
                 <CopyBlock key={c.id} label={`Headline ${c.variant_index + 1}`} content={c.content} />
               ))}
             </div>
-            <div className="panel__head" style={{ marginBottom: 10 }}>
+            <div className="panel__head mb-[10px]">
               <span className="panel__title">Primary texts</span>
               <span className="panel__meta">{primaries.length} variants</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+            <div className="grid grid-cols-[1fr] gap-3">
               {primaries.map((c) => (
                 <CopyBlock key={c.id} label={`Primary text ${c.variant_index + 1}`} content={c.content} />
               ))}
             </div>
           </div>
           <div>
-            <div className="panel__head" style={{ marginBottom: 10 }}>
-              <span className="panel__title">How it reads in-feed</span>
+            <div className="panel__head mb-[10px]">
+              <span className="panel__title">In-feed preview</span>
             </div>
             <AdPreview
               businessName={business?.name ?? "Your business"}
@@ -217,24 +213,24 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
         {signal && (
           <div className="ref-links">
             <a className="ref-link" href={trendLinks(signal.term, { hashtag: tiktokHashtag(signal) }).tiktok} target="_blank" rel="noopener noreferrer">
-              See what&apos;s working on TikTok →
+              See what&apos;s working on TikTok
             </a>
             <a className="ref-link" href={trendLinks(signal.term, { hashtag: tiktokHashtag(signal) }).instagram} target="_blank" rel="noopener noreferrer">
-              See what&apos;s working on Instagram →
+              See what&apos;s working on Instagram
             </a>
           </div>
         )}
 
-        <details className="section-disclosure" style={{ marginTop: 18 }}>
+        <details className="section-disclosure mt-[18px]">
           <summary>
             <span className="panel__title">Landing copy</span>
             <span className="summary-right">
-              <span className="panel__meta">for the page the ad points at</span>
+              <span className="panel__meta">For the landing page</span>
               <span className="summary-open-hint">open ↓</span>
             </span>
           </summary>
           <div className="section-body">
-            <div style={{ maxWidth: 720 }}>
+            <div className="max-w-[720px]">
               {byKind("landing_copy").map((c) => (
                 <CopyBlock key={c.id} label="Landing section" content={c.content} />
               ))}
@@ -247,17 +243,17 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
       <section className="step-card">
         <div className="step-head">
           <span className="step-num">3</span>
-          <h3>Set targeting and budget</h3>
+          <h3>Targeting and budget</h3>
         </div>
-        <p className="lede">Suggested starting point — sized to your {business?.price_band ?? "$$"} price band. You stay in control.</p>
+        <p className="lede">A starting point sized to your price band.</p>
         <div className="target-grid">
           <div className="t-box">
             <span className="k">Suggested budget</span>
             <div className="v">{budget.daily} / day</div>
           </div>
-          <div className="t-box" style={{ gridColumn: "1 / -1" }}>
+          <div className="t-box col-span-full">
             <span className="k">What a 6-day test should return</span>
-            <div className="v" style={{ fontSize: 13.5, lineHeight: 1.5 }}>
+            <div className="v text-[13.5px] leading-[1.5]">
               {forecastLine(forecastFlight({ daily: budget.daily, category: business?.category ?? "" }))}
             </div>
           </div>
@@ -272,7 +268,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
             </div>
           </div>
         </div>
-        <div className="flight" style={{ marginTop: 18 }}>
+        <div className="flight mt-[18px]">
           <div className="flight__step">
             <span className="flight__when">Days 1–3</span>
             <p className="flight__what">
@@ -292,8 +288,8 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
             </p>
           </div>
         </div>
-        <p style={{ marginTop: 16, marginBottom: 0, fontSize: 13, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 640 }}>
-          <span className="mono-label" style={{ color: "var(--amber-text)" }}>Why this audience: </span>
+        <p className="mt-4 mb-0 text-[13px] leading-[1.6] text-ink-soft max-w-[640px]">
+          <span className="mono-label text-(--amber-text)">Why this audience: </span>
           {campaign.audience.why}
         </p>
       </section>
@@ -302,7 +298,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
       <section className="step-card">
         <div className="step-head">
           <span className="step-num">4</span>
-          <h3>Launch checklist</h3>
+          <h3>Launch</h3>
         </div>
         <div className="checklist">
           {[
@@ -319,10 +315,10 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
             </div>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
+        <div className="flex gap-[10px] flex-wrap mt-5">
           {metaReady && !campaign.external_id && <LaunchToMetaButton campaignId={campaign.id} />}
           {campaign.external_id && (
-            <span className="badge badge--mint" style={{ alignSelf: "center" }}>
+            <span className="badge badge--mint self-center">
               <i />
               In your Meta account · {campaign.external_status ?? "PAUSED"} — results sync daily
             </span>
@@ -335,9 +331,9 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
               </button>
             </form>
           ) : (
-            <Link href="/app/results" className="btn btn-primary btn-sm">
-              Enter results →
-            </Link>
+            <a href="#results" className="btn btn-primary btn-sm">
+              Record results ↓
+            </a>
           )}
           <CopyAllButton text={copyAll} />
           <a className="btn btn-ghost btn-sm" href={`/app/campaigns/${campaign.id}/export?format=json`}>
@@ -357,6 +353,57 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           </div>
         )}
       </section>
+
+      {/* ---------- STEP 5 · RECORD (once launched) ---------- */}
+      {launched && (
+        <section className="step-card" id="results">
+          <div className="step-head">
+            <span className="step-num">5</span>
+            <h3>Results</h3>
+          </div>
+          <p className="lede">
+            Enter what your ad account reports after the flight.
+          </p>
+          <ResultEntryForm campaignId={campaign.id} />
+          {campaignResults.length > 0 && (
+            <div className="overflow-x-auto mt-[18px]">
+              <table className="data-table min-w-[640px]">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th className="num">Impressions</th>
+                    <th className="num">Clicks</th>
+                    <th className="num">CTR</th>
+                    <th className="num">Spend</th>
+                    <th className="num">Bookings</th>
+                    <th className="num">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaignResults.map((r) => (
+                    <tr key={r.id}>
+                      <td className="whitespace-nowrap">
+                        {new Date(r.recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </td>
+                      <td className="num">{r.impressions === null ? "—" : r.impressions.toLocaleString("en-US")}</td>
+                      <td className="num">{r.clicks === null ? "—" : r.clicks.toLocaleString("en-US")}</td>
+                      <td className="num text-(--mint-text) font-semibold">
+                        {r.ctr === null ? "—" : `${(Number(r.ctr) * 100).toFixed(2)}%`}
+                      </td>
+                      <td className="num">{r.spend_cents === null ? "—" : `$${(r.spend_cents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}`}</td>
+                      <td className="num">{r.bookings === null ? "—" : r.bookings.toLocaleString("en-US")}</td>
+                      <td className="num">{r.revenue_cents === null ? "—" : `$${(r.revenue_cents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <Link href="/app/results" className="mono-label inline-block mt-4 text-(--amber-text)">
+            All results
+          </Link>
+        </section>
+      )}
     </div>
   );
 }

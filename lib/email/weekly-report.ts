@@ -1,4 +1,4 @@
-import type { Alert, Business, IntelNote } from "@/lib/db/types";
+import type { Alert, Business, IntelNote, StandingQuestion } from "@/lib/db/types";
 import { env } from "@/lib/env";
 import type { IntelReport } from "@/lib/report/build";
 import { titleCase } from "@/lib/text";
@@ -25,8 +25,12 @@ export function renderWeeklyReportEmail(opts: {
   note: IntelNote;
   report: IntelReport;
   alerts: Alert[];
+  /** The owner's standing questions, freshly answered — the part of the
+   * mail that is theirs by construction. */
+  standing?: StandingQuestion[];
 }): string {
   const { business, note, report, alerts } = opts;
+  const standing = (opts.standing ?? []).filter((q) => q.answer.length > 0).slice(0, 5);
   const url = `${env.appUrl}/app/report`;
 
   const ranked = report.ranked
@@ -71,6 +75,21 @@ export function renderWeeklyReportEmail(opts: {
         ? `<div style="background:#ffffff;border:1px solid #e6e1d4;border-radius:14px;padding:22px 28px;margin-top:14px;">
       <p style="margin:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6f6759;">Since last week</p>
       <table style="width:100%;border-collapse:collapse;">${alertRows}</table>
+    </div>`
+        : ""
+    }
+
+    ${
+      standing.length > 0
+        ? `<div style="background:#ffffff;border:1px solid #e6e1d4;border-radius:14px;padding:22px 28px;margin-top:14px;">
+      <p style="margin:0 0 10px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6f6759;">Your standing questions</p>
+      ${standing
+        .map(
+          (q) => `<p style="margin:12px 0 4px;font-size:14px;font-weight:600;color:#23201a;">${esc(q.question)}</p>${
+            q.changed ? `<p style="margin:0 0 6px;font-size:13px;line-height:1.5;color:#8a6208;">${esc(q.changed)}</p>` : ""
+          }${q.answer.map((p) => `<p style="${P}">${esc(p)}</p>`).join("")}`,
+        )
+        .join("")}
     </div>`
         : ""
     }

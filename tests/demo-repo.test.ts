@@ -89,4 +89,13 @@ describe("demo repo enforces the ownership rules RLS would", () => {
     expect(await admin.upsertSignals([sig])).toBe(1);
     expect(await admin.upsertSignals([sig])).toBe(0);
   });
+
+  it("lets a measured result replace a sample learning, source included", async () => {
+    const admin = createDemoRepo({ kind: "admin" });
+    const base = { category: "Health & beauty", geo_bucket: "US", angle_type: "offer" as const };
+    await admin.upsertLearning({ ...base, lift: 0.5, sample_size: 0, source: "seed" });
+    const after = await admin.upsertLearning({ ...base, lift: 0.7, sample_size: 1, source: "measured" });
+    expect(after.source).toBe("measured");
+    expect((await admin.listLearnings(base.category)).filter((l) => l.angle_type === "offer")).toHaveLength(1);
+  });
 });

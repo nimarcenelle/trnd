@@ -78,7 +78,7 @@ export default function TrendChart({
 
   if (!geom || points.length < 2) {
     return (
-      <div className="mono-label" style={{ padding: "26px 0", color: "var(--ink-faint)" }}>
+      <div className="mono-label py-[26px] px-0 text-ink-faint">
         series pending — next ingest fills this in
       </div>
     );
@@ -146,11 +146,11 @@ export default function TrendChart({
           </span>
         )}
       </div>
-      <p style={{ margin: "2px 0 10px", fontSize: 11.5, fontFamily: "var(--mono)", color: "var(--ink-faint)" }}>
+      <p className="mx-0 mt-[2px] mb-[10px] text-[11.5px] font-mono text-ink-faint">
         {unitHint}
       </p>
       {crossNote && (
-        <p style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)" }}>
+        <p className="mx-0 mt-0 mb-[10px] text-[12.5px] leading-[1.55] text-ink-soft">
           {crossNote}
         </p>
       )}

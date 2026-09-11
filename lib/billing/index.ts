@@ -26,11 +26,11 @@ export const PLAN_LABELS: Record<PlanId, string> = {
 };
 
 /**
- * Priced against the market a small business actually compares us to:
- * AI ad-creative tools ($39–249/mo), ad-spy tools ($129–269/mo), and
- * local-marketing suites ($244–399/mo). TRND is all three for one shop, so
- * the entry tier sits at the single-tool price and Pro at the suite price.
- * Founding businesses lock whatever they start on for life.
+ * One plan. Priced against the market a small business actually compares us
+ * to: AI ad-creative tools ($39–249/mo), ad-spy tools ($129–269/mo), and
+ * local-marketing suites ($244–399/mo). TRND is all three for one shop at
+ * the single-tool price. Founding businesses lock it for life. The "pro"
+ * plan id survives for subscriptions that already carry it; it is not sold.
  */
 export const PLAN_PRICES: Record<Exclude<PlanId, "trial">, string> = {
   baseline: "$149/mo",
@@ -43,17 +43,12 @@ export const PLAN_PRICES_ANNUAL: Record<Exclude<PlanId, "trial">, string> = {
   pro: "$2,990/yr",
 };
 
-/** What Pro adds — one list, printed everywhere the plans are compared. */
-export const PRO_FEATURES = [
-  "Your five nearest rivals found for you, their Meta ads and Google ratings read daily",
-  "Rival moves in your weekly report and as alerts",
-  "The Monday intel report in your inbox",
-  "Unlimited campaign builds",
-] as const;
-
+/** What $149 buys — one list, printed everywhere the plan is described. */
 export const BASELINE_FEATURES = [
-  "This week's pick, graded and explained — every number linked to its source",
-  "A finished campaign every week: headlines, primary texts, scripts, statics, targeting, Meta CSV",
+  "One ad a week, written for you before you open the app: hook, offer, headlines, scripts, targeting, budget, Meta CSV",
+  "Why this one — the demand behind it, graded, every number linked to its source",
+  "Your five nearest rivals found for you, their Meta ads and Google ratings read daily",
+  "The Monday report in your inbox",
   "Your founding analysis: positioning, customers, pricing, seasonality, what never to run",
   "Results tracking that sharpens next week",
 ] as const;

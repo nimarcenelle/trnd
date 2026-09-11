@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-paper: var(--paper);
+  --color-card-stroke: var(--card-stroke);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-amber: var(--amber);
+  --color-amber-ink: var(--amber-ink);
+  --color-amber-hover: var(--amber-hover);
+  --color-mint: var(--mint);
+  --color-mint-ink: var(--mint-ink);
+  --color-red: var(--red);
+  --font-disp: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "Inter", system-ui, sans-serif;
+  --radius-card: 16px;
+  --radius-card-sm: 10px;
+}
+
+@layer components {
+
 /* ================= THEME TOKENS =================
    Warm light is the default — cream ground, ink type, gold accent — the
    inviting face of the brand. Dark (the terminal look) is an explicit
@@ -48,9 +74,12 @@
 
   --radius: 16px;
   --radius-sm: 10px;
-  --disp: "Bricolage Grotesque Variable", "Bricolage Grotesque", sans-serif;
-  --body: "Inter", sans-serif;
-  --mono: "IBM Plex Mono", monospace;
+  /* One typeface. --disp and --mono survive as names so nothing breaks;
+     display is the same family, heavier; "mono" is the same family with
+     tabular figures. */
+  --disp: "Inter", system-ui, sans-serif;
+  --body: "Inter", system-ui, sans-serif;
+  --mono: "Inter", system-ui, sans-serif;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -95,32 +124,10 @@
 }
 
 /* Expose tokens to Tailwind v4 utilities (bg-bg-1, text-ink-soft, border-line, …) */
-@theme inline {
-  --color-bg: var(--bg);
-  --color-bg-1: var(--bg-1);
-  --color-bg-2: var(--bg-2);
-  --color-paper: var(--paper);
-  --color-card-stroke: var(--card-stroke);
-  --color-ink: var(--ink);
-  --color-ink-soft: var(--ink-soft);
-  --color-ink-faint: var(--ink-faint);
-  --color-line: var(--line);
-  --color-line-strong: var(--line-strong);
-  --color-amber: var(--amber);
-  --color-amber-ink: var(--amber-ink);
-  --color-amber-hover: var(--amber-hover);
-  --color-mint: var(--mint);
-  --color-mint-ink: var(--mint-ink);
-  --color-red: var(--red);
-  --font-disp: "Bricolage Grotesque Variable", "Bricolage Grotesque", sans-serif;
-  --font-body: "Inter", sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
-  --radius-card: 16px;
-  --radius-card-sm: 10px;
-}
 
 html {
   transition: background-color 0.25s ease;
+  font-variant-numeric: tabular-nums;
 }
 html {
   scroll-behavior: smooth;
@@ -155,22 +162,14 @@ svg {
   padding-right: 32px;
 }
 .eyebrow {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--amber-text);
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-faint);
   display: inline-flex;
   align-items: center;
   gap: 8px;
   margin: 0 0 20px;
-}
-.eyebrow::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--amber);
 }
 .eyebrow--mint {
   color: var(--mint-text);
@@ -179,9 +178,9 @@ svg {
   background: var(--mint);
 }
 .btn {
-  font-family: var(--disp);
+  font-family: var(--body);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -239,7 +238,7 @@ svg {
 .pill {
   font-family: var(--mono);
   font-size: 11px;
-  letter-spacing: 0.03em;
+  letter-spacing: 0;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
   padding: 7px 13px;
@@ -267,11 +266,11 @@ a.card:hover {
   box-shadow: var(--elev-1);
 }
 .mono-label {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-family: var(--body);
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--ink-faint);
+  line-height: 1.4;
 }
 .field {
   display: flex;
@@ -281,10 +280,10 @@ a.card:hover {
 }
 .field label {
   font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
+  font-weight: 500;
 }
 .field input,
 .field select,
@@ -319,8 +318,8 @@ a.card:hover {
 }
 .h-disp {
   font-family: var(--disp);
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-weight: 650;
+  letter-spacing: -0.02em;
   line-height: 1.12;
 }
 
@@ -504,4 +503,40 @@ a.card:hover {
   line-height: 1.7;
   color: var(--ink-soft);
   margin: 0 0 14px;
+}
+
+/* ---------- Bare inputs (outside .field) ---------- */
+.input {
+  font-family: var(--body);
+  font-size: 14px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.15s ease;
+  min-width: 0;
+}
+.input:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-soft);
+}
+textarea.input {
+  resize: vertical;
+}
+/* A bordered row inside a panel — services, competitors, documents, answers. */
+.row-card {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+}
+.muted {
+  color: var(--ink-soft);
+}
+.faint {
+  color: var(--ink-faint);
+}
+
 }

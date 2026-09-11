@@ -23,6 +23,10 @@ import type {
   NewCreative,
   NewDemoRequest,
   NewIntelNote,
+  NewPickRead,
+  NewStandingQuestion,
+  NewBusinessDocument,
+  BusinessDocument,
   NewLearning,
   NewOpportunity,
   NewReview,
@@ -33,6 +37,8 @@ import type {
   NewSubscription,
   Opportunity,
   OpportunityStatus,
+  PickRead,
+  StandingQuestion,
   Profile,
   Review,
   ReviewDigest,
@@ -86,6 +92,13 @@ export interface Repo {
   createCampaign(input: NewCampaign, creatives: Omit<NewCreative, "campaign_id">[]): Promise<Campaign>;
   getCampaign(id: string): Promise<Campaign | null>;
   getCampaignByOpportunity(opportunityId: string): Promise<Campaign | null>;
+  /** Rewrite a draft campaign in place — same id (links and results keep
+   * pointing at it), new angle and a fresh set of creatives. */
+  replaceCampaign(
+    id: string,
+    patch: Pick<Campaign, "angle" | "hook" | "offer" | "audience" | "model_used" | "prompt_version">,
+    creatives: Omit<NewCreative, "campaign_id">[],
+  ): Promise<Campaign>;
   listCampaigns(businessId: string): Promise<Campaign[]>;
   listCreatives(campaignId: string): Promise<Creative[]>;
   setCampaignStatus(id: string, status: Campaign["status"]): Promise<Campaign>;
@@ -109,6 +122,24 @@ export interface Repo {
   /* intel notes — the analyst note opening each week's report */
   upsertIntelNote(input: NewIntelNote): Promise<IntelNote>;
   getIntelNote(businessId: string, weekOf: string): Promise<IntelNote | null>;
+
+  /** The analyst's read on one pick — see PickRead. */
+  upsertPickRead(input: NewPickRead): Promise<PickRead>;
+  getPickRead(opportunityId: string): Promise<PickRead | null>;
+
+  /** The owner's uploaded knowledge — see BusinessDocument. */
+  listDocuments(businessId: string): Promise<BusinessDocument[]>;
+  createDocument(input: NewBusinessDocument): Promise<BusinessDocument>;
+  deleteDocument(id: string): Promise<void>;
+
+  /** Standing questions — answered every week; see StandingQuestion. */
+  listStandingQuestions(businessId: string, opts?: { activeOnly?: boolean }): Promise<StandingQuestion[]>;
+  createStandingQuestion(input: NewStandingQuestion): Promise<StandingQuestion>;
+  setStandingQuestionActive(id: string, active: boolean): Promise<void>;
+  answerStandingQuestion(
+    id: string,
+    patch: Pick<StandingQuestion, "answer" | "changed" | "answered_week" | "previous_answer" | "model_used">,
+  ): Promise<StandingQuestion>;
 
   /* connections — OAuth links to ad platforms & business profiles */
   upsertConnection(input: NewConnection): Promise<Connection>;

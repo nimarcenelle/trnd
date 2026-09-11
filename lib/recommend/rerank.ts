@@ -1,7 +1,8 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business } from "@/lib/db/types";
 
-import { recommendForBusiness, weekOf } from "./recommend";
+import { rankedPicks, recommendForBusiness, weekOf } from "./recommend";
+import { writeTopPickReads } from "./read";
 
 /**
  * Rebuild this week's ranking through the full pipeline. Upsert-first so a
@@ -17,4 +18,7 @@ export async function rerankWeek(repo: Repo, business: Business): Promise<void> 
   const campaigns = await repo.listCampaigns(business.id);
   const keepIds = [...result.opportunityIds, ...campaigns.map((c) => c.opportunity_id)];
   await repo.deleteOpportunitiesForWeek(business.id, week, keepIds);
+  // The re-ranked picks get their read now — stale reads (the fingerprint
+  // moved with the score) are rewritten, unchanged ones cost nothing.
+  await writeTopPickReads(repo, business, await rankedPicks(repo, business, result.opportunityIds));
 }

@@ -75,7 +75,7 @@ export default function ScoreBreakdown({
         );
       })}
       {!showTrackRecord && (
-        <p style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--ink-faint)" }}>
+        <p className="mx-0 mt-[6px] mb-0 text-[11.5px] leading-[1.5] text-ink-faint">
           Track record ({Math.round(WEIGHTS.historicalLift * 100)}%) is scored neutral until you record a result.
         </p>
       )}

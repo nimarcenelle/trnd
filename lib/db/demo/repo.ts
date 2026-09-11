@@ -22,6 +22,10 @@ import type {
   NewConnection,
   NewDemoRequest,
   NewIntelNote,
+  NewPickRead,
+  NewStandingQuestion,
+  NewBusinessDocument,
+  BusinessDocument,
   NewLearning,
   NewOpportunity,
   NewReview,
@@ -32,6 +36,8 @@ import type {
   NewSubscription,
   Opportunity,
   OpportunityStatus,
+  PickRead,
+  StandingQuestion,
   ReviewDigest,
   Service,
   Signal,
@@ -318,6 +324,18 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (!visibleBusinessIds().has(c.business_id)) return null;
       return c;
     },
+    async replaceCampaign(id, patch, creatives) {
+      const c = store.campaigns.find((x) => x.id === id);
+      if (!c) throw new OwnershipError(`campaign ${id} not found`);
+      assertOwnsBusiness(c.business_id);
+      Object.assign(c, patch);
+      store.creatives = store.creatives.filter((cr) => cr.campaign_id !== id);
+      store.creatives.push(
+        ...creatives.map((cr) => ({ ...cr, campaign_id: id, id: randomUUID() })),
+      );
+      saveStore();
+      return c;
+    },
     async listCampaigns(businessId) {
       const ids = visibleBusinessIds();
       if (!ids.has(businessId)) return [];
@@ -367,6 +385,8 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (existing) {
         existing.lift = input.lift;
         existing.sample_size = input.sample_size;
+        // A measured result replaces a sample prior, source included.
+        existing.source = input.source;
         existing.updated_at = nowIso();
         saveStore();
         return existing;
@@ -452,6 +472,86 @@ export function createDemoRepo(actor: DemoActor): Repo {
       store.intel_notes.push(row);
       saveStore();
       return row;
+    },
+    async upsertPickRead(input: NewPickRead) {
+      assertOwnsBusiness(input.business_id);
+      store.pick_reads ??= [];
+      const existing = store.pick_reads.find((r) => r.opportunity_id === input.opportunity_id);
+      if (existing) {
+        Object.assign(existing, input, { created_at: nowIso() });
+        saveStore();
+        return existing;
+      }
+      const row: PickRead = { ...input, id: randomUUID(), created_at: nowIso() };
+      store.pick_reads.push(row);
+      saveStore();
+      return row;
+    },
+    async getPickRead(opportunityId) {
+      const r = (store.pick_reads ?? []).find((x) => x.opportunity_id === opportunityId) ?? null;
+      if (!r) return null;
+      if (!visibleBusinessIds().has(r.business_id)) return null;
+      return r;
+    },
+    async listDocuments(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      return (store.business_documents ?? [])
+        .filter((d) => d.business_id === businessId)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    },
+    async createDocument(input: NewBusinessDocument) {
+      assertOwnsBusiness(input.business_id);
+      store.business_documents ??= [];
+      const row: BusinessDocument = { ...input, id: randomUUID(), created_at: nowIso() };
+      store.business_documents.push(row);
+      saveStore();
+      return row;
+    },
+    async deleteDocument(id) {
+      const d = (store.business_documents ?? []).find((x) => x.id === id);
+      if (!d) throw new OwnershipError(`document ${id} not found`);
+      assertOwnsBusiness(d.business_id);
+      store.business_documents = (store.business_documents ?? []).filter((x) => x.id !== id);
+      saveStore();
+    },
+    async listStandingQuestions(businessId, opts) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      return (store.standing_questions ?? [])
+        .filter((q) => q.business_id === businessId && (!opts?.activeOnly || q.active))
+        .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    },
+    async createStandingQuestion(input: NewStandingQuestion) {
+      assertOwnsBusiness(input.business_id);
+      store.standing_questions ??= [];
+      const row: StandingQuestion = {
+        ...input,
+        id: randomUUID(),
+        active: true,
+        answer: [],
+        changed: null,
+        answered_week: null,
+        previous_answer: [],
+        model_used: null,
+        created_at: nowIso(),
+      };
+      store.standing_questions.push(row);
+      saveStore();
+      return row;
+    },
+    async setStandingQuestionActive(id, active) {
+      const q = (store.standing_questions ?? []).find((x) => x.id === id);
+      if (!q) throw new OwnershipError(`standing question ${id} not found`);
+      assertOwnsBusiness(q.business_id);
+      q.active = active;
+      saveStore();
+    },
+    async answerStandingQuestion(id, patch) {
+      const q = (store.standing_questions ?? []).find((x) => x.id === id);
+      if (!q) throw new OwnershipError(`standing question ${id} not found`);
+      assertOwnsBusiness(q.business_id);
+      Object.assign(q, patch);
+      saveStore();
+      return q;
     },
     async getIntelNote(businessId, weekOf) {
       if (!visibleBusinessIds().has(businessId)) return null;

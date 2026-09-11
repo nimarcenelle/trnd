@@ -16,20 +16,14 @@ export default async function OnboardingPage() {
   if (business) redirect("/app");
 
   return (
-    <main style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
-      <nav
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px 32px",
-          borderBottom: "1px solid var(--line)",
-        }}
+    <main className="min-h-dvh flex flex-col">
+      <nav className="flex items-center justify-between py-4 px-8 border-b border-line"
+       
       >
         <Brand href={null} />
         <ThemeToggle />
       </nav>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 20px" }}>
+      <div className="flex-1 flex items-center justify-center py-12 px-5">
         <OnboardingWizard />
       </div>
     </main>

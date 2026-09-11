@@ -6,7 +6,7 @@
  * caller falls back to the deterministic generator.
  */
 
-import { GoogleGenAI, Type, type Schema } from "@google/genai";
+import { GoogleGenAI, Type, type Part, type Schema } from "@google/genai";
 
 import { env } from "@/lib/env";
 
@@ -40,6 +40,10 @@ import {
   HumanizeSchema,
   IntelNoteSchema,
   type IntelNoteResult,
+  PickReadSchema,
+  type PickReadResult,
+  DocumentDigestSchema,
+  type DocumentDigestResult,
   RelevanceSchema,
   ReviewDigestSchema,
   type ReviewDigestResult,
@@ -182,6 +186,36 @@ async function structuredCall<T>(
         responseMimeType: "application/json",
         responseSchema,
         temperature: attempt === 0 ? 0.8 : 0.4,
+      },
+    });
+    try {
+      return validate(JSON.parse(res.text ?? ""));
+    } catch (err) {
+      lastError = err;
+      console.warn(`[ai] schema violation from ${model} (attempt ${attempt + 1}):`, (err as Error).message);
+    }
+  }
+  throw lastError;
+}
+
+/** The same structured call over parts — a PDF's bytes plus the prompt —
+ * for reads where the input isn't text yet. */
+async function structuredCallParts<T>(
+  model: string,
+  parts: Part[],
+  responseSchema: Schema,
+  validate: (data: unknown) => T,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await getClient().models.generateContent({
+      model,
+      contents: [{ role: "user", parts }],
+      config: {
+        systemInstruction: systemInstruction(),
+        responseMimeType: "application/json",
+        responseSchema,
+        temperature: attempt === 0 ? 0.4 : 0.2,
       },
     });
     try {
@@ -575,6 +609,8 @@ const askResponseSchema: Schema = {
     },
     assumptions: { type: Type.ARRAY, items: { type: Type.STRING } },
     insufficient: { type: Type.BOOLEAN },
+    direction: { type: Type.STRING, nullable: true },
+    changed: { type: Type.STRING, nullable: true },
   },
   required: ["answer", "citations", "insufficient"],
 };
@@ -589,6 +625,12 @@ export async function answerAskWithGemini(
   context: string,
   question: string,
   history: { question: string; answer: string[] }[] = [],
+  /** Pick-scoped ask: the facts of the one pick the owner is looking at.
+   * The answer is about THAT pick, and may end in a build direction. */
+  pick: string | null = null,
+  /** Standing questions: the answer given last time, so this one can say
+   * what moved. */
+  previous: { week: string; answer: string[] } | null = null,
 ): Promise<{ value: AskAnswerResult; model: string }> {
   const models = await resolveModels();
   const thread = history
@@ -598,13 +640,36 @@ export async function answerAskWithGemini(
   const prompt = [
     `You are TRND's analyst for ${business.name} — ${business.category} in ${business.city}, in an ongoing conversation with the owner. Answer the newest question in the context of what came before; a follow-up ("what about weekends", "double it") refers to the thread.`,
     ``,
+    ...(pick
+      ? [
+          `THE PICK THE OWNER IS LOOKING AT (this week's recommendation — the question is about this unless it plainly isn't):`,
+          pick,
+          ``,
+        ]
+      : []),
     `CONTEXT (everything TRND currently holds for this business):`,
     context,
     ``,
     thread ? `CONVERSATION SO FAR:\n${thread}\n` : ``,
+    ...(previous
+      ? [
+          `THIS IS A STANDING QUESTION the owner has TRND answer every week. YOUR PREVIOUS ANSWER (week of ${previous.week}):`,
+          previous.answer.join(" "),
+          ``,
+        ]
+      : []),
     `NEWEST QUESTION: ${question}`,
     ``,
     `How to answer:`,
+    ...(pick
+      ? [
+          `- The owner is deciding whether and how to run THIS pick. Compare it to the other ranked picks when they ask "why this"; use the score meters, the menu prices, and the competitor read to answer "how", "how much", and "what do I say".`,
+          `- direction: when the question asks to run the pick differently — another service from the menu, a different offer or price, a different audience, a different angle ("do this for the deep-tissue instead", "lead with the Tuesday special", "aim at parents") — write ONE imperative sentence a copywriter could build from, naming the real menu item. Pure questions ("why is it graded B") get direction null. Never invent a service that isn't on the menu; if they ask for one, say so in the answer and leave direction null.`,
+        ]
+      : [`- direction: always null.`]),
+    previous
+      ? `- changed: ONE sentence on what actually moved since the previous answer — a number, a rival, a rank, a result — in plain words. If nothing in the facts moved, say so in that sentence ("Nothing has moved since last week: …"). Lean on the "Remembered:" lines in the context.`
+      : `- changed: always null.`,
     `- Ground every claim about THEIR business in the context — never invent their reviews, competitors, results, prices, or history.`,
     `- Where the context runs out, REASON like an analyst instead of refusing: combine their real numbers with clearly-labeled assumptions (typical capacity, session durations, close rates, spend efficiency for a business like theirs) and show the arithmetic, landing on a range rather than false precision. "What could I make per month" deserves a math sketch from their actual menu prices and a reasonable session volume — never "the data doesn't say".`,
     `- Every assumed number goes in assumptions, phrased so the owner can correct it ("Assumed ~2 sessions a day, 5 days a week — tell me your real capacity and I'll tighten this").`,
@@ -619,6 +684,104 @@ export async function answerAskWithGemini(
     .join("\n");
   const value = await structuredCall(models.flash, prompt, askResponseSchema, (d) =>
     AskAnswerSchema.parse(d),
+  );
+  return { value, model: models.flash };
+}
+
+const pickReadResponseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    paragraphs: { type: Type.ARRAY, items: { type: Type.STRING } },
+    questions: { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ["paragraphs", "questions"],
+};
+
+/**
+ * The read on one pick: the analyst's paragraphs on why this term, for this
+ * business, this week — written from the same facts the score meters show,
+ * so every sentence traces to a number on the page. Flash: grounded
+ * summarization, not creative work. No fallback — without it the
+ * deterministic insight lines stand alone.
+ */
+export async function generatePickReadWithGemini(
+  business: Business,
+  facts: string,
+): Promise<{ value: PickReadResult; model: string }> {
+  const models = await resolveModels();
+  const prompt = [
+    `Write the read on one recommended pick for the owner of one local business. They see a term, a letter grade, and four score meters; your paragraphs are the sharp friend who runs ads explaining what those numbers mean for THEM this week.`,
+    `BUSINESS: ${business.name} — ${business.category} in ${business.city}${business.region ? `, ${business.region}` : ""}.`,
+    ``,
+    `THE FACTS (the only source of truth — every sentence must trace to one of these lines):`,
+    facts,
+    ``,
+    `Return JSON:`,
+    `- paragraphs: 2-3 SHORT paragraphs (1-3 sentences each). First: the verdict — run it, run it small, or skip it — and the one fact that decides it. Then: why the numbers land where they do for this business specifically (the fit to their menu item and price, how fast it's moving and where it was measured, who else is advertising it, what the calendar says). If a meter is weak, say which and why in plain words. Name the real menu item and price where the facts give one.`,
+    `- questions: 2-3 questions THIS owner would naturally ask next about THIS pick, phrased in their voice as they would type them ("Why this over the Korean facial?", "Is $25 a day enough for this?", "What do I say when someone asks what a glass skin facial is?"). Each must be specific to a fact above — a question that fits any pick is wrong. No question about using the software.`,
+    ``,
+    `Voice rules — hard requirements:`,
+    `- Everyday words, short sentences, written to the owner as "you". Say "more people searching" not "momentum", "competitors' ads" not "saturation", "your Google reviews" not "sentiment".`,
+    `- Banned words: leverage, capture, deploy, saturation, delta, proxy, signals, cadence, optimize, unlock, momentum.`,
+    `- Never invent a number, competitor, review, or trend. Where the facts say something is unmeasured or thin, say that plainly — it is a reason to run small, never a reason to wait for more data.`,
+    `- No exclamation marks, no emoji, no bullet lists inside a paragraph.`,
+  ].join("\n");
+  const value = await structuredCall(models.flash, prompt, pickReadResponseSchema, (d) =>
+    PickReadSchema.parse(d),
+  );
+  return { value, model: models.flash };
+}
+
+const documentDigestResponseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    kind: { type: Type.STRING, enum: ["menu", "sales", "reviews", "brand", "results", "other"] },
+    summary: { type: Type.STRING },
+    facts: { type: Type.ARRAY, items: { type: Type.STRING } },
+    services_found: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: { name: { type: Type.STRING }, price_cents: { type: Type.INTEGER, nullable: true } },
+        required: ["name", "price_cents"],
+      },
+    },
+    watchouts: { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ["kind", "summary", "facts", "services_found", "watchouts"],
+};
+
+/**
+ * One uploaded document → the facts an analyst may cite from it. Text goes
+ * as text; a PDF goes as bytes and the model reads it. Flash: extraction,
+ * not creative work. Facts must be things the document actually says.
+ */
+export async function digestDocumentWithGemini(
+  business: Business,
+  doc: { name: string; mime: string; text: string | null; bytes: Uint8Array | null },
+): Promise<{ value: DocumentDigestResult; model: string }> {
+  const models = await resolveModels();
+  const prompt = [
+    `An owner of one local business uploaded a document so TRND can reason from what they know. Read it and return what an analyst could cite from it.`,
+    `BUSINESS: ${business.name} — ${business.category} in ${business.city}${business.region ? `, ${business.region}` : ""}.`,
+    `DOCUMENT: "${doc.name}" (${doc.mime}).`,
+    ``,
+    `Return JSON:`,
+    `- kind: what this is — menu (services/products with prices), sales (a sales or POS export), reviews (customer reviews), brand (brand guide, voice, story), results (past ad or campaign results), other.`,
+    `- summary: two sentences on what the document holds and what it's good for.`,
+    `- facts: up to 12 short, specific, citable facts — real names, prices, counts, dates, quotes. For a sales export, the top sellers and totals. For reviews, the phrases customers actually use. For a brand guide, the rules and the story. Never a fact the document doesn't state.`,
+    `- services_found: every service or product with its price in cents (null when unpriced) when the document lists any; empty otherwise.`,
+    `- watchouts: up to 4 things the copy should avoid or that look off (a claim to check, a price that conflicts, personal data that shouldn't be used).`,
+    ``,
+    doc.text !== null ? `THE DOCUMENT'S TEXT:\n${doc.text.slice(0, 60_000)}` : `The document is attached.`,
+  ].join("\n");
+  const parts: Part[] = [];
+  if (doc.bytes && doc.text === null) {
+    parts.push({ inlineData: { mimeType: doc.mime, data: Buffer.from(doc.bytes).toString("base64") } });
+  }
+  parts.push({ text: prompt });
+  const value = await structuredCallParts(models.flash, parts, documentDigestResponseSchema, (d) =>
+    DocumentDigestSchema.parse(d),
   );
   return { value, model: models.flash };
 }

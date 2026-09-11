@@ -1,3 +1,4 @@
+@layer components {
 /* ============ TRND app design system ============
    Product screens only (everything under /app). Landing has landing.css;
    shared primitives (btn, pill, eyebrow, card, field) live in globals.css. */
@@ -49,13 +50,13 @@
 }
 .kpi .k {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   display: block;
   margin-bottom: 8px;
   white-space: nowrap;
+  font-weight: 500;
 }
 .kpi .v {
   font-family: var(--disp);
@@ -109,24 +110,16 @@
   margin-bottom: 16px;
 }
 .panel__title {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
+  font-family: var(--body);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
   display: inline-flex;
   align-items: center;
   gap: 7px;
 }
 .panel__title::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--amber);
-}
-.panel__title.mint::before {
-  background: var(--mint);
+  content: none;
 }
 .panel__meta {
   font-family: var(--mono);
@@ -137,9 +130,8 @@
 /* ---------- Badges ---------- */
 .badge {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -148,6 +140,7 @@
   padding: 4px 10px;
   color: var(--ink-soft);
   white-space: nowrap;
+  font-weight: 500;
 }
 .badge i {
   width: 6px;
@@ -193,10 +186,10 @@
 }
 .dial__label {
   font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--amber-text);
+  font-weight: 500;
 }
 
 /* ---------- Score breakdown meters ---------- */
@@ -213,11 +206,11 @@
 }
 .breakdown__row .lbl {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-soft);
   line-height: 1.35;
+  font-weight: 500;
 }
 .breakdown__row .lbl small {
   display: block;
@@ -388,12 +381,12 @@
 }
 .facts-grid .k {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   display: block;
   margin-bottom: 6px;
+  font-weight: 500;
 }
 .facts-grid .v {
   font-size: 14px;
@@ -439,10 +432,10 @@
 }
 .timeline__label {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
+  font-weight: 500;
 }
 .timeline__step.done .timeline__label,
 .timeline__step.current .timeline__label {
@@ -546,12 +539,12 @@
 }
 .ad-preview__note {
   font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.05em;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
-  text-transform: uppercase;
   margin-top: 10px;
   text-align: center;
+  font-weight: 500;
 }
 
 /* ---------- Data table ---------- */
@@ -562,9 +555,8 @@
 }
 .data-table th {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   text-align: left;
   font-weight: 500;
@@ -729,11 +721,11 @@
 }
 .action-strip .k {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--amber-text);
   white-space: nowrap;
+  font-weight: 500;
 }
 .action-strip .v {
   font-size: 13.5px;
@@ -822,7 +814,7 @@ details.section-disclosure .section-body {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--ink-faint);
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
 }
 details.section-disclosure[open] .summary-open-hint {
   display: none;
@@ -845,11 +837,11 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .flight__when {
   font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--amber-text);
   white-space: nowrap;
+  font-weight: 500;
 }
 .flight__what {
   font-size: 13.5px;
@@ -875,12 +867,12 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .takeaway .k {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--mint-text);
   white-space: nowrap;
   padding-top: 2px;
+  font-weight: 500;
 }
 .takeaway p {
   margin: 0;
@@ -918,26 +910,23 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .timeline--compact .tl-label {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-soft);
   margin-left: 5px;
+  font-weight: 500;
 }
 
 /* Demo-mode strip — informative, not shouty */
 .demo-strip {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  padding: 5px 16px;
+  gap: 6px;
+  padding: 8px 16px;
   background: var(--bg-1);
   border-bottom: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
+  font-size: 13px;
+  color: var(--ink-soft);
 }
 .demo-strip b {
   color: var(--amber-text);
@@ -1128,11 +1117,11 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .grade-ring__num .d {
   font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   margin-top: 3px;
+  font-weight: 500;
 }
 .grade-ring__label {
   font-family: var(--disp);
@@ -1144,7 +1133,7 @@ details.section-disclosure[open] .summary-open-hint {
 .grade-ring__sub {
   font-family: var(--mono);
   font-size: 10.5px;
-  letter-spacing: 0.03em;
+  letter-spacing: 0;
   color: var(--ink-faint);
 }
 .grade-pill {
@@ -1234,12 +1223,12 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .howto-col .k {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--mint-text);
   display: block;
   margin-bottom: 8px;
+  font-weight: 500;
 }
 .howto-col p {
   font-family: var(--body);
@@ -1271,12 +1260,12 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .meta-row .k {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   display: block;
   margin-bottom: 6px;
+  font-weight: 500;
 }
 .meta-row .v {
   font-family: var(--body);
@@ -1351,12 +1340,12 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .p-stat .k {
   font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   display: block;
   margin-bottom: 8px;
+  font-weight: 500;
 }
 .p-stat .v {
   font-family: var(--disp);
@@ -1372,12 +1361,12 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .note-card .t {
   font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   margin-bottom: 10px;
   display: block;
+  font-weight: 500;
 }
 .note-card p {
   font-family: var(--body);
@@ -1499,7 +1488,7 @@ details.section-disclosure[open] .summary-open-hint {
   border-top: none;
   font-family: var(--mono);
   font-size: 10.5px;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   color: var(--ink-faint);
   filter: none;
   opacity: 1;
@@ -1623,12 +1612,12 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .creative-card .cap .tag {
   font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--mint-text);
-  text-transform: uppercase;
   display: block;
   margin-bottom: 5px;
+  font-weight: 500;
 }
 .creative-card .cap .desc {
   font-family: var(--body);
@@ -1673,12 +1662,12 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .target-grid .k {
   font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   display: block;
   margin-bottom: 6px;
+  font-weight: 500;
 }
 .target-grid .v {
   font-family: var(--disp);
@@ -1722,9 +1711,8 @@ details.section-disclosure[open] .summary-open-hint {
 }
 .report-table th {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   text-align: left;
   font-weight: 500;
@@ -1839,7 +1827,7 @@ details.section-disclosure[open] .summary-open-hint {
   align-items: flex-end;
 }
 .report-table th {
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   padding-bottom: 12px;
 }
 .report-table td {
@@ -2157,7 +2145,7 @@ details.disclosure[open] .stars__over {
 .pick-switch__rank {
   font-family: var(--mono);
   font-size: 10.5px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   color: var(--ink-faint);
   flex: 0 0 auto;
 }
@@ -2321,4 +2309,6 @@ details.disclosure[open] .stars__over {
 }
 @media (prefers-reduced-motion: reduce) {
   .note-writing i { animation: none; opacity: 0.8; }
+}
+
 }

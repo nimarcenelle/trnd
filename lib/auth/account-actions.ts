@@ -56,7 +56,7 @@ export async function requestPasswordResetAction(
   if (!isSupabaseConfigured) {
     return {
       error:
-        "Password recovery needs the email service that comes with Supabase (see BLOCKED.md). In demo mode, create a fresh account instead.",
+        "Password recovery isn't available for this workspace. Contact support to reset your password.",
     };
   }
   const sb = await createServerSupabase();

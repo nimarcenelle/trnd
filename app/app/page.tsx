@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import AdPreview from "@/components/app/ad-preview";
 import AnalysisProgress from "@/components/app/analysis-progress";
 import AutoRefresh from "@/components/app/auto-refresh";
 import ScoreBreakdown from "@/components/app/score-breakdown";
@@ -12,14 +13,21 @@ import DeltaChip from "@/components/app/delta-chip";
 import SourceBadge from "@/components/app/source-badge";
 import TrendChart from "@/components/app/trend-chart";
 import InsightList from "@/components/app/insight-list";
+import PickAsk from "@/components/app/pick-ask";
+import StandingQuestions from "@/components/app/standing-questions";
 import { getSessionUser } from "@/lib/auth/session";
 import BuildCampaignButton from "@/components/app/build-campaign-button";
 import { markAlertsReadAction } from "@/lib/intel/actions";
-import { refreshRankingAction, scanMarketNowAction } from "@/lib/recommend/actions";
+import { suggestStandingQuestions } from "@/lib/intel/standing";
+import { passOnPickAction, refreshRankingAction, scanMarketNowAction } from "@/lib/recommend/actions";
 import { getUserRepo } from "@/lib/db";
 import { getAdminRepo } from "@/lib/db/admin";
 import type { Signal } from "@/lib/db/types";
+import { ensureWeekCampaign, shouldAutoBuild } from "@/lib/campaigns/auto";
+import { campaignRebuildable } from "@/lib/campaigns/build";
 import { explainOpportunity } from "@/lib/recommend/explain";
+import { buildPickFacts } from "@/lib/recommend/pick-facts";
+import { ensurePickRead, readIsCurrent } from "@/lib/recommend/read";
 import CopyBlock from "@/components/app/copy-block";
 import { buildHowTo, tiktokHashtag } from "@/lib/recommend/howto";
 import { buildOrganicPost } from "@/lib/recommend/post";
@@ -161,23 +169,18 @@ export default async function AppHome({
           <AutoRefresh everyMs={8000} />
           <div className="page-head">
             <div>
-              <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
-              <h1>TRND is reading {business.name}.</h1>
+              <span className="eyebrow m-0">This week · {weekRange}</span>
+              <h1>Reading your business</h1>
               <p className="context">
-                Positioning, customers, demand terms, first moves — the founding analysis is
-                being written now, and your first judged ranking lands with it. Usually under
-                two minutes; this page refreshes itself.
+                Your analysis is being written. Your first ranking lands with it, usually within
+                two minutes. This page refreshes itself.
               </p>
             </div>
           </div>
-          <div className="panel" style={{ maxWidth: 620 }}>
-            <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
-              TRND never shows a ranking that hasn&apos;t been judged against what you actually
-              sell — a minute of honest silence beats a week of confident nonsense.
-            </p>
+          <div className="panel max-w-[620px]">
             <AnalysisProgress startedAt={business.created_at} />
-            <Link className="btn btn-ghost btn-sm" href="/app/snapshot" style={{ marginTop: 18 }}>
-              Watch the analysis land →
+            <Link className="btn btn-ghost btn-sm mt-[18px]" href="/app/snapshot">
+              View the analysis
             </Link>
           </div>
         </div>
@@ -207,19 +210,17 @@ export default async function AppHome({
           <AutoRefresh everyMs={8000} />
           <div className="page-head">
             <div>
-              <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
-              <h1>Scanning your market now.</h1>
+              <span className="eyebrow m-0">This week · {weekRange}</span>
+              <h1>Reading your market</h1>
               <p className="context">
-                Live demand reads for <b>{business.category}</b> around {business.city} —
-                search volume, news, what competitors are running — then a judged ranking.
+                Reading demand for <b>{business.category}</b> around {business.city}, then ranking
+                it against what you sell.
               </p>
             </div>
           </div>
-          <div className="panel" style={{ maxWidth: 620 }}>
-            <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
-              Your analysis named the search terms your customers actually use — TRND is
-              reading live demand for each one right now. A minute or two; this page
-              refreshes itself.
+          <div className="panel max-w-[620px]">
+            <p className="m-0 text-ink-soft leading-[1.65] text-[14.5px]">
+              This takes a minute or two. The page refreshes itself.
             </p>
           </div>
         </div>
@@ -229,36 +230,29 @@ export default async function AppHome({
       <div className="page">
         <div className="page-head">
           <div>
-            <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
-            <h1>Nothing cleared the bar this week.</h1>
+            <span className="eyebrow m-0">This week · {weekRange}</span>
+            <h1>No recommendation this week</h1>
             <p className="context">
-              Today&apos;s reads for <b>{titleCase(business.category)}</b> around {business.city} didn&apos;t
-              produce a ranking worth your money — or everything this week was dismissed.
+              This week&apos;s reads for <b>{titleCase(business.category)}</b> around {business.city} didn&apos;t
+              produce a pick worth spending on.
             </p>
           </div>
         </div>
-        <div className="panel" style={{ maxWidth: 620 }}>
-          <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
-            Your intel report still has the week&apos;s move — built from your positioning, your rivals&apos;
-            ads, and the calendar. The daily scan keeps watching your terms and your broader market, and
-            you can re-read the market right now.
+        <div className="panel max-w-[620px]">
+          <p className="m-0 text-ink-soft leading-[1.65] text-[14.5px]">
+            The daily read continues. You can refresh it now.
           </p>
-          {!isSupabaseConfigured && (
-            <p style={{ margin: "12px 0 0", fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--ink-faint)" }}>
-              dev note: run <code>pnpm seed</code> for illustrative data or <code>pnpm job:ingest</code> for live sources.
-            </p>
-          )}
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
+          <div className="flex gap-3 flex-wrap mt-[18px]">
             <form action={scanMarketNowAction}>
-              <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Scanning your market…">
-                Scan my market now
+              <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Refreshing…">
+                Refresh now
               </SubmitButton>
             </form>
             <Link className="btn btn-ghost btn-sm" href="/app/report">
-              Read this week&apos;s report →
+              Weekly report
             </Link>
             <Link className="btn btn-ghost btn-sm" href="/app/opportunities">
-              Review dismissed opportunities
+              Dismissed picks
             </Link>
           </div>
         </div>
@@ -345,6 +339,25 @@ export default async function AppHome({
           snapshotReason,
         })
       : [];
+  // The read on this pick — the analyst's paragraphs over the same facts the
+  // meters show. Model-written and cached per pick; when its facts moved (a
+  // re-rank, a new match) it's rewritten after the response and lands on the
+  // next load. Keyless installs keep the deterministic insight lines alone.
+  const pickFacts = signal ? await buildPickFacts(repo, business, top, signal) : null;
+  const storedRead = await repo.getPickRead(top.id);
+  const read = pickFacts && readIsCurrent(storedRead, pickFacts) ? storedRead : null;
+  const readInFlight = Boolean(pickFacts && !read && isGeminiConfigured);
+  if (readInFlight && pickFacts) {
+    after(async () => {
+      try {
+        await ensurePickRead(repo, business, top, { signal, facts: pickFacts });
+      } catch (err) {
+        console.warn("[app] pick read failed (non-fatal):", (err as Error).message);
+      }
+    });
+  }
+  const askQuestions = read?.questions ?? pickFacts?.questions ?? [];
+
   const launchBy = fmtDate(launchByFor(week));
   const nextAction = buildNextAction({
     hasCampaign: Boolean(campaign),
@@ -372,15 +385,6 @@ export default async function AppHome({
       }),
     ),
   );
-
-  // Market pulse: this week's top movers in the category — one row per term
-  // (the same term arrives on several metrics/geos and must not list twice).
-  const moverSeen = new Set<string>();
-  const movers = [...watched]
-    .filter((s) => typeof s.delta_pct === "number")
-    .sort((a, b) => (b.delta_pct ?? 0) - (a.delta_pct ?? 0))
-    .filter((s) => (moverSeen.has(s.normalized_term) ? false : (moverSeen.add(s.normalized_term), true)))
-    .slice(0, 5);
 
   // Known demand moments ahead — the calendar half of timing.
   const seasonal = upcomingMoments(business.category);
@@ -414,7 +418,6 @@ export default async function AppHome({
     });
   }
 
-  const recentCampaigns = campaigns.slice(0, 4);
 
   // What changed since last week, the rivals, and the plan that gates
   // rival tracking — read together; each is small.
@@ -439,36 +442,94 @@ export default async function AppHome({
     new Date(new Date(`${week}T00:00:00Z`).getTime() + 7 * 86400_000).toISOString().slice(0, 10),
   );
   const rankedAt = lead ? new Date(lead.created_at) : null;
-  const rivalsGated = plan.plan === "baseline" && plan.status === "active";
+  // The ad itself, when it exists: the first headline and primary text feed
+  // the in-feed preview that now sits where the grade ring used to.
+  const measuredResults = learnings.some((l) => l.source === "measured") || results.length > 0;
+  const creatives = campaign ? await repo.listCreatives(campaign.id) : [];
+  const headline0 = creatives.find((c) => c.kind === "headline" && c.variant_index === 0)?.content ?? campaign?.hook ?? "";
+  const primary0 = creatives.find((c) => c.kind === "primary_text" && c.variant_index === 0)?.content ?? campaign?.angle ?? "";
+  const campaignLive = campaign ? campaign.status === "live" || campaign.status === "complete" : false;
+  const canPass = Boolean(campaign && !campaignLive && campaignRebuildable(campaign.status) && runnerUps.length > 0);
+  const budget = budgetFor(business.price_band);
+  // The week's ad is written without being asked. Missing one (a fresh
+  // ranking, a passed pick, a build that died) is written after this
+  // response; the page shows "writing…" and refreshes into it.
+  const building = Boolean(signal) && shouldAutoBuild(top, Boolean(campaign), plan.locked);
+  if (building) {
+    after(async () => {
+      try {
+        await ensureWeekCampaign(repo, business, top);
+      } catch (err) {
+        console.warn("[app] auto-build failed (non-fatal):", (err as Error).message);
+      }
+    });
+  }
+  // Standing questions: answered Monday by the cron; brand-new ones are
+  // answered on the spot by their action. Nothing here waits on a model.
+  const standing = await repo.listStandingQuestions(business.id, { activeOnly: true });
+  const standingSuggestions = suggestStandingQuestions(business, services, brief, standing);
+  const readBlock = (
+    <>
+      {read && (
+        <div className="mx-0 mt-0 mb-[18px] max-w-[640px]">
+          {read.paragraphs.map((p, i) => (
+            <p
+              key={p.slice(0, 40)}
+              style={{
+                fontSize: i === 0 ? 15.5 : 14,
+                fontWeight: i === 0 ? 500 : 400,
+                lineHeight: 1.65,
+                color: i === 0 ? "var(--ink)" : "var(--ink-soft)",
+                margin: "0 0 10px",
+              }}
+            >
+              {p}
+            </p>
+          ))}
+        </div>
+      )}
+      {readInFlight && (
+        <p className="mx-0 mt-0 mb-[14px] font-mono text-[11px] text-ink-faint">
+          TRND is writing the read on this pick — it lands in a moment.
+        </p>
+      )}
+    </>
+  );
+  const scoreCard = (
+    <div className="score-card score-card--hero">
+      <GradeRing score={Number(top.score)} />
+      {explained && <ScoreBreakdown components={explained.components} showTrackRecord={measuredResults} />}
+    </div>
+  );
   const latestRead = (competitorId: string, kind: "ads" | "reviews") =>
     competitorReads
       .filter((r) => r.competitor_id === competitorId && r.kind === kind)
       .sort((a, b) => b.captured_at.localeCompare(a.captured_at))[0] ?? null;
-  const measuredResults = learnings.some((l) => l.source === "measured") || results.length > 0;
   const forecast = forecastLine(forecastFlight({ daily: budgetFor(business.price_band).daily, category: business.category }));
 
   return (
     <div className="page">
+      {(building || readInFlight) && <AutoRefresh everyMs={6000} times={building ? 15 : 3} />}
       <div className="page-head">
         <div>
-          <span className="eyebrow" style={{ margin: 0 }}>This week&apos;s recommendation · {weekRange}</span>
-          <h1>{business.name.endsWith("s") ? `${business.name}’` : `${business.name}’s`} week, read for you.</h1>
+          <span className="eyebrow m-0">This week&apos;s recommendation · {weekRange}</span>
+          <h1>This week</h1>
           <p className="context">
             <b>{titleCase(business.category)}</b> · {business.city}
             {business.region ? `, ${business.region}` : ""} · {business.radius_miles} mile radius ·{" "}
             {rankedAt
-              ? `ranked ${rankedAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
-              : "signal refreshes daily"}
+              ? `Ranked ${rankedAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+              : "Refreshed daily"}
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className="flex items-center gap-[10px] flex-wrap">
           {signal?.source === "seed" && <SourceBadge source="seed" />}
           <Link href="/app/report" className="btn btn-ghost btn-sm">
-            Intel report →
+            Full report
           </Link>
           <form action={refreshRankingAction}>
-            <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Re-reading the market…">
-              Re-rank this week
+            <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Refreshing…">
+              Refresh
             </SubmitButton>
           </form>
         </div>
@@ -476,9 +537,9 @@ export default async function AppHome({
 
       {/* ---------- WHAT CHANGED SINCE LAST WEEK ---------- */}
       {changes.length > 0 && (
-        <section className="panel" style={{ marginTop: 18, padding: "14px 20px" }}>
-          <span className="mono-label" style={{ display: "block", marginBottom: 8 }}>What changed since last week</span>
-          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+        <section className="panel mt-[18px] py-[14px] px-5">
+          <span className="mono-label block mb-2">What changed since last week</span>
+          <ul className="m-0 p-0 list-none flex flex-col gap-1">
             {changes.slice(0, 6).map((c) => (
               <li key={c.text} style={{ fontSize: 13.5, lineHeight: 1.5, color: c.kind === "rival" ? "var(--amber-text)" : "var(--ink-soft)" }}>
                 {c.text}
@@ -490,13 +551,11 @@ export default async function AppHome({
 
       {/* ---------- BASELINE WEEK ---------- */}
       {baselineWeek && (
-        <section className="panel" style={{ marginTop: 18, padding: "14px 20px", borderStyle: "dashed" }}>
-          <span className="mono-label" style={{ display: "block", marginBottom: 4 }}>Baseline week</span>
-          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--ink-soft)" }}>
-            Your ranking is your own menu this week — the demand terms from your analysis, before any of
-            them has two weeks of reads. Grades are held down until the first measured movement lands,
-            usually by {firstMeasuredBy}. The campaign is still worth building: it&apos;s your strongest
-            offer, written.
+        <section className="panel mt-[18px] py-[14px] px-5 border-dashed">
+          <span className="mono-label block mb-1">First week</span>
+          <p className="m-0 text-[13.5px] leading-[1.55] text-ink-soft">
+            This week&apos;s picks are the demand terms from your analysis. Grades stay conservative until
+            the first measured movement lands, usually by {firstMeasuredBy}.
           </p>
         </section>
       )}
@@ -532,21 +591,21 @@ export default async function AppHome({
       )}
 
       {ledger.spendCents > 0 && (
-        <div className="panel" style={{ marginTop: 18, padding: "14px 20px", display: "flex", gap: 24, alignItems: "baseline", flexWrap: "wrap" }}>
+        <div className="panel mt-[18px] py-[14px] px-5 flex gap-6 items-baseline flex-wrap">
           <span className="mono-label">TRND campaigns to date</span>
-          <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15 }}>
+          <span className="font-disp font-bold text-[15px]">
             ${(ledger.spendCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} spent
           </span>
           {ledger.bookings > 0 && (
-            <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15 }}>{ledger.bookings} bookings</span>
+            <span className="font-disp font-bold text-[15px]">{ledger.bookings} bookings</span>
           )}
           {ledger.revenueCents > 0 && (
-            <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15, color: "var(--mint-text)" }}>
+            <span className="font-disp font-bold text-[15px] text-(--mint-text)">
               ${(ledger.revenueCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} back
               {ledger.spendCents > 0 ? ` · ${(ledger.revenueCents / ledger.spendCents).toFixed(1)}×` : ""}
             </span>
           )}
-          <span className="mono-label" style={{ marginLeft: "auto" }}>
+          <span className="mono-label ml-auto">
             {ledger.synced ? "auto-synced from Meta" : "from your recorded results"}
           </span>
         </div>
@@ -555,16 +614,16 @@ export default async function AppHome({
       {unreadAlerts.length > 0 && (
         // A notification strip, not a content panel — one alert must read as
         // one compact line, not a card that is mostly padding.
-        <section className="panel" style={{ margin: "18px 0", padding: "14px 26px 12px" }}>
-          <div className="panel__head" style={{ marginBottom: 4 }}>
+        <section className="panel my-[18px] mx-0 px-[26px] pt-[14px] pb-3">
+          <div className="panel__head mb-1">
             <span className="panel__title">What changed</span>
             <form action={markAlertsReadAction}>
-              <button type="submit" className="panel__meta" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--amber-text)", fontFamily: "var(--mono)" }}>
+              <button type="submit" className="panel__meta bg-transparent border-0 cursor-pointer text-(--amber-text) font-mono">
                 mark all read
               </button>
             </form>
           </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
+          <div className="flex flex-col">
             {unreadAlerts.map((a, i) => (
               <Link
                 key={a.id}
@@ -578,9 +637,9 @@ export default async function AppHome({
                   borderBottom: i < unreadAlerts.length - 1 ? "1px dashed var(--line)" : "none",
                 }}
               >
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--amber)", flex: "0 0 auto", transform: "translateY(-2px)" }} />
-                <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 13.5 }}>{a.title}</span>
-                <span style={{ fontSize: 12.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>{a.body}</span>
+                <span className="w-[7px] h-[7px] rounded-full bg-amber flex-none -translate-y-[2px]" />
+                <span className="font-disp font-semibold text-[13.5px]">{a.title}</span>
+                <span className="text-[12.5px] text-ink-faint leading-[1.5]">{a.body}</span>
               </Link>
             ))}
           </div>
@@ -592,41 +651,44 @@ export default async function AppHome({
           service-anchored moves from the analysis — they lead, in the hero
           slot, and the closest trend demotes to market context below. */}
       {weekThin && brief && brief.first_moves.length > 0 && (
-        <section className="panel panel--hero" style={{ marginTop: 18, padding: "30px 32px 28px" }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+        <section className="panel panel--hero mt-[18px] px-8 pt-[30px] pb-7">
+          <div className="flex gap-2 items-center flex-wrap mb-[10px]">
             <span className="badge badge--amber"><i />This week&apos;s play</span>
-            <span className="panel__meta">no trend fits — run what your analysis backs</span>
+            <span className="panel__meta">No trend fits this week</span>
           </div>
           <h2 className="h-disp" style={{ fontSize: "clamp(22px,2.6vw,30px)", margin: "0 0 8px", lineHeight: 1.12, letterSpacing: "-0.02em" }}>
-            Nothing in the market beats your own moves this week.
+            No trend fits this week. Run your own moves.
           </h2>
-          <p style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-soft)", margin: "0 0 22px", maxWidth: 640 }}>
-            These come from your founding analysis — anchored to what you actually sell and
-            priced off your own menu, not a trend that doesn&apos;t map to you.
+          <p className="text-[13.5px] leading-[1.6] text-ink-soft mx-0 mt-0 mb-[22px] max-w-[640px]">
+            From your analysis, priced from your own menu.
           </p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
+          <div className="grid grid-cols-[repeat(auto-fit,_minmax(260px,_1fr))] gap-[18px]">
             {brief.first_moves.slice(0, 3).map((move, i) => (
-              <div key={move} style={{ borderLeft: "2px solid var(--amber)", paddingLeft: 14 }}>
-                <span className="mono-label" style={{ display: "block", marginBottom: 6 }}>Move {i + 1}</span>
-                <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "var(--ink)", margin: 0 }}>{move}</p>
+              <div className="border-l-2 border-amber pl-[14px]" key={move}>
+                <span className="mono-label block mb-[6px]">Move {i + 1}</span>
+                <p className="text-[13.5px] leading-[1.55] text-ink m-0">{move}</p>
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>
+          <div className="flex gap-3 flex-wrap mt-[22px]">
             <Link href="/app/snapshot" className="btn btn-primary">
-              See the full analysis →
+              Full analysis
             </Link>
             <Link href="/app/report" className="btn btn-ghost btn-sm">
-              This week&apos;s intel report →
+              Weekly report
             </Link>
           </div>
         </section>
       )}
 
-      {/* ---------- HERO RECOMMENDATION (market context when thin) ---------- */}
-      {/* marginTop collapses with whatever sits above (alerts strip, stat
-          row), so the hero never touches its neighbor and never doubles up. */}
-      <section className={thin ? "panel" : "panel panel--hero"} style={{ padding: "30px 32px 28px", marginTop: 18 }}>
+      {/* ---------- HERO: THIS WEEK'S AD ----------
+          The product is the finished ad, so the hero IS the ad — hook, offer,
+          who sees it, what to spend, a way in ("Open the campaign") and a way
+          out ("Not this one"). The evidence — the read, the insight lines,
+          the grade and meters, the playbook, the rivals' ads — sits one
+          click down under "Why this pick". Until the ad is written (a
+          minute, in the background) or on a thin week, the pick leads. */}
+      <section className={`${thin ? "panel" : "panel panel--hero"} px-8 pt-[30px] pb-7 mt-[18px]`}>
         {picks.length > 1 && (
           /* The switcher used to be a full-width tab strip that shouted louder
              than the pick it framed. It's a quiet control now — position, arrows,
@@ -680,67 +742,244 @@ export default async function AppHome({
             </Link>
           </nav>
         )}
-        <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 400px", minWidth: 280 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+        <div className="flex gap-[34px] flex-wrap">
+          <div className="flex-[1_1_400px] min-w-[280px]">
+            <div className="flex gap-2 items-center flex-wrap mb-[10px]">
               <span className="badge badge--amber">
                 <i />
-                {isLead
-                  ? thin
-                    ? "Closest trend — market context, not a pick"
-                    : "#1 this week"
-                  : `#${pickIndex + 1} this week${thin ? " — below the bar" : ""}`}
+                {campaign
+                  ? isLead
+                    ? "This week's ad"
+                    : `Pick #${pickIndex + 1} · written`
+                  : isLead
+                    ? thin
+                      ? "Closest trend — market context, not a pick"
+                      : "#1 this week"
+                    : `#${pickIndex + 1} this week${thin ? " — below the bar" : ""}`}
               </span>
-              {signal && (
-                <SourceBadge source={signal.source} metric={signal.metric_type} term={signal.term} geo={signal.geo} raw={signal.raw} />
-              )}
               {typeof signal?.delta_pct === "number" &&
                 (deltaShort(signal.delta_pct) === "steady" ? (
-                  <span className="delta-chip">steady this week</span>
+                  <span className="delta-chip">Steady this week</span>
                 ) : (
                   <DeltaChip delta={signal.delta_pct} suffix={deltaWindowLabel(signal.source)} />
                 ))}
             </div>
-            <h2 className="h-disp" style={{ fontSize: thin ? "clamp(20px,2.4vw,26px)" : "clamp(26px,3.2vw,38px)", margin: "0 0 16px", lineHeight: 1.08, letterSpacing: "-0.02em" }}>
-              {signal ? titleCase(signal.term) : "This week's opportunity"}
-            </h2>
-
-            <InsightList
-              insights={insights}
-              footnote={top.competitor_gap ? `Saturation read: ${top.competitor_gap}.` : null}
-            />
-
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 22 }}>
-              {campaign ? (
-                <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary">
-                  View the campaign →
-                </Link>
-              ) : thin ? (
-                <BuildCampaignButton opportunityId={top.id} className="btn btn-ghost">
-                  Build anyway
-                </BuildCampaignButton>
-              ) : (
-                <BuildCampaignButton opportunityId={top.id} />
-              )}
-              <Link href="/app/opportunities" className="btn btn-ghost btn-sm">
-                All {active.length} ranked →
-              </Link>
-            </div>
-
+            {campaign ? (
+              <>
+                <span className="mono-label block mb-[10px]">
+                  Based on “{signal ? titleCase(signal.term) : "this week's pick"}”
+                </span>
+                <h2 className="h-disp" style={{ fontSize: "clamp(24px,3vw,34px)", margin: "0 0 12px", lineHeight: 1.12, letterSpacing: "-0.02em" }}>
+                  {campaign.hook}
+                </h2>
+                <p className="text-[14.5px] leading-[1.65] text-ink-soft mx-0 mt-0 mb-[18px] max-w-[640px]">{campaign.angle}</p>
+                <div className="facts-grid mb-[22px]">
+                  <div>
+                    <span className="k text-(--amber-text)">Offer</span>
+                    <p className="v font-semibold font-disp">{campaign.offer}</p>
+                  </div>
+                  <div>
+                    <span className="k">Who sees it</span>
+                    <p className="v text-[13.5px]">
+                      {campaign.audience.who} · {campaign.audience.age_range} · {campaign.audience.radius_miles} mi
+                    </p>
+                  </div>
+                  <div>
+                    <span className="k">Spend</span>
+                    <p className="v text-[13.5px]">{budget.daily} a day · {budget.test}</p>
+                  </div>
+                  <div>
+                    <span className="k">{campaignLive ? "Status" : "Launch by"}</span>
+                    <p className="v text-[13.5px]">{campaignLive ? "Live — record results when the flight ends" : launchBy}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 flex-wrap items-center mb-[6px]">
+                  <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary">
+                    Open the campaign
+                  </Link>
+                  {canPass && (
+                    <form action={passOnPickAction}>
+                      <input type="hidden" name="opportunity_id" value={top.id} />
+                      <SubmitButton className="btn btn-ghost" pendingLabel="Writing the next one…">
+                        Skip
+                      </SubmitButton>
+                    </form>
+                  )}
+                  <Link href="/app/opportunities" className="btn btn-ghost btn-sm">
+                    All ranked
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="h-disp" style={{ fontSize: thin ? "clamp(20px,2.4vw,26px)" : "clamp(26px,3.2vw,38px)", margin: "0 0 16px", lineHeight: 1.08, letterSpacing: "-0.02em" }}>
+                  {signal ? titleCase(signal.term) : "This week's opportunity"}
+                </h2>
+                {readBlock}
+                <InsightList
+                  insights={insights}
+                  footnote={top.competitor_gap ? `Saturation read: ${top.competitor_gap}.` : null}
+                />
+                {building && (
+                  <p className="mx-0 mt-0 mb-[18px] text-[13.5px] leading-[1.6] text-ink-soft max-w-[560px]">
+                    <span className="mono-label text-(--amber-text) block mb-1">Writing this week&apos;s ad</span>
+                    About a minute. This page refreshes itself.
+                  </p>
+                )}
+                {!building && plan.locked && (
+                  <p className="mx-0 mt-0 mb-[18px] text-[13.5px] leading-[1.6] text-ink-soft max-w-[560px]">
+                    {plan.lockedReason}{" "}
+                    <Link className="text-(--amber-text)" href="/app/settings#billing">Choose a plan</Link>
+                  </p>
+                )}
+                <div className="flex gap-3 flex-wrap items-center mb-[22px]">
+                  {!building && !plan.locked && (thin ? (
+                    <BuildCampaignButton opportunityId={top.id} className="btn btn-ghost">
+                      Build anyway
+                    </BuildCampaignButton>
+                  ) : (
+                    <BuildCampaignButton opportunityId={top.id} />
+                  ))}
+                  <Link href="/app/opportunities" className="btn btn-ghost btn-sm">
+                    All ranked
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
 
-          <div className="score-card score-card--hero">
-            <GradeRing score={Number(top.score)} />
-            {explained && <ScoreBreakdown components={explained.components} showTrackRecord={measuredResults} />}
+          {campaign ? (
+            <div className="flex-[0_1_340px] min-w-[280px]">
+              <AdPreview
+                businessName={business.name}
+                primaryText={primary0}
+                headline={headline0}
+                mediaLine={campaign.offer}
+                imageUrl={business.photo_urls[0] ?? null}
+              />
+            </div>
+          ) : (
+            scoreCard
+          )}
+        </div>
+
+        {campaign ? (
+          /* The evidence, one click down. Everything the hero used to lead
+             with is still here, unchanged — it just no longer stands between
+             the owner and the ad. */
+          <details className="howto">
+            <summary>
+              Why this pick
+              <svg className="chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </svg>
+            </summary>
+            <div className="pt-4">
+              <div className="flex gap-[34px] flex-wrap">
+                <div className="flex-[1_1_400px] min-w-[280px]">
+                  {readBlock}
+                  <InsightList
+                    insights={insights}
+                    footnote={top.competitor_gap ? `Saturation read: ${top.competitor_gap}.` : null}
+                  />
+                </div>
+                <div>
+                  {scoreCard}
+                  {signal && (
+                    <div className="mt-[10px]">
+                      <SourceBadge source={signal.source} metric={signal.metric_type} term={signal.term} geo={signal.geo} raw={signal.raw} />
+                    </div>
+                  )}
+                </div>
+              </div>
+              {howto && (
+                <div className="howto-body">
+              <div className="howto-col">
+                <span className="k">Content angle</span>
+                <p>{howto.contentAngle}</p>
+              </div>
+              <div className="howto-col">
+                <span className="k">Caption direction</span>
+                <p>{howto.captionDirection}</p>
+              </div>
+              <div className="howto-col">
+                <span className="k">Hashtags to use</span>
+                <div className="tag-row">
+                  {howto.hashtags.map((h) => (
+                    <span key={h}>#{h}</span>
+                  ))}
+                </div>
+              </div>
+                </div>
+              )}
+        <div className="meta-row">
+          <div>
+            <span className="k">Matched service</span>
+            <div className="v">{matchedService ? matchedService.name : "New offer — nothing on your menu yet"}</div>
+          </div>
+          <div>
+            <span className="k">Competition</span>
+            <div className="v">{top.competitor_gap ? sentenceCase(top.competitor_gap) : "No ad read yet"}</div>
+          </div>
+          <div>
+            <span className="k">Do this next</span>
+            <div className="v">
+              {thin
+                ? weekThin && brief && brief.first_moves.length > 0
+                  ? "Run this week's play above — it's anchored to your menu. Build this trend only if the creative is trivial."
+                  : isLead
+                    ? "Nothing squarely fits what you sell — lead with your own menu, and build this only if the creative is trivial."
+                    : "Below the bar for paid spend — the higher-ranked picks are the better bet this week."
+                : campaign
+                  ? nextAction.label
+                  : `${nextAction.label} — launch by ${launchBy}`}
+            </div>
+          </div>
+          <div>
+            <span className="k">Coverage</span>
+            <div className="v">
+              {business.city} · {business.radius_miles} miles
+            </div>
+          </div>
+          <div className="col-span-full">
+            <span className="k">Expected return from a 6-day test</span>
+            <div className="v text-[13px] leading-[1.5] text-ink-soft">{forecast}</div>
           </div>
         </div>
 
-        {/* Full card width, like the meta row below it — inside the left
-            column it left a dead zone under the grade ring on wide screens. */}
+        {adRead && adAssessment && competitorAds.length > 0 && (
+          <div className="mt-[22px] pt-[18px] border-t border-dashed border-line">
+            <span className="mono-label block mb-3">
+              {adAssessment.count !== null && adAssessment.count <= AD_COUNT_LOCAL_MAX
+                ? `What competitors are running · ${adAssessment.count === adRead.value ? "" : "≈"}${adAssessment.count} active Meta ad${adAssessment.count === 1 ? "" : "s"} on this`
+                : `Ads on this term · ${adRead.value} keyword matches on Meta, mostly unrelated — the ones that fit:`}
+            </span>
+            <div className="grid grid-cols-[repeat(auto-fit,_minmax(260px,_1fr))] gap-[14px]">
+              {competitorAds.map((ad) => (
+                <div className="bg-bg-2 border border-line rounded-card-sm py-3 px-[14px]" key={ad.advertiser}>
+                  <span className="font-disp font-semibold text-[13px]">{ad.advertiser}</span>
+                  <p className="text-[12.5px] leading-[1.5] text-ink-soft mx-0 mt-[5px] mb-0">
+                    “{ad.snippet.length > 140 ? `${ad.snippet.slice(0, 137)}…` : ad.snippet}”
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+              {organicPost && (
+                <div className="mt-[22px] pt-[18px] border-t border-dashed border-line">
+                  <CopyBlock label="Free post for this week" content={organicPost} />
+                </div>
+              )}
+            </div>
+          </details>
+        ) : (
+          <>
         {howto && (
           <details className="howto" open>
             <summary>
-              How to run it well
+              How to run it
               <svg className="chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
               </svg>
@@ -795,24 +1034,24 @@ export default async function AppHome({
               {business.city} · {business.radius_miles} miles
             </div>
           </div>
-          <div style={{ gridColumn: "1 / -1" }}>
-            <span className="k">What a 6-day test should return</span>
-            <div className="v" style={{ fontSize: 13, lineHeight: 1.5, color: "var(--ink-soft)" }}>{forecast}</div>
+          <div className="col-span-full">
+            <span className="k">Expected return from a 6-day test</span>
+            <div className="v text-[13px] leading-[1.5] text-ink-soft">{forecast}</div>
           </div>
         </div>
 
         {adRead && adAssessment && competitorAds.length > 0 && (
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px dashed var(--line)" }}>
-            <span className="mono-label" style={{ display: "block", marginBottom: 12 }}>
+          <div className="mt-[22px] pt-[18px] border-t border-dashed border-line">
+            <span className="mono-label block mb-3">
               {adAssessment.count !== null && adAssessment.count <= AD_COUNT_LOCAL_MAX
                 ? `What competitors are running · ${adAssessment.count === adRead.value ? "" : "≈"}${adAssessment.count} active Meta ad${adAssessment.count === 1 ? "" : "s"} on this`
                 : `Ads on this term · ${adRead.value} keyword matches on Meta, mostly unrelated — the ones that fit:`}
             </span>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+            <div className="grid grid-cols-[repeat(auto-fit,_minmax(260px,_1fr))] gap-[14px]">
               {competitorAds.map((ad) => (
-                <div key={ad.advertiser} style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
-                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 13 }}>{ad.advertiser}</span>
-                  <p style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-soft)", margin: "5px 0 0" }}>
+                <div className="bg-bg-2 border border-line rounded-card-sm py-3 px-[14px]" key={ad.advertiser}>
+                  <span className="font-disp font-semibold text-[13px]">{ad.advertiser}</span>
+                  <p className="text-[12.5px] leading-[1.5] text-ink-soft mx-0 mt-[5px] mb-0">
                     “{ad.snippet.length > 140 ? `${ad.snippet.slice(0, 137)}…` : ad.snippet}”
                   </p>
                 </div>
@@ -820,17 +1059,30 @@ export default async function AppHome({
             </div>
           </div>
         )}
+
+          </>
+        )}
+
+        <PickAsk
+          opportunityId={top.id}
+          questions={askQuestions}
+          hasCampaign={Boolean(campaign)}
+          rebuildable={campaign ? campaignRebuildable(campaign.status) : true}
+        />
       </section>
+
+      {/* ---------- THE QUESTIONS THAT NEVER CLOSE ---------- */}
+      <StandingQuestions questions={standing} suggestions={standingSuggestions} modelReady={isGeminiConfigured} />
 
       {/* ---------- TREND CHART (only when we hold a series worth reading:
           a sparse, mostly-zero niche series would headline a fake "0") ---------- */}
       {series.length >= 2 && !interestSparse && (
-        <section className="panel" style={{ marginTop: 18 }}>
+        <section className="panel mt-[18px]">
           <div className="panel__head">
             <span className="panel__title mint">Demand — {series.length >= 14 ? "30 days" : "this week"}</span>
             <span className="panel__meta">
               {signal ? `${signal.normalized_term.replace(/_/g, " ")} · ${geoLabel(signal.geo)}` : ""}
-              {signal?.source === "seed" ? " · illustrative" : ""}
+              {signal?.source === "seed" ? " · sample data" : ""}
             </span>
           </div>
           <TrendChart
@@ -846,22 +1098,22 @@ export default async function AppHome({
         </section>
       )}
 
-      {/* ---------- RUNNER-UPS + MARKET PULSE ---------- */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18, marginTop: 18, alignItems: "start" }} className="two-col">
+      {/* ---------- NEXT IN LINE ---------- */}
+      <div className="mt-[18px]">
         {runnerUps.length > 0 && (
           <section className="panel">
             <div className="panel__head">
               <span className="panel__title">{isLead ? "Next in line" : "Also this week"}</span>
-              <Link href="/app/opportunities" className="panel__meta" style={{ color: "var(--amber-text)" }}>
-                view all →
+              <Link href="/app/opportunities" className="panel__meta text-(--amber-text)">
+                View all
               </Link>
             </div>
             {weekThin && (
-              <p style={{ margin: "0 0 8px", fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-faint)" }}>
+              <p className="mx-0 mt-0 mb-2 text-[12.5px] leading-[1.5] text-ink-faint">
                 None of these fit what you sell this week — shown as market context, graded accordingly.
               </p>
             )}
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="flex flex-col">
               {runnerUps.map((o, i) => {
                 const s = runnerSignals.get(o.id);
                 const ex = runnerExplained.get(o.id);
@@ -880,12 +1132,12 @@ export default async function AppHome({
                       borderBottom: i < runnerUps.length - 1 ? "1px dashed var(--line)" : "none",
                     }}
                   >
-                    <span style={{ fontFamily: "var(--disp)", fontWeight: 700, color: "var(--ink-faint)", fontSize: 14, width: 22 }}>
+                    <span className="font-disp font-bold text-ink-faint text-[14px] w-[22px]">
                       #{rank}
                     </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5 }}>{s ? titleCase(s.term) : ""}</span>
-                      <span className="panel__meta" style={{ display: "block", marginTop: 2 }}>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-disp font-semibold text-[14.5px]">{s ? titleCase(s.term) : ""}</span>
+                      <span className="panel__meta block mt-[2px]">
                         {typeof s?.delta_pct === "number" ? `${deltaShort(s.delta_pct)} · ` : ""}
                         {s?.metric_type.replace(/_/g, " ")}
                       </span>
@@ -899,82 +1151,49 @@ export default async function AppHome({
           </section>
         )}
 
-        <section className="panel">
-          <div className="panel__head">
-            <span className="panel__title mint">Market pulse · 7d</span>
-            <span className="panel__meta">{titleCase(business.category)} · change vs the week before</span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {movers.map((s, i) => (
-              <div
-                key={s.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  alignItems: "baseline",
-                  padding: "10px 0",
-                  borderBottom: i < movers.length - 1 ? "1px dashed var(--line)" : "none",
-                }}
-              >
-                <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>{titleCase(s.term)}</span>
-                <DeltaChip delta={s.delta_pct ?? 0} />
-              </div>
-            ))}
-            {movers.length === 0 && (
-              <p style={{ margin: 0, fontSize: 13, color: "var(--ink-faint)" }}>No movement captured this week.</p>
-            )}
-          </div>
-        </section>
       </div>
 
       {/* ---------- YOUR RIVALS ---------- */}
-      <section className="panel" style={{ marginTop: 18 }}>
+      <section className="panel mt-[18px]">
         <div className="panel__head">
-          <span className="panel__title">Your rivals · read daily</span>
-          <Link href="/app/settings" className="panel__meta" style={{ color: "var(--amber-text)" }}>
-            {competitors.length > 0 ? "manage →" : "settings →"}
+          <span className="panel__title">Competitors</span>
+          <Link href="/app/settings" className="panel__meta text-(--amber-text)">
+            {competitors.length > 0 ? "Manage" : "Settings"}
           </Link>
         </div>
-        {rivalsGated ? (
-          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--ink-soft)" }}>
-            Rival tracking is part of Pro: your five nearest same-category shops found for you, their Meta ads and Google
-            ratings read daily, moves surfaced here and in your report.{" "}
-            <Link href="/app/settings#billing" style={{ color: "var(--amber-text)" }}>Upgrade →</Link>
-          </p>
-        ) : competitors.length === 0 ? (
-          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--ink-soft)", flex: "1 1 320px" }}>
-              No rivals watched yet. TRND can find the nearest same-category shops and start reading their ads and ratings today.
+        {competitors.length === 0 ? (
+          <div className="flex gap-[14px] items-center flex-wrap">
+            <p className="m-0 text-[13.5px] leading-[1.55] text-ink-soft flex-[1_1_320px]">
+              No competitors yet.
             </p>
             {isPlacesConfigured && (
               <form action={seedCompetitorsAction}>
-                <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Finding your rivals…">
-                  Find my nearest rivals
+                <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Finding…">
+                  Find nearby competitors
                 </SubmitButton>
               </form>
             )}
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+          <div className="grid grid-cols-[repeat(auto-fill,_minmax(220px,_1fr))] gap-3">
             {competitors.slice(0, 6).map((c) => {
               const ads = latestRead(c.id, "ads");
               const rev = latestRead(c.id, "reviews");
               return (
-                <div key={c.id} style={{ border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", padding: "12px 14px", background: "var(--bg-1)" }}>
-                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14, display: "block", marginBottom: 6 }}>{c.name}</span>
-                  <span className="mono-label" style={{ display: "block" }}>
+                <div className="border border-line rounded-card-sm py-3 px-[14px] bg-bg-1" key={c.id}>
+                  <span className="font-disp font-semibold text-[14px] block mb-[6px]">{c.name}</span>
+                  <span className="mono-label block">
                     {ads && typeof ads.value === "number"
                       ? `${ads.value} active Meta ad${ads.value === 1 ? "" : "s"}`
                       : "ads: first read tonight"}
                   </span>
-                  <span className="mono-label" style={{ display: "block", marginTop: 3 }}>
+                  <span className="mono-label block mt-[3px]">
                     {rev && typeof rev.rating === "number"
                       ? `${rev.rating.toFixed(1)}★ · ${rev.value ?? "—"} reviews`
                       : "rating: first read tonight"}
                   </span>
                   {(ads?.summary || rev?.summary) && (
-                    <p style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.45, color: "var(--ink-soft)" }}>{ads?.summary ?? rev?.summary}</p>
+                    <p className="mx-0 mt-[6px] mb-0 text-[12.5px] leading-[1.45] text-ink-soft">{ads?.summary ?? rev?.summary}</p>
                   )}
                 </div>
               );
@@ -983,30 +1202,23 @@ export default async function AppHome({
         )}
       </section>
 
-      {/* ---------- THE FREE MOVE ---------- */}
-      {organicPost && (
-        <section className="panel" style={{ marginTop: 18 }}>
-          <CopyBlock label="No ad budget this week? Post this today — free" content={organicPost} />
-        </section>
-      )}
-
       {/* ---------- SEASONAL CALENDAR ---------- */}
       {seasonal.length > 0 && (
-        <section className="panel" style={{ marginTop: 18 }}>
+        <section className="panel mt-[18px]">
           <div className="panel__head">
-            <span className="panel__title">Coming up — plan ahead</span>
-            <span className="panel__meta">known demand moments for {titleCase(business.category)}</span>
+            <span className="panel__title">Coming up</span>
+            <span className="panel__meta">Known demand moments</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
+          <div className="grid grid-cols-[repeat(auto-fit,_minmax(240px,_1fr))] gap-[18px]">
             {seasonal.map((m) => (
               <div key={m.label} style={{ borderLeft: `2px solid ${m.prepNow ? "var(--amber)" : "var(--line-strong)"}`, paddingLeft: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5 }}>{m.label}</span>
+                <div className="flex justify-between gap-[10px] items-baseline">
+                  <span className="font-disp font-semibold text-[14.5px]">{m.label}</span>
                   <span className="mono-label" style={{ color: m.prepNow ? "var(--amber-text)" : undefined, whiteSpace: "nowrap" }}>
                     {m.daysOut <= 1 ? "now" : `${m.daysOut}d out`}
                   </span>
                 </div>
-                <p style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)", margin: "6px 0 0" }}>
+                <p className="text-[12.5px] leading-[1.55] text-ink-soft mx-0 mt-[6px] mb-0">
                   {m.prepNow ? "Start now — " : `Start ~${Math.max(1, Math.round((m.daysOut - m.leadWeeks * 7) / 7))} wk${Math.round((m.daysOut - m.leadWeeks * 7) / 7) === 1 ? "" : "s"} from now. `}
                   {m.advice}
                 </p>
@@ -1016,67 +1228,6 @@ export default async function AppHome({
         </section>
       )}
 
-      {!brief && (
-        <section className="snap-teaser">
-          <div className="snap-teaser__left">
-            <div>
-              <h4>Your founding analysis is being written</h4>
-              <p>
-                TRND is reading {business.name} — positioning, customers, market, first moves.
-                Usually under two minutes.
-              </p>
-            </div>
-          </div>
-          <Link href="/app/snapshot" className="btn btn-ghost btn-sm">
-            Watch it land →
-          </Link>
-        </section>
-      )}
-      {brief && (
-        <section className="snap-teaser">
-          <div className="snap-teaser__left">
-            <div>
-              <h4>How TRND reads {business.name}</h4>
-              <p>
-                {titleCase(business.category)} · {business.city}
-                {business.region ? `, ${business.region}` : ""} · {services.filter((s) => s.is_active).length} services on file
-              </p>
-            </div>
-            <div className="mini-chip-row">
-              {brief.advantages[0] && <span className="mini-chip">Edge: {brief.advantages[0]}</span>}
-              {brief.watchouts[0] && <span className="mini-chip">Watch-out: {brief.watchouts[0]}</span>}
-            </div>
-          </div>
-          <Link href="/app/snapshot" className="btn btn-ghost btn-sm">
-            View full snapshot →
-          </Link>
-        </section>
-      )}
-
-      {/* ---------- RECENT CAMPAIGNS ---------- */}
-      {recentCampaigns.length > 0 && (
-        <section style={{ marginTop: 30 }}>
-          <div className="panel__head" style={{ marginBottom: 12 }}>
-            <span className="panel__title">Recent campaigns</span>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 14 }}>
-            {recentCampaigns.map((c) => (
-              <Link key={c.id} href={`/app/campaigns/${c.id}`} className="card" style={{ padding: 18, display: "block" }}>
-                <span className={`badge${c.status === "live" || c.status === "complete" ? " badge--mint" : ""}`}>
-                  <i />
-                  {c.status}
-                </span>
-                <p style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 15, margin: "10px 0 4px", lineHeight: 1.3 }}>
-                  {c.hook}
-                </p>
-                <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0 }}>
-                  {fmtDate(c.created_at.slice(0, 10))} · {c.channel}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

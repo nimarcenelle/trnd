@@ -25,8 +25,8 @@ export default function CopyBlock({
   }
 
   return (
-    <div className="card" style={{ padding: "16px 18px", position: "relative" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+    <div className="card py-4 px-[18px] relative">
+      <div className="flex justify-between items-center mb-2">
         <span className="mono-label">{label}</span>
         <button
           type="button"

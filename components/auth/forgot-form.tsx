@@ -19,16 +19,16 @@ export default function ForgotForm() {
         </div>
         {state.error && <p className="form-error">{state.error}</p>}
         {state.notice && (
-          <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--mint)", margin: "0 0 14px" }}>
+          <p className="font-mono text-[11px] text-mint mx-0 mt-0 mb-[14px]">
             {state.notice}
           </p>
         )}
-        <button type="submit" className="btn btn-primary" disabled={pending} style={{ width: "100%", justifyContent: "center" }}>
+        <button type="submit" className="btn btn-primary w-full justify-center" disabled={pending}>
           {pending ? "One moment…" : "Email me a reset link"}
         </button>
       </form>
-      <p style={{ fontSize: 13.5, color: "var(--ink-soft)", marginTop: 22, textAlign: "center" }}>
-        Remembered it? <Link href="/login" style={{ color: "var(--amber)" }}>Sign in</Link>
+      <p className="text-[13.5px] text-ink-soft mt-[22px] text-center">
+        Remembered it? <Link className="text-amber" href="/login">Sign in</Link>
       </p>
     </div>
   );

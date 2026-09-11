@@ -324,7 +324,7 @@ export function ProspectorClient() {
         {/* header */}
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${T.line}` }}>
           <div className="flex items-baseline gap-3">
-            <span style={{ fontWeight: 700, fontSize: 20, letterSpacing: "0.06em" }}>TRND</span>
+            <span className="font-bold text-[20px] tracking-[0.06em]">TRND</span>
             <span style={{ color: T.dim, fontFamily: T.mono, fontSize: 12 }}>/ prospector</span>
             <span style={{ background: T.amberSoft, color: T.amber, fontFamily: T.mono, fontSize: 10, padding: "2px 8px", borderRadius: 3, letterSpacing: "0.08em" }}>INTERNAL</span>
           </div>
@@ -491,7 +491,7 @@ export function ProspectorClient() {
                           </div>
                         </td>
                         <td style={tdStyle}>
-                          <div style={{ fontWeight: 600 }}>{l.name}</div>
+                          <div className="font-semibold">{l.name}</div>
                           <div style={{ fontSize: 11, color: T.faint }}>{l.category ?? "—"}</div>
                         </td>
                         <td style={{ ...tdStyle, color: T.dim }}>
@@ -560,7 +560,7 @@ export function ProspectorClient() {
                     <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: "0.1em", color: T.faint, marginBottom: 8 }}>
                       PREVIEW — {previewLead.name} ({previewLead.bestEmail})
                     </div>
-                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{renderTemplate(subject, previewLead)}</div>
+                    <div className="font-semibold text-[13px] mb-[6px]">{renderTemplate(subject, previewLead)}</div>
                     <div style={{ fontSize: 12, color: T.dim, whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{renderTemplate(body, previewLead)}</div>
                   </div>
                 )}

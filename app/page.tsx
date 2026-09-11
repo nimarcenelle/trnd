@@ -1,4 +1,4 @@
-import { BASELINE_FEATURES, PRO_FEATURES } from "@/lib/billing";
+import { BASELINE_FEATURES } from "@/lib/billing";
 import Link from "next/link";
 
 import DemoForm from "@/components/landing/demo-form";
@@ -21,7 +21,7 @@ const OLD_WAY = [
 ];
 const TRND_WAY = [
   "Know what's moving before you spend a dollar.",
-  "Get a finished campaign every morning.",
+  "Get a finished ad every Monday.",
   "Positioning built from what's actually converting for businesses like yours.",
   "See what worked, fed straight into next week's plan.",
 ];
@@ -41,7 +41,7 @@ const FLY_ITEMS = [
 ];
 
 const ROADMAP = [
-  { status: "● live", live: true, n: "Phase 1", t: "Ad campaigns", d: "Trend detection and finished paid social & search campaigns, daily or weekly." },
+  { status: "● live", live: true, n: "Phase 1", t: "Ad campaigns", d: "Demand detection and a finished paid-social campaign every week." },
   { status: "○ next", live: false, n: "Phase 2", t: "Email & SMS", d: "Follow-up messaging built from the same demand signal that shaped the ad." },
   { status: "○ planned", live: false, n: "Phase 3", t: "Reviews & reputation", d: "Requests timed to real customer moments, not a generic monthly blast." },
   { status: "○ future", live: false, n: "Phase 4", t: "The full outreach suite", d: "One system running every channel a small business uses to reach customers." },
@@ -53,7 +53,7 @@ export default function Home() {
       <RevealObserver />
       <FloatingCta />
       <nav className="nav">
-        <a href="#top" style={{ display: "inline-flex" }} aria-label="TRND — top">
+        <a className="inline-flex" href="#top" aria-label="TRND — top">
           <Brand href={null} />
         </a>
         <div className="nav__links">
@@ -64,7 +64,7 @@ export default function Home() {
           <a href="#pricing">Pricing</a>
         </div>
         <div className="nav__right">
-          <Link href="/login" style={{ fontFamily: "var(--body)", fontSize: 14, color: "var(--ink-soft)" }}>
+          <Link className="font-body text-[14px] text-ink-soft" href="/login">
             Sign in
           </Link>
           <ThemeToggle />
@@ -79,18 +79,18 @@ export default function Home() {
       <header className="hero" id="top">
         <div className="hero__texture" />
         <div className="wrap hero__inner">
-          <div className="eyebrow">Live signal → finished campaign</div>
+          <div className="eyebrow">For local businesses</div>
           <h1>
-            Know what to advertise — <em>before your competitors do.</em>
+            Know what to advertise <em>this week.</em>
           </h1>
           <p className="hero__sub">
-            TRND reads what&apos;s actually moving in your market right now and turns it into a
-            finished ad campaign — headline, creative, targeting — ready to launch today. Built
-            for small businesses, not agencies with a quarter to spare.
+            Every Monday, TRND reads what people near you are searching for and hands you one
+            finished ad: the words, the photo to take, who to show it to, what to spend. Built
+            for small businesses.
           </p>
           <div className="hero__ctas">
             <Link href="/signup" className="btn btn-primary">
-              Start free — set up in 2 minutes
+              Start free
             </Link>
             <a href="#demo" className="btn btn-ghost">
               Request a demo
@@ -99,7 +99,7 @@ export default function Home() {
           <div className="hero__proof">
             <span className="pill">No agency retainer</span>
             <span className="pill">New campaign every week</span>
-            <span className="pill">Priced to your ad spend</span>
+            <span className="pill">One plan, $149 a month</span>
           </div>
           <ProductFrame />
         </div>
@@ -127,7 +127,7 @@ export default function Home() {
             <span>Dental &amp; wellness</span>
           </div>
 
-          <div style={{ height: 56 }} />
+          <div className="h-[56px]" />
 
           <div className="split reveal">
             <div className="split__col">
@@ -170,9 +170,9 @@ export default function Home() {
       <section className="block" id="signals">
         <div className="wrap">
           <div className="head reveal">
-            <span className="eyebrow">The signal</span>
-            <h2>What &quot;signal&quot; actually looks like.</h2>
-            <p>A sample of what TRND watches, across a few different kinds of small businesses.</p>
+            <span className="eyebrow">Examples</span>
+            <h2>What a signal looks like.</h2>
+            <p>Illustrative examples of what TRND watches, across different kinds of small businesses.</p>
           </div>
           <div className="signals reveal">
             {SIG_CARDS.map((c) => (
@@ -272,81 +272,40 @@ export default function Home() {
         <div className="wrap">
           <div className="head reveal">
             <span className="eyebrow">Pricing</span>
-            <h2>Less than one freelance campaign a month.</h2>
+            <h2>One plan.</h2>
             <p>
-              A finished campaign a week, the intelligence behind it, and your rivals watched
-              daily — for less than a freelancer charges for one campaign. Month to month, cancel
-              anytime; the campaigns you generated are yours. Pay yearly and get two months free.
+              An ad a week, written before you open the app, the reasoning behind it, and your
+              competitors watched daily. Month to month, cancel anytime. The campaigns you
+              generated are yours. Pay yearly and get two months free.
             </p>
           </div>
 
           <div className="tiers reveal">
-            <div className="tier">
-              <span className="tier__badge">Starter</span>
+            <div className="tier tier--featured">
+              <span className="tier__badge">TRND</span>
               <h3 className="tier__name">TRND</h3>
               <div className="tier__price">
                 $149<small>/ MO</small>
               </div>
               <p className="tier__promise">
-                Know what to run this week, and have it written. Or $1,490 a year.
+                Every Monday: one ad ready to run, and why. Or $1,490 a year.
               </p>
               <div className="tier__list">
                 {BASELINE_FEATURES.map((f) => (
                   <div key={f}><IcoCheck />{f}</div>
                 ))}
               </div>
-              <Link href="/signup" className="btn btn-primary" style={{ justifyContent: "center" }}>
+              <Link href="/signup" className="btn btn-primary justify-center">
                 Start free
               </Link>
-              <span className="tier__foot">14-day trial · no card required</span>
+              <span className="tier__foot">14-day trial. No card required.</span>
             </div>
 
-            <div className="tier tier--featured">
-              <span className="tier__badge">● Pro</span>
-              <h3 className="tier__name">TRND Pro</h3>
-              <div className="tier__price">
-                $299<small>/ MO</small>
-              </div>
-              <p className="tier__promise">
-                Everything in TRND, plus your rivals watched every day. Or $2,990 a year.
-              </p>
-              <div className="tier__list">
-                <div><IcoCheck />Everything in TRND</div>
-                {PRO_FEATURES.map((f) => (
-                  <div key={f}><IcoCheck />{f}</div>
-                ))}
-              </div>
-              <Link href="/signup" className="btn btn-primary" style={{ justifyContent: "center" }}>
-                Start free
-              </Link>
-              <span className="tier__foot">14-day trial of Pro · no card required · connected-account sync next</span>
-            </div>
-
-            <div className="tier">
-              <span className="tier__badge">Early stage</span>
-              <h3 className="tier__name">Case by case</h3>
-              <div className="tier__price" style={{ fontSize: 24, paddingTop: 8 }}>
-                Let&apos;s talk
-              </div>
-              <p className="tier__promise">
-                We get deeper into your stack and set the price together — you get tomorrow&apos;s
-                features first.
-              </p>
-              <div className="tier__list">
-                <div><IcoCheck />Everything in Pro, hands-on</div>
-                <div><IcoCheck />Automated customer outreach &amp; insights</div>
-                <div><IcoCheck />Ad content creation, done with you</div>
-                <div><IcoCheck />The full marketing-team stack as it ships</div>
-              </div>
-              <a href="#demo" className="btn btn-ghost" style={{ justifyContent: "center" }}>
-                Talk to us
-              </a>
-              <span className="tier__foot">limited seats while we&apos;re early</span>
-            </div>
           </div>
 
           <p className="founding-note reveal">
-            Founding businesses lock their price for life — it never goes up while you&apos;re a customer.
+            Founding businesses lock their price for life. Want it done with you?{" "}
+            <a href="#demo">Talk to us.</a>
           </p>
         </div>
       </section>
@@ -389,7 +348,7 @@ export default function Home() {
         <div className="wrap">
           <div className="foot-grid">
             <div>
-              <div style={{ marginBottom: 12 }}>
+              <div className="mb-3">
                 <Brand href={null} size={18} />
               </div>
               <p className="tagline">AI marketing intelligence for small business. usetrnd.com</p>
@@ -416,7 +375,7 @@ export default function Home() {
           </div>
           <div className="foot-bottom">
             <span>© 2026 TRND</span>
-            <span>Trend data shown throughout is illustrative.</span>
+            <span>Examples on this page are illustrative.</span>
           </div>
         </div>
       </footer>

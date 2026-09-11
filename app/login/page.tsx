@@ -13,7 +13,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <AuthShell title="Welcome back." sub="Sign in to see this week's recommendation.">
       {error === "auth" && (
-        <p className="form-error" style={{ marginTop: 0 }}>
+        <p className="form-error mt-0">
           That sign-in link didn&apos;t work or has expired — try again below.
         </p>
       )}

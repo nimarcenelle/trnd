@@ -14,7 +14,7 @@ import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildInsights } from "@/lib/recommend/insights";
 import { weekOf } from "@/lib/recommend/recommend";
 import { deltaWindowLabel, metricLabel, scaleNote } from "@/lib/signals/source-url";
-import { titleCase } from "@/lib/text";
+import { sentenceCase, titleCase } from "@/lib/text";
 
 export const metadata = { title: "Opportunities — TRND" };
 
@@ -66,13 +66,13 @@ export default async function OpportunitiesPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <span className="eyebrow" style={{ margin: 0 }}>Ranked for you · week of {weekLabel}</span>
-          <h1>This week&apos;s opportunities.</h1>
+          <span className="eyebrow m-0">Week of {weekLabel}</span>
+          <h1>Ranked opportunities</h1>
           <p className="context">
-            One line each — open <b>why this score</b> on any row for the full read.
+            Open any row to see why it scored the way it did.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <span className="badge"><i />{opportunities.length} ranked</span>
           {accepted > 0 && <span className="badge badge--mint"><i />{accepted} accepted</span>}
           {dismissed > 0 && <span className="badge badge--faint"><i />{dismissed} dismissed</span>}
@@ -80,10 +80,10 @@ export default async function OpportunitiesPage() {
       </div>
 
       {opportunities.length === 0 && (
-        <div className="panel" style={{ maxWidth: 620 }}>
-          <p style={{ margin: 0, color: "var(--ink-soft)", fontSize: 14.5, lineHeight: 1.6 }}>
+        <div className="panel max-w-[620px]">
+          <p className="m-0 text-ink-soft text-[14.5px] leading-[1.6]">
             Nothing ranked yet this week. Visit{" "}
-            <Link href="/app" style={{ color: "var(--amber-text)" }}>
+            <Link className="text-(--amber-text)" href="/app">
               This week
             </Link>{" "}
             to generate your ranking.
@@ -91,7 +91,7 @@ export default async function OpportunitiesPage() {
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="flex flex-col gap-[14px]">
         {enriched.map(({ o, signal, campaign, series, explained, insights }, idx) => {
           const isDismissed = o.status === "dismissed";
           const matched = o.matched_service_id ? serviceById.get(o.matched_service_id) : null;
@@ -102,17 +102,17 @@ export default async function OpportunitiesPage() {
           return (
             <div key={o.id} className={`opp-row${isDismissed ? " opp-row--dismissed" : ""}${idx === 0 && !isDismissed ? " opp-row--lead" : ""}`}>
               <span className="rank">#{idx + 1}</span>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
+              <div className="min-w-0">
+                <div className="flex gap-3 items-baseline flex-wrap">
                   <span className="term">{signal ? titleCase(signal.term) : "Opportunity"}</span>
                   {o.status !== "new" && (
                     <span className={`badge${o.status === "launched" || o.status === "accepted" ? " badge--mint" : " badge--faint"}`}>
                       <i />
-                      {o.status}
+                      {sentenceCase(o.status)}
                     </span>
                   )}
                 </div>
-                <p className="why" style={{ marginTop: 6, fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--mint-text)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <p className="why mt-[6px] font-mono text-[11.5px] text-(--mint-text) flex gap-2 items-center flex-wrap">
                   {typeof signal?.delta_pct === "number" && (
                     <DeltaChip delta={signal.delta_pct} />
                   )}
@@ -130,16 +130,16 @@ export default async function OpportunitiesPage() {
                   </div>
                 )}
 
-                <details className="disclosure" style={{ marginTop: 12 }}>
+                <details className="disclosure mt-3">
                   <summary>
                     <span className="chev">›</span>
-                    <span className="mono-label" style={{ color: "var(--ink-soft)" }}>
+                    <span className="mono-label text-ink-soft">
                       why this score
                     </span>
                   </summary>
                   <div className="disclosure__body">
-                    <div style={{ display: "flex", gap: 28, flexWrap: "wrap", alignItems: "flex-start" }}>
-                      <div style={{ flex: "1 1 300px", maxWidth: 460 }}>
+                    <div className="flex gap-7 flex-wrap items-start">
+                      <div className="flex-[1_1_300px] max-w-[460px]">
                         {insights.map((ins) => (
                           <div className="insight" key={ins.kind}>
                             <span className={`insight__dot insight__dot--${ins.kind}`} />
@@ -153,7 +153,7 @@ export default async function OpportunitiesPage() {
                       <div className="score-card">
                         {explained && <ScoreBreakdown components={explained.components} />}
                         <div className="score-card__demand">
-                          <span className="mono-label" style={{ color: "var(--mint-text)", display: "block", marginBottom: 8 }}>
+                          <span className="mono-label text-(--mint-text) block mb-2">
                             Demand — 30d
                           </span>
                           <Sparkline
@@ -178,7 +178,7 @@ export default async function OpportunitiesPage() {
                 <div className="actions">
                   {campaign ? (
                     <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary btn-sm">
-                      View campaign →
+                      View campaign
                     </Link>
                   ) : isDismissed ? (
                     <form action={setOpportunityStatusAction}>

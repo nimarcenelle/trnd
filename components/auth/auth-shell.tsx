@@ -11,33 +11,21 @@ export default function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <main style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
-      <nav
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px 32px",
-          borderBottom: "1px solid var(--line)",
-        }}
+    <main className="min-h-dvh flex flex-col">
+      <nav className="flex items-center justify-between py-4 px-8 border-b border-line"
+       
       >
         <Brand />
         <ThemeToggle />
       </nav>
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "48px 20px",
-        }}
+      <div className="flex-1 flex items-center justify-center py-12 px-5"
+       
       >
-        <div className="card-lg" style={{ width: "100%", maxWidth: 420, padding: "40px 34px" }}>
-          <h1 className="h-disp" style={{ fontSize: 24, margin: "0 0 8px" }}>
+        <div className="card-lg w-full max-w-[420px] py-10 px-[34px]">
+          <h1 className="h-disp text-[24px] mx-0 mt-0 mb-2">
             {title}
           </h1>
-          <p style={{ fontSize: 14.5, color: "var(--ink-soft)", margin: "0 0 26px", lineHeight: 1.55 }}>
+          <p className="text-[14.5px] text-ink-soft mx-0 mt-0 mb-[26px] leading-[1.55]">
             {sub}
           </p>
           {children}

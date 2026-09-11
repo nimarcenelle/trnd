@@ -33,10 +33,10 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <input id="email" name="email" type="email" placeholder="jordan@yourbusiness.com" autoComplete="email" required />
         </div>
         <div className="field">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <div className="flex justify-between items-baseline">
             <label htmlFor="password">Password</label>
             {mode === "login" && (
-              <Link href="/forgot" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+              <Link className="text-[12px] text-ink-faint" href="/forgot">
                 Forgot password?
               </Link>
             )}
@@ -53,35 +53,35 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         </div>
         {state.error && <p className="form-error">{state.error}</p>}
         {state.notice && (
-          <p style={{ fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--mint)", lineHeight: 1.5 }}>
+          <p className="font-mono text-[11.5px] text-mint leading-[1.5]">
             {state.notice}
           </p>
         )}
         <button
           type="submit"
-          className="btn btn-primary"
+          className="btn btn-primary w-full justify-center"
           disabled={pending}
-          style={{ width: "100%", justifyContent: "center" }}
+         
         >
           {pending ? "One moment…" : mode === "login" ? "Sign in" : "Create account"}
         </button>
         {mode === "signup" && (
-          <p style={{ fontSize: 11.5, color: "var(--ink-faint)", margin: "12px 0 0", textAlign: "center", lineHeight: 1.5 }}>
+          <p className="text-[11.5px] text-ink-faint mx-0 mt-3 mb-0 text-center leading-[1.5]">
             By creating an account you agree to the{" "}
-            <Link href="/terms" style={{ color: "var(--ink-faint)", textDecoration: "underline" }}>Terms</Link> and{" "}
-            <Link href="/privacy" style={{ color: "var(--ink-faint)", textDecoration: "underline" }}>Privacy Policy</Link>.
+            <Link className="text-ink-faint underline" href="/terms">Terms</Link> and{" "}
+            <Link className="text-ink-faint underline" href="/privacy">Privacy Policy</Link>.
           </p>
         )}
       </form>
 
       {mode === "login" && (
-        <form action={magicAction} style={{ marginTop: 14 }}>
+        <form className="mt-[14px]" action={magicAction}>
           <input type="hidden" name="email" id="magic-email" />
           <button
             type="submit"
-            className="btn btn-ghost"
+            className="btn btn-ghost w-full justify-center"
             disabled={magicPending}
-            style={{ width: "100%", justifyContent: "center" }}
+           
             onClick={(e) => {
               const email = (document.getElementById("email") as HTMLInputElement)?.value ?? "";
               (e.currentTarget.form!.elements.namedItem("email") as HTMLInputElement).value = email;
@@ -89,23 +89,23 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           >
             Email me a magic link instead
           </button>
-          {magicState.error && <p className="form-error" style={{ marginTop: 10 }}>{magicState.error}</p>}
+          {magicState.error && <p className="form-error mt-[10px]">{magicState.error}</p>}
           {magicState.notice && (
-            <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--mint)", marginTop: 10 }}>
+            <p className="font-mono text-[11px] text-mint mt-[10px]">
               {magicState.notice}
             </p>
           )}
         </form>
       )}
 
-      <p style={{ fontSize: 13.5, color: "var(--ink-soft)", marginTop: 22, textAlign: "center" }}>
+      <p className="text-[13.5px] text-ink-soft mt-[22px] text-center">
         {mode === "login" ? (
           <>
-            New to TRND? <Link href="/signup" style={{ color: "var(--amber-text)" }}>Create an account</Link>
+            New to TRND? <Link className="text-(--amber-text)" href="/signup">Create an account</Link>
           </>
         ) : (
           <>
-            Already have an account? <Link href="/login" style={{ color: "var(--amber-text)" }}>Sign in</Link>
+            Already have an account? <Link className="text-(--amber-text)" href="/login">Sign in</Link>
           </>
         )}
       </p>

@@ -25,8 +25,14 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   let opportunityId = "";
+  let direction: string | null = null;
+  let rebuild = false;
   try {
-    opportunityId = String(((await req.json()) as { opportunity_id?: string }).opportunity_id ?? "");
+    const body = (await req.json()) as { opportunity_id?: string; direction?: string; rebuild?: boolean };
+    opportunityId = String(body.opportunity_id ?? "");
+    const d = String(body.direction ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+    direction = d.length >= 12 ? d : null;
+    rebuild = body.rebuild === true;
   } catch {
     /* falls through to the missing-id error */
   }
@@ -51,8 +57,11 @@ export async function POST(req: Request): Promise<Response> {
       const send = (event: BuildEvent) =>
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       try {
-        const result = await buildCampaignForOpportunity(repo, opportunityId, (label) =>
-          send({ type: "status", label }),
+        const result = await buildCampaignForOpportunity(
+          repo,
+          opportunityId,
+          (label) => send({ type: "status", label }),
+          { direction, rebuild },
         );
         if ("error" in result) {
           send({ type: "error", reason: result.error });
@@ -60,6 +69,7 @@ export async function POST(req: Request): Promise<Response> {
           revalidatePath("/app");
           revalidatePath("/app/opportunities");
           revalidatePath("/app/campaigns");
+          revalidatePath(`/app/campaigns/${result.campaignId}`);
           send({ type: "done", campaignId: result.campaignId });
         }
       } catch (err) {

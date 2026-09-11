@@ -1,3 +1,4 @@
+@layer components {
 /* Landing-page styles ported from design/trnd-landing.html.
    Shared primitives (btn, pill, eyebrow, field, theme-toggle, reveal) live in
    globals.css. */
@@ -208,7 +209,7 @@
   margin-left: 8px;
   font-family: var(--mono);
   font-size: 10.5px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   color: var(--ink-faint);
 }
 .pframe__body {
@@ -232,10 +233,10 @@
 }
 .pframe__eyebrow {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--amber-text);
+  font-weight: 500;
 }
 .pframe__delta {
   font-family: var(--mono);
@@ -316,7 +317,7 @@
   margin-top: 8px;
   font-family: var(--mono);
   font-size: 10.5px;
-  letter-spacing: 0.03em;
+  letter-spacing: 0;
   color: var(--ink-faint);
 }
 
@@ -452,11 +453,11 @@ hr.rule {
 }
 .split__title {
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   margin-bottom: 20px;
+  font-weight: 500;
 }
 .split__col.now .split__title {
   color: var(--amber-text);
@@ -561,7 +562,7 @@ hr.rule {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--amber-text);
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   margin-bottom: 10px;
   display: block;
 }
@@ -585,12 +586,12 @@ hr.rule {
 }
 .step-panel__side .k {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--mint-text);
   display: block;
   margin-bottom: 6px;
+  font-weight: 500;
 }
 .step-panel__side .v {
   font-family: var(--body);
@@ -635,7 +636,7 @@ hr.rule {
   font-family: var(--mono);
   font-size: 10.5px;
   color: var(--ink-faint);
-  letter-spacing: 0.03em;
+  letter-spacing: 0;
 }
 
 /* ---------- FLYWHEEL ---------- */
@@ -712,7 +713,7 @@ hr.rule {
 .rm-status {
   font-family: var(--mono);
   font-size: 9.5px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   color: var(--ink-faint);
 }
 .rm-card.live .rm-status {
@@ -872,11 +873,11 @@ hr.rule {
 }
 .foot-col h3 {
   font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   margin: 0 0 14px;
+  font-weight: 500;
 }
 .foot-col a {
   display: block;
@@ -1036,9 +1037,10 @@ hr.rule {
 /* ---------- PRICING TIERS ---------- */
 .tiers {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr;
   gap: 14px;
-  margin-bottom: 18px;
+  max-width: 560px;
+  margin: 0 auto 18px;
 }
 .tier {
   background: var(--bg-1);
@@ -1054,11 +1056,11 @@ hr.rule {
 }
 .tier__badge {
   font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
   color: var(--ink-faint);
   margin-bottom: 12px;
+  font-weight: 500;
 }
 .tier--featured .tier__badge {
   color: var(--amber-text);
@@ -1081,7 +1083,7 @@ hr.rule {
   font-size: 11px;
   font-weight: 500;
   color: var(--ink-faint);
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   margin-left: 4px;
 }
 .tier__promise {
@@ -1114,7 +1116,7 @@ hr.rule {
 .tier__foot {
   font-family: var(--mono);
   font-size: 10px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   color: var(--ink-faint);
   text-align: center;
   margin-top: 10px;
@@ -1122,7 +1124,7 @@ hr.rule {
 .founding-note {
   font-family: var(--mono);
   font-size: 11px;
-  letter-spacing: 0.03em;
+  letter-spacing: 0;
   color: var(--amber-text);
   text-align: center;
 }
@@ -1150,4 +1152,6 @@ hr.rule {
   font-size: 12.5px;
   letter-spacing: 0;
   background: var(--bg-1);
+}
+
 }

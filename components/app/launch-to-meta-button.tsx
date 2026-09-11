@@ -12,22 +12,22 @@ export default function LaunchToMetaButton({ campaignId }: { campaignId: string 
   const [state, formAction, pending] = useActionState<LaunchState, FormData>(launchToMetaAction, {});
   if (state.ok) {
     return (
-      <span className="badge badge--mint" style={{ alignSelf: "center" }}>
+      <span className="badge badge--mint self-center">
         <i />
         In your Meta account (paused) — flip it on in Ads Manager
       </span>
     );
   }
   return (
-    <span style={{ display: "inline-flex", flexDirection: "column", gap: 6 }}>
+    <span className="inline-flex flex-col gap-[6px]">
       <form action={formAction}>
         <input type="hidden" name="campaign_id" value={campaignId} />
         <button type="submit" className="btn btn-primary btn-sm" disabled={pending} aria-busy={pending}>
-          {pending ? "Creating in your account…" : "Launch to Meta (paused) →"}
+          {pending ? "Creating in your account…" : "Launch to Meta (paused)"}
         </button>
       </form>
       {state.error && (
-        <span style={{ fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--red)" }}>{state.error}</span>
+        <span className="font-mono text-[10.5px] text-red">{state.error}</span>
       )}
     </span>
   );

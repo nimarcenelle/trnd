@@ -13,6 +13,9 @@ import type {
   Creative,
   DemoRequest,
   IntelNote,
+  PickRead,
+  StandingQuestion,
+  BusinessDocument,
   Learning,
   Opportunity,
   Profile,
@@ -49,6 +52,9 @@ export interface DemoStore {
   business_briefs: BusinessBrief[];
   subscriptions: Subscription[];
   intel_notes: IntelNote[];
+  pick_reads?: PickRead[];
+  standing_questions?: StandingQuestion[];
+  business_documents?: BusinessDocument[];
   connections: Connection[];
   competitors: Competitor[];
   competitor_reads: CompetitorRead[];
@@ -74,6 +80,9 @@ function emptyStore(): DemoStore {
     business_briefs: [],
     subscriptions: [],
     intel_notes: [],
+    pick_reads: [],
+    standing_questions: [],
+    business_documents: [],
     connections: [],
     competitors: [],
     competitor_reads: [],

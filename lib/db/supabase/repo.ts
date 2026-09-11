@@ -15,6 +15,9 @@ import type {
   IntelNote,
   Learning,
   Opportunity,
+  PickRead,
+  StandingQuestion,
+  BusinessDocument,
   Review,
   ReviewDigest,
   Profile,
@@ -115,9 +118,11 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       return written;
     },
     async listSignalsForCategory(category, opts) {
+      // Sample rows (source "seed") exist for local development only; a
+      // production workspace never ranks, charts, or cites them.
       const sinceDays = opts?.sinceDays ?? 14;
       const cutoff = new Date(Date.now() - sinceDays * 86400_000).toISOString();
-      let q = sb.from("signals").select("*").eq("category", category).gte("captured_at", cutoff);
+      let q = sb.from("signals").select("*").eq("category", category).gte("captured_at", cutoff).neq("source", "seed");
       // National rows, the business's state, and any metro inside it
       // ("US-GA-524" for a "US-GA" query) rank together.
       if (opts?.geo) q = q.or(`geo.eq.US,geo.eq.${opts.geo},geo.like.${opts.geo}-%`);
@@ -246,6 +251,20 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .maybeSingle();
       throwIf(error, "getCampaignByOpportunity");
       return (data as Campaign | null) ?? null;
+    },
+    async replaceCampaign(id, patch, creatives) {
+      const { data, error } = await sb.from("campaigns").update(patch).eq("id", id).select().single();
+      throwIf(error, "replaceCampaign");
+      const campaign = data as Campaign;
+      const { error: dErr } = await sb.from("creatives").delete().eq("campaign_id", id);
+      throwIf(dErr, "replaceCampaign:clear");
+      if (creatives.length > 0) {
+        const { error: cErr } = await sb
+          .from("creatives")
+          .insert(creatives.map((c) => ({ ...c, campaign_id: id })));
+        throwIf(cErr, "replaceCampaign:creatives");
+      }
+      return campaign;
     },
     async listCampaigns(businessId) {
       const { data, error } = await sb
@@ -379,6 +398,63 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .maybeSingle();
       throwIf(error, "getIntelNote");
       return (data as IntelNote | null) ?? null;
+    },
+    async upsertPickRead(input) {
+      const { data, error } = await sb
+        .from("pick_reads")
+        .upsert(input, { onConflict: "opportunity_id" })
+        .select()
+        .single();
+      throwIf(error, "upsertPickRead");
+      return data as PickRead;
+    },
+    async getPickRead(opportunityId) {
+      const { data, error } = await sb
+        .from("pick_reads")
+        .select("*")
+        .eq("opportunity_id", opportunityId)
+        .maybeSingle();
+      throwIf(error, "getPickRead");
+      return (data as PickRead | null) ?? null;
+    },
+    async listDocuments(businessId) {
+      const { data, error } = await sb
+        .from("business_documents")
+        .select("*")
+        .eq("business_id", businessId)
+        .order("created_at", { ascending: false });
+      throwIf(error, "listDocuments");
+      return (data ?? []) as BusinessDocument[];
+    },
+    async createDocument(input) {
+      const { data, error } = await sb.from("business_documents").insert(input).select().single();
+      throwIf(error, "createDocument");
+      return data as BusinessDocument;
+    },
+    async deleteDocument(id) {
+      const { error } = await sb.from("business_documents").delete().eq("id", id);
+      throwIf(error, "deleteDocument");
+    },
+    async listStandingQuestions(businessId, opts) {
+      let q = sb.from("standing_questions").select("*").eq("business_id", businessId);
+      if (opts?.activeOnly) q = q.eq("active", true);
+      const { data, error } = await q.order("created_at", { ascending: true });
+      throwIf(error, "listStandingQuestions");
+      return (data ?? []) as StandingQuestion[];
+    },
+    async createStandingQuestion(input) {
+      const { data, error } = await sb.from("standing_questions").insert(input).select().single();
+      throwIf(error, "createStandingQuestion");
+      return data as StandingQuestion;
+    },
+    async setStandingQuestionActive(id, active) {
+      const { error } = await sb.from("standing_questions").update({ active }).eq("id", id);
+      throwIf(error, "setStandingQuestionActive");
+    },
+    async answerStandingQuestion(id, patch) {
+      const { data, error } = await sb.from("standing_questions").update(patch).eq("id", id).select().single();
+      throwIf(error, "answerStandingQuestion");
+      return data as StandingQuestion;
     },
 
     async upsertConnection(input) {

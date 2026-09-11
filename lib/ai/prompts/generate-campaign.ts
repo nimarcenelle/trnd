@@ -1,6 +1,7 @@
 import type { Business, BusinessBrief, Opportunity, Service, Signal } from "@/lib/db/types";
 
-export const PROMPT_VERSION = "gemini-5";
+/** gemini-6: the owner can steer a build with a one-line direction from the pick's Ask box. */
+export const PROMPT_VERSION = "gemini-6";
 
 export interface PromptCtx {
   business: Business;
@@ -9,6 +10,19 @@ export interface PromptCtx {
   service: Service | null;
   services?: Service[];
   brief: BusinessBrief | null;
+  /** The owner's steer for this build, when they asked for one — "do this
+   * for the deep-tissue massage instead", "lead with the Tuesday special". */
+  direction?: string | null;
+}
+
+/** The owner's direction outranks the judge's taste, never the menu. */
+function directionBlock({ direction }: PromptCtx): string {
+  if (!direction) return "";
+  return [
+    `THE OWNER'S DIRECTION for this build — follow it in every angle and asset:`,
+    `"${direction.replace(/\s+/g, " ").trim()}"`,
+    `It decides which service, offer, audience, or angle the campaign leads with. It cannot add anything the MENU doesn't list — if it asks for an unlisted promise, ride the closest listed item and never invent the rest.`,
+  ].join("\n");
 }
 
 const price = (s: Service) => (s.price_cents != null ? ` ($${Math.round(s.price_cents / 100)})` : "");
@@ -34,6 +48,7 @@ function businessBlock(ctx: PromptCtx): string {
       : "No direct service match — recommend a sensible new offer.",
     business.brand_voice_notes ? `Owner's voice notes: ${business.brand_voice_notes}` : "",
     menuBlock(ctx),
+    directionBlock(ctx),
     ...(brief
       ? [
           `SNAPSHOT (how TRND reads this business — the campaign must fit it):`,
@@ -80,6 +95,7 @@ export function buildAngleSlatePrompt(ctx: PromptCtx): string {
     "",
     "Build THREE genuinely different positionings for one ad campaign this week —",
     "three distinct routes into the same demand, not three phrasings of one idea.",
+    ...(ctx.direction ? ["All three must honor THE OWNER'S DIRECTION above — vary the route, not the destination."] : []),
     "Each must use a different angle_type, attack from a different motive (e.g. one",
     "hijacks the trend's own comparison, one leads with the offer, one educates),",
     "and stand alone as a campaign an owner would run. For each angle return:",
@@ -104,6 +120,7 @@ export function buildAngleJudgePrompt(
     "audience; is the claim credible from THIS business specifically; is the offer",
     "concrete enough to act on; does it avoid the snapshot's watchouts. Prefer the",
     "angle a competitor is least able to copy next week.",
+    ...(ctx.direction ? ["An angle that ignores THE OWNER'S DIRECTION above loses, however sharp it is."] : []),
     "Return winner (0, 1, or 2) and reason (one sentence, shown in logs).",
     "",
     "CANDIDATES:",

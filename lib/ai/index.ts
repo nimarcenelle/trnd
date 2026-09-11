@@ -24,6 +24,8 @@ export interface GenerationContext {
   services?: Service[];
   /** The founding analysis — campaigns are written to fit it. */
   brief: BusinessBrief | null;
+  /** The owner's one-line steer for this build, from the pick's Ask box. */
+  direction?: string | null;
 }
 
 export interface GeneratedCampaign {

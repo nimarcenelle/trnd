@@ -14,15 +14,9 @@ export default function LegalShell({
   children: React.ReactNode;
 }) {
   return (
-    <main style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
-      <nav
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px 32px",
-          borderBottom: "1px solid var(--line)",
-        }}
+    <main className="min-h-dvh flex flex-col">
+      <nav className="flex items-center justify-between py-4 px-8 border-b border-line"
+       
       >
         <Brand />
         <ThemeToggle />
@@ -30,12 +24,12 @@ export default function LegalShell({
       <article style={{ flex: 1, width: "100%", maxWidth: 720, margin: "0 auto", padding: "56px 24px 72px" }}>
         <span className="eyebrow">Legal</span>
         <h1 className="h-disp" style={{ fontSize: "clamp(28px,4vw,40px)", margin: "6px 0 6px" }}>{title}</h1>
-        <p className="mono-label" style={{ marginBottom: 34 }}>Last updated {updated}</p>
+        <p className="mono-label mb-[34px]">Last updated {updated}</p>
         <div className="legal-body">{children}</div>
-        <p style={{ marginTop: 44, fontSize: 13, color: "var(--ink-faint)" }}>
-          Questions? Write to us via the <Link href="/#demo" style={{ color: "var(--amber)" }}>contact form</Link>. See also{" "}
-          <Link href="/terms" style={{ color: "var(--amber)" }}>Terms</Link> ·{" "}
-          <Link href="/privacy" style={{ color: "var(--amber)" }}>Privacy</Link>.
+        <p className="mt-[44px] text-[13px] text-ink-faint">
+          Questions? Write to us via the <Link className="text-amber" href="/#demo">contact form</Link>. See also{" "}
+          <Link className="text-amber" href="/terms">Terms</Link> ·{" "}
+          <Link className="text-amber" href="/privacy">Privacy</Link>.
         </p>
       </article>
     </main>

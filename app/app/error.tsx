@@ -2,18 +2,18 @@
 
 export default function AppError({ reset }: { error: Error; reset: () => void }) {
   return (
-    <div className="wrap" style={{ padding: "64px 32px", maxWidth: 560 }}>
-      <span className="eyebrow" style={{ color: "var(--red)" }}>
+    <div className="wrap py-[64px] px-8 max-w-[560px]">
+      <span className="eyebrow text-red">
         Something broke
       </span>
-      <h1 className="h-disp" style={{ fontSize: 26, margin: "0 0 10px" }}>
+      <h1 className="h-disp text-[26px] mx-0 mt-0 mb-[10px]">
         This screen hit an error.
       </h1>
-      <p style={{ color: "var(--ink-soft)", lineHeight: 1.6, margin: "0 0 24px" }}>
+      <p className="text-ink-soft leading-[1.6] mx-0 mt-0 mb-6">
         Your campaigns and results are safe. Try again, or head back to this week&apos;s
         recommendation.
       </p>
-      <div style={{ display: "flex", gap: 12 }}>
+      <div className="flex gap-3">
         <button className="btn btn-primary btn-sm" onClick={reset}>
           Try again
         </button>

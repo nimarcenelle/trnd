@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ACCEPT_ATTR } from "@/lib/documents/parse";
+
 /**
  * Upload a document or paste text. Posts to /api/documents (a route
  * handler, so a real PDF fits), narrates the read, and refreshes the list.
@@ -40,8 +42,8 @@ export default function DocumentUpload({ modelReady }: { modelReady: boolean }) 
   }
 
   return (
-    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", gap: 8 }}>
+    <form className="flex flex-col gap-[10px]" onSubmit={submit}>
+      <div className="flex gap-2">
         {(["file", "paste"] as const).map((m) => (
           <button
             key={m}
@@ -55,19 +57,19 @@ export default function DocumentUpload({ modelReady }: { modelReady: boolean }) 
         ))}
       </div>
       {mode === "file" ? (
-        <input name="file" type="file" accept=".pdf,.csv,.txt,.md,.json,.tsv" aria-label="Document to upload" className="input" style={{ padding: "9px 12px" }} required />
+        <input name="file" type="file" accept={ACCEPT_ATTR} aria-label="Document to upload" className="input py-[9px] px-3" required />
       ) : (
         <>
           <input name="name" placeholder="Name, e.g. Fall menu" aria-label="Document name" maxLength={120} className="input" />
           <textarea name="text" placeholder="Paste a menu, price list, brand notes, or a sales summary" aria-label="Pasted text" rows={6} className="input" required />
         </>
       )}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="flex gap-3 items-center flex-wrap">
         <button type="submit" className="btn btn-primary btn-sm" disabled={status !== null && !status.startsWith("Added")} aria-busy={status !== null}>
           {status && !status.startsWith("Added") ? status : "Add document"}
         </button>
-        {status?.startsWith("Added") && <span className="mono-label" style={{ color: "var(--mint-text)" }}>{status}</span>}
-        {error && <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--red)" }}>{error}</span>}
+        {status?.startsWith("Added") && <span className="mono-label text-(--mint-text)">{status}</span>}
+        {error && <span className="font-mono text-[11px] text-red">{error}</span>}
       </div>
     </form>
   );

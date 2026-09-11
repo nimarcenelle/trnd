@@ -78,9 +78,9 @@ export default function DemoForm() {
       {state.error && <p className="form-error">{state.error}</p>}
       <button
         type="submit"
-        className="btn btn-primary"
+        className="btn btn-primary w-full justify-center mt-[6px]"
         disabled={pending}
-        style={{ width: "100%", justifyContent: "center", marginTop: 6 }}
+       
       >
         {pending ? "Sending…" : "Request a demo"}
       </button>

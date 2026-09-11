@@ -64,7 +64,7 @@ export default async function SnapshotPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <span className="eyebrow" style={{ margin: 0 }}>Your analysis</span>
+          <span className="eyebrow m-0">Your analysis</span>
           <h1>How TRND reads {business.name}</h1>
           <p className="context">
             <b>{titleCase(business.category)}</b> · {business.city}
@@ -79,8 +79,8 @@ export default async function SnapshotPage() {
       </div>
 
       <div className="profile-bar">
-        <div className="p-stat"><span className="k">Category</span><div className="v" style={{ fontSize: 15 }}>{titleCase(business.category)}</div></div>
-        <div className="p-stat"><span className="k">Home base</span><div className="v" style={{ fontSize: 15 }}>{business.city}{business.region ? `, ${business.region}` : ""}</div></div>
+        <div className="p-stat"><span className="k">Category</span><div className="v text-[15px]">{titleCase(business.category)}</div></div>
+        <div className="p-stat"><span className="k">Home base</span><div className="v text-[15px]">{business.city}{business.region ? `, ${business.region}` : ""}</div></div>
         <div className="p-stat"><span className="k">Reach</span><div className="v">{business.radius_miles} mi</div></div>
         <div className="p-stat"><span className="k">Services</span><div className="v">{activeServices.length} active</div></div>
         <div className="p-stat"><span className="k">Price band</span><div className="v">{business.price_band ?? "$$"}</div></div>
@@ -99,7 +99,7 @@ export default async function SnapshotPage() {
             TRND is reading {business.name} — positioning, who buys, the local market, pricing,
             and your first moves. Usually under two minutes; this page refreshes itself.
           </p>
-          <div style={{ display: "inline-block", textAlign: "left" }}>
+          <div className="inline-block text-left">
             <AnalysisProgress startedAt={business.created_at} />
           </div>
         </div>
@@ -113,18 +113,18 @@ export default async function SnapshotPage() {
           )}
 
           {(brief.first_moves ?? []).length > 0 && (
-            <div className="note-card" style={{ borderColor: "var(--amber)" }}>
-              <span className="t" style={{ color: "var(--amber-text)" }}>Your first moves — run these in order</span>
-              <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 8, fontFamily: "var(--body)", fontSize: 14, lineHeight: 1.65, color: "var(--ink)" }}>
+            <div className="note-card border-amber">
+              <span className="t text-(--amber-text)">Your first moves — run these in order</span>
+              <ol className="m-0 pl-[18px] flex flex-col gap-2 font-body text-[14px] leading-[1.65] text-ink">
                 {brief.first_moves.map((t, i) => (
                   <li key={i}>{t}</li>
                 ))}
               </ol>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 16, flexWrap: "wrap" }}>
+              <div className="flex items-center gap-[14px] mt-4 flex-wrap">
                 <Link href="/app/opportunities" className="btn btn-primary btn-sm">
                   See this week&apos;s ranked plays
                 </Link>
-                <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-faint)" }}>
+                <span className="font-mono text-[11px] text-ink-faint">
                   every week, live demand is ranked against this analysis
                 </span>
               </div>
@@ -206,7 +206,7 @@ export default async function SnapshotPage() {
           )}
 
           {(brief.seasonality || brief.moat) && (
-            <div className="snap-cols" style={{ gridTemplateColumns: "1fr 1fr" }}>
+            <div className="snap-cols grid-cols-[1fr_1fr]">
               {brief.seasonality && (
                 <div className="snap-col snap-col--good">
                   <div className="icon">
@@ -236,15 +236,15 @@ export default async function SnapshotPage() {
           {(brief.watch_terms ?? []).length > 0 && (
             <div className="note-card">
               <span className="t">What TRND watches for you</span>
-              <div className="mini-chip-row" style={{ marginBottom: 10 }}>
+              <div className="mini-chip-row mb-[10px]">
                 {brief.watch_terms.map((t) => (
                   <span key={t} className="mini-chip">{t}</span>
                 ))}
               </div>
-              <p style={{ fontSize: 12.5 }}>
+              <p className="text-[12.5px]">
                 Search phrases your customers actually type, read daily{isDataForSeoConfigured ? " in your own metro" : " — nationally until the metro volume feed is switched on"}. When one
                 of them moves, it shows up ranked in{" "}
-                <Link href="/app" style={{ color: "var(--amber-text)" }}>This week</Link> with a campaign
+                <Link className="text-(--amber-text)" href="/app">This week</Link> with a campaign
                 ready to build — that&apos;s the point of this page.
               </p>
             </div>
@@ -257,7 +257,7 @@ export default async function SnapshotPage() {
               watch terms above feed the daily demand scan; every trend that scan finds is judged against
               your positioning and menu before it&apos;s allowed to rank; and when you build a campaign,
               the copy is written from your edge, your prices, and your voice — not a template.
-              <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-faint)", display: "block", marginTop: 8 }}>
+              <span className="font-mono text-[11px] text-ink-faint block mt-2">
                 {isTemplate ? "TRND category playbooks" : "AI analysis"} of your profile
                 {business.website ? " + website" : ""}{generatedOn ? ` · ${generatedOn}` : ""} · regenerates
                 when your profile changes · {brief.model_used} · {brief.prompt_version}

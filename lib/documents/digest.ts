@@ -15,7 +15,7 @@ export async function digestUpload(
   business: Business,
   doc: { name: string; mime: string; bytes: Uint8Array },
 ): Promise<{ text: string; digest: DocumentDigest; model_used: string }> {
-  const text = extractText(doc.mime, doc.bytes);
+  const text = await extractText(doc.mime, doc.bytes);
   if (isGeminiConfigured) {
     try {
       const { digestDocumentWithGemini } = await import("@/lib/ai/gemini");

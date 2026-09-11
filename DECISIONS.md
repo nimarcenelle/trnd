@@ -120,5 +120,10 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
   sentence-case labels instead of mono caps, chips only for grade and delta, one bare-input
   class; (4) the landing page promises weekly, labels its examples, sells one plan; (5) This
   week is the ad, why, ask, standing questions, demand, next in line, competitors, calendar —
-  market pulse, recent campaigns and the analysis teaser are cut. Inline styles remain on the
-  older screens; the CSS-level pass restyled them consistently without a component rewrite.
+  market pulse, recent campaigns and the analysis teaser are cut. Every static inline style
+  (510 of them) is now a Tailwind utility on the project's own tokens; only dynamic values
+  stay inline. The project CSS sits in `@layer components` so utilities keep the precedence
+  inline styles had.
+- **Word and Excel uploads read on the server, keyless.** `mammoth` unpacks .docx to text;
+  SheetJS turns every sheet of an .xlsx/.xls into CSV (the first sheet is the table the
+  deterministic digest reads). Neither needs the model; PDFs still do.

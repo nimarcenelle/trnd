@@ -41,7 +41,7 @@ export default function Brand({
   );
   if (!href) return mark;
   return (
-    <Link href={href} aria-label="TRND home" style={{ display: "inline-flex" }}>
+    <Link className="inline-flex" href={href} aria-label="TRND home">
       {mark}
     </Link>
   );

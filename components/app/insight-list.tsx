@@ -17,7 +17,7 @@ export default function InsightList({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ margin: "0 0 20px" }}>
+    <div className="mx-0 mt-0 mb-5">
       <div>
         {insights.map((ins) => (
           <div className="insight" key={ins.kind}>
@@ -29,7 +29,7 @@ export default function InsightList({
           </div>
         ))}
         {open && footnote && (
-          <p className="insight__detail" style={{ margin: "10px 0 0 24px" }}>
+          <p className="insight__detail mr-0 ml-6 mt-[10px] mb-0">
             {footnote}
           </p>
         )}
@@ -66,7 +66,7 @@ export default function InsightList({
         >
           ›
         </span>
-        <span className="mono-label" style={{ color: "var(--ink-soft)" }}>
+        <span className="mono-label text-ink-soft">
           {open ? "Hide details" : "Show details"}
         </span>
       </button>

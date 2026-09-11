@@ -32,10 +32,10 @@ export default async function AskPage() {
   });
 
   return (
-    <div className="page" style={{ maxWidth: 900 }}>
+    <div className="page max-w-[900px]">
       <div className="page-head">
         <div>
-          <span className="eyebrow" style={{ margin: 0 }}>Ask</span>
+          <span className="eyebrow m-0">Ask</span>
           <h1>Ask about your market</h1>
           <p className="context">
             Answers are grounded in your own data and say what they assumed.

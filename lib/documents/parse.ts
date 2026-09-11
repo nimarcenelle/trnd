@@ -9,7 +9,11 @@ export const ACCEPTED: Record<string, string> = {
   md: "text/markdown",
   json: "application/json",
   tsv: "text/tab-separated-values",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  xls: "application/vnd.ms-excel",
 };
+export const ACCEPT_ATTR = Object.keys(ACCEPTED).map((e) => `.${e}`).join(",");
 export const MAX_BYTES = 8 * 1024 * 1024;
 export const MAX_DOCUMENTS = 10;
 /** Stored text is capped — the digest is what gets read week to week. */
@@ -21,10 +25,32 @@ export function mimeFor(name: string): string | null {
 }
 
 export const isPdf = (mime: string) => mime === "application/pdf";
+export const isWord = (mime: string) => mime === ACCEPTED.docx;
+export const isSpreadsheet = (mime: string) => mime === ACCEPTED.xlsx || mime === ACCEPTED.xls;
+/** Read as a table: CSV, TSV, and every spreadsheet sheet. */
+export const isTabular = (mime: string) => /csv|tab-separated/.test(mime) || isSpreadsheet(mime);
 
-/** Text-like uploads decode straight to text; PDFs need the model. */
-export function extractText(mime: string, bytes: Uint8Array): string | null {
+/**
+ * Text-like uploads decode straight to text; Word and Excel are unpacked
+ * here (a spreadsheet becomes CSV, one block per sheet); PDFs need the
+ * model and return null.
+ */
+export async function extractText(mime: string, bytes: Uint8Array): Promise<string | null> {
   if (isPdf(mime)) return null;
+  if (isWord(mime)) {
+    const mammoth = await import("mammoth");
+    const { value } = await mammoth.extractRawText({ buffer: Buffer.from(bytes) });
+    return value.replace(/\r\n?/g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, MAX_TEXT);
+  }
+  if (isSpreadsheet(mime)) {
+    const XLSX = await import("xlsx");
+    const wb = XLSX.read(bytes, { type: "array" });
+    const blocks = wb.SheetNames.map((name) => {
+      const csv = XLSX.utils.sheet_to_csv(wb.Sheets[name], { blankrows: false });
+      return wb.SheetNames.length > 1 ? `# ${name}\n${csv}` : csv;
+    });
+    return blocks.join("\n\n").trim().slice(0, MAX_TEXT);
+  }
   return new TextDecoder("utf-8", { fatal: false }).decode(bytes).replace(/\r\n?/g, "\n").slice(0, MAX_TEXT);
 }
 
@@ -143,7 +169,9 @@ export function fallbackDigest(name: string, mime: string, text: string | null):
       watchouts: [],
     };
   }
-  const csv = /csv|tab-separated/.test(mime) ? readCsv(text) : null;
+  // A multi-sheet workbook reads its first sheet as the table.
+  const firstSheet = isSpreadsheet(mime) ? text.replace(/^# [^\n]*\n/, "").split(/\n\n# /)[0] : text;
+  const csv = isTabular(mime) ? readCsv(firstSheet) : null;
   const kind = guessKind(name, text, csv?.columns);
   const services = kind === "menu" || kind === "other" ? servicesFromText(text) : [];
   const facts: string[] = [];

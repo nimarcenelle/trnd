@@ -115,7 +115,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   ];
 
   return (
-    <div className="page" style={{ maxWidth: 900 }}>
+    <div className="page max-w-[900px]">
       <div className="page-head">
         <div>
           <h1>Settings</h1>
@@ -125,10 +125,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         </div>
       </div>
 
-      <section className="panel" style={{ marginBottom: 20 }}>
+      <section className="panel mb-5">
         <div className="panel__head">
           <span className="panel__title">Business</span>
-          <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <span className="flex gap-3 items-center">
             <span className="panel__meta">{user.email}</span>
             <Link href="/app/snapshot" className="btn btn-ghost btn-sm">Your analysis</Link>
           </span>
@@ -136,15 +136,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         <BusinessSettingsForm business={business} />
       </section>
 
-      <section className="panel" style={{ marginBottom: 20 }}>
+      <section className="panel mb-5">
         <div className="panel__head">
           <span className="panel__title">Services</span>
           <span className="panel__meta">{services.filter((s) => s.is_active).length} active</span>
         </div>
-        <p style={{ fontSize: 13, color: "var(--ink-faint)", margin: "0 0 16px" }}>
+        <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4">
           Inactive services stay listed but stop matching signals.
         </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+        <div className="flex flex-col gap-[10px] mb-5">
           {services.map((s) => (
             <div
               key={s.id}
@@ -160,23 +160,23 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                 flexWrap: "wrap",
               }}
             >
-              <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5, flex: "1 1 200px" }}>
+              <span className="font-disp font-semibold text-[14.5px] flex-[1_1_200px]">
                 {s.name}
               </span>
               <span className="mono-label">
                 {s.price_cents ? `$${Math.round(s.price_cents / 100)}` : "no price"}
               </span>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="flex gap-2">
                 <form action={toggleServiceAction}>
                   <input type="hidden" name="service_id" value={s.id} />
                   <input type="hidden" name="active" value={String(!s.is_active)} />
-                  <button type="submit" className="btn btn-ghost btn-sm" style={{ padding: "5px 12px", fontSize: 11.5 }}>
+                  <button type="submit" className="btn btn-ghost btn-sm py-[5px] px-3 text-[11.5px]">
                     {s.is_active ? "Deactivate" : "Activate"}
                   </button>
                 </form>
                 <form action={deleteServiceAction}>
                   <input type="hidden" name="service_id" value={s.id} />
-                  <button type="submit" className="btn btn-ghost btn-sm" style={{ padding: "5px 12px", fontSize: 11.5, color: "var(--red)" }}>
+                  <button type="submit" className="btn btn-ghost btn-sm py-[5px] px-3 text-[11.5px] text-red">
                     Remove
                   </button>
                 </form>
@@ -184,23 +184,23 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             </div>
           ))}
           {services.length === 0 && (
-            <p style={{ fontSize: 13.5, color: "var(--ink-faint)", margin: 0 }}>
+            <p className="text-[13.5px] text-ink-faint m-0">
               No services yet — add what you sell so signals can match.
             </p>
           )}
         </div>
-        <form action={addServiceAction} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <form className="flex gap-[10px] flex-wrap" action={addServiceAction}>
           <input
             name="name"
             placeholder="New service name"
             aria-label="New service name"
-            className="input" style={{ flex: "1 1 220px" }}
+            className="input flex-[1_1_220px]"
           />
           <input
             name="price"
             placeholder="$ price"
             aria-label="New service price"
-            className="input" style={{ width: 110 }}
+            className="input w-[110px]"
           />
           <button type="submit" className="btn btn-primary btn-sm">
             Add service
@@ -208,23 +208,23 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         </form>
       </section>
 
-      <section className="panel" id="documents" style={{ marginBottom: 20 }}>
+      <section className="panel mb-5" id="documents">
         <div className="panel__head">
           <span className="panel__title">Your documents</span>
           <span className="panel__meta">{documents.length} of {MAX_DOCUMENTS} documents</span>
         </div>
-        <p style={{ fontSize: 13, color: "var(--ink-faint)", margin: "0 0 16px", maxWidth: 640, lineHeight: 1.55 }}>
+        <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4 max-w-[640px] leading-[1.55]">
           Menus, sales exports, brand notes, past ad results. TRND keeps the facts, not the file, and
           uses them in every recommendation.
         </p>
         {documents.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+          <div className="flex flex-col gap-[10px] mb-[18px]">
             {documents.map((d) => {
               const adoptable = newItemsIn(d);
               return (
-                <div key={d.id} style={{ padding: "12px 14px", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", background: "var(--bg-1)" }}>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-                    <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5, flex: "1 1 200px" }}>{d.name}</span>
+                <div className="py-3 px-[14px] border border-line rounded-card-sm bg-bg-1" key={d.id}>
+                  <div className="flex items-baseline gap-3 flex-wrap">
+                    <span className="font-disp font-semibold text-[14.5px] flex-[1_1_200px]">{d.name}</span>
                     <span className="badge"><i />{sentenceCase(d.digest.kind)}</span>
                     <span className="mono-label">{d.digest.facts.length} fact{d.digest.facts.length === 1 ? "" : "s"}</span>
                     <form action={deleteDocumentAction}>
@@ -232,17 +232,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                       <button type="submit" className="btn btn-ghost btn-sm">Remove</button>
                     </form>
                   </div>
-                  <p style={{ margin: "8px 0 0", fontSize: 13, lineHeight: 1.55, color: "var(--ink-soft)" }}>{d.digest.summary}</p>
+                  <p className="mx-0 mt-2 mb-0 text-[13px] leading-[1.55] text-ink-soft">{d.digest.summary}</p>
                   {d.digest.facts.length > 0 && (
-                    <details style={{ marginTop: 8 }}>
-                      <summary className="mono-label" style={{ cursor: "pointer", color: "var(--ink-faint)" }}>Facts</summary>
+                    <details className="mt-2">
+                      <summary className="mono-label cursor-pointer text-ink-faint">Facts</summary>
                       {d.digest.facts.map((f) => (
-                        <p key={f.slice(0, 40)} style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-soft)" }}>· {f}</p>
+                        <p className="mx-0 mt-[6px] mb-0 text-[12.5px] leading-[1.5] text-ink-soft" key={f.slice(0, 40)}>· {f}</p>
                       ))}
                     </details>
                   )}
                   {adoptable > 0 && (
-                    <form action={adoptDocumentServicesAction} style={{ marginTop: 10 }}>
+                    <form className="mt-[10px]" action={adoptDocumentServicesAction}>
                       <input type="hidden" name="id" value={d.id} />
                       <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Adding…">
                         Add {adoptable} item{adoptable === 1 ? "" : "s"} to services
@@ -257,7 +257,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         {documents.length < MAX_DOCUMENTS && <DocumentUpload modelReady={isGeminiConfigured} />}
       </section>
 
-      <section className="panel" id="billing" style={{ marginBottom: 20 }}>
+      <section className="panel mb-5" id="billing">
         <div className="panel__head">
           <span className="panel__title">Plan and billing</span>
           <span className="panel__meta">
@@ -282,7 +282,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           </p>
         )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
+        <div className="flex items-center gap-[14px] flex-wrap mb-4">
           <span className={`badge${plan.status === "active" ? " badge--mint" : plan.locked ? "" : " badge--mint"}`}>
             <i />
             {plan.plan === "trial"
@@ -291,7 +291,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                 : `trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left`
               : sentenceCase(plan.status.replace(/_/g, " "))}
           </span>
-          <p style={{ fontSize: 13.5, color: "var(--ink-soft)", margin: 0, lineHeight: 1.55 }}>
+          <p className="text-[13.5px] text-ink-soft m-0 leading-[1.55]">
             {plan.plan === "trial"
               ? plan.locked
                 ? "Everything you generated stays yours. Pick a plan to keep the weekly recommendations and campaign builds coming."
@@ -301,7 +301,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         </div>
 
         {isStripeConfigured ? (
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div className="flex gap-[10px] flex-wrap">
             {plan.plan !== "baseline" && plan.status !== "active" && (
               <form action={startCheckoutAction}>
                 <input type="hidden" name="plan" value="baseline" />
@@ -319,13 +319,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             )}
           </div>
         ) : (
-          <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0, lineHeight: 1.6 }}>
+          <p className="text-[12.5px] text-ink-faint m-0 leading-[1.6]">
             Payments aren&apos;t set up for this workspace yet. Your trial continues and nothing is locked.
           </p>
         )}
       </section>
 
-      <section className="panel" id="account" style={{ marginBottom: 20 }}>
+      <section className="panel mb-5" id="account">
         <div className="panel__head">
           <span className="panel__title">Account</span>
           <span className="panel__meta">Password and data</span>
@@ -333,68 +333,59 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         <AccountPanel email={user.email} />
       </section>
 
-      <section className="panel" style={{ marginBottom: 20 }}>
+      <section className="panel mb-5">
         <div className="panel__head">
           <span className="panel__title">Competitors</span>
           <span className="panel__meta">{competitors.length} tracked</span>
         </div>
-        <p style={{ fontSize: 13, color: "var(--ink-faint)", margin: "0 0 16px" }}>
+        <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4">
           Name the local rivals that matter. TRND reads their active Meta ads and Google
           ratings daily — moves show up in your intel report and as alerts.
         </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+        <div className="flex flex-col gap-[10px] mb-5">
           {competitors.map((c) => (
-            <div
+            <div className="flex items-center gap-3 py-3 px-[14px] border border-line rounded-card-sm bg-bg-1 flex-wrap"
               key={c.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 14px",
-                border: "1px solid var(--line)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--bg-1)",
-                flexWrap: "wrap",
-              }}
+             
             >
-              <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5, flex: "1 1 200px" }}>
+              <span className="font-disp font-semibold text-[14.5px] flex-[1_1_200px]">
                 {c.name}
               </span>
               <span className="mono-label">{c.place_id ? "Listing found" : c.website ?? "Watching ads"}</span>
               <form action={deleteCompetitorAction}>
                 <input type="hidden" name="competitor_id" value={c.id} />
-                <button type="submit" className="btn btn-ghost btn-sm" style={{ padding: "5px 12px", fontSize: 11.5, color: "var(--red)" }}>
+                <button type="submit" className="btn btn-ghost btn-sm py-[5px] px-3 text-[11.5px] text-red">
                   Stop watching
                 </button>
               </form>
             </div>
           ))}
           {competitors.length === 0 && (
-            <p style={{ fontSize: 13.5, color: "var(--ink-faint)", margin: 0 }}>
+            <p className="text-[13.5px] text-ink-faint m-0">
               No competitors yet. Find the nearest ones, or add one by name.
             </p>
           )}
         </div>
         {isPlacesConfigured && competitors.length < 5 && (
-          <form action={seedCompetitorsAction} style={{ marginBottom: 14 }}>
+          <form className="mb-[14px]" action={seedCompetitorsAction}>
             <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Finding…">
               Find nearby competitors
             </SubmitButton>
-            <span className="mono-label" style={{ marginLeft: 10 }}>Same category, within 10 miles</span>
+            <span className="mono-label ml-[10px]">Same category, within 10 miles</span>
           </form>
         )}
-        <form action={addCompetitorAction} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <form className="flex gap-[10px] flex-wrap" action={addCompetitorAction}>
           <input
             name="name"
             placeholder="Competitor name"
             aria-label="Competitor name"
-            className="input" style={{ flex: "1 1 240px" }}
+            className="input flex-[1_1_240px]"
           />
           <input
             name="website"
             placeholder="Website (optional)"
             aria-label="Competitor website"
-            className="input" style={{ width: 200 }}
+            className="input w-[200px]"
           />
           <button type="submit" className="btn btn-primary btn-sm">
             Watch competitor
@@ -408,33 +399,33 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           <span className="panel__meta">What powers your recommendations</span>
         </div>
         {connectError && (
-          <p style={{ margin: "0 0 14px", fontFamily: "var(--mono)", fontSize: 12, color: "var(--red)" }}>
+          <p className="mx-0 mt-0 mb-[14px] font-mono text-[12px] text-red">
             {connectError}
           </p>
         )}
         {justConnected && (
-          <p style={{ margin: "0 0 14px", fontFamily: "var(--mono)", fontSize: 12, color: "var(--mint-text)" }}>
+          <p className="mx-0 mt-0 mb-[14px] font-mono text-[12px] text-(--mint-text)">
             Connected. Results will sync from your next launched campaign.
           </p>
         )}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+        <div className="grid grid-cols-[repeat(auto-fit,_minmax(220px,_1fr))] gap-[14px]">
           {integrations.map((it) => (
-            <div key={it.name} className="card" style={{ padding: "16px 18px", display: "flex", flexDirection: "column" }}>
-              <span className={`badge${it.ok ? " badge--mint" : " badge--faint"}`} style={{ alignSelf: "flex-start" }}>
+            <div key={it.name} className="card py-4 px-[18px] flex flex-col">
+              <span className={`badge${it.ok ? " badge--mint" : " badge--faint"} self-start`}>
                 <i />
                 {it.ok ? "active" : "not connected"}
               </span>
-              <p style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5, margin: "10px 0 3px" }}>{it.name}</p>
-              <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-soft)", margin: "0 0 8px" }}>{it.detail}</p>
-              <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "0 0 10px", lineHeight: 1.5, flex: 1 }}>{it.note}</p>
+              <p className="font-disp font-semibold text-[14.5px] mx-0 mt-[10px] mb-[3px]">{it.name}</p>
+              <p className="font-mono text-[11px] text-ink-soft mx-0 mt-0 mb-2">{it.detail}</p>
+              <p className="text-[12px] text-ink-faint mx-0 mt-0 mb-[10px] leading-[1.5] flex-1">{it.note}</p>
               {it.action === "connect-meta" && (
-                <Link href="/api/connect/meta" className="btn btn-primary btn-sm" style={{ alignSelf: "flex-start" }}>
+                <Link href="/api/connect/meta" className="btn btn-primary btn-sm self-start">
                   Connect Meta
                 </Link>
               )}
               {it.action === "disconnect-meta" && (
                 <form action={disconnectMetaAction}>
-                  <button type="submit" className="btn btn-ghost btn-sm" style={{ fontSize: 11.5 }}>
+                  <button type="submit" className="btn btn-ghost btn-sm text-[11.5px]">
                     Disconnect
                   </button>
                 </form>

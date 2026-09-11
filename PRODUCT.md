@@ -142,9 +142,9 @@ them — truth is never blended with sample data.
 
 ### 9. Settings (`/app/settings`)
 Business profile and radius; services (add / price / activate / deactivate / remove);
-**What TRND knows about you** — upload a menu PDF, a sales or POS export (CSV), brand
-notes, past ad results, or paste text. TRND reads it once (the model reads PDFs; CSVs and
-text are read on their own, keyless — top sellers, totals, priced lines), keeps the facts
+**Your documents** — upload a menu (PDF or Word), a sales or POS export (Excel or CSV), brand
+notes, past ad results, or paste text. TRND reads it once (the model reads PDFs; Word, Excel,
+CSV and text are read on their own — top sellers, totals, priced lines), keeps the facts
 and never the file, and cites them in every pick's read, every Ask answer, and the Monday
 note. A menu that lists priced items offers one click to add them to the services list —
 the contract every campaign is written against. Up to ten documents, 8 MB each;

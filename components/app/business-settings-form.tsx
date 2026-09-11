@@ -69,12 +69,12 @@ export default function BusinessSettingsForm({ business }: { business: Business 
         <textarea id="st-voice" name="brand_voice_notes" rows={3} defaultValue={business.brand_voice_notes ?? ""} />
       </div>
       {state.error && <p className="form-error">{state.error}</p>}
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+      <div className="flex gap-3 items-center">
         <button type="submit" className="btn btn-primary btn-sm" disabled={pending}>
           {pending ? "Saving…" : "Save changes"}
         </button>
         {state.ok && (
-          <span style={{ fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--mint)" }}>Saved ✓</span>
+          <span className="font-mono text-[11.5px] text-mint">Saved ✓</span>
         )}
       </div>
     </form>

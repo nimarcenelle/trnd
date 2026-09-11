@@ -204,12 +204,12 @@ export default function BuildCampaignButton({
   }
 
   return (
-    <span style={{ display: "inline-flex", flexDirection: "column", gap: 6 }}>
+    <span className="inline-flex flex-col gap-[6px]">
       <button type="button" className={className} onClick={build} disabled={status !== null} aria-busy={status !== null}>
         {status ?? children}
       </button>
       {error && (
-        <span style={{ fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--red)" }}>{error}</span>
+        <span className="font-mono text-[10.5px] text-red">{error}</span>
       )}
     </span>
   );

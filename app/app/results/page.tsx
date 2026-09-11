@@ -112,14 +112,14 @@ export default async function ResultsPage() {
             <h3>No campaigns launched yet</h3>
             <p>
               Build a campaign from{" "}
-              <Link href="/app" style={{ color: "var(--amber-text)" }}>
+              <Link className="text-(--amber-text)" href="/app">
                 this week&apos;s recommendation
               </Link>
               , mark it launched, and its numbers — clicks, bookings, cost per result — start
               filling this screen in.
             </p>
           </div>
-          <div className="ghost-table" style={{ marginBottom: 26 }}>
+          <div className="ghost-table mb-[26px]">
             <div className="g-row"><span>Campaign</span><span>CTR</span><span>Clicks</span><span>Bookings</span><span>Cost / result</span></div>
             {(campaigns.length > 0
               ? campaigns.slice(0, 3).map((c) => c.hook)
@@ -137,16 +137,16 @@ export default async function ResultsPage() {
       )}
 
       {liveOnes.length > 0 && (
-        <section style={{ marginBottom: 26 }}>
-          <div className="panel__head" style={{ marginBottom: 12 }}>
+        <section className="mb-[26px]">
+          <div className="panel__head mb-3">
             <span className="panel__title">Awaiting results</span>
             <span className="panel__meta">{liveOnes.length} live</span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="flex flex-col gap-[14px]">
             {liveOnes.map((c) => (
-              <div key={c.id} className="panel" style={{ padding: "20px 24px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-                  <Link href={`/app/campaigns/${c.id}`} style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 16 }}>
+              <div key={c.id} className="panel py-5 px-6">
+                <div className="flex justify-between flex-wrap gap-2 mb-[14px]">
+                  <Link className="font-disp font-bold text-[16px]" href={`/app/campaigns/${c.id}`}>
                     {c.hook}
                   </Link>
                   <span className="badge badge--mint">
@@ -162,18 +162,18 @@ export default async function ResultsPage() {
       )}
 
       {chartRows.length > 0 && (
-        <section className="panel" style={{ marginBottom: 26 }}>
+        <section className="panel mb-[26px]">
           <div className="panel__head">
             <span className="panel__title mint">CTR by campaign</span>
             <span className="panel__meta">Dashed line: category average</span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="flex flex-col gap-3">
             {chartRows.map((row) => (
-              <div key={row.hook} style={{ display: "grid", gridTemplateColumns: "minmax(140px, 240px) 1fr 56px", gap: 12, alignItems: "center" }}>
-                <span style={{ fontSize: 12.5, lineHeight: 1.35, color: "var(--ink-soft)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.hook}>
+              <div className="grid grid-cols-[minmax(140px,_240px)_1fr_56px] gap-3 items-center" key={row.hook}>
+                <span className="text-[12.5px] leading-[1.35] text-ink-soft overflow-hidden text-ellipsis whitespace-nowrap" title={row.hook}>
                   {row.hook}
                 </span>
-                <div style={{ position: "relative", height: 14, background: "var(--bg-2)", borderRadius: 4 }}>
+                <div className="relative h-[14px] bg-bg-2 rounded-[4px]">
                   <div
                     style={{
                       position: "absolute",
@@ -195,25 +195,25 @@ export default async function ResultsPage() {
                     title={`category typical ~${(benchmark * 100).toFixed(1)}%`}
                   />
                 </div>
-                <span className="mono-label" style={{ textAlign: "right", color: "var(--mint-text)", fontWeight: 600, fontSize: 11.5 }}>
+                <span className="mono-label text-right text-(--mint-text) font-semibold text-[11.5px]">
                   {(row.ctr * 100).toFixed(2)}%
                 </span>
               </div>
             ))}
           </div>
-          <p style={{ fontSize: 11, color: "var(--ink-faint)", margin: "14px 0 0" }}>
+          <p className="text-[11px] text-ink-faint mx-0 mt-[14px] mb-0">
             *Category average is a planning estimate, not a guarantee.
           </p>
         </section>
       )}
 
       {results.length > 0 && (
-        <section className="panel" style={{ overflowX: "auto", marginBottom: 26 }}>
+        <section className="panel overflow-x-auto mb-[26px]">
           <div className="panel__head">
             <span className="panel__title mint">History</span>
             <span className="panel__meta">{results.length} {results.length === 1 ? "entry" : "entries"}</span>
           </div>
-          <table className="data-table" style={{ minWidth: 760 }}>
+          <table className="data-table min-w-[760px]">
             <thead>
               <tr>
                 <th>Campaign</th>
@@ -233,24 +233,24 @@ export default async function ResultsPage() {
                 const ctr = r.ctr === null ? null : Number(r.ctr);
                 return (
                   <tr key={r.id}>
-                    <td style={{ maxWidth: 240 }}>
+                    <td className="max-w-[240px]">
                       {c ? (
-                        <Link href={`/app/campaigns/${c.id}`} style={{ color: "var(--ink)" }}>
+                        <Link className="text-ink" href={`/app/campaigns/${c.id}`}>
                           {c.hook}
                         </Link>
                       ) : (
                         "—"
                       )}
                     </td>
-                    <td style={{ whiteSpace: "nowrap" }}>
+                    <td className="whitespace-nowrap">
                       {new Date(r.recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </td>
                     <td className="num">{fmtNum(r.impressions)}</td>
                     <td className="num">{fmtNum(r.clicks)}</td>
-                    <td className="num" style={{ color: "var(--mint-text)", fontWeight: 600 }}>
+                    <td className="num text-(--mint-text) font-semibold">
                       {fmtPct(ctr)}
                       {ctr !== null && (
-                        <span style={{ color: "var(--ink-faint)", fontWeight: 400, marginLeft: 6 }}>
+                        <span className="text-ink-faint font-normal ml-[6px]">
                           {ctr >= benchmark ? "▲" : "▽"}
                         </span>
                       )}
@@ -273,7 +273,7 @@ export default async function ResultsPage() {
             <span className="panel__title">What converts in {titleCase(business.category)}</span>
             <span className="panel__meta">Feeds the track record in every score</span>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          <div className="flex flex-wrap gap-[10px]">
             {learnings.map((l) => (
               <span key={l.id} className="pill" title={`${l.sample_size} recorded results`}>
                 {l.angle_type.replace(/_/g, " ")} · lift {Number(l.lift).toFixed(2)} · {l.sample_size} result{l.sample_size === 1 ? "" : "s"}

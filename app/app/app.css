@@ -1,3 +1,4 @@
+@layer components {
 /* ============ TRND app design system ============
    Product screens only (everything under /app). Landing has landing.css;
    shared primitives (btn, pill, eyebrow, card, field) live in globals.css. */
@@ -2308,4 +2309,6 @@ details.disclosure[open] .stars__over {
 }
 @media (prefers-reduced-motion: reduce) {
   .note-writing i { animation: none; opacity: 0.8; }
+}
+
 }

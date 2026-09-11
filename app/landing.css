@@ -1,3 +1,4 @@
+@layer components {
 /* Landing-page styles ported from design/trnd-landing.html.
    Shared primitives (btn, pill, eyebrow, field, theme-toggle, reveal) live in
    globals.css. */
@@ -1151,4 +1152,6 @@ hr.rule {
   font-size: 12.5px;
   letter-spacing: 0;
   background: var(--bg-1);
+}
+
 }

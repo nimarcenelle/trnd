@@ -11,7 +11,8 @@ delete process.env.GEMINI_API_KEY;
 
 const { createDemoRepo } = await import("../lib/db/demo/repo");
 const { resetStore } = await import("../lib/db/demo/store");
-const { fallbackDigest, guessKind, mimeFor, readCsv, servicesFromText } = await import("../lib/documents/parse");
+const { extractText, fallbackDigest, guessKind, mimeFor, readCsv, servicesFromText } = await import("../lib/documents/parse");
+const XLSX = await import("xlsx");
 const { digestUpload, documentFacts } = await import("../lib/documents/digest");
 const { buildIntelReport } = await import("../lib/report/build");
 const { reportFacts } = await import("../lib/report/note");
@@ -69,13 +70,34 @@ describe("reading uploads without a model", () => {
     expect(d.summary).toContain("3 priced items found");
   });
 
+  it("reads an Excel workbook as a sales table", async () => {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet([
+        ["Item", "Qty", "Revenue"],
+        ["Glass skin facial", 42, 5880],
+        ["Brow lamination", 31, 2635],
+      ]),
+      "Q3",
+    );
+    const bytes = new Uint8Array(XLSX.write(wb, { type: "array", bookType: "xlsx" }));
+    const mime = mimeFor("q3.xlsx")!;
+    const text = (await extractText(mime, bytes))!;
+    expect(text.startsWith("Item,Qty,Revenue")).toBe(true);
+    const d = fallbackDigest("q3.xlsx", mime, text);
+    expect(d.kind).toBe("sales");
+    expect(d.facts[1]).toBe("Top by Revenue: Glass skin facial (5,880), Brow lamination (2,635).");
+  });
+
   it("keeps a PDF but says it can't read it yet", () => {
     const d = fallbackDigest("menu.pdf", "application/pdf", null);
     expect(d.kind).toBe("other");
     expect(d.facts).toEqual([]);
     expect(d.summary).toMatch(/document reading is available/);
     expect(mimeFor("menu.PDF")).toBe("application/pdf");
-    expect(mimeFor("menu.docx")).toBeNull();
+    expect(mimeFor("menu.docx")).toContain("wordprocessingml");
+    expect(mimeFor("menu.pages")).toBeNull();
   });
 });
 

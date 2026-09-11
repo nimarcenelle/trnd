@@ -169,7 +169,7 @@ export default async function AppHome({
           <AutoRefresh everyMs={8000} />
           <div className="page-head">
             <div>
-              <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
+              <span className="eyebrow m-0">This week · {weekRange}</span>
               <h1>Reading your business</h1>
               <p className="context">
                 Your analysis is being written. Your first ranking lands with it, usually within
@@ -177,9 +177,9 @@ export default async function AppHome({
               </p>
             </div>
           </div>
-          <div className="panel" style={{ maxWidth: 620 }}>
+          <div className="panel max-w-[620px]">
             <AnalysisProgress startedAt={business.created_at} />
-            <Link className="btn btn-ghost btn-sm" href="/app/snapshot" style={{ marginTop: 18 }}>
+            <Link className="btn btn-ghost btn-sm mt-[18px]" href="/app/snapshot">
               View the analysis
             </Link>
           </div>
@@ -210,7 +210,7 @@ export default async function AppHome({
           <AutoRefresh everyMs={8000} />
           <div className="page-head">
             <div>
-              <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
+              <span className="eyebrow m-0">This week · {weekRange}</span>
               <h1>Reading your market</h1>
               <p className="context">
                 Reading demand for <b>{business.category}</b> around {business.city}, then ranking
@@ -218,8 +218,8 @@ export default async function AppHome({
               </p>
             </div>
           </div>
-          <div className="panel" style={{ maxWidth: 620 }}>
-            <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
+          <div className="panel max-w-[620px]">
+            <p className="m-0 text-ink-soft leading-[1.65] text-[14.5px]">
               This takes a minute or two. The page refreshes itself.
             </p>
           </div>
@@ -230,7 +230,7 @@ export default async function AppHome({
       <div className="page">
         <div className="page-head">
           <div>
-            <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
+            <span className="eyebrow m-0">This week · {weekRange}</span>
             <h1>No recommendation this week</h1>
             <p className="context">
               This week&apos;s reads for <b>{titleCase(business.category)}</b> around {business.city} didn&apos;t
@@ -238,11 +238,11 @@ export default async function AppHome({
             </p>
           </div>
         </div>
-        <div className="panel" style={{ maxWidth: 620 }}>
-          <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
+        <div className="panel max-w-[620px]">
+          <p className="m-0 text-ink-soft leading-[1.65] text-[14.5px]">
             The daily read continues. You can refresh it now.
           </p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
+          <div className="flex gap-3 flex-wrap mt-[18px]">
             <form action={scanMarketNowAction}>
               <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Refreshing…">
                 Refresh now
@@ -471,7 +471,7 @@ export default async function AppHome({
   const readBlock = (
     <>
       {read && (
-        <div style={{ margin: "0 0 18px", maxWidth: 640 }}>
+        <div className="mx-0 mt-0 mb-[18px] max-w-[640px]">
           {read.paragraphs.map((p, i) => (
             <p
               key={p.slice(0, 40)}
@@ -489,7 +489,7 @@ export default async function AppHome({
         </div>
       )}
       {readInFlight && (
-        <p style={{ margin: "0 0 14px", fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-faint)" }}>
+        <p className="mx-0 mt-0 mb-[14px] font-mono text-[11px] text-ink-faint">
           TRND is writing the read on this pick — it lands in a moment.
         </p>
       )}
@@ -512,7 +512,7 @@ export default async function AppHome({
       {(building || readInFlight) && <AutoRefresh everyMs={6000} times={building ? 15 : 3} />}
       <div className="page-head">
         <div>
-          <span className="eyebrow" style={{ margin: 0 }}>This week&apos;s recommendation · {weekRange}</span>
+          <span className="eyebrow m-0">This week&apos;s recommendation · {weekRange}</span>
           <h1>This week</h1>
           <p className="context">
             <b>{titleCase(business.category)}</b> · {business.city}
@@ -522,7 +522,7 @@ export default async function AppHome({
               : "Refreshed daily"}
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className="flex items-center gap-[10px] flex-wrap">
           {signal?.source === "seed" && <SourceBadge source="seed" />}
           <Link href="/app/report" className="btn btn-ghost btn-sm">
             Full report
@@ -537,9 +537,9 @@ export default async function AppHome({
 
       {/* ---------- WHAT CHANGED SINCE LAST WEEK ---------- */}
       {changes.length > 0 && (
-        <section className="panel" style={{ marginTop: 18, padding: "14px 20px" }}>
-          <span className="mono-label" style={{ display: "block", marginBottom: 8 }}>What changed since last week</span>
-          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+        <section className="panel mt-[18px] py-[14px] px-5">
+          <span className="mono-label block mb-2">What changed since last week</span>
+          <ul className="m-0 p-0 list-none flex flex-col gap-1">
             {changes.slice(0, 6).map((c) => (
               <li key={c.text} style={{ fontSize: 13.5, lineHeight: 1.5, color: c.kind === "rival" ? "var(--amber-text)" : "var(--ink-soft)" }}>
                 {c.text}
@@ -551,9 +551,9 @@ export default async function AppHome({
 
       {/* ---------- BASELINE WEEK ---------- */}
       {baselineWeek && (
-        <section className="panel" style={{ marginTop: 18, padding: "14px 20px", borderStyle: "dashed" }}>
-          <span className="mono-label" style={{ display: "block", marginBottom: 4 }}>First week</span>
-          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--ink-soft)" }}>
+        <section className="panel mt-[18px] py-[14px] px-5 border-dashed">
+          <span className="mono-label block mb-1">First week</span>
+          <p className="m-0 text-[13.5px] leading-[1.55] text-ink-soft">
             This week&apos;s picks are the demand terms from your analysis. Grades stay conservative until
             the first measured movement lands, usually by {firstMeasuredBy}.
           </p>
@@ -591,21 +591,21 @@ export default async function AppHome({
       )}
 
       {ledger.spendCents > 0 && (
-        <div className="panel" style={{ marginTop: 18, padding: "14px 20px", display: "flex", gap: 24, alignItems: "baseline", flexWrap: "wrap" }}>
+        <div className="panel mt-[18px] py-[14px] px-5 flex gap-6 items-baseline flex-wrap">
           <span className="mono-label">TRND campaigns to date</span>
-          <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15 }}>
+          <span className="font-disp font-bold text-[15px]">
             ${(ledger.spendCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} spent
           </span>
           {ledger.bookings > 0 && (
-            <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15 }}>{ledger.bookings} bookings</span>
+            <span className="font-disp font-bold text-[15px]">{ledger.bookings} bookings</span>
           )}
           {ledger.revenueCents > 0 && (
-            <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15, color: "var(--mint-text)" }}>
+            <span className="font-disp font-bold text-[15px] text-(--mint-text)">
               ${(ledger.revenueCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} back
               {ledger.spendCents > 0 ? ` · ${(ledger.revenueCents / ledger.spendCents).toFixed(1)}×` : ""}
             </span>
           )}
-          <span className="mono-label" style={{ marginLeft: "auto" }}>
+          <span className="mono-label ml-auto">
             {ledger.synced ? "auto-synced from Meta" : "from your recorded results"}
           </span>
         </div>
@@ -614,16 +614,16 @@ export default async function AppHome({
       {unreadAlerts.length > 0 && (
         // A notification strip, not a content panel — one alert must read as
         // one compact line, not a card that is mostly padding.
-        <section className="panel" style={{ margin: "18px 0", padding: "14px 26px 12px" }}>
-          <div className="panel__head" style={{ marginBottom: 4 }}>
+        <section className="panel my-[18px] mx-0 px-[26px] pt-[14px] pb-3">
+          <div className="panel__head mb-1">
             <span className="panel__title">What changed</span>
             <form action={markAlertsReadAction}>
-              <button type="submit" className="panel__meta" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--amber-text)", fontFamily: "var(--mono)" }}>
+              <button type="submit" className="panel__meta bg-transparent border-0 cursor-pointer text-(--amber-text) font-mono">
                 mark all read
               </button>
             </form>
           </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
+          <div className="flex flex-col">
             {unreadAlerts.map((a, i) => (
               <Link
                 key={a.id}
@@ -637,9 +637,9 @@ export default async function AppHome({
                   borderBottom: i < unreadAlerts.length - 1 ? "1px dashed var(--line)" : "none",
                 }}
               >
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--amber)", flex: "0 0 auto", transform: "translateY(-2px)" }} />
-                <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 13.5 }}>{a.title}</span>
-                <span style={{ fontSize: 12.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>{a.body}</span>
+                <span className="w-[7px] h-[7px] rounded-full bg-amber flex-none -translate-y-[2px]" />
+                <span className="font-disp font-semibold text-[13.5px]">{a.title}</span>
+                <span className="text-[12.5px] text-ink-faint leading-[1.5]">{a.body}</span>
               </Link>
             ))}
           </div>
@@ -651,26 +651,26 @@ export default async function AppHome({
           service-anchored moves from the analysis — they lead, in the hero
           slot, and the closest trend demotes to market context below. */}
       {weekThin && brief && brief.first_moves.length > 0 && (
-        <section className="panel panel--hero" style={{ marginTop: 18, padding: "30px 32px 28px" }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+        <section className="panel panel--hero mt-[18px] px-8 pt-[30px] pb-7">
+          <div className="flex gap-2 items-center flex-wrap mb-[10px]">
             <span className="badge badge--amber"><i />This week&apos;s play</span>
             <span className="panel__meta">No trend fits this week</span>
           </div>
           <h2 className="h-disp" style={{ fontSize: "clamp(22px,2.6vw,30px)", margin: "0 0 8px", lineHeight: 1.12, letterSpacing: "-0.02em" }}>
             No trend fits this week. Run your own moves.
           </h2>
-          <p style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-soft)", margin: "0 0 22px", maxWidth: 640 }}>
+          <p className="text-[13.5px] leading-[1.6] text-ink-soft mx-0 mt-0 mb-[22px] max-w-[640px]">
             From your analysis, priced from your own menu.
           </p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
+          <div className="grid grid-cols-[repeat(auto-fit,_minmax(260px,_1fr))] gap-[18px]">
             {brief.first_moves.slice(0, 3).map((move, i) => (
-              <div key={move} style={{ borderLeft: "2px solid var(--amber)", paddingLeft: 14 }}>
-                <span className="mono-label" style={{ display: "block", marginBottom: 6 }}>Move {i + 1}</span>
-                <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "var(--ink)", margin: 0 }}>{move}</p>
+              <div className="border-l-2 border-amber pl-[14px]" key={move}>
+                <span className="mono-label block mb-[6px]">Move {i + 1}</span>
+                <p className="text-[13.5px] leading-[1.55] text-ink m-0">{move}</p>
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>
+          <div className="flex gap-3 flex-wrap mt-[22px]">
             <Link href="/app/snapshot" className="btn btn-primary">
               Full analysis
             </Link>
@@ -688,7 +688,7 @@ export default async function AppHome({
           the grade and meters, the playbook, the rivals' ads — sits one
           click down under "Why this pick". Until the ad is written (a
           minute, in the background) or on a thin week, the pick leads. */}
-      <section className={thin ? "panel" : "panel panel--hero"} style={{ padding: "30px 32px 28px", marginTop: 18 }}>
+      <section className={`${thin ? "panel" : "panel panel--hero"} px-8 pt-[30px] pb-7 mt-[18px]`}>
         {picks.length > 1 && (
           /* The switcher used to be a full-width tab strip that shouted louder
              than the pick it framed. It's a quiet control now — position, arrows,
@@ -742,9 +742,9 @@ export default async function AppHome({
             </Link>
           </nav>
         )}
-        <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 400px", minWidth: 280 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+        <div className="flex gap-[34px] flex-wrap">
+          <div className="flex-[1_1_400px] min-w-[280px]">
+            <div className="flex gap-2 items-center flex-wrap mb-[10px]">
               <span className="badge badge--amber">
                 <i />
                 {campaign
@@ -766,34 +766,34 @@ export default async function AppHome({
             </div>
             {campaign ? (
               <>
-                <span className="mono-label" style={{ display: "block", marginBottom: 10 }}>
+                <span className="mono-label block mb-[10px]">
                   Based on “{signal ? titleCase(signal.term) : "this week's pick"}”
                 </span>
                 <h2 className="h-disp" style={{ fontSize: "clamp(24px,3vw,34px)", margin: "0 0 12px", lineHeight: 1.12, letterSpacing: "-0.02em" }}>
                   {campaign.hook}
                 </h2>
-                <p style={{ fontSize: 14.5, lineHeight: 1.65, color: "var(--ink-soft)", margin: "0 0 18px", maxWidth: 640 }}>{campaign.angle}</p>
-                <div className="facts-grid" style={{ marginBottom: 22 }}>
+                <p className="text-[14.5px] leading-[1.65] text-ink-soft mx-0 mt-0 mb-[18px] max-w-[640px]">{campaign.angle}</p>
+                <div className="facts-grid mb-[22px]">
                   <div>
-                    <span className="k" style={{ color: "var(--amber-text)" }}>Offer</span>
-                    <p className="v" style={{ fontWeight: 600, fontFamily: "var(--disp)" }}>{campaign.offer}</p>
+                    <span className="k text-(--amber-text)">Offer</span>
+                    <p className="v font-semibold font-disp">{campaign.offer}</p>
                   </div>
                   <div>
                     <span className="k">Who sees it</span>
-                    <p className="v" style={{ fontSize: 13.5 }}>
+                    <p className="v text-[13.5px]">
                       {campaign.audience.who} · {campaign.audience.age_range} · {campaign.audience.radius_miles} mi
                     </p>
                   </div>
                   <div>
                     <span className="k">Spend</span>
-                    <p className="v" style={{ fontSize: 13.5 }}>{budget.daily} a day · {budget.test}</p>
+                    <p className="v text-[13.5px]">{budget.daily} a day · {budget.test}</p>
                   </div>
                   <div>
                     <span className="k">{campaignLive ? "Status" : "Launch by"}</span>
-                    <p className="v" style={{ fontSize: 13.5 }}>{campaignLive ? "Live — record results when the flight ends" : launchBy}</p>
+                    <p className="v text-[13.5px]">{campaignLive ? "Live — record results when the flight ends" : launchBy}</p>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 6 }}>
+                <div className="flex gap-3 flex-wrap items-center mb-[6px]">
                   <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary">
                     Open the campaign
                   </Link>
@@ -821,18 +821,18 @@ export default async function AppHome({
                   footnote={top.competitor_gap ? `Saturation read: ${top.competitor_gap}.` : null}
                 />
                 {building && (
-                  <p style={{ margin: "0 0 18px", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 560 }}>
-                    <span className="mono-label" style={{ color: "var(--amber-text)", display: "block", marginBottom: 4 }}>Writing this week&apos;s ad</span>
+                  <p className="mx-0 mt-0 mb-[18px] text-[13.5px] leading-[1.6] text-ink-soft max-w-[560px]">
+                    <span className="mono-label text-(--amber-text) block mb-1">Writing this week&apos;s ad</span>
                     About a minute. This page refreshes itself.
                   </p>
                 )}
                 {!building && plan.locked && (
-                  <p style={{ margin: "0 0 18px", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 560 }}>
+                  <p className="mx-0 mt-0 mb-[18px] text-[13.5px] leading-[1.6] text-ink-soft max-w-[560px]">
                     {plan.lockedReason}{" "}
-                    <Link href="/app/settings#billing" style={{ color: "var(--amber-text)" }}>Choose a plan</Link>
+                    <Link className="text-(--amber-text)" href="/app/settings#billing">Choose a plan</Link>
                   </p>
                 )}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 22 }}>
+                <div className="flex gap-3 flex-wrap items-center mb-[22px]">
                   {!building && !plan.locked && (thin ? (
                     <BuildCampaignButton opportunityId={top.id} className="btn btn-ghost">
                       Build anyway
@@ -849,7 +849,7 @@ export default async function AppHome({
           </div>
 
           {campaign ? (
-            <div style={{ flex: "0 1 340px", minWidth: 280 }}>
+            <div className="flex-[0_1_340px] min-w-[280px]">
               <AdPreview
                 businessName={business.name}
                 primaryText={primary0}
@@ -874,9 +874,9 @@ export default async function AppHome({
                 <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
               </svg>
             </summary>
-            <div style={{ paddingTop: 16 }}>
-              <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
-                <div style={{ flex: "1 1 400px", minWidth: 280 }}>
+            <div className="pt-4">
+              <div className="flex gap-[34px] flex-wrap">
+                <div className="flex-[1_1_400px] min-w-[280px]">
                   {readBlock}
                   <InsightList
                     insights={insights}
@@ -886,7 +886,7 @@ export default async function AppHome({
                 <div>
                   {scoreCard}
                   {signal && (
-                    <div style={{ marginTop: 10 }}>
+                    <div className="mt-[10px]">
                       <SourceBadge source={signal.source} metric={signal.metric_type} term={signal.term} geo={signal.geo} raw={signal.raw} />
                     </div>
                   )}
@@ -941,24 +941,24 @@ export default async function AppHome({
               {business.city} · {business.radius_miles} miles
             </div>
           </div>
-          <div style={{ gridColumn: "1 / -1" }}>
+          <div className="col-span-full">
             <span className="k">Expected return from a 6-day test</span>
-            <div className="v" style={{ fontSize: 13, lineHeight: 1.5, color: "var(--ink-soft)" }}>{forecast}</div>
+            <div className="v text-[13px] leading-[1.5] text-ink-soft">{forecast}</div>
           </div>
         </div>
 
         {adRead && adAssessment && competitorAds.length > 0 && (
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px dashed var(--line)" }}>
-            <span className="mono-label" style={{ display: "block", marginBottom: 12 }}>
+          <div className="mt-[22px] pt-[18px] border-t border-dashed border-line">
+            <span className="mono-label block mb-3">
               {adAssessment.count !== null && adAssessment.count <= AD_COUNT_LOCAL_MAX
                 ? `What competitors are running · ${adAssessment.count === adRead.value ? "" : "≈"}${adAssessment.count} active Meta ad${adAssessment.count === 1 ? "" : "s"} on this`
                 : `Ads on this term · ${adRead.value} keyword matches on Meta, mostly unrelated — the ones that fit:`}
             </span>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+            <div className="grid grid-cols-[repeat(auto-fit,_minmax(260px,_1fr))] gap-[14px]">
               {competitorAds.map((ad) => (
-                <div key={ad.advertiser} style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
-                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 13 }}>{ad.advertiser}</span>
-                  <p style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-soft)", margin: "5px 0 0" }}>
+                <div className="bg-bg-2 border border-line rounded-card-sm py-3 px-[14px]" key={ad.advertiser}>
+                  <span className="font-disp font-semibold text-[13px]">{ad.advertiser}</span>
+                  <p className="text-[12.5px] leading-[1.5] text-ink-soft mx-0 mt-[5px] mb-0">
                     “{ad.snippet.length > 140 ? `${ad.snippet.slice(0, 137)}…` : ad.snippet}”
                   </p>
                 </div>
@@ -968,7 +968,7 @@ export default async function AppHome({
         )}
 
               {organicPost && (
-                <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px dashed var(--line)" }}>
+                <div className="mt-[22px] pt-[18px] border-t border-dashed border-line">
                   <CopyBlock label="Free post for this week" content={organicPost} />
                 </div>
               )}
@@ -1034,24 +1034,24 @@ export default async function AppHome({
               {business.city} · {business.radius_miles} miles
             </div>
           </div>
-          <div style={{ gridColumn: "1 / -1" }}>
+          <div className="col-span-full">
             <span className="k">Expected return from a 6-day test</span>
-            <div className="v" style={{ fontSize: 13, lineHeight: 1.5, color: "var(--ink-soft)" }}>{forecast}</div>
+            <div className="v text-[13px] leading-[1.5] text-ink-soft">{forecast}</div>
           </div>
         </div>
 
         {adRead && adAssessment && competitorAds.length > 0 && (
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px dashed var(--line)" }}>
-            <span className="mono-label" style={{ display: "block", marginBottom: 12 }}>
+          <div className="mt-[22px] pt-[18px] border-t border-dashed border-line">
+            <span className="mono-label block mb-3">
               {adAssessment.count !== null && adAssessment.count <= AD_COUNT_LOCAL_MAX
                 ? `What competitors are running · ${adAssessment.count === adRead.value ? "" : "≈"}${adAssessment.count} active Meta ad${adAssessment.count === 1 ? "" : "s"} on this`
                 : `Ads on this term · ${adRead.value} keyword matches on Meta, mostly unrelated — the ones that fit:`}
             </span>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+            <div className="grid grid-cols-[repeat(auto-fit,_minmax(260px,_1fr))] gap-[14px]">
               {competitorAds.map((ad) => (
-                <div key={ad.advertiser} style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
-                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 13 }}>{ad.advertiser}</span>
-                  <p style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-soft)", margin: "5px 0 0" }}>
+                <div className="bg-bg-2 border border-line rounded-card-sm py-3 px-[14px]" key={ad.advertiser}>
+                  <span className="font-disp font-semibold text-[13px]">{ad.advertiser}</span>
+                  <p className="text-[12.5px] leading-[1.5] text-ink-soft mx-0 mt-[5px] mb-0">
                     “{ad.snippet.length > 140 ? `${ad.snippet.slice(0, 137)}…` : ad.snippet}”
                   </p>
                 </div>
@@ -1077,7 +1077,7 @@ export default async function AppHome({
       {/* ---------- TREND CHART (only when we hold a series worth reading:
           a sparse, mostly-zero niche series would headline a fake "0") ---------- */}
       {series.length >= 2 && !interestSparse && (
-        <section className="panel" style={{ marginTop: 18 }}>
+        <section className="panel mt-[18px]">
           <div className="panel__head">
             <span className="panel__title mint">Demand — {series.length >= 14 ? "30 days" : "this week"}</span>
             <span className="panel__meta">
@@ -1099,21 +1099,21 @@ export default async function AppHome({
       )}
 
       {/* ---------- NEXT IN LINE ---------- */}
-      <div style={{ marginTop: 18 }}>
+      <div className="mt-[18px]">
         {runnerUps.length > 0 && (
           <section className="panel">
             <div className="panel__head">
               <span className="panel__title">{isLead ? "Next in line" : "Also this week"}</span>
-              <Link href="/app/opportunities" className="panel__meta" style={{ color: "var(--amber-text)" }}>
+              <Link href="/app/opportunities" className="panel__meta text-(--amber-text)">
                 View all
               </Link>
             </div>
             {weekThin && (
-              <p style={{ margin: "0 0 8px", fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-faint)" }}>
+              <p className="mx-0 mt-0 mb-2 text-[12.5px] leading-[1.5] text-ink-faint">
                 None of these fit what you sell this week — shown as market context, graded accordingly.
               </p>
             )}
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="flex flex-col">
               {runnerUps.map((o, i) => {
                 const s = runnerSignals.get(o.id);
                 const ex = runnerExplained.get(o.id);
@@ -1132,12 +1132,12 @@ export default async function AppHome({
                       borderBottom: i < runnerUps.length - 1 ? "1px dashed var(--line)" : "none",
                     }}
                   >
-                    <span style={{ fontFamily: "var(--disp)", fontWeight: 700, color: "var(--ink-faint)", fontSize: 14, width: 22 }}>
+                    <span className="font-disp font-bold text-ink-faint text-[14px] w-[22px]">
                       #{rank}
                     </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5 }}>{s ? titleCase(s.term) : ""}</span>
-                      <span className="panel__meta" style={{ display: "block", marginTop: 2 }}>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-disp font-semibold text-[14.5px]">{s ? titleCase(s.term) : ""}</span>
+                      <span className="panel__meta block mt-[2px]">
                         {typeof s?.delta_pct === "number" ? `${deltaShort(s.delta_pct)} · ` : ""}
                         {s?.metric_type.replace(/_/g, " ")}
                       </span>
@@ -1154,16 +1154,16 @@ export default async function AppHome({
       </div>
 
       {/* ---------- YOUR RIVALS ---------- */}
-      <section className="panel" style={{ marginTop: 18 }}>
+      <section className="panel mt-[18px]">
         <div className="panel__head">
           <span className="panel__title">Competitors</span>
-          <Link href="/app/settings" className="panel__meta" style={{ color: "var(--amber-text)" }}>
+          <Link href="/app/settings" className="panel__meta text-(--amber-text)">
             {competitors.length > 0 ? "Manage" : "Settings"}
           </Link>
         </div>
         {competitors.length === 0 ? (
-          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--ink-soft)", flex: "1 1 320px" }}>
+          <div className="flex gap-[14px] items-center flex-wrap">
+            <p className="m-0 text-[13.5px] leading-[1.55] text-ink-soft flex-[1_1_320px]">
               No competitors yet.
             </p>
             {isPlacesConfigured && (
@@ -1175,25 +1175,25 @@ export default async function AppHome({
             )}
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+          <div className="grid grid-cols-[repeat(auto-fill,_minmax(220px,_1fr))] gap-3">
             {competitors.slice(0, 6).map((c) => {
               const ads = latestRead(c.id, "ads");
               const rev = latestRead(c.id, "reviews");
               return (
-                <div key={c.id} style={{ border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", padding: "12px 14px", background: "var(--bg-1)" }}>
-                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14, display: "block", marginBottom: 6 }}>{c.name}</span>
-                  <span className="mono-label" style={{ display: "block" }}>
+                <div className="border border-line rounded-card-sm py-3 px-[14px] bg-bg-1" key={c.id}>
+                  <span className="font-disp font-semibold text-[14px] block mb-[6px]">{c.name}</span>
+                  <span className="mono-label block">
                     {ads && typeof ads.value === "number"
                       ? `${ads.value} active Meta ad${ads.value === 1 ? "" : "s"}`
                       : "ads: first read tonight"}
                   </span>
-                  <span className="mono-label" style={{ display: "block", marginTop: 3 }}>
+                  <span className="mono-label block mt-[3px]">
                     {rev && typeof rev.rating === "number"
                       ? `${rev.rating.toFixed(1)}★ · ${rev.value ?? "—"} reviews`
                       : "rating: first read tonight"}
                   </span>
                   {(ads?.summary || rev?.summary) && (
-                    <p style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.45, color: "var(--ink-soft)" }}>{ads?.summary ?? rev?.summary}</p>
+                    <p className="mx-0 mt-[6px] mb-0 text-[12.5px] leading-[1.45] text-ink-soft">{ads?.summary ?? rev?.summary}</p>
                   )}
                 </div>
               );
@@ -1204,21 +1204,21 @@ export default async function AppHome({
 
       {/* ---------- SEASONAL CALENDAR ---------- */}
       {seasonal.length > 0 && (
-        <section className="panel" style={{ marginTop: 18 }}>
+        <section className="panel mt-[18px]">
           <div className="panel__head">
             <span className="panel__title">Coming up</span>
             <span className="panel__meta">Known demand moments</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
+          <div className="grid grid-cols-[repeat(auto-fit,_minmax(240px,_1fr))] gap-[18px]">
             {seasonal.map((m) => (
               <div key={m.label} style={{ borderLeft: `2px solid ${m.prepNow ? "var(--amber)" : "var(--line-strong)"}`, paddingLeft: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-                  <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5 }}>{m.label}</span>
+                <div className="flex justify-between gap-[10px] items-baseline">
+                  <span className="font-disp font-semibold text-[14.5px]">{m.label}</span>
                   <span className="mono-label" style={{ color: m.prepNow ? "var(--amber-text)" : undefined, whiteSpace: "nowrap" }}>
                     {m.daysOut <= 1 ? "now" : `${m.daysOut}d out`}
                   </span>
                 </div>
-                <p style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)", margin: "6px 0 0" }}>
+                <p className="text-[12.5px] leading-[1.55] text-ink-soft mx-0 mt-[6px] mb-0">
                   {m.prepNow ? "Start now — " : `Start ~${Math.max(1, Math.round((m.daysOut - m.leadWeeks * 7) / 7))} wk${Math.round((m.daysOut - m.leadWeeks * 7) / 7) === 1 ? "" : "s"} from now. `}
                   {m.advice}
                 </p>

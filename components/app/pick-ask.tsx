@@ -31,44 +31,44 @@ export default function PickAsk({
   const turns = state.turns ?? [];
 
   return (
-    <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px dashed var(--line)" }}>
-      <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap", marginBottom: 12 }}>
-        <span className="mono-label" style={{ color: "var(--amber-text)" }}>Ask about this pick</span>
-        <span style={{ fontSize: 12.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
+    <div className="mt-[22px] pt-[18px] border-t border-dashed border-line">
+      <div className="flex gap-3 items-baseline flex-wrap mb-3">
+        <span className="mono-label text-(--amber-text)">Ask about this pick</span>
+        <span className="text-[12.5px] text-ink-faint leading-[1.5]">
           Why this pick, what to spend, what to say. Or ask for a different angle.
         </span>
       </div>
 
       {turns.map((t, i) => (
-        <div
+        <div className="bg-bg-2 border border-line rounded-card-sm py-[14px] px-4 mb-[10px]"
           key={`${i}-${t.question.slice(0, 30)}`}
-          style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", padding: "14px 16px", marginBottom: 10 }}
+         
         >
-          <p style={{ margin: "0 0 10px", fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--ink-faint)" }}>
+          <p className="mx-0 mt-0 mb-[10px] font-mono text-[11.5px] text-ink-faint">
             Q — {t.question}
           </p>
           {t.result.answer.map((p) => (
-            <p key={p.slice(0, 40)} style={{ fontSize: 14, lineHeight: 1.65, color: "var(--ink)", margin: "0 0 10px", maxWidth: 680 }}>
+            <p className="text-[14px] leading-[1.65] text-ink mx-0 mt-0 mb-[10px] max-w-[680px]" key={p.slice(0, 40)}>
               {p}
             </p>
           ))}
           {t.result.assumptions.length > 0 && (
-            <div style={{ marginTop: 8 }}>
-              <span className="mono-label" style={{ display: "block", marginBottom: 6, color: "var(--amber-text)" }}>
+            <div className="mt-2">
+              <span className="mono-label block mb-[6px] text-(--amber-text)">
                 Assumptions
               </span>
               {t.result.assumptions.map((a) => (
-                <p key={a.slice(0, 40)} style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)", margin: "0 0 4px" }}>
+                <p className="text-[12.5px] leading-[1.55] text-ink-soft mx-0 mt-0 mb-1" key={a.slice(0, 40)}>
                   · {a}
                 </p>
               ))}
             </div>
           )}
           {t.result.direction && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--line)", display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-              <div style={{ flex: "1 1 320px" }}>
-                <span className="mono-label" style={{ display: "block", marginBottom: 4 }}>Suggested direction</span>
-                <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5, color: "var(--ink)" }}>{t.result.direction}</p>
+            <div className="mt-3 pt-3 border-t border-dashed border-line flex gap-[14px] items-center flex-wrap">
+              <div className="flex-[1_1_320px]">
+                <span className="mono-label block mb-1">Suggested direction</span>
+                <p className="m-0 text-[13.5px] leading-[1.5] text-ink">{t.result.direction}</p>
               </div>
               {rebuildable ? (
                 <BuildCampaignButton
@@ -80,17 +80,17 @@ export default function PickAsk({
                   {hasCampaign ? "Rewrite the campaign" : "Build the campaign"}
                 </BuildCampaignButton>
               ) : (
-                <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-faint)" }}>
+                <span className="font-mono text-[11px] text-ink-faint">
                   This campaign has launched and can no longer be rewritten.
                 </span>
               )}
             </div>
           )}
           {t.result.citations.length > 0 && (
-            <details style={{ marginTop: 10 }}>
-              <summary className="mono-label" style={{ cursor: "pointer", color: "var(--ink-faint)" }}>Sources</summary>
+            <details className="mt-[10px]">
+              <summary className="mono-label cursor-pointer text-ink-faint">Sources</summary>
               {t.result.citations.map((c) => (
-                <p key={c.claim.slice(0, 40)} style={{ fontSize: 12, lineHeight: 1.5, color: "var(--ink-faint)", margin: "6px 0 0" }}>
+                <p className="text-[12px] leading-[1.5] text-ink-faint mx-0 mt-[6px] mb-0" key={c.claim.slice(0, 40)}>
                   · {c.claim} — <i>{c.source}</i>
                 </p>
               ))}
@@ -99,7 +99,7 @@ export default function PickAsk({
         </div>
       ))}
 
-      <form action={formAction} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <form className="flex gap-[10px] flex-wrap" action={formAction}>
         <input type="hidden" name="opportunity_id" value={opportunityId} />
         <input
           key={turns.length}
@@ -116,12 +116,12 @@ export default function PickAsk({
       </form>
 
       {turns.length === 0 && questions.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+        <div className="flex gap-2 flex-wrap mt-3">
           {questions.map((q) => (
             <form key={q} action={formAction}>
               <input type="hidden" name="opportunity_id" value={opportunityId} />
               <input type="hidden" name="question" value={q} />
-              <button type="submit" className="pill" disabled={pending} style={{ cursor: "pointer", background: "var(--bg-1)" }}>
+              <button type="submit" className="pill cursor-pointer bg-bg-1" disabled={pending}>
                 {q}
               </button>
             </form>
@@ -130,7 +130,7 @@ export default function PickAsk({
       )}
 
       {state.error && (
-        <p style={{ margin: "12px 0 0", fontFamily: "var(--mono)", fontSize: 12, color: "var(--red)" }}>{state.error}</p>
+        <p className="mx-0 mt-3 mb-0 font-mono text-[12px] text-red">{state.error}</p>
       )}
     </div>
   );

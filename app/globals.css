@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-paper: var(--paper);
+  --color-card-stroke: var(--card-stroke);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-amber: var(--amber);
+  --color-amber-ink: var(--amber-ink);
+  --color-amber-hover: var(--amber-hover);
+  --color-mint: var(--mint);
+  --color-mint-ink: var(--mint-ink);
+  --color-red: var(--red);
+  --font-disp: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "Inter", system-ui, sans-serif;
+  --radius-card: 16px;
+  --radius-card-sm: 10px;
+}
+
+@layer components {
+
 /* ================= THEME TOKENS =================
    Warm light is the default — cream ground, ink type, gold accent — the
    inviting face of the brand. Dark (the terminal look) is an explicit
@@ -98,29 +124,6 @@
 }
 
 /* Expose tokens to Tailwind v4 utilities (bg-bg-1, text-ink-soft, border-line, …) */
-@theme inline {
-  --color-bg: var(--bg);
-  --color-bg-1: var(--bg-1);
-  --color-bg-2: var(--bg-2);
-  --color-paper: var(--paper);
-  --color-card-stroke: var(--card-stroke);
-  --color-ink: var(--ink);
-  --color-ink-soft: var(--ink-soft);
-  --color-ink-faint: var(--ink-faint);
-  --color-line: var(--line);
-  --color-line-strong: var(--line-strong);
-  --color-amber: var(--amber);
-  --color-amber-ink: var(--amber-ink);
-  --color-amber-hover: var(--amber-hover);
-  --color-mint: var(--mint);
-  --color-mint-ink: var(--mint-ink);
-  --color-red: var(--red);
-  --font-disp: "Inter", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-mono: "Inter", system-ui, sans-serif;
-  --radius-card: 16px;
-  --radius-card-sm: 10px;
-}
 
 html {
   transition: background-color 0.25s ease;
@@ -534,4 +537,6 @@ textarea.input {
 }
 .faint {
   color: var(--ink-faint);
+}
+
 }

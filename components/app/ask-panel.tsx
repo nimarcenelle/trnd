@@ -20,38 +20,38 @@ export default function AskPanel() {
   return (
     <div>
       {turns.map((t, i) => (
-        <div className="panel" style={{ marginBottom: 14 }} key={`${i}-${t.question.slice(0, 30)}`}>
-          <p style={{ margin: "0 0 14px", fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--ink-faint)" }}>
+        <div className="panel mb-[14px]" key={`${i}-${t.question.slice(0, 30)}`}>
+          <p className="mx-0 mt-0 mb-[14px] font-mono text-[11.5px] text-ink-faint">
             Q — {t.question}
           </p>
           {t.result.answer.map((p) => (
-            <p key={p.slice(0, 40)} style={{ fontSize: 14.5, lineHeight: 1.65, color: "var(--ink)", margin: "0 0 12px", maxWidth: 720 }}>
+            <p className="text-[14.5px] leading-[1.65] text-ink mx-0 mt-0 mb-3 max-w-[720px]" key={p.slice(0, 40)}>
               {p}
             </p>
           ))}
           {t.result.assumptions.length > 0 && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--line)" }}>
-              <span className="mono-label" style={{ display: "block", marginBottom: 8, color: "var(--amber-text)" }}>
+            <div className="mt-3 pt-3 border-t border-dashed border-line">
+              <span className="mono-label block mb-2 text-(--amber-text)">
                 Assumed — correct me and ask again
               </span>
               {t.result.assumptions.map((a) => (
-                <p key={a.slice(0, 40)} style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)", margin: "0 0 5px" }}>
+                <p className="text-[12.5px] leading-[1.55] text-ink-soft mx-0 mt-0 mb-[5px]" key={a.slice(0, 40)}>
                   · {a}
                 </p>
               ))}
             </div>
           )}
           {t.result.citations.length > 0 && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--line)" }}>
-              <span className="mono-label" style={{ display: "block", marginBottom: 8 }}>Where that comes from</span>
+            <div className="mt-3 pt-3 border-t border-dashed border-line">
+              <span className="mono-label block mb-2">Where that comes from</span>
               {t.result.citations.map((c) => (
-                <p key={c.claim.slice(0, 40)} style={{ fontSize: 12, lineHeight: 1.5, color: "var(--ink-faint)", margin: "0 0 5px" }}>
+                <p className="text-[12px] leading-[1.5] text-ink-faint mx-0 mt-0 mb-[5px]" key={c.claim.slice(0, 40)}>
                   · {c.claim} — <i>{c.source}</i>
                 </p>
               ))}
             </div>
           )}
-          <p style={{ margin: "14px 0 0", fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--ink-faint)" }}>
+          <p className="mx-0 mt-[14px] mb-0 font-mono text-[10.5px] text-ink-faint">
             {t.result.insufficient
               ? "Honest gap: even a reasoned estimate would be a guess here."
               : `Answered by ${t.result.model} — your data, plus labeled assumptions.`}
@@ -59,7 +59,7 @@ export default function AskPanel() {
         </div>
       ))}
 
-      <form action={formAction} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <form className="flex gap-[10px] flex-wrap" action={formAction}>
         <input
           key={turns.length}
           name="question"
@@ -88,11 +88,11 @@ export default function AskPanel() {
       </form>
 
       {turns.length === 0 && !state.error && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+        <div className="flex gap-2 flex-wrap mt-[14px]">
           {SUGGESTIONS.map((s) => (
             <form key={s} action={formAction}>
               <input type="hidden" name="question" value={s} />
-              <button type="submit" className="pill" disabled={pending} style={{ cursor: "pointer", background: "var(--bg-1)" }}>
+              <button type="submit" className="pill cursor-pointer bg-bg-1" disabled={pending}>
                 {s}
               </button>
             </form>
@@ -101,7 +101,7 @@ export default function AskPanel() {
       )}
 
       {state.error && (
-        <p style={{ marginTop: 14, fontFamily: "var(--mono)", fontSize: 12, color: "var(--red)" }}>{state.error}</p>
+        <p className="mt-[14px] font-mono text-[12px] text-red">{state.error}</p>
       )}
     </div>
   );

@@ -189,7 +189,7 @@ export default function OnboardingWizard() {
         maxLength={60}
         style={{ ...inputStyle, width: "100%", marginBottom: 12 }}
       />
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }} aria-label="Common kinds of business">
+      <div className="flex flex-wrap gap-2" aria-label="Common kinds of business">
         {CATEGORIES.map((c) => (
           <button
             key={c}
@@ -207,7 +207,7 @@ export default function OnboardingWizard() {
           </button>
         ))}
       </div>
-      <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--ink-faint)" }}>
+      <p className="mx-0 mt-[10px] mb-0 text-[12px] text-ink-faint">
         Say what customers would call you — specific beats broad. It shapes every recommendation.
       </p>
     </div>
@@ -216,7 +216,7 @@ export default function OnboardingWizard() {
   const serviceRows = (
     <>
       {services.map((row, i) => (
-        <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 40px", gap: 10, marginBottom: 12 }}>
+        <div className="grid grid-cols-[1fr_130px_40px] gap-[10px] mb-3" key={i}>
           <input aria-label={`Service ${i + 1} name`} type="text" value={row.name} onChange={(e) => setService(i, { name: e.target.value })} placeholder="e.g. Facial balancing consult" style={inputStyle} />
           <input aria-label={`Service ${i + 1} price`} type="text" value={row.price} onChange={(e) => setService(i, { price: e.target.value })} placeholder="$ price" style={inputStyle} />
           <button type="button" aria-label={`Remove service ${i + 1}`} onClick={() => setServices((r) => r.filter((_, idx) => idx !== i))} disabled={services.length === 1} style={{ background: "none", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", color: "var(--ink-faint)", cursor: "pointer" }}>
@@ -258,14 +258,14 @@ export default function OnboardingWizard() {
   );
 
   return (
-    <div className="card-lg" style={{ maxWidth: 620, width: "100%", padding: "36px 34px" }}>
+    <div className="card-lg max-w-[620px] w-full py-[36px] px-[34px]">
       {/* progress rail */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 30 }}>
+      <div className="flex gap-[6px] mb-[30px]">
         {(mode === "review" ? (["Website", "Confirm"] as const) : STEPS).map((label, i, arr) => {
           const done = mode === "review" || i <= step;
           const isLast = i === arr.length - 1;
           return (
-            <div key={label} style={{ flex: 1 }}>
+            <div className="flex-1" key={label}>
               <div
                 style={{
                   height: 4,
@@ -301,8 +301,8 @@ export default function OnboardingWizard() {
 
         {mode === "steps" && step === 0 && (
           <section>
-            <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>Start with your website.</h2>
-            <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>
+            <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">Start with your website.</h2>
+            <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">
               TRND reads your menu, offerings, prices, and location from it — one confirm screen instead of a questionnaire.
             </p>
             <div className="field">
@@ -313,7 +313,7 @@ export default function OnboardingWizard() {
               <label htmlFor="ob-name">Business name</label>
               <input id="ob-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Corner Coffee Co." autoComplete="organization" />
             </div>
-            <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "2px 0 0", lineHeight: 1.5 }}>
+            <p className="text-[12px] text-ink-faint mx-0 mt-[2px] mb-0 leading-[1.5]">
               No website? Leave it blank — you can fill everything in by hand.
             </p>
             {(importing || importLog.length > 0) && (
@@ -357,8 +357,8 @@ export default function OnboardingWizard() {
 
         {mode === "review" && (
           <section>
-            <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>Confirm what we read.</h2>
-            <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>
+            <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">Confirm what we read.</h2>
+            <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">
               Everything below came from your site or a sensible default — fix anything that&apos;s off.
             </p>
             <div className="field">
@@ -369,12 +369,12 @@ export default function OnboardingWizard() {
               <label>Category</label>
               {categoryPicker}
             </div>
-            <div style={{ marginTop: 18 }}>{locationFields}</div>
-            <div className="field" style={{ marginBottom: 0 }}>
+            <div className="mt-[18px]">{locationFields}</div>
+            <div className="field mb-0">
               <label>What you sell</label>
             </div>
             {serviceRows}
-            <div className="field" style={{ marginTop: 18 }}>
+            <div className="field mt-[18px]">
               <label htmlFor="ob-voice-r">Brand voice notes (optional)</label>
               <textarea id="ob-voice-r" rows={3} value={voice} onChange={(e) => setVoice(e.target.value)} placeholder='e.g. "Warm but direct. We never discount, we add value. No exclamation marks."' />
             </div>
@@ -383,32 +383,32 @@ export default function OnboardingWizard() {
 
         {mode === "steps" && step === 1 && (
           <section>
-            <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>What kind of business?</h2>
-            <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>This decides which demand signals TRND watches for you.</p>
+            <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">What kind of business?</h2>
+            <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">This decides which demand signals TRND watches for you.</p>
             {categoryPicker}
           </section>
         )}
 
         {mode === "steps" && step === 2 && (
           <section>
-            <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>Where do customers find you?</h2>
-            <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>Signal gets read for your area, not the whole internet.</p>
+            <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">Where do customers find you?</h2>
+            <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">Signal gets read for your area, not the whole internet.</p>
             {locationFields}
           </section>
         )}
 
         {mode === "steps" && step === 3 && (
           <section>
-            <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>What do you sell?</h2>
-            <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>TRND only recommends promoting things you actually offer.</p>
+            <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">What do you sell?</h2>
+            <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">TRND only recommends promoting things you actually offer.</p>
             {serviceRows}
           </section>
         )}
 
         {mode === "steps" && step === 4 && (
           <section>
-            <h2 className="h-disp" style={{ fontSize: 22, margin: "0 0 6px" }}>How do you sound?</h2>
-            <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 22px" }}>
+            <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">How do you sound?</h2>
+            <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">
               Optional — a sentence or two so generated copy sounds like you, not like everyone else.
             </p>
             <div className="field">
@@ -420,7 +420,7 @@ export default function OnboardingWizard() {
 
         {state.error && <p className="form-error">{state.error}</p>}
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 28 }}>
+        <div className="flex justify-between mt-7">
           <button
             type="button"
             className="btn btn-ghost btn-sm"

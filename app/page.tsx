@@ -53,7 +53,7 @@ export default function Home() {
       <RevealObserver />
       <FloatingCta />
       <nav className="nav">
-        <a href="#top" style={{ display: "inline-flex" }} aria-label="TRND — top">
+        <a className="inline-flex" href="#top" aria-label="TRND — top">
           <Brand href={null} />
         </a>
         <div className="nav__links">
@@ -64,7 +64,7 @@ export default function Home() {
           <a href="#pricing">Pricing</a>
         </div>
         <div className="nav__right">
-          <Link href="/login" style={{ fontFamily: "var(--body)", fontSize: 14, color: "var(--ink-soft)" }}>
+          <Link className="font-body text-[14px] text-ink-soft" href="/login">
             Sign in
           </Link>
           <ThemeToggle />
@@ -127,7 +127,7 @@ export default function Home() {
             <span>Dental &amp; wellness</span>
           </div>
 
-          <div style={{ height: 56 }} />
+          <div className="h-[56px]" />
 
           <div className="split reveal">
             <div className="split__col">
@@ -295,7 +295,7 @@ export default function Home() {
                   <div key={f}><IcoCheck />{f}</div>
                 ))}
               </div>
-              <Link href="/signup" className="btn btn-primary" style={{ justifyContent: "center" }}>
+              <Link href="/signup" className="btn btn-primary justify-center">
                 Start free
               </Link>
               <span className="tier__foot">14-day trial. No card required.</span>
@@ -348,7 +348,7 @@ export default function Home() {
         <div className="wrap">
           <div className="foot-grid">
             <div>
-              <div style={{ marginBottom: 12 }}>
+              <div className="mb-3">
                 <Brand href={null} size={18} />
               </div>
               <p className="tagline">AI marketing intelligence for small business. usetrnd.com</p>

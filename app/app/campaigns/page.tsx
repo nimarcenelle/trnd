@@ -49,7 +49,7 @@ export default async function CampaignsPage() {
             Drafts are ready to launch. Live campaigns are waiting on results.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="flex gap-[10px] items-center flex-wrap">
           <span className="badge"><i />{campaigns.length} total</span>
           <Link href="/app/results" className="btn btn-ghost btn-sm">
             All results
@@ -58,8 +58,8 @@ export default async function CampaignsPage() {
       </div>
 
       {campaigns.length === 0 && (
-        <div className="panel" style={{ maxWidth: 620 }}>
-          <p style={{ margin: "0 0 16px", color: "var(--ink-soft)", fontSize: 14.5, lineHeight: 1.6 }}>
+        <div className="panel max-w-[620px]">
+          <p className="mx-0 mt-0 mb-4 text-ink-soft text-[14.5px] leading-[1.6]">
             No campaigns yet. Your first one is a single click from this week&apos;s
             recommendation — finished copy, scripts, and targeting included.
           </p>
@@ -70,28 +70,28 @@ export default async function CampaignsPage() {
       )}
 
       {groups.map((g) => (
-        <section key={g.status} style={{ marginBottom: 26 }}>
-          <div className="panel__head" style={{ marginBottom: 12 }}>
+        <section className="mb-[26px]" key={g.status}>
+          <div className="panel__head mb-3">
             <span className={`panel__title${g.status === "live" || g.status === "complete" ? " mint" : ""}`}>
               {GROUP_LABEL[g.status]}
             </span>
             <span className="panel__meta">{g.items.length}</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
+          <div className="grid grid-cols-[repeat(auto-fill,_minmax(320px,_1fr))] gap-[14px]">
             {g.items.map((c) => {
               const term = signalTermByCampaign.get(c.id);
               return (
-                <Link key={c.id} href={`/app/campaigns/${c.id}`} className="panel" style={{ display: "block", padding: "20px 22px" }}>
+                <Link key={c.id} href={`/app/campaigns/${c.id}`} className="panel block py-5 px-[22px]">
                   {term && (
-                    <span className="mono-label" style={{ color: "var(--amber-text)", display: "block", marginBottom: 8 }}>
+                    <span className="mono-label text-(--amber-text) block mb-2">
                       {titleCase(term)}
                     </span>
                   )}
-                  <p style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 15.5, margin: "0 0 14px", lineHeight: 1.35 }}>
+                  <p className="font-disp font-semibold text-[15.5px] mx-0 mt-0 mb-[14px] leading-[1.35]">
                     {c.hook}
                   </p>
                   <StatusTimeline status={c.status} compact />
-                  <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "14px 0 0" }}>
+                  <p className="text-[12px] text-ink-faint mx-0 mt-[14px] mb-0">
                     {new Date(c.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {c.channel} ·{" "}
                     {c.status === "draft" ? "launch today" : c.status === "live" ? "enter results when ready" : "done"}
                   </p>

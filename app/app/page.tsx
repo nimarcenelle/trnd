@@ -4,6 +4,7 @@ import { after } from "next/server";
 
 import AdPreview from "@/components/app/ad-preview";
 import AnalysisProgress from "@/components/app/analysis-progress";
+import ComingUp from "@/components/app/coming-up";
 import { onboardingFindings } from "@/lib/onboarding/findings";
 import AutoRefresh from "@/components/app/auto-refresh";
 import ScoreBreakdown from "@/components/app/score-breakdown";
@@ -187,6 +188,14 @@ export default async function AppHome({
               View the analysis
             </Link>
           </div>
+          {/* The calendar needs no signal, no model and no history — so a
+              brand-new account gets the next two months while its first
+              ranking is still being written, instead of only a wait. */}
+          <ComingUp
+            moments={upcomingMoments(business.category)}
+            services={await repo.listServices(business.id)}
+            meta="Ready before you need to be"
+          />
         </div>
       );
     }
@@ -1207,30 +1216,7 @@ export default async function AppHome({
       </section>
 
       {/* ---------- SEASONAL CALENDAR ---------- */}
-      {seasonal.length > 0 && (
-        <section className="panel mt-[18px]">
-          <div className="panel__head">
-            <span className="panel__title">Coming up</span>
-            <span className="panel__meta">Known demand moments</span>
-          </div>
-          <div className="grid grid-cols-[repeat(auto-fit,_minmax(240px,_1fr))] gap-[18px]">
-            {seasonal.map((m) => (
-              <div key={m.label} style={{ borderLeft: `2px solid ${m.prepNow ? "var(--amber)" : "var(--line-strong)"}`, paddingLeft: 14 }}>
-                <div className="flex justify-between gap-[10px] items-baseline">
-                  <span className="font-disp font-semibold text-[14.5px]">{m.label}</span>
-                  <span className="mono-label" style={{ color: m.prepNow ? "var(--amber-text)" : undefined, whiteSpace: "nowrap" }}>
-                    {m.daysOut <= 1 ? "now" : `${m.daysOut}d out`}
-                  </span>
-                </div>
-                <p className="text-[12.5px] leading-[1.55] text-ink-soft mx-0 mt-[6px] mb-0">
-                  {m.prepNow ? "Start now — " : `Start ~${Math.max(1, Math.round((m.daysOut - m.leadWeeks * 7) / 7))} wk${Math.round((m.daysOut - m.leadWeeks * 7) / 7) === 1 ? "" : "s"} from now. `}
-                  {m.advice}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <ComingUp moments={seasonal} services={services} />
 
     </div>
   );

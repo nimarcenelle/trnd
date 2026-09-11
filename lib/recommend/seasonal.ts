@@ -3,6 +3,8 @@
  * lead time an owner actually needs to be ready. Untrained operators are
  * worst at timing — this removes it. Our own data, no model.
  */
+import type { Service } from "@/lib/db/types";
+import { tokens } from "@/lib/scoring";
 import { verticalKey } from "@/lib/signals/vertical";
 
 export interface SeasonalMoment {
@@ -28,6 +30,8 @@ const MOMENTS: Record<string, SeasonalMoment[]> = {
     { label: "First cold snap", month: 10, day: 15, leadWeeks: 4, advice: "Heating tune-up offers beat the emergency-season ad prices." },
     { label: "Spring exterior season", month: 4, day: 1, leadWeeks: 3, advice: "Gutters, pressure washing, landscaping — book the backlog early." },
     { label: "First heat wave", month: 6, day: 10, leadWeeks: 4, advice: "AC checks sell cheapest before everyone's sweating." },
+    { label: "Mid-summer system strain", month: 7, day: 20, leadWeeks: 2, advice: "Units fail in the hottest week — sell the service plan before they do." },
+    { label: "Storm season prep", month: 8, day: 20, leadWeeks: 3, advice: "Gutters, drainage and tree work land before the first big storm, not after." },
     { label: "Holiday-ready home", month: 11, day: 15, leadWeeks: 3, advice: "Cleaning and repairs before guests arrive." },
   ],
   "Health & beauty": [
@@ -68,10 +72,19 @@ export interface UpcomingMoment extends SeasonalMoment {
 }
 
 /** Moments peaking within the next `horizonDays`, soonest first. */
+/**
+ * How far ahead the calendar looks. Ten weeks left real gaps — a med spa
+ * onboarding in September saw an empty panel, because its next moment
+ * (holiday party season) sits 85 days out. The panel exists to say "be
+ * ready before you need to be", so the horizon has to be longer than the
+ * longest lead time it advertises, not shorter.
+ */
+const HORIZON_DAYS = 120;
+
 export function upcomingMoments(
   category: string,
   now: Date = new Date(),
-  horizonDays = 70,
+  horizonDays = HORIZON_DAYS,
 ): UpcomingMoment[] {
   const moments = MOMENTS[verticalKey(category)] ?? [];
   const out: UpcomingMoment[] = [];
@@ -86,4 +99,26 @@ export function upcomingMoments(
     }
   }
   return out.sort((a, b) => a.daysOut - b.daysOut).slice(0, 3);
+}
+
+/**
+ * The service on their menu this moment is actually about.
+ *
+ * A calendar that says "Holiday party glow — party-season bookings spike"
+ * is a fact about the category. The same line next to *their* $95 Express
+ * Facial is a fact about them, and it is the difference between a widget
+ * and advice. Deterministic token overlap, no model: a moment either names
+ * something they sell or it doesn't, and when it doesn't we say nothing
+ * rather than attaching the wrong service to it.
+ */
+export function serviceForMoment(moment: SeasonalMoment, services: Service[]): Service | null {
+  const anchors = tokens(`${moment.label} ${moment.advice}`);
+  let best: { service: Service; overlap: number } | null = null;
+  for (const service of services) {
+    if (!service.is_active) continue;
+    const overlap = [...tokens(service.name)].filter((t) => anchors.has(t)).length;
+    if (overlap === 0) continue;
+    if (!best || overlap > best.overlap) best = { service, overlap };
+  }
+  return best?.service ?? null;
 }

@@ -142,7 +142,7 @@
 }
 .hero h1 em {
   font-style: normal;
-  color: inherit;
+  color: var(--amber-display);
 }
 .hero__sub {
   font-family: var(--body);

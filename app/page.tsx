@@ -81,7 +81,7 @@ export default function Home() {
         <div className="wrap hero__inner">
           <div className="eyebrow">For local businesses</div>
           <h1>
-            Know what to advertise <em>this week.</em>
+            Know what to advertise <em>before your competitors do.</em>
           </h1>
           <p className="hero__sub">
             Every Monday, TRND reads what people near you are searching for and hands you one

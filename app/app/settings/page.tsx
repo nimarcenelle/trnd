@@ -128,7 +128,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       <section className="panel" style={{ marginBottom: 20 }}>
         <div className="panel__head">
           <span className="panel__title">Business</span>
-          <span className="panel__meta">{user.email}</span>
+          <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <span className="panel__meta">{user.email}</span>
+            <Link href="/app/snapshot" className="btn btn-ghost btn-sm">Your analysis</Link>
+          </span>
         </div>
         <BusinessSettingsForm business={business} />
       </section>

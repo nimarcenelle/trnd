@@ -386,15 +386,6 @@ export default async function AppHome({
     ),
   );
 
-  // Market pulse: this week's top movers in the category — one row per term
-  // (the same term arrives on several metrics/geos and must not list twice).
-  const moverSeen = new Set<string>();
-  const movers = [...watched]
-    .filter((s) => typeof s.delta_pct === "number")
-    .sort((a, b) => (b.delta_pct ?? 0) - (a.delta_pct ?? 0))
-    .filter((s) => (moverSeen.has(s.normalized_term) ? false : (moverSeen.add(s.normalized_term), true)))
-    .slice(0, 5);
-
   // Known demand moments ahead — the calendar half of timing.
   const seasonal = upcomingMoments(business.category);
 
@@ -427,7 +418,6 @@ export default async function AppHome({
     });
   }
 
-  const recentCampaigns = campaigns.slice(0, 4);
 
   // What changed since last week, the rivals, and the plan that gates
   // rival tracking — read together; each is small.
@@ -977,6 +967,11 @@ export default async function AppHome({
           </div>
         )}
 
+              {organicPost && (
+                <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px dashed var(--line)" }}>
+                  <CopyBlock label="Free post for this week" content={organicPost} />
+                </div>
+              )}
             </div>
           </details>
         ) : (
@@ -1103,8 +1098,8 @@ export default async function AppHome({
         </section>
       )}
 
-      {/* ---------- RUNNER-UPS + MARKET PULSE ---------- */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18, marginTop: 18, alignItems: "start" }} className="two-col">
+      {/* ---------- NEXT IN LINE ---------- */}
+      <div style={{ marginTop: 18 }}>
         {runnerUps.length > 0 && (
           <section className="panel">
             <div className="panel__head">
@@ -1156,33 +1151,6 @@ export default async function AppHome({
           </section>
         )}
 
-        <section className="panel">
-          <div className="panel__head">
-            <span className="panel__title mint">Market movement</span>
-            <span className="panel__meta">Change vs last week</span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {movers.map((s, i) => (
-              <div
-                key={s.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  alignItems: "baseline",
-                  padding: "10px 0",
-                  borderBottom: i < movers.length - 1 ? "1px dashed var(--line)" : "none",
-                }}
-              >
-                <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>{titleCase(s.term)}</span>
-                <DeltaChip delta={s.delta_pct ?? 0} />
-              </div>
-            ))}
-            {movers.length === 0 && (
-              <p style={{ margin: 0, fontSize: 13, color: "var(--ink-faint)" }}>No movement captured this week.</p>
-            )}
-          </div>
-        </section>
       </div>
 
       {/* ---------- YOUR RIVALS ---------- */}
@@ -1234,13 +1202,6 @@ export default async function AppHome({
         )}
       </section>
 
-      {/* ---------- THE FREE MOVE ---------- */}
-      {organicPost && (
-        <section className="panel" style={{ marginTop: 18 }}>
-          <CopyBlock label="Free post for this week" content={organicPost} />
-        </section>
-      )}
-
       {/* ---------- SEASONAL CALENDAR ---------- */}
       {seasonal.length > 0 && (
         <section className="panel" style={{ marginTop: 18 }}>
@@ -1267,67 +1228,6 @@ export default async function AppHome({
         </section>
       )}
 
-      {!brief && (
-        <section className="snap-teaser">
-          <div className="snap-teaser__left">
-            <div>
-              <h4>Your founding analysis is being written</h4>
-              <p>
-                TRND is reading {business.name} — positioning, customers, market, first moves.
-                Usually under two minutes.
-              </p>
-            </div>
-          </div>
-          <Link href="/app/snapshot" className="btn btn-ghost btn-sm">
-            Watch it land
-          </Link>
-        </section>
-      )}
-      {brief && (
-        <section className="snap-teaser">
-          <div className="snap-teaser__left">
-            <div>
-              <h4>How TRND reads {business.name}</h4>
-              <p>
-                {titleCase(business.category)} · {business.city}
-                {business.region ? `, ${business.region}` : ""} · {services.filter((s) => s.is_active).length} services on file
-              </p>
-            </div>
-            <div className="mini-chip-row">
-              {brief.advantages[0] && <span className="mini-chip">Edge: {brief.advantages[0]}</span>}
-              {brief.watchouts[0] && <span className="mini-chip">Watch-out: {brief.watchouts[0]}</span>}
-            </div>
-          </div>
-          <Link href="/app/snapshot" className="btn btn-ghost btn-sm">
-            View full snapshot
-          </Link>
-        </section>
-      )}
-
-      {/* ---------- RECENT CAMPAIGNS ---------- */}
-      {recentCampaigns.length > 0 && (
-        <section style={{ marginTop: 30 }}>
-          <div className="panel__head" style={{ marginBottom: 12 }}>
-            <span className="panel__title">Recent campaigns</span>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 14 }}>
-            {recentCampaigns.map((c) => (
-              <Link key={c.id} href={`/app/campaigns/${c.id}`} className="card" style={{ padding: 18, display: "block" }}>
-                <span className={`badge${c.status === "live" || c.status === "complete" ? " badge--mint" : ""}`}>
-                  <i />
-                  {c.status}
-                </span>
-                <p style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 15, margin: "10px 0 4px", lineHeight: 1.3 }}>
-                  {c.hook}
-                </p>
-                <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0 }}>
-                  {fmtDate(c.created_at.slice(0, 10))} · {c.channel}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

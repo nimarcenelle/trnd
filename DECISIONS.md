@@ -113,3 +113,12 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
   dropped. The digest rides on the report, the pick facts, Ask and the Monday note. Not on
   the campaign prompts yet — the claims guard would strip numbers it can't trace to the
   menu, and document facts need their own allow-list first.
+- **Professional means subtraction.** Five passes, each its own commit: (1) no plumbing —
+  env names, the demo strip, keyless fallback strings and "illustrative" badges are gone from
+  customer paths, and production never ranks or cites sample signals; (2) plain language —
+  titles are nouns, buttons verbs, no arrows, no self-narration; (3) one typeface (Inter),
+  sentence-case labels instead of mono caps, chips only for grade and delta, one bare-input
+  class; (4) the landing page promises weekly, labels its examples, sells one plan; (5) This
+  week is the ad, why, ask, standing questions, demand, next in line, competitors, calendar —
+  market pulse, recent campaigns and the analysis teaser are cut. Inline styles remain on the
+  older screens; the CSS-level pass restyled them consistently without a component rewrite.

@@ -94,13 +94,14 @@ remembers about this business over the last six weeks — weeks a term was ranke
 the ad written on it and what it returned, rival ad counts moving — so week six reads
 differently from week one by construction (`lib/recommend/history.ts`).
 
-Below the hero: the demand chart, the runner-up list, a market-pulse panel, the rivals
-panel (read daily, on every plan), the free organic post, and the **seasonal calendar**
-("Holiday party bookings — start now, 6 weeks lead"). A re-rank button rebuilds the week
-on demand. KPI row: signals watched, ranked count, campaigns launched, average CTR.
+Below the hero: the demand chart, the next-in-line list, the competitors panel (read daily,
+on every plan), and **Coming up** (known demand moments, "start now, 6 weeks lead"). The free
+organic post lives inside Why this pick. A refresh button rebuilds the week on demand. Once
+results exist, a KPI row shows launched campaigns, average CTR, and the spend ledger.
 
-**Navigation is three tabs** — This week, Campaigns, Settings. Report, Opportunities,
-Snapshot and Ask still exist as routes, linked from This week where they earn it.
+**Navigation is three tabs** — This week, Campaigns, Settings. The weekly report is linked
+from This week, the analysis from Settings, the full ranking from the hero; Ask lives on the
+pick itself.
 
 ### 6. Opportunities (`/app/opportunities`)
 The week's full ranked list — one line each with grade, insight chips, and an expandable

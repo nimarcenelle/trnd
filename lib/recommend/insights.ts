@@ -32,6 +32,62 @@ export function compactCount(n: number): string {
   return String(Math.round(n));
 }
 
+/**
+ * The one fact that decides this pick, in a sentence.
+ *
+ * The hero is the ad, and the evidence sits a click down under "Why this
+ * pick" — which is right for week three and wrong for day one, when the
+ * meters are the weakest thing on the screen (track record correctly says
+ * it knows nothing yet) and the owner has no reason to trust the ad they're
+ * being handed. So the hero carries the single strongest fact behind it,
+ * stated flat, with its number and its place. Not a summary of four meters:
+ * the one that actually decided it.
+ *
+ * Returns null when nothing is strong enough to lead with — better silence
+ * than a sentence that dresses up a weak read.
+ */
+export function decidingFact(
+  signal: Signal,
+  opts: { geoLabel: string; serviceName?: string | null; rivalAds?: number | null },
+): string | null {
+  const term = `“${sentenceCase(signal.term)}”`;
+  const where = opts.geoLabel ? ` in the ${opts.geoLabel}` : "";
+  const rivals = opts.rivalAds;
+
+  const openField =
+    rivals === 0
+      ? " — and nobody near you is advertising on it."
+      : typeof rivals === "number" && rivals > 0 && rivals <= 3
+        ? ` — and only ${rivals} nearby ${rivals === 1 ? "business is" : "businesses are"} advertising on it.`
+        : ".";
+
+  // A forecast window is not a measured rise, and says so.
+  if (signal.metric_type === "weather_trigger") {
+    const raw = signal.raw as { detail?: string } | null;
+    return raw?.detail
+      ? `${raw.detail} That window opens this week${where}${openField}`
+      : `The forecast crosses a seasonal line this week${where}${openField}`;
+  }
+
+  const delta = signal.delta_pct;
+  if (typeof delta === "number" && delta >= MIN_LEADING_DELTA) {
+    return `${term} is up ${Math.round(delta)}%${where} this week${openField}`;
+  }
+
+  // Nothing is moving, but the field is empty — that is its own reason.
+  if (rivals === 0) {
+    return `Nobody near you is advertising on ${term} right now${where ? `, and it's what ${opts.geoLabel} is searching` : ""}.`;
+  }
+
+  if (opts.serviceName) {
+    return `Of everything moving${where} this week, ${term} is the closest match to your ${opts.serviceName}.`;
+  }
+  return null;
+}
+
+/** Below this a weekly move is noise, not a reason to spend money. */
+const MIN_LEADING_DELTA = 12;
+
 export function buildInsights(
   signal: Signal,
   scored: ScoredOpportunity,

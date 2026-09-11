@@ -2331,3 +2331,16 @@ details.disclosure[open] .stars__over {
 }
 
 }
+
+/* The one fact behind the pick, in the hero — the meters stay a click down,
+   so this line is what has to carry the argument. */
+.why-now {
+  margin: 0 0 20px;
+  padding-left: 13px;
+  border-left: 2px solid var(--amber);
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink);
+  font-weight: 500;
+  max-width: 620px;
+}

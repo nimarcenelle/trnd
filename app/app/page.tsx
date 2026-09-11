@@ -34,7 +34,7 @@ import CopyBlock from "@/components/app/copy-block";
 import { buildHowTo, tiktokHashtag } from "@/lib/recommend/howto";
 import { buildOrganicPost } from "@/lib/recommend/post";
 import { upcomingMoments } from "@/lib/recommend/seasonal";
-import { budgetFor, buildInsights, buildNextAction, launchByFor } from "@/lib/recommend/insights";
+import { budgetFor, buildInsights, buildNextAction, decidingFact, launchByFor } from "@/lib/recommend/insights";
 import { AD_COUNT_LOCAL_MAX } from "@/lib/scoring";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { previousWeek, rankingChanges, rivalChanges } from "@/lib/recommend/diff";
@@ -279,6 +279,20 @@ export default async function AppHome({
     repo.listServices(business.id),
   ]);
   const matchedService = services.find((s) => s.id === top.matched_service_id) ?? null;
+  // The strongest single reason this pick won, for the hero. The rival count
+  // comes from the ad-saturation read on this very term when one landed.
+  const rivalAds = signal
+    ? (categorySignals.find(
+        (s) => s.metric_type === "ad_saturation" && s.normalized_term === signal.normalized_term,
+      )?.value ?? null)
+    : null;
+  const deciding = signal
+    ? decidingFact(signal, {
+        geoLabel: geoLabel(signal.geo),
+        serviceName: matchedService?.name ?? null,
+        rivalAds,
+      })
+    : null;
   // Judged-thin week: even the pool's best sits below the worth-running bar.
   // The screen must not dress it up — no creative playbook, no "capture this
   // demand" pitch — just the honest read and what to run instead.
@@ -786,6 +800,12 @@ export default async function AppHome({
                   {campaign.hook}
                 </h2>
                 <p className="text-[14.5px] leading-[1.65] text-ink-soft mx-0 mt-0 mb-[18px] max-w-[640px]">{campaign.angle}</p>
+                {deciding && (
+                  /* The one fact behind the pick, in the hero. The meters stay
+                     a click down: on day one they're the weakest thing on the
+                     screen, and this is the thing that earns the click. */
+                  <p className="why-now">{deciding}</p>
+                )}
                 <div className="facts-grid mb-[22px]">
                   <div>
                     <span className="k text-(--amber-text)">Offer</span>

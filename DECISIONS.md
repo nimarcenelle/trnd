@@ -140,3 +140,37 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
   is still not blind — it is just no longer confident. The constants that remain guesses
   (booking and profitability bonuses, the benchmark table) are the ones only real results
   can settle, which is the pilot's job, not this pass's.
+- **The proof goes before the signup.** The cold email already promised a demand
+  snapshot; the product had no such surface, so the promise was a manual favor. It is a
+  page now (`/snapshot`), built from a URL alone with no account, because the claim
+  "we know what's moving near you" is checkable in a minute and an unverified claim is
+  worth less than a checked one. It doubles as the acquisition loop: the page is
+  forwardable, and `?url=` makes the cold email link straight into it. Cost of the
+  decision: the only unauthenticated endpoint in the product that makes outbound
+  requests, so it carries the only real SSRF guard (public DNS resolution required —
+  `normalizeUrl` would happily have fetched an internal host with a dot in it), a rate
+  limit, a wall-clock budget, and a per-host reuse window. Snapshot rows are owned by
+  nobody: RLS on, no policies, token as capability, every read through the server — a
+  `select using (true)` policy would have let anyone enumerate every snapshot built.
+- **The wait is a surface, not a gap.** Both screens that narrate the founding analysis
+  used to advance a checklist on wall-clock time. They now report what has actually
+  landed in the tables, in the owner's own numbers. Derived state, so a dead background
+  write shows as a stalled row instead of a checklist sailing on to "done" — and the
+  most persuasive minute in the product stops being a progress bar.
+- **A provisional week beats a wait screen; a provisional ad does not.** Onboarding
+  writes the deterministic brief first so the ranking gate opens in milliseconds and
+  the first visit lands on a real, fit-gated week; the model's analysis overwrites it
+  and re-ranks in place. But the unasked ad still waits for the real analysis — writing
+  it against the provisional read would only mean rewriting it a minute later — and the
+  page says plainly that this is a first read. Honest beats instant-and-quietly-wrong.
+- **The hero states the reason, not the scoreboard.** The meters stay a click down, and
+  the hero carries the single strongest fact behind the pick. On day one the track
+  record component correctly knows nothing, which makes the meters the weakest thing on
+  the screen exactly when trust is thinnest — so the hero leads with the measurement
+  that decided it, or with nothing.
+- **A calendar with gaps is worse than no calendar.** Testing the day-one calendar
+  found two months where whole categories had nothing to show (a med spa joining in
+  September; home services in June) because the horizon was shorter than the longest
+  lead time the panel itself advertises. Horizon widened to 120 days, the missing
+  summer moments added, and a month-by-month sweep now guards it.
+

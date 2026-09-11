@@ -73,6 +73,7 @@ pnpm job:recommend         # score this week's opportunities for every business
 app/                  routes (landing, auth, onboarding, /app product screens, cron)
 components/           landing sections, app UI, onboarding wizard
 lib/db/               ONE Repo interface; supabase/ + demo/ implementations; seed data
+lib/preview/          the public pre-signup snapshot: URL guard, terms, assembly
 lib/signals/          adapter interface, hardened HTTP, five source adapters, ingest
 lib/scoring.ts        the entire opportunity formula — tunable in one file
 lib/recommend/        weekly ranking job

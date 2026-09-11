@@ -13,6 +13,30 @@ support — not a dashboard of mentions.
 
 ## The customer's journey
 
+### 0. The demand snapshot (`/snapshot`) — before anyone signs up
+A website address in, a shareable page out, no account. TRND reads their public
+site once (services and prices), resolves their city to a metro, measures demand on
+terms taken off their own menu, checks the Meta Ad Library for who else is
+advertising on those terms and what those ads say, names the next seasonal moment
+with its lead time, and writes the ad — hook, offer, audience, headlines, priced
+from that menu.
+
+The wait is the product: findings stream in as the pipeline produces each one
+("Found 14 priced items — your $180 hydrafacial can lead", "Atlanta metro: brow
+lamination up 34% this week", "3 active ads on it — one runs 'brows that last 8
+weeks'"), so the minute is spent reading evidence rather than watching a bar. The
+page it lands on is that same evidence, permanent and forwardable, and `/snapshot?url=`
+runs on arrival so a cold email can link straight into it. Every snapshot reaches the
+founder as a lead while the owner is still reading it.
+
+Honest by construction: every read links to where it can be checked, an intent read
+is never dressed as a measurement, and sources that had nothing to say are named on
+the page. Guarded like the only unauthenticated, outbound-fetching endpoint it is:
+SSRF checks on every URL (public DNS resolution required), a per-instance rate limit,
+a wall-clock budget, and a 12-hour per-host reuse so a second ask never re-crawls
+someone's site. Snapshot rows are owned by nobody, so RLS is on with no policies at
+all — the token is the capability and every read goes through the server.
+
 ### 1. Landing page (`/`)
 Marketing site in the brand system: hero, "old way vs TRND way" split, the five-step
 interactive explainer, signal proof cards, flywheel diagram, roadmap, pricing band
@@ -36,8 +60,19 @@ crawl → five short manual steps: name, category, location + radius + price ban
 services with prices, voice notes. Finishing:
 - starts the **14-day trial clock**,
 - redirects instantly to the dashboard,
-- generates the founding analysis in the background,
+- writes a **provisional brief from their own services in milliseconds**, then ingests
+  and ranks on it — so the first visit lands on a real, fit-gated week instead of a
+  wait screen,
+- generates the founding analysis in the background and re-ranks in place when it
+  lands (the page says it is a first read and refreshes itself into the sharper one),
 - fires a founder signup alert.
+
+While that runs, the wait narrates **findings, not stages**: the services and prices
+we read, the phrases picked out of the analysis, the first measured mover in their
+metro, the rival ad count, the ranked week. Every row is derived from what the
+pipeline has actually written, so it can't claim a step that didn't happen. The
+seasonal calendar renders next to it — it needs no signal, model or history, so day
+one gets the next four months while the rest is still being written.
 
 ### 4. The founding analysis (`/app/snapshot`)
 Minutes after joining, the business gets its full read: positioning, customer segments,
@@ -55,6 +90,13 @@ hero *is* the ad: the hook as the headline, the angle in one paragraph, then Off
 sees it, Spend, Launch by — and how it reads in-feed, on the right. Two verbs: **Open the
 campaign →** and **Not this one** (the next pick becomes #1 and its ad is written). Thin
 weeks and locked plans are never built unasked; those stay the owner's call.
+
+The hero also carries **the one fact that decided the pick**, stated flat with its
+number and its place ("Brow lamination is up 34% in the Atlanta metro this week — and
+only 2 nearby businesses are advertising on it"). It leads with a real move, then an
+empty field, then fit to the menu — and says nothing at all when none of those is
+strong enough, because silence beats dressing up a weak read. That matters most on day
+one, when the meters are the weakest thing on the screen.
 
 **Why this pick** sits one click down and holds everything the hero used to lead with:
 

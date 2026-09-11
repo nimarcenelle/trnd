@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
-import { generateBusinessBrief } from "@/lib/ai/brief";
+import { buildFallbackBrief, generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 
@@ -127,6 +127,23 @@ export async function completeOnboardingAction(
     // established above through the user-scoped repo.
     const { getAdminRepo } = await import("@/lib/db/admin");
     const jobRepo = getAdminRepo();
+    // A provisional read, written from what we already have, before the model
+    // is asked for anything. The ranking is deliberately held until a brief
+    // exists — which used to mean the owner watched a wait screen for the
+    // whole minute the model takes. This costs milliseconds, opens that gate
+    // immediately, and the real analysis overwrites it in place when it
+    // lands. The fit gate is unaffected: it judges against their actual
+    // services, and a template watchlist has never counted as evidence of
+    // what a business sells.
+    try {
+      await repo.upsertBusinessBrief(buildFallbackBrief(business, createdServices));
+      const { runSignalIngestForBusiness } = await import("@/lib/signals/ingest");
+      await runSignalIngestForBusiness(jobRepo, business);
+      const { rerankWeek } = await import("@/lib/recommend/rerank");
+      await rerankWeek(jobRepo, business);
+    } catch (err) {
+      console.warn("[onboarding] provisional ranking failed (non-fatal):", (err as Error).message);
+    }
     try {
       const brief = await generateBusinessBrief(business, createdServices, siteText);
       await repo.upsertBusinessBrief(brief);

@@ -420,6 +420,10 @@ export default async function AppHome({
   // load ever waits on it: missing or outdated briefs (re)generate after the
   // response, and the teaser below shows a writing-it state meanwhile.
   const brief = await repo.getBusinessBrief(business.id);
+  // A provisional read: written from their own services in milliseconds so
+  // the week could be ranked immediately, with the model's analysis still on
+  // its way. Everything on the page is real — it is about to get sharper.
+  const provisional = brief?.model_used === BRIEF_FALLBACK_MODEL && isGeminiConfigured;
   if (
     (!brief && !briefLikelyInFlight(business.created_at)) ||
     (brief &&
@@ -481,7 +485,9 @@ export default async function AppHome({
   // The week's ad is written without being asked. Missing one (a fresh
   // ranking, a passed pick, a build that died) is written after this
   // response; the page shows "writing…" and refreshes into it.
-  const building = Boolean(signal) && shouldAutoBuild(top, Boolean(campaign), plan.locked);
+  // The unasked ad waits for the real analysis: writing it against the
+  // provisional read would only mean rewriting it a minute later.
+  const building = Boolean(signal) && !provisional && shouldAutoBuild(top, Boolean(campaign), plan.locked);
   if (building) {
     after(async () => {
       try {
@@ -536,7 +542,18 @@ export default async function AppHome({
 
   return (
     <div className="page">
-      {(building || readInFlight) && <AutoRefresh everyMs={6000} times={building ? 15 : 3} />}
+      {(building || readInFlight || provisional) && (
+        <AutoRefresh everyMs={6000} times={building ? 15 : provisional ? 20 : 3} />
+      )}
+      {provisional && (
+        /* Said out loud rather than hidden: these picks are real and ranked
+           against what they sell, and they will re-rank once the written
+           analysis lands. The page refreshes itself into that. */
+        <p className="provisional-note">
+          First read — ranked against your services while your full analysis is being written.
+          This sharpens on its own in about a minute.
+        </p>
+      )}
       <div className="page-head">
         <div>
           <span className="eyebrow m-0">This week&apos;s recommendation · {weekRange}</span>

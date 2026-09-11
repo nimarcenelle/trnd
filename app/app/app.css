@@ -2344,3 +2344,16 @@ details.disclosure[open] .stars__over {
   font-weight: 500;
   max-width: 620px;
 }
+
+/* The first-read strip: the week is ranked and real, and it is about to get
+   sharper. Quiet — it must not read as an error or a spinner. */
+.provisional-note {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--amber-softer);
+  border: 1px solid var(--amber-soft);
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}

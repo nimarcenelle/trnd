@@ -12,6 +12,7 @@ import type {
   Connection,
   Creative,
   DemoRequest,
+  PublicSnapshot,
   IntelNote,
   Learning,
   Opportunity,
@@ -626,6 +627,33 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       }
       throwIf(error, "insertDemoRequest");
       return data as DemoRequest;
+    },
+
+    async insertPublicSnapshot(input) {
+      const { data, error } = await sb.from("public_snapshots").insert(input).select().single();
+      throwIf(error, "insertPublicSnapshot");
+      return data as PublicSnapshot;
+    },
+    async getPublicSnapshot(token) {
+      const { data, error } = await sb
+        .from("public_snapshots")
+        .select("*")
+        .eq("token", token)
+        .maybeSingle();
+      throwIf(error, "getPublicSnapshot");
+      return (data as PublicSnapshot | null) ?? null;
+    },
+    async getFreshPublicSnapshotByHost(host, maxAgeMs) {
+      const { data, error } = await sb
+        .from("public_snapshots")
+        .select("*")
+        .eq("host", host)
+        .gte("created_at", new Date(Date.now() - maxAgeMs).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      throwIf(error, "getFreshPublicSnapshotByHost");
+      return (data as PublicSnapshot | null) ?? null;
     },
   };
 }

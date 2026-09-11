@@ -89,13 +89,19 @@ export default function Home() {
             for small businesses.
           </p>
           <div className="hero__ctas">
-            <Link href="/signup" className="btn btn-primary">
+            <Link href="/snapshot" className="btn btn-primary">
+              See what&apos;s moving near you
+            </Link>
+            <Link href="/signup" className="btn btn-ghost">
               Start free
             </Link>
-            <a href="#demo" className="btn btn-ghost">
-              Request a demo
-            </a>
           </div>
+          {/* The claim above is checkable in a minute, without an account —
+              so the first CTA is the proof, not the signup. */}
+          <p className="hero__snap">
+            Put in your website and TRND reads what you sell, measures demand where you are, and
+            writes this week&apos;s ad. No signup.
+          </p>
           <div className="hero__proof">
             <span className="pill">No agency retainer</span>
             <span className="pill">New campaign every week</span>

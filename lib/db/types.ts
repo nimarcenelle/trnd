@@ -451,6 +451,27 @@ export interface BusinessDocument {
 }
 export type NewBusinessDocument = Omit<BusinessDocument, "id" | "created_at">;
 
+/**
+ * A public demand snapshot: what TRND could say about a business from its
+ * website alone, kept so the link stays shareable. Owned by nobody — it is
+ * generated before anyone signs up, readable by anyone holding the token,
+ * and holds only what was already public on the business's own site plus
+ * measurements anyone could take.
+ */
+export interface PublicSnapshot {
+  id: string;
+  /** URL-safe random token — the only thing that addresses this row. */
+  token: string;
+  /** Hostname it was built for, so a repeat ask reuses a fresh one. */
+  host: string;
+  url: string;
+  business_name: string;
+  /** The assembled DemandSnapshot (lib/preview/types.ts). */
+  payload: unknown;
+  created_at: string;
+}
+export type NewPublicSnapshot = Omit<PublicSnapshot, "id" | "created_at">;
+
 export type NewSignal = Omit<Signal, "id" | "captured_at"> & { captured_at?: string };
 export type NewSeriesPoint = Omit<SignalSeriesPoint, "id">;
 export type NewOpportunity = Omit<Opportunity, "id" | "created_at" | "status"> & {

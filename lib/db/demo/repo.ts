@@ -21,6 +21,7 @@ import type {
   NewCompetitorRead,
   NewConnection,
   NewDemoRequest,
+  NewPublicSnapshot,
   NewIntelNote,
   NewPickRead,
   NewStandingQuestion,
@@ -754,6 +755,27 @@ export function createDemoRepo(actor: DemoActor): Repo {
       store.demo_requests.push(row);
       saveStore();
       return row;
+    },
+
+    /* ------------------------- public demand snapshots -------------------- */
+    // Owned by nobody: no ownership check here, and none in the Postgres
+    // policy either — the token is the capability.
+    async insertPublicSnapshot(input: NewPublicSnapshot) {
+      const row = { ...input, id: randomUUID(), created_at: nowIso() };
+      store.public_snapshots = [...(store.public_snapshots ?? []), row];
+      saveStore();
+      return row;
+    },
+    async getPublicSnapshot(token: string) {
+      return (store.public_snapshots ?? []).find((s) => s.token === token) ?? null;
+    },
+    async getFreshPublicSnapshotByHost(host: string, maxAgeMs: number) {
+      const cutoff = Date.now() - maxAgeMs;
+      return (
+        (store.public_snapshots ?? [])
+          .filter((s) => s.host === host && new Date(s.created_at).getTime() >= cutoff)
+          .sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null
+      );
     },
   };
 }

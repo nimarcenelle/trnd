@@ -1,0 +1,300 @@
+/* The public snapshot — the only pages a stranger sees before signing up.
+   Same tokens as the rest of the product; no new colors, no new type. */
+
+.snap-shell {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 20px 72px;
+}
+
+.snap-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 44px;
+}
+
+.snap-hero,
+.snap-head {
+  margin-bottom: 40px;
+}
+.snap-hero h1,
+.snap-head h1 {
+  margin: 10px 0 14px;
+}
+.snap-lede {
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 58ch;
+}
+.snap-lede a {
+  color: var(--amber-text);
+}
+
+/* ------------------------------- the form ------------------------------- */
+
+.snap-form form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 26px;
+}
+.snap-form .field {
+  flex: 1 1 260px;
+  margin-bottom: 0;
+}
+.snap-form .context,
+.snap-block .context,
+.snap-cta .context {
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1.55;
+  margin-top: 10px;
+}
+
+/* The wait: findings land one at a time, and each one stays on screen. */
+.snap-stream {
+  margin-top: 26px;
+  border-left: 2px solid var(--line-strong);
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.snap-find {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  animation: snap-in 0.35s ease both;
+}
+@keyframes snap-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .snap-find {
+    animation: none;
+  }
+}
+.snap-find__mark {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--amber);
+  margin-top: 7px;
+  flex: none;
+}
+.snap-find__head {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.45;
+}
+.snap-find__detail {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  margin-top: 3px;
+}
+.snap-status {
+  font-size: 13px;
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+/* -------------------------------- the ad -------------------------------- */
+
+.snap-ad {
+  background: var(--bg-1);
+  border: 1px solid var(--card-stroke);
+  border-radius: var(--radius);
+  box-shadow: var(--elev-1);
+  padding: 30px 26px;
+  margin-bottom: 34px;
+}
+.snap-ad__hook {
+  font-family: var(--disp);
+  font-size: clamp(24px, 5vw, 34px);
+  line-height: 1.2;
+  margin: 12px 0 14px;
+  color: var(--amber-display);
+}
+.snap-ad__angle {
+  color: var(--ink-soft);
+  line-height: 1.65;
+  font-size: 15.5px;
+}
+.snap-ad__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+  margin: 24px 0 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.snap-ad__grid dt {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  margin-bottom: 5px;
+}
+.snap-ad__grid dd {
+  font-size: 14.5px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+.snap-ad__heads {
+  margin-top: 22px;
+}
+.snap-ad__heads ul {
+  list-style: none;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.snap-ad__heads li {
+  font-size: 14.5px;
+  color: var(--ink);
+  padding-left: 14px;
+  position: relative;
+}
+.snap-ad__heads li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line-strong);
+}
+.snap-ad__body {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+/* ------------------------------- the lists ------------------------------- */
+
+.snap-block {
+  margin-bottom: 34px;
+}
+.snap-block h2,
+.snap-cta h2,
+.snap-how h2 {
+  font-size: 19px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+.snap-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.snap-list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.snap-list__term {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.4;
+}
+.snap-list__meta {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  margin-top: 3px;
+  max-width: 52ch;
+}
+.snap-list__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+.snap-list__right a {
+  font-size: 13px;
+  color: var(--amber-text);
+}
+.pill--up {
+  color: var(--mint-text);
+  border-color: var(--mint-soft);
+}
+.pill--down {
+  color: var(--ink-faint);
+}
+
+.snap-chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.snap-chips li {
+  font-size: 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: var(--ink-soft);
+}
+.snap-chips span {
+  color: var(--ink-faint);
+}
+
+/* -------------------------------- the ask -------------------------------- */
+
+.snap-cta {
+  background: var(--bg-2);
+  border-radius: var(--radius);
+  padding: 30px 26px;
+  margin: 44px 0 30px;
+}
+.snap-cta p {
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin-bottom: 18px;
+  max-width: 54ch;
+}
+
+.snap-how ol {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 20px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.snap-how strong {
+  color: var(--ink);
+}
+
+.snap-foot {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.snap-foot a {
+  color: var(--ink-faint);
+  text-decoration: underline;
+}

@@ -19,6 +19,7 @@ import type {
   Learning,
   Opportunity,
   Profile,
+  PublicSnapshot,
   Review,
   ReviewDigest,
   Service,
@@ -62,6 +63,7 @@ export interface DemoStore {
   review_digests: ReviewDigest[];
   alerts: Alert[];
   demo_requests: DemoRequest[];
+  public_snapshots?: PublicSnapshot[];
 }
 
 function emptyStore(): DemoStore {
@@ -90,6 +92,7 @@ function emptyStore(): DemoStore {
     review_digests: [],
     alerts: [],
     demo_requests: [],
+    public_snapshots: [],
   };
 }
 

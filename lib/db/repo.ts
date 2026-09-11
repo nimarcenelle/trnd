@@ -10,6 +10,7 @@ import type {
   ConnectionProvider,
   Creative,
   DemoRequest,
+  PublicSnapshot,
   IntelNote,
   Learning,
   NewAlert,
@@ -22,6 +23,7 @@ import type {
   NewConnection,
   NewCreative,
   NewDemoRequest,
+  NewPublicSnapshot,
   NewIntelNote,
   NewPickRead,
   NewStandingQuestion,
@@ -174,4 +176,10 @@ export interface Repo {
 
   /* marketing */
   insertDemoRequest(input: NewDemoRequest): Promise<DemoRequest>;
+
+  /* public demand snapshots — pre-signup, owned by nobody */
+  insertPublicSnapshot(input: NewPublicSnapshot): Promise<PublicSnapshot>;
+  getPublicSnapshot(token: string): Promise<PublicSnapshot | null>;
+  /** The most recent snapshot for a host, when one is younger than maxAgeMs. */
+  getFreshPublicSnapshotByHost(host: string, maxAgeMs: number): Promise<PublicSnapshot | null>;
 }

@@ -30,7 +30,16 @@ export type FounderEvent =
       website: string | null;
       monthlySpend: string | null;
     }
-  | { kind: "signup"; email: string; businessName: string; category: string; city: string };
+  | { kind: "signup"; email: string; businessName: string; category: string; city: string }
+  | {
+      kind: "snapshot";
+      businessName: string;
+      category: string;
+      city: string | null;
+      website: string;
+      /** The public link they are looking at right now. */
+      link: string;
+    };
 
 /** One plain-text line per event — readable in Slack, a subject line, or a log. */
 export function formatFounderEvent(event: FounderEvent): { subject: string; body: string } {
@@ -49,6 +58,20 @@ export function formatFounderEvent(event: FounderEvent): { subject: string; body
       ]
         .filter(Boolean)
         .join("\n"),
+    };
+  }
+  if (event.kind === "snapshot") {
+    return {
+      subject: `TRND snapshot built — ${event.businessName}`,
+      // Somebody put their website into the box. That is a warmer lead than
+      // a form fill and it happens before any conversation — so it reaches
+      // the founder while they are still reading the page.
+      body: [
+        `Someone ran a demand snapshot`,
+        `Business: ${event.businessName} (${event.category})${event.city ? ` — ${event.city}` : ""}`,
+        `Site: ${event.website}`,
+        `What they are looking at: ${event.link}`,
+      ].join("\n"),
     };
   }
   return {

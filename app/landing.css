@@ -1155,3 +1155,12 @@ hr.rule {
 }
 
 }
+
+/* The hero's second promise: the snapshot is checkable without an account. */
+.hero__snap {
+  margin-top: 14px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+  max-width: 46ch;
+}

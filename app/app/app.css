@@ -1906,6 +1906,25 @@ details.section-disclosure[open] .summary-open-hint {
   gap: 10px;
   transition: color 0.3s ease;
 }
+/* A landed finding is a sentence about their business, not a stage label —
+   so it gets body type and room for the line that explains it. */
+.an-progress__head {
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.an-progress__row.is-done .an-progress__head {
+  font-weight: 600;
+  color: var(--ink);
+}
+.an-progress__detail {
+  font-family: var(--body);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin-top: 3px;
+  max-width: 52ch;
+}
 .an-progress__row.is-done {
   color: var(--ink-soft);
 }

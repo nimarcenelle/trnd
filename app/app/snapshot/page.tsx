@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 
 import AnalysisProgress from "@/components/app/analysis-progress";
+import { onboardingFindings } from "@/lib/onboarding/findings";
 import AutoRefresh from "@/components/app/auto-refresh";
 import SubmitButton from "@/components/app/submit-button";
 import { briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
@@ -100,7 +101,10 @@ export default async function SnapshotPage() {
             and your first moves. Usually under two minutes; this page refreshes itself.
           </p>
           <div className="inline-block text-left">
-            <AnalysisProgress startedAt={business.created_at} />
+            <AnalysisProgress
+              findings={await onboardingFindings(repo, business)}
+              startedAt={business.created_at}
+            />
           </div>
         </div>
       ) : (

@@ -4,6 +4,7 @@ import { after } from "next/server";
 
 import AdPreview from "@/components/app/ad-preview";
 import AnalysisProgress from "@/components/app/analysis-progress";
+import { onboardingFindings } from "@/lib/onboarding/findings";
 import AutoRefresh from "@/components/app/auto-refresh";
 import ScoreBreakdown from "@/components/app/score-breakdown";
 import GradePill from "@/components/app/grade-pill";
@@ -178,7 +179,10 @@ export default async function AppHome({
             </div>
           </div>
           <div className="panel max-w-[620px]">
-            <AnalysisProgress startedAt={business.created_at} />
+            <AnalysisProgress
+              findings={await onboardingFindings(repo, business)}
+              startedAt={business.created_at}
+            />
             <Link className="btn btn-ghost btn-sm mt-[18px]" href="/app/snapshot">
               View the analysis
             </Link>

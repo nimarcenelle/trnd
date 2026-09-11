@@ -24,6 +24,7 @@ import type {
   NewDemoRequest,
   NewIntelNote,
   NewPickRead,
+  NewStandingQuestion,
   NewLearning,
   NewOpportunity,
   NewReview,
@@ -35,6 +36,7 @@ import type {
   Opportunity,
   OpportunityStatus,
   PickRead,
+  StandingQuestion,
   Profile,
   Review,
   ReviewDigest,
@@ -122,6 +124,15 @@ export interface Repo {
   /** The analyst's read on one pick — see PickRead. */
   upsertPickRead(input: NewPickRead): Promise<PickRead>;
   getPickRead(opportunityId: string): Promise<PickRead | null>;
+
+  /** Standing questions — answered every week; see StandingQuestion. */
+  listStandingQuestions(businessId: string, opts?: { activeOnly?: boolean }): Promise<StandingQuestion[]>;
+  createStandingQuestion(input: NewStandingQuestion): Promise<StandingQuestion>;
+  setStandingQuestionActive(id: string, active: boolean): Promise<void>;
+  answerStandingQuestion(
+    id: string,
+    patch: Pick<StandingQuestion, "answer" | "changed" | "answered_week" | "previous_answer" | "model_used">,
+  ): Promise<StandingQuestion>;
 
   /* connections — OAuth links to ad platforms & business profiles */
   upsertConnection(input: NewConnection): Promise<Connection>;

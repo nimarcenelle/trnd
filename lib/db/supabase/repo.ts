@@ -16,6 +16,7 @@ import type {
   Learning,
   Opportunity,
   PickRead,
+  StandingQuestion,
   Review,
   ReviewDigest,
   Profile,
@@ -412,6 +413,27 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .maybeSingle();
       throwIf(error, "getPickRead");
       return (data as PickRead | null) ?? null;
+    },
+    async listStandingQuestions(businessId, opts) {
+      let q = sb.from("standing_questions").select("*").eq("business_id", businessId);
+      if (opts?.activeOnly) q = q.eq("active", true);
+      const { data, error } = await q.order("created_at", { ascending: true });
+      throwIf(error, "listStandingQuestions");
+      return (data ?? []) as StandingQuestion[];
+    },
+    async createStandingQuestion(input) {
+      const { data, error } = await sb.from("standing_questions").insert(input).select().single();
+      throwIf(error, "createStandingQuestion");
+      return data as StandingQuestion;
+    },
+    async setStandingQuestionActive(id, active) {
+      const { error } = await sb.from("standing_questions").update({ active }).eq("id", id);
+      throwIf(error, "setStandingQuestionActive");
+    },
+    async answerStandingQuestion(id, patch) {
+      const { data, error } = await sb.from("standing_questions").update(patch).eq("id", id).select().single();
+      throwIf(error, "answerStandingQuestion");
+      return data as StandingQuestion;
     },
 
     async upsertConnection(input) {

@@ -107,6 +107,9 @@ export const AskAnswerSchema = z.object({
    * one-sentence build directive in the imperative. Null when the question
    * was just a question. */
   direction: z.string().nullable().optional(),
+  /** Standing questions only: one sentence on what moved since the previous
+   * answer. Null when there was no previous answer. */
+  changed: z.string().nullable().optional(),
 });
 export type AskAnswerResult = z.infer<typeof AskAnswerSchema>;
 

@@ -14,9 +14,11 @@ import SourceBadge from "@/components/app/source-badge";
 import TrendChart from "@/components/app/trend-chart";
 import InsightList from "@/components/app/insight-list";
 import PickAsk from "@/components/app/pick-ask";
+import StandingQuestions from "@/components/app/standing-questions";
 import { getSessionUser } from "@/lib/auth/session";
 import BuildCampaignButton from "@/components/app/build-campaign-button";
 import { markAlertsReadAction } from "@/lib/intel/actions";
+import { suggestStandingQuestions } from "@/lib/intel/standing";
 import { passOnPickAction, refreshRankingAction, scanMarketNowAction } from "@/lib/recommend/actions";
 import { getUserRepo } from "@/lib/db";
 import { getAdminRepo } from "@/lib/db/admin";
@@ -486,6 +488,10 @@ export default async function AppHome({
       }
     });
   }
+  // Standing questions: answered Monday by the cron; brand-new ones are
+  // answered on the spot by their action. Nothing here waits on a model.
+  const standing = await repo.listStandingQuestions(business.id, { activeOnly: true });
+  const standingSuggestions = suggestStandingQuestions(business, services, brief, standing);
   const readBlock = (
     <>
       {read && (
@@ -1083,6 +1089,9 @@ export default async function AppHome({
           rebuildable={campaign ? campaignRebuildable(campaign.status) : true}
         />
       </section>
+
+      {/* ---------- THE QUESTIONS THAT NEVER CLOSE ---------- */}
+      <StandingQuestions questions={standing} suggestions={standingSuggestions} modelReady={isGeminiConfigured} />
 
       {/* ---------- TREND CHART (only when we hold a series worth reading:
           a sparse, mostly-zero niche series would headline a fake "0") ---------- */}

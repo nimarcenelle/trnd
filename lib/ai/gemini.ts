@@ -578,6 +578,7 @@ const askResponseSchema: Schema = {
     assumptions: { type: Type.ARRAY, items: { type: Type.STRING } },
     insufficient: { type: Type.BOOLEAN },
     direction: { type: Type.STRING, nullable: true },
+    changed: { type: Type.STRING, nullable: true },
   },
   required: ["answer", "citations", "insufficient"],
 };
@@ -595,6 +596,9 @@ export async function answerAskWithGemini(
   /** Pick-scoped ask: the facts of the one pick the owner is looking at.
    * The answer is about THAT pick, and may end in a build direction. */
   pick: string | null = null,
+  /** Standing questions: the answer given last time, so this one can say
+   * what moved. */
+  previous: { week: string; answer: string[] } | null = null,
 ): Promise<{ value: AskAnswerResult; model: string }> {
   const models = await resolveModels();
   const thread = history
@@ -615,6 +619,13 @@ export async function answerAskWithGemini(
     context,
     ``,
     thread ? `CONVERSATION SO FAR:\n${thread}\n` : ``,
+    ...(previous
+      ? [
+          `THIS IS A STANDING QUESTION the owner has TRND answer every week. YOUR PREVIOUS ANSWER (week of ${previous.week}):`,
+          previous.answer.join(" "),
+          ``,
+        ]
+      : []),
     `NEWEST QUESTION: ${question}`,
     ``,
     `How to answer:`,
@@ -624,6 +635,9 @@ export async function answerAskWithGemini(
           `- direction: when the question asks to run the pick differently — another service from the menu, a different offer or price, a different audience, a different angle ("do this for the deep-tissue instead", "lead with the Tuesday special", "aim at parents") — write ONE imperative sentence a copywriter could build from, naming the real menu item. Pure questions ("why is it graded B") get direction null. Never invent a service that isn't on the menu; if they ask for one, say so in the answer and leave direction null.`,
         ]
       : [`- direction: always null.`]),
+    previous
+      ? `- changed: ONE sentence on what actually moved since the previous answer — a number, a rival, a rank, a result — in plain words. If nothing in the facts moved, say so in that sentence ("Nothing has moved since last week: …"). Lean on the "Remembered:" lines in the context.`
+      : `- changed: always null.`,
     `- Ground every claim about THEIR business in the context — never invent their reviews, competitors, results, prices, or history.`,
     `- Where the context runs out, REASON like an analyst instead of refusing: combine their real numbers with clearly-labeled assumptions (typical capacity, session durations, close rates, spend efficiency for a business like theirs) and show the arithmetic, landing on a range rather than false precision. "What could I make per month" deserves a math sketch from their actual menu prices and a reasonable session volume — never "the data doesn't say".`,
     `- Every assumed number goes in assumptions, phrased so the owner can correct it ("Assumed ~2 sessions a day, 5 days a week — tell me your real capacity and I'll tighten this").`,

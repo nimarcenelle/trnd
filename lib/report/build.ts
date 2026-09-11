@@ -1,6 +1,7 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, BusinessBrief, ReviewDigest, Signal, SignalSource } from "@/lib/db/types";
 import { gradeFor, type Grade } from "@/lib/recommend/grade";
+import { buildBusinessHistory } from "@/lib/recommend/history";
 import { weekOf } from "@/lib/recommend/recommend";
 import { upcomingMoments, type UpcomingMoment } from "@/lib/recommend/seasonal";
 import { buildResultsTakeaway } from "@/lib/recommend/insights";
@@ -133,6 +134,9 @@ export interface IntelReport {
     takeaway: string | null;
   };
   brief: BusinessBrief | null;
+  /** What TRND remembers — rankings, ads, results, passes, rival moves over
+   * the last six weeks — as FACTS lines. See lib/recommend/history. */
+  history: string[];
 }
 
 const day = (iso: string) => iso.slice(0, 10);
@@ -358,8 +362,10 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
   const watched = signals.filter(
     (s) => s.metric_type !== "news_coverage" && s.metric_type !== "ad_saturation",
   );
+  const history = await buildBusinessHistory(repo, business);
 
   return {
+    history: history.lines,
     week,
     weekEnd,
     generatedAt: new Date().toISOString(),

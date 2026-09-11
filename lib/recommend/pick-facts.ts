@@ -5,6 +5,7 @@ import { geoLabel } from "@/lib/signals/geo";
 import { titleCase } from "@/lib/text";
 
 import { explainOpportunity } from "./explain";
+import { buildBusinessHistory } from "./history";
 import { gradeFor } from "./grade";
 import { budgetFor, buildInsights } from "./insights";
 import { upcomingMoments } from "./seasonal";
@@ -45,7 +46,7 @@ export async function buildPickFacts(
 ): Promise<PickFacts | null> {
   const signal = signalIn ?? (await repo.getSignal(opportunity.signal_id));
   if (!signal) return null;
-  const [services, learnings, brief, weekOpps, campaign, categorySignals, explained] = await Promise.all([
+  const [services, learnings, brief, weekOpps, campaign, categorySignals, explained, history] = await Promise.all([
     repo.listServices(business.id),
     repo.listLearnings(business.category),
     repo.getBusinessBrief(business.id),
@@ -53,6 +54,7 @@ export async function buildPickFacts(
     repo.getCampaignByOpportunity(opportunity.id),
     repo.listSignalsForCategory(business.category, { sinceDays: 7 }),
     explainOpportunity(repo, business, opportunity, signal),
+    buildBusinessHistory(repo, business),
   ]);
 
   const active = weekOpps.filter((o) => o.status !== "dismissed");
@@ -131,6 +133,18 @@ export async function buildPickFacts(
       : `No campaign built for this pick yet.`,
   );
   lines.push(`Suggested test: ${budget.daily} a day, ${budget.test}, a 6-day A/B flight.`);
+  // What TRND remembers about this term — the difference between week six
+  // and week one. Absent in week one, and said so.
+  const remembered = history.byTerm.get(signal.normalized_term);
+  lines.push(
+    remembered
+      ? `Where this pick has been: ${remembered}`
+      : history.weeksRanked > 1
+        ? `Where this pick has been: first time in the ranking in the last ${history.weeksRanked} weeks.`
+        : `Where this pick has been: first week on file — no history yet.`,
+  );
+  const rivalMoves = history.lines.filter((l) => l.startsWith("Rival "));
+  if (rivalMoves.length > 0) lines.push(rivalMoves.slice(0, 3).join(" "));
   if (brief) {
     if (brief.positioning) lines.push(`Positioning (from the analysis): ${brief.positioning}`);
     if (brief.customer_segments.length) lines.push(`Who buys: ${brief.customer_segments.slice(0, 3).join(" | ")}`);

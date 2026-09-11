@@ -13,11 +13,7 @@ export interface ChangeLine {
   text: string;
 }
 
-export function previousWeek(week: string): string {
-  const d = new Date(`${week}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - 7);
-  return d.toISOString().slice(0, 10);
-}
+export { previousWeek } from "./week";
 
 export function rankingChanges(
   thisWeek: { opportunity: Opportunity; signal: Signal | null }[],

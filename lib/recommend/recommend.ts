@@ -12,13 +12,9 @@ import { ensureWeekCampaign } from "@/lib/campaigns/auto";
 import { writeTopPickReads } from "./read";
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
-/** Monday (UTC) of the week containing `d` — the opportunity week key. */
-export function weekOf(d = new Date()): string {
-  const day = d.getUTCDay();
-  const diff = (day + 6) % 7; // days since Monday
-  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - diff));
-  return monday.toISOString().slice(0, 10);
-}
+import { weekOf } from "./week";
+
+export { weekOf };
 
 const TOP_N = 5;
 /** Wider pool for the relevance pass — a relevant #15 can outrank a junk #1

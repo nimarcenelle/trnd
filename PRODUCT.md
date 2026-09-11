@@ -83,6 +83,17 @@ facts plus everything Ask-TRND holds. When a question asks to run the pick diffe
 special"), the answer ends in a one-line direction and a button that **rewrites the
 campaign that way** in place, as long as it hasn't launched.
 
+**Questions TRND keeps answering** sits right under the hero: the owner's standing
+questions ("Who is advertising against me this week?", "Is my facial priced right for
+Atlanta?"), re-answered every Monday against that week's facts and memory, each with one
+line on what moved since the last answer. Suggested openers name their own services and
+city; a new question is answered on the spot. Up to five. They ride in the Monday email.
+
+**Memory.** Every pick's facts, the Ask context, and the Monday note carry what TRND
+remembers about this business over the last six weeks — weeks a term was ranked, passes,
+the ad written on it and what it returned, rival ad counts moving — so week six reads
+differently from week one by construction (`lib/recommend/history.ts`).
+
 Below the hero: the demand chart, the runner-up list, a market-pulse panel, the rivals
 panel (read daily, on every plan), the free organic post, and the **seasonal calendar**
 ("Holiday party bookings — start now, 6 weeks lead"). A re-rank button rebuilds the week

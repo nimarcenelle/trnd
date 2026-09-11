@@ -23,6 +23,7 @@ import type {
   NewDemoRequest,
   NewIntelNote,
   NewPickRead,
+  NewStandingQuestion,
   NewLearning,
   NewOpportunity,
   NewReview,
@@ -34,6 +35,7 @@ import type {
   Opportunity,
   OpportunityStatus,
   PickRead,
+  StandingQuestion,
   ReviewDigest,
   Service,
   Signal,
@@ -486,6 +488,45 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (!r) return null;
       if (!visibleBusinessIds().has(r.business_id)) return null;
       return r;
+    },
+    async listStandingQuestions(businessId, opts) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      return (store.standing_questions ?? [])
+        .filter((q) => q.business_id === businessId && (!opts?.activeOnly || q.active))
+        .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    },
+    async createStandingQuestion(input: NewStandingQuestion) {
+      assertOwnsBusiness(input.business_id);
+      store.standing_questions ??= [];
+      const row: StandingQuestion = {
+        ...input,
+        id: randomUUID(),
+        active: true,
+        answer: [],
+        changed: null,
+        answered_week: null,
+        previous_answer: [],
+        model_used: null,
+        created_at: nowIso(),
+      };
+      store.standing_questions.push(row);
+      saveStore();
+      return row;
+    },
+    async setStandingQuestionActive(id, active) {
+      const q = (store.standing_questions ?? []).find((x) => x.id === id);
+      if (!q) throw new OwnershipError(`standing question ${id} not found`);
+      assertOwnsBusiness(q.business_id);
+      q.active = active;
+      saveStore();
+    },
+    async answerStandingQuestion(id, patch) {
+      const q = (store.standing_questions ?? []).find((x) => x.id === id);
+      if (!q) throw new OwnershipError(`standing question ${id} not found`);
+      assertOwnsBusiness(q.business_id);
+      Object.assign(q, patch);
+      saveStore();
+      return q;
     },
     async getIntelNote(businessId, weekOf) {
       if (!visibleBusinessIds().has(businessId)) return null;

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { createReportReadyAlert, evaluateAlerts } from "@/lib/alerts/engine";
 import { getAdminRepo } from "@/lib/db/admin";
+import { answerStandingQuestions } from "@/lib/intel/standing";
 import { renderWeeklyReportEmail, weeklyReportSubject } from "@/lib/email/weekly-report";
 import { sendEmail } from "@/lib/email/send";
 import { env } from "@/lib/env";
@@ -41,6 +42,9 @@ export async function POST(request: NextRequest) {
       await evaluateAlerts(repo, business);
       await createReportReadyAlert(repo, business);
       const alerts = await repo.listAlerts(business.id, { unreadOnly: true, limit: 6 });
+      // The questions that never close: re-answered against this week's
+      // facts and memory before the mail goes out.
+      const standing = (await answerStandingQuestions(repo, business)).filter((q) => q.answer.length > 0);
 
       const owner = await repo.getProfile(business.owner_id);
       let emailed = false;
@@ -48,7 +52,7 @@ export async function POST(request: NextRequest) {
         const res = await sendEmail({
           to: owner.email,
           subject: weeklyReportSubject(business, note),
-          html: renderWeeklyReportEmail({ business, note, report, alerts }),
+          html: renderWeeklyReportEmail({ business, note, report, alerts, standing }),
         });
         emailed = res.ok && !res.skipped;
       }

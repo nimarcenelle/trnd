@@ -83,6 +83,10 @@ export function reportFacts(report: IntelReport): string {
   if (report.brief?.advantages?.length) lines.push(`Edges: ${report.brief.advantages.join(" | ")}`);
   if (report.brief?.first_moves?.length) lines.push(`Standing moves from the analysis: ${report.brief.first_moves.join(" | ")}`);
   if (report.brief?.seasonality) lines.push(`Seasonality read: ${report.brief.seasonality}`);
+  // What TRND remembers: the lines that let week six read differently from
+  // week one ("third week ranked", "you passed on this", "the last ad on it
+  // returned…"). Empty in week one, and the note says nothing about it.
+  for (const h of report.history.slice(0, 12)) lines.push(`Remembered: ${h}`);
   return lines.join("\n");
 }
 

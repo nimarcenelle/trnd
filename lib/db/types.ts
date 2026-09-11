@@ -396,6 +396,29 @@ export interface PickRead {
 }
 export type NewPickRead = Omit<PickRead, "id" | "created_at">;
 
+/**
+ * A question the owner wants answered every week — "who is advertising
+ * against me?", "is my facial priced right for Atlanta?" — re-answered
+ * each Monday against that week's facts and memory, with what moved since
+ * the last answer. The evergreen loop: the question never closes.
+ */
+export interface StandingQuestion {
+  id: string;
+  business_id: string;
+  question: string;
+  active: boolean;
+  /** The latest answer, 1-4 short paragraphs; empty until first answered. */
+  answer: string[];
+  /** One sentence on what moved since the previous answer; null the first time. */
+  changed: string | null;
+  /** The week (Monday) the latest answer was written for. */
+  answered_week: string | null;
+  previous_answer: string[];
+  model_used: string | null;
+  created_at: string;
+}
+export type NewStandingQuestion = Pick<StandingQuestion, "business_id" | "question">;
+
 export type NewSignal = Omit<Signal, "id" | "captured_at"> & { captured_at?: string };
 export type NewSeriesPoint = Omit<SignalSeriesPoint, "id">;
 export type NewOpportunity = Omit<Opportunity, "id" | "created_at" | "status"> & {

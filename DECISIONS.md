@@ -98,3 +98,12 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
 - **One plan, $149.** Rivals, the Monday email (which the cron already sent to everyone),
   and unlimited builds are in it. Pro is not sold; its plan id survives for any
   subscription that already carries it.
+- **Evergreen means memory plus a question that never closes.** The reason a weekly
+  read feels thin is that each week was computed fresh. Now every pick's facts, the Ask
+  context, and the Monday note carry six weeks of what TRND noticed (rankings, passes,
+  ads, results, rival moves), and the owner keeps up to five standing questions that the
+  Monday cron re-answers with what moved. Both are read from tables that already exist
+  plus one small new one; neither depends on a new signal source.
+- **Thin signal is a keys problem, not a code problem.** Trends' unofficial endpoint
+  cannot be the backbone; DataForSEO, YouTube, Places and Gemini keys are the fix, in that
+  order. `GO-LIVE.md` is the founder's list; nothing on it needs a code change.

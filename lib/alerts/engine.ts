@@ -53,7 +53,7 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
         s.delta_pct >= 100
           ? `"${titleCase(s.term)}" doubled or more this week`
           : `"${titleCase(s.term)}" is up ${Math.round(s.delta_pct)}% this week`,
-      body: `Demand you can serve is moving — it's in this week's ranking with a full read.`,
+      body: `It matches what you sell and is in this week's ranking.`,
       href: "/app",
       dedupe_key: `spike:${s.normalized_term}:${week}`,
     });
@@ -87,7 +87,7 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
       title: isNew
         ? `${competitor.name} is running ${v.last} active ad${v.last === 1 ? "" : "s"}`
         : `${competitor.name} scaled up: ${v.prev} → ${v.last} active ads`,
-      body: `Their creative is in your intel report's competitor section.`,
+      body: `Their ads are in the competitor section of your report.`,
       href: "/app/report",
       dedupe_key: `compads:${competitorId}:${v.last}:${v.day}`,
     });
@@ -118,7 +118,7 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
     await add({
       kind: "campaign_performance",
       title: `"${c.hook.slice(0, 60)}" is trailing benchmark`,
-      body: `CTR ${(ctr * 100).toFixed(2)}% vs ~${(benchmark * 100).toFixed(1)}% category typical — swap in the next headline variant before adding spend.`,
+      body: `CTR ${(ctr * 100).toFixed(2)}% vs a ${(benchmark * 100).toFixed(1)}% category average. Try the next headline before adding spend.`,
       href: `/app/campaigns/${c.id}`,
       dedupe_key: `perf:${c.id}:${week}`,
     });
@@ -134,7 +134,7 @@ export async function createReportReadyAlert(repo: Repo, business: Business): Pr
     business_id: business.id,
     kind: "report_ready",
     title: "Your weekly intel report is ready",
-    body: "This week's verdict, ranking, demand tracker, and competitor moves — with sources.",
+    body: "This week's recommendation, ranking, demand, and competitor moves, with sources.",
     href: "/app/report",
     dedupe_key: `report:${week}`,
   });

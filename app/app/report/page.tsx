@@ -211,7 +211,7 @@ export default async function ReportPage() {
                     </span>
                   )}
                   {r.hasCampaign && (
-                    <span className="badge badge--mint"><i />campaign built</span>
+                    <span className="badge badge--mint"><i />Campaign built</span>
                   )}
                 </div>
                 <p style={{ margin: "6px 0 0", fontSize: 13, lineHeight: 1.55, color: "var(--ink-soft)", maxWidth: 700 }}>

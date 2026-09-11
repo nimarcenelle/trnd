@@ -6,7 +6,6 @@ import CopyAllButton from "@/components/app/copy-all-button";
 import CopyBlock from "@/components/app/copy-block";
 import LaunchToMetaButton from "@/components/app/launch-to-meta-button";
 import ResultEntryForm from "@/components/app/result-entry-form";
-import SourceBadge from "@/components/app/source-badge";
 import StatusTimeline from "@/components/app/status-timeline";
 import { getSessionUser } from "@/lib/auth/session";
 import { markLaunchedAction } from "@/lib/campaigns/actions";
@@ -77,11 +76,6 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
       <header className="panel panel--hero" style={{ padding: "30px 32px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div style={{ maxWidth: 620 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-              <span className="badge badge--amber"><i />Campaign</span>
-              {signal && <SourceBadge source={signal.source} term={signal.term} geo={signal.geo} raw={signal.raw} />}
-              <span className="badge"><i />{campaign.channel} · paid social</span>
-            </div>
             <h1 className="h-disp" style={{ fontSize: "clamp(24px,3vw,34px)", margin: "0 0 12px", lineHeight: 1.12 }}>
               {campaign.hook}
             </h1>

@@ -39,17 +39,6 @@ export default function DocumentUpload({ modelReady }: { modelReady: boolean }) 
     }
   }
 
-  const input = {
-    fontFamily: "var(--body)",
-    fontSize: 14,
-    background: "var(--bg-1)",
-    border: "1px solid var(--line-strong)",
-    color: "var(--ink)",
-    padding: "11px 14px",
-    borderRadius: "var(--radius-sm)",
-    outline: "none",
-  } as const;
-
   return (
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", gap: 8 }}>
@@ -66,11 +55,11 @@ export default function DocumentUpload({ modelReady }: { modelReady: boolean }) 
         ))}
       </div>
       {mode === "file" ? (
-        <input name="file" type="file" accept=".pdf,.csv,.txt,.md,.json,.tsv" aria-label="Document to upload" style={{ ...input, padding: "9px 12px" }} required />
+        <input name="file" type="file" accept=".pdf,.csv,.txt,.md,.json,.tsv" aria-label="Document to upload" className="input" style={{ padding: "9px 12px" }} required />
       ) : (
         <>
-          <input name="name" placeholder="Name, e.g. Fall menu" aria-label="Document name" maxLength={120} style={input} />
-          <textarea name="text" placeholder="Paste a menu, price list, brand notes, or a sales summary" aria-label="Pasted text" rows={6} style={{ ...input, resize: "vertical" }} required />
+          <input name="name" placeholder="Name, e.g. Fall menu" aria-label="Document name" maxLength={120} className="input" />
+          <textarea name="text" placeholder="Paste a menu, price list, brand notes, or a sales summary" aria-label="Pasted text" rows={6} className="input" required />
         </>
       )}
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>

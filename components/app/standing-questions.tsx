@@ -78,17 +78,8 @@ export default function StandingQuestions({
               placeholder="A question to answer every week"
               aria-label="New standing question"
               maxLength={240}
-              style={{
-                flex: "1 1 320px",
-                fontFamily: "var(--body)",
-                fontSize: 14,
-                background: "var(--bg-1)",
-                border: "1px solid var(--line-strong)",
-                color: "var(--ink)",
-                padding: "11px 14px",
-                borderRadius: "var(--radius-sm)",
-                outline: "none",
-              }}
+              className="input"
+              style={{ flex: "1 1 320px" }}
             />
             <SubmitButton className="btn btn-ghost btn-sm" pendingLabel={modelReady ? "Answering…" : "Adding…"}>
               Add question

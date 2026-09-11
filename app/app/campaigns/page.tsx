@@ -44,7 +44,6 @@ export default async function CampaignsPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <span className="eyebrow" style={{ margin: 0 }}>Campaigns</span>
           <h1>Campaigns</h1>
           <p className="context">
             Drafts are ready to launch. Live campaigns are waiting on results.

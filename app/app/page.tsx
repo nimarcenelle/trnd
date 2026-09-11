@@ -767,12 +767,9 @@ export default async function AppHome({
                       : "#1 this week"
                     : `#${pickIndex + 1} this week${thin ? " — below the bar" : ""}`}
               </span>
-              {signal && (
-                <SourceBadge source={signal.source} metric={signal.metric_type} term={signal.term} geo={signal.geo} raw={signal.raw} />
-              )}
               {typeof signal?.delta_pct === "number" &&
                 (deltaShort(signal.delta_pct) === "steady" ? (
-                  <span className="delta-chip">steady this week</span>
+                  <span className="delta-chip">Steady this week</span>
                 ) : (
                   <DeltaChip delta={signal.delta_pct} suffix={deltaWindowLabel(signal.source)} />
                 ))}
@@ -896,7 +893,14 @@ export default async function AppHome({
                     footnote={top.competitor_gap ? `Saturation read: ${top.competitor_gap}.` : null}
                   />
                 </div>
-                {scoreCard}
+                <div>
+                  {scoreCard}
+                  {signal && (
+                    <div style={{ marginTop: 10 }}>
+                      <SourceBadge source={signal.source} metric={signal.metric_type} term={signal.term} geo={signal.geo} raw={signal.raw} />
+                    </div>
+                  )}
+                </div>
               </div>
               {howto && (
                 <div className="howto-body">

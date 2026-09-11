@@ -12,6 +12,7 @@ import { adoptDocumentServicesAction, deleteDocumentAction } from "@/lib/documen
 import { MAX_DOCUMENTS } from "@/lib/documents/parse";
 import SubmitButton from "@/components/app/submit-button";
 import { getUserRepo } from "@/lib/db";
+import { sentenceCase } from "@/lib/text";
 import {
   isDataForSeoConfigured,
   isEmailConfigured,
@@ -117,7 +118,6 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
     <div className="page" style={{ maxWidth: 900 }}>
       <div className="page-head">
         <div>
-          <span className="eyebrow" style={{ margin: 0 }}>Settings</span>
           <h1>Settings</h1>
           <p className="context">
             Your category, services, and radius decide what gets recommended.
@@ -191,13 +191,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             name="name"
             placeholder="New service name"
             aria-label="New service name"
-            style={{ flex: "1 1 220px", fontFamily: "var(--body)", fontSize: 14, background: "var(--bg-2)", border: "1px solid var(--line-strong)", color: "var(--ink)", padding: "11px 13px", borderRadius: "var(--radius-sm)" }}
+            className="input" style={{ flex: "1 1 220px" }}
           />
           <input
             name="price"
             placeholder="$ price"
             aria-label="New service price"
-            style={{ width: 110, fontFamily: "var(--body)", fontSize: 14, background: "var(--bg-2)", border: "1px solid var(--line-strong)", color: "var(--ink)", padding: "11px 13px", borderRadius: "var(--radius-sm)" }}
+            className="input" style={{ width: 110 }}
           />
           <button type="submit" className="btn btn-primary btn-sm">
             Add service
@@ -222,7 +222,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                 <div key={d.id} style={{ padding: "12px 14px", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", background: "var(--bg-1)" }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
                     <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5, flex: "1 1 200px" }}>{d.name}</span>
-                    <span className="badge"><i />{d.digest.kind}</span>
+                    <span className="badge"><i />{sentenceCase(d.digest.kind)}</span>
                     <span className="mono-label">{d.digest.facts.length} fact{d.digest.facts.length === 1 ? "" : "s"}</span>
                     <form action={deleteDocumentAction}>
                       <input type="hidden" name="id" value={d.id} />
@@ -286,7 +286,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
               ? plan.locked
                 ? "trial ended"
                 : `trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left`
-              : plan.status.replace(/_/g, " ")}
+              : sentenceCase(plan.status.replace(/_/g, " "))}
           </span>
           <p style={{ fontSize: 13.5, color: "var(--ink-soft)", margin: 0, lineHeight: 1.55 }}>
             {plan.plan === "trial"
@@ -357,7 +357,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
               <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5, flex: "1 1 200px" }}>
                 {c.name}
               </span>
-              <span className="mono-label">{c.place_id ? "listing resolved" : c.website ?? "watching ads"}</span>
+              <span className="mono-label">{c.place_id ? "Listing found" : c.website ?? "Watching ads"}</span>
               <form action={deleteCompetitorAction}>
                 <input type="hidden" name="competitor_id" value={c.id} />
                 <button type="submit" className="btn btn-ghost btn-sm" style={{ padding: "5px 12px", fontSize: 11.5, color: "var(--red)" }}>
@@ -385,13 +385,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             name="name"
             placeholder="Competitor name"
             aria-label="Competitor name"
-            style={{ flex: "1 1 240px", fontFamily: "var(--body)", fontSize: 14, background: "var(--bg-2)", border: "1px solid var(--line-strong)", color: "var(--ink)", padding: "11px 13px", borderRadius: "var(--radius-sm)" }}
+            className="input" style={{ flex: "1 1 240px" }}
           />
           <input
             name="website"
             placeholder="Website (optional)"
             aria-label="Competitor website"
-            style={{ width: 200, fontFamily: "var(--body)", fontSize: 14, background: "var(--bg-2)", border: "1px solid var(--line-strong)", color: "var(--ink)", padding: "11px 13px", borderRadius: "var(--radius-sm)" }}
+            className="input" style={{ width: 200 }}
           />
           <button type="submit" className="btn btn-primary btn-sm">
             Watch competitor

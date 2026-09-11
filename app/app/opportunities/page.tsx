@@ -14,7 +14,7 @@ import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildInsights } from "@/lib/recommend/insights";
 import { weekOf } from "@/lib/recommend/recommend";
 import { deltaWindowLabel, metricLabel, scaleNote } from "@/lib/signals/source-url";
-import { titleCase } from "@/lib/text";
+import { sentenceCase, titleCase } from "@/lib/text";
 
 export const metadata = { title: "Opportunities — TRND" };
 
@@ -108,7 +108,7 @@ export default async function OpportunitiesPage() {
                   {o.status !== "new" && (
                     <span className={`badge${o.status === "launched" || o.status === "accepted" ? " badge--mint" : " badge--faint"}`}>
                       <i />
-                      {o.status}
+                      {sentenceCase(o.status)}
                     </span>
                   )}
                 </div>

@@ -107,17 +107,8 @@ export default function PickAsk({
           placeholder={turns.length > 0 ? "Ask a follow-up" : "Ask about this pick"}
           aria-label="Your question about this pick"
           maxLength={400}
-          style={{
-            flex: "1 1 320px",
-            fontFamily: "var(--body)",
-            fontSize: 14,
-            background: "var(--bg-1)",
-            border: "1px solid var(--line-strong)",
-            color: "var(--ink)",
-            padding: "11px 14px",
-            borderRadius: "var(--radius-sm)",
-            outline: "none",
-          }}
+          className="input"
+          style={{ flex: "1 1 320px" }}
         />
         <button type="submit" className="btn btn-ghost btn-sm" disabled={pending} aria-busy={pending}>
           {pending ? "Thinking…" : turns.length > 0 ? "Follow up" : "Ask"}

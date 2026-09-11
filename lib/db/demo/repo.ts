@@ -385,6 +385,8 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (existing) {
         existing.lift = input.lift;
         existing.sample_size = input.sample_size;
+        // A measured result replaces a sample prior, source included.
+        existing.source = input.source;
         existing.updated_at = nowIso();
         saveStore();
         return existing;

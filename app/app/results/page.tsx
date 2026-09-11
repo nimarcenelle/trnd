@@ -55,7 +55,6 @@ export default async function ResultsPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <span className="eyebrow eyebrow--mint" style={{ margin: 0 }}>Results</span>
           <h1>Results</h1>
           <p className="context">
             Enter what your ad account reports. Each entry sharpens next week&apos;s recommendation.

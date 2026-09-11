@@ -419,6 +419,38 @@ export interface StandingQuestion {
 }
 export type NewStandingQuestion = Pick<StandingQuestion, "business_id" | "question">;
 
+export type DocumentKind = "menu" | "sales" | "reviews" | "brand" | "results" | "other";
+
+/** What TRND took from one uploaded document — the facts an analyst may
+ * cite, and the menu items it found, if any. */
+export interface DocumentDigest {
+  kind: DocumentKind;
+  summary: string;
+  facts: string[];
+  services_found: { name: string; price_cents: number | null }[];
+  watchouts: string[];
+}
+
+/**
+ * The owner's own knowledge, next to the market's: a menu PDF, a sales
+ * export, a brand guide, last quarter's ad results. The raw file is never
+ * kept — its text is extracted on upload (by the model for PDFs) and
+ * digested into facts that ride on every read, answer and note.
+ */
+export interface BusinessDocument {
+  id: string;
+  business_id: string;
+  name: string;
+  mime: string;
+  bytes: number;
+  /** Extracted text, capped; empty when nothing could be read. */
+  text: string;
+  digest: DocumentDigest;
+  model_used: string;
+  created_at: string;
+}
+export type NewBusinessDocument = Omit<BusinessDocument, "id" | "created_at">;
+
 export type NewSignal = Omit<Signal, "id" | "captured_at"> & { captured_at?: string };
 export type NewSeriesPoint = Omit<SignalSeriesPoint, "id">;
 export type NewOpportunity = Omit<Opportunity, "id" | "created_at" | "status"> & {

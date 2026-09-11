@@ -107,3 +107,9 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
 - **Thin signal is a keys problem, not a code problem.** Trends' unofficial endpoint
   cannot be the backbone; DataForSEO, YouTube, Places and Gemini keys are the fix, in that
   order. `GO-LIVE.md` is the founder's list; nothing on it needs a code change.
+- **Uploads keep the facts, never the file.** No storage bucket, no retention question:
+  a document is read once on upload (text and CSV deterministically; PDFs by the model as
+  bytes), digested into ≤12 citable facts plus any priced items, and the raw bytes are
+  dropped. The digest rides on the report, the pick facts, Ask and the Monday note. Not on
+  the campaign prompts yet — the claims guard would strip numbers it can't trace to the
+  menu, and document facts need their own allow-list first.

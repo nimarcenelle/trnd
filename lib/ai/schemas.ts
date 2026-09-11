@@ -133,3 +133,14 @@ export const SiteExtractSchema = z.object({
   price_band: z.string().nullable(),
 });
 export type SiteExtract = z.infer<typeof SiteExtractSchema>;
+
+export const DocumentDigestSchema = z.object({
+  kind: z.enum(["menu", "sales", "reviews", "brand", "results", "other"]),
+  summary: z.string().min(20),
+  facts: z.array(z.string().min(8)).max(12),
+  services_found: z
+    .array(z.object({ name: z.string().min(2), price_cents: z.number().int().nullable() }))
+    .max(40),
+  watchouts: z.array(z.string().min(8)).max(4),
+});
+export type DocumentDigestResult = z.infer<typeof DocumentDigestSchema>;

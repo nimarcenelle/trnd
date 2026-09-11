@@ -17,6 +17,7 @@ import type {
   Opportunity,
   PickRead,
   StandingQuestion,
+  BusinessDocument,
   Review,
   ReviewDigest,
   Profile,
@@ -413,6 +414,24 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .maybeSingle();
       throwIf(error, "getPickRead");
       return (data as PickRead | null) ?? null;
+    },
+    async listDocuments(businessId) {
+      const { data, error } = await sb
+        .from("business_documents")
+        .select("*")
+        .eq("business_id", businessId)
+        .order("created_at", { ascending: false });
+      throwIf(error, "listDocuments");
+      return (data ?? []) as BusinessDocument[];
+    },
+    async createDocument(input) {
+      const { data, error } = await sb.from("business_documents").insert(input).select().single();
+      throwIf(error, "createDocument");
+      return data as BusinessDocument;
+    },
+    async deleteDocument(id) {
+      const { error } = await sb.from("business_documents").delete().eq("id", id);
+      throwIf(error, "deleteDocument");
     },
     async listStandingQuestions(businessId, opts) {
       let q = sb.from("standing_questions").select("*").eq("business_id", businessId);

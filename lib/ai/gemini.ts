@@ -6,7 +6,7 @@
  * caller falls back to the deterministic generator.
  */
 
-import { GoogleGenAI, Type, type Schema } from "@google/genai";
+import { GoogleGenAI, Type, type Part, type Schema } from "@google/genai";
 
 import { env } from "@/lib/env";
 
@@ -42,6 +42,8 @@ import {
   type IntelNoteResult,
   PickReadSchema,
   type PickReadResult,
+  DocumentDigestSchema,
+  type DocumentDigestResult,
   RelevanceSchema,
   ReviewDigestSchema,
   type ReviewDigestResult,
@@ -184,6 +186,36 @@ async function structuredCall<T>(
         responseMimeType: "application/json",
         responseSchema,
         temperature: attempt === 0 ? 0.8 : 0.4,
+      },
+    });
+    try {
+      return validate(JSON.parse(res.text ?? ""));
+    } catch (err) {
+      lastError = err;
+      console.warn(`[ai] schema violation from ${model} (attempt ${attempt + 1}):`, (err as Error).message);
+    }
+  }
+  throw lastError;
+}
+
+/** The same structured call over parts — a PDF's bytes plus the prompt —
+ * for reads where the input isn't text yet. */
+async function structuredCallParts<T>(
+  model: string,
+  parts: Part[],
+  responseSchema: Schema,
+  validate: (data: unknown) => T,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await getClient().models.generateContent({
+      model,
+      contents: [{ role: "user", parts }],
+      config: {
+        systemInstruction: systemInstruction(),
+        responseMimeType: "application/json",
+        responseSchema,
+        temperature: attempt === 0 ? 0.4 : 0.2,
       },
     });
     try {
@@ -696,6 +728,60 @@ export async function generatePickReadWithGemini(
   ].join("\n");
   const value = await structuredCall(models.flash, prompt, pickReadResponseSchema, (d) =>
     PickReadSchema.parse(d),
+  );
+  return { value, model: models.flash };
+}
+
+const documentDigestResponseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    kind: { type: Type.STRING, enum: ["menu", "sales", "reviews", "brand", "results", "other"] },
+    summary: { type: Type.STRING },
+    facts: { type: Type.ARRAY, items: { type: Type.STRING } },
+    services_found: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: { name: { type: Type.STRING }, price_cents: { type: Type.INTEGER, nullable: true } },
+        required: ["name", "price_cents"],
+      },
+    },
+    watchouts: { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ["kind", "summary", "facts", "services_found", "watchouts"],
+};
+
+/**
+ * One uploaded document → the facts an analyst may cite from it. Text goes
+ * as text; a PDF goes as bytes and the model reads it. Flash: extraction,
+ * not creative work. Facts must be things the document actually says.
+ */
+export async function digestDocumentWithGemini(
+  business: Business,
+  doc: { name: string; mime: string; text: string | null; bytes: Uint8Array | null },
+): Promise<{ value: DocumentDigestResult; model: string }> {
+  const models = await resolveModels();
+  const prompt = [
+    `An owner of one local business uploaded a document so TRND can reason from what they know. Read it and return what an analyst could cite from it.`,
+    `BUSINESS: ${business.name} — ${business.category} in ${business.city}${business.region ? `, ${business.region}` : ""}.`,
+    `DOCUMENT: "${doc.name}" (${doc.mime}).`,
+    ``,
+    `Return JSON:`,
+    `- kind: what this is — menu (services/products with prices), sales (a sales or POS export), reviews (customer reviews), brand (brand guide, voice, story), results (past ad or campaign results), other.`,
+    `- summary: two sentences on what the document holds and what it's good for.`,
+    `- facts: up to 12 short, specific, citable facts — real names, prices, counts, dates, quotes. For a sales export, the top sellers and totals. For reviews, the phrases customers actually use. For a brand guide, the rules and the story. Never a fact the document doesn't state.`,
+    `- services_found: every service or product with its price in cents (null when unpriced) when the document lists any; empty otherwise.`,
+    `- watchouts: up to 4 things the copy should avoid or that look off (a claim to check, a price that conflicts, personal data that shouldn't be used).`,
+    ``,
+    doc.text !== null ? `THE DOCUMENT'S TEXT:\n${doc.text.slice(0, 60_000)}` : `The document is attached.`,
+  ].join("\n");
+  const parts: Part[] = [];
+  if (doc.bytes && doc.text === null) {
+    parts.push({ inlineData: { mimeType: doc.mime, data: Buffer.from(doc.bytes).toString("base64") } });
+  }
+  parts.push({ text: prompt });
+  const value = await structuredCallParts(models.flash, parts, documentDigestResponseSchema, (d) =>
+    DocumentDigestSchema.parse(d),
   );
   return { value, model: models.flash };
 }

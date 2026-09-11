@@ -25,6 +25,8 @@ import type {
   NewIntelNote,
   NewPickRead,
   NewStandingQuestion,
+  NewBusinessDocument,
+  BusinessDocument,
   NewLearning,
   NewOpportunity,
   NewReview,
@@ -124,6 +126,11 @@ export interface Repo {
   /** The analyst's read on one pick — see PickRead. */
   upsertPickRead(input: NewPickRead): Promise<PickRead>;
   getPickRead(opportunityId: string): Promise<PickRead | null>;
+
+  /** The owner's uploaded knowledge — see BusinessDocument. */
+  listDocuments(businessId: string): Promise<BusinessDocument[]>;
+  createDocument(input: NewBusinessDocument): Promise<BusinessDocument>;
+  deleteDocument(id: string): Promise<void>;
 
   /** Standing questions — answered every week; see StandingQuestion. */
   listStandingQuestions(businessId: string, opts?: { activeOnly?: boolean }): Promise<StandingQuestion[]>;

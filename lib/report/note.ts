@@ -87,6 +87,9 @@ export function reportFacts(report: IntelReport): string {
   // week one ("third week ranked", "you passed on this", "the last ad on it
   // returned…"). Empty in week one, and the note says nothing about it.
   for (const h of report.history.slice(0, 12)) lines.push(`Remembered: ${h}`);
+  // What the owner told us — their menu, their sales, their brand — the
+  // facts only they had. Cited as theirs.
+  for (const d of report.documents) lines.push(d);
   return lines.join("\n");
 }
 

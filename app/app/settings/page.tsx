@@ -3,10 +3,13 @@ import { redirect } from "next/navigation";
 
 import AccountPanel from "@/components/app/account-panel";
 import BusinessSettingsForm from "@/components/app/business-settings-form";
+import DocumentUpload from "@/components/app/document-upload";
 import { getSessionUser } from "@/lib/auth/session";
 import { getPlanState, PLAN_LABELS, PLAN_PRICES } from "@/lib/billing";
 import { openBillingPortalAction, startCheckoutAction } from "@/lib/billing/actions";
 import { seedCompetitorsAction } from "@/lib/intel/actions";
+import { adoptDocumentServicesAction, deleteDocumentAction } from "@/lib/documents/actions";
+import { MAX_DOCUMENTS } from "@/lib/documents/parse";
 import SubmitButton from "@/components/app/submit-button";
 import { getUserRepo } from "@/lib/db";
 import {
@@ -49,13 +52,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   const justConnected = typeof params.connected === "string" ? params.connected : null;
   const billingFlag = String(params.billing ?? "");
   const billingNotice = BILLING_NOTICES[billingFlag] ?? null;
-  const [services, competitors, metaConnection, gbpConnection, plan] = await Promise.all([
+  const [services, competitors, metaConnection, gbpConnection, plan, documents] = await Promise.all([
     repo.listServices(business.id),
     repo.listCompetitors(business.id),
     repo.getConnection(business.id, "meta"),
     repo.getConnection(business.id, "google_business"),
     getPlanState(repo, business),
+    repo.listDocuments(business.id),
   ]);
+  const serviceNames = new Set(services.map((s) => s.name.trim().toLowerCase()));
+  const newItemsIn = (d: (typeof documents)[number]) =>
+    d.digest.services_found.filter((x) => !serviceNames.has(x.name.trim().toLowerCase())).length;
 
   const metaConnected = metaConnection?.status === "connected";
   const integrations = [
@@ -236,6 +243,56 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             Add service
           </button>
         </form>
+      </section>
+
+      <section className="panel" id="documents" style={{ marginBottom: 20 }}>
+        <div className="panel__head">
+          <span className="panel__title">What TRND knows about you</span>
+          <span className="panel__meta">{documents.length} of {MAX_DOCUMENTS} documents</span>
+        </div>
+        <p style={{ fontSize: 13, color: "var(--ink-faint)", margin: "0 0 16px", maxWidth: 640, lineHeight: 1.55 }}>
+          Your menu, a sales export, your brand notes, last quarter&apos;s ad results — anything you know
+          that the market doesn&apos;t. TRND reads it once, keeps the facts (never the file), and cites
+          them in every read, answer and Monday note from then on.
+        </p>
+        {documents.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+            {documents.map((d) => {
+              const adoptable = newItemsIn(d);
+              return (
+                <div key={d.id} style={{ padding: "12px 14px", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", background: "var(--bg-1)" }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5, flex: "1 1 200px" }}>{d.name}</span>
+                    <span className="badge"><i />{d.digest.kind}</span>
+                    <span className="mono-label">{d.digest.facts.length} fact{d.digest.facts.length === 1 ? "" : "s"}</span>
+                    <form action={deleteDocumentAction}>
+                      <input type="hidden" name="id" value={d.id} />
+                      <button type="submit" className="btn btn-ghost btn-sm">Remove</button>
+                    </form>
+                  </div>
+                  <p style={{ margin: "8px 0 0", fontSize: 13, lineHeight: 1.55, color: "var(--ink-soft)" }}>{d.digest.summary}</p>
+                  {d.digest.facts.length > 0 && (
+                    <details style={{ marginTop: 8 }}>
+                      <summary className="mono-label" style={{ cursor: "pointer", color: "var(--ink-faint)" }}>What TRND took from it</summary>
+                      {d.digest.facts.map((f) => (
+                        <p key={f.slice(0, 40)} style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-soft)" }}>· {f}</p>
+                      ))}
+                    </details>
+                  )}
+                  {adoptable > 0 && (
+                    <form action={adoptDocumentServicesAction} style={{ marginTop: 10 }}>
+                      <input type="hidden" name="id" value={d.id} />
+                      <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Adding…">
+                        Add {adoptable} priced item{adoptable === 1 ? "" : "s"} to my services
+                      </SubmitButton>
+                    </form>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {documents.length < MAX_DOCUMENTS && <DocumentUpload modelReady={isGeminiConfigured} />}
       </section>
 
       <section className="panel" id="billing" style={{ marginBottom: 20 }}>

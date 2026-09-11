@@ -1,5 +1,6 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, Opportunity, Signal } from "@/lib/db/types";
+import { documentFacts } from "@/lib/documents/digest";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { geoLabel } from "@/lib/signals/geo";
 import { titleCase } from "@/lib/text";
@@ -56,6 +57,7 @@ export async function buildPickFacts(
     explainOpportunity(repo, business, opportunity, signal),
     buildBusinessHistory(repo, business),
   ]);
+  const documents = await repo.listDocuments(business.id);
 
   const active = weekOpps.filter((o) => o.status !== "dismissed");
   const rank = Math.max(1, active.findIndex((o) => o.id === opportunity.id) + 1);
@@ -145,6 +147,8 @@ export async function buildPickFacts(
   );
   const rivalMoves = history.lines.filter((l) => l.startsWith("Rival "));
   if (rivalMoves.length > 0) lines.push(rivalMoves.slice(0, 3).join(" "));
+  // What the owner uploaded — their own numbers, cited as theirs.
+  for (const d of documentFacts(documents, 10)) lines.push(d);
   if (brief) {
     if (brief.positioning) lines.push(`Positioning (from the analysis): ${brief.positioning}`);
     if (brief.customer_segments.length) lines.push(`Who buys: ${brief.customer_segments.slice(0, 3).join(" | ")}`);

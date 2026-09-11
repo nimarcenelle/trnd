@@ -24,6 +24,8 @@ import type {
   NewIntelNote,
   NewPickRead,
   NewStandingQuestion,
+  NewBusinessDocument,
+  BusinessDocument,
   NewLearning,
   NewOpportunity,
   NewReview,
@@ -488,6 +490,27 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (!r) return null;
       if (!visibleBusinessIds().has(r.business_id)) return null;
       return r;
+    },
+    async listDocuments(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      return (store.business_documents ?? [])
+        .filter((d) => d.business_id === businessId)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    },
+    async createDocument(input: NewBusinessDocument) {
+      assertOwnsBusiness(input.business_id);
+      store.business_documents ??= [];
+      const row: BusinessDocument = { ...input, id: randomUUID(), created_at: nowIso() };
+      store.business_documents.push(row);
+      saveStore();
+      return row;
+    },
+    async deleteDocument(id) {
+      const d = (store.business_documents ?? []).find((x) => x.id === id);
+      if (!d) throw new OwnershipError(`document ${id} not found`);
+      assertOwnsBusiness(d.business_id);
+      store.business_documents = (store.business_documents ?? []).filter((x) => x.id !== id);
+      saveStore();
     },
     async listStandingQuestions(businessId, opts) {
       if (!visibleBusinessIds().has(businessId)) return [];

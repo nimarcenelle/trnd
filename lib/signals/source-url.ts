@@ -23,7 +23,7 @@ const SOURCE_NAMES: Record<SignalSource, string> = {
   weather: "the forecast",
   dataforseo: "Google",
   snapshot: "your snapshot",
-  seed: "illustrative data",
+  seed: "sample data",
 };
 
 /**

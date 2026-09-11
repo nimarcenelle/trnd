@@ -12,7 +12,7 @@ const LABELS: Record<SignalSource, string> = {
   weather: "Weather forecast",
   dataforseo: "Search volume",
   snapshot: "Your snapshot",
-  seed: "Illustrative",
+  seed: "Sample data",
 };
 
 /**
@@ -39,7 +39,7 @@ export default function SourceBadge({
   const link = href ?? (term ? sourceUrl({ source, term, geo, raw }) : null);
   const title =
     source === "seed"
-      ? "Seeded example data — becomes live signal once ingestion runs with network access"
+      ? "Sample data for a workspace without live market reads yet"
       : source === "snapshot"
         ? "A demand term from your founding analysis, watched daily"
         : link

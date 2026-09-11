@@ -19,7 +19,6 @@ import {
   isMetaAdsConfigured,
   isPlacesConfigured,
   isStripeConfigured,
-  isSupabaseConfigured,
 } from "@/lib/env";
 import { addCompetitorAction, deleteCompetitorAction, disconnectMetaAction } from "@/lib/intel/actions";
 import {
@@ -34,7 +33,7 @@ const BILLING_NOTICES: Record<string, { text: string; tone: "mint" | "faint" }> 
   success: { text: "You're in — the plan is active. Thanks for building with TRND.", tone: "mint" },
   canceled: { text: "Checkout canceled — nothing was charged.", tone: "faint" },
   unconfigured: {
-    text: "Billing isn't connected yet — add the STRIPE_* keys in .env.local and this panel goes live.",
+    text: "Billing isn't set up for this workspace yet. Nothing is locked.",
     tone: "faint",
   },
   nocustomer: { text: "No billing profile yet — pick a plan first.", tone: "faint" },
@@ -72,82 +71,44 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         ? `${metaConnection?.account_name ?? metaConnection?.account_id ?? "Connected"}`
         : isMetaAdsConfigured
           ? "Ready to connect"
-          : "Not connected yet",
+          : "Not available yet",
       ok: metaConnected,
       note: metaConnected
-        ? "Launched campaigns sync results back automatically, daily."
+        ? "Launched campaigns sync their results back every day."
         : isMetaAdsConfigured
-          ? "Connect to launch campaigns (paused) and auto-sync results."
-          : "Ad-account sync isn't switched on for this workspace yet — results are entered by hand until then.",
+          ? "Connect to launch campaigns from TRND and sync results automatically."
+          : "Results are entered by hand until ad-account sync is available for your workspace.",
       action: metaConnected ? ("disconnect-meta" as const) : isMetaAdsConfigured ? ("connect-meta" as const) : null,
     },
     {
-      name: "Reviews & ratings",
+      name: "Google reviews",
       detail: gbpConnection
-        ? `Google · ${gbpConnection.account_name ?? "resolved"}`
+        ? `${gbpConnection.account_name ?? "Listing found"}`
         : isPlacesConfigured
-          ? "Resolving your listing…"
-          : "Not connected yet",
+          ? "Finding your listing"
+          : "Not available yet",
       ok: Boolean(gbpConnection),
       note: isPlacesConfigured
         ? "Your reviews and competitors' ratings are read daily."
-        : "Review reading isn't switched on for this workspace yet — it unlocks your customers' own words and competitor ratings.",
-      action: null,
-    },
-    {
-      name: "Search-volume backbone",
-      detail: isDataForSeoConfigured ? "DataForSEO — active" : "Not connected yet",
-      ok: isDataForSeoConfigured,
-      note: isDataForSeoConfigured
-        ? "Real monthly volumes for every watch term, read daily."
-        : "The monthly search-volume feed isn't switched on yet — your watch terms are read from Google Trends, local news, and Meta ads until it is.",
+        : "Review reading isn't available for your workspace yet.",
       action: null,
     },
     {
       name: "Weekly email",
-      detail: isEmailConfigured ? "Resend — active" : "Not sending yet",
+      detail: isEmailConfigured ? "Sending every Monday" : "Not sending yet",
       ok: isEmailConfigured,
-      note: isEmailConfigured
-        ? "The Monday intel report lands in your inbox."
-        : "The report still generates in-app every week.",
+      note: isEmailConfigured ? "The Monday report lands in your inbox." : "The report is always available here every week.",
       action: null,
     },
     {
-      name: "Campaign generation",
-      detail: isGeminiConfigured ? "Gemini — connected" : "Template generator",
-      ok: isGeminiConfigured,
-      note: isGeminiConfigured
-        ? "Structured output, validated before it reaches you."
-        : "Model-written campaigns aren't switched on for this workspace yet.",
-      action: null,
-    },
-    {
-      name: "Signal sources",
+      name: "Market reads",
       detail: isDataForSeoConfigured
-        ? "Search volume (metro) · Trends · Weather · Autocomplete · Reddit · News · TikTok · YouTube"
-        : "Google Trends (national) · Weather · Autocomplete · Reddit · News · TikTok · YouTube",
+        ? "Search volume by metro, Google Trends, weather, autocomplete, news, Meta ads, TikTok, YouTube"
+        : "Google Trends, weather, autocomplete, news, Meta ads, TikTok, YouTube",
       ok: true,
       note: isDataForSeoConfigured
-        ? "Refreshed daily; search volume measured in your metro."
-        : "Refreshed daily. Search reads are national until the metro volume feed is switched on.",
-      action: null,
-    },
-    {
-      name: "Payments",
-      detail: isStripeConfigured ? "Stripe — connected" : "Stripe — not connected",
-      ok: isStripeConfigured,
-      note: isStripeConfigured
-        ? "Checkout, upgrades, and the billing portal are live."
-        : "Add STRIPE_* keys to .env.local to start charging.",
-      action: null,
-    },
-    {
-      name: "Database & auth",
-      detail: isSupabaseConfigured ? "Supabase — connected" : "Local demo store",
-      ok: isSupabaseConfigured,
-      note: isSupabaseConfigured
-        ? "Rows protected per-business by RLS."
-        : "Add Supabase keys to .env.local to go multi-device.",
+        ? "Refreshed daily. Search volume is measured in your metro."
+        : "Refreshed daily. Search reads are national until metro volume is available for your workspace.",
       action: null,
     },
   ];
@@ -358,10 +319,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           </div>
         ) : (
           <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0, lineHeight: 1.6 }}>
-            Payments aren&apos;t connected in this install. Add <code style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>STRIPE_SECRET_KEY</code>,{" "}
-            <code style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>STRIPE_WEBHOOK_SECRET</code>, and{" "}
-            <code style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>STRIPE_PRICE_BASELINE</code> to .env.local and
-            this panel starts selling — checkout and the customer portal included.
+            Payments aren&apos;t set up for this workspace yet. Your trial continues and nothing is locked.
           </p>
         )}
       </section>
@@ -446,7 +404,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       <section className="panel">
         <div className="panel__head">
           <span className="panel__title">Data &amp; integrations</span>
-          <span className="panel__meta">what powers your recommendations</span>
+          <span className="panel__meta">What powers your recommendations</span>
         </div>
         {connectError && (
           <p style={{ margin: "0 0 14px", fontFamily: "var(--mono)", fontSize: 12, color: "var(--red)" }}>
@@ -455,7 +413,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         )}
         {justConnected && (
           <p style={{ margin: "0 0 14px", fontFamily: "var(--mono)", fontSize: 12, color: "var(--mint-text)" }}>
-            Connected — results will sync from your next launched campaign.
+            Connected. Results will sync from your next launched campaign.
           </p>
         )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>

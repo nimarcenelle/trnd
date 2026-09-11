@@ -27,7 +27,7 @@ export default async function ResultsPage() {
   const liveOnes = campaigns.filter((c) => c.status === "live");
   const results = await repo.listResultsForBusiness(business.id);
   const campaignById = new Map(campaigns.map((c) => [c.id, c]));
-  const learnings = await repo.listLearnings(business.category);
+  const learnings = (await repo.listLearnings(business.category)).filter((l) => l.source === "measured");
 
   // Roll-ups for the KPI row.
   const sum = (f: (r: (typeof results)[number]) => number | null) =>
@@ -204,7 +204,7 @@ export default async function ResultsPage() {
             ))}
           </div>
           <p style={{ fontSize: 11, color: "var(--ink-faint)", margin: "14px 0 0" }}>
-            *Category-typical CTR is an illustrative planning benchmark, not a guarantee.
+            *Category average is a planning estimate, not a guarantee.
           </p>
         </section>
       )}
@@ -273,25 +273,15 @@ export default async function ResultsPage() {
         <section className="panel">
           <div className="panel__head">
             <span className="panel__title">What TRND has learned for {titleCase(business.category)}</span>
-            <span className="panel__meta">feeds the track-record component of every score</span>
+            <span className="panel__meta">Feeds the track record in every score</span>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {learnings.map((l) => (
-              <span
-                key={l.id}
-                className="pill"
-                style={l.source === "seed" ? { borderStyle: "dashed", color: "var(--ink-faint)" } : undefined}
-                title={l.source === "seed" ? "Example data — replaced by your first real result" : `${l.sample_size} recorded results`}
-              >
-                {l.angle_type.replace(/_/g, " ")} · lift {Number(l.lift).toFixed(2)} ·{" "}
-                {l.source === "seed" ? "illustrative" : `n=${l.sample_size}`}
+              <span key={l.id} className="pill" title={`${l.sample_size} recorded results`}>
+                {l.angle_type.replace(/_/g, " ")} · lift {Number(l.lift).toFixed(2)} · {l.sample_size} result{l.sample_size === 1 ? "" : "s"}
               </span>
             ))}
           </div>
-          <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "14px 0 0", lineHeight: 1.5 }}>
-            Dashed chips are seeded priors — illustrative, never counted as real history. Your
-            first recorded result replaces them, and from then on this reflects your market only.
-          </p>
         </section>
       )}
     </div>

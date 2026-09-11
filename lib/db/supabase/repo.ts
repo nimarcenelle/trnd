@@ -118,9 +118,11 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       return written;
     },
     async listSignalsForCategory(category, opts) {
+      // Sample rows (source "seed") exist for local development only; a
+      // production workspace never ranks, charts, or cites them.
       const sinceDays = opts?.sinceDays ?? 14;
       const cutoff = new Date(Date.now() - sinceDays * 86400_000).toISOString();
-      let q = sb.from("signals").select("*").eq("category", category).gte("captured_at", cutoff);
+      let q = sb.from("signals").select("*").eq("category", category).gte("captured_at", cutoff).neq("source", "seed");
       // National rows, the business's state, and any metro inside it
       // ("US-GA-524" for a "US-GA" query) rank together.
       if (opts?.geo) q = q.or(`geo.eq.US,geo.eq.${opts.geo},geo.like.${opts.geo}-%`);

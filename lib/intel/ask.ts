@@ -19,7 +19,7 @@ export interface AskAnswer {
 
 const UNCONFIGURED: AskAnswer = {
   answer: [
-    "Ask needs the model connection (GEMINI_API_KEY) to reason over your data. Everything it would cite is already on your intel report — open it for the current picture.",
+    "Ask isn't available for your workspace yet. Everything it would cite is on your report.",
   ],
   citations: [],
   assumptions: [],

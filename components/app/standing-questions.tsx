@@ -48,7 +48,7 @@ export default function StandingQuestions({
             <span style={{ fontFamily: "var(--disp)", fontWeight: 600, fontSize: 14.5 }}>{q.question}</span>
             <span style={{ display: "flex", gap: 12, alignItems: "baseline" }}>
               <span className="mono-label">
-                {q.answered_week ? `answered · week of ${fmtWeek(q.answered_week)}` : modelReady ? "answers Monday" : "needs the model connection"}
+                {q.answered_week ? `Answered for the week of ${fmtWeek(q.answered_week)}` : modelReady ? "First answer on Monday" : "Not answered yet"}
               </span>
               <form action={removeStandingQuestionAction}>
                 <input type="hidden" name="id" value={q.id} />

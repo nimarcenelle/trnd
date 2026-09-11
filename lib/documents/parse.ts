@@ -136,7 +136,7 @@ export function fallbackDigest(name: string, mime: string, text: string | null):
     return {
       kind: "other",
       summary: isPdf(mime)
-        ? "A PDF — TRND needs the model connection (GEMINI_API_KEY) to read it. It's kept, and will be read the moment the key lands."
+        ? "A PDF. It's kept, and will be read as soon as document reading is available for your workspace."
         : "Nothing readable was found in this file.",
       facts: [],
       services_found: [],
@@ -166,7 +166,7 @@ export function fallbackDigest(name: string, mime: string, text: string | null):
   };
   return {
     kind,
-    summary: `${what[kind]} Read without the model connection: the facts below are lines TRND could pick out on its own; the model reads it properly once GEMINI_API_KEY lands.`,
+    summary: what[kind],
     facts: facts.slice(0, 12),
     services_found: services,
     watchouts: [],

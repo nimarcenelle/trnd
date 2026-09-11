@@ -251,11 +251,6 @@ export default async function AppHome({
             ads, and the calendar. The daily scan keeps watching your terms and your broader market, and
             you can re-read the market right now.
           </p>
-          {!isSupabaseConfigured && (
-            <p style={{ margin: "12px 0 0", fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--ink-faint)" }}>
-              dev note: run <code>pnpm seed</code> for illustrative data or <code>pnpm job:ingest</code> for live sources.
-            </p>
-          )}
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
             <form action={scanMarketNowAction}>
               <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Scanning your market…">
@@ -1101,7 +1096,7 @@ export default async function AppHome({
             <span className="panel__title mint">Demand — {series.length >= 14 ? "30 days" : "this week"}</span>
             <span className="panel__meta">
               {signal ? `${signal.normalized_term.replace(/_/g, " ")} · ${geoLabel(signal.geo)}` : ""}
-              {signal?.source === "seed" ? " · illustrative" : ""}
+              {signal?.source === "seed" ? " · sample data" : ""}
             </span>
           </div>
           <TrendChart

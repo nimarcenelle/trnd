@@ -83,3 +83,18 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
   `direction`, which the build prompts treat as outranking the judge's taste but never the
   menu. Rebuilds rewrite the campaign in place (same id — links and results keep pointing
   at it) and refuse once it has launched: launched campaigns are the record.
+- **The week's ad is written without being asked.** The product is the finished ad, and
+  the owner was having to click for it and wait a minute before seeing any value. The #1
+  pick is now built by the Monday cron and self-healed by the dashboard after its
+  response; a unique index on `campaigns(opportunity_id)` plus an in-process guard keep
+  two writers from racing. Thin picks (below 4.3) and locked plans are never built unasked.
+- **The hero is the ad; the evidence is one click down.** Hook, offer, audience, spend,
+  in-feed preview, "Open the campaign" and "Not this one". The read, the insight lines,
+  the grade and meters, the playbook and the rivals' ads all survive, under "Why this
+  pick" — the front page no longer leads with what the tool doesn't know yet.
+- **Three tabs.** This week, Campaigns, Settings. Results moved onto each campaign
+  (the full roll-up stays at /app/results, linked from Campaigns); Report, Opportunities,
+  Snapshot and Ask stay as routes linked from This week.
+- **One plan, $149.** Rivals, the Monday email (which the cron already sent to everyone),
+  and unlimited builds are in it. Pro is not sold; its plan id survives for any
+  subscription that already carries it.

@@ -5,6 +5,7 @@ import AdPreview from "@/components/app/ad-preview";
 import CopyAllButton from "@/components/app/copy-all-button";
 import CopyBlock from "@/components/app/copy-block";
 import LaunchToMetaButton from "@/components/app/launch-to-meta-button";
+import ResultEntryForm from "@/components/app/result-entry-form";
 import SourceBadge from "@/components/app/source-badge";
 import StatusTimeline from "@/components/app/status-timeline";
 import { getSessionUser } from "@/lib/auth/session";
@@ -40,6 +41,9 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
     repo.getConnection(campaign.business_id, "meta"),
   ]);
   const metaReady = metaConnection?.status === "connected" && Boolean(metaConnection.account_id);
+  const campaignResults = (await repo.listResultsForBusiness(campaign.business_id)).filter(
+    (r) => r.campaign_id === campaign.id,
+  );
   const signal = opportunity ? await repo.getSignal(opportunity.signal_id) : null;
 
   const byKind = (kind: Creative["kind"]) => creatives.filter((c) => c.kind === kind);
@@ -335,9 +339,9 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
               </button>
             </form>
           ) : (
-            <Link href="/app/results" className="btn btn-primary btn-sm">
-              Enter results →
-            </Link>
+            <a href="#results" className="btn btn-primary btn-sm">
+              Record results ↓
+            </a>
           )}
           <CopyAllButton text={copyAll} />
           <a className="btn btn-ghost btn-sm" href={`/app/campaigns/${campaign.id}/export?format=json`}>
@@ -357,6 +361,58 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           </div>
         )}
       </section>
+
+      {/* ---------- STEP 5 · RECORD (once launched) ---------- */}
+      {launched && (
+        <section className="step-card" id="results">
+          <div className="step-head">
+            <span className="step-num">5</span>
+            <h3>Record what happened</h3>
+          </div>
+          <p className="lede">
+            Type in what your ad account reports after the flight. It&apos;s the record this campaign
+            is judged by, and every entry sharpens next week&apos;s pick.
+          </p>
+          <ResultEntryForm campaignId={campaign.id} />
+          {campaignResults.length > 0 && (
+            <div style={{ overflowX: "auto", marginTop: 18 }}>
+              <table className="data-table" style={{ minWidth: 640 }}>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th className="num">Impressions</th>
+                    <th className="num">Clicks</th>
+                    <th className="num">CTR</th>
+                    <th className="num">Spend</th>
+                    <th className="num">Bookings</th>
+                    <th className="num">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaignResults.map((r) => (
+                    <tr key={r.id}>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {new Date(r.recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </td>
+                      <td className="num">{r.impressions === null ? "—" : r.impressions.toLocaleString("en-US")}</td>
+                      <td className="num">{r.clicks === null ? "—" : r.clicks.toLocaleString("en-US")}</td>
+                      <td className="num" style={{ color: "var(--mint-text)", fontWeight: 600 }}>
+                        {r.ctr === null ? "—" : `${(Number(r.ctr) * 100).toFixed(2)}%`}
+                      </td>
+                      <td className="num">{r.spend_cents === null ? "—" : `$${(r.spend_cents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}`}</td>
+                      <td className="num">{r.bookings === null ? "—" : r.bookings.toLocaleString("en-US")}</td>
+                      <td className="num">{r.revenue_cents === null ? "—" : `$${(r.revenue_cents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <Link href="/app/results" className="mono-label" style={{ display: "inline-block", marginTop: 16, color: "var(--amber-text)" }}>
+            All results &amp; what TRND has learned →
+          </Link>
+        </section>
+      )}
     </div>
   );
 }

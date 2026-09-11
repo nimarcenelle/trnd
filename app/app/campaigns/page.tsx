@@ -50,7 +50,12 @@ export default async function CampaignsPage() {
             Drafts are ready to launch today; live ones sharpen next week once you record results.
           </p>
         </div>
-        <span className="badge"><i />{campaigns.length} total</span>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <span className="badge"><i />{campaigns.length} total</span>
+          <Link href="/app/results" className="btn btn-ghost btn-sm">
+            All results &amp; learnings →
+          </Link>
+        </div>
       </div>
 
       {campaigns.length === 0 && (

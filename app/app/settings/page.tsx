@@ -277,9 +277,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
               ? plan.locked
                 ? "Everything you generated stays yours. Pick a plan to keep the weekly recommendations and campaign builds coming."
                 : "Full product, no card required. Pick a plan any time — founding businesses lock their price for life."
-              : plan.plan === "pro"
-                ? "Everything in TRND plus your nearest rivals read daily, rival moves as alerts, and the Monday report in your inbox."
-                : "A finished, scored campaign every week — recorded results sharpen the next one. Upgrade to Pro to watch your rivals daily."}
+              : "One ad a week, written before you open the app, your rivals read daily, and the Monday report in your inbox — recorded results sharpen the next one."}
           </p>
         </div>
 
@@ -290,14 +288,6 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                 <input type="hidden" name="plan" value="baseline" />
                 <button type="submit" className="btn btn-primary btn-sm">
                   Start TRND — {PLAN_PRICES.baseline}
-                </button>
-              </form>
-            )}
-            {plan.plan !== "pro" && (
-              <form action={startCheckoutAction}>
-                <input type="hidden" name="plan" value="pro" />
-                <button type="submit" className={`btn btn-sm ${plan.plan === "baseline" ? "btn-primary" : "btn-ghost"}`}>
-                  {plan.plan === "baseline" ? "Upgrade to Pro" : "Start Pro"} — {PLAN_PRICES.pro}
                 </button>
               </form>
             )}
@@ -312,9 +302,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         ) : (
           <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0, lineHeight: 1.6 }}>
             Payments aren&apos;t connected in this install. Add <code style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>STRIPE_SECRET_KEY</code>,{" "}
-            <code style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>STRIPE_WEBHOOK_SECRET</code>, and the two{" "}
-            <code style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>STRIPE_PRICE_*</code> ids to .env.local and
-            this panel starts selling — checkout, upgrades, and the customer portal included.
+            <code style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>STRIPE_WEBHOOK_SECRET</code>, and{" "}
+            <code style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>STRIPE_PRICE_BASELINE</code> to .env.local and
+            this panel starts selling — checkout and the customer portal included.
           </p>
         )}
       </section>

@@ -1,4 +1,4 @@
-import { BASELINE_FEATURES, PRO_FEATURES } from "@/lib/billing";
+import { BASELINE_FEATURES } from "@/lib/billing";
 import Link from "next/link";
 
 import DemoForm from "@/components/landing/demo-form";
@@ -272,23 +272,24 @@ export default function Home() {
         <div className="wrap">
           <div className="head reveal">
             <span className="eyebrow">Pricing</span>
-            <h2>Less than one freelance campaign a month.</h2>
+            <h2>One plan. Less than one freelance campaign a month.</h2>
             <p>
-              A finished campaign a week, the intelligence behind it, and your rivals watched
-              daily — for less than a freelancer charges for one campaign. Month to month, cancel
-              anytime; the campaigns you generated are yours. Pay yearly and get two months free.
+              An ad a week, written before you open the app, the intelligence behind it, and
+              your rivals watched daily — for less than a freelancer charges for one campaign.
+              Month to month, cancel anytime; the campaigns you generated are yours. Pay yearly
+              and get two months free.
             </p>
           </div>
 
           <div className="tiers reveal">
-            <div className="tier">
-              <span className="tier__badge">Starter</span>
+            <div className="tier tier--featured">
+              <span className="tier__badge">● TRND</span>
               <h3 className="tier__name">TRND</h3>
               <div className="tier__price">
                 $149<small>/ MO</small>
               </div>
               <p className="tier__promise">
-                Know what to run this week, and have it written. Or $1,490 a year.
+                Every Monday: one ad ready to run, and why. Or $1,490 a year.
               </p>
               <div className="tier__list">
                 {BASELINE_FEATURES.map((f) => (
@@ -298,28 +299,7 @@ export default function Home() {
               <Link href="/signup" className="btn btn-primary" style={{ justifyContent: "center" }}>
                 Start free
               </Link>
-              <span className="tier__foot">14-day trial · no card required</span>
-            </div>
-
-            <div className="tier tier--featured">
-              <span className="tier__badge">● Pro</span>
-              <h3 className="tier__name">TRND Pro</h3>
-              <div className="tier__price">
-                $299<small>/ MO</small>
-              </div>
-              <p className="tier__promise">
-                Everything in TRND, plus your rivals watched every day. Or $2,990 a year.
-              </p>
-              <div className="tier__list">
-                <div><IcoCheck />Everything in TRND</div>
-                {PRO_FEATURES.map((f) => (
-                  <div key={f}><IcoCheck />{f}</div>
-                ))}
-              </div>
-              <Link href="/signup" className="btn btn-primary" style={{ justifyContent: "center" }}>
-                Start free
-              </Link>
-              <span className="tier__foot">14-day trial of Pro · no card required · connected-account sync next</span>
+              <span className="tier__foot">14-day trial · no card required · founding price locked for life</span>
             </div>
 
             <div className="tier">
@@ -333,7 +313,7 @@ export default function Home() {
                 features first.
               </p>
               <div className="tier__list">
-                <div><IcoCheck />Everything in Pro, hands-on</div>
+                <div><IcoCheck />Everything in TRND, hands-on</div>
                 <div><IcoCheck />Automated customer outreach &amp; insights</div>
                 <div><IcoCheck />Ad content creation, done with you</div>
                 <div><IcoCheck />The full marketing-team stack as it ships</div>

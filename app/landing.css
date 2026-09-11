@@ -1036,9 +1036,10 @@ hr.rule {
 /* ---------- PRICING TIERS ---------- */
 .tiers {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
-  margin-bottom: 18px;
+  max-width: 860px;
+  margin: 0 auto 18px;
 }
 .tier {
   background: var(--bg-1);

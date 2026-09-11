@@ -7,6 +7,8 @@ import { normalizeTerm } from "@/lib/signals/normalize";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { verticalKey } from "@/lib/signals/vertical";
 
+import { ensureWeekCampaign } from "@/lib/campaigns/auto";
+
 import { writeTopPickReads } from "./read";
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
@@ -381,7 +383,12 @@ export async function runRecommend(repo: Repo): Promise<RecommendBusinessResult[
       // The read on the top picks is written from the facts just ranked, so
       // Monday's first look already has it. Never blocks the ranking: the
       // dashboard self-heals a missing read after its own response.
-      await writeTopPickReads(repo, b, await rankedPicks(repo, b, result.opportunityIds));
+      const picks = await rankedPicks(repo, b, result.opportunityIds);
+      await writeTopPickReads(repo, b, picks);
+      // The finished ad is the product: the #1 pick is written now, so
+      // Monday's email and first look carry it. Thin and locked picks are
+      // left for the owner (see ensureWeekCampaign).
+      if (picks[0]) await ensureWeekCampaign(repo, b, picks[0]);
     } catch (err) {
       console.warn(`[recommend] business ${b.id} failed:`, (err as Error).message);
       results.push({ businessId: b.id, created: 0, topScore: null, opportunityIds: [] });

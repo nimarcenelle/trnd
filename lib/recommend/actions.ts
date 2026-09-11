@@ -51,3 +51,20 @@ export async function scanMarketNowAction(): Promise<void> {
   }
   revalidatePath("/app", "layout");
 }
+
+/**
+ * "Not this one": the owner passes on the week's ad. The pick is dismissed,
+ * the next one becomes #1, and its campaign is written on the next load —
+ * the same self-heal the dashboard runs for every top pick.
+ */
+export async function passOnPickAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("opportunity_id") ?? "");
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const repo = await getUserRepo(user.id);
+  const opportunity = id ? await repo.getOpportunity(id) : null;
+  if (opportunity) await repo.setOpportunityStatus(opportunity.id, "dismissed");
+  revalidatePath("/app", "layout");
+  revalidatePath("/app/opportunities");
+  redirect("/app");
+}

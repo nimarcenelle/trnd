@@ -53,6 +53,7 @@ export async function submitResultAction(
   await recordCampaignResult(repo, campaign, input, "manual");
 
   revalidatePath("/app/results");
+  revalidatePath(`/app/campaigns/${campaignId}`);
   revalidatePath("/app");
   return { ok: true };
 }

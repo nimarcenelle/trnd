@@ -16,7 +16,7 @@ support — not a dashboard of mentions.
 ### 1. Landing page (`/`)
 Marketing site in the brand system: hero, "old way vs TRND way" split, the five-step
 interactive explainer, signal proof cards, flywheel diagram, roadmap, pricing band
-(**$149/mo TRND · $299/mo Pro · case-by-case; annual two months free**), and a demo-request form.
+(**$149/mo TRND · case-by-case; annual two months free**), and a demo-request form.
 Footer links Terms and Privacy. Two funnels: **Start free** → signup, and the demo form —
 which writes to the database *and* alerts the founder on Slack/email the moment a lead
 lands (as does every new signup).
@@ -48,8 +48,22 @@ category-informed deterministic version otherwise (auto-upgrades when a key land
 When the analysis lands, the week's ranking automatically rebuilds against it.
 
 ### 5. The dashboard (`/app`) — the product
-One hero recommendation for the week: the trend, its letter grade (A–C, fixed honest
-bands) on a ring, and four scored meters:
+**The week's ad, written before the owner opens the app.** Once the ranking lands, the #1
+pick's campaign is built without being asked — by the Monday cron, and self-healed by the
+dashboard whenever the top pick has no campaign yet (a passed pick, a fresh re-rank). The
+hero *is* the ad: the hook as the headline, the angle in one paragraph, then Offer, Who
+sees it, Spend, Launch by — and how it reads in-feed, on the right. Two verbs: **Open the
+campaign →** and **Not this one** (the next pick becomes #1 and its ad is written). Thin
+weeks and locked plans are never built unasked; those stay the owner's call.
+
+**Why this pick** sits one click down and holds everything the hero used to lead with:
+
+- **The read** (Gemini keyed): two or three model-written paragraphs — the verdict first
+  (run it, run it small, skip it) and the one fact that decides it, then why the numbers
+  land where they do for *this* business. Written from the same facts the meters show,
+  cached per pick, rewritten only when those facts move.
+- Four insight lines with expandable detail, the letter grade (A–C, fixed honest bands)
+  on a ring, and four scored meters:
 
 | Meter | Reads |
 |---|---|
@@ -58,28 +72,24 @@ bands) on a ring, and four scored meters:
 | **Open door** | Competitor ad saturation — real Meta Ad Library counts when captured |
 | **Track record** | Measured learnings; seeded priors labeled illustrative |
 
-**The read** sits above the meters when Gemini is keyed: two or three model-written
-paragraphs — the verdict first (run it, run it small, skip it) and the one fact that
-decides it, then why the numbers land where they do for *this* business (the menu item
-and price it maps to, where the movement was measured, who else is advertising it, what
-the calendar says). Written from the same facts the meters show, cached per pick, and
-rewritten only when those facts move. Keyless installs keep the deterministic insight
-lines alone.
-
-Plus: four scannable insight lines with expandable detail, "how to run it well" creative
-guidance, the demand chart, what competitors are running, the runner-up list, a
-market-pulse panel, and the **seasonal calendar** ("Holiday party bookings — start now,
-6 weeks lead"). A re-rank button rebuilds the week on demand. KPI row: signals watched,
-ranked count, campaigns launched, average CTR.
+- "How to run it well" creative guidance, the matched service, the competition read,
+  coverage, the 6-day forecast, and what competitors are running on the term.
 
 **Ask about this pick** closes the hero. It opens with the questions this owner would
 ask about this pick — model-written with the read ("Why this over the brow lamination?",
 "Is $25 a day enough?") or deterministic until then — and answers from the pick's own
 facts plus everything Ask-TRND holds. When a question asks to run the pick differently
 ("do this for my other service instead", "aim at parents", "lead with the Tuesday
-special"), the answer ends in a one-line direction and a button that **builds the
-campaign that way** — or rewrites the pick's existing campaign in place, as long as it
-hasn't launched. A pick has more than two verbs now.
+special"), the answer ends in a one-line direction and a button that **rewrites the
+campaign that way** in place, as long as it hasn't launched.
+
+Below the hero: the demand chart, the runner-up list, a market-pulse panel, the rivals
+panel (read daily, on every plan), the free organic post, and the **seasonal calendar**
+("Holiday party bookings — start now, 6 weeks lead"). A re-rank button rebuilds the week
+on demand. KPI row: signals watched, ranked count, campaigns launched, average CTR.
+
+**Navigation is three tabs** — This week, Campaigns, Settings. Report, Opportunities,
+Snapshot and Ask still exist as routes, linked from This week where they earn it.
 
 ### 6. Opportunities (`/app/opportunities`)
 The week's full ranked list — one line each with grade, insight chips, and an expandable
@@ -107,19 +117,20 @@ it decides which service, offer, audience, or angle leads, and can never add a p
 the menu doesn't list. Rewrites keep the campaign's id, so links and results still
 point at it; a launched campaign is never rewritten.
 
-### 8. Results (`/app/results`) — the flywheel
-Each live campaign gets a manual entry row (impressions, clicks, spend, bookings,
-revenue — schema ready for the Meta API sync). The screen computes CTR vs an illustrative
-category benchmark, cost per result, ROAS, a one-line takeaway ("CTR runs 56% above
-typical — scale the winner"), a CTR-by-campaign chart, a history table, and the
-**learnings panel**: every recorded result updates category-level lift by persuasion
-angle, which feeds the track-record component of next week's scores. Seeded priors are
-dashed and labeled, and the first real result *replaces* them — truth is never blended
-with sample data.
+### 8. Results — on the campaign, and the flywheel (`/app/results`)
+Once a campaign is marked launched, **Record what happened** appears on the campaign
+itself: a manual entry row (impressions, clicks, spend, bookings, revenue — schema ready
+for the Meta API sync) and that campaign's history. `/app/results` (linked from Campaigns)
+rolls everything up: CTR vs an illustrative category benchmark, cost per result, ROAS, a
+one-line takeaway ("CTR runs 56% above typical — scale the winner"), a CTR-by-campaign
+chart, the full history, and the **learnings panel**: every recorded result updates
+category-level lift by persuasion angle, which feeds the track-record component of next
+week's scores. Seeded priors are dashed and labeled, and the first real result *replaces*
+them — truth is never blended with sample data.
 
 ### 9. Settings (`/app/settings`)
 Business profile and radius; services (add / price / activate / deactivate / remove);
-**Plan & Billing** — trial countdown, Stripe checkout for both plans, customer portal, or
+**Plan & Billing** — trial countdown, Stripe checkout for the one plan, customer portal, or
 a plain explanation of which env keys switch billing on; **Account** — change password,
 typed-DELETE account deletion with full data cascade; and the integrations panel showing
 what's live vs dormant.
@@ -177,19 +188,20 @@ Marketing API sync drops in without a schema change.
 
 ## Pricing & plans
 
+One plan. Two tiers before the first paying customer was a decision tax on the buyer.
+
 | Plan | Price | What it is |
 |---|---|---|
 | Free trial | 14 days | Full product, no card required |
-| **TRND** | **$149/mo** | The weekly decision + finished campaign, results tracking |
-| **TRND Pro** | **$299/mo** | Everything in TRND + five nearest rivals read daily, Monday email, unlimited builds |
+| **TRND** | **$149/mo** | One ad a week written for you, why this one, rivals read daily, the Monday email, results tracking |
 | Case by case | Let's talk | Hands-on lighthouse tier |
 
 Founding businesses lock their price for life. The campaigns generated are the
 customer's — export works on every plan, trial included. An expired trial (with billing
-live) gates *new* campaign builds only; nothing already generated is ever held hostage,
-and nothing locks at all until Stripe keys exist.
-
----
+live) gates *new* campaign builds only (the auto-build included); nothing already
+generated is ever held hostage, and nothing locks at all until Stripe keys exist. The
+`pro` plan id survives in code for any subscription that already carries it; it is not
+sold.
 
 ## Modes & infrastructure
 

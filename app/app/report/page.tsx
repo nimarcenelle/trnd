@@ -103,7 +103,7 @@ export default async function ReportPage() {
       <div className="page-head">
         <div>
           <span className="eyebrow" style={{ margin: 0 }}>Weekly report · {weekRange}</span>
-          <h1>{business.name} — your week.</h1>
+          <h1>Weekly report</h1>
           <p className="context">
             <b>{titleCase(business.category)}</b> · {business.city}
             {business.region ? `, ${business.region}` : ""} · {business.radius_miles}-mile radius ·
@@ -113,7 +113,7 @@ export default async function ReportPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }} className="no-print">
           <PrintButton />
           <Link href="/app" className="btn btn-ghost btn-sm">
-            This week&apos;s dashboard →
+            This week&apos;s dashboard
           </Link>
         </div>
       </div>
@@ -177,8 +177,8 @@ export default async function ReportPage() {
       {/* ---------- RANKED OPPORTUNITIES ---------- */}
       <section className="panel" style={{ marginTop: 18 }}>
         <div className="panel__head">
-          <span className="panel__title">This week&apos;s picks, ranked</span>
-          <span className="panel__meta">every row judged against what you actually sell</span>
+          <span className="panel__title">Ranked picks</span>
+          <span className="panel__meta">Judged against what you sell</span>
         </div>
         {report.ranked.length === 0 && (
           <p style={{ margin: 0, fontSize: 13.5, color: "var(--ink-faint)" }}>
@@ -233,7 +233,7 @@ export default async function ReportPage() {
         <section className="panel" style={{ marginTop: 18 }}>
           <div className="panel__head">
             <span className="panel__title">Competitor moves</span>
-            <span className="panel__meta">the rivals you named, read daily</span>
+            <span className="panel__meta">Read daily</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
             {report.competitorsWatched.map((w) => (
@@ -278,8 +278,8 @@ export default async function ReportPage() {
       {report.voice && report.voice.review_count > 0 && (
         <section className="panel" style={{ marginTop: 18 }}>
           <div className="panel__head">
-            <span className="panel__title mint">What your customers say</span>
-            <span className="panel__meta">from {report.voice.review_count} of your Google reviews</span>
+            <span className="panel__title mint">Customer reviews</span>
+            <span className="panel__meta">From {report.voice.review_count} Google reviews</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
             <div>
@@ -310,8 +310,8 @@ export default async function ReportPage() {
       {report.seasonal.length > 0 && (
         <section className="panel" style={{ marginTop: 18 }}>
           <div className="panel__head">
-            <span className="panel__title">Coming up — plan ahead</span>
-            <span className="panel__meta">known demand moments</span>
+            <span className="panel__title">Coming up</span>
+            <span className="panel__meta">Known demand moments</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
             {report.seasonal.map((m) => (
@@ -334,7 +334,7 @@ export default async function ReportPage() {
         <div className="panel__head">
           <span className="panel__title">Results to date</span>
           <Link href="/app/results" className="panel__meta no-print" style={{ color: "var(--amber-text)" }}>
-            record results →
+            record results
           </Link>
         </div>
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 760 }}>
@@ -359,7 +359,7 @@ export default async function ReportPage() {
           <div className="panel" style={{ marginTop: 14 }}>
             <div className="panel__head">
               <span className="panel__title mint">Demand tracker</span>
-              <span className="panel__meta">your snapshot&apos;s watch terms, read daily</span>
+              <span className="panel__meta">Your watch terms, read daily</span>
             </div>
             <div style={{ overflowX: "auto" }}>
               <table className="report-table">
@@ -441,8 +441,8 @@ export default async function ReportPage() {
         {report.competitors.length > 0 && (
           <div className="panel" style={{ marginTop: 14 }}>
             <div className="panel__head">
-              <span className="panel__title">Ads running on your terms</span>
-              <span className="panel__meta">Meta Ad Library reads on your terms, filtered to advertisers in your line of work</span>
+              <span className="panel__title">Competitor ads</span>
+              <span className="panel__meta">Meta Ad Library reads on your terms</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
               {report.competitors.map((c) => (
@@ -485,8 +485,8 @@ export default async function ReportPage() {
         {report.movers.length > 0 && (
           <div className="panel" style={{ marginTop: 14 }}>
             <div className="panel__head">
-              <span className="panel__title mint">Category pulse · 7d</span>
-              <span className="panel__meta">context, not picks</span>
+              <span className="panel__title mint">Market movement</span>
+              <span className="panel__meta">Context</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column" }}>
               {report.movers.map((m, i) => (
@@ -512,9 +512,9 @@ export default async function ReportPage() {
         {brief && (
           <div className="panel" style={{ marginTop: 14 }}>
             <div className="panel__head">
-              <span className="panel__title">How TRND positions you</span>
+              <span className="panel__title">Positioning</span>
               <Link href="/app/snapshot" className="panel__meta no-print" style={{ color: "var(--amber-text)" }}>
-                full analysis →
+                full analysis
               </Link>
             </div>
             <p style={{ margin: "0 0 16px", fontSize: 14, lineHeight: 1.65, color: "var(--ink-soft)", maxWidth: 760 }}>
@@ -539,8 +539,8 @@ export default async function ReportPage() {
 
         <div className="panel" style={{ marginTop: 14 }}>
           <div className="panel__head">
-            <span className="panel__title">Methodology &amp; sources</span>
-            <span className="panel__meta">every number on this page is traceable</span>
+            <span className="panel__title">Sources</span>
+            <span className="panel__meta">Every number links to its source</span>
           </div>
           <p style={{ margin: "0 0 14px", fontSize: 13, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 760 }}>
             Scores weight momentum at {Math.round(WEIGHTS.normalizedDelta * 100)}%, fit to your menu at {Math.round(WEIGHTS.serviceMatch * 100)}%,

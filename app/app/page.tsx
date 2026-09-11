@@ -170,22 +170,17 @@ export default async function AppHome({
           <div className="page-head">
             <div>
               <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
-              <h1>TRND is reading {business.name}.</h1>
+              <h1>Reading your business</h1>
               <p className="context">
-                Positioning, customers, demand terms, first moves — the founding analysis is
-                being written now, and your first judged ranking lands with it. Usually under
-                two minutes; this page refreshes itself.
+                Your analysis is being written. Your first ranking lands with it, usually within
+                two minutes. This page refreshes itself.
               </p>
             </div>
           </div>
           <div className="panel" style={{ maxWidth: 620 }}>
-            <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
-              TRND never shows a ranking that hasn&apos;t been judged against what you actually
-              sell — a minute of honest silence beats a week of confident nonsense.
-            </p>
             <AnalysisProgress startedAt={business.created_at} />
             <Link className="btn btn-ghost btn-sm" href="/app/snapshot" style={{ marginTop: 18 }}>
-              Watch the analysis land →
+              View the analysis
             </Link>
           </div>
         </div>
@@ -216,18 +211,16 @@ export default async function AppHome({
           <div className="page-head">
             <div>
               <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
-              <h1>Scanning your market now.</h1>
+              <h1>Reading your market</h1>
               <p className="context">
-                Live demand reads for <b>{business.category}</b> around {business.city} —
-                search volume, news, what competitors are running — then a judged ranking.
+                Reading demand for <b>{business.category}</b> around {business.city}, then ranking
+                it against what you sell.
               </p>
             </div>
           </div>
           <div className="panel" style={{ maxWidth: 620 }}>
             <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
-              Your analysis named the search terms your customers actually use — TRND is
-              reading live demand for each one right now. A minute or two; this page
-              refreshes itself.
+              This takes a minute or two. The page refreshes itself.
             </p>
           </div>
         </div>
@@ -238,30 +231,28 @@ export default async function AppHome({
         <div className="page-head">
           <div>
             <span className="eyebrow" style={{ margin: 0 }}>This week · {weekRange}</span>
-            <h1>Nothing cleared the bar this week.</h1>
+            <h1>No recommendation this week</h1>
             <p className="context">
-              Today&apos;s reads for <b>{titleCase(business.category)}</b> around {business.city} didn&apos;t
-              produce a ranking worth your money — or everything this week was dismissed.
+              This week&apos;s reads for <b>{titleCase(business.category)}</b> around {business.city} didn&apos;t
+              produce a pick worth spending on.
             </p>
           </div>
         </div>
         <div className="panel" style={{ maxWidth: 620 }}>
           <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.65, fontSize: 14.5 }}>
-            Your intel report still has the week&apos;s move — built from your positioning, your rivals&apos;
-            ads, and the calendar. The daily scan keeps watching your terms and your broader market, and
-            you can re-read the market right now.
+            The daily read continues. You can refresh it now.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
             <form action={scanMarketNowAction}>
-              <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Scanning your market…">
-                Scan my market now
+              <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Refreshing…">
+                Refresh now
               </SubmitButton>
             </form>
             <Link className="btn btn-ghost btn-sm" href="/app/report">
-              Read this week&apos;s report →
+              Weekly report
             </Link>
             <Link className="btn btn-ghost btn-sm" href="/app/opportunities">
-              Review dismissed opportunities
+              Dismissed picks
             </Link>
           </div>
         </div>
@@ -532,23 +523,23 @@ export default async function AppHome({
       <div className="page-head">
         <div>
           <span className="eyebrow" style={{ margin: 0 }}>This week&apos;s recommendation · {weekRange}</span>
-          <h1>{business.name.endsWith("s") ? `${business.name}’` : `${business.name}’s`} week, read for you.</h1>
+          <h1>This week</h1>
           <p className="context">
             <b>{titleCase(business.category)}</b> · {business.city}
             {business.region ? `, ${business.region}` : ""} · {business.radius_miles} mile radius ·{" "}
             {rankedAt
-              ? `ranked ${rankedAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
-              : "signal refreshes daily"}
+              ? `Ranked ${rankedAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+              : "Refreshed daily"}
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {signal?.source === "seed" && <SourceBadge source="seed" />}
           <Link href="/app/report" className="btn btn-ghost btn-sm">
-            Intel report →
+            Full report
           </Link>
           <form action={refreshRankingAction}>
-            <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Re-reading the market…">
-              Re-rank this week
+            <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Refreshing…">
+              Refresh
             </SubmitButton>
           </form>
         </div>
@@ -571,12 +562,10 @@ export default async function AppHome({
       {/* ---------- BASELINE WEEK ---------- */}
       {baselineWeek && (
         <section className="panel" style={{ marginTop: 18, padding: "14px 20px", borderStyle: "dashed" }}>
-          <span className="mono-label" style={{ display: "block", marginBottom: 4 }}>Baseline week</span>
+          <span className="mono-label" style={{ display: "block", marginBottom: 4 }}>First week</span>
           <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--ink-soft)" }}>
-            Your ranking is your own menu this week — the demand terms from your analysis, before any of
-            them has two weeks of reads. Grades are held down until the first measured movement lands,
-            usually by {firstMeasuredBy}. The campaign is still worth building: it&apos;s your strongest
-            offer, written.
+            This week&apos;s picks are the demand terms from your analysis. Grades stay conservative until
+            the first measured movement lands, usually by {firstMeasuredBy}.
           </p>
         </section>
       )}
@@ -675,14 +664,13 @@ export default async function AppHome({
         <section className="panel panel--hero" style={{ marginTop: 18, padding: "30px 32px 28px" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
             <span className="badge badge--amber"><i />This week&apos;s play</span>
-            <span className="panel__meta">no trend fits — run what your analysis backs</span>
+            <span className="panel__meta">No trend fits this week</span>
           </div>
           <h2 className="h-disp" style={{ fontSize: "clamp(22px,2.6vw,30px)", margin: "0 0 8px", lineHeight: 1.12, letterSpacing: "-0.02em" }}>
-            Nothing in the market beats your own moves this week.
+            No trend fits this week. Run your own moves.
           </h2>
           <p style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-soft)", margin: "0 0 22px", maxWidth: 640 }}>
-            These come from your founding analysis — anchored to what you actually sell and
-            priced off your own menu, not a trend that doesn&apos;t map to you.
+            From your analysis, priced from your own menu.
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
             {brief.first_moves.slice(0, 3).map((move, i) => (
@@ -694,10 +682,10 @@ export default async function AppHome({
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>
             <Link href="/app/snapshot" className="btn btn-primary">
-              See the full analysis →
+              Full analysis
             </Link>
             <Link href="/app/report" className="btn btn-ghost btn-sm">
-              This week&apos;s intel report →
+              Weekly report
             </Link>
           </div>
         </section>
@@ -792,7 +780,7 @@ export default async function AppHome({
             {campaign ? (
               <>
                 <span className="mono-label" style={{ display: "block", marginBottom: 10 }}>
-                  Built on “{signal ? titleCase(signal.term) : "this week's pick"}”{matchedService ? ` · your ${matchedService.name}` : ""}
+                  Based on “{signal ? titleCase(signal.term) : "this week's pick"}”
                 </span>
                 <h2 className="h-disp" style={{ fontSize: "clamp(24px,3vw,34px)", margin: "0 0 12px", lineHeight: 1.12, letterSpacing: "-0.02em" }}>
                   {campaign.hook}
@@ -820,18 +808,18 @@ export default async function AppHome({
                 </div>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 6 }}>
                   <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary">
-                    Open the campaign →
+                    Open the campaign
                   </Link>
                   {canPass && (
                     <form action={passOnPickAction}>
                       <input type="hidden" name="opportunity_id" value={top.id} />
                       <SubmitButton className="btn btn-ghost" pendingLabel="Writing the next one…">
-                        Not this one
+                        Skip
                       </SubmitButton>
                     </form>
                   )}
                   <Link href="/app/opportunities" className="btn btn-ghost btn-sm">
-                    All {active.length} ranked →
+                    All ranked
                   </Link>
                 </div>
               </>
@@ -848,13 +836,13 @@ export default async function AppHome({
                 {building && (
                   <p style={{ margin: "0 0 18px", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 560 }}>
                     <span className="mono-label" style={{ color: "var(--amber-text)", display: "block", marginBottom: 4 }}>Writing this week&apos;s ad</span>
-                    The hook, the offer, who sees it, what to spend — priced from your menu. About a minute; this page refreshes itself.
+                    About a minute. This page refreshes itself.
                   </p>
                 )}
                 {!building && plan.locked && (
                   <p style={{ margin: "0 0 18px", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 560 }}>
                     {plan.lockedReason}{" "}
-                    <Link href="/app/settings#billing" style={{ color: "var(--amber-text)" }}>Pick a plan →</Link>
+                    <Link href="/app/settings#billing" style={{ color: "var(--amber-text)" }}>Choose a plan</Link>
                   </p>
                 )}
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 22 }}>
@@ -866,7 +854,7 @@ export default async function AppHome({
                     <BuildCampaignButton opportunityId={top.id} />
                   ))}
                   <Link href="/app/opportunities" className="btn btn-ghost btn-sm">
-                    All {active.length} ranked →
+                    All ranked
                   </Link>
                 </div>
               </>
@@ -894,7 +882,7 @@ export default async function AppHome({
              the owner and the ad. */
           <details className="howto">
             <summary>
-              Why this pick — the demand behind it
+              Why this pick
               <svg className="chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
               </svg>
@@ -960,7 +948,7 @@ export default async function AppHome({
             </div>
           </div>
           <div style={{ gridColumn: "1 / -1" }}>
-            <span className="k">What a 6-day test should return</span>
+            <span className="k">Expected return from a 6-day test</span>
             <div className="v" style={{ fontSize: 13, lineHeight: 1.5, color: "var(--ink-soft)" }}>{forecast}</div>
           </div>
         </div>
@@ -992,7 +980,7 @@ export default async function AppHome({
         {howto && (
           <details className="howto" open>
             <summary>
-              How to run it well
+              How to run it
               <svg className="chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
               </svg>
@@ -1048,7 +1036,7 @@ export default async function AppHome({
             </div>
           </div>
           <div style={{ gridColumn: "1 / -1" }}>
-            <span className="k">What a 6-day test should return</span>
+            <span className="k">Expected return from a 6-day test</span>
             <div className="v" style={{ fontSize: 13, lineHeight: 1.5, color: "var(--ink-soft)" }}>{forecast}</div>
           </div>
         </div>
@@ -1078,7 +1066,6 @@ export default async function AppHome({
 
         <PickAsk
           opportunityId={top.id}
-          term={signal ? titleCase(signal.term) : "this pick"}
           questions={askQuestions}
           hasCampaign={Boolean(campaign)}
           rebuildable={campaign ? campaignRebuildable(campaign.status) : true}
@@ -1119,7 +1106,7 @@ export default async function AppHome({
             <div className="panel__head">
               <span className="panel__title">{isLead ? "Next in line" : "Also this week"}</span>
               <Link href="/app/opportunities" className="panel__meta" style={{ color: "var(--amber-text)" }}>
-                view all →
+                View all
               </Link>
             </div>
             {weekThin && (
@@ -1167,8 +1154,8 @@ export default async function AppHome({
 
         <section className="panel">
           <div className="panel__head">
-            <span className="panel__title mint">Market pulse · 7d</span>
-            <span className="panel__meta">{titleCase(business.category)} · change vs the week before</span>
+            <span className="panel__title mint">Market movement</span>
+            <span className="panel__meta">Change vs last week</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             {movers.map((s, i) => (
@@ -1197,20 +1184,20 @@ export default async function AppHome({
       {/* ---------- YOUR RIVALS ---------- */}
       <section className="panel" style={{ marginTop: 18 }}>
         <div className="panel__head">
-          <span className="panel__title">Your rivals · read daily</span>
+          <span className="panel__title">Competitors</span>
           <Link href="/app/settings" className="panel__meta" style={{ color: "var(--amber-text)" }}>
-            {competitors.length > 0 ? "manage →" : "settings →"}
+            {competitors.length > 0 ? "Manage" : "Settings"}
           </Link>
         </div>
         {competitors.length === 0 ? (
           <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
             <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--ink-soft)", flex: "1 1 320px" }}>
-              No rivals watched yet. TRND can find the nearest same-category shops and start reading their ads and ratings today.
+              No competitors yet.
             </p>
             {isPlacesConfigured && (
               <form action={seedCompetitorsAction}>
-                <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Finding your rivals…">
-                  Find my nearest rivals
+                <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Finding…">
+                  Find nearby competitors
                 </SubmitButton>
               </form>
             )}
@@ -1246,7 +1233,7 @@ export default async function AppHome({
       {/* ---------- THE FREE MOVE ---------- */}
       {organicPost && (
         <section className="panel" style={{ marginTop: 18 }}>
-          <CopyBlock label="No ad budget this week? Post this today — free" content={organicPost} />
+          <CopyBlock label="Free post for this week" content={organicPost} />
         </section>
       )}
 
@@ -1254,8 +1241,8 @@ export default async function AppHome({
       {seasonal.length > 0 && (
         <section className="panel" style={{ marginTop: 18 }}>
           <div className="panel__head">
-            <span className="panel__title">Coming up — plan ahead</span>
-            <span className="panel__meta">known demand moments for {titleCase(business.category)}</span>
+            <span className="panel__title">Coming up</span>
+            <span className="panel__meta">Known demand moments</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
             {seasonal.map((m) => (
@@ -1288,7 +1275,7 @@ export default async function AppHome({
             </div>
           </div>
           <Link href="/app/snapshot" className="btn btn-ghost btn-sm">
-            Watch it land →
+            Watch it land
           </Link>
         </section>
       )}
@@ -1308,7 +1295,7 @@ export default async function AppHome({
             </div>
           </div>
           <Link href="/app/snapshot" className="btn btn-ghost btn-sm">
-            View full snapshot →
+            View full snapshot
           </Link>
         </section>
       )}

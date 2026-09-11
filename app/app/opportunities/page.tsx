@@ -66,10 +66,10 @@ export default async function OpportunitiesPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <span className="eyebrow" style={{ margin: 0 }}>Ranked for you · week of {weekLabel}</span>
-          <h1>This week&apos;s opportunities.</h1>
+          <span className="eyebrow" style={{ margin: 0 }}>Week of {weekLabel}</span>
+          <h1>Ranked opportunities</h1>
           <p className="context">
-            One line each — open <b>why this score</b> on any row for the full read.
+            Open any row to see why it scored the way it did.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -178,7 +178,7 @@ export default async function OpportunitiesPage() {
                 <div className="actions">
                   {campaign ? (
                     <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary btn-sm">
-                      View campaign →
+                      View campaign
                     </Link>
                   ) : isDismissed ? (
                     <form action={setOpportunityStatusAction}>

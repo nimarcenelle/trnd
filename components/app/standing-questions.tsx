@@ -24,15 +24,13 @@ export default function StandingQuestions({
   return (
     <section className="panel" style={{ marginTop: 18 }}>
       <div className="panel__head">
-        <span className="panel__title">Questions TRND keeps answering</span>
-        <span className="panel__meta">re-answered every Monday · what moved since last time</span>
+        <span className="panel__title">Standing questions</span>
+        <span className="panel__meta">Answered every Monday</span>
       </div>
 
       {questions.length === 0 && (
         <p style={{ margin: "0 0 14px", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-soft)", maxWidth: 640 }}>
-          Ask something you&apos;ll want answered every week — who&apos;s advertising against you, whether
-          your price still holds, what&apos;s coming — and TRND answers it fresh each Monday, with what
-          changed since the last answer.
+          Questions TRND answers every Monday, with what changed since the last answer.
         </p>
       )}
 
@@ -53,7 +51,7 @@ export default function StandingQuestions({
               <form action={removeStandingQuestionAction}>
                 <input type="hidden" name="id" value={q.id} />
                 <button type="submit" className="mono-label" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-faint)", padding: 0 }}>
-                  stop asking
+                  Remove
                 </button>
               </form>
             </span>
@@ -77,7 +75,7 @@ export default function StandingQuestions({
           <form action={addStandingQuestionAction} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <input
               name="question"
-              placeholder="A question you want answered every week…"
+              placeholder="A question to answer every week"
               aria-label="New standing question"
               maxLength={240}
               style={{
@@ -93,7 +91,7 @@ export default function StandingQuestions({
               }}
             />
             <SubmitButton className="btn btn-ghost btn-sm" pendingLabel={modelReady ? "Answering…" : "Adding…"}>
-              Keep asking
+              Add question
             </SubmitButton>
           </form>
           {suggestions.length > 0 && (

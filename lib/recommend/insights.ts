@@ -53,7 +53,7 @@ export function buildInsights(
     const raw = signal.raw as { detail?: string } | null;
     insights.push({
       kind: "momentum",
-      headline: "Weather window · next 7 days",
+      headline: "Weather window, next 7 days",
       detail: `${raw?.detail ?? "The forecast crosses a seasonal threshold this week."} Demand estimate is forecast-derived, not a measured trend.`,
     });
   } else if (signal.metric_type === "shortform_views") {
@@ -109,14 +109,14 @@ export function buildInsights(
     } else {
       insights.push({
         kind: "momentum",
-        headline: "Year-round demand — no weekly read yet",
+        headline: "Year-round demand, no weekly read yet",
         detail: `One of your snapshot's demand terms — people search it whenever they need what you sell. Google hasn't returned a weekly read on it yet, so momentum is scored below neutral and the total is held down: this ranks as a sure play, not a measured wave.${monthText}`,
       });
     }
   } else if (scored.sparse) {
     insights.push({
       kind: "momentum",
-      headline: `Below Google's meter in ${signal.geo === "US" ? "the US" : signal.geo.replace(/^US-/, "")}`,
+      headline: `Too few searches to measure in ${signal.geo === "US" ? "the US" : signal.geo.replace(/^US-/, "")}`,
       detail:
         "Google can't chart this term at your level yet — too few searches to measure. It ranks as an idea that fits you, not a measured wave, and the score is scaled down to say so.",
     });
@@ -180,7 +180,7 @@ export function buildInsights(
     // exists to avoid.
     insights.push({
       kind: "fit",
-      headline: "Outside your lane",
+      headline: "Outside what you sell",
       detail:
         "This trend doesn't map to anything you sell — it ranked on momentum in your category, not fit. Skip it unless you actually want to add the offer.",
     });
@@ -198,7 +198,7 @@ export function buildInsights(
   if (scored.competitorBasis === "none") {
     insights.push({
       kind: "gap",
-      headline: "No competitor read yet",
+      headline: "Competition not measured yet",
       detail:
         "We haven't captured a usable Meta Ad Library read on this term near you — the score treats competition as unknown, not open. A national keyword total or local news mentions don't count as rivals.",
     });
@@ -212,7 +212,7 @@ export function buildInsights(
   } else if (gap > 0.33) {
     insights.push({
       kind: "gap",
-      headline: "Some competition already",
+      headline: "Some competition",
       detail:
         "A few local players are on this — a sharper angle still wins, but the easy window is narrowing.",
     });
@@ -241,7 +241,7 @@ export function buildInsights(
   } else if (seeded.length > 0) {
     insights.push({
       kind: "history",
-      headline: "Example history — no results yet",
+      headline: "No results recorded yet",
       detail:
         "This part of the score starts from an example pattern for your category so day one isn't blind. Your first real result replaces it.",
     });

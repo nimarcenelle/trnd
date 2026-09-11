@@ -67,7 +67,7 @@ export default function InsightList({
           ›
         </span>
         <span className="mono-label" style={{ color: "var(--ink-soft)" }}>
-          {open ? "Collapse the full read" : "The full read — why each line matters"}
+          {open ? "Hide details" : "Show details"}
         </span>
       </button>
     </div>

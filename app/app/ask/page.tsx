@@ -35,12 +35,10 @@ export default async function AskPage() {
     <div className="page" style={{ maxWidth: 900 }}>
       <div className="page-head">
         <div>
-          <span className="eyebrow" style={{ margin: 0 }}>Ask TRND</span>
-          <h1>Ask your analyst anything.</h1>
+          <span className="eyebrow" style={{ margin: 0 }}>Ask</span>
+          <h1>Ask about your market</h1>
           <p className="context">
-            Grounded in {business.name}&apos;s own data — signals, ranking, reviews, competitor
-            reads — and reasoned like an analyst on top: estimates show their assumptions so
-            you can correct them, and follow-ups keep the thread.
+            Answers are grounded in your own data and say what they assumed.
           </p>
         </div>
       </div>

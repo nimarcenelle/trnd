@@ -106,7 +106,7 @@ describe("buildInsights for an evergreen pick", () => {
     };
     const insights = buildInsights(signal, { ...scored, unmeasured: true, weekPct: null }, { learnings: [] });
     const momentum = insights.find((i) => i.kind === "momentum")!;
-    expect(momentum.headline).toBe("Year-round demand — no weekly read yet");
+    expect(momentum.headline).toBe("Year-round demand, no weekly read yet");
     expect(momentum.detail).toMatch(/sure play, not a measured wave/);
     // With a measured week, the headline carries the number.
     const measured = buildInsights(signal, { ...scored, weekPct: -11, monthPct: 48 }, { learnings: [] });
@@ -114,7 +114,7 @@ describe("buildInsights for an evergreen pick", () => {
     expect(measured.find((i) => i.kind === "momentum")!.detail).toMatch(/up 48%/);
     // No ad read: the gap line says unknown, never "competitors haven't moved".
     const unknown = buildInsights(signal, { ...scored, competitorBasis: "none", components: { ...scored.components, competitorGap: 0.55 } }, { learnings: [] });
-    expect(unknown.find((i) => i.kind === "gap")!.headline).toBe("No competitor read yet");
+    expect(unknown.find((i) => i.kind === "gap")!.headline).toBe("Competition not measured yet");
   });
 });
 
@@ -167,7 +167,7 @@ describe("buildInsights on a judged-thin week", () => {
     // serviceMatch 0.05 is a fit-gate survivor, not an opportunity — the
     // honest read is "outside your lane", never a dressed-up offer pitch.
     const insights = buildInsights(signal, scored, { learnings: [] });
-    expect(insights.some((i) => i.headline === "Outside your lane")).toBe(true);
+    expect(insights.some((i) => i.headline === "Outside what you sell")).toBe(true);
     expect(insights.some((i) => i.headline === "New offer opportunity")).toBe(false);
   });
 

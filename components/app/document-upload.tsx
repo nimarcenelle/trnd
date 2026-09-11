@@ -28,7 +28,7 @@ export default function DocumentUpload({ modelReady }: { modelReady: boolean }) 
         return;
       }
       setStatus(
-        `Read — ${body.facts ?? 0} fact${body.facts === 1 ? "" : "s"}${body.services ? `, ${body.services} priced item${body.services === 1 ? "" : "s"} found` : ""}.`,
+        `Added. ${body.facts ?? 0} fact${body.facts === 1 ? "" : "s"}${body.services ? `, ${body.services} priced item${body.services === 1 ? "" : "s"}` : ""}.`,
       );
       form.reset();
       router.refresh();
@@ -69,15 +69,15 @@ export default function DocumentUpload({ modelReady }: { modelReady: boolean }) 
         <input name="file" type="file" accept=".pdf,.csv,.txt,.md,.json,.tsv" aria-label="Document to upload" style={{ ...input, padding: "9px 12px" }} required />
       ) : (
         <>
-          <input name="name" placeholder="What is this? e.g. Fall menu, Q3 sales, brand notes" aria-label="Document name" maxLength={120} style={input} />
-          <textarea name="text" placeholder="Paste your menu, price list, brand notes, a sales summary…" aria-label="Pasted text" rows={6} style={{ ...input, resize: "vertical" }} required />
+          <input name="name" placeholder="Name, e.g. Fall menu" aria-label="Document name" maxLength={120} style={input} />
+          <textarea name="text" placeholder="Paste a menu, price list, brand notes, or a sales summary" aria-label="Pasted text" rows={6} style={{ ...input, resize: "vertical" }} required />
         </>
       )}
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <button type="submit" className="btn btn-primary btn-sm" disabled={status !== null && !status.startsWith("Read")} aria-busy={status !== null}>
-          {status && !status.startsWith("Read") ? status : "Add to what TRND knows"}
+        <button type="submit" className="btn btn-primary btn-sm" disabled={status !== null && !status.startsWith("Added")} aria-busy={status !== null}>
+          {status && !status.startsWith("Added") ? status : "Add document"}
         </button>
-        {status?.startsWith("Read") && <span className="mono-label" style={{ color: "var(--mint-text)" }}>{status}</span>}
+        {status?.startsWith("Added") && <span className="mono-label" style={{ color: "var(--mint-text)" }}>{status}</span>}
         {error && <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--red)" }}>{error}</span>}
       </div>
     </form>

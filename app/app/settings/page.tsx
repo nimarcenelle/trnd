@@ -118,10 +118,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       <div className="page-head">
         <div>
           <span className="eyebrow" style={{ margin: 0 }}>Settings</span>
-          <h1>Your business profile.</h1>
+          <h1>Settings</h1>
           <p className="context">
-            Everything here shapes what gets recommended — the category picks your signals, the
-            services decide what&apos;s matchable, the radius scopes the market.
+            Your category, services, and radius decide what gets recommended.
           </p>
         </div>
       </div>
@@ -136,7 +135,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
 
       <section className="panel" style={{ marginBottom: 20 }}>
         <div className="panel__head">
-          <span className="panel__title">Services &amp; prices</span>
+          <span className="panel__title">Services</span>
           <span className="panel__meta">{services.filter((s) => s.is_active).length} active</span>
         </div>
         <p style={{ fontSize: 13, color: "var(--ink-faint)", margin: "0 0 16px" }}>
@@ -208,13 +207,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
 
       <section className="panel" id="documents" style={{ marginBottom: 20 }}>
         <div className="panel__head">
-          <span className="panel__title">What TRND knows about you</span>
+          <span className="panel__title">Your documents</span>
           <span className="panel__meta">{documents.length} of {MAX_DOCUMENTS} documents</span>
         </div>
         <p style={{ fontSize: 13, color: "var(--ink-faint)", margin: "0 0 16px", maxWidth: 640, lineHeight: 1.55 }}>
-          Your menu, a sales export, your brand notes, last quarter&apos;s ad results — anything you know
-          that the market doesn&apos;t. TRND reads it once, keeps the facts (never the file), and cites
-          them in every read, answer and Monday note from then on.
+          Menus, sales exports, brand notes, past ad results. TRND keeps the facts, not the file, and
+          uses them in every recommendation.
         </p>
         {documents.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
@@ -234,7 +232,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                   <p style={{ margin: "8px 0 0", fontSize: 13, lineHeight: 1.55, color: "var(--ink-soft)" }}>{d.digest.summary}</p>
                   {d.digest.facts.length > 0 && (
                     <details style={{ marginTop: 8 }}>
-                      <summary className="mono-label" style={{ cursor: "pointer", color: "var(--ink-faint)" }}>What TRND took from it</summary>
+                      <summary className="mono-label" style={{ cursor: "pointer", color: "var(--ink-faint)" }}>Facts</summary>
                       {d.digest.facts.map((f) => (
                         <p key={f.slice(0, 40)} style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "var(--ink-soft)" }}>· {f}</p>
                       ))}
@@ -244,7 +242,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                     <form action={adoptDocumentServicesAction} style={{ marginTop: 10 }}>
                       <input type="hidden" name="id" value={d.id} />
                       <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Adding…">
-                        Add {adoptable} priced item{adoptable === 1 ? "" : "s"} to my services
+                        Add {adoptable} item{adoptable === 1 ? "" : "s"} to services
                       </SubmitButton>
                     </form>
                   )}
@@ -258,7 +256,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
 
       <section className="panel" id="billing" style={{ marginBottom: 20 }}>
         <div className="panel__head">
-          <span className="panel__title">Plan &amp; billing</span>
+          <span className="panel__title">Plan and billing</span>
           <span className="panel__meta">
             {PLAN_LABELS[plan.plan]}
             {plan.plan !== "trial" ? ` · ${PLAN_PRICES[plan.plan]}` : ""}
@@ -312,7 +310,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             {plan.subscription.stripe_customer_id && (
               <form action={openBillingPortalAction}>
                 <button type="submit" className="btn btn-ghost btn-sm">
-                  Manage billing →
+                  Manage billing
                 </button>
               </form>
             )}
@@ -327,15 +325,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       <section className="panel" id="account" style={{ marginBottom: 20 }}>
         <div className="panel__head">
           <span className="panel__title">Account</span>
-          <span className="panel__meta">password &amp; data</span>
+          <span className="panel__meta">Password and data</span>
         </div>
         <AccountPanel email={user.email} />
       </section>
 
       <section className="panel" style={{ marginBottom: 20 }}>
         <div className="panel__head">
-          <span className="panel__title">Competitors you watch</span>
-          <span className="panel__meta">{competitors.length} tracked · read daily</span>
+          <span className="panel__title">Competitors</span>
+          <span className="panel__meta">{competitors.length} tracked</span>
         </div>
         <p style={{ fontSize: 13, color: "var(--ink-faint)", margin: "0 0 16px" }}>
           Name the local rivals that matter. TRND reads their active Meta ads and Google
@@ -370,22 +368,22 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           ))}
           {competitors.length === 0 && (
             <p style={{ fontSize: 13.5, color: "var(--ink-faint)", margin: 0 }}>
-              No rivals watched yet — let TRND find the nearest ones, or add the shop your customers compare you against.
+              No competitors yet. Find the nearest ones, or add one by name.
             </p>
           )}
         </div>
         {isPlacesConfigured && competitors.length < 5 && (
           <form action={seedCompetitorsAction} style={{ marginBottom: 14 }}>
-            <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Finding your rivals…">
-              Find my nearest rivals
+            <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Finding…">
+              Find nearby competitors
             </SubmitButton>
-            <span className="mono-label" style={{ marginLeft: 10 }}>same category · within 10 miles · chains skipped</span>
+            <span className="mono-label" style={{ marginLeft: 10 }}>Same category, within 10 miles</span>
           </form>
         )}
         <form action={addCompetitorAction} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <input
             name="name"
-            placeholder="Competitor name (as customers know it)"
+            placeholder="Competitor name"
             aria-label="Competitor name"
             style={{ flex: "1 1 240px", fontFamily: "var(--body)", fontSize: 14, background: "var(--bg-2)", border: "1px solid var(--line-strong)", color: "var(--ink)", padding: "11px 13px", borderRadius: "var(--radius-sm)" }}
           />
@@ -403,7 +401,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
 
       <section className="panel">
         <div className="panel__head">
-          <span className="panel__title">Data &amp; integrations</span>
+          <span className="panel__title">Integrations</span>
           <span className="panel__meta">What powers your recommendations</span>
         </div>
         {connectError && (
@@ -428,7 +426,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
               <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "0 0 10px", lineHeight: 1.5, flex: 1 }}>{it.note}</p>
               {it.action === "connect-meta" && (
                 <Link href="/api/connect/meta" className="btn btn-primary btn-sm" style={{ alignSelf: "flex-start" }}>
-                  Connect Meta →
+                  Connect Meta
                 </Link>
               )}
               {it.action === "disconnect-meta" && (

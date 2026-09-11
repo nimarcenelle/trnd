@@ -73,7 +73,7 @@ describe("reading uploads without a model", () => {
     const d = fallbackDigest("menu.pdf", "application/pdf", null);
     expect(d.kind).toBe("other");
     expect(d.facts).toEqual([]);
-    expect(d.summary).toMatch(/needs the model connection/);
+    expect(d.summary).toMatch(/document reading is available/);
     expect(mimeFor("menu.PDF")).toBe("application/pdf");
     expect(mimeFor("menu.docx")).toBeNull();
   });

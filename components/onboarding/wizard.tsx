@@ -434,7 +434,7 @@ export default function OnboardingWizard() {
             }}
             style={{ visibility: mode === "steps" && step === 0 ? "hidden" : "visible" }}
           >
-            ← Back
+            Back
           </button>
           {mode === "review" ? (
             <button type="submit" className="btn btn-primary" disabled={!canFinish || pending}>
@@ -442,11 +442,11 @@ export default function OnboardingWizard() {
             </button>
           ) : step === 0 ? (
             <button type="button" className="btn btn-primary btn-sm" disabled={!canNext || importing} onClick={continueFromWebsite} aria-busy={importing}>
-              {importing ? "Reading your site…" : "Continue →"}
+              {importing ? "Reading your site…" : "Continue"}
             </button>
           ) : step < STEPS.length - 1 ? (
             <button type="button" className="btn btn-primary btn-sm" disabled={!canNext} onClick={() => setStep((s) => s + 1)}>
-              Continue →
+              Continue
             </button>
           ) : (
             <button type="submit" className="btn btn-primary" disabled={pending}>

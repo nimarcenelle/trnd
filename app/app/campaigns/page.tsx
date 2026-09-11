@@ -45,15 +45,15 @@ export default async function CampaignsPage() {
       <div className="page-head">
         <div>
           <span className="eyebrow" style={{ margin: 0 }}>Campaigns</span>
-          <h1>Everything TRND has built for you.</h1>
+          <h1>Campaigns</h1>
           <p className="context">
-            Drafts are ready to launch today; live ones sharpen next week once you record results.
+            Drafts are ready to launch. Live campaigns are waiting on results.
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <span className="badge"><i />{campaigns.length} total</span>
           <Link href="/app/results" className="btn btn-ghost btn-sm">
-            All results &amp; learnings →
+            All results
           </Link>
         </div>
       </div>
@@ -65,7 +65,7 @@ export default async function CampaignsPage() {
             recommendation — finished copy, scripts, and targeting included.
           </p>
           <Link href="/app" className="btn btn-primary btn-sm">
-            See this week&apos;s recommendation →
+            See this week&apos;s recommendation
           </Link>
         </div>
       )}

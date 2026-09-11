@@ -64,11 +64,11 @@ export default async function SnapshotPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <span className="eyebrow" style={{ margin: 0 }}>Company snapshot · your founding analysis</span>
-          <h1>{business.name}, on paper.</h1>
+          <span className="eyebrow" style={{ margin: 0 }}>Your analysis</span>
+          <h1>How TRND reads {business.name}</h1>
           <p className="context">
             <b>{titleCase(business.category)}</b> · {business.city}
-            {business.region ? `, ${business.region}` : ""} · shapes every recommendation you get
+            {business.region ? `, ${business.region}` : ""}
           </p>
         </div>
         <form action={refreshSnapshotAction}>
@@ -122,7 +122,7 @@ export default async function SnapshotPage() {
               </ol>
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 16, flexWrap: "wrap" }}>
                 <Link href="/app/opportunities" className="btn btn-primary btn-sm">
-                  See this week&apos;s ranked plays →
+                  See this week&apos;s ranked plays
                 </Link>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-faint)" }}>
                   every week, live demand is ranked against this analysis

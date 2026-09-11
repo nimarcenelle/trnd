@@ -23,7 +23,7 @@ export default function LaunchToMetaButton({ campaignId }: { campaignId: string 
       <form action={formAction}>
         <input type="hidden" name="campaign_id" value={campaignId} />
         <button type="submit" className="btn btn-primary btn-sm" disabled={pending} aria-busy={pending}>
-          {pending ? "Creating in your account…" : "Launch to Meta (paused) →"}
+          {pending ? "Creating in your account…" : "Launch to Meta (paused)"}
         </button>
       </form>
       {state.error && (

@@ -55,11 +55,10 @@ export default async function ResultsPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <span className="eyebrow eyebrow--mint" style={{ margin: 0 }}>Measured reality</span>
-          <h1>What actually happened.</h1>
+          <span className="eyebrow eyebrow--mint" style={{ margin: 0 }}>Results</span>
+          <h1>Results</h1>
           <p className="context">
-            Type in what your ad account reports. Every entry sharpens next week&apos;s
-            recommendation — Meta API sync drops in later without changing this screen.
+            Enter what your ad account reports. Each entry sharpens next week&apos;s recommendation.
           </p>
         </div>
       </div>
@@ -167,7 +166,7 @@ export default async function ResultsPage() {
         <section className="panel" style={{ marginBottom: 26 }}>
           <div className="panel__head">
             <span className="panel__title mint">CTR by campaign</span>
-            <span className="panel__meta">dashed line = category typical*</span>
+            <span className="panel__meta">Dashed line: category average</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {chartRows.map((row) => (
@@ -272,7 +271,7 @@ export default async function ResultsPage() {
       {learnings.length > 0 && (
         <section className="panel">
           <div className="panel__head">
-            <span className="panel__title">What TRND has learned for {titleCase(business.category)}</span>
+            <span className="panel__title">What converts in {titleCase(business.category)}</span>
             <span className="panel__meta">Feeds the track record in every score</span>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>

@@ -15,13 +15,11 @@ import { askPickAction, type AskState } from "@/lib/intel/ask-action";
  */
 export default function PickAsk({
   opportunityId,
-  term,
   questions,
   hasCampaign,
   rebuildable,
 }: {
   opportunityId: string;
-  term: string;
   /** Suggested openers — model-written for this pick when the read exists,
    * deterministic otherwise. */
   questions: string[];
@@ -37,7 +35,7 @@ export default function PickAsk({
       <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap", marginBottom: 12 }}>
         <span className="mono-label" style={{ color: "var(--amber-text)" }}>Ask about this pick</span>
         <span style={{ fontSize: 12.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
-          Why this, how much, what to say — or tell TRND to run “{term}” a different way.
+          Why this pick, what to spend, what to say. Or ask for a different angle.
         </span>
       </div>
 
@@ -57,7 +55,7 @@ export default function PickAsk({
           {t.result.assumptions.length > 0 && (
             <div style={{ marginTop: 8 }}>
               <span className="mono-label" style={{ display: "block", marginBottom: 6, color: "var(--amber-text)" }}>
-                Assumed — correct me and ask again
+                Assumptions
               </span>
               {t.result.assumptions.map((a) => (
                 <p key={a.slice(0, 40)} style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-soft)", margin: "0 0 4px" }}>
@@ -69,7 +67,7 @@ export default function PickAsk({
           {t.result.direction && (
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--line)", display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
               <div style={{ flex: "1 1 320px" }}>
-                <span className="mono-label" style={{ display: "block", marginBottom: 4 }}>Run it this way</span>
+                <span className="mono-label" style={{ display: "block", marginBottom: 4 }}>Suggested direction</span>
                 <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5, color: "var(--ink)" }}>{t.result.direction}</p>
               </div>
               {rebuildable ? (
@@ -79,18 +77,18 @@ export default function PickAsk({
                   rebuild={hasCampaign}
                   className="btn btn-primary btn-sm"
                 >
-                  {hasCampaign ? "Rewrite the campaign this way →" : "Build the campaign this way →"}
+                  {hasCampaign ? "Rewrite the campaign" : "Build the campaign"}
                 </BuildCampaignButton>
               ) : (
                 <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-faint)" }}>
-                  That campaign already launched — its results are the record.
+                  This campaign has launched and can no longer be rewritten.
                 </span>
               )}
             </div>
           )}
           {t.result.citations.length > 0 && (
             <details style={{ marginTop: 10 }}>
-              <summary className="mono-label" style={{ cursor: "pointer", color: "var(--ink-faint)" }}>Where that comes from</summary>
+              <summary className="mono-label" style={{ cursor: "pointer", color: "var(--ink-faint)" }}>Sources</summary>
               {t.result.citations.map((c) => (
                 <p key={c.claim.slice(0, 40)} style={{ fontSize: 12, lineHeight: 1.5, color: "var(--ink-faint)", margin: "6px 0 0" }}>
                   · {c.claim} — <i>{c.source}</i>
@@ -106,7 +104,7 @@ export default function PickAsk({
         <input
           key={turns.length}
           name="question"
-          placeholder={turns.length > 0 ? "Ask a follow-up…" : `Ask anything about “${term}”…`}
+          placeholder={turns.length > 0 ? "Ask a follow-up" : "Ask about this pick"}
           aria-label="Your question about this pick"
           maxLength={400}
           style={{

@@ -70,7 +70,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
   return (
     <div className="page">
       <Link href="/app" className="mono-label" style={{ display: "inline-block", marginBottom: 16 }}>
-        ← This week
+        Back to this week
       </Link>
 
       {/* ---------- HEADER ---------- */}
@@ -78,7 +78,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
         <div style={{ display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div style={{ maxWidth: 620 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-              <span className="badge badge--amber"><i />finished campaign</span>
+              <span className="badge badge--amber"><i />Campaign</span>
               {signal && <SourceBadge source={signal.source} term={signal.term} geo={signal.geo} raw={signal.raw} />}
               <span className="badge"><i />{campaign.channel} · paid social</span>
             </div>
@@ -108,7 +108,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           <div>
             <span className="k">Built</span>
             <p className="v" style={{ fontSize: 13.5 }}>
-              {new Date(campaign.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · every number and promise checked against your menu
+              {new Date(campaign.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
             </p>
           </div>
         </div>
@@ -119,11 +119,10 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
       <section className="step-card">
         <div className="step-head">
           <span className="step-num">1</span>
-          <h3>Shoot creative that matches what&apos;s converting</h3>
+          <h3>Creative</h3>
         </div>
         <p className="lede">
-          Each direction describes the shot, not a finished photo — hand one to anyone with a
-          phone. Copy the full brief from the card.
+          Three shot directions. Each can be taken on a phone.
         </p>
         <div className="creative-grid">
           {byKind("static_brief").map((c, i) => {
@@ -157,7 +156,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
 
         <details className="section-disclosure" style={{ marginTop: 18 }}>
           <summary>
-            <span className="panel__title">Short-form video scripts</span>
+            <span className="panel__title">Video scripts</span>
             <span className="summary-right">
               <span className="panel__meta">{byKind("script").length} scripts · 20–30s each</span>
               <span className="summary-open-hint">open ↓</span>
@@ -177,11 +176,10 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
       <section className="step-card">
         <div className="step-head">
           <span className="step-num">2</span>
-          <h3>Write the copy</h3>
+          <h3>Copy</h3>
         </div>
         <p className="lede">
-          Five headlines and three primary texts, ready to paste. The preview shows how the first
-          pairing reads in-feed.
+          Five headlines and three primary texts.
         </p>
         <div className="two-col" style={{ display: "grid", gridTemplateColumns: "1.35fr 1fr", gap: 18, alignItems: "start" }}>
           <div>
@@ -206,7 +204,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           </div>
           <div>
             <div className="panel__head" style={{ marginBottom: 10 }}>
-              <span className="panel__title">How it reads in-feed</span>
+              <span className="panel__title">In-feed preview</span>
             </div>
             <AdPreview
               businessName={business?.name ?? "Your business"}
@@ -221,10 +219,10 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
         {signal && (
           <div className="ref-links">
             <a className="ref-link" href={trendLinks(signal.term, { hashtag: tiktokHashtag(signal) }).tiktok} target="_blank" rel="noopener noreferrer">
-              See what&apos;s working on TikTok →
+              See what&apos;s working on TikTok
             </a>
             <a className="ref-link" href={trendLinks(signal.term, { hashtag: tiktokHashtag(signal) }).instagram} target="_blank" rel="noopener noreferrer">
-              See what&apos;s working on Instagram →
+              See what&apos;s working on Instagram
             </a>
           </div>
         )}
@@ -233,7 +231,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           <summary>
             <span className="panel__title">Landing copy</span>
             <span className="summary-right">
-              <span className="panel__meta">for the page the ad points at</span>
+              <span className="panel__meta">For the landing page</span>
               <span className="summary-open-hint">open ↓</span>
             </span>
           </summary>
@@ -251,9 +249,9 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
       <section className="step-card">
         <div className="step-head">
           <span className="step-num">3</span>
-          <h3>Set targeting and budget</h3>
+          <h3>Targeting and budget</h3>
         </div>
-        <p className="lede">Suggested starting point — sized to your {business?.price_band ?? "$$"} price band. You stay in control.</p>
+        <p className="lede">A starting point sized to your price band.</p>
         <div className="target-grid">
           <div className="t-box">
             <span className="k">Suggested budget</span>
@@ -306,7 +304,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
       <section className="step-card">
         <div className="step-head">
           <span className="step-num">4</span>
-          <h3>Launch checklist</h3>
+          <h3>Launch</h3>
         </div>
         <div className="checklist">
           {[
@@ -367,11 +365,10 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
         <section className="step-card" id="results">
           <div className="step-head">
             <span className="step-num">5</span>
-            <h3>Record what happened</h3>
+            <h3>Results</h3>
           </div>
           <p className="lede">
-            Type in what your ad account reports after the flight. It&apos;s the record this campaign
-            is judged by, and every entry sharpens next week&apos;s pick.
+            Enter what your ad account reports after the flight.
           </p>
           <ResultEntryForm campaignId={campaign.id} />
           {campaignResults.length > 0 && (
@@ -409,7 +406,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
             </div>
           )}
           <Link href="/app/results" className="mono-label" style={{ display: "inline-block", marginTop: 16, color: "var(--amber-text)" }}>
-            All results &amp; what TRND has learned →
+            All results
           </Link>
         </section>
       )}

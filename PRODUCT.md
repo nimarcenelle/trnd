@@ -198,8 +198,18 @@ rather than dressing up as opportunities.
 
 ### Learn
 `lib/results/compute.ts` maps recorded results to a 0–1 lift per persuasion angle
-(education, offer, scarcity, social proof, speed, novelty), blended by sample size into
-category × geo learnings with provenance — the moat's data layer, shaped so the Meta
+(education, offer, scarcity, social proof, speed, novelty), scored against **that
+category's** CTR benchmark rather than one global number — the same 1.2% CTR is a strong
+auto-services ad and a weak med-spa one. Observations blend into category × geo learnings
+by sample size, with a recency floor so the newest result is always worth at least 15% of
+the estimate and a belief built on old campaigns can still be moved by what is true now.
+
+What the score does with that belief is gated on evidence: `historicalLift` pulls the
+category read back toward the neutral 0.5 by `n / (n + 5)` on **measured results only**,
+so one recorded campaign can never swing 20% of everyone's ranking, illustrative priors
+are capped at 30% of a measured voice, and the component genuinely sharpens as results
+accumulate — week fifty speaks louder than week one because it knows more. The insight
+copy says "on thin evidence" wherever the score is still being held near the middle. — the moat's data layer, shaped so the Meta
 Marketing API sync drops in without a schema change.
 
 ---

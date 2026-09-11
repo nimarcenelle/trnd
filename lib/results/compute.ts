@@ -4,6 +4,8 @@
  * week" must be inspectable in one place.
  */
 
+import { benchmarkFor } from "./benchmarks";
+
 export interface ResultInput {
   impressions: number | null;
   clicks: number | null;
@@ -28,27 +30,53 @@ export function computeCpaCents(input: ResultInput): number | null {
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
+/** A campaign that lands a booking at all beat the click. */
+const BOOKING_BONUS = 0.1;
+/** Revenue over spend is the only outcome that pays the bill. */
+const PROFITABLE_BONUS = 0.15;
+
 /**
- * Lift: 0..1 read of how well this campaign ran. 0.5 is "as expected".
- * CTR vs a 1.5% paid-social baseline carries most of it; landing a booking
- * at all nudges it up; revenue over spend nudges further.
+ * Lift: 0..1 read of how well this campaign ran, against *its own category's*
+ * benchmark rather than one global number — a 1.2% CTR is a weak facial ad
+ * and a strong HVAC one, and a flywheel that can't tell those apart teaches
+ * every category the same lesson. Benchmark CTR scores the neutral 0.5;
+ * twice the benchmark is the ceiling. The generic benchmark (1.5%) reproduces
+ * the 3%-ceiling this used to hardcode, so an uncategorized read is unchanged.
+ *
+ * Benchmarks are illustrative until enough measured results exist to replace
+ * them (`lib/results/benchmarks.ts`) — the ceiling moves when they do.
  */
-export function computeLift(input: ResultInput): number {
+export function computeLift(input: ResultInput, category?: string): number {
   const ctr = computeCtr(input);
+  const benchmark = benchmarkFor(category ?? "");
   let lift = 0.5;
   if (ctr !== null) {
-    lift = clamp01(ctr / 0.03); // 3% CTR ≈ ceiling
+    lift = clamp01((0.5 * ctr) / benchmark);
   }
   if (input.bookings && input.bookings > 0) {
-    lift = clamp01(lift + 0.1);
+    lift = clamp01(lift + BOOKING_BONUS);
   }
   if (input.revenue_cents && input.spend_cents && input.revenue_cents > input.spend_cents) {
-    lift = clamp01(lift + 0.15);
+    lift = clamp01(lift + PROFITABLE_BONUS);
   }
   return Math.round(lift * 100) / 100;
 }
 
-/** Blend a new observation into an existing learning by sample size. */
+/**
+ * The newest result never counts for less than this. A plain running mean
+ * weights a campaign from a year ago exactly like last week's — so a belief
+ * built on ten old results can no longer be moved by what is true now. Below
+ * ~6 observations 1/(n+1) is larger and this floor never binds; past that the
+ * estimate tracks recent reality instead of being anchored by history.
+ */
+export const RECENCY_FLOOR = 0.15;
+
+/**
+ * Blend a new observation into an existing learning: a running mean while the
+ * sample is small, an exponentially-weighted one once it isn't. `sample_size`
+ * keeps counting regardless — it is how much we know, which never decays even
+ * when what we believe does.
+ */
 export function blendLearning(
   existing: { lift: number; sample_size: number } | null,
   observedLift: number,
@@ -57,6 +85,7 @@ export function blendLearning(
     return { lift: observedLift, sample_size: 1 };
   }
   const n = existing.sample_size;
-  const lift = Math.round(((existing.lift * n + observedLift) / (n + 1)) * 100) / 100;
+  const weight = Math.max(1 / (n + 1), RECENCY_FLOOR);
+  const lift = Math.round((existing.lift * (1 - weight) + observedLift * weight) * 100) / 100;
   return { lift, sample_size: n + 1 };
 }

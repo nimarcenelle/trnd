@@ -1,5 +1,5 @@
 import type { Learning, Signal } from "@/lib/db/types";
-import type { ScoredOpportunity } from "@/lib/scoring";
+import { CONFIDENCE_HALF_WEIGHT, type ScoredOpportunity } from "@/lib/scoring";
 import { deltaWindowLabel, metricLabel } from "@/lib/signals/source-url";
 import { sentenceCase } from "@/lib/text";
 
@@ -233,10 +233,17 @@ export function buildInsights(
   if (measured.length > 0) {
     const top = [...measured].sort((a, b) => Number(b.lift) - Number(a.lift))[0];
     const n = measured.reduce((s, l) => s + l.sample_size, 0);
+    // Thin evidence is said out loud: the score already holds this component
+    // near neutral until enough results land, so the copy must not claim more.
+    const thin = n < CONFIDENCE_HALF_WEIGHT;
     insights.push({
       kind: "history",
-      headline: sentenceCase(`${top.angle_type.replace(/_/g, " ")} angles ran well before`),
-      detail: `${n} recorded result${n === 1 ? "" : "s"} in your category feed this score — the recommended angle leans on what actually converted.`,
+      headline: thin
+        ? sentenceCase(`${top.angle_type.replace(/_/g, " ")} angles ran well, on thin evidence`)
+        : sentenceCase(`${top.angle_type.replace(/_/g, " ")} angles ran well before`),
+      detail: thin
+        ? `Only ${n} recorded result${n === 1 ? "" : "s"} in your category so far — counted, but this part of the score stays near the middle until more land.`
+        : `${n} recorded result${n === 1 ? "" : "s"} in your category feed this score — the recommended angle leans on what actually converted.`,
     });
   } else if (seeded.length > 0) {
     insights.push({

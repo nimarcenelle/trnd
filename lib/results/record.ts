@@ -33,7 +33,9 @@ export async function recordCampaignResult(
   if (business) {
     const angleType = campaign.audience.angle_type ?? "offer";
     const geoBucket = business.country || "US";
-    const observed = computeLift(input);
+    // Scored against this category's benchmark — the same CTR is a
+    // different result for a med spa and an HVAC company.
+    const observed = computeLift(input, business.category);
     const existing = (await repo.listLearnings(business.category, geoBucket)).find(
       (l) => l.angle_type === angleType,
     );

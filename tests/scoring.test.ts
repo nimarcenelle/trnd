@@ -75,13 +75,51 @@ describe("scoring components", () => {
 
   it("uses neutral prior when learnings are empty", () => {
     expect(historicalLift([]).score).toBe(0.5);
-    const l: Learning = {
+  });
+
+  it("pulls track record toward neutral by how much evidence stands behind it", () => {
+    const learning = (over: Partial<Learning> = {}): Learning => ({
       id: "l1", category: "Health & beauty", geo_bucket: "US",
       angle_type: "education", lift: 0.8, sample_size: 10,
       source: "measured" as const,
-  updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...over,
+    });
+
+    // One campaign is an anecdote: counted, but it cannot run the score.
+    const anecdote = historicalLift([learning({ sample_size: 1 })]);
+    expect(anecdote.score).toBeLessThan(0.56);
+    expect(anecdote.score).toBeGreaterThan(0.5);
+    expect(anecdote.reason).toMatch(/too few to lean on/);
+
+    // Confidence rises monotonically with measured results, toward the raw read.
+    const some = historicalLift([learning({ sample_size: 10 })]).score;
+    const many = historicalLift([learning({ sample_size: 100 })]).score;
+    expect(some).toBeGreaterThan(anecdote.score);
+    expect(many).toBeGreaterThan(some);
+    expect(many).toBeLessThanOrEqual(0.8);
+    expect(many).toBeCloseTo(0.8, 1);
+
+    // A poor track record is pulled up toward neutral by exactly the same rule.
+    expect(historicalLift([learning({ lift: 0.2, sample_size: 1 })]).score).toBeGreaterThan(0.44);
+  });
+
+  it("never lets an illustrative prior speak with a measured voice", () => {
+    const seeded: Learning = {
+      id: "l2", category: "Health & beauty", geo_bucket: "US",
+      angle_type: "education", lift: 0.9, sample_size: 14,
+      source: "seed" as const,
+      updated_at: new Date().toISOString(),
     };
-    expect(historicalLift([l]).score).toBeCloseTo(0.8);
+    const seededScore = historicalLift([seeded]);
+    // Off neutral so day one isn't blind, but capped well short of the 0.9 read.
+    expect(seededScore.score).toBeGreaterThan(0.5);
+    expect(seededScore.score).toBeLessThanOrEqual(0.62);
+    expect(seededScore.reason).toMatch(/no results recorded yet/);
+
+    // One real result outweighs a big seeded sample.
+    const measured: Learning = { ...seeded, id: "l3", lift: 0.9, sample_size: 4, source: "measured" };
+    expect(historicalLift([seeded, measured]).score).toBeGreaterThan(seededScore.score);
   });
 });
 

@@ -127,3 +127,16 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
 - **Word and Excel uploads read on the server, keyless.** `mammoth` unpacks .docx to text;
   SheetJS turns every sheet of an .xlsx/.xls into CSV (the first sheet is the table the
   deterministic digest reads). Neither needs the model; PDFs still do.
+- **The flywheel earns its voice.** The learn layer was the shallowest code in the repo
+  while being the part the pitch calls the moat: lift was CTR against one hardcoded 3%
+  ceiling for every category, a running mean weighted a year-old campaign like last
+  week's, and a single result at `sample_size: 1` moved 20% of every ranking at full
+  strength. Three fixes, none of which need data to be correct: lift is scored against
+  the category's own benchmark (the generic 1.5% reproduces the old ceiling exactly, so
+  uncategorized reads are unchanged); `blendLearning` keeps the newest observation at a
+  15% floor once the sample is past ~6, so what we believe tracks what is true while
+  `sample_size` keeps counting what we know; and `historicalLift` shrinks toward neutral
+  by `n / (n + 5)` measured results, with seeded priors capped at 0.3 confidence. Day one
+  is still not blind — it is just no longer confident. The constants that remain guesses
+  (booking and profitability bonuses, the benchmark table) are the ones only real results
+  can settle, which is the pilot's job, not this pass's.

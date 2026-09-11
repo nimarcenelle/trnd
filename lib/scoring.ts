@@ -181,7 +181,32 @@ export function competitorGap({ coverageCount, adCount }: GapInput): {
   };
 }
 
-/** Average lift from learnings for this category; neutral 0.5 when empty. */
+/**
+ * How many measured results it takes for this component to speak at half
+ * voice. A single campaign is an anecdote; five is a weak pattern; twenty is
+ * a finding. The shrinkage below is what makes that literally true in the
+ * score instead of only in the copy.
+ */
+export const CONFIDENCE_HALF_WEIGHT = 5;
+
+/**
+ * Seeded priors are illustrative, so they never earn a measured voice however
+ * large their sample_size looks. They can nudge a day-one score off neutral —
+ * that is why they exist — but not run it.
+ */
+export const SEED_CONFIDENCE_CAP = 0.3;
+
+/**
+ * Track record: the sample-weighted lift for this category, pulled back
+ * toward the neutral 0.5 by how much evidence stands behind it.
+ *
+ * Without that pull, one recorded result moved 20% of every ranking at full
+ * strength — a stranger's single campaign deciding another business's week.
+ * Confidence is n/(n+K) on measured results only, so the component starts
+ * honest, sharpens as results land, and reaches full voice around twenty of
+ * them. This is also the one part of the score that genuinely changes with
+ * time: week fifty speaks louder than week one because it knows more.
+ */
 export function historicalLift(learnings: Learning[]): { score: number; reason: string } {
   if (learnings.length === 0) {
     return { score: 0.5, reason: "no campaign history on this yet — scored down the middle" };
@@ -189,10 +214,33 @@ export function historicalLift(learnings: Learning[]): { score: number; reason: 
   const totalWeight = learnings.reduce((s, l) => s + l.sample_size, 0) || learnings.length;
   const avg =
     learnings.reduce((s, l) => s + l.lift * (l.sample_size || 1), 0) / totalWeight;
-  const score = Math.min(1, Math.max(0, avg));
+
+  const measured = learnings.filter((l) => l.source === "measured");
+  const measuredN = measured.reduce((s, l) => s + (l.sample_size || 1), 0);
+  const seedN = learnings
+    .filter((l) => l.source === "seed")
+    .reduce((s, l) => s + (l.sample_size || 1), 0);
+  const confidence =
+    measuredN > 0
+      ? measuredN / (measuredN + CONFIDENCE_HALF_WEIGHT)
+      : Math.min(SEED_CONFIDENCE_CAP, seedN / (seedN + CONFIDENCE_HALF_WEIGHT));
+
+  const score = Math.min(1, Math.max(0, 0.5 + (avg - 0.5) * confidence));
+  const ran = avg >= 0.6 ? "well" : avg <= 0.4 ? "poorly" : "unevenly";
+
+  if (measuredN === 0) {
+    return {
+      score,
+      reason: "no results recorded yet — an example pattern for your category, weighted lightly",
+    };
+  }
+  const results = `${measuredN} recorded result${measuredN === 1 ? "" : "s"}`;
   return {
     score,
-    reason: `similar angles ran ${score >= 0.6 ? "well" : "unevenly"} for businesses like yours (${learnings.length} past result${learnings.length === 1 ? "" : "s"})`,
+    reason:
+      confidence < 0.5
+        ? `similar angles ran ${ran} for businesses like yours, on ${results} — too few to lean on, so this is held near the middle`
+        : `similar angles ran ${ran} for businesses like yours (${results})`,
   };
 }
 

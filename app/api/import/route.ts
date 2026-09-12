@@ -178,6 +178,9 @@ export async function POST(req: Request): Promise<Response> {
               region: refined.region ?? data.region,
               services,
               voiceHint: refined.voiceHint ?? data.voiceHint,
+              // Handles come from the site's own links, never the model —
+              // the refinement must not drop them.
+              social: data.social,
               priceBand: refined.priceBand ?? inferPriceBand(services, category) ?? data.priceBand,
               photos: data.photos,
               menuHost: services.some((s) => s.price) ? undefined : data.menuHost,

@@ -7,6 +7,7 @@
 
 import type { Business, BusinessBrief, Opportunity, Service, Signal } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
+import type { CampaignSignalBrief } from "@/lib/recommend/four-signals";
 
 import {
   FALLBACK_MODEL_ID,
@@ -26,6 +27,9 @@ export interface GenerationContext {
   brief: BusinessBrief | null;
   /** The owner's one-line steer for this build, from the pick's Ask box. */
   direction?: string | null;
+  /** The four signals behind this pick: who the ad is for, what the direct
+   * rivals are saying, what has worked for this business, the winning format. */
+  signals?: CampaignSignalBrief | null;
 }
 
 export interface GeneratedCampaign {

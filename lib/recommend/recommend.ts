@@ -10,6 +10,9 @@ import { verticalKey } from "@/lib/signals/vertical";
 
 import { ensureWeekCampaign } from "@/lib/campaigns/auto";
 
+import { targetCustomerOf } from "@/lib/ai/brief";
+
+import { extrasFor, loadSignalContext } from "./four-signals";
 import { writeTopPickReads } from "./read";
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
@@ -226,6 +229,10 @@ export async function recommendForBusiness(
     return null;
   };
 
+  // The evidence behind the customer, competitive, cultural and brand
+  // signals — loaded once, read per term.
+  const signalCtx = await loadSignalContext(repo, business, brief, signals);
+
   const scorable = dedupeByTerm(
     signals.filter(
       (s) =>
@@ -261,6 +268,7 @@ export async function recommendForBusiness(
             locality: localityFor(signal.geo, business.region),
             // The 30-day line the owner sees is part of the momentum read.
             series: indexSeries(await repo.getSeries(signal.normalized_term, signal.geo, 30)),
+            ...extrasFor(signal, signalCtx),
           },
         ),
         relevance: null,
@@ -271,6 +279,9 @@ export async function recommendForBusiness(
   // score — the pool union keeps the business's own demand terms judgeable.
   let scored = buildCandidatePool(allScored, [
     ...(brief?.watch_terms ?? []),
+    // The target customer's own words seat their terms in the judged pool,
+    // however quiet the week's momentum on them is.
+    ...(targetCustomerOf(brief)?.vocabulary ?? []),
     ...services.filter((s) => s.is_active).map((s) => s.name),
   ]);
 

@@ -1,6 +1,7 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, NewSignal } from "@/lib/db/types";
 
+import { targetCustomerOf } from "@/lib/ai/brief";
 import { weekOf } from "@/lib/recommend/recommend";
 
 import { createDataForSeoAdapter } from "./adapters/dataforseo";
@@ -42,6 +43,30 @@ export function localityTokens(business: Business): string[] {
   ];
 }
 
+/**
+ * The target customer's own phrases worth measuring as demand. Single words
+ * ("latte") are classification vocabulary, not searches anyone's volume can
+ * be read on, so only phrases of two words or more are watched.
+ */
+export function customerWatchPhrases(brief: Parameters<typeof targetCustomerOf>[0], cap = 10): string[] {
+  const tc = targetCustomerOf(brief);
+  if (!tc) return [];
+  return tc.vocabulary
+    .map((v) => v.toLowerCase().trim())
+    .filter((v) => v.split(/\s+/).length >= 2 && v.length <= 60)
+    .slice(0, cap);
+}
+
+/** Subreddits the target customer hangs out in ("r/Atlanta", "coffee"). */
+export function customerSubreddits(brief: Parameters<typeof targetCustomerOf>[0]): string[] {
+  const tc = targetCustomerOf(brief);
+  if (!tc) return [];
+  return tc.hangouts
+    .map((h) => h.trim())
+    .filter((h) => /^r\//i.test(h) || /^[A-Za-z0-9_]{3,21}$/.test(h))
+    .map((h) => h.replace(/^r\//i, ""));
+}
+
 /** Raw adapter output → insert rows (shared by the daily job and the
  * per-business first-day ingest). */
 function toSignalRows(raw: Awaited<ReturnType<SignalAdapter["fetch"]>>): NewSignal[] {
@@ -72,8 +97,16 @@ export async function runSignalIngestForBusiness(
   business: Business,
 ): Promise<number> {
   const brief = await repo.getBusinessBrief(business.id);
-  // Brief v5 watchlists run 18-30 terms; day one reads the strongest dozen.
-  const terms = (brief?.watch_terms ?? []).slice(0, 12);
+  // Brief v5 watchlists run 18-30 terms; day one reads the strongest dozen,
+  // plus the target customer's own phrases — the demand that matters is
+  // what THEY type, and a brief's watchlist is the owner-side view of it.
+  const seen = new Set<string>();
+  const terms = [...(brief?.watch_terms ?? []).slice(0, 12), ...customerWatchPhrases(brief, 6)].filter((t) => {
+    const k = t.toLowerCase().trim();
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
   if (terms.length === 0) return 0;
   const stateGeo = business.region ? `US-${business.region.toUpperCase()}` : "US";
   const locality = localityTokens(business);
@@ -254,7 +287,9 @@ export async function runIngest(
       const bizGeo = metro?.geo ?? stateGeo;
       const locality = localityTokens(b);
       for (const t of (brief?.watch_terms ?? []).slice(0, 24)) addWatch(t, b.category, bizGeo, locality);
+      for (const t of customerWatchPhrases(brief)) addWatch(t, b.category, bizGeo, locality);
       for (const s of (brief?.subreddits ?? []).slice(0, 6)) addSubreddit(s, b.category);
+      for (const s of customerSubreddits(brief).slice(0, 4)) addSubreddit(s, b.category);
       // This week's ranked terms too — so their saturation read is real.
       for (const o of (await repo.listOpportunities(b.id, week)).slice(0, 5)) {
         const sig = await repo.getSignal(o.signal_id);

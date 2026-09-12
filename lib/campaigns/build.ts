@@ -50,8 +50,19 @@ export async function buildCampaignForOpportunity(
   if (!business || !signal) return { error: "The signal behind this opportunity is gone." };
 
   const service = services.find((s) => s.id === opportunity.matched_service_id) ?? null;
+  onStatus("Reading your customer and your rivals…");
+  let signals = null;
+  try {
+    const { campaignSignalBrief, loadSignalContext } = await import("@/lib/recommend/four-signals");
+    const pool = await repo.listSignalsForCategory(business.category, { sinceDays: 14 });
+    signals = campaignSignalBrief(signal, await loadSignalContext(repo, business, brief, pool));
+  } catch (err) {
+    // The four-signal read sharpens the copy; without it the campaign is
+    // still written from the menu, the snapshot and the demand.
+    console.warn("[campaigns] four-signal brief failed (non-fatal):", (err as Error).message);
+  }
   const generated = await generateCampaign(
-    { business, signal, opportunity, service, services, brief, direction: opts.direction ?? null },
+    { business, signal, opportunity, service, services, brief, direction: opts.direction ?? null, signals },
     onStatus,
   );
   const { angle, assets } = generated.result;

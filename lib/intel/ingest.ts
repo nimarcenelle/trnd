@@ -21,6 +21,9 @@ export interface IntelIngestSummary {
   reviewsWritten: number;
   competitorReads: number;
   alertsCreated: number;
+  /** Own + rival posts written, and rival ad reads (Meta via Apify, Google). */
+  socialPosts?: number;
+  rivalAdReads?: number;
 }
 
 async function ingestOwnReviews(repo: Repo, business: Business): Promise<number> {
@@ -70,8 +73,12 @@ async function ingestCompetitors(repo: Repo, business: Business): Promise<number
   if (competitors.length === 0) return 0;
   let written = 0;
 
-  // ---- ad-library reads (renderer-gated, no API key)
-  try {
+  // ---- ad-library reads (renderer-gated, no API key). When the paid Apify
+  // read is configured it replaces this path (lib/intel/social-ingest.ts):
+  // it works in serverless prod, reads by Page rather than keyword, and
+  // carries how long each ad has run.
+  const { isAdLibraryApifyAvailable } = await import("@/lib/signals/adlibrary-apify");
+  if (!isAdLibraryApifyAvailable()) try {
     const { getRenderer } = await import("@/lib/import/render");
     const renderer = await getRenderer();
     if (renderer) {
@@ -181,6 +188,19 @@ export async function runIntelIngestForBusiness(
     summary.competitorReads = await ingestCompetitors(repo, business);
   } catch (err) {
     console.warn(`[intel] competitors failed for ${business.id}:`, (err as Error).message);
+  }
+  // ---- the social and paid-ad reads: own accounts, direct rivals' accounts,
+  // and what those rivals are paying to show.
+  try {
+    const { ingestRivalAds, ingestSocialAccounts } = await import("@/lib/intel/social-ingest");
+    const competitors = await repo.listCompetitors(business.id);
+    const social = await ingestSocialAccounts(repo, business, competitors);
+    summary.socialPosts = social.ownPosts + social.rivalPosts;
+    summary.competitorReads += social.rivalReads;
+    summary.rivalAdReads = await ingestRivalAds(repo, business, competitors);
+    summary.competitorReads += summary.rivalAdReads;
+  } catch (err) {
+    console.warn(`[intel] social and rival ads failed for ${business.id}:`, (err as Error).message);
   }
   try {
     summary.alertsCreated = (await evaluateAlerts(repo, business)).length;

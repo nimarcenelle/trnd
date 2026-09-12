@@ -4,6 +4,7 @@ import { indexSeries } from "@/lib/demand/series";
 import { applyRelevance, scoreOpportunity, type ScoredOpportunity } from "@/lib/scoring";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 
+import { extrasFor, loadSignalContext } from "./four-signals";
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
 /**
@@ -44,6 +45,9 @@ export async function explainOpportunity(
     ? assessAdRead(adSample, adRead.term, [business.city, business.region ?? ""].filter(Boolean), adRead.value as number).count
     : null;
   const { localityFor } = await import("@/lib/signals/geo");
+  // The same four-signal evidence the ranking read, so the breakdown on
+  // screen is the breakdown the stored score used.
+  const signalCtx = await loadSignalContext(repo, business, brief, categorySignals);
   const scored = scoreOpportunity(
     signal,
     services,
@@ -52,7 +56,7 @@ export async function explainOpportunity(
       coverageCount: typeof coverage?.value === "number" ? coverage.value : null,
       adCount,
     },
-    { locality: localityFor(signal.geo, business.region), series },
+    { locality: localityFor(signal.geo, business.region), series, ...extrasFor(signal, signalCtx) },
   );
   // A judged ranking persisted its relevance — show exactly what it used.
   if (opportunity.relevance != null) {

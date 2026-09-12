@@ -1,7 +1,9 @@
 import type { Business, BusinessBrief, Opportunity, Service, Signal } from "@/lib/db/types";
+import type { CampaignSignalBrief } from "@/lib/recommend/four-signals";
 
-/** gemini-8: craft rules, three real routes into the demand, a copy chief. */
-export const PROMPT_VERSION = "gemini-8";
+/** gemini-9: gemini-8's craft, written to the named target customer and
+ * against what the direct rivals are already saying. */
+export const PROMPT_VERSION = "gemini-9";
 
 export interface PromptCtx {
   business: Business;
@@ -13,6 +15,56 @@ export interface PromptCtx {
   /** The owner's steer for this build, when they asked for one — "do this
    * for the deep-tissue massage instead", "lead with the Tuesday special". */
   direction?: string | null;
+  signals?: CampaignSignalBrief | null;
+}
+
+const THEME_WORDS: Record<string, string> = {
+  education: "teaching something",
+  offer: "a price or deal",
+  scarcity: "a deadline or limited run",
+  social_proof: "customer proof",
+  speed: "speed and convenience",
+  novelty: "something new",
+};
+
+/**
+ * The four signals, said to the writer. Customer: the one person the ad is
+ * for, in their words, with the doubt the copy has to answer. Competitive:
+ * what the direct rivals are already saying, so the angle is the one they
+ * left open. Brand: what has actually worked for this business. Cultural:
+ * how long the winning short-form on this runs.
+ */
+function fourSignalsBlock({ signals }: PromptCtx): string {
+  if (!signals) return "";
+  const out: string[] = [];
+  const tc = signals.targetCustomer;
+  if (tc) {
+    out.push(
+      `WHO THIS AD IS FOR (write to this one person, not a demographic): ${tc.who}`,
+      tc.triggers.length > 0 ? `What makes them buy this week: ${tc.triggers.slice(0, 4).join("; ")}.` : "",
+      tc.vocabulary.length > 0 ? `Their words for it (use these, not the owner's): ${tc.vocabulary.slice(0, 12).join(", ")}.` : "",
+      tc.objections.length > 0 ? `Why they hesitate (the copy answers at least one, without naming it as an objection): ${tc.objections.join("; ")}.` : "",
+    );
+  }
+  if (signals.rivalLines.length > 0 || signals.rivalThemes.length > 0) {
+    out.push(`WHAT THE DIRECT RIVALS ARE ALREADY SAYING (never echo their line or their angle; take the ground they left open, and never name them):`);
+    for (const line of signals.rivalLines) out.push(`- ${line}`);
+    const lead = signals.rivalThemes.slice(0, 2).map((t) => THEME_WORDS[t.theme] ?? t.theme);
+    if (lead.length > 0) out.push(`Their ads mostly lean on ${lead.join(" and ")}.`);
+  }
+  if (signals.ownBestTheme && signals.ownBestTheme.vsAccount >= 1.1) {
+    out.push(
+      `WHAT HAS WORKED FOR THIS BUSINESS: their past ads built on ${THEME_WORDS[signals.ownBestTheme.theme] ?? signals.ownBestTheme.theme} ran ${Math.round((signals.ownBestTheme.vsAccount - 1) * 100)}% above their account average across ${signals.ownBestTheme.ads} ads. Prefer that shape when it fits the demand.`,
+    );
+  }
+  if (signals.ownTopPosts.length > 0) {
+    out.push(`Their own posts that got the most response (their voice, and what their followers answer to):`);
+    for (const p of signals.ownTopPosts) out.push(`- "${p.caption.replace(/\s+/g, " ")}" (${p.engagement} likes, comments and shares)`);
+  }
+  if (typeof signals.medianDurationSec === "number") {
+    out.push(`FORMAT: the short-form video winning on this runs about ${Math.round(signals.medianDurationSec)} seconds. Write scripts to that length.`);
+  }
+  return out.filter(Boolean).join("\n");
 }
 
 /** The owner's direction outranks the judge's taste, never the menu. */
@@ -83,6 +135,11 @@ function signalBlock({ signal, opportunity }: PromptCtx): string {
     .join("\n");
 }
 
+/** The demand signal plus the four-signal read, as one block. */
+function evidenceBlock(ctx: PromptCtx): string {
+  return [signalBlock(ctx), fourSignalsBlock(ctx)].filter(Boolean).join("\n\n");
+}
+
 /**
  * The shape of a line that works, shown once so the model has a target
  * instead of only a fence. Illustrations of SHAPE — the items and prices
@@ -123,7 +180,7 @@ export function buildAngleSlatePrompt(ctx: PromptCtx): string {
   return [
     businessBlock(ctx),
     "",
-    signalBlock(ctx),
+    evidenceBlock(ctx),
     "",
     CRAFT_EXAMPLES,
     "",
@@ -154,7 +211,7 @@ export function buildAngleJudgePrompt(
   return [
     businessBlock(ctx),
     "",
-    signalBlock(ctx),
+    evidenceBlock(ctx),
     "",
     "Three candidate ad angles follow. Pick the ONE a sharp creative director would",
     "actually run this week. Score each on:",
@@ -164,7 +221,10 @@ export function buildAngleJudgePrompt(
     "- Is it about the customer's moment rather than the product's mechanics?",
     "- Is the claim credible from THIS business specifically, and inside the",
     "  snapshot's watchouts?",
-    "- Is it the angle a competitor is least able to copy next week?",
+    "- Is it the angle a competitor is least able to copy next week, and not the one",
+    "  the direct rivals above are already running?",
+    "- Is it written to the one target customer above, in their words, and does it",
+    "  quietly answer why they hesitate?",
     "An education angle wins only when its explanation is genuinely a pleasure to",
     "read — never because it is the safest.",
     ...(ctx.direction ? ["An angle that ignores THE OWNER'S DIRECTION above loses, however sharp it is."] : []),
@@ -186,7 +246,7 @@ export function generateAssetsPrompt(
   return [
     businessBlock(ctx),
     "",
-    signalBlock(ctx),
+    evidenceBlock(ctx),
     "",
     CRAFT_EXAMPLES,
     "",

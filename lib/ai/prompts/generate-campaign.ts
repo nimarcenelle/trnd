@@ -1,7 +1,7 @@
 import type { Business, BusinessBrief, Opportunity, Service, Signal } from "@/lib/db/types";
 
-/** gemini-6: the owner can steer a build with a one-line direction from the pick's Ask box. */
-export const PROMPT_VERSION = "gemini-6";
+/** gemini-7: plain voice — no contrast gimmicks, no putting down other places. */
+export const PROMPT_VERSION = "gemini-7";
 
 export interface PromptCtx {
   business: Business;

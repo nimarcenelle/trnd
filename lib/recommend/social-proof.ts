@@ -60,6 +60,11 @@ interface ShortformRaw {
 
 const PLATFORM: Record<string, string> = { youtube: "YouTube Shorts", tiktok: "TikTok" };
 
+/** Below this many views in a week, short-form has said nothing yet. */
+const MIN_VIEWS = 1_000;
+/** One or two new videos is a couple of people posting, not a format. */
+const MIN_UPLOADS = 3;
+
 function compact(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, "")}K`;
@@ -133,12 +138,28 @@ export function buildSocialProof(signals: Signal[]): SocialProof {
     });
   }
 
-  const summary =
-    views > 0
-      ? `${platforms.join(" and ")} measured ${compact(views)} views on this in the last seven days.`
-      : `${platforms.join(" and ")} carried this term this week, but pulled no measurable views.`;
+  // A read this small is not evidence of anything: "159 views across 1 new
+  // video" filled a whole card and its link opened that one video, which
+  // nobody had watched. Below the bar the panel stays off the page.
+  if (views < MIN_VIEWS || (uploads > 0 && uploads < MIN_UPLOADS)) {
+    return { platforms, facts: [], examples: [], summary: null, href: null };
+  }
 
-  // The first short-form signal that can name a page — never the pick's.
-  const href = shortform.map((s) => sourceUrl(s)).find((u): u is string => Boolean(u)) ?? null;
+  const summary = `${platforms.join(" and ")} measured ${compact(views)} views on this in the last seven days.`;
+
+  // The proof itself: this week's most-watched videos on this term, view
+  // counts on screen. Never the single top post — an unvetted top post is
+  // the failure the header describes, and on a thin week it was a video
+  // nobody watched. Sorted by views without the week filter, the page led
+  // with years-old videos, which proves nothing about now.
+  const href =
+    shortform
+      .map((s) =>
+        s.source === "youtube"
+          ? // sp=CAMSAggD: uploaded this week, sorted by view count.
+            `https://www.youtube.com/results?search_query=${encodeURIComponent(s.term.trim())}&sp=CAMSAggD`
+          : sourceUrl({ ...s, raw: { ...((s.raw ?? {}) as object), top: undefined } }),
+      )
+      .find((u): u is string => Boolean(u)) ?? null;
   return { platforms, facts, examples, summary, href };
 }

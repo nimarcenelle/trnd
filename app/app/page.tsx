@@ -14,7 +14,7 @@ import SubmitButton from "@/components/app/submit-button";
 import PickBriefing from "@/components/app/pick-briefing";
 import PickPager from "@/components/app/pick-pager";
 import GradeCard from "@/components/app/grade-card";
-import DemandGraph from "@/components/app/demand-graph";
+import TrendChart from "@/components/app/trend-chart";
 import PickAsk from "@/components/app/pick-ask";
 import StandingQuestions from "@/components/app/standing-questions";
 import { getSessionUser } from "@/lib/auth/session";
@@ -31,7 +31,6 @@ import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildPickFacts } from "@/lib/recommend/pick-facts";
 import { buildBriefing } from "@/lib/recommend/briefing";
 import { buildSocialProof } from "@/lib/recommend/social-proof";
-import { buildDemandLine } from "@/lib/demand/series";
 import { ensurePickRead, readIsCurrent } from "@/lib/recommend/read";
 import { tiktokHashtag } from "@/lib/recommend/howto";
 import { upcomingMoments } from "@/lib/recommend/seasonal";
@@ -386,10 +385,14 @@ export default async function AppHome({
   const termSignals = signal
     ? termHistory.filter((s) => s.normalized_term === signal.normalized_term)
     : [];
-  // The daily series is the fallback shape when there is not yet enough
-  // absolute history to place this term on the points scale.
-  const demandSeries = signal ? await repo.getSeries(signal.normalized_term, signal.geo, 56) : [];
-  const demand = buildDemandLine(termSignals, demandSeries, new Date(), 8, business.region);
+  // The last 30 days of this term's daily series, drawn as it is. A term
+  // can hold a Trends index (0–100) and a raw search volume under one key;
+  // mixed, the volume days spike off the chart — keep the index when both.
+  const rawSeries = signal ? await repo.getSeries(signal.normalized_term, signal.geo, 30) : [];
+  const demandSeries =
+    rawSeries.some((p) => p.value <= 100) && rawSeries.some((p) => p.value > 100)
+      ? rawSeries.filter((p) => p.value <= 100)
+      : rawSeries;
   const social = buildSocialProof(termSignals);
   // Comes from the short-form read itself; see buildSocialProof.
   const proofHref = social.href;
@@ -458,13 +461,8 @@ export default async function AppHome({
           <div className="pick__row">
             <GradeCard score={Number(top.score)} />
             <div className="card pick__demand">
-              <DemandGraph
-                weeks={demand.weeks}
-                caption={demand.caption}
-                deltaPct={demand.deltaPct}
-                mode={demand.mode}
-                confidence={demand.current?.confidence ?? "thin"}
-              />
+              <p className="demand__eyebrow">Demand, last 30 days</p>
+              <TrendChart points={demandSeries} weeklyDeltaPct={signal?.delta_pct ?? null} />
             </div>
           </div>
 
@@ -501,7 +499,7 @@ export default async function AppHome({
                 proofHref && (
                   <p className="pick__note">
                     <a href={proofHref} target="_blank" rel="noreferrer noopener">
-                      See what&apos;s being posted on this →
+                      See this week&apos;s most-watched videos on this →
                     </a>
                   </p>
                 )

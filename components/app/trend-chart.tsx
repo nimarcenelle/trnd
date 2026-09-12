@@ -94,13 +94,6 @@ export default function TrendChart({
   const late = avg(points.slice(-win));
   const delta = early > 0 ? Math.round(((late - early) / early) * 100) : 0;
   const weekly = typeof weeklyDeltaPct === "number" ? Math.round(weeklyDeltaPct) : null;
-  // The two windows disagreeing is information, not a bug — say so.
-  const crossNote =
-    weekly !== null && Math.abs(weekly) >= 5 && Math.abs(delta) >= 5 && weekly > 0 !== delta > 0
-      ? weekly > 0
-        ? "Both reads are true: this week is up inside a month that's been cooling — a fresh push worth catching early, not a peak you missed."
-        : "Both reads are true: this week dipped inside a month that's still up — watch next week before calling it a fade."
-      : null;
   const mid = points[Math.floor(points.length / 2)];
   const h = hover !== null ? points[hover] : null;
 
@@ -149,11 +142,6 @@ export default function TrendChart({
       <p className="mx-0 mt-[2px] mb-[10px] text-[11.5px] font-mono text-ink-faint">
         {unitHint}
       </p>
-      {crossNote && (
-        <p className="mx-0 mt-0 mb-[10px] text-[12.5px] leading-[1.55] text-ink-soft">
-          {crossNote}
-        </p>
-      )}
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"

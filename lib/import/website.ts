@@ -1,8 +1,9 @@
-import { CATEGORIES } from "@/lib/db/types";
+import { CATEGORIES, type SocialHandles } from "@/lib/db/types";
 import type { OnboardingDocument } from "@/lib/onboarding/menu-doc";
 import { verticalKey } from "@/lib/signals/vertical";
 
 import type { Renderer } from "./render";
+import { poolSocialHandles } from "./social-links";
 
 /**
  * Website import: one polite fetch of the business's own site (owner-initiated,
@@ -33,6 +34,8 @@ export interface SiteImport {
    * crawl can't read (Toast, Square, Clover…) — the wizard names it and
    * asks for the menu directly instead of pretending the site had no prices. */
   menuHost?: { name: string; url: string };
+  /** The accounts their header and footer link to. */
+  social?: SocialHandles;
 }
 
 export interface SitePage {
@@ -1190,6 +1193,10 @@ export function extractFromPages(pages: SitePage[]): SiteImport {
       break;
     }
   }
+  // Every page votes: a footer repeats the real handle on each one, while a
+  // featured partner's account shows up on one page.
+  const social = poolSocialHandles(pages);
+  if (Object.keys(social).length > 0) result.social = social;
   // An explicit JSON-LD priceRange beats our median inference.
   result.priceBand = result.priceBand ?? inferPriceBand(result.services, result.category);
   return result;

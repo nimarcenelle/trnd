@@ -7,6 +7,7 @@ import { generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { fallbackDigest } from "@/lib/documents/parse";
+import { cleanSocialHandles } from "@/lib/import/social-links";
 import { MAX_ONBOARDING_DOC_TEXT, MAX_ONBOARDING_DOCS, type OnboardingDocument } from "@/lib/onboarding/menu-doc";
 
 export interface OnboardingState {
@@ -67,6 +68,16 @@ export async function completeOnboardingAction(
     /* photos are a nice-to-have — never block onboarding on them */
   }
 
+  // The accounts their site links to. The field is client-supplied, so only
+  // the three platforms and well-formed handles survive; a bad value drops
+  // to none rather than stopping setup.
+  let socialHandles = {};
+  try {
+    socialHandles = cleanSocialHandles(JSON.parse(String(formData.get("social_handles") ?? "{}")) as unknown);
+  } catch {
+    /* handles are a nice-to-have too */
+  }
+
   // Menus read during onboarding — kept as the business's first documents.
   // Plural: prices are routinely split across a food menu, a drinks menu and
   // a seasonal one, and reading only the first leaves the rest behind.
@@ -113,6 +124,7 @@ export async function completeOnboardingAction(
     price_band: priceBand || null,
     brand_voice_notes: brandVoice || null,
     photo_urls: photoUrls,
+    social_handles: socialHandles,
   });
 
   // Start the 14-day trial clock the moment the business exists.

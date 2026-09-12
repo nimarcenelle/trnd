@@ -3,7 +3,7 @@
 import { useActionState, useMemo, useRef, useState } from "react";
 
 import { completeOnboardingAction, type OnboardingState } from "@/lib/onboarding/actions";
-import { CATEGORIES } from "@/lib/db/types";
+import { CATEGORIES, type SocialHandles } from "@/lib/db/types";
 import { ACCEPT_ATTR, mimeFor } from "@/lib/documents/parse";
 import type { ImportEvent, SiteImport } from "@/lib/import/website";
 import { MAX_ONBOARDING_DOCS, mergeServices, type OnboardingDocument, type ServiceRow } from "@/lib/onboarding/menu-doc";
@@ -63,6 +63,10 @@ export default function OnboardingWizard() {
   const [voice, setVoice] = useState("");
   const [siteText, setSiteText] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  // The accounts their site links to. Only the heuristic `partial` read
+  // carries them (the AI refinement rebuilds the prefill without), so a
+  // later event without handles never clears the ones already found.
+  const [social, setSocial] = useState<SocialHandles>({});
 
   // The menu, handed over directly: for sites whose prices live on an
   // ordering platform (Toast, Square) the crawl can't read, or that never
@@ -113,6 +117,7 @@ export default function OnboardingWizard() {
       importedVoice.current = d.voiceHint;
     }
     if ((d.photos ?? []).length > 0) setPhotos(d.photos ?? []);
+    if (d.social && Object.keys(d.social).length > 0) setSocial(d.social);
     setMenuHost(d.menuHost ?? null);
     const chips = d.services.slice(0, 6).map((sv) => (sv.price ? `${sv.name} — $${sv.price}` : sv.name));
     if (d.services.length > 6) chips.push(`+${d.services.length - 6} more`);
@@ -156,6 +161,8 @@ export default function OnboardingWizard() {
     setImportNote(null);
     setImportLog([]);
     setFoundChips([]);
+    // A second site read starts clean: the last site's accounts aren't these.
+    setSocial({});
     try {
       const res = await fetch("/api/import", {
         method: "POST",
@@ -336,6 +343,16 @@ export default function OnboardingWizard() {
       </p>
     </div>
   );
+
+  const socialLine = (
+    [
+      ["instagram", "Instagram"],
+      ["tiktok", "TikTok"],
+      ["facebook", "Facebook"],
+    ] as const
+  )
+    .flatMap(([key, label]) => (social[key] ? [`${label} @${social[key]}`] : []))
+    .join(" · ");
 
   const hiddenRows = showAllRows ? 0 : Math.max(0, services.length - ROWS_SHOWN);
   const serviceRows = (
@@ -540,6 +557,7 @@ export default function OnboardingWizard() {
         <input type="hidden" name="brand_voice_notes" value={voice} />
         <input type="hidden" name="site_text" value={siteText} />
         <input type="hidden" name="photo_urls" value={JSON.stringify(photos)} />
+        <input type="hidden" name="social_handles" value={JSON.stringify(social)} />
         <input type="hidden" name="documents" value={docs.length > 0 ? JSON.stringify(docs) : ""} />
 
         {mode === "steps" && step === 0 && (
@@ -607,6 +625,9 @@ export default function OnboardingWizard() {
             <div className="field">
               <label htmlFor="ob-name-r">Business name</label>
               <input id="ob-name-r" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Corner Coffee Co." autoComplete="organization" />
+              {socialLine && (
+                <p className="text-[12px] text-ink-faint mx-0 mt-[6px] mb-0 leading-[1.5]">{socialLine}</p>
+              )}
             </div>
             <div className="field">
               <label>Category</label>

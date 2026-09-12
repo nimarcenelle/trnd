@@ -9,6 +9,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { getAdminRepo } from "@/lib/db/admin";
 import { isMetaAdsConfigured } from "@/lib/env";
+import { enrichCompetitor } from "@/lib/intel/direct";
 import { runIntelIngestForBusiness } from "@/lib/intel/ingest";
 import { budgetFor } from "@/lib/recommend/insights";
 
@@ -22,10 +23,14 @@ export async function addCompetitorAction(formData: FormData): Promise<void> {
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
   const website = String(formData.get("website") ?? "").trim().slice(0, 200) || null;
   if (!name) return;
-  await repo.createCompetitor({ business_id: business.id, name, website, place_id: null });
+  const competitor = await repo.createCompetitor({ business_id: business.id, name, website, place_id: null });
   after(async () => {
+    const jobRepo = getAdminRepo();
+    // Read their site first, so the first intel read already knows their
+    // handles and how directly they compete. enrichCompetitor never throws.
+    await enrichCompetitor(jobRepo, business, competitor);
     try {
-      await runIntelIngestForBusiness(getAdminRepo(), business);
+      await runIntelIngestForBusiness(jobRepo, business);
     } catch (err) {
       console.warn("[intel] first competitor read failed (non-fatal):", (err as Error).message);
     }

@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 
+import { isLatinText } from "../ad-relevance";
 import { CATEGORY_CONFIGS } from "../category-terms";
 import { CircuitBreaker, fetchJson } from "../http";
 import type { AdapterFetchInput, RawSeriesPoint, RawSignal, SignalAdapter, WatchTerm } from "../types";
@@ -227,7 +228,25 @@ export function readShorts(videos: ShortVideo[], now = new Date()): ShortsRead {
   }
   read.medianDurationSec = median(current.map((v) => v.durationSec));
 
-  for (const v of current) {
+  // Which single video the owner is told to watch is the most consequential
+  // thing in this read, and raw views pick the wrong one. Live validation on
+  // "cold plunge" surfaced a 2M-view clip at 0.19% engagement — a video the
+  // algorithm pushed, not a format that earned anything, and useless as an
+  // instruction to go and shoot something. So the two picks are drawn only
+  // from videos that beat the week's median engagement: the question is
+  // which format WORKED, and a video nobody reacts to has not answered it.
+  // Aggregate views still count everything; this gates the recommendation
+  // only, and falls back to the full set when the sample is too small to
+  // have a meaningful median.
+  const rates = current
+    .filter((v) => v.views > 0)
+    .map((v) => (v.likes + v.comments) / v.views);
+  const bar = current.length >= 4 ? (median(rates) ?? 0) : 0;
+  const earned = current.filter(
+    (v) => v.views > 0 && (v.likes + v.comments) / v.views >= bar,
+  );
+  const pickFrom = earned.length > 0 ? earned : current;
+  for (const v of pickFrom) {
     if (!read.top || v.views > read.top.views) read.top = v;
     if (!read.breakout || velocity(v, now) > velocity(read.breakout, now)) read.breakout = v;
   }
@@ -338,11 +357,21 @@ export function createYoutubeAdapter(
   };
 
   /**
-   * `deep` terms get two searches: the 28-day sample ordered by DATE, which
-   * is the unbiased basis for the velocity comparison, plus this week
-   * ordered by VIEW COUNT, which is how the actual hit gets found — a
-   * date-ordered sample finds the median video, never the one worth
-   * watching. Survey terms get the sample only.
+   * Both windows are sampled the SAME way — top by view count, each bounded
+   * to its own window — so the two are comparable.
+   *
+   * The first version searched 28 days ordered by date for the sample and
+   * let `readShorts` split it. Live validation killed that: for any term
+   * busy enough to fill 50 results, the 50 most RECENT videos are all from
+   * the last day or two, so the baseline window came back empty and the
+   * momentum read — 35% of the score — silently fell back to neutral on
+   * precisely the terms that matter most. "cold plunge" returned 100 videos
+   * and a baseline of zero; only a niche term like "contrast therapy studio"
+   * ever filled both halves.
+   *
+   * So the baseline window is now asked for directly with publishedBefore,
+   * at the same cost (two searches), and survey terms — which get one
+   * search — report volume with no momentum rather than a fabricated one.
    */
   const readTerm = async (
     term: string,
@@ -351,14 +380,11 @@ export function createYoutubeAdapter(
     budget: UnitBudget,
   ): Promise<ShortVideo[]> => {
     const regionCode = geo.slice(0, 2) || "US";
+    const now = Date.now();
+    const iso = (daysAgo: number) => new Date(now - daysAgo * 86400_000).toISOString();
     const ids = new Set(
       await search(
-        {
-          q: term,
-          order: "date",
-          regionCode,
-          publishedAfter: new Date(Date.now() - LOOKBACK_DAYS * 86400_000).toISOString(),
-        },
+        { q: term, order: "viewCount", regionCode, publishedAfter: iso(CURRENT_DAYS) },
         budget,
       ),
     );
@@ -368,7 +394,8 @@ export function createYoutubeAdapter(
           q: term,
           order: "viewCount",
           regionCode,
-          publishedAfter: new Date(Date.now() - CURRENT_DAYS * 86400_000).toISOString(),
+          publishedAfter: iso(LOOKBACK_DAYS),
+          publishedBefore: iso(CURRENT_DAYS),
         },
         budget,
       )) {
@@ -376,7 +403,13 @@ export function createYoutubeAdapter(
       }
     }
     if (ids.size === 0) return [];
-    return hydrate([...ids], budget);
+    const videos = await hydrate([...ids], budget);
+    // A US shop cannot act on a video it cannot read. Live validation on
+    // "cold plunge" returned Hindi, French and Cyrillic entertainment clips
+    // — including a 2M-view one that became "the video to watch before you
+    // shoot yours". regionCode and relevanceLanguage do not filter these
+    // out, so the title has to. Same test the ad read uses.
+    return videos.filter((v) => isLatinText(v.title));
   };
 
   return {

@@ -497,3 +497,33 @@ describe("youtube term prioritisation", () => {
     expect(asked).not.toContain("stock two");
   });
 });
+
+describe("youtube recommendation quality gate", () => {
+  const now = new Date("2026-09-10T00:00:00Z");
+  const at = (d: number) => new Date(now.getTime() - d * 86400_000).toISOString();
+  const v = (o: Partial<ShortVideo> & Pick<ShortVideo, "id" | "views" | "likes">): ShortVideo => ({
+    publishedAt: at(1), title: o.id, description: "", channel: o.id, channelId: o.id,
+    comments: 0, durationSec: 25, ...o,
+  });
+
+  it("does not tell the owner to watch a video nobody reacted to", () => {
+    const read = readShorts(
+      [
+        // The algorithm-pushed monster: most views, almost no reaction.
+        v({ id: "pushed", views: 2_000_000, likes: 3_800 }),
+        v({ id: "earned", views: 90_000, likes: 7_000 }),
+        v({ id: "mid1", views: 40_000, likes: 2_000 }),
+        v({ id: "mid2", views: 30_000, likes: 1_500 }),
+      ],
+      now,
+    );
+    expect(read.top?.id).toBe("earned");
+    // The pushed video still counts toward the week's volume.
+    expect(read.views).toBe(2_160_000);
+  });
+
+  it("falls back to the full set when the sample is too small for a median", () => {
+    const read = readShorts([v({ id: "only", views: 500_000, likes: 10 })], now);
+    expect(read.top?.id).toBe("only");
+  });
+});

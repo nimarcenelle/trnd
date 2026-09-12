@@ -12,6 +12,7 @@ import { ensureWeekCampaign } from "@/lib/campaigns/auto";
 import { writeTopPickReads } from "./read";
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
+import { isExpiredMoment } from "./freshness";
 import { weekOf } from "./week";
 
 export { weekOf };
@@ -225,7 +226,20 @@ export async function recommendForBusiness(
   };
 
   const scorable = dedupeByTerm(
-    signals.filter((s) => s.metric_type !== "news_coverage" && s.metric_type !== "ad_saturation"),
+    signals.filter(
+      (s) =>
+        s.metric_type !== "news_coverage" &&
+        s.metric_type !== "ad_saturation" &&
+        // A moment that has already passed is not an opportunity at any
+        // score. Momentum actively argues the other way — conversation about
+        // a holiday peaks the week OF it, so a dying trend arrives at +100%
+        // and outranks everything real. Served 2026-09-12, the top three
+        // picks for a coffee shop were "labor day weekend", "labor day
+        // bookings" and "labor day plans", all grade A, for a holiday that
+        // ended on the 7th. Gate, not penalty: an owner asked to buy ads for
+        // last weekend stops believing the other four picks too.
+        !isExpiredMoment(s.term),
+    ),
   );
   type Candidate = { signal: Signal; result: ScoredOpportunity; relevance: number | null };
   const allScored: Candidate[] = (

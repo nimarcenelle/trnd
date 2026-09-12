@@ -11,6 +11,7 @@ import { getAdminRepo } from "@/lib/db/admin";
 import type { SocialHandles } from "@/lib/db/types";
 import { cleanSocialHandles, SOCIAL_PLATFORMS } from "@/lib/import/social-links";
 import { runIntelIngestForBusiness } from "@/lib/intel/ingest";
+import { parseMarketProfile } from "@/lib/onboarding/market";
 import { normalizeHandle } from "@/lib/social";
 
 /** The three handle inputs, as pasted (URL or @handle), cut to what we
@@ -64,7 +65,9 @@ export async function updateBusinessAction(
   const name = String(formData.get("name") ?? "").trim();
   const category = String(formData.get("category") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
-  if (!name || !city) return { error: "Name and city are required." };
+  if (!name) return { error: "Name is required." };
+  // An online brand may have set up without a city; only a place needs one.
+  if (!city && business.market === "local") return { error: "Name and city are required." };
   if (category.length < 3 || category.length > 60) return { error: "Describe what your business is (a few words)." };
 
   const radius = Number(formData.get("radius_miles") ?? business.radius_miles);
@@ -133,6 +136,30 @@ export async function updateSocialHandlesAction(formData: FormData): Promise<voi
       console.warn("[settings] own accounts read failed (non-fatal):", (err as Error).message);
     }
   });
+  revalidatePath("/app/settings");
+  revalidatePath("/app");
+  revalidatePath("/app/report");
+}
+
+/** How they sell, what they spend on paid social, and where. The controls
+ * only offer allowed values, so a post that fails validation was built by
+ * hand and is dropped without saving. */
+export async function updateBusinessProfileAction(formData: FormData): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const repo = await getUserRepo(user.id);
+  const business = await repo.getBusinessByOwner(user.id);
+  if (!business) redirect("/onboarding");
+  const parsed = parseMarketProfile(
+    {
+      market: formData.get("market"),
+      spend: formData.get("monthly_ad_spend"),
+      platforms: formData.getAll("ad_platforms"),
+    },
+    business.market,
+  );
+  if ("error" in parsed) return;
+  await repo.updateBusiness(business.id, parsed.profile);
   revalidatePath("/app/settings");
   revalidatePath("/app");
   revalidatePath("/app/report");

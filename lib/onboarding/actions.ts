@@ -8,6 +8,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { fallbackDigest } from "@/lib/documents/parse";
 import { cleanSocialHandles } from "@/lib/import/social-links";
+import { parseMarketProfile } from "@/lib/onboarding/market";
 import { MAX_ONBOARDING_DOC_TEXT, MAX_ONBOARDING_DOCS, type OnboardingDocument } from "@/lib/onboarding/menu-doc";
 
 export interface OnboardingState {
@@ -39,7 +40,15 @@ export async function completeOnboardingAction(
   if (category.length < 3 || category.length > 60) {
     return { error: "Describe what your business is (a few words)." };
   }
-  if (!city) return { error: "City is required." };
+  const parsedMarket = parseMarketProfile({
+    market: formData.get("market"),
+    spend: formData.get("monthly_ad_spend"),
+    platforms: formData.getAll("ad_platforms"),
+  });
+  if ("error" in parsedMarket) return { error: parsedMarket.error };
+  const marketProfile = parsedMarket.profile;
+  // A brand selling nationally has no city to read demand in; a place does.
+  if (marketProfile.market === "local" && !city) return { error: "City is required." };
 
   let services: ServiceInput[] = [];
   try {
@@ -119,12 +128,22 @@ export async function completeOnboardingAction(
     country: "US",
     lat: null,
     lng: null,
-    radius_miles: Number.isFinite(radius) ? Math.min(100, Math.max(1, Math.round(radius))) : 20,
+    // A radius means nothing to a brand shipping nationally, so it keeps the
+    // default rather than whatever the hidden slider last held.
+    radius_miles:
+      marketProfile.market === "online"
+        ? 20
+        : Number.isFinite(radius)
+          ? Math.min(100, Math.max(1, Math.round(radius)))
+          : 20,
     website: website || null,
     price_band: priceBand || null,
     brand_voice_notes: brandVoice || null,
     photo_urls: photoUrls,
     social_handles: socialHandles,
+    market: marketProfile.market,
+    monthly_ad_spend: marketProfile.monthly_ad_spend,
+    ad_platforms: marketProfile.ad_platforms,
   });
 
   // Start the 14-day trial clock the moment the business exists.

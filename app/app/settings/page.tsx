@@ -33,10 +33,12 @@ import {
   disconnectMetaAction,
   updateCompetitorHandlesAction,
 } from "@/lib/intel/actions";
+import { AD_PLATFORM_OPTIONS, SPEND_BAND_LABELS } from "@/lib/onboarding/market";
 import {
   addServiceAction,
   deleteServiceAction,
   toggleServiceAction,
+  updateBusinessProfileAction,
   updateSocialHandlesAction,
 } from "@/lib/settings/actions";
 
@@ -227,6 +229,61 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           </span>
         </div>
         <BusinessSettingsForm business={business} />
+        <div className="mt-5 pt-4 border-t border-dashed border-line" id="market">
+          <p className="font-disp font-semibold text-[14.5px] mx-0 mt-0 mb-1">How you sell</p>
+          <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-3 leading-[1.55]">
+            Online brands are read against competing brands nationally. Local businesses are read against the places near them.
+          </p>
+          <form action={updateBusinessProfileAction}>
+            {/* Outside .field, whose input and label styles are for text boxes. */}
+            <div className="mb-[18px]">
+              <span className="mono-label block mb-2">Market</span>
+              <div className="flex gap-4 flex-wrap">
+                {(
+                  [
+                    ["online", "We sell online"],
+                    ["local", "We're a local business"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label key={value} className="flex items-center gap-2 text-[13.5px] cursor-pointer">
+                    <input type="radio" name="market" value={value} defaultChecked={business.market === value} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="st-spend">Monthly paid social spend</label>
+              <select id="st-spend" name="monthly_ad_spend" defaultValue={business.monthly_ad_spend ?? ""}>
+                <option value="">Not set</option>
+                {Object.entries(SPEND_BAND_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-[18px]">
+              <span className="mono-label block mb-2">Where you run ads</span>
+              <div className="flex gap-4 flex-wrap">
+                {AD_PLATFORM_OPTIONS.map((p) => (
+                  <label key={p.value} className="flex items-center gap-2 text-[13.5px] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="ad_platforms"
+                      value={p.value}
+                      defaultChecked={(business.ad_platforms ?? []).includes(p.value)}
+                    />
+                    {p.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Saving…">
+              Save
+            </SubmitButton>
+          </form>
+        </div>
         <div className="mt-5 pt-4 border-t border-dashed border-line" id="accounts">
           <p className="font-disp font-semibold text-[14.5px] mx-0 mt-0 mb-1">Your accounts</p>
           <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-3 leading-[1.55]">

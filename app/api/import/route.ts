@@ -7,6 +7,7 @@ import {
   fetchMenuFile,
   fetchSiteCorpus,
   inferPriceBand,
+  looksLikeStorefront,
   menuFileName,
   normalizeUrl,
   probeStorefrontProducts,
@@ -25,9 +26,6 @@ export const maxDuration = 120;
 
 /** Site text round-trips through a hidden form field into brief generation. */
 const MAX_SITE_TEXT = 16_000;
-
-/** Shopify and WooCommerce leave fingerprints in every page's markup. */
-const looksLikeStorefront = (html: string) => /shopify|\/cdn\/shop\/|woocommerce|wc-block/i.test(html);
 
 /**
  * Owner-initiated read of their own website during onboarding, streamed as
@@ -181,6 +179,9 @@ export async function POST(req: Request): Promise<Response> {
               // Handles come from the site's own links, never the model —
               // the refinement must not drop them.
               social: data.social,
+              // Read from the storefront and the address, which the model
+              // never sees as markup, so it carries over the same way.
+              market: data.market,
               priceBand: refined.priceBand ?? inferPriceBand(services, category) ?? data.priceBand,
               photos: data.photos,
               menuHost: services.some((s) => s.price) ? undefined : data.menuHost,

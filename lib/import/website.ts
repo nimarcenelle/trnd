@@ -1,4 +1,5 @@
-import { CATEGORIES, type SocialHandles } from "@/lib/db/types";
+import { CATEGORIES, type BusinessMarket, type SocialHandles } from "@/lib/db/types";
+import { decideMarket, hasStreetAddress } from "@/lib/onboarding/market";
 import type { OnboardingDocument } from "@/lib/onboarding/menu-doc";
 import { verticalKey } from "@/lib/signals/vertical";
 
@@ -36,6 +37,9 @@ export interface SiteImport {
   menuHost?: { name: string; url: string };
   /** The accounts their header and footer link to. */
   social?: SocialHandles;
+  /** Online brand or local place, read from the storefront, the address and
+   * the category. A prefill the owner can flip on the confirm screen. */
+  market?: BusinessMarket;
 }
 
 export interface SitePage {
@@ -847,6 +851,23 @@ function addressParts(node: LdNode): { city?: string; region?: string } {
   };
 }
 
+/** Shopify and WooCommerce leave fingerprints in every page's markup. */
+export function looksLikeStorefront(html: string): boolean {
+  return /shopify|\/cdn\/shop\/|woocommerce|wc-block/i.test(html);
+}
+
+/** A street a customer could walk to: a JSON-LD streetAddress, or one written
+ * out in the page copy (usually the footer or the contact page). */
+function pageHasStreetAddress(html: string): boolean {
+  const onNode = collectJsonLdNodes(html).some((n) => {
+    const addrs: LdNode[] = Array.isArray(n.address) ? n.address : n.address ? [n.address] : [];
+    return addrs.some((a) =>
+      typeof a === "string" ? hasStreetAddress(a) : typeof a?.streetAddress === "string" && a.streetAddress.trim().length > 0,
+    );
+  });
+  return onNode || hasStreetAddress(stripHtml(html).text);
+}
+
 /** "$$" / "$$$$" style priceRange → our three bands. */
 function bandFromPriceRange(raw: unknown): string | undefined {
   if (typeof raw !== "string") return undefined;
@@ -1175,6 +1196,13 @@ export function extractFromPages(pages: SitePage[]): SiteImport {
   // Category is voted across every crawled page, not won by the first hit.
   result.category =
     classifyCategory(pages.map((p) => htmlToText(p.html)).join("\n")) ?? result.category;
+  // Online brands are the default customer; a site reads as a local place
+  // only when it has a street address and a category people walk into.
+  result.market = decideMarket({
+    storefront: looksLikeStorefront(pages[0].html),
+    streetAddress: pages.some((p) => pageHasStreetAddress(p.html)),
+    category: result.category,
+  });
   // Their own photography, pooled across the crawl — homepage first.
   const photos: string[] = [];
   for (const page of pages) {

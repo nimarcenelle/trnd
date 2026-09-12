@@ -3,12 +3,15 @@
 import { useActionState, useMemo, useRef, useState } from "react";
 
 import { completeOnboardingAction, type OnboardingState } from "@/lib/onboarding/actions";
-import { CATEGORIES, type SocialHandles } from "@/lib/db/types";
+import { AD_SPEND_BANDS, CATEGORIES, type AdPlatform, type BusinessMarket, type SocialHandles } from "@/lib/db/types";
 import { ACCEPT_ATTR, mimeFor } from "@/lib/documents/parse";
 import type { ImportEvent, SiteImport } from "@/lib/import/website";
+import { AD_PLATFORM_OPTIONS, ONLINE_CATEGORIES, SPEND_BAND_LABELS } from "@/lib/onboarding/market";
 import { MAX_ONBOARDING_DOCS, mergeServices, type OnboardingDocument, type ServiceRow } from "@/lib/onboarding/menu-doc";
 
 const STEPS = ["Website", "Category", "Location", "Services", "Voice"] as const;
+// An online brand has no location to give; that step asks about its ads.
+const ONLINE_STEPS = ["Website", "Category", "Ads", "Products", "Voice"] as const;
 
 /** Rows shown before "show all" — a read menu can run to forty items. */
 const ROWS_SHOWN = 8;
@@ -41,6 +44,12 @@ const inputStyle: React.CSSProperties = {
   borderRadius: "var(--radius-sm)",
 };
 
+/** The same picked and unpicked look the category pills use. */
+const pillStyle = (on: boolean): React.CSSProperties =>
+  on
+    ? { background: "var(--amber)", color: "var(--amber-ink)", borderColor: "var(--amber)", cursor: "pointer", fontWeight: 600 }
+    : { cursor: "pointer", background: "var(--bg-1)" };
+
 export default function OnboardingWizard() {
   // Two paths after the website step: a successful import collapses the rest
   // into one prefilled confirm screen ("review"); otherwise the stepper asks
@@ -67,6 +76,14 @@ export default function OnboardingWizard() {
   // carries them (the AI refinement rebuilds the prefill without), so a
   // later event without handles never clears the ones already found.
   const [social, setSocial] = useState<SocialHandles>({});
+  // Online brands are the default customer. The site read may say local
+  // (a street address and a place people walk into); the owner can flip it.
+  const [market, setMarket] = useState<BusinessMarket>("online");
+  const [spend, setSpend] = useState("");
+  // Nearly every paid social brand runs Meta, so it starts ticked.
+  const [platforms, setPlatforms] = useState<AdPlatform[]>(["meta"]);
+  const online = market === "online";
+  const steps: readonly string[] = online ? ONLINE_STEPS : STEPS;
 
   // The menu, handed over directly: for sites whose prices live on an
   // ordering platform (Toast, Square) the crawl can't read, or that never
@@ -118,6 +135,7 @@ export default function OnboardingWizard() {
     }
     if ((d.photos ?? []).length > 0) setPhotos(d.photos ?? []);
     if (d.social && Object.keys(d.social).length > 0) setSocial(d.social);
+    if (d.market) setMarket(d.market);
     setMenuHost(d.menuHost ?? null);
     const chips = d.services.slice(0, 6).map((sv) => (sv.price ? `${sv.name} — $${sv.price}` : sv.name));
     if (d.services.length > 6) chips.push(`+${d.services.length - 6} more`);
@@ -134,7 +152,12 @@ export default function OnboardingWizard() {
     if (d.priceBand) found.push("your price range");
     const gotName = Boolean(name.trim() || d.name);
     const unpriced = d.services.length > 0 && !d.services.some((sv) => sv.price);
-    const menuAsk = d.menuHost
+    // An online brand has products, not a menu to upload.
+    const menuAsk = d.market === "online"
+      ? d.services.length === 0
+        ? " Couldn't read your products. Add your best sellers below."
+        : ""
+      : d.menuHost
       ? ` Your menu is on ${d.menuHost.name}, which doesn't let us read it — upload the menu or paste it below and the prices fill in.`
       : d.services.length === 0
         ? " Couldn't read a menu or price list — upload one or paste it below, or add what you sell by hand."
@@ -223,15 +246,15 @@ export default function OnboardingWizard() {
   const canNext = useMemo(() => {
     if (step === 0) return name.trim().length > 0 || website.trim().length > 0;
     if (step === 1) return category.length > 0;
-    if (step === 2) return city.trim().length > 0;
+    if (step === 2) return online || city.trim().length > 0;
     if (step === 3) return services.some((s) => s.name.trim().length > 0);
     return true;
-  }, [step, name, website, category, city, services]);
+  }, [step, name, website, category, city, services, online]);
 
   const canFinish =
     name.trim().length > 0 &&
     category.length > 0 &&
-    city.trim().length > 0 &&
+    (online || city.trim().length > 0) &&
     services.some((s) => s.name.trim().length > 0);
 
   function setService(i: number, patch: Partial<ServiceRow>) {
@@ -316,12 +339,12 @@ export default function OnboardingWizard() {
         type="text"
         value={category}
         onChange={(e) => setCategory(e.target.value)}
-        placeholder="e.g. Contrast therapy & recovery studio"
+        placeholder={online ? "e.g. Clean skincare for sensitive skin" : "e.g. Contrast therapy & recovery studio"}
         maxLength={60}
         style={{ ...inputStyle, width: "100%", marginBottom: 12 }}
       />
       <div className="flex flex-wrap gap-2" aria-label="Common kinds of business">
-        {CATEGORIES.map((c) => (
+        {(online ? ONLINE_CATEGORIES : CATEGORIES).map((c) => (
           <button
             key={c}
             type="button"
@@ -355,13 +378,15 @@ export default function OnboardingWizard() {
     .join(" · ");
 
   const hiddenRows = showAllRows ? 0 : Math.max(0, services.length - ROWS_SHOWN);
+  // Brands sell products; places sell services. Same rows either way.
+  const itemLabel = online ? "Product" : "Service";
   const serviceRows = (
     <>
       {(hiddenRows > 0 ? services.slice(0, ROWS_SHOWN) : services).map((row, i) => (
         <div className="grid grid-cols-[1fr_130px_40px] gap-[10px] mb-3" key={i}>
-          <input aria-label={`Service ${i + 1} name`} type="text" value={row.name} onChange={(e) => setService(i, { name: e.target.value })} placeholder="e.g. Facial balancing consult" style={inputStyle} />
-          <input aria-label={`Service ${i + 1} price`} type="text" value={row.price} onChange={(e) => setService(i, { price: e.target.value })} placeholder="$ price" style={inputStyle} />
-          <button type="button" aria-label={`Remove service ${i + 1}`} onClick={() => setServices((r) => r.filter((_, idx) => idx !== i))} disabled={services.length === 1} style={{ background: "none", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", color: "var(--ink-faint)", cursor: "pointer" }}>
+          <input aria-label={`${itemLabel} ${i + 1} name`} type="text" value={row.name} onChange={(e) => setService(i, { name: e.target.value })} placeholder={online ? "e.g. Vitamin C serum" : "e.g. Facial balancing consult"} style={inputStyle} />
+          <input aria-label={`${itemLabel} ${i + 1} price`} type="text" value={row.price} onChange={(e) => setService(i, { price: e.target.value })} placeholder="$ price" style={inputStyle} />
+          <button type="button" aria-label={`Remove ${itemLabel.toLowerCase()} ${i + 1}`} onClick={() => setServices((r) => r.filter((_, idx) => idx !== i))} disabled={services.length === 1} style={{ background: "none", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", color: "var(--ink-faint)", cursor: "pointer" }}>
             ×
           </button>
         </div>
@@ -493,18 +518,21 @@ export default function OnboardingWizard() {
     <>
       <div className="field-row">
         <div className="field">
-          <label htmlFor="ob-city">City</label>
+          <label htmlFor="ob-city">{online ? "City (optional)" : "City"}</label>
           <input id="ob-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Atlanta" />
         </div>
         <div className="field">
-          <label htmlFor="ob-region">State / region</label>
+          <label htmlFor="ob-region">{online ? "State / region (optional)" : "State / region"}</label>
           <input id="ob-region" type="text" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="GA" />
         </div>
       </div>
-      <div className="field">
-        <label htmlFor="ob-radius">Radius — {radius} miles</label>
-        <input id="ob-radius" type="range" min={5} max={60} step={5} value={radius} onChange={(e) => setRadius(Number(e.target.value))} style={{ accentColor: "var(--amber)", padding: 0, background: "transparent", border: "none" }} />
-      </div>
+      {/* A brand shipping nationally has no radius; the default is stored. */}
+      {!online && (
+        <div className="field">
+          <label htmlFor="ob-radius">Radius — {radius} miles</label>
+          <input id="ob-radius" type="range" min={5} max={60} step={5} value={radius} onChange={(e) => setRadius(Number(e.target.value))} style={{ accentColor: "var(--amber)", padding: 0, background: "transparent", border: "none" }} />
+        </div>
+      )}
       <div className="field">
         <label htmlFor="ob-price">Price band</label>
         <select id="ob-price" value={priceBand} onChange={(e) => setPriceBand(e.target.value)}>
@@ -516,11 +544,77 @@ export default function OnboardingWizard() {
     </>
   );
 
+  // Two plain answers rather than a switch, so the owner can see at a glance
+  // which one fits even when the site read guessed wrong.
+  const marketToggle = (
+    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="How you sell">
+      {(
+        [
+          ["online", "We sell online"],
+          ["local", "We're a local business"],
+        ] as const
+      ).map(([value, label]) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={market === value}
+          onClick={() => setMarket(value)}
+          className="pill"
+          style={pillStyle(market === value)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  // Asked of online brands only: spend sizes the read, platforms say where
+  // the creative has to run.
+  const adFields = (
+    <>
+      <div className="field">
+        <label htmlFor="ob-spend">Monthly paid social spend</label>
+        <select id="ob-spend" value={spend} onChange={(e) => setSpend(e.target.value)}>
+          <option value="">Pick one</option>
+          {AD_SPEND_BANDS.map((band) => (
+            <option key={band} value={band}>
+              {SPEND_BAND_LABELS[band]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label>Where you run ads</label>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Where you run ads">
+          {AD_PLATFORM_OPTIONS.map((p) => {
+            const on = platforms.includes(p.value);
+            return (
+              <button
+                key={p.value}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                onClick={() =>
+                  setPlatforms((prev) => (on ? prev.filter((x) => x !== p.value) : [...prev, p.value]))
+                }
+                className="pill"
+                style={pillStyle(on)}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="card-lg max-w-[620px] w-full py-[36px] px-[34px]">
       {/* progress rail */}
       <div className="flex gap-[6px] mb-[30px]">
-        {(mode === "review" ? (["Website", "Confirm"] as const) : STEPS).map((label, i, arr) => {
+        {(mode === "review" ? ["Website", "Confirm"] : steps).map((label, i, arr) => {
           const done = mode === "review" || i <= step;
           const isLast = i === arr.length - 1;
           return (
@@ -558,6 +652,10 @@ export default function OnboardingWizard() {
         <input type="hidden" name="site_text" value={siteText} />
         <input type="hidden" name="photo_urls" value={JSON.stringify(photos)} />
         <input type="hidden" name="social_handles" value={JSON.stringify(social)} />
+        <input type="hidden" name="market" value={market} />
+        {/* Asked only of online brands, so a local business saves none. */}
+        {online && <input type="hidden" name="monthly_ad_spend" value={spend} />}
+        {online && platforms.map((p) => <input key={p} type="hidden" name="ad_platforms" value={p} />)}
         <input type="hidden" name="documents" value={docs.length > 0 ? JSON.stringify(docs) : ""} />
 
         {mode === "steps" && step === 0 && (
@@ -623,6 +721,10 @@ export default function OnboardingWizard() {
               Everything below came from your site or a sensible default — fix anything that&apos;s off.
             </p>
             <div className="field">
+              <label>How you sell</label>
+              {marketToggle}
+            </div>
+            <div className="field">
               <label htmlFor="ob-name-r">Business name</label>
               <input id="ob-name-r" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Corner Coffee Co." autoComplete="organization" />
               {socialLine && (
@@ -633,12 +735,13 @@ export default function OnboardingWizard() {
               <label>Category</label>
               {categoryPicker}
             </div>
+            {online && <div className="mt-[18px]">{adFields}</div>}
             <div className="mt-[18px]">{locationFields}</div>
             <div className="field mb-0">
               <label>What you sell</label>
             </div>
             {serviceRows}
-            {menuPanel}
+            {!online && menuPanel}
             <div className="field mt-[18px]">
               <label htmlFor="ob-voice-r">Brand voice notes (optional)</label>
               <textarea id="ob-voice-r" rows={3} value={voice} onChange={(e) => setVoice(e.target.value)} placeholder='e.g. "Warm but direct. We never discount, we add value. No exclamation marks."' />
@@ -650,15 +753,27 @@ export default function OnboardingWizard() {
           <section>
             <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">What kind of business?</h2>
             <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">This decides which demand signals TRND watches for you.</p>
+            <div className="mb-[18px]">{marketToggle}</div>
             {categoryPicker}
           </section>
         )}
 
         {mode === "steps" && step === 2 && (
           <section>
-            <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">Where do customers find you?</h2>
-            <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">Signal gets read for your area, not the whole internet.</p>
-            {locationFields}
+            {online ? (
+              <>
+                <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">Where do you run ads?</h2>
+                <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">So TRND reads the platforms you actually buy on.</p>
+                {adFields}
+                <div className="mt-[18px]">{locationFields}</div>
+              </>
+            ) : (
+              <>
+                <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">Where do customers find you?</h2>
+                <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">Signal gets read for your area, not the whole internet.</p>
+                {locationFields}
+              </>
+            )}
           </section>
         )}
 
@@ -667,7 +782,7 @@ export default function OnboardingWizard() {
             <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">What do you sell?</h2>
             <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">TRND only recommends promoting things you actually offer.</p>
             {serviceRows}
-            {menuPanel}
+            {!online && menuPanel}
           </section>
         )}
 
@@ -710,7 +825,7 @@ export default function OnboardingWizard() {
             <button type="button" className="btn btn-primary btn-sm" disabled={!canNext || importing} onClick={continueFromWebsite} aria-busy={importing}>
               {importing ? "Reading your site…" : "Continue"}
             </button>
-          ) : step < STEPS.length - 1 ? (
+          ) : step < steps.length - 1 ? (
             <button type="button" className="btn btn-primary btn-sm" disabled={!canNext} onClick={() => setStep((s) => s + 1)}>
               Continue
             </button>

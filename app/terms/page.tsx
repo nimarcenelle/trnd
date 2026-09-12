@@ -9,7 +9,7 @@ export const metadata = { title: "Terms of Service — TRND" };
  */
 export default function TermsPage() {
   return (
-    <LegalShell title="Terms of Service" updated="August 27, 2026">
+    <LegalShell title="Terms of Service" updated="September 12, 2026">
       <h2>What TRND is</h2>
       <p>
         TRND recommends what a business should advertise each week, generates the campaign
@@ -31,6 +31,22 @@ export default function TermsPage() {
         portal; cancellation stops future charges and your plan runs to the end of the paid
         period. Founding-business pricing stays locked while your subscription is continuous.
         The campaigns you generated are yours — export them any time, on any plan or none.
+      </p>
+
+      <h2>Connected ad accounts</h2>
+      <p>
+        If you connect an ad account, such as Meta or Google Ads, you confirm you have the right
+        to give TRND access to it. TRND reads your campaign results and only creates or changes
+        campaigns when you tell it to. Your spend is billed by the ad platform, not by us, and
+        that platform&apos;s own terms and ad policies apply. You can disconnect any time in
+        Settings. See our <a className="text-amber" href="/privacy">Privacy Policy</a> for what
+        we store and how Google API data is handled.
+      </p>
+
+      <h2>Your content</h2>
+      <p>
+        You keep ownership of the website details, documents, and notes you give us. You let us
+        use them only to run TRND for you, and you confirm you have the right to share them.
       </p>
 
       <h2>What you may not do</h2>

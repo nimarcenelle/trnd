@@ -45,6 +45,11 @@ export interface BriefingInput {
   brief: BusinessBrief | null;
   /** The service this pick matched, when the scorer found one. */
   matchedService: Service | null;
+  /** Everything the business sells, to tell "no price on this one" from
+   * "no prices anywhere". */
+  services?: Service[];
+  /** The band the analysis inferred ("$$"), when no real price exists. */
+  priceBand?: string | null;
   signal: Signal | null;
   /** Relevant competing ads and the honest local count, from assessAdRead. */
   adCount: number | null;
@@ -131,13 +136,31 @@ export function buildBriefing(input: BriefingInput): BriefingRow[] {
   // EDGE — what this business has that rivals don't, to lead the ad with.
   push("EDGE", strongest(brief?.advantages) ?? firstSentence(brief?.moat));
 
-  // ANCHOR — the real price to put on screen. A named service with a real
-  // price beats any amount of positioning prose.
+  // ANCHOR — the real price to put on screen.
+  //
+  // A ladder, because the honest answer differs by what is actually known
+  // and the old fallback was prose. A coffee shop whose menu lives on Toast
+  // — sealed behind a bot challenge, with no price anywhere on its own site
+  // — got "Your website hides the math, signaling an environment where
+  // experience dictates value" in the slot meant to tell them what to put
+  // on screen. That teaches nothing and cannot be acted on.
+  //
+  // The name is most of the offer even without a number, and "your prices
+  // are not in here yet" is a sentence an owner can do something about.
+  const priced = (input.services ?? []).filter(
+    (s) => typeof s.price_cents === "number" && s.price_cents > 0,
+  ).length;
   push(
     "ANCHOR",
     matchedService && typeof matchedService.price_cents === "number"
       ? `Your ${matchedService.name} at ${money(matchedService.price_cents)} is the offer to put on screen.`
-      : firstSentence(brief?.pricing_read),
+      : matchedService
+        ? `Lead with your ${matchedService.name} — add its price in Settings and the ad can name one.`
+        : priced === 0 && (input.services ?? []).length > 0
+          // Kept short on purpose: the rail cuts a line at 120 characters,
+          // and a truncated instruction is worse than a terse one.
+          ? `No prices on your menu yet${input.priceBand ? ` (we only know the ${input.priceBand} band)` : ""} — add them in Settings so ads can name one.`
+          : firstSentence(brief?.pricing_read),
   );
 
   // WHEN — a dated moment beats a season, and a season beats nothing.

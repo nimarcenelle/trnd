@@ -107,4 +107,37 @@ describe("pick briefing", () => {
     const rows = buildBriefing({ ...base, brief: brief({ customer_segments: ["Desk workers in their 30s who lift"] }) });
     expect(rows.find((r) => r.slot === "WHO")!.text).toBe("Desk workers in their 30s who lift");
   });
+
+  it("names the service even when its price is missing", () => {
+    // A menu sealed behind Toast still gives us the item name, and the name
+    // is most of the offer.
+    const rows = buildBriefing({ ...base, matchedService: service(null), services: [service(null)] });
+    const anchor = rows.find((r) => r.slot === "ANCHOR")!.text;
+    expect(anchor).toContain("contrast therapy session");
+    expect(anchor).toMatch(/add its price/i);
+  });
+
+  it("says prices are missing everywhere rather than reciting positioning prose", () => {
+    // The real Caffe Driade state: 13 named services, not one priced,
+    // because the menu lives on Toast behind a bot challenge.
+    const rows = buildBriefing({
+      ...base,
+      matchedService: null,
+      services: [service(null), service(null)],
+      priceBand: "$$",
+    });
+    const anchor = rows.find((r) => r.slot === "ANCHOR")!.text;
+    expect(anchor).toMatch(/No prices on your menu/);
+    expect(anchor).toContain("$$");
+    expect(anchor).toMatch(/add them in Settings/);
+    // Never the positioning prose that used to fill this slot.
+    expect(anchor).not.toMatch(/mid-market/);
+    // Must survive the rail's one-line cap intact.
+    expect(anchor.length).toBeLessThanOrEqual(120);
+  });
+
+  it("still prefers a real price over everything else", () => {
+    const rows = buildBriefing({ ...base, matchedService: service(4500), services: [service(4500)] });
+    expect(rows.find((r) => r.slot === "ANCHOR")!.text).toContain("$45");
+  });
 });

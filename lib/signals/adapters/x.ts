@@ -1,6 +1,6 @@
 import { env } from "@/lib/env";
 
-import { CircuitBreaker, fetchJson } from "../http";
+import { CircuitBreaker, fetchJson, HttpError } from "../http";
 import type { AdapterFetchInput, RawSeriesPoint, RawSignal, SignalAdapter } from "../types";
 import { coreTerm } from "./trends-iot";
 
@@ -201,6 +201,18 @@ export function createXAdapter(
             },
           });
         } catch (err) {
+          // 401/402/403 are entitlement, not a bad term: the key is wrong,
+          // the plan has no credits, or the tier does not include search.
+          // Retrying the next 24 terms cannot change that, so stop the
+          // adapter for the run instead of logging the same refusal 25
+          // times. Verified live: a free-tier token answers every search
+          // endpoint with 402 "credits depleted".
+          if (err instanceof HttpError && [401, 402, 403].includes(err.status)) {
+            console.warn(
+              `[signals:x] ${err.status} from X — the key has no search entitlement; skipping the rest of this run.`,
+            );
+            return out;
+          }
           console.warn(`[signals:x] "${target.term}" failed:`, (err as Error).message);
         }
       }

@@ -365,6 +365,8 @@ export default async function AppHome({
   const briefingRows = buildBriefing({
     brief,
     matchedService: explained?.matchedService ?? null,
+    services,
+    priceBand: business.price_band,
     signal,
     adCount: adAssessment?.countUsable ? adAssessment.count : null,
     adAdvertisers: competitorAds.map((a) => a.advertiser),

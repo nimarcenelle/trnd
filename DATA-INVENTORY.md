@@ -34,6 +34,8 @@ configured, surfaced automatically.
 | Subreddit heat | Reddit public JSON | weekly top posts per category subreddit (food, HVAC, SkincareAddiction, …): title, score, comment count, permalink |
 | TikTok hashtags | TikTok Creative Center (unofficial) | trending hashtags per industry: name, video views, rank, humanized term, on-topic verdict |
 | TikTok per term | Apify actor (needs `APIFY_TOKEN`) | per-term posts: views, likes, comments, shares, saves, duration, author followers, hashtags |
+| X posts | X recent search (needs a PAID `X_BEARER_TOKEN`) | daily post counts over 7 days, engagement on a 25-post sample, top post |
+| Instagram Reels | Graph API (needs `INSTAGRAM_ACCESS_TOKEN` + App Review) | Reels per hashtag over 7 days, likes, comments, permalink; 30 hashtags/7 days |
 
 ## 4 · News coverage
 

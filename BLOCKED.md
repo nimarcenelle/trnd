@@ -111,6 +111,25 @@ What each source can and can't give, verified live 2026-09-11:
     so confirm `playCount`/`diggCount`/`collectCount`/`authorMeta.fans` against a real
     run before trusting the first night's numbers. `APIFY_TIKTOK_ACTOR` overrides the
     default actor when it gets renamed.
+- **X** — `lib/signals/adapters/x.ts`, key-gated on `X_BEARER_TOKEN`. Recent search
+  reaches back seven days on every tier, so the read compares the halves of that
+  window and reports no delta rather than inventing one. **Verified live 2026-09-12:
+  a token on the free tier answers every search endpoint with `402 credits
+  depleted`** — the free tier carries no read credits at all, and `search/recent` +
+  `counts/recent` are Basic ($200/mo) or above. The adapter treats 401/402/403 as an
+  entitlement failure and stops for the run rather than repeating the refusal once
+  per term.
+  - **Seam**: a paid X tier. Nothing else is missing; the adapter runs the moment the
+    key has credits.
+- **Toast (and any Cloudflare-fronted ordering platform)** — **there is no server-side
+  read.** Verified live 2026-09-12 on caffedriade.com: the site links
+  `toasttab.com/caffedriade`, which 301s to `order.toasttab.com/online/...` and returns
+  a Cloudflare interstitial (`<title>Just a moment...</title>`), while
+  `ws-api.toasttab.com/restaurants/v1/...` answers `401 unauthorized`. The business's
+  own site states no price anywhere and its reviews mention none. So for a Toast
+  restaurant the prices can only come from the owner, which is what the onboarding
+  handover and the Settings upload are for — and the pick screen's ANCHOR slot now says
+  so plainly instead of reciting positioning prose.
 - **Instagram Reels** — still no keyless path. The Graph API's `ig_hashtag_search` +
   `{hashtag-id}/recent_media` gives per-hashtag Reels volume, but needs an Instagram
   Business account linked to a Facebook Page and App Review for `instagram_basic`
@@ -120,7 +139,9 @@ What each source can and can't give, verified live 2026-09-11:
   `META_INSTAGRAM_SCOPES=1`, because requesting a scope Meta has not approved degrades
   the consent screen for the ad connect that already works.
   - **Seam**: pass App Review, set `META_INSTAGRAM_SCOPES=1`, then write the adapter
-    against the same `ShortsRead` shape the other two share. No adapter exists yet.
+    against the same `ShortsRead` shape the other two share. **The adapter now exists**
+    (`lib/signals/adapters/instagram.ts`), key-gated on `INSTAGRAM_ACCESS_TOKEN` +
+    `INSTAGRAM_BUSINESS_ID`; only App Review and the scope flag are outstanding.
 - **Reddit** — `lib/signals/adapters/reddit.ts` uses anonymous JSON, which now returns
   the HTML page instead of JSON for datacenter IPs (verified). Assume it contributes
   nothing in production until it's moved to a registered script app + OAuth token.

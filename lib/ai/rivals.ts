@@ -130,10 +130,13 @@ export async function proposeCompetingBrands(
     // the larger model invents fewer. Flash is the fallback, not the default.
     let parsed: z.infer<typeof BrandsSchema>;
     try {
-      parsed = await structuredCall(models.pro, prompt, brandsResponseSchema, validate);
+      parsed = await structuredCall(models.pro, prompt, brandsResponseSchema, validate, {
+        // Naming real brands and the domains they use is recall, not invention.
+        temperature: 0.2,
+      });
     } catch (err) {
       console.warn(`[ai] rival brands on ${models.pro} failed, retrying on ${models.flash}:`, (err as Error).message);
-      parsed = await structuredCall(models.flash, prompt, brandsResponseSchema, validate);
+      parsed = await structuredCall(models.flash, prompt, brandsResponseSchema, validate, { temperature: 0.2 });
     }
     const out: ProposedBrand[] = [];
     for (const b of parsed.brands) {

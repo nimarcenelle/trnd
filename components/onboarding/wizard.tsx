@@ -726,7 +726,7 @@ export default function OnboardingWizard() {
             </div>
             <div className="field">
               <label htmlFor="ob-name-r">Business name</label>
-              <input id="ob-name-r" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Corner Coffee Co." autoComplete="organization" />
+              <input id="ob-name-r" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your brand" autoComplete="organization" />
               {socialLine && (
                 <p className="text-[12px] text-ink-faint mx-0 mt-[6px] mb-0 leading-[1.5]">{socialLine}</p>
               )}

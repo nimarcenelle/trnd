@@ -178,6 +178,7 @@ export async function structuredCall<T>(
   prompt: string,
   responseSchema: Schema,
   validate: (data: unknown) => T,
+  opts: { temperature?: number } = {},
 ): Promise<T> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -188,7 +189,9 @@ export async function structuredCall<T>(
         systemInstruction: systemInstruction(),
         responseMimeType: "application/json",
         responseSchema,
-        temperature: attempt === 0 ? 0.8 : 0.4,
+        // Callers naming real things (brands, domains) ask for a cold first
+        // pass; creative calls keep the warm default.
+        temperature: attempt === 0 ? (opts.temperature ?? 0.8) : Math.min(opts.temperature ?? 0.4, 0.4),
       },
     });
     try {

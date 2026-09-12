@@ -45,7 +45,7 @@ export default function DemoForm() {
       <div className="field-row">
         <div className="field">
           <label htmlFor="fBiz">Business name</label>
-          <input id="fBiz" name="business_name" type="text" placeholder="Corner Coffee Co." autoComplete="organization" />
+          <input id="fBiz" name="business_name" type="text" placeholder="Your brand" autoComplete="organization" />
         </div>
         <div className="field">
           <label htmlFor="fSite">Website — we&apos;ll build your sample from it</label>

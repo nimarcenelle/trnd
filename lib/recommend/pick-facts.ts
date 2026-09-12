@@ -11,7 +11,7 @@ import { explainOpportunity } from "./explain";
 import { loadSignalContext, rivalLinesOnTerm } from "./four-signals";
 import { buildBusinessHistory } from "./history";
 import { gradeFor } from "./grade";
-import { budgetFor, buildInsights } from "./insights";
+import { budgetFor, buildInsights, creativeTestBudgetFor } from "./insights";
 import { upcomingMoments } from "./seasonal";
 
 /**
@@ -164,7 +164,13 @@ export async function buildPickFacts(
   // and from the fingerprint below. It changes on its own a few seconds
   // after the read is written, and tracking it rewrote every read twice.
   // The action bar already tells the owner whether an ad is waiting.
-  lines.push(`Suggested test: ${budget.daily} a day, ${budget.test}, a 6-day A/B flight.`);
+  // An online brand already spends tens of thousands a month; a test is a
+  // share of that, not $25 a day.
+  lines.push(
+    business.market === "online"
+      ? `Suggested test: ${creativeTestBudgetFor(business.monthly_ad_spend)}, the new ad against your current best.`
+      : `Suggested test: ${budget.daily} a day, ${budget.test}, a 6-day A/B flight.`,
+  );
   // What TRND remembers about this term — the difference between week six
   // and week one. Absent in week one, and said so.
   const remembered = history.byTerm.get(signal.normalized_term);
@@ -196,7 +202,11 @@ export async function buildPickFacts(
   const questions: string[] = [];
   const runnerUp = rivals[0] ? await repo.getSignal(rivals[0].signal_id) : null;
   if (runnerUp) questions.push(`Why this over "${titleCase(runnerUp.term)}"?`);
-  questions.push(`Is ${budget.daily} a day enough to test this?`);
+  questions.push(
+    business.market === "online"
+      ? `How much of this week's spend should go to testing this?`
+      : `Is ${budget.daily} a day enough to test this?`,
+  );
   if (others[0]) questions.push(`Could I run this for my ${others[0].name} instead?`);
   questions.push(
     matched

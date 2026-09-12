@@ -409,6 +409,7 @@ export default async function AppHome({
   // ---- the five things an owner sweeps before spending money ----------------
   // Fixed slots, same order every pick: why, rating, demand, social, rivals.
   const briefingRows = buildBriefing({
+    market: business.market,
     brief,
     matchedService: explained?.matchedService ?? null,
     services,

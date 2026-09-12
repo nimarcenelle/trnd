@@ -345,15 +345,23 @@ export function launchByFor(week: string, now: number = Date.now()): string {
  * without betting the month on it. "under-20k" has no floor worth using, so
  * it reads against $10K; an unknown band says the share and no number.
  */
+const SPEND_FLOORS: Record<string, number> = {
+  "under-20k": 10_000,
+  "20-50k": 20_000,
+  "50-100k": 50_000,
+  "100-250k": 100_000,
+  "250k-plus": 250_000,
+};
+
+/** The daily budget, in cents, for a paused test launch: the low end of the
+ * weekly test share spread over seven days. Null without a spend band. */
+export function creativeTestDailyCents(monthlyAdSpend: string | null | undefined): number | null {
+  const floor = monthlyAdSpend ? SPEND_FLOORS[monthlyAdSpend] : undefined;
+  return floor ? Math.round(((floor * 0.05) / 7) * 100) : null;
+}
+
 export function creativeTestBudgetFor(monthlyAdSpend: string | null | undefined): string {
-  const floors: Record<string, number> = {
-    "under-20k": 10_000,
-    "20-50k": 20_000,
-    "50-100k": 50_000,
-    "100-250k": 100_000,
-    "250k-plus": 250_000,
-  };
-  const floor = monthlyAdSpend ? floors[monthlyAdSpend] : undefined;
+  const floor = monthlyAdSpend ? SPEND_FLOORS[monthlyAdSpend] : undefined;
   if (!floor) return "5-10% of your monthly spend over one week";
   const dollars = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
   return `${dollars(floor * 0.05)} to ${dollars(floor * 0.1)} over one week`;

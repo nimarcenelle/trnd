@@ -14,7 +14,7 @@ import { cleanSocialHandles, SOCIAL_PLATFORMS } from "@/lib/import/social-links"
 import { normalizeHandle } from "@/lib/social";
 import { enrichCompetitor } from "@/lib/intel/direct";
 import { runIntelIngestForBusiness } from "@/lib/intel/ingest";
-import { budgetFor } from "@/lib/recommend/insights";
+import { budgetFor, creativeTestDailyCents } from "@/lib/recommend/insights";
 
 /** Add a named competitor and read it in the background right away. */
 export async function addCompetitorAction(formData: FormData): Promise<void> {
@@ -163,7 +163,9 @@ export async function launchToMetaAction(
     return { error: "Connect your Meta ad account in Settings first." };
   }
 
-  // Daily budget: the low end of the price-band guidance, in cents.
+  // Daily budget, in cents. An online brand tests with a share of what it
+  // already spends; a local business with the low end of its price-band guidance.
+  const onlineDailyCents = business.market === "online" ? creativeTestDailyCents(business.monthly_ad_spend) : null;
   const daily = budgetFor(business.price_band).daily.match(/\d+/)?.[0] ?? "25";
   try {
     const { externalId } = await launchPausedCampaign(
@@ -171,7 +173,7 @@ export async function launchToMetaAction(
       connection.account_id,
       business,
       campaign,
-      Number(daily) * 100,
+      onlineDailyCents ?? Number(daily) * 100,
     );
     await repo.setCampaignExternal(campaign.id, externalId, "PAUSED");
     await repo.setCampaignStatus(campaign.id, "exported");

@@ -1,6 +1,7 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, Competitor } from "@/lib/db/types";
-import { isPlacesConfigured } from "@/lib/env";
+import { isGeminiConfigured, isPlacesConfigured } from "@/lib/env";
+import { discoverCompetingBrands } from "@/lib/intel/discover-brands";
 import { readRivalSite, scoreDirectness, type RivalSiteRead } from "@/lib/intel/direct";
 import { CHAIN_NAMES } from "@/lib/prospect/fit";
 import { discoverPlaces, type DiscoveredPlace } from "@/lib/prospect/discover";
@@ -15,6 +16,11 @@ import { discoverPlaces, type DiscoveredPlace } from "@/lib/prospect/discover";
  * compete most directly (same items, same prices, same block; see
  * lib/intel/direct.ts). The owner can prune or add in Settings; the daily
  * read starts immediately.
+ *
+ * That is the local path. An online brand has no nearest anything: its
+ * rivals are the brands selling the same product to the same customer, so
+ * it seeds from lib/intel/discover-brands.ts instead, and Places plays no
+ * part.
  */
 
 export const SEED_COMPETITOR_COUNT = 5;
@@ -103,6 +109,13 @@ export async function seedCompetitors(
   business: Business,
   opts: { fetchHtml?: (url: string) => Promise<string> } = {},
 ): Promise<SeedResult> {
+  if (business.market === "online") {
+    // The brand list comes from the model and is verified against the web;
+    // without Gemini there is nothing to verify, and a Places search would
+    // return the wrong kind of rival.
+    if (!isGeminiConfigured) return { created: [], note: "Competing-brand discovery isn't switched on for this workspace." };
+    return discoverCompetingBrands(repo, business, { fetchHtml: opts.fetchHtml });
+  }
   if (!isPlacesConfigured) return { created: [], note: "Rival discovery isn't switched on for this workspace." };
   const existing = await repo.listCompetitors(business.id);
   const room = SEED_COMPETITOR_COUNT - existing.length;

@@ -22,6 +22,12 @@ import { tokens } from "@/lib/scoring";
  * the rival's own site settles the rest: what they sell, what they charge,
  * and where they post. Everything here is best-effort; a site we can't read
  * leaves a capped, honestly-labeled guess, never a confident one.
+ *
+ * An online brand has no block. Its rival sells the same serum to the same
+ * customer at the same price from anywhere, and the tell that they are
+ * fighting for that customer is that they are paying Meta to reach them
+ * right now. So for an online business distance is ignored entirely and
+ * the live ad count joins the reason.
  */
 
 export interface RivalSiteRead {
@@ -109,12 +115,17 @@ export interface DirectnessInput {
   ownCategory: string;
   ownPriceBand: string | null;
   ownLexicon: string[];
+  /** "online" drops distance from the score and the reason: brands meet
+   * their rivals in a feed, not on a street. Absent means local. */
+  ownMarket?: "online" | "local";
   rival: {
     name: string;
     category?: string | null;
     distanceMiles?: number | null;
     site?: RivalSiteRead | null;
     reviewCount?: number | null;
+    /** Live Meta ads right now, when the Ad Library was read. */
+    activeMetaAds?: number | null;
   };
 }
 
@@ -195,6 +206,11 @@ function distancePhrase(miles: number | null | undefined): string | null {
   return `${d} ${d === 1 ? "mile" : "miles"} away`;
 }
 
+function adsPhrase(count: number | null | undefined): string | null {
+  if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) return null;
+  return `runs ${count} Meta ${count === 1 ? "ad" : "ads"} right now`;
+}
+
 /**
  * 0..1, how directly a rival competes for the same customer, with the one
  * sentence an owner reads for why. Pure: every input arrives already read.
@@ -202,12 +218,14 @@ function distancePhrase(miles: number | null | undefined): string | null {
 export function scoreDirectness(input: DirectnessInput): { directness: number; reason: string } {
   const { rival } = input;
   const ownItems = [...input.ownServices.map((s) => s.name), ...input.ownLexicon].filter((s) => s.trim());
-  const distance = distancePhrase(rival.distanceMiles);
+  const online = input.ownMarket === "online";
+  const distance = online ? null : distancePhrase(rival.distanceMiles);
+  const ads = adsPhrase(rival.activeMetaAds);
 
   // Close enough to share a walk-in customer, or far enough that few
-  // would cross town for the same drink.
+  // would cross town for the same drink. Neither means anything online.
   let distanceAdj = 0;
-  if (typeof rival.distanceMiles === "number") {
+  if (!online && typeof rival.distanceMiles === "number") {
     if (rival.distanceMiles <= 2) distanceAdj = 0.1;
     else if (rival.distanceMiles > 8) distanceAdj = -0.1;
   }
@@ -218,7 +236,11 @@ export function scoreDirectness(input: DirectnessInput): { directness: number; r
     // guess from a name must never outrank a menu we actually read.
     const hint = menuOverlap(ownItems, `${rival.name} ${rival.category ?? ""}`);
     const directness = clamp(Math.min(UNREAD_DIRECTNESS_CAP, 0.3 + 0.3 * hint.coverage + distanceAdj));
-    const where = distance ? `Same category, ${distance}` : "Same category";
+    const where = online
+      ? `Sells to a customer like yours${ads ? ` and ${ads}` : ""}`
+      : distance
+        ? `Same category, ${distance}`
+        : "Same category";
     return {
       directness: round2(directness),
       reason: `${where}, but we couldn't read their website, so how closely they compete is a rough guess.`,
@@ -244,7 +266,12 @@ export function scoreDirectness(input: DirectnessInput): { directness: number; r
     .filter((s, i, all) => s && all.indexOf(s) === i)
     .slice(0, 3);
   let lead: string;
-  if (menuScore >= 0.45 && items.length > 0) lead = `Sells the same ${listPhrase(items)} you do`;
+  // A brand's owner says "range", not "menu", and names the product plainly.
+  if (online) {
+    if (menuScore >= 0.45 && items.length > 0) lead = `Sells ${listPhrase(items)}`;
+    else if (menuScore >= 0.2 && items.length > 0) lead = `Overlaps with some of your range, like ${listPhrase(items)}`;
+    else lead = "Sells to a customer like yours, but little of your range shows up on their site";
+  } else if (menuScore >= 0.45 && items.length > 0) lead = `Sells the same ${listPhrase(items)} you do`;
   else if (menuScore >= 0.2 && items.length > 0) lead = `Overlaps with some of your menu, like ${listPhrase(items)}`;
   else if (rival.category) {
     lead = `Same category, but little of your menu shows up at this ${rival.category.toLowerCase().replace(/[—–→]/g, " ")}`;
@@ -252,7 +279,9 @@ export function scoreDirectness(input: DirectnessInput): { directness: number; r
 
   const price =
     bandGap === 0
-      ? "at your prices"
+      ? online
+        ? "at your price point"
+        : "at your prices"
       : bandGap === null
         ? null
         : Math.abs(bandGap) >= 2
@@ -261,7 +290,7 @@ export function scoreDirectness(input: DirectnessInput): { directness: number; r
             ? "priced a step above you"
             : "priced a step below you";
 
-  const reason = `${lead}${price ? ` ${price}` : ""}${distance ? `, ${distance}` : ""}.`;
+  const reason = `${lead}${price ? ` ${price}` : ""}${ads ? `, and ${ads}` : ""}${distance ? `, ${distance}` : ""}.`;
   return { directness, reason };
 }
 
@@ -304,6 +333,7 @@ export async function enrichCompetitor(
       ownCategory: business.category,
       ownPriceBand: business.price_band,
       ownLexicon: brief?.lexicon ?? [],
+      ownMarket: business.market,
       rival: {
         name: competitor.name,
         category: opts.category,

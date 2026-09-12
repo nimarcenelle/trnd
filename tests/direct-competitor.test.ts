@@ -111,6 +111,51 @@ describe("scoreDirectness", () => {
   });
 });
 
+describe("scoreDirectness for an online brand", () => {
+  const SKIN_SERVICES = [
+    { name: "Barrier Repair Serum", price_cents: 3800 },
+    { name: "Ceramide Moisturizer", price_cents: 4200 },
+  ];
+  const SKIN_SITE: RivalSiteRead = {
+    text: "Barrier repair serum and ceramide moisturizer for sensitive skin.",
+    services: [
+      { name: "Barrier Repair Serum", price: "36" },
+      { name: "Ceramide Moisturizer", price: "40" },
+      { name: "Hydrating Toner", price: "28" },
+    ],
+    priceBand: "$$",
+    handles: {},
+  };
+  const online = (rival: DirectnessInput["rival"]): DirectnessInput => ({
+    ownServices: SKIN_SERVICES,
+    ownCategory: "Beauty & skincare",
+    ownPriceBand: "$$",
+    ownLexicon: [],
+    ownMarket: "online",
+    rival,
+  });
+
+  it("ignores distance entirely and names the live ad count", () => {
+    const near = scoreDirectness(online({ name: "Real Skin", distanceMiles: 0.5, site: SKIN_SITE, activeMetaAds: 14 }));
+    const far = scoreDirectness(online({ name: "Real Skin", distanceMiles: 2400, site: SKIN_SITE, activeMetaAds: 14 }));
+    expect(near.directness).toBe(far.directness);
+    expect(near.reason).toMatch(/^Sells barrier repair serum/);
+    expect(near.reason).toContain("at your price point, and runs 14 Meta ads right now.");
+    for (const r of [near.reason, far.reason]) {
+      expect(r).not.toMatch(/miles? away|menu|[—–→]/);
+    }
+  });
+
+  it("says nothing about ads when none are running, and never mentions distance when unread", () => {
+    const quiet = scoreDirectness(online({ name: "Real Skin", site: SKIN_SITE, activeMetaAds: 0 }));
+    expect(quiet.reason).not.toContain("Meta ad");
+    const unread = scoreDirectness(online({ name: "Real Skin", distanceMiles: 1, site: null, activeMetaAds: 1 }));
+    expect(unread.directness).toBeLessThanOrEqual(UNREAD_DIRECTNESS_CAP);
+    expect(unread.reason).toContain("runs 1 Meta ad right now");
+    expect(unread.reason).not.toMatch(/miles? away|Same category/);
+  });
+});
+
 describe("orderByDirectness", () => {
   it("puts the most direct first and breaks near-ties by distance", () => {
     const ordered = orderByDirectness([

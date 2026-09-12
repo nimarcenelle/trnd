@@ -45,7 +45,7 @@ import { getPlanState } from "@/lib/billing";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, businessJustOnboarded, generateBusinessBrief, targetCustomerOf } from "@/lib/ai/brief";
 import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
-import { geoLabel } from "@/lib/signals/geo";
+import { businessStateGeo, geoLabel } from "@/lib/signals/geo";
 import { sourceUrl } from "@/lib/signals/source-url";
 import { sentenceCase, titleCase } from "@/lib/text";
 
@@ -341,7 +341,7 @@ export default async function AppHome({
     getPlanState(repo, business),
     // Eight weeks, for the demand line. The category read above is a 7-day
     // window — enough to rank this week, far too short to draw a trend.
-    repo.listSignalsForCategory(business.category, { geo: business.region ? `US-${business.region.toUpperCase()}` : undefined, sinceDays: 56 }),
+    repo.listSignalsForCategory(business.category, { geo: businessStateGeo(business), sinceDays: 56 }),
   ]);
   // The nearest dated demand moment — a date beats a season in the briefing.
   const nextMoment = upcomingMoments(business.category)[0] ?? null;
@@ -393,6 +393,7 @@ export default async function AppHome({
           scripts,
           culturalPlatform: culturalRead?.platform ?? null,
           ownVideoShare: signalCtx.ownPosts.length >= 5 ? readAccount(signalCtx.ownPosts).videoShare : null,
+          adPlatforms: business.ad_platforms,
           medianDurationSec: signalBrief?.medianDurationSec ?? null,
           weekPct: explained?.weekPct ?? null,
           monthPct: explained?.monthPct ?? null,

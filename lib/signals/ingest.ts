@@ -19,7 +19,7 @@ import { createXAdapter } from "./adapters/x";
 import { createYoutubeAdapter } from "./adapters/youtube";
 import { createMetaAdsAdapter } from "./adlibrary";
 import { CATEGORY_CONFIGS } from "./category-terms";
-import { resolveMetro } from "./geo";
+import { businessStateGeo, isOnlineBusiness, resolveMetro } from "./geo";
 import { normalizeTerm } from "./normalize";
 import type { AdapterRunReport, SignalAdapter, WatchPlace, WatchSubreddit } from "./types";
 
@@ -33,6 +33,8 @@ export interface IngestSummary {
 /** The tokens that make a watch term local — strippable when an adapter has
  * to widen a too-narrow read ("cold plunge nyc" → "cold plunge"). */
 export function localityTokens(business: Business): string[] {
+  // An online brand's terms carry no place to strip.
+  if (isOnlineBusiness(business)) return [];
   return [
     ...business.city.toLowerCase().split(/\s+/).filter((w) => w.length > 2),
     ...(business.region ? [business.region.toLowerCase()] : []),
@@ -108,7 +110,7 @@ export async function runSignalIngestForBusiness(
     return true;
   });
   if (terms.length === 0) return 0;
-  const stateGeo = business.region ? `US-${business.region.toUpperCase()}` : "US";
+  const stateGeo = businessStateGeo(business) ?? "US";
   const locality = localityTokens(business);
   const watch = terms.map((t) => ({
     term: t.toLowerCase().trim(),
@@ -282,8 +284,10 @@ export async function runIngest(
       // A business's own terms watch its own METRO where the city resolves
       // to one (Google Trends takes DMA geos), its state otherwise — never
       // the whole country. Local demand measured locally is the product.
-      const metro = resolveMetro(b.city, b.region);
-      const stateGeo = b.region ? `US-${b.region.toUpperCase()}` : "US";
+      // An online brand reads nationally: no metro, no state, no weather.
+      const online = isOnlineBusiness(b);
+      const metro = online ? null : resolveMetro(b.city, b.region);
+      const stateGeo = businessStateGeo(b) ?? "US";
       const bizGeo = metro?.geo ?? stateGeo;
       const locality = localityTokens(b);
       for (const t of (brief?.watch_terms ?? []).slice(0, 24)) addWatch(t, b.category, bizGeo, locality);
@@ -293,9 +297,10 @@ export async function runIngest(
       // This week's ranked terms too — so their saturation read is real.
       for (const o of (await repo.listOpportunities(b.id, week)).slice(0, 5)) {
         const sig = await repo.getSignal(o.signal_id);
-        if (sig) addWatch(`${sig.term} ${b.city}`, b.category, stateGeo);
+        if (sig) addWatch(online || !b.city ? sig.term : `${sig.term} ${b.city}`, b.category, stateGeo);
       }
       // One weather read per place, tagged with every category present there.
+      if (online) continue;
       const placeKey = bizGeo;
       const place = placeMap.get(placeKey) ?? {
         city: b.city,

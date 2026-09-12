@@ -44,7 +44,7 @@ export async function explainOpportunity(
   const adCount = adRead
     ? assessAdRead(adSample, adRead.term, [business.city, business.region ?? ""].filter(Boolean), adRead.value as number).count
     : null;
-  const { localityFor } = await import("@/lib/signals/geo");
+  const { localityFor, localityRegion } = await import("@/lib/signals/geo");
   // The same four-signal evidence the ranking read, so the breakdown on
   // screen is the breakdown the stored score used.
   const signalCtx = await loadSignalContext(repo, business, brief, categorySignals);
@@ -56,7 +56,7 @@ export async function explainOpportunity(
       coverageCount: typeof coverage?.value === "number" ? coverage.value : null,
       adCount,
     },
-    { locality: localityFor(signal.geo, business.region), series, ...extrasFor(signal, signalCtx) },
+    { locality: localityFor(signal.geo, localityRegion(business)), series, ...extrasFor(signal, signalCtx) },
   );
   // A judged ranking persisted its relevance — show exactly what it used.
   if (opportunity.relevance != null) {

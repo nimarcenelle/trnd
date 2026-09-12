@@ -2,6 +2,7 @@ import type { Repo } from "@/lib/db/repo";
 import type { Alert, Business, NewAlert } from "@/lib/db/types";
 import { AD_COUNT_LOCAL_MAX } from "@/lib/intel/ingest";
 import { tokens } from "@/lib/scoring";
+import { businessStateGeo } from "@/lib/signals/geo";
 import { weekOf } from "@/lib/recommend/recommend";
 import { upcomingMoments } from "@/lib/recommend/seasonal";
 import { benchmarkFor } from "@/lib/results/benchmarks";
@@ -28,7 +29,7 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
   const [signals, brief, competitors, reads, campaigns, results] = await Promise.all([
     repo.listSignalsForCategory(business.category, {
       sinceDays: 7,
-      geo: business.region ? `US-${business.region.toUpperCase()}` : undefined,
+      geo: businessStateGeo(business),
     }),
     repo.getBusinessBrief(business.id),
     repo.listCompetitors(business.id),

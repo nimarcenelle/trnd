@@ -135,6 +135,26 @@ export function geoLevel(geo: string): GeoLevel {
  * metro sits in the business's state (the repo query guarantees this, but
  * scoring shouldn't trust the caller).
  */
+/**
+ * An online brand sells to the whole country: its customer is a persona, not
+ * a radius, so its demand is read nationally and no read earns a locality
+ * bonus. A place reads its metro, else its state.
+ */
+export function isOnlineBusiness(business: { market?: string | null }): boolean {
+  return business.market === "online";
+}
+
+/** The state geo a business's own reads are scoped to; undefined for an
+ * online brand or a business with no region (read nationally). */
+export function businessStateGeo(business: { region: string | null; market?: string | null }): string | undefined {
+  return !isOnlineBusiness(business) && business.region ? `US-${business.region.trim().toUpperCase()}` : undefined;
+}
+
+/** The region locality is judged against: none for an online brand. */
+export function localityRegion(business: { region: string | null; market?: string | null }): string | null {
+  return isOnlineBusiness(business) ? null : business.region;
+}
+
 export function localityFor(signalGeo: string, businessRegion: string | null): GeoLevel {
   if (!businessRegion) return "national";
   const stateGeo = `US-${businessRegion.trim().toUpperCase()}`;

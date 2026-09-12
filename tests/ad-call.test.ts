@@ -82,6 +82,12 @@ describe("the ad call", () => {
     expect(buildAdCall(base({ culturalPlatform: "tiktok" })).promote).toMatch(/on TikTok and Instagram Reels\.$/);
   });
 
+  it("recommends where the brand already buys ads", () => {
+    expect(buildAdCall(base({ culturalPlatform: "tiktok", adPlatforms: ["meta"] })).promote).toMatch(/on Instagram Reels and Facebook\.$/);
+    expect(buildAdCall(base({ culturalPlatform: "tiktok", adPlatforms: ["meta", "tiktok"] })).promote).toMatch(/on TikTok and Instagram Reels\.$/);
+    expect(buildAdCall(base({ culturalPlatform: null, adPlatforms: ["tiktok"] })).promote).toMatch(/on TikTok\.$/);
+  });
+
   it("leaves out a clause with nothing real behind it", () => {
     const call = buildAdCall(
       base({ rivals: null, rivalThemes: [], ownBestTheme: null, weekPct: 2, audiencePhrase: null, campaign: null }),

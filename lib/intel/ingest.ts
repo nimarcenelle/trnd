@@ -2,6 +2,7 @@ import type { Repo } from "@/lib/db/repo";
 import type { Business, NewReview } from "@/lib/db/types";
 import { isPlacesConfigured } from "@/lib/env";
 import { evaluateAlerts } from "@/lib/alerts/engine";
+import { businessStateGeo } from "@/lib/signals/geo";
 import { fetchAdLibraryRead } from "@/lib/signals/adlibrary";
 import { generateReviewDigest } from "@/lib/reviews/digest";
 import { fetchPlaceReviews, findPlace } from "@/lib/reviews/places";
@@ -230,7 +231,7 @@ export async function ensureIntelFresh(repo: Repo, business: Business): Promise<
   const anchors = watchTerms.map(normalizeTerm);
   const signals = await repo.listSignalsForCategory(business.category, {
     sinceDays: 7,
-    geo: business.region ? `US-${business.region.toUpperCase()}` : undefined,
+    geo: businessStateGeo(business),
   });
   const hasDemandReads = signals.some(
     (s) =>

@@ -42,6 +42,9 @@ export interface AdCallInput {
    * how much of the owner's own feed is video. */
   culturalPlatform: string | null;
   ownVideoShare: number | null;
+  /** Where the brand already runs ads (Business.ad_platforms). An ad is
+   * recommended where they can actually buy it this week. */
+  adPlatforms?: string[];
   /** How the winning short-form on this term is built. */
   medianDurationSec: number | null;
   weekPct: number | null;
@@ -92,7 +95,15 @@ const STRUCTURE: Record<string, string> = {
   novelty: "the reveal, the first taste or first look, where to get it",
 };
 
-function platformFor(input: Pick<AdCallInput, "culturalPlatform" | "ownVideoShare">): string {
+function platformFor(input: Pick<AdCallInput, "culturalPlatform" | "ownVideoShare" | "adPlatforms">): string {
+  const buys = new Set(input.adPlatforms ?? []);
+  if (buys.size > 0) {
+    // Where the attention is, narrowed to where they already buy.
+    if (input.culturalPlatform === "tiktok" && buys.has("tiktok")) return buys.has("meta") ? "TikTok and Instagram Reels" : "TikTok";
+    if (input.culturalPlatform === "youtube" && buys.has("youtube")) return buys.has("meta") ? "Instagram Reels and YouTube Shorts" : "YouTube Shorts";
+    if (buys.has("meta")) return "Instagram Reels and Facebook";
+    if (buys.has("tiktok")) return "TikTok";
+  }
   switch (input.culturalPlatform) {
     case "tiktok":
       return "TikTok and Instagram Reels";

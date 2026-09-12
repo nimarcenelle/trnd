@@ -3,7 +3,7 @@ import type { Business, NewOpportunity, NewSignal, Opportunity, Signal } from "@
 import { indexSeries } from "@/lib/demand/series";
 import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity, tokens, type ScoredOpportunity } from "@/lib/scoring";
-import { localityFor } from "@/lib/signals/geo";
+import { businessStateGeo, localityFor, localityRegion } from "@/lib/signals/geo";
 import { normalizeTerm } from "@/lib/signals/normalize";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { verticalKey } from "@/lib/signals/vertical";
@@ -119,7 +119,7 @@ export function evergreenSignalInputs(
       term,
       normalized_term: normalized,
       category: business.category,
-      geo: business.region ? `US-${business.region.toUpperCase()}` : "US",
+      geo: businessStateGeo(business) ?? "US",
       metric_type: "steady_demand",
       value: null,
       delta_pct: null,
@@ -147,7 +147,7 @@ export async function recommendForBusiness(
   const signalOpts = {
     sinceDays: 14,
     // Local state signals rank alongside national ones.
-    geo: business.region ? `US-${business.region.toUpperCase()}` : undefined,
+    geo: businessStateGeo(business),
   };
   // category is the business's free-text identity; its own signals (watch
   // terms, snapshot, weather) are tagged with that exact string. The stock
@@ -265,7 +265,7 @@ export async function recommendForBusiness(
           {
             // Demand measured in the business's own metro or state outranks
             // the same demand measured nationally.
-            locality: localityFor(signal.geo, business.region),
+            locality: localityFor(signal.geo, localityRegion(business)),
             // The 30-day line the owner sees is part of the momentum read.
             series: indexSeries(await repo.getSeries(signal.normalized_term, signal.geo, 30)),
             ...extrasFor(signal, signalCtx),

@@ -15,7 +15,7 @@ import { buildAdCall, type AdCall } from "@/lib/recommend/ad-call";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { campaignSignalBrief, culturalForTerm, DIRECT_MIN, loadSignalContext, rivalTermRead } from "@/lib/recommend/four-signals";
 import { culturalFromSignal } from "@/lib/scoring";
-import { geoLabel } from "@/lib/signals/geo";
+import { businessStateGeo, geoLabel } from "@/lib/signals/geo";
 import { readAccount } from "@/lib/social/read";
 
 /**
@@ -220,7 +220,7 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
     await Promise.all([
       repo.listSignalsForCategory(business.category, {
         sinceDays: 14,
-        geo: business.region ? `US-${business.region.toUpperCase()}` : undefined,
+        geo: businessStateGeo(business),
       }),
       repo.listOpportunities(business.id, week),
       repo.listCampaigns(business.id),
@@ -455,6 +455,7 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
           scripts,
           culturalPlatform: cultural?.platform ?? null,
           ownVideoShare: signalCtx.ownPosts.length >= 5 ? readAccount(signalCtx.ownPosts).videoShare : null,
+          adPlatforms: business.ad_platforms,
           medianDurationSec: signalBrief.medianDurationSec,
           weekPct: explained.weekPct ?? null,
           monthPct: explained.monthPct ?? null,

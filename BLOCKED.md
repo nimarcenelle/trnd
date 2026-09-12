@@ -166,3 +166,25 @@ What each source can and can't give, verified live 2026-09-11:
   (JSON-LD, title, price-line heuristics; Gemini refinement when keyed) are fully
   implemented and unit-tested against fixture HTML.
 - **Seam**: none — works wherever the app has normal outbound network access.
+
+## Four-signal reads (2026-09-12)
+
+What the customer, competitive, cultural and brand signals need that code cannot supply.
+
+- **Migration 0022** (`supabase/migrations/0022_four_signals.sql`): social handles, market,
+  ad spend and platforms on businesses; directness and handles on competitors; the target
+  customer on briefs; the `social_posts` and `ad_history` tables; `social` and `google_ads`
+  competitor-read kinds. Paste it into the Supabase SQL editor. Until it runs, writes drop
+  the missing columns and keep working (lib/db/supabase/repo.ts `writeTolerant`), and posts
+  and ad history are simply not kept.
+- **`APIFY_TOKEN`**: the Instagram, TikTok and Facebook account reads (lib/social/*) and the
+  direct rivals' Meta Ad Library read by Page (lib/signals/adlibrary-apify.ts). Without it the
+  social half of the brand and competitive signals is empty and rival Meta ads fall back to the
+  Playwright keyword scrape, which does not run in serverless prod. Actor overrides:
+  `APIFY_INSTAGRAM_ACTOR`, `APIFY_FACEBOOK_ACTOR`, `APIFY_ADLIBRARY_ACTOR`,
+  `APIFY_GOOGLE_ADS_ACTOR` (the Google Ads Transparency read uses the renderer when unset).
+  Cost is per result: accounts refresh at most every 48 hours, and only direct rivals are read.
+- **Stripe price for $500/month** (and $5,000/year): the DTC positioning replaces $149/$299.
+  Set `STRIPE_PRICE_BASELINE` to the new price id.
+- **Meta ad account history**: syncing every ad a brand ran needs the existing `ads_read`
+  scope through App Review for accounts outside the app's testers.

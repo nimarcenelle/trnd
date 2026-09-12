@@ -6,32 +6,39 @@
 -- and how they did (an Ads Manager export, a synced account, or a hand
 -- entry). Customer: the one target customer the brief names, with the words
 -- they use — signal terms are judged against that vocabulary.
+--
+-- Idempotent: migrations are pasted into the SQL editor by hand, and a paste
+-- that half-ran must be safe to paste again.
 
 alter table public.businesses
-  add column social_handles jsonb not null default '{}'::jsonb,
+  add column if not exists social_handles jsonb not null default '{}'::jsonb,
   -- Online brands (the DTC customer) compete by product and ads, nationally;
   -- local businesses by place. Existing rows are local.
-  add column market text not null default 'local' check (market in ('online','local')),
+  add column if not exists market text not null default 'local',
   -- A band like "20-50k": sizes test budgets and the stakes line.
-  add column monthly_ad_spend text,
-  add column ad_platforms text[] not null default '{}';
+  add column if not exists monthly_ad_spend text,
+  add column if not exists ad_platforms text[] not null default '{}';
+
+alter table public.businesses drop constraint if exists businesses_market_check;
+alter table public.businesses
+  add constraint businesses_market_check check (market in ('online','local'));
 
 alter table public.competitors
-  add column social_handles jsonb not null default '{}'::jsonb,
-  add column directness numeric,
-  add column directness_reason text;
+  add column if not exists social_handles jsonb not null default '{}'::jsonb,
+  add column if not exists directness numeric,
+  add column if not exists directness_reason text;
 
 alter table public.business_briefs
-  add column target_customer jsonb not null default '{}'::jsonb;
+  add column if not exists target_customer jsonb not null default '{}'::jsonb;
 
 -- Social and Google-ads reads join the dated observations on a rival.
-alter table public.competitor_reads drop constraint competitor_reads_kind_check;
+alter table public.competitor_reads drop constraint if exists competitor_reads_kind_check;
 alter table public.competitor_reads
   add constraint competitor_reads_kind_check
   check (kind in ('ads','reviews','site','social','google_ads'));
 
 -- ------------------------------------------------------------ social_posts
-create table public.social_posts (
+create table if not exists public.social_posts (
   id             uuid primary key default gen_random_uuid(),
   business_id    uuid not null references public.businesses (id) on delete cascade,
   competitor_id  uuid references public.competitors (id) on delete cascade,
@@ -50,15 +57,16 @@ create table public.social_posts (
   captured_at    timestamptz not null default now()
 );
 alter table public.social_posts enable row level security;
-create unique index social_posts_identity_idx
+create unique index if not exists social_posts_identity_idx
   on public.social_posts (business_id, coalesce(competitor_id, '00000000-0000-0000-0000-000000000000'::uuid), platform, external_id);
-create index social_posts_business_idx on public.social_posts (business_id, posted_at desc);
+create index if not exists social_posts_business_idx on public.social_posts (business_id, posted_at desc);
+drop policy if exists "social_posts: via business" on public.social_posts;
 create policy "social_posts: via business" on public.social_posts
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
 
 -- -------------------------------------------------------------- ad_history
-create table public.ad_history (
+create table if not exists public.ad_history (
   id             uuid primary key default gen_random_uuid(),
   business_id    uuid not null references public.businesses (id) on delete cascade,
   platform       text not null default 'meta' check (platform in ('meta','google','tiktok','other')),
@@ -77,7 +85,8 @@ create table public.ad_history (
   unique (business_id, platform, campaign_name, ad_name, started_on)
 );
 alter table public.ad_history enable row level security;
-create index ad_history_business_idx on public.ad_history (business_id, started_on desc);
+create index if not exists ad_history_business_idx on public.ad_history (business_id, started_on desc);
+drop policy if exists "ad_history: via business" on public.ad_history;
 create policy "ad_history: via business" on public.ad_history
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));

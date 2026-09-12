@@ -20,6 +20,10 @@ export default function AdPreview({
 }) {
   const initial = businessName.trim().charAt(0).toUpperCase() || "T";
   const truncated = primaryText.length > 150 ? `${primaryText.slice(0, 147)}…` : primaryText;
+  // The overlay is read at thumb speed over a photo. A long offer landed
+  // here as a full paragraph of white text across the image; clamp it so a
+  // verbose generation degrades to a short line rather than wallpaper.
+  const overlay = mediaLine.length > 48 ? `${mediaLine.slice(0, 45).trimEnd()}…` : mediaLine;
   return (
     <div>
       <div className="ad-preview">
@@ -46,7 +50,7 @@ export default function AdPreview({
               : undefined
           }
         >
-          {mediaLine}
+          {overlay}
         </div>
         <div className="ad-preview__bottom">
           <span className="ad-preview__headline">{headline}</span>

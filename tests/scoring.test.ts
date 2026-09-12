@@ -19,8 +19,11 @@ const signal = (over: Partial<Signal> = {}): Signal => ({
   term: "facial balancing",
   normalized_term: "facial_balancing",
   category: "Health & beauty",
-  geo: "US",
-  metric_type: "conversation",
+  // A ranked pick is demand measured where the customers are. The fixture
+  // used to be national "conversation", which is the one shape that is
+  // explicitly gated — see the national-conversation test below.
+  geo: "US-NY",
+  metric_type: "search_interest",
   value: 77,
   delta_pct: 38,
   window_days: 7,
@@ -241,5 +244,44 @@ describe("dedupeByTerm", () => {
       { normalized_term: "infrared_sauna", delta_pct: 40 },
     ];
     expect(dedupeByTerm(rows).length).toBe(2);
+  });
+});
+
+describe("national conversation cannot outrank local demand", () => {
+  const local = () =>
+    scoreOpportunity(
+      signal({ term: "brown sugar oat latte", geo: "US-NC", metric_type: "search_interest", delta_pct: 24 }),
+      [],
+      [],
+      { coverageCount: 0 },
+      { locality: "state" },
+    );
+  const national = () =>
+    scoreOpportunity(
+      signal({ term: "labor day weekend", geo: "US", metric_type: "conversation", delta_pct: 100 }),
+      [],
+      [],
+      { coverageCount: 0 },
+      { locality: "national" },
+    );
+
+  it("caps a national board read below the A band however hard it is rising", () => {
+    // +100% is the clamp: this is the strongest momentum the scorer can see.
+    expect(national().score).toBeLessThan(7);
+  });
+
+  it("lets locally measured demand beat it despite weaker momentum", () => {
+    expect(local().score).toBeGreaterThan(national().score);
+  });
+
+  it("leaves a locally measured conversation read alone", () => {
+    const localTalk = scoreOpportunity(
+      signal({ geo: "US-NC", metric_type: "conversation", delta_pct: 100 }),
+      [],
+      [],
+      { coverageCount: 0 },
+      { locality: "state" },
+    );
+    expect(localTalk.score).toBeGreaterThan(national().score);
   });
 });

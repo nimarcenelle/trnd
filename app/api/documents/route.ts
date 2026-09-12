@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getSessionUser } from "@/lib/auth/session";
+import { planMenuApply } from "@/lib/documents/menu-apply";
 import { getUserRepo } from "@/lib/db";
 import { digestUpload } from "@/lib/documents/digest";
 import { MAX_BYTES, MAX_DOCUMENTS, mimeFor } from "@/lib/documents/parse";
@@ -71,7 +72,47 @@ export async function POST(req: Request): Promise<Response> {
     console.warn("[documents] saving failed:", (err as Error).message);
     return Response.json({ error: "Couldn't save it just now — try again in a few minutes." }, { status: 503 });
   }
+  // Apply the menu to the services that already exist.
+  //
+  // This used to report `services_found.length` straight back to the owner
+  // as "N priced items" while writing none of them — a false confirmation
+  // on the one screen where a wrong price becomes a wrong ad. The onboarding
+  // wizard had the real merge and nothing after onboarding did, so a
+  // business whose menu lives on Toast or Yelp had thirteen rows reading
+  // "no price" and no way back but editing each by hand.
+  let applied = { priced: 0, added: 0 };
+  if (digest.services_found.length > 0) {
+    try {
+      const plan = planMenuApply(await repo.listServices(business.id), digest.services_found);
+      for (const row of plan.priced) {
+        await repo.updateService(row.id, { price_cents: row.price_cents });
+      }
+      if (plan.added.length > 0) {
+        await repo.createServices(
+          plan.added.map((a) => ({
+            business_id: business.id,
+            name: a.name,
+            description: null,
+            price_cents: a.price_cents,
+            is_active: true,
+          })),
+        );
+      }
+      applied = { priced: plan.priced.length, added: plan.added.length };
+    } catch (err) {
+      // The document is already saved and is the thing worth keeping; a
+      // failed merge must not read as a failed upload.
+      console.warn("[documents] applying the menu failed:", (err as Error).message);
+    }
+  }
+
   revalidatePath("/app/settings");
   revalidatePath("/app", "layout");
-  return Response.json({ id: doc.id, kind: digest.kind, facts: digest.facts.length, services: digest.services_found.length });
+  return Response.json({
+    id: doc.id,
+    kind: digest.kind,
+    facts: digest.facts.length,
+    priced: applied.priced,
+    added: applied.added,
+  });
 }

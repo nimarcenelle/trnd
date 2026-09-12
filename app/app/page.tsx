@@ -497,7 +497,12 @@ export default async function AppHome({
                 spend, which cannot describe {business.city}. Treat the field as unknown rather than open.
               </p>
             )}
-            {explained?.competitorGapText && <p className="pick__note">{explained.competitorGapText}</p>}
+            {/* The scorer's gap line repeats the paragraph above almost
+                word for word when the read is unusable — one finding, said
+                once. Shown only when it adds something. */}
+            {explained?.competitorGapText && adAssessment?.countUsable && (
+              <p className="pick__note">{explained.competitorGapText}</p>
+            )}
           </section>
 
           {/* the one thing to do next ------------------------------------- */}

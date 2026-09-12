@@ -22,6 +22,24 @@ export const AD_COUNT_LOCAL_MAX = 300;
  * but the total is scaled down so it lands as a B/C idea, never an A wave. */
 export const SPARSE_EVIDENCE_GATE = 0.65;
 
+/**
+ * A national conversation read is context, not an opportunity.
+ *
+ * TikTok's industry boards rank whatever is loud across the country that
+ * week, measured nowhere near the business. Ungated, those rows outscored
+ * every locally-measured term a Chapel Hill coffee shop had: "labor day
+ * weekend" came in at grade A on 4,331 national posts while "brown sugar
+ * oat latte" — a drink they actually sell, measured in their own state —
+ * sat two grades below it. Even when such a term is still ahead of us, a
+ * holiday is a TIMING input for an offer, never the offer itself; an ad
+ * headlined "Labor Day Weekend" sells nothing.
+ *
+ * So a national conversation read is capped below the A band. It can still
+ * rank, still inform the week's timing, and still appear — it simply cannot
+ * outrank demand measured where the customers are.
+ */
+export const NATIONAL_CONVERSATION_GATE = 0.62;
+
 export const WEIGHTS = {
   normalizedDelta: 0.35,
   serviceMatch: 0.25,
@@ -294,7 +312,17 @@ export function scoreOpportunity(
     mo.score = month === null ? UNMEASURED_WEEK : Math.round((0.5 * UNMEASURED_WEEK + 0.5 * month) * 1000) / 1000;
   }
   const nd = mo.score;
-  const evidenceGate = sparse ? SPARSE_EVIDENCE_GATE : unmeasured ? UNMEASURED_EVIDENCE_GATE : 1;
+  // National conversation (the TikTok industry board) is measured for the
+  // whole country, so it cannot describe this business's town.
+  const nationalConversation =
+    signal.metric_type === "conversation" && !/^[A-Z]{2}-/.test(signal.geo);
+  const evidenceGate = nationalConversation
+    ? NATIONAL_CONVERSATION_GATE
+    : sparse
+      ? SPARSE_EVIDENCE_GATE
+      : unmeasured
+        ? UNMEASURED_EVIDENCE_GATE
+        : 1;
   const sm = matchService(signal, services);
   const cg = competitorGap(gap);
   const hl = historicalLift(learnings);

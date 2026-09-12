@@ -394,11 +394,22 @@ export async function runRecommend(repo: Repo): Promise<RecommendBusinessResult[
       // Monday's first look already has it. Never blocks the ranking: the
       // dashboard self-heals a missing read after its own response.
       const picks = await rankedPicks(repo, b, result.opportunityIds);
-      await writeTopPickReads(repo, b, picks);
-      // The finished ad is the product: the #1 pick is written now, so
-      // Monday's email and first look carry it. Thin and locked picks are
-      // left for the owner (see ensureWeekCampaign).
-      if (picks[0]) await ensureWeekCampaign(repo, b, picks[0]);
+      // EVERY pick, not the first three. The pager offers five and the
+      // owner clicks through them in seconds; picks four and five had no
+      // read written for them at all and picks two through five had no ad,
+      // so paging landed on "TRND is writing…" skeletons on a screen whose
+      // whole job is to be swept. What the weekly job does not write here,
+      // the owner waits for there.
+      await writeTopPickReads(repo, b, picks, picks.length);
+      // The #1 pick first and awaited, so Monday's email and first look
+      // never wait behind the rest; the others fill in after it.
+      for (const pick of picks) {
+        try {
+          await ensureWeekCampaign(repo, b, pick);
+        } catch (err) {
+          console.warn(`[recommend] campaign for ${pick.id} failed (non-fatal):`, (err as Error).message);
+        }
+      }
     } catch (err) {
       console.warn(`[recommend] business ${b.id} failed:`, (err as Error).message);
       results.push({ businessId: b.id, created: 0, topScore: null, opportunityIds: [] });

@@ -19,7 +19,10 @@ export const AudienceSchema = z.object({
 export const AngleSchema = z.object({
   angle: z.string().min(8),
   hook: z.string().min(8),
-  offer: z.string().min(4),
+  // Set over the photo in the ad preview and in the owner's own creative,
+  // where a sentence is unreadable. The prompt asks for ten words; this is
+  // the backstop that makes a paragraph fail and retry rather than ship.
+  offer: z.string().min(4).max(90),
   audience: AudienceSchema,
 });
 export type AngleResult = z.infer<typeof AngleSchema>;
@@ -35,8 +38,12 @@ export const AngleVerdictSchema = z.object({
 });
 
 export const CampaignAssetsSchema = z.object({
-  headlines: z.array(z.string().min(4)).length(5),
-  primary_texts: z.array(z.string().min(20)).length(3),
+  // Meta clips a headline near 40 characters and hides primary text past
+  // ~125 behind "See more". The prompt asks for those; these caps are the
+  // backstop, set where copy stops being long and starts being truncated
+  // mid-thought in the only place anyone reads it.
+  headlines: z.array(z.string().min(4).max(60)).length(5),
+  primary_texts: z.array(z.string().min(20).max(220)).length(3),
   scripts: z.array(z.string().min(40)).length(3),
   static_briefs: z.array(z.string().min(20)).length(3),
   landing_copy: z.string().min(60),

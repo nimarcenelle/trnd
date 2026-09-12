@@ -23,15 +23,23 @@ export default function DocumentUpload({ modelReady }: { modelReady: boolean }) 
     setStatus(modelReady ? "Reading it…" : "Adding it…");
     try {
       const res = await fetch("/api/documents", { method: "POST", body: data });
-      const body = (await res.json().catch(() => ({}))) as { error?: string; facts?: number; services?: number };
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        facts?: number;
+        priced?: number;
+        added?: number;
+      };
       if (!res.ok) {
         setError(body.error ?? "That didn't go through — try again.");
         setStatus(null);
         return;
       }
-      setStatus(
-        `Added. ${body.facts ?? 0} fact${body.facts === 1 ? "" : "s"}${body.services ? `, ${body.services} priced item${body.services === 1 ? "" : "s"}` : ""}.`,
-      );
+      // Report what was WRITTEN, not what the model spotted — the old copy
+      // counted what it found and saved none of it.
+      const bits = [`${body.facts ?? 0} fact${body.facts === 1 ? "" : "s"}`];
+      if (body.priced) bits.push(`priced ${body.priced} item${body.priced === 1 ? "" : "s"}`);
+      if (body.added) bits.push(`added ${body.added} new one${body.added === 1 ? "" : "s"}`);
+      setStatus(`Added. ${bits.join(", ")}.`);
       form.reset();
       router.refresh();
       setTimeout(() => setStatus(null), 4000);

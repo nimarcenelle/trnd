@@ -55,6 +55,34 @@ export interface BriefingInput {
 }
 
 /**
+ * One line, not a paragraph.
+ *
+ * The rail is swept, not read: its value is that an owner can take all
+ * seven slots in about five seconds. Brief fields are written as prose, and
+ * a customer segment came through as a 45-word character study ("The
+ * sensory defector is a burned-out professional seeking a mental break,
+ * triggered by a sunny afternoon when the home office feels suffocating,
+ * comparing your patio against a noisy downtown Starbucks, and won by the
+ * promise of old-growth woods and a Driade Shake") that filled a third of
+ * the column on its own. Take the first sentence, and if that is still long,
+ * cut at the first clause boundary — the opening clause of a sentence like
+ * that carries the whole point.
+ */
+const SLOT_MAX = 120;
+
+function oneLine(text: string): string {
+  const first = firstSentence(text) ?? text.trim();
+  if (first.length <= SLOT_MAX) return first;
+  // Prefer a clause boundary over a hard cut: "burned-out professional
+  // seeking a mental break" says it; the rest is scenery.
+  const clause = /^(.{40,120}?)(?:,|;| — | – )/.exec(first);
+  if (clause) return clause[1].trim().replace(/[\s,;:]+$/, "");
+  const cut = first.slice(0, SLOT_MAX);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 60 ? cut.slice(0, space) : cut).replace(/[\s,;:]+$/, "")}…`;
+}
+
+/**
  * Capitalise only a leading lowercase letter. `sentenceCase` walks to the
  * first letter anywhere in the string, which turns "5 competing ads" into
  * "5 Competing ads" — a capital mid-sentence that reads like a typo on a
@@ -94,7 +122,7 @@ export function buildBriefing(input: BriefingInput): BriefingRow[] {
   const { brief, matchedService, adCount, adAdvertisers, moment, city } = input;
   const rows: BriefingRow[] = [];
   const push = (slot: BriefingSlot, text: string | null) => {
-    if (text && text.trim().length > 0) rows.push({ slot, text: leadCap(text.trim()) });
+    if (text && text.trim().length > 0) rows.push({ slot, text: leadCap(oneLine(text)) });
   };
 
   // WHO — the customer segment this pick actually speaks to.

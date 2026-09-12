@@ -24,6 +24,17 @@ interface Ctx {
   service: Service | null;
 }
 
+/** Trim to a real limit on a word boundary — copy that gets cut off in the
+ * feed reads as a mistake, so it is cut here, on purpose, where it can end
+ * on a whole word. */
+function clamp(text: string, max: number): string {
+  const t = text.trim().replace(/\s+/g, " ");
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const space = cut.lastIndexOf(" ");
+  return (space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:—-]+$/, "");
+}
+
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -197,17 +208,22 @@ export function generateFallbackCampaign(ctx: Ctx): GenerationResult {
       },
     },
     assets: {
+      // Meta clips a headline near 40 characters and hides primary text past
+      // ~125 behind "See more", so the deterministic copy is written to the
+      // same limits the prompt now asks the model for. `clamp` is the floor
+      // under both: a long service name or business name must shorten the
+      // line, not push it past the cut.
       headlines: [
-        a.hook,
-        `${cap(term)} in ${city} — done right.`,
-        `${a.offer}.`,
-        `Not sure about ${term}? Start with a straight answer.`,
-        `${business.name}: the ${city} answer to ${term}.`,
+        clamp(a.hook, 40),
+        clamp(`${cap(term)} in ${city}`, 40),
+        clamp(a.offer, 40),
+        clamp(`${cap(term)}, done right`, 40),
+        clamp(`${business.name} — ${cap(term)}`, 40),
       ],
       primary_texts: [
-        `${cap(term)} is having a moment — ${deltaPhrase(signal)}. Most places will wait a quarter to react. ${business.name} isn't most places. ${a.offer}. ${voice.ctaLine}`,
-        `Not a trend chase. Not a gimmick. ${cap(term)} is what your neighbors in ${city} are actually looking for this week — and ${business.name} already does it well. ${a.offer}.`,
-        `You've seen ${term} everywhere. Here's the version worth your money — done by people who do it every day at ${business.name} in ${city}. ${a.offer}.`,
+        clamp(`${cap(term)} is having a moment in ${city}. ${a.offer}.`, 125),
+        clamp(`Your neighbors are looking for ${term} this week. ${a.offer}.`, 125),
+        clamp(`The ${term} worth your money, done daily at ${business.name}. ${a.offer}.`, 125),
       ],
       scripts: [
         `HOOK (0-3s): "${a.hook}"\nPROBLEM (3-10s): Everyone's talking about ${term} — most of the advice is noise.\nPROOF (10-20s): Show the real thing at ${business.name}: hands, process, result. No stock footage.\nCTA (20-30s): "${a.offer}. Link below — takes two minutes."`,

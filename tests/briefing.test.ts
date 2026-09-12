@@ -89,4 +89,22 @@ describe("pick briefing", () => {
     const rows = buildBriefing(base);
     expect(rows.find((r) => r.slot === "EDGE")?.text).toContain("contrast therapy suite");
   });
+
+  it("cuts a character-study segment down to one scannable line", () => {
+    // The real value that filled a third of the rail column.
+    const essay =
+      "The sensory defector is a burned-out professional seeking a mental break, triggered by a sunny afternoon when the home office feels suffocating, comparing your patio against a noisy downtown Starbucks, and won by the promise of old-growth woods and a Driade Shake.";
+    const rows = buildBriefing({ ...base, brief: brief({ customer_segments: [essay] }) });
+    const who = rows.find((r) => r.slot === "WHO")!.text;
+    expect(who.length).toBeLessThanOrEqual(120);
+    // Keeps the part that identifies the customer.
+    expect(who).toMatch(/burned-out professional/);
+    expect(who).not.toMatch(/Starbucks/);
+    expect(who).not.toMatch(/[\s,;:]$/);
+  });
+
+  it("leaves an already-short line exactly as written", () => {
+    const rows = buildBriefing({ ...base, brief: brief({ customer_segments: ["Desk workers in their 30s who lift"] }) });
+    expect(rows.find((r) => r.slot === "WHO")!.text).toBe("Desk workers in their 30s who lift");
+  });
 });

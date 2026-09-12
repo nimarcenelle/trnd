@@ -167,6 +167,151 @@ export async function fetchCampaignInsights(
   return { row: parseInsights(first), status: campaign.effective_status ?? "UNKNOWN" };
 }
 
+/* ------------------------------ account history --------------------------- */
+
+/** One ad's row from the account insights edge, as Graph returns it: every
+ * number is a string, and a field the ad never reported is simply absent. */
+export interface MetaAdInsight {
+  ad_id: string;
+  ad_name?: string;
+  adset_name?: string;
+  campaign_name?: string;
+  impressions?: string;
+  clicks?: string;
+  inline_link_clicks?: string;
+  spend?: string;
+  /** A percentage (1.25 means 1.25%), computed on all clicks. */
+  ctr?: string;
+  actions?: { action_type: string; value: string }[];
+  date_start?: string;
+  date_stop?: string;
+}
+
+/** The words an ad actually showed, recovered from its creative. */
+export interface MetaAdCopy {
+  title: string | null;
+  body: string | null;
+  /** yyyy-mm-dd the ad was created, the closest thing Graph has to a start. */
+  createdOn: string | null;
+}
+
+const AD_INSIGHT_FIELDS = [
+  "ad_id",
+  "ad_name",
+  "adset_name",
+  "campaign_name",
+  "impressions",
+  "clicks",
+  "inline_link_clicks",
+  "spend",
+  "ctr",
+  "actions",
+  "date_start",
+  "date_stop",
+].join(",");
+
+/** 20 pages of 500 is 10,000 ads, far past what the history read ranks. A
+ * cap keeps a runaway cursor from eating the cron's whole time budget. */
+export const MAX_INSIGHT_PAGES = 20;
+const INSIGHT_PAGE_SIZE = 500;
+/** Graph refuses an ?ids= lookup with more than 50 ids. */
+const IDS_PER_REQUEST = 50;
+
+/** paging.next is a complete URL with the token already in it. */
+async function graphGetUrl<T>(url: string, label: string): Promise<T> {
+  const res = await fetch(url);
+  const data = (await res.json()) as T & { error?: GraphError };
+  if (!res.ok || data.error) {
+    throw new Error(`meta graph ${label}: ${graphErrorText(data.error, res.status)}`);
+  }
+  return data;
+}
+
+/** Every ad in the account with delivery in the window, one row per ad over
+ * the whole window. Graph leaves out ads that never served, so a paused test
+ * ad from last spring costs nothing. */
+export async function fetchAdLevelInsights(
+  token: string,
+  adAccountId: string,
+  window: { since: string; until: string },
+  opts: { maxPages?: number } = {},
+): Promise<MetaAdInsight[]> {
+  const path = `/${adAccountId}/insights`;
+  const params = new URLSearchParams({
+    level: "ad",
+    fields: AD_INSIGHT_FIELDS,
+    time_range: JSON.stringify(window),
+    limit: String(INSIGHT_PAGE_SIZE),
+    access_token: token,
+  });
+  const out: MetaAdInsight[] = [];
+  let url: string | undefined = `${GRAPH}${path}?${params}`;
+  for (let page = 0; url && page < (opts.maxPages ?? MAX_INSIGHT_PAGES); page++) {
+    const data: { data?: MetaAdInsight[]; paging?: { next?: string } } = await graphGetUrl(url, path);
+    out.push(...(data.data ?? []));
+    url = data.paging?.next;
+  }
+  return out;
+}
+
+interface GraphCreative {
+  body?: string;
+  title?: string;
+  object_story_spec?: {
+    link_data?: { message?: string; name?: string };
+    video_data?: { message?: string; title?: string };
+    template_data?: { message?: string; name?: string };
+  };
+  asset_feed_spec?: { bodies?: { text?: string }[]; titles?: { text?: string }[] };
+}
+
+const firstText = (...values: (string | undefined)[]) =>
+  values.map((v) => v?.trim()).find((v): v is string => Boolean(v)) ?? null;
+
+/** Where the words live depends on how the ad was built: a simple creative
+ * fills body and title, a Page post ad keeps them in object_story_spec, and
+ * a dynamic creative keeps a list in asset_feed_spec. The first of each list
+ * is the variant the advertiser wrote first, the nearest to "the" copy. */
+export function creativeCopy(creative: GraphCreative | undefined): { title: string | null; body: string | null } {
+  const story = creative?.object_story_spec;
+  const feed = creative?.asset_feed_spec;
+  return {
+    title: firstText(
+      creative?.title,
+      story?.link_data?.name,
+      story?.video_data?.title,
+      story?.template_data?.name,
+      ...(feed?.titles ?? []).map((t) => t.text),
+    ),
+    body: firstText(
+      creative?.body,
+      story?.link_data?.message,
+      story?.video_data?.message,
+      story?.template_data?.message,
+      ...(feed?.bodies ?? []).map((b) => b.text),
+    ),
+  };
+}
+
+/** Copy for many ads, 50 ids per request. Insights never carries creative
+ * text, and the theme read is only as good as the words it classifies. */
+export async function fetchAdCreativeCopy(token: string, adIds: string[]): Promise<Record<string, MetaAdCopy>> {
+  const out: Record<string, MetaAdCopy> = {};
+  const ids = [...new Set(adIds)];
+  for (let i = 0; i < ids.length; i += IDS_PER_REQUEST) {
+    const data = await graphGet<Record<string, { created_time?: string; creative?: GraphCreative }>>("/", {
+      ids: ids.slice(i, i + IDS_PER_REQUEST).join(","),
+      fields: "created_time,creative{body,title,object_story_spec,asset_feed_spec}",
+      access_token: token,
+    });
+    for (const [id, ad] of Object.entries(data)) {
+      if (!ad || typeof ad !== "object") continue;
+      out[id] = { ...creativeCopy(ad.creative), createdOn: ad.created_time?.slice(0, 10) ?? null };
+    }
+  }
+  return out;
+}
+
 /* --------------------------------- launch -------------------------------- */
 
 /** Pure payload builders — the shapes the Graph API receives, unit-tested. */

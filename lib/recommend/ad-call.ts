@@ -116,9 +116,21 @@ function platformFor(input: Pick<AdCallInput, "culturalPlatform" | "ownVideoShar
   return "Instagram and Facebook";
 }
 
+/**
+ * A persona label ("The 5 PM Transitioner") names a segment for a strategy
+ * deck; "Promote it to the 5 PM Transitioner" tells a media buyer nothing.
+ * When the description carries a label, keep the description.
+ */
+const LABEL_WHO = /^(?:[Tt]he\s+)?(?:[A-Z0-9][\w'-]*\s+){0,4}[A-Z][\w'-]*,\s+who\s+(.+)$/;
+const LABEL_COLON = /^(?:[Tt]he\s+)?(?:[A-Z0-9][\w'-]*\s+){0,4}[A-Z][\w'-]*:\s+(.{12,})$/;
+
 /** The first clause of the target customer's description. */
 function whoFor(input: AdCallInput): string | null {
-  const raw = input.campaign?.audience.who || input.targetCustomer?.who || "";
+  let raw = (input.campaign?.audience.who || input.targetCustomer?.who || "").trim();
+  const labelWho = LABEL_WHO.exec(raw);
+  const labelColon = LABEL_COLON.exec(raw);
+  if (labelWho) raw = `someone who ${labelWho[1]}`;
+  else if (labelColon) raw = labelColon[1];
   const first = raw.split(/(?<=[.;])\s|,\s(?:who|and|because|triggered)\b/)[0].trim().replace(/[.;,]+$/, "");
   if (!first) return null;
   const short = first.length > 90 ? `${first.slice(0, first.lastIndexOf(" ", 90)).trim()}` : first;
@@ -135,7 +147,21 @@ export function buildAdCall(input: AdCallInput): AdCall {
     verdict === "run" ? "Run this ad." : verdict === "small" ? "Run this ad, small." : "Hold this one this week.";
 
   const price = money(input.service?.price_cents ?? null);
-  const thing = input.service ? `your ${input.service.name}${price ? ` (${price})` : ""}` : `"${input.term}"`;
+  // The campaign writer may lead with a truer menu item than the scorer's
+  // match (a "coffee shop open late" search is sold as the evening's $15
+  // Sprotini, not a $3.50 drip). The call promotes what the ad actually sells.
+  const serviceCore = input.service ? input.service.name.replace(/\([^)]*\)/g, " ").trim().toLowerCase() : "";
+  const campaignText = input.campaign ? `${input.campaign.offer} ${input.campaign.hook}`.toLowerCase() : "";
+  const leadsWithService = !input.campaign || !input.service || campaignText.includes(serviceCore);
+  const offer = input.campaign?.offer.trim().replace(/[.]+$/, "") ?? "";
+  const thing =
+    !leadsWithService && offer
+      ? `${/^[$\d]/.test(offer) ? "the " : ""}${offer}`
+      : input.service
+        ? `your ${input.service.name}${price ? ` (${price})` : ""}`
+        : offer
+          ? `${/^[$\d]/.test(offer) ? "the " : ""}${offer}`
+          : `"${input.term}"`;
   const who = whoFor(input);
   const ages = input.campaign?.audience.age_range ? `, ${input.campaign.audience.age_range},` : "";
   const platform = platformFor(input);
@@ -182,7 +208,7 @@ export function buildAdCall(input: AdCallInput): AdCall {
       }`,
     );
   } else if (input.service) {
-    why.push(`You already sell it${price ? ` at ${price}` : ""}`);
+    why.push(leadsWithService ? `You already sell it${price ? ` at ${price}` : ""}` : "It's already on your menu");
   }
   // Cultural: only when there is a read, and last, because it decides how
   // the ad looks more than whether to run it.

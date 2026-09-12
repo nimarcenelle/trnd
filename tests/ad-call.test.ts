@@ -88,6 +88,44 @@ describe("the ad call", () => {
     expect(buildAdCall(base({ culturalPlatform: null, adPlatforms: ["tiktok"] })).promote).toMatch(/on TikTok\.$/);
   });
 
+  it("promotes what the campaign actually sells when it leads with a truer item than the match", () => {
+    const call = buildAdCall(
+      base({
+        service: { name: "Drip Coffee (Small)", price_cents: 350 },
+        ownBestTheme: null,
+        campaign: {
+          angle: "The room after five.",
+          hook: "An espresso martini in a room where you can actually hear your friends talk",
+          offer: "$15 Sprotini and $6 fries at Riverside until 10",
+          audience: {
+            who: "The 5 PM Transitioner, who leaves the office at five and isn't ready to go home.",
+            age_range: "25-45",
+            angle_type: "offer",
+          },
+        },
+      }),
+    );
+    expect(call.promote).toBe(
+      "Promote the $15 Sprotini and $6 fries at Riverside until 10 to someone who leaves the office at five and isn't ready to go home, 25-45, on Instagram Reels.",
+    );
+    expect(call.why).toContain("It's already on your menu");
+    expect(call.why.join(" ")).not.toMatch(/\$3\.50/);
+  });
+
+  it("keeps the description, not the persona label, after a colon", () => {
+    const call = buildAdCall(
+      base({
+        campaign: {
+          angle: "a",
+          hook: "Gold Rush latte",
+          offer: "$6.75 Gold Rush latte",
+          audience: { who: "The Sensory Defector: a burned-out professional who wants a quiet table", angle_type: "offer" },
+        },
+      }),
+    );
+    expect(call.promote).toMatch(/ to a burned-out professional who wants a quiet table on /);
+  });
+
   it("leaves out a clause with nothing real behind it", () => {
     const call = buildAdCall(
       base({ rivals: null, rivalThemes: [], ownBestTheme: null, weekPct: 2, audiencePhrase: null, campaign: null }),

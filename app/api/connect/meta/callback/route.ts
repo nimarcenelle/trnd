@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
-import type { NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
 
+import { syncMetaAdHistory } from "@/lib/ads/history-sync";
 import { exchangeCodeForToken, listAdAccounts, META_SCOPES, verifyOauthState } from "@/lib/ads/meta";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
@@ -42,6 +43,10 @@ export async function GET(request: NextRequest) {
       token_expires_at: expiresAt,
       scopes: META_SCOPES,
     });
+    // The owner lands on Settings now; the account's ad history follows in
+    // the background, so the first report after connecting already knows
+    // what has worked for this brand. after() still runs past the redirect.
+    if (account) after(() => syncMetaAdHistory(repo, business).then(() => undefined));
   } catch (err) {
     console.warn("[connect:meta] failed:", (err as Error).message);
     fail("Connecting to Meta failed — check the app's permissions and try again.");

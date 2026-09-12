@@ -175,7 +175,8 @@ logged warning, never a failed run.
   "cost," "book") plus long-tail discoveries
 - **Reddit** — category subreddits, weekly top conversation
 - **Google News RSS** — corroboration / coverage counts
-- **TikTok Creative Center** — trending hashtags by industry (unofficial)
+- **TikTok Creative Center** — trending hashtags by industry (unofficial, national)
+- **Apify TikTok actor** — per-term TikTok reads, key-gated and paid
 - **Meta Ad Library** — real competitor ad-saturation counts per ranked term
 - **YouTube Data API** — key-gated
 
@@ -233,7 +234,10 @@ on independently — no code changes:
 | `GEMINI_API_KEY` | Model-written briefs, judged rankings, generated campaigns |
 | `STRIPE_*` (4 vars) | Checkout, customer portal, webhook-driven plans, trial enforcement |
 | `NOTIFY_WEBHOOK_URL` / Resend | Founder lead alerts (demo requests + signups) |
-| `YOUTUBE_API_KEY` | YouTube signal adapter |
+| `YOUTUBE_API_KEY` | YouTube Shorts signal adapter |
+| `APIFY_TOKEN` | Per-term TikTok adapter (paid; falls back to the national board) |
+| `APIFY_TIKTOK_ACTOR` | Override when the default Apify actor is renamed |
+| `META_INSTAGRAM_SCOPES` | `1` only after Meta App Review approves `instagram_basic` |
 | `CRON_SECRET` | Protected daily ingest + weekly recommend crons (Vercel) |
 
 Ops surface: `GET /api/health` reports each subsystem's mode; `/terms` and `/privacy`

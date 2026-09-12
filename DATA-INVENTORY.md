@@ -32,7 +32,8 @@ configured, surfaced automatically.
 | Pull | Source | Fields captured |
 |---|---|---|
 | Subreddit heat | Reddit public JSON | weekly top posts per category subreddit (food, HVAC, SkincareAddiction, …): title, score, comment count, permalink |
-| TikTok hashtags | TikTok Creative Center (unofficial) | trending hashtags per industry: name, video views, rank, humanized term |
+| TikTok hashtags | TikTok Creative Center (unofficial) | trending hashtags per industry: name, video views, rank, humanized term, on-topic verdict |
+| TikTok per term | Apify actor (needs `APIFY_TOKEN`) | per-term posts: views, likes, comments, shares, saves, duration, author followers, hashtags |
 
 ## 4 · News coverage
 
@@ -63,7 +64,7 @@ in an Arizona July is not news and doesn't fire).
 
 | Pull | Source | Fields captured |
 |---|---|---|
-| Video volume | YouTube Data API (needs `YOUTUBE_API_KEY`) | recent video counts per watched term |
+| Shorts format | YouTube Data API (needs `YOUTUBE_API_KEY`) | per-term Shorts over 28d: views, likes, comments, duration, channel, velocity; median length, engagement rate, repeat channels, top + breakout video |
 
 ## 8 · Business-owned data (pulled once / entered by the customer)
 

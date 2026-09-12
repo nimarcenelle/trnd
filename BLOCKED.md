@@ -58,34 +58,69 @@ Each is implemented behind its interface and registered unavailable at runtime.
 ## Short-form social (the basis of the ranking)
 
 TRND ranks on what's moving in short-form video, with search volume as confirmation.
-What each source can and can't give, verified live 2026-09-10:
+What each source can and can't give, verified live 2026-09-11:
 
 - **YouTube Shorts** — `lib/signals/adapters/youtube.ts` reads each business's own watch
-  terms: Shorts published in the last 14 days, this week's views against last week's,
-  plus the single Short pulling the most (linked from the badge so the owner can watch
-  the format that's landing). Costs ~101 quota units per term (search 100 + videos 1),
-  capped at 40 terms a run against the free 10,000/day.
+  terms over 28 days: this week's Shorts against a three-week baseline, with duration,
+  likes, comments and channel captured for every video (`videos.list` costs the same 1
+  unit whether you ask for one part or four). From that it reports median length,
+  engagement rate, the channels working the format more than once, the top video and the
+  fastest climber. Momentum is measured on VELOCITY (views per hour since publish), not
+  raw views — a view-count-ordered search over 28 days returns mostly older videos, so a
+  raw-total comparison makes every term look like it is falling.
+  - Coverage is quota-bound: search.list is 100 units, videos.list is 1, against a free
+    10,000/day. Reads are tiered — a business's own terms get a two-search deep read
+    (28-day date-ordered sample for the unbiased baseline, plus 7-day view-ordered for
+    the actual hit), stock category terms get the sample only — and every call is drawn
+    against an explicit unit budget that degrades to fewer terms instead of 403ing.
   - **Seam**: create a YouTube Data API v3 key (Google Cloud console, free tier, no
     billing card) and set `YOUTUBE_API_KEY`. The adapter registers unavailable without
-    it; nothing else changes.
-- **TikTok** — `lib/signals/adapters/tiktok-cc.ts` reads the public Creative Center
-  trending-hashtag boards, keyless. Anonymous access is capped at the **top 3 rows per
-  query with no paging** (page 2 comes back empty), so the run asks each mapped industry
-  for both the 7-day and 30-day board: ~40 national hashtags a day. The per-hashtag
-  detail endpoint answers `InvalidLogin`, and the newer `creative_radar_api` endpoints
-  answer `no permission` without a signed web token — so there is **no per-term TikTok
-  read** at any price of effort here. TikTok reads are national industry trends and the
-  UI says so; local demand is confirmed by the search read, never by the board.
-  - **Seam for per-term TikTok**: either TikTok's Display/Research API (app review,
-    academic-gated) or a commercial scraper API (e.g. Apify TikTok actors) with a token
-    and per-run cost.
-- **Instagram Reels** — no keyless path. The Graph API's `ig_hashtag_search` +
+    it; nothing else changes. **Currently unset**, so the Shorts read contributes
+    nothing — this is the single highest-value key in the file, and it is free.
+  - **Seam for more coverage**: a YouTube quota increase is a Google Cloud form, not a
+    payment; TERM_CAP and the unit budget are the two constants to raise after.
+- **TikTok (free, national)** — `lib/signals/adapters/tiktok-cc.ts` reads the public
+  Creative Center trending-hashtag boards, keyless. Anonymous access is capped at the
+  **top 3 rows per query with no paging** (page 2 comes back empty), so the run asks each
+  mapped industry for both the 7-day and 30-day board: ~40 national hashtags a day. The
+  per-hashtag detail endpoint answers `InvalidLogin`, and the newer `creative_radar_api`
+  endpoints answer `no permission` without a signed web token — all re-verified live
+  2026-09-11. So there is **no per-term TikTok read on this surface** at any price of
+  effort. TikTok board reads are national industry trends and the UI says so; local
+  demand is confirmed by the search read, never by the board.
+  - The boards rank whatever is nationally loud among an industry's advertisers, which
+    during a holiday week is just the holiday: on 2026-09-11 the Food & Beverage board
+    was `#happylaborday`, `#ldw`, `#laborday2026`. Two guards handle that. Variant
+    spellings of one trend are collapsed so they cannot eat three of the ~40 daily slots,
+    and every row is marked on- or off-topic for the industry it was filed under by the
+    same Gemini pass that humanizes the slug — the model sees the board's industry, which
+    the term lexicon alone cannot judge (it marked `#sorority recruitment outfits` on the
+    Home Improvement board on-topic while missing `#leaf blower maintenance`). Off-topic
+    rows are kept and framed as a national moment to time an offer to, not dropped.
+- **TikTok (paid, per term)** — `lib/signals/adapters/tiktok-apify.ts`, key-gated on
+  `APIFY_TOKEN`. Runs a commercial Apify actor per business watch term and produces the
+  same shaped read as the Shorts adapter (velocity momentum, engagement, median duration,
+  top + breakout, corpus) plus two things YouTube has no equivalent for: shares + saves
+  as their own rate, and the author's follower count, which is how you tell a format that
+  worked from an audience that was already there.
+  - **Cost is per result, not per call** — every term read is money, so coverage is
+    bounded by an explicit term cap (25) and only a business's own terms are read; the
+    stock category terms stay on the free board.
+  - **Unverified**: the pure mapping and read logic are unit-tested, but the network path
+    has never run — there is no `APIFY_TOKEN` on this machine. Actor field names drift,
+    so confirm `playCount`/`diggCount`/`collectCount`/`authorMeta.fans` against a real
+    run before trusting the first night's numbers. `APIFY_TIKTOK_ACTOR` overrides the
+    default actor when it gets renamed.
+- **Instagram Reels** — still no keyless path. The Graph API's `ig_hashtag_search` +
   `{hashtag-id}/recent_media` gives per-hashtag Reels volume, but needs an Instagram
   Business account linked to a Facebook Page and App Review for `instagram_basic`
   (30 unique hashtags per 7 days). The Meta app already exists for ad-account connect
-  (`lib/ads/meta.ts`, scopes `ads_read`/`ads_management`/`business_management`), so the
-  seam is adding `instagram_basic` + `pages_show_list` to `META_SCOPES`, passing review,
-  and writing the adapter. Nothing is implemented for it yet.
+  (`lib/ads/meta.ts`), and the scopes are now wired but **deliberately dark**:
+  `META_SCOPES` adds `instagram_basic` + `pages_show_list` only when
+  `META_INSTAGRAM_SCOPES=1`, because requesting a scope Meta has not approved degrades
+  the consent screen for the ad connect that already works.
+  - **Seam**: pass App Review, set `META_INSTAGRAM_SCOPES=1`, then write the adapter
+    against the same `ShortsRead` shape the other two share. No adapter exists yet.
 - **Reddit** — `lib/signals/adapters/reddit.ts` uses anonymous JSON, which now returns
   the HTML page instead of JSON for datacenter IPs (verified). Assume it contributes
   nothing in production until it's moved to a registered script app + OAuth token.

@@ -1,4 +1,6 @@
 // Diagnostic: run the TikTok Creative Center adapter live and print signals.
+import "./env";
+
 import { createTiktokCcAdapter } from "../lib/signals/adapters/tiktok-cc";
 
 async function main() {
@@ -8,7 +10,11 @@ async function main() {
   const series = (await adapter.fetchSeries?.(input)) ?? [];
   console.log(
     signals
-      .map((s) => `${s.category.padEnd(22)} #${s.term} Δ${s.delta_pct}% posts=${s.value}`)
+      .map(
+        (s) =>
+          `${s.category.padEnd(22)} ${((s.raw as { categoryBearing?: boolean }).categoryBearing ? "[cat]" : "[nat]").padEnd(6)}` +
+          `#${s.term} Δ${s.delta_pct}% posts=${s.value}`,
+      )
       .join("\n"),
   );
   console.log(`\n${signals.length} signals · ${series.length} series points`);

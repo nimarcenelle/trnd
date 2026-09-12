@@ -46,6 +46,7 @@ import {
   type DocumentDigestResult,
   RelevanceSchema,
   ReviewDigestSchema,
+  ShortFormatSchema,
   type ReviewDigestResult,
   SiteExtractSchema,
 } from "./schemas";
@@ -788,9 +789,33 @@ export async function digestDocumentWithGemini(
 
 const humanizeResponseSchema: Schema = {
   type: Type.OBJECT,
-  properties: { terms: { type: Type.ARRAY, items: { type: Type.STRING } } },
+  properties: {
+    terms: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          term: { type: Type.STRING },
+          on_topic: { type: Type.BOOLEAN },
+        },
+        required: ["term", "on_topic"],
+      },
+    },
+  },
   required: ["terms"],
 };
+
+export interface TrendTermInput {
+  hashtag: string;
+  /** The industry board this row came from — what "on topic" is measured
+   * against. */
+  category: string;
+}
+
+export interface TrendTermRead {
+  term: string;
+  onTopic: boolean;
+}
 
 /**
  * TikTok hashtags are community slugs, not readable trend names —
@@ -798,22 +823,116 @@ const humanizeResponseSchema: Schema = {
  * tag into the plain-English demand it stands for; callers keep the raw tag
  * for links and hashtag suggestions.
  */
-export async function humanizeTrendTerms(hashtags: string[]): Promise<string[]> {
+export async function humanizeTrendTerms(items: TrendTermInput[]): Promise<TrendTermRead[]> {
   const models = await resolveModels();
   const prompt = [
-    `These are trending TikTok hashtags. Rewrite each as the plain-English trend it represents — a short lowercase phrase (2-4 words) a local business owner would recognize as customer demand.`,
+    `These are trending TikTok hashtags, each taken from one industry's trend board.`,
+    `For each, return two things.`,
+    ``,
+    `term: the plain-English trend it represents — a short lowercase phrase (2-4 words) a local business owner would recognize as customer demand.`,
     `Rules: expand community suffixes ("hygienetok" → "hygiene routines"), expand abbreviations ("kbbq" → "korean bbq"), keep brand and proper names as names ("krispykreme" → "krispy kreme", "lowes" → "lowe's"), never keep the raw concatenated slug.`,
-    `Return exactly ${hashtags.length} terms, same order, one per input.`,
+    ``,
+    `on_topic: true when the hashtag is about what that industry actually SELLS, false when it is a national moment the industry's advertisers merely posted into.`,
+    `The boards rank whatever is loud nationally, so a holiday, a sports event, a celebrity or a music release lands on every board — "#ufc watch party" on a Sports board is false, "#leaf blower maintenance" on a Home Improvement board is true, "#fall nail designs" on a Beauty board is true, "#minnesota state fair" on a Food board is false.`,
+    `Judge against the industry named on the row, not against any industry.`,
+    ``,
+    `Return exactly ${items.length} entries, same order, one per input.`,
     `HASHTAGS:`,
-    ...hashtags.map((h, i) => `${i}. #${h}`),
+    ...items.map((h, i) => `${i}. #${h.hashtag} (industry: ${h.category})`),
   ].join("\n");
   const parsed = await structuredCall(models.flash, prompt, humanizeResponseSchema, (d) =>
     HumanizeSchema.parse(d),
   );
-  if (parsed.terms.length !== hashtags.length) {
-    throw new Error(`humanize count mismatch: ${parsed.terms.length} for ${hashtags.length}`);
+  if (parsed.terms.length !== items.length) {
+    throw new Error(`humanize count mismatch: ${parsed.terms.length} for ${items.length}`);
   }
-  return parsed.terms.map((t, i) => t.trim() || hashtags[i]);
+  return parsed.terms.map((t, i) => ({
+    term: t.term.trim() || items[i].hashtag,
+    onTopic: t.on_topic,
+  }));
+}
+
+const shortFormatResponseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    formats: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          shape: { type: Type.STRING },
+          evidence: { type: Type.STRING },
+        },
+        required: ["name", "shape", "evidence"],
+      },
+    },
+    shoot: { type: Type.STRING },
+  },
+  required: ["formats", "shoot"],
+};
+
+/** One Short from the week's sample, as the format pass reads it. Mirrors
+ * `ShortCard` in the YouTube adapter without importing across the seam. */
+export interface ShortFormatInput {
+  title: string;
+  channel: string;
+  durationSec: number;
+  views: number;
+  velocity: number;
+  engagementPct: number | null;
+}
+
+export interface ShortFormatResult {
+  formats: { name: string; shape: string; evidence: string }[];
+  shoot: string;
+}
+
+/**
+ * Names the FORMAT working on a term this week, from the Shorts that
+ * actually won it.
+ *
+ * This is the half of the short-form read a shop owner cannot do for
+ * themselves. They can see that a number went up; they cannot watch forty
+ * videos and notice that every one that broke out is under twenty seconds,
+ * shot in one take, with the price on screen in the first second. The
+ * adapter captures the sample nightly; this runs per business, over the
+ * handful of terms that actually ranked into their week.
+ *
+ * Grounded, not creative: every pattern must be visible in the rows below,
+ * and the durations and engagement numbers are supplied so the model
+ * describes what the sample shows rather than short-form folklore.
+ */
+export async function mineShortFormats(
+  term: string,
+  business: { name: string; category: string; city: string },
+  videos: ShortFormatInput[],
+): Promise<ShortFormatResult> {
+  const models = await resolveModels();
+  const rows = videos
+    .slice(0, 12)
+    .map(
+      (v, i) =>
+        `${i + 1}. "${v.title}" — ${v.durationSec}s, ${v.views.toLocaleString()} views, ` +
+        `${v.velocity.toLocaleString()}/hr${v.engagementPct !== null ? `, ${v.engagementPct}% engaged` : ""} (${v.channel})`,
+    )
+    .join("\n");
+  const prompt = [
+    `These are the YouTube Shorts that won the search "${term}" this week, fastest-climbing first.`,
+    `Name the FORMAT patterns they share — how the winning videos are BUILT, not what they are about.`,
+    ``,
+    `Return 1-3 formats. For each: name (4-8 words, concrete and shootable — "sub-20s single take, price on screen", not "engaging short-form content"), shape (one sentence on how it is constructed: length, shot count, whether there is a voice, what appears on screen and when), evidence (which numbered rows show it).`,
+    `Then "shoot": one sentence telling ${business.name}, a ${business.category} in ${business.city}, exactly what to point a phone at this week to use the strongest format. Name their thing, not a generic subject.`,
+    ``,
+    `Rules: every pattern must be visible in the rows below — if the titles do not support a claim, do not make it. Durations and rates are given; use them rather than general short-form advice. If the rows share no real format, return one honest format saying the winners have nothing in common and the field is open.`,
+    ``,
+    `SHORTS:`,
+    rows,
+  ].join("\n");
+
+  return structuredCall(models.flash, prompt, shortFormatResponseSchema, (d) =>
+    ShortFormatSchema.parse(d),
+  );
 }
 
 const siteExtractResponseSchema: Schema = {

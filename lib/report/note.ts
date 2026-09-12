@@ -28,6 +28,19 @@ export function reportFacts(report: IntelReport): string {
       `Ranked #${r.rank}: "${titleCase(r.term)}" — grade ${r.grade.letter} (${r.score}/10), ${r.metric.replace(/_/g, " ")}${typeof r.deltaPct === "number" ? ` up ${Math.round(r.deltaPct)}% this week` : ""}${r.matchedServiceName ? `, matches your ${r.matchedServiceName}` : ", no menu match"}${r.snapshotReason ? `. Judge: ${r.snapshotReason}` : ""}${r.competitorGap ? ` Saturation: ${r.competitorGap}.` : ""}${r.hasCampaign ? " (campaign already built)" : ""}`,
     );
   }
+  for (const r of report.ranked.slice(0, 5)) {
+    if (!r.format) continue;
+    const f = r.format;
+    const bits: string[] = [];
+    if (f.medianDurationSec !== null) bits.push(`the winning videos run about ${Math.round(f.medianDurationSec)}s`);
+    if (f.engagementPct !== null) bits.push(`${f.engagementPct}% of views react`);
+    if (f.actionPct !== null) bits.push(`${f.actionPct}% share or save it`);
+    if (f.repeatChannels.length > 0) bits.push(`${f.repeatChannels[0]} has posted more than once on it`);
+    if (f.hashtags.length > 0) bits.push(`tagged ${f.hashtags.slice(0, 3).map((h) => `#${h}`).join(", ")}`);
+    if (f.topTitle) bits.push(`the top one is "${f.topTitle}"`);
+    if (f.breakoutTitle && f.breakoutTitle !== f.topTitle) bits.push(`the fastest climber is "${f.breakoutTitle}"`);
+    if (bits.length > 0) lines.push(`Short-form format on "${titleCase(r.term)}": ${bits.join("; ")}.`);
+  }
   if (report.ranked.length === 0) {
     lines.push(`Ranked: no trend cleared the bar for paid spend this week — the move comes from the rest of these facts.`);
   }

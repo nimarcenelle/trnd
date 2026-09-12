@@ -58,38 +58,98 @@ export function buildInsights(
     });
   } else if (signal.metric_type === "shortform_views") {
     // Short-form is the basis of the product, so its read gets said in its
-    // own units — what people are watching, and who is making it.
-    const raw = signal.raw as { uploads?: number; uploadsPrev?: number; top?: { title?: string; channel?: string; views?: number } | null } | null;
+    // own units — what people are watching, how hard, in what shape, and
+    // who keeps making it. The delta is velocity (views per hour since
+    // publish), not raw totals, so the wording stays "climbing", never
+    // "more views than last week" — which is a different claim.
+    const raw = signal.raw as {
+      uploads?: number;
+      uploadsPrev?: number;
+      engagementPct?: number | null;
+      medianDurationSec?: number | null;
+      repeatChannels?: string[];
+      actionPct?: number | null;
+      top?: { title?: string; channel?: string; views?: number; durationSec?: number } | null;
+      breakout?: { id?: string; title?: string; channel?: string; views?: number } | null;
+      adjusted?: boolean;
+      measuredTerm?: string;
+    } | null;
     const views = Number(signal.value) || 0;
+    // The same metric now arrives from two platforms; calling a TikTok read
+    // "Shorts" is a small lie that the proof link immediately exposes.
+    const platform = signal.source === "tiktok" ? "TikTok" : "Shorts";
     const uploads = typeof raw?.uploads === "number" ? raw.uploads : null;
     const madeMore = typeof raw?.uploadsPrev === "number" && uploads !== null && uploads > raw.uploadsPrev;
     const top = raw?.top ?? null;
+    const breakout = raw?.breakout ?? null;
+    const secs = typeof raw?.medianDurationSec === "number" ? Math.round(raw.medianDurationSec) : null;
+    const engagement = typeof raw?.engagementPct === "number" ? raw.engagementPct : null;
+    const repeats = raw?.repeatChannels ?? [];
     insights.push({
       kind: "momentum",
       headline:
         typeof delta === "number"
-          ? `${delta >= 0 ? "↑" : "↓"}${Math.abs(Math.round(delta))}% views on Shorts this week`
-          : `${compactCount(views)} views on Shorts this week`,
+          ? `${platform} on this are climbing ${delta >= 0 ? "↑" : "↓"}${Math.abs(Math.round(delta))}%`
+          : `${compactCount(views)} views on ${platform} this week`,
       detail: [
-        `${compactCount(views)} views across the Shorts posted about this in the last 7 days${
+        `${compactCount(views)} views across the ${platform === "TikTok" ? "TikToks" : "Shorts"} posted about this in the last 7 days${
           uploads !== null ? `, from ${uploads} new video${uploads === 1 ? "" : "s"}` : ""
         }.`,
+        // The two most copyable facts about a format: how long, and whether
+        // anyone reacts. Both come free with the read.
+        secs !== null ? `The ones winning run about ${secs}s.` : "",
+        engagement !== null && engagement >= 4
+          ? `They pull ${engagement}% likes and comments per view — people are reacting, not just autoplaying past.`
+          : engagement !== null && engagement < 1.5
+            ? `Engagement is thin at ${engagement}% per view — the views are passive, so lead with the offer rather than the trend.`
+            : "",
+        // Shares and saves only come from the TikTok read, and they are the
+        // truest signal that a video made somebody act rather than scroll.
+        typeof raw?.actionPct === "number" && raw.actionPct >= 1
+          ? `${raw.actionPct}% of views turned into a share or a save — people are passing it on, which is what a local offer needs.`
+          : "",
         madeMore ? "More creators posted about it this week than last — the format is still open." : "",
-        top?.title ? `The one pulling the most: "${top.title}"${top.channel ? ` (${top.channel})` : ""} — worth 30 seconds before you shoot yours.` : "",
+        repeats.length > 0
+          ? `${repeats[0]} has posted more than once on this in seven days — it's a format being worked, not a one-off.`
+          : "",
+        top?.title
+          ? `The one pulling the most: "${top.title}"${top.channel ? ` (${top.channel})` : ""} — worth 30 seconds before you shoot yours.`
+          : "",
+        breakout && breakout.id && breakout.title && breakout.title !== top?.title
+          ? `Climbing fastest from a standing start: "${breakout.title}" — closer to what a small account can do.`
+          : "",
+        // The same disclosure the Trends read makes: never let a widened
+        // read pass as a measurement of the local term.
+        raw?.adjusted && raw.measuredTerm
+          ? `Measured on "${raw.measuredTerm}" — too few Shorts carry the local phrasing to read it directly.`
+          : "",
       ]
         .filter(Boolean)
         .join(" "),
     });
   } else if (signal.source === "tiktok") {
-    const raw = signal.raw as { hashtagName?: string } | null;
+    const raw = signal.raw as { hashtagName?: string; categoryBearing?: boolean } | null;
     const posts = Number(signal.value) || 0;
+    // A board row that carries no word about what the industry sells is a
+    // national moment the industry's advertisers happened to post into —
+    // real, but not a category trend, and saying otherwise is the scraper
+    // voice.
+    const generic = raw?.categoryBearing === false;
     insights.push({
       kind: "momentum",
       headline:
         typeof delta === "number"
           ? `${delta >= 0 ? "↑" : "↓"}${Math.abs(Math.round(delta))}% posts on TikTok this week`
           : `${compactCount(posts)} TikTok posts on this`,
-      detail: `${compactCount(posts)} posts under ${raw?.hashtagName ? `#${String(raw.hashtagName).replace(/^#/, "")}` : "this hashtag"} — TikTok's own trending board for your industry, national. Local demand is confirmed by the search read below, not by this.`,
+      detail: [
+        `${compactCount(posts)} posts under ${raw?.hashtagName ? `#${String(raw.hashtagName).replace(/^#/, "")}` : "this hashtag"} — TikTok's own trending board for your industry, national.`,
+        generic
+          ? "It's a moment the whole country is posting into rather than a trend about what you sell — worth timing an offer to, not building one on."
+          : "",
+        "Local demand is confirmed by the search read below, not by this.",
+      ]
+        .filter(Boolean)
+        .join(" "),
     });
   } else if (signal.source === "snapshot") {
     // An evergreen watch term. Say what was measured — and when nothing

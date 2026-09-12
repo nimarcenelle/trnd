@@ -38,6 +38,55 @@ export interface RankedRow {
   sourceUrl: string | null;
   /** True when Google's regional sample was mostly zeros — an idea, not a wave. */
   sparse: boolean;
+  /** How the winning short-form videos on this term are BUILT, when the
+   * read came from a short-form source. The note is grounded on it so the
+   * weekly advice can say what to shoot, not just what is rising. */
+  format: ShortFormatRead | null;
+}
+
+/** The format facts a short-form signal carries in its raw payload. */
+export interface ShortFormatRead {
+  medianDurationSec: number | null;
+  engagementPct: number | null;
+  /** Shares + saves per view — TikTok only; YouTube exposes no equivalent. */
+  actionPct: number | null;
+  repeatChannels: string[];
+  hashtags: string[];
+  topTitle: string | null;
+  breakoutTitle: string | null;
+}
+
+/** Pure: pull the format facts out of a short-form signal's raw payload.
+ * Returns null for every other source, and for a short-form read that
+ * predates the deep capture — an old row must not render as a format of
+ * zero-second videos with no engagement. */
+export function formatRead(metric: string, raw: unknown): ShortFormatRead | null {
+  if (metric !== "shortform_views" || !raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const strs = (v: unknown) =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 8) : [];
+  const title = (v: unknown) =>
+    v && typeof v === "object" && typeof (v as { title?: unknown }).title === "string"
+      ? ((v as { title: string }).title)
+      : null;
+  const out: ShortFormatRead = {
+    medianDurationSec: num(r.medianDurationSec),
+    engagementPct: num(r.engagementPct),
+    actionPct: num(r.actionPct),
+    repeatChannels: strs(r.repeatChannels),
+    hashtags: strs(r.hashtags),
+    topTitle: title(r.top),
+    breakoutTitle: title(r.breakout),
+  };
+  const empty =
+    out.medianDurationSec === null &&
+    out.engagementPct === null &&
+    out.actionPct === null &&
+    out.repeatChannels.length === 0 &&
+    out.hashtags.length === 0 &&
+    out.topTitle === null;
+  return empty ? null : out;
 }
 
 export interface DemandRow {
@@ -191,6 +240,7 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
       status: o.status,
       sourceUrl: sourceUrl(signal),
       sparse: (signal.raw as { sparse?: boolean } | null)?.sparse === true,
+      format: formatRead(signal.metric_type, signal.raw),
     });
   }
 

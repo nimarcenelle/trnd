@@ -1,5 +1,6 @@
 import { isGeminiConfigured } from "@/lib/env";
 
+import { classifyTerm } from "../category-terms";
 import { normalizeTerm } from "../normalize";
 import { CircuitBreaker, fetchJson } from "../http";
 import type { AdapterFetchInput, RawSeriesPoint, RawSignal, SignalAdapter } from "../types";
@@ -84,6 +85,56 @@ export function curveDelta(curve: CcCurvePoint[] | undefined): number | null {
   return Math.max(-100, Math.min(100, Math.round(pct)));
 }
 
+/**
+ * Does this board row say anything about what the industry SELLS?
+ *
+ * TikTok's industry boards rank whatever is nationally loud among that
+ * industry's advertisers, which during a holiday week is just the holiday.
+ * The Food & Beverage board on 2026-09-11 was #happylaborday, #ldw and
+ * #laborday2026 — three spellings of one thing, none of them about food,
+ * all three filed as "Restaurants & cafés" trends. Ranked as category
+ * demand, that is the output of a scraper, not an analyst.
+ *
+ * These rows are not worthless — Labor Day weekend is a real demand moment
+ * for a restaurant — so they are marked rather than dropped, and the
+ * insight layer frames them as a national moment instead of a category
+ * trend.
+ *
+ * This lexicon check is the FALLBACK, used only when Gemini is unconfigured.
+ * It is deliberately conservative because it is weak: a live board read
+ * showed it marking "#sorority recruitment outfits" on the Home Improvement
+ * board as on-topic (it hit the apparel lexicon, for a different category)
+ * while missing "#leaf blower maintenance" on that same board. So it only
+ * answers for the category the row was actually filed under, and anything
+ * it cannot place is left on-topic rather than wrongly demoted — a missed
+ * demotion costs a sentence of framing, a wrong one buries a real trend.
+ */
+export function isCategoryBearing(term: string, category: string): boolean {
+  const hit = classifyTerm(term);
+  return hit === null || hit === category;
+}
+
+/**
+ * Collapse spellings of one trend to the strongest row.
+ *
+ * The board has three slots per query, so #happylaborday + #ldw +
+ * #laborday2026 costs the entire query and returns one fact. Two rows are
+ * the same trend when one's compacted letters contain the other's, which
+ * catches the abbreviation/suffix/year family ("laborday" ⊂ "laborday2026",
+ * "laborday" ⊂ "happylaborday") without a thesaurus. Order is preserved, so
+ * whichever row TikTok ranked higher is the one kept.
+ */
+export function collapseVariants<T extends { term: string }>(rows: T[]): T[] {
+  const kept: { row: T; key: string }[] = [];
+  for (const row of rows) {
+    const key = row.term.toLowerCase().replace(/[^a-z]/g, "");
+    if (key.length < 3) continue;
+    const dupe = kept.some((k) => k.key.includes(key) || key.includes(k.key));
+    if (!dupe) kept.push({ row, key });
+  }
+  return kept.map((k) => k.row);
+}
+
 /** Pure mapper — unit-tested against a captured fixture. `termFor` swaps the
  * raw hashtag slug for a readable trend phrase; the slug stays in `raw`. */
 export function ccSignals(
@@ -92,21 +143,33 @@ export function ccSignals(
   geo: string,
   windowDays: number,
   termFor: (hashtag: string) => string = (h) => h,
+  onTopicFor: ((hashtag: string, term: string, category: string) => boolean) | null = null,
 ): RawSignal[] {
   if (payload.BaseResp?.StatusCode !== 0) return [];
   return (payload.items ?? [])
     .filter((i) => typeof i.hashtagName === "string" && i.hashtagName.length > 1)
-    .map((i) => ({
-      source: "tiktok" as const,
-      term: termFor(String(i.hashtagName)),
-      category,
-      geo,
-      metric_type: "conversation",
-      value: Number(i.publishCnt) || null,
-      delta_pct: curveDelta(i.popularityCurve),
-      window_days: windowDays,
-      raw: i,
-    }));
+    .map((i) => {
+      const term = termFor(String(i.hashtagName));
+      return {
+        source: "tiktok" as const,
+        term,
+        category,
+        geo,
+        metric_type: "conversation",
+        value: Number(i.publishCnt) || null,
+        delta_pct: curveDelta(i.popularityCurve),
+        window_days: windowDays,
+        // Whether this row is about the industry at all, or just what the
+        // whole country was posting that week. The insight layer frames the
+        // two differently; nothing is dropped on it.
+        raw: {
+          ...i,
+          categoryBearing: onTopicFor
+            ? onTopicFor(String(i.hashtagName), term, category)
+            : isCategoryBearing(term, category),
+        },
+      };
+    });
 }
 
 export function ccSeries(
@@ -135,7 +198,7 @@ export function ccSeries(
 
 export function createTiktokCcAdapter(opts: {
   /** Injectable for tests; defaults to the Gemini pass when configured. */
-  humanize?: (hashtags: string[]) => Promise<string[]>;
+  humanize?: (items: { hashtag: string; category: string }[]) => Promise<{ term: string; onTopic: boolean }[]>;
   /** Injectable for tests; defaults to the hardened fetchJson. */
   fetchJson?: typeof fetchJson;
 } = {}): SignalAdapter {
@@ -145,20 +208,25 @@ export function createTiktokCcAdapter(opts: {
   // hashtag slug → readable trend phrase, built once per run over every
   // industry's items so signals and series always share the same term.
   const termMap = new Map<string, string>();
+  // hashtag slug → whether the row is about what its board's industry sells.
+  // Judged by the same call that humanizes, which is the only place that
+  // knows both the readable phrase and the industry it came from.
+  const topicMap = new Map<string, boolean>();
   let termsResolved = false;
 
-  const resolveTerms = async (payloads: CcPayload[]) => {
+  const resolveTerms = async (boards: { payload: CcPayload; category: string }[]) => {
     if (termsResolved) return;
     termsResolved = true;
-    const names = [
-      ...new Set(
-        payloads
-          .flatMap((p) => p.items ?? [])
-          .map((i) => i.hashtagName)
-          .filter((n): n is string => typeof n === "string" && n.length > 1),
-      ),
-    ];
-    if (names.length === 0) return;
+    const byName = new Map<string, string>();
+    for (const { payload, category } of boards) {
+      for (const i of payload.items ?? []) {
+        if (typeof i.hashtagName === "string" && i.hashtagName.length > 1 && !byName.has(i.hashtagName)) {
+          byName.set(i.hashtagName, category);
+        }
+      }
+    }
+    const items = [...byName.entries()].map(([hashtag, category]) => ({ hashtag, category }));
+    if (items.length === 0) return;
     try {
       const humanize =
         opts.humanize ??
@@ -166,13 +234,21 @@ export function createTiktokCcAdapter(opts: {
           ? (await import("@/lib/ai/gemini")).humanizeTrendTerms
           : null);
       if (!humanize) return;
-      const phrases = await humanize(names);
-      names.forEach((n, i) => termMap.set(n, phrases[i] ?? n));
+      const reads = await humanize(items);
+      items.forEach((it, i) => {
+        const read = reads[i];
+        if (!read) return;
+        termMap.set(it.hashtag, read.term);
+        topicMap.set(it.hashtag, read.onTopic);
+      });
     } catch (err) {
       console.warn("[signals:tiktok_cc] humanize failed — keeping raw hashtags:", (err as Error).message);
     }
   };
   const termFor = (hashtag: string) => termMap.get(hashtag) ?? hashtag;
+  // The model's verdict when it gave one; the conservative lexicon otherwise.
+  const onTopicFor = (hashtag: string, term: string, category: string) =>
+    topicMap.get(hashtag) ?? isCategoryBearing(term, category);
 
   // Anonymous access returns the top 3 rows per query and refuses to page
   // (page 2 comes back empty), so the only way to see more of the board is
@@ -224,22 +300,24 @@ export function createTiktokCcAdapter(opts: {
     },
     async fetch(input: AdapterFetchInput): Promise<RawSignal[]> {
       const boards = await fetchAllBoards(input.geo);
-      await resolveTerms(boards.map((b) => b.payload));
+      await resolveTerms(boards);
       // A hashtag on both boards would otherwise land twice for the same day
       // and the same term; the spiking read (7d) is the one that ranks, and
       // the 30d board fills in whatever it alone found.
       const bySeen = new Map<string, RawSignal>();
       for (const { payload, category, windowDays } of [...boards].sort((a, b) => a.windowDays - b.windowDays)) {
-        for (const sig of ccSignals(payload, category, input.geo, windowDays, termFor)) {
+        for (const sig of ccSignals(payload, category, input.geo, windowDays, termFor, onTopicFor)) {
           const key = `${normalizeTerm(sig.term)}:${sig.category}`;
           if (!bySeen.has(key)) bySeen.set(key, sig);
         }
       }
-      return [...bySeen.values()];
+      // Three spellings of one holiday would otherwise fill three of the
+      // ~40 slots a whole night's board reading produces.
+      return collapseVariants([...bySeen.values()]);
     },
     async fetchSeries(input: AdapterFetchInput): Promise<RawSeriesPoint[]> {
       const boards = await fetchAllBoards(input.geo);
-      await resolveTerms(boards.map((b) => b.payload));
+      await resolveTerms(boards);
       // Longest window first: the 30-day curve carries the 7-day one's days,
       // and a later point for the same (term, day) would only overwrite it
       // with the same value.

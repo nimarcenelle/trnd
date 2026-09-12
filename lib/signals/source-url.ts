@@ -88,7 +88,12 @@ export function scaleNote(source: SignalSource, metric?: string): string | null 
     case "snapshot":
       return "Steady-demand index, relative to this term's own peak. A flat line here is normal — it's baseline demand.";
     case "tiktok":
-      return "Post volume for this hashtag, relative to its own 30-day peak.";
+      // Two different reads share this source: the national hashtag board
+      // and the paid per-term one. They are measured in different units and
+      // must not describe each other.
+      return metric === "shortform_views"
+        ? "Views on TikToks posted about this in the last two weeks — this week's against the weeks before."
+        : "Post volume for this hashtag, relative to its own 30-day peak.";
     case "youtube":
       return "Views on Shorts posted about this in the last two weeks — this week's against the week before.";
     case "reddit":
@@ -144,7 +149,12 @@ export function sourceUrl(ref: SourceRef): string | null {
     case "news":
       return `https://news.google.com/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
     case "tiktok": {
-      const tag = (ref.raw as { hashtagName?: unknown } | null | undefined)?.hashtagName;
+      const raw = ref.raw as { hashtagName?: unknown; top?: { url?: unknown } } | null | undefined;
+      // The per-term read captures the actual post doing the work — one tap
+      // to the thing being described beats a tag page every time.
+      const url = raw?.top?.url;
+      if (typeof url === "string" && url.startsWith("https://www.tiktok.com/")) return url;
+      const tag = raw?.hashtagName;
       return typeof tag === "string" && tag.length > 1
         ? `https://www.tiktok.com/tag/${encodeURIComponent(tag.replace(/^#/, ""))}`
         : `https://www.tiktok.com/search?q=${q}`;

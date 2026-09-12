@@ -120,7 +120,32 @@ export const PickReadSchema = z.object({
 export type PickReadResult = z.infer<typeof PickReadSchema>;
 
 export const HumanizeSchema = z.object({
-  terms: z.array(z.string().min(2)).min(1),
+  terms: z
+    .array(
+      z.object({
+        term: z.string().min(2),
+        /** Whether the hashtag is about what the queried industry SELLS, as
+         * opposed to a national moment its advertisers posted into. */
+        on_topic: z.boolean(),
+      }),
+    )
+    .min(1),
+});
+
+/** The format read mined from a term's winning Shorts. Bounded to three
+ * patterns: an owner shooting this week can act on three, not ten. */
+export const ShortFormatSchema = z.object({
+  formats: z
+    .array(
+      z.object({
+        name: z.string().min(3),
+        shape: z.string().min(10),
+        evidence: z.string().min(3),
+      }),
+    )
+    .min(1)
+    .max(3),
+  shoot: z.string().min(10),
 });
 
 export const SiteExtractSchema = z.object({

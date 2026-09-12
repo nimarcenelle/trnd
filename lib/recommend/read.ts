@@ -4,8 +4,10 @@ import { isGeminiConfigured } from "@/lib/env";
 
 import { buildPickFacts, type PickFacts } from "./pick-facts";
 
-/** read-1: verdict first, then the why; plus the owner's next questions. */
-export const PICK_READ_PROMPT_VERSION = "read-1";
+/** read-3: opens on the deciding fact with the verdict in the same sentence,
+ * never on a stock "Run this small."; exact prices; never restates the
+ * budget line the screen already shows. */
+export const PICK_READ_PROMPT_VERSION = "read-3";
 
 export function readVersionFor(facts: PickFacts): string {
   return `${PICK_READ_PROMPT_VERSION}/${facts.fingerprint}`;

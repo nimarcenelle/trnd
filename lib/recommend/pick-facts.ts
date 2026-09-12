@@ -36,8 +36,10 @@ function hash(key: string): string {
 }
 
 const meter = (v: number) => Math.round(Math.max(0, Math.min(1, v)) * 100);
+// Whole dollars stay whole; a café's $3.50 drip must not become "$4" in the
+// read the owner checks against their own menu board.
 const dollars = (cents: number | null | undefined) =>
-  typeof cents === "number" ? `$${Math.round(cents / 100)}` : null;
+  typeof cents === "number" ? `$${(cents / 100).toFixed(2).replace(/\.00$/, "")}` : null;
 
 export async function buildPickFacts(
   repo: Repo,
@@ -180,7 +182,13 @@ export async function buildPickFacts(
       opportunity.relevance ?? "",
       opportunity.matched_service_id ?? "",
       opportunity.competitor_gap ?? "",
-      rank,
+      // Rank is deliberately NOT here. The rerank writes reads against the
+      // five rows it just ranked; the dashboard then lists those five plus
+      // any older rows kept for their campaigns, so the same pick sat at a
+      // different position on the page than in the job, every read came up
+      // stale, and the screen said "TRND is writing the read" over a read
+      // that existed. Whether the term is worth acting on does not change
+      // with its neighbours.
       typeof explained.weekPct === "number" ? Math.round(explained.weekPct / 5) * 5 : "unmeasured",
       // Whether an ad has been drafted is deliberately NOT here. It used to
       // be, and it guaranteed every read was written twice: once while the

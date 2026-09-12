@@ -86,6 +86,12 @@ export default function TrendChart({
 
   const last = points[points.length - 1];
   const first = points[0];
+  // A line that is mostly zeros is Google failing to resolve the term at
+  // this geo, not thirty days of nothing. Drawn as a number and two chips it
+  // read "0 · ↑0% vs last week · ↑0% over 30 days" beside a paragraph
+  // saying searches had doubled; the honest summary is that the daily meter
+  // cannot see this term here.
+  const sparse = points.filter((p) => p.value <= 0).length / points.length > 0.6;
   // Month read from week-sized averages, not two endpoint days — a single
   // dip on the first or last day must not fake a trend.
   const win = Math.max(2, Math.min(7, Math.floor(points.length / 2)));
@@ -107,8 +113,14 @@ export default function TrendChart({
   return (
     <div className="trend-chart" ref={wrapRef}>
       <div className="trend-chart__summary" style={{ flexWrap: "wrap", rowGap: 6 }}>
-        <span className="trend-chart__now">{Math.round(last.value)}</span>
-        {weekly !== null && (
+        {sparse ? (
+          <span className="delta-chip" title="Most days in this window read zero — the term is below Google's daily meter at this level">
+            thin read
+          </span>
+        ) : (
+          <span className="trend-chart__now">{Math.round(last.value)}</span>
+        )}
+        {!sparse && weekly !== null && (
           <span
             className={`delta-chip${weekly < 0 ? " delta-chip--down" : ""}`}
             title="Change against the week before — the number the ranking scores on"
@@ -117,7 +129,7 @@ export default function TrendChart({
             {Math.abs(weekly)}% vs last week
           </span>
         )}
-        {sourceHref ? (
+        {sparse ? null : sourceHref ? (
           <a
             className={`delta-chip delta-chip--link${delta < 0 ? " delta-chip--down" : ""}`}
             href={sourceHref}
@@ -140,7 +152,9 @@ export default function TrendChart({
         )}
       </div>
       <p className="mx-0 mt-[2px] mb-[10px] text-[11.5px] font-mono text-ink-faint">
-        {unitHint}
+        {sparse
+          ? "too few searches for Google to chart daily at this level — the spikes are sampling, not demand"
+          : unitHint}
       </p>
       <svg
         viewBox={`0 0 ${W} ${H}`}

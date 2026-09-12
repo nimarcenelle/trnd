@@ -61,8 +61,11 @@ export function trendPct(series: Pick<SignalSeriesPoint, "value">[]): number | n
   const start = mean(series.slice(0, 7));
   const end = mean(series.slice(-7));
   if (start <= 0) return end > 0 ? 100 : 0;
-  return ((end - start) / start) * 100;
+  // Capped like a Trends "Breakout": past a few hundred percent the number
+  // is the first week sitting near zero, not a fact an owner can use.
+  return Math.min(TREND_PCT_CAP, ((end - start) / start) * 100);
 }
+export const TREND_PCT_CAP = 400;
 
 /**
  * Momentum: what the owner sees on the demand line must be what the stars
@@ -103,6 +106,30 @@ export function weekPctFromSeries(series: Pick<SignalSeriesPoint, "value">[]): n
 export const UNMEASURED_WEEK = 0.3;
 export const UNMEASURED_EVIDENCE_GATE = 0.85;
 
+/**
+ * A daily series that is mostly zeros is Google failing to resolve the term
+ * at this geo, not a month of nothing followed by a wave. "anaerobic
+ * natural coffee" in Georgia read 0,0,…,100,0,0 — one sampled day — and
+ * `trendPct` turned that into "up 100% across 30 days", which the pick's
+ * read then repeated to the owner as the reason to run it. Such a series is
+ * flagged sparse and its shape is not read at all.
+ */
+export const SPARSE_ZERO_SHARE = 0.6;
+export function seriesIsSparse(series: Pick<SignalSeriesPoint, "value">[] | undefined): boolean {
+  if (!series || series.length < 14) return false;
+  return series.filter((p) => p.value <= 0).length / series.length > SPARSE_ZERO_SHARE;
+}
+
+/**
+ * Searches a month, below which a search-volume read cannot carry a paid
+ * campaign on its own: 110 searches a month statewide is a rounding error
+ * on a Meta buy, whatever its week-over-week delta says. Such a term is held
+ * to the B range and the rationale says why, so a 27% rise on nothing does
+ * not outrank a flat 5,400.
+ */
+export const THIN_VOLUME_MONTHLY = 300;
+export const THIN_VOLUME_GATE = 0.72;
+
 const STOPWORDS = new Set([
   "the", "a", "an", "and", "or", "for", "of", "to", "in", "on", "near", "me",
   "at", "vs", "with", "your", "my", "before", "after", "best",
@@ -124,21 +151,52 @@ export interface ServiceMatch {
   reason: string;
 }
 
-/** Token overlap between the signal term and what the business sells. */
+/**
+ * Token overlap between the signal term and what the business sells.
+ *
+ * Weighted, not counted. On a coffee menu the word "coffee" is in a dozen
+ * items and says nothing about which one a search means, while "burundi"
+ * is in exactly one and says everything. Each shared token is worth more
+ * the fewer menu items carry it, and among items sharing the same words the
+ * shortest name wins — "Drip Coffee" is what "light roast coffee beans"
+ * means on a café menu, not "Fellow Aiden Coffee Brewer", which shared the
+ * one word and was matched first for being first in the list, so the
+ * campaign for a bean search sold a $400 machine.
+ */
 export function matchService(signal: Signal, services: Service[]): ServiceMatch {
   const termTokens = tokens(signal.term);
-  let best: { service: Service; overlap: number } | null = null;
-  for (const s of services.filter((x) => x.is_active)) {
-    const overlap = [...tokens(s.name + " " + (s.description ?? ""))].filter((t) =>
-      termTokens.has(t),
-    ).length;
-    if (overlap > 0 && (!best || overlap > best.overlap)) best = { service: s, overlap };
-  }
+  const active = services.filter((x) => x.is_active);
+  // Every word in the name counts for overlap — "Sprotini (Espresso
+  // Martini)" is how "espresso martini" gets matched at all. But the
+  // parenthetical does not count toward the name's SIZE: "(Small)" and
+  // "(12oz)" are qualifiers, and they must not make "Drip Coffee (Small)"
+  // look further from "coffee" than a subscription does.
+  const serviceTokens = active.map((s) => tokens(s.name + " " + (s.description ?? "")));
+  const nameSize = active.map((s) => tokens(s.name.replace(/\([^)]*\)/g, " ")).size);
+  // Document frequency: how many menu items carry each word.
+  const df = new Map<string, number>();
+  for (const set of serviceTokens) for (const t of set) df.set(t, (df.get(t) ?? 0) + 1);
+  const weight = (t: string) => 1 / (df.get(t) ?? 1);
+  let best: { service: Service; overlap: number; weighted: number; size: number } | null = null;
+  active.forEach((s, i) => {
+    const shared = [...serviceTokens[i]].filter((t) => termTokens.has(t));
+    if (shared.length === 0) return;
+    const weighted = shared.reduce((sum, t) => sum + weight(t), 0);
+    const size = nameSize[i];
+    if (
+      !best ||
+      weighted > best.weighted + 1e-9 ||
+      (Math.abs(weighted - best.weighted) < 1e-9 && size < best.size)
+    ) {
+      best = { service: s, overlap: shared.length, weighted, size };
+    }
+  });
   if (best) {
+    const b = best as { service: Service; overlap: number };
     return {
-      score: Math.min(1, 0.6 + best.overlap * 0.2),
-      service: best.service,
-      reason: `you already sell ${best.service.name}`,
+      score: Math.min(1, 0.6 + b.overlap * 0.2),
+      service: b.service,
+      reason: `you already sell ${b.service.name}`,
     };
   }
   // Same category but no direct service line — promotable with a new offer.
@@ -252,6 +310,9 @@ export interface ScoredOpportunity {
   competitorBasis?: CompetitorBasis;
   /** True when the interest read was below Google's regional meter. */
   sparse?: boolean;
+  /** True when the term's monthly search volume is too small to carry a
+   * paid campaign on its own (see THIN_VOLUME_MONTHLY). */
+  thinVolume?: boolean;
   /** Multiplier on the weighted sum (1 = full evidence). A sparse read is an
    * idea that fits, not a measured wave — it cannot outrank real demand. */
   evidenceGate?: number;
@@ -299,14 +360,29 @@ export function scoreOpportunity(
   gap: GapInput,
   opts: { locality?: SignalLocality; series?: Pick<SignalSeriesPoint, "value">[] } = {},
 ): ScoredOpportunity {
-  const sparse = (signal.raw as { sparse?: boolean } | null | undefined)?.sparse === true;
+  // Sparse by the adapter's own flag, or by the shape of the series it left
+  // behind — a mostly-zero line is the same fact seen from the other side.
+  const sparseSeries = seriesIsSparse(opts.series);
+  const sparse = (signal.raw as { sparse?: boolean } | null | undefined)?.sparse === true || sparseSeries;
+  // A sparse series has no shape worth reading: its "trend" is one sampled
+  // day against a floor of zeros.
+  const series = sparseSeries ? undefined : opts.series;
   // No stored weekly delta: read this week off the daily series when one
   // exists; otherwise the week is unmeasured, and scored as such.
   const seriesWeek =
-    signal.delta_pct === null && !sparse && opts.series ? weekPctFromSeries(opts.series) : null;
+    signal.delta_pct === null && !sparse && series ? weekPctFromSeries(series) : null;
   const weekInput = signal.delta_pct ?? seriesWeek;
   const unmeasured = !sparse && weekInput === null;
-  const mo = momentum(weekInput, opts.series, { sparse });
+  // A signal with its own measured delta (search volume month over month)
+  // keeps it even when Trends could not chart the term: sparse then gates
+  // the total but does not erase a number another source measured.
+  const ownDelta = sparse && typeof signal.delta_pct === "number" && signal.metric_type === "search_volume";
+  const mo = ownDelta ? momentum(signal.delta_pct, undefined) : momentum(weekInput, series, { sparse });
+  const thinVolume =
+    signal.metric_type === "search_volume" &&
+    typeof signal.value === "number" &&
+    signal.value > 0 &&
+    signal.value < THIN_VOLUME_MONTHLY;
   if (unmeasured) {
     const month = typeof mo.monthPct === "number" ? Math.min(1, Math.max(0, mo.monthPct / 50)) : null;
     mo.score = month === null ? UNMEASURED_WEEK : Math.round((0.5 * UNMEASURED_WEEK + 0.5 * month) * 1000) / 1000;
@@ -316,13 +392,14 @@ export function scoreOpportunity(
   // whole country, so it cannot describe this business's town.
   const nationalConversation =
     signal.metric_type === "conversation" && !/^[A-Z]{2}-/.test(signal.geo);
-  const evidenceGate = nationalConversation
+  const baseGate = nationalConversation
     ? NATIONAL_CONVERSATION_GATE
     : sparse
       ? SPARSE_EVIDENCE_GATE
       : unmeasured
         ? UNMEASURED_EVIDENCE_GATE
         : 1;
+  const evidenceGate = thinVolume ? Math.min(baseGate, THIN_VOLUME_GATE) : baseGate;
   const sm = matchService(signal, services);
   const cg = competitorGap(gap);
   const hl = historicalLift(learnings);
@@ -345,10 +422,15 @@ export function scoreOpportunity(
       : "";
   const metricText = signal.metric_type.replace(/_/g, " ");
   const evergreen = signal.source === "snapshot";
-  const deltaText = sparse
-    ? `too small for Google's meter in ${signal.geo} — an idea that fits, not a measured wave`
+  const volumeText = thinVolume
+    ? ` — about ${Math.round(Number(signal.value))} searches a month in ${signal.geo}, too few to carry a paid campaign on their own`
+    : "";
+  const deltaText = sparse && !ownDelta
+    ? `too small for Google's meter in ${signal.geo} — an idea that fits, not a measured wave${volumeText}`
+    : sparse && typeof mo.weekPct === "number"
+      ? `${mo.weekPct >= 0 ? "up" : "down"} ${Math.abs(Math.round(mo.weekPct))}% ${metricText} this month, though too small for Google's daily meter in ${signal.geo}${volumeText}`
     : typeof mo.weekPct === "number"
-      ? `${mo.weekPct >= 0 ? "up" : "down"} ${Math.abs(Math.round(mo.weekPct))}% ${evergreen ? "search interest" : metricText} this week${monthText}`
+      ? `${mo.weekPct >= 0 ? "up" : "down"} ${Math.abs(Math.round(mo.weekPct))}% ${evergreen ? "search interest" : metricText} this week${monthText}${volumeText}`
       : evergreen
         ? `a year-round search term for what you sell — no weekly read yet, so momentum is scored conservatively${monthText}`
         : `showing ${metricText} right now — no weekly read yet, so momentum is scored conservatively${monthText}`;
@@ -367,6 +449,7 @@ export function scoreOpportunity(
     weekPct: mo.weekPct,
     unmeasured,
     sparse,
+    thinVolume,
     evidenceGate,
     competitorBasis: cg.basis,
     matchedService: sm.service,

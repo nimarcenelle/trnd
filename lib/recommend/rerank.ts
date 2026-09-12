@@ -20,5 +20,9 @@ export async function rerankWeek(repo: Repo, business: Business): Promise<void> 
   await repo.deleteOpportunitiesForWeek(business.id, week, keepIds);
   // The re-ranked picks get their read now — stale reads (the fingerprint
   // moved with the score) are rewritten, unchanged ones cost nothing.
-  await writeTopPickReads(repo, business, await rankedPicks(repo, business, result.opportunityIds));
+  // Every pick, same as the weekly job: the pager offers five, and the
+  // default of three left picks four and five saying "TRND is writing the
+  // read" the moment an owner paged to them.
+  const picks = await rankedPicks(repo, business, result.opportunityIds);
+  await writeTopPickReads(repo, business, picks, picks.length);
 }

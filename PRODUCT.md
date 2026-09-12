@@ -28,10 +28,13 @@ Without Supabase keys, demo-mode auth (scrypt-hashed passwords, HMAC-signed sess
 cookie) provides the identical flow.
 
 ### 3. Onboarding (`/onboarding`)
-The wizard leads with the business's website: it crawls the homepage plus menu/pricing/
-about pages, extracts name, category, location, priced offerings, brand voice, and photos
-(JSON-LD, price-line heuristics, headless render for JS-only sites, Gemini refinement
-when keyed) and collapses everything into one confirm screen. No website, or a blocked
+The wizard leads with the business's website: it crawls the homepage, the pages its nav
+links, and the pages its sitemap lists that the nav never mentions (a multi-location
+café's per-location and menu pages), reads the priced menu PDFs and menu images it finds
+there, and pulls the online catalog from Shopify/WooCommerce alongside — then extracts
+name, category, location, priced offerings, brand voice, and photos (JSON-LD, price-line
+heuristics, headless render for JS-only sites, Gemini refinement when keyed) and collapses
+everything into one confirm screen, menu items first. No website, or a blocked
 crawl → five short manual steps: name, category, location + radius + price band,
 services with prices, voice notes. Finishing:
 - starts the **14-day trial clock**,
@@ -123,7 +126,9 @@ package as a four-step launch guide:
 
 All copy is brand-voiced, priced from the real menu, and category-correct — a restaurant
 gets "$24, this week only," never "consult, applied to your first visit." Gemini-generated
-with schema validation when keyed; a deterministic brand-voiced generator otherwise. A
+with schema validation when keyed — three routes into the demand (the thing, the moment,
+the person), a judge, the assets, then a copy chief's pass that rewrites any line a
+person wouldn't say out loud — and a deterministic brand-voiced generator otherwise. A
 build steered from the pick's Ask box carries the owner's direction into every call —
 it decides which service, offer, audience, or angle leads, and can never add a promise
 the menu doesn't list. Rewrites keep the campaign's id, so links and results still

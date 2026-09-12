@@ -93,8 +93,19 @@ export function mergeServices(rows: ServiceRow[], found: DocumentDigest["service
     if (idx >= 0) {
       taken.add(idx);
       if (!out[idx].price.trim() && price) out[idx].price = price;
-    } else if (!additions.some((a) => norm(a.name) === fk)) {
-      additions.push({ name: fname.slice(0, 80), price });
+    } else {
+      // Two location menus list the same sandwich as "Bacon Egg & Cheese
+      // Biscuit" and "Bacon Egg & Cheese Biscuit Sammie" — one item, and the
+      // same containment test the owner's rows get applies between menus.
+      const dup = additions.find((a) => {
+        const ak = norm(a.name);
+        return ak === fk || ak.includes(fk) || fk.includes(ak);
+      });
+      if (dup) {
+        if (!dup.price.trim() && price) dup.price = price;
+      } else {
+        additions.push({ name: fname.slice(0, 80), price });
+      }
     }
   }
   const merged = [...out, ...additions].filter((r) => r.name.trim() || r.price.trim());

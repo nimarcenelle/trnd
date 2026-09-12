@@ -1,5 +1,6 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, NewOpportunity, NewSignal, Opportunity, Signal } from "@/lib/db/types";
+import { indexSeries } from "@/lib/demand/series";
 import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity, tokens, type ScoredOpportunity } from "@/lib/scoring";
 import { localityFor } from "@/lib/signals/geo";
@@ -259,7 +260,7 @@ export async function recommendForBusiness(
             // the same demand measured nationally.
             locality: localityFor(signal.geo, business.region),
             // The 30-day line the owner sees is part of the momentum read.
-            series: await repo.getSeries(signal.normalized_term, signal.geo, 30),
+            series: indexSeries(await repo.getSeries(signal.normalized_term, signal.geo, 30)),
           },
         ),
         relevance: null,

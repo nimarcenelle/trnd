@@ -749,3 +749,37 @@ and yellow-tinted.
 - **Hero halo**: soft amber radial layered over the dot grid (both
   themes, token-driven).
 - Dark theme untouched. Gate green (74 unit, E2E, build).
+
+## P25 — The Bellwood run: read the whole site, rank what's real, write like a person
+A full run as a user on bellwoodcoffee.com (five Atlanta cafés on Shopify) came back
+as a bean-and-grinder web store: the #1 pick was "burundi coffee beans" (110 searches a
+month), matched to a $400 brewer, with an ad that opened "You are looking for El
+Salvador coffee beans to brew at home." Every one of those is one bug, fixed here.
+- **Crawl reach** (lib/import/website.ts): the 400 KB page cap cut a 578 KB Shopify
+  homepage off before its first nav link, so the crawl read one page and found zero;
+  now 2.5 MB. Anchor bodies wrapped in theme spans are read (800-char window). Policy,
+  cart, careers and search pages can no longer outrank locations. **The sitemap is
+  read** (`discoverSitemapPages`) — the menu and location pages the nav never links.
+  Menu PDFs behind `?v=` cache-busters are found; "full" menus read first; four per
+  site. A Square gift-card link is not "the menu". Storefront JSON is merged whenever
+  the site is a storefront, not only when the crawl came back empty; menu items lead
+  the confirm screen and duplicates across location menus fold into one row.
+- **Ranking**: `matchService` weights shared words by rarity and ties break to the
+  plainer name ("Drip Coffee", not "Fellow Aiden Coffee Brewer"); parenthetical
+  qualifiers count for the match, not the size. A mostly-zero daily series is sparse,
+  never "+100% across 30 days". Monthly volumes stamped under a Trends index key are
+  filtered out before any read (`indexSeries`) — the ranking had computed
+  "+1,417,664%". Month reads cap at +400%. A search volume under 300 a month is held
+  to the B range and the rationale says why. Rerank writes reads for every pick; rank
+  left the read fingerprint so the dashboard stops re-writing reads that exist.
+- **Copy** (gemini-8): the system prompt now says what good looks like, with shape
+  examples, not only what is banned; the slate is three real routes (the thing, the
+  moment, the person); the judge has a read-aloud rubric; assets get five headline jobs
+  and three primary-text openers; a **copy chief** pass rewrites lines that fail. The
+  matched service is a starting point the model may override with a truer menu item.
+  Prices are exact ($3.50, not $4) in reads and prompts. Reads (read-3) open on the
+  deciding fact, never on "Run this small."
+- Verified live: the test account's #1 is "coffee shop open late" in Georgia with the
+  hook "An espresso martini in a room where you can actually hear your friends talk";
+  the brief names Gold Rush at Peachtree, the Riverside evening bar and the Mini-ccino.
+  Gate green: 44 unit files (392 tests), tsc, lint on touched files.

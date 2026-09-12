@@ -24,7 +24,10 @@ import {
 export const maxDuration = 120;
 
 /** Site text round-trips through a hidden form field into brief generation. */
-const MAX_SITE_TEXT = 12_000;
+const MAX_SITE_TEXT = 16_000;
+
+/** Shopify and WooCommerce leave fingerprints in every page's markup. */
+const looksLikeStorefront = (html: string) => /shopify|\/cdn\/shop\/|woocommerce|wc-block/i.test(html);
 
 /**
  * Owner-initiated read of their own website during onboarding, streamed as
@@ -89,9 +92,18 @@ export async function POST(req: Request): Promise<Response> {
         // JS-rendered storefronts (Shopify, Woo) hide the catalog from the
         // HTML crawl — their public JSON endpoints carry it instead. This is
         // the only product read that works in serverless prod for such sites.
-        if (data.services.length === 0) {
+        // Run whenever the site is one, not only when the crawl came back
+        // empty: a café that also ships beans has a menu on its pages AND a
+        // catalog in the store, and the owner sells both.
+        if (data.services.length === 0 || looksLikeStorefront(corpus.pages[0].html)) {
           send({ type: "status", label: "Checking the online store for products…" });
-          data.services = await probeStorefrontProducts(url, corpus.pages[0].html);
+          const products = await probeStorefrontProducts(url, corpus.pages[0].html);
+          const seen = new Set(data.services.map((s) => s.name.toLowerCase()));
+          for (const p of products) {
+            if (seen.has(p.name.toLowerCase())) continue;
+            seen.add(p.name.toLowerCase());
+            data.services.push(p);
+          }
           data.priceBand = data.priceBand ?? inferPriceBand(data.services, data.category);
         }
         // The menu on an ordering platform: one honest attempt to read it,
@@ -180,9 +192,18 @@ export async function POST(req: Request): Promise<Response> {
         // can't replace them.
         const documents = await menuDocsRead;
         if (documents.length > 0) {
+          // The menus lead the list: what a customer buys at the counter is
+          // the business the local ad reaches, and the confirm screen shows
+          // the first eight rows. The site's own items (an online catalog,
+          // memberships) follow, folded in on the same containment rule so
+          // an item both name is one row.
+          const fromMenus = mergeServices([], documents.flatMap((d) => d.digest.services_found));
           const rows = mergeServices(
-            data.services.map((s) => ({ name: s.name, price: s.price })),
-            documents.flatMap((d) => d.digest.services_found),
+            fromMenus.filter((r) => r.name.trim()),
+            data.services.map((s) => {
+              const dollars = parseFloat(s.price.replace(/[^0-9.]/g, ""));
+              return { name: s.name, price_cents: Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : null };
+            }),
           ).filter((r) => r.name.trim());
           data.services = rows;
           data.priceBand = data.priceBand ?? inferPriceBand(rows, data.category);

@@ -26,6 +26,7 @@ import { getUserRepo } from "@/lib/db";
 import { getAdminRepo } from "@/lib/db/admin";
 import type { Signal } from "@/lib/db/types";
 import { ensureWeekCampaign, shouldAutoBuild } from "@/lib/campaigns/auto";
+import { indexSeries } from "@/lib/demand/series";
 import { campaignRebuildable } from "@/lib/campaigns/build";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildPickFacts } from "@/lib/recommend/pick-facts";
@@ -388,11 +389,7 @@ export default async function AppHome({
   // The last 30 days of this term's daily series, drawn as it is. A term
   // can hold a Trends index (0–100) and a raw search volume under one key;
   // mixed, the volume days spike off the chart — keep the index when both.
-  const rawSeries = signal ? await repo.getSeries(signal.normalized_term, signal.geo, 30) : [];
-  const demandSeries =
-    rawSeries.some((p) => p.value <= 100) && rawSeries.some((p) => p.value > 100)
-      ? rawSeries.filter((p) => p.value <= 100)
-      : rawSeries;
+  const demandSeries = indexSeries(signal ? await repo.getSeries(signal.normalized_term, signal.geo, 30) : []);
   const social = buildSocialProof(termSignals);
   // Comes from the short-form read itself; see buildSocialProof.
   const proofHref = social.href;

@@ -52,7 +52,12 @@ export interface SiteCorpus {
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0 Safari/537.36 trnd-onboarding/0.1";
 const TIMEOUT_MS = 8000;
-const MAX_BYTES = 400_000;
+// Shopify and Squarespace pages routinely run past half a megabyte of
+// inline JSON and theme script before the footer nav. Bellwood Coffee's
+// homepage is 578 KB; a 400 KB cap cut it off before a single nav link, so
+// the crawl read one page, found zero links, and never reached the
+// locations page holding all five café menus.
+const MAX_BYTES = 2_500_000;
 
 export function normalizeUrl(input: string): string | null {
   const trimmed = input.trim();
@@ -110,14 +115,27 @@ export async function fetchSiteHtml(url: string): Promise<string> {
 // voice and positioning read.
 const LINK_PRIORITY = [
   /menu/i,
+  // Locations come right after menus: a multi-site café keeps one menu per
+  // location on the locations page, and a single-site one keeps its address
+  // there — both are things the analysis cannot do without.
+  /location|visit|find-us|our-cafes|cafes|stores/i,
   /pric|rate|package|bundle/i,
   /service|treatment|class|membership|offering/i,
-  /shop|store|product|collection/i,
-  /location|contact|visit|find-us/i,
+  // The story page feeds the voice read; a third product collection does not.
   /about|story|team|our-/i,
-  /book|schedule|catering|event/i,
+  /shop|product|collection/i,
+  /contact/i,
+  /book|schedule|catering|event|brewing/i,
 ];
-const MAX_SUBPAGES = 4;
+/**
+ * Pages that match a priority word for the wrong reason. "/policies/terms-of-
+ * service" matched /service/ and outranked /pages/locations; "/cart",
+ * "/search" and "/account" are storefront chrome; careers and application
+ * forms carry nothing about what the business sells.
+ */
+const LINK_SKIP =
+  /\/(policies|policy|cart|checkout|search|account|login|signup|password|tools|apps|cdn|blogs?|news|tag|feed|wp-json|wp-admin)(\/|$)|privacy|terms|refund|return-policy|opt-out|career|job|hiring|application|apply|wholesale|giveaway|gift-card|sitemap/i;
+const MAX_SUBPAGES = 6;
 /** Pages read one level below a menu hub. */
 const MAX_MENU_SUBPAGES = 3;
 
@@ -160,6 +178,10 @@ export function discoverOffsiteMenu(html: string, baseUrl: string): { name: stri
     const host = MENU_HOSTS.find((h) => h.re.test(u.hostname));
     if (!host) continue;
     const anchor = m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    // A gift-card checkout on Square is not the menu, and calling it one
+    // told a five-location café "your menu is on Square" while its real
+    // menus sat in PDFs on its own site.
+    if (/gift/i.test(`${anchor} ${u.pathname}`)) continue;
     // A labeled menu/order link, or an image-only button to the platform —
     // on a known host either is the menu.
     const labeled = /menu|order|shop/i.test(`${anchor} ${u.pathname}`) || /menu|order/i.test(u.hostname);
@@ -169,7 +191,9 @@ export function discoverOffsiteMenu(html: string, baseUrl: string): { name: stri
   }
   return null;
 }
-const MAX_CORPUS_CHARS = 24_000;
+// Nine or ten pages now feed the corpus (nav + sitemap + menu subpages);
+// the model reads are sized for it.
+const MAX_CORPUS_CHARS = 36_000;
 // Below this much visible text a page is a JS husk — worth a headless render.
 const MIN_PAGE_TEXT = 500;
 const MAX_RENDERED_PAGES = 3;
@@ -212,14 +236,17 @@ const MENU_PDF_WORDS =
  */
 export function discoverMenuPdfs(html: string, baseUrl: string): string[] {
   const base = new URL(baseUrl);
-  const found: { url: string; year: number }[] = [];
+  const found: { url: string; year: number; full: number }[] = [];
   const seen = new Set<string>();
   // Scanned on the href alone, not on a matched <a>…</a> pair. Squarespace
   // wraps a linked menu in an image anchor whose markup runs to hundreds of
   // characters before the closing tag, so pair-matching missed both of
   // Carolina Coffee Shop's menus. A PDF's filename is the reliable signal
   // anyway; the surrounding text is a bonus.
-  for (const m of html.matchAll(/href=["']([^"'#\s]+\.pdf)["']/gi)) {
+  // The extension may be followed by a cache-busting query — Shopify's CDN
+  // links every file as "…/Menu.pdf?v=1784582915", and a pattern that
+  // demanded the quote right after ".pdf" saw none of Bellwood's five menus.
+  for (const m of html.matchAll(/href=["']([^"'#\s]+\.pdf(?:\?[^"'#\s]*)?)["']/gi)) {
     const href = decodeEntities(m[1].trim());
     let u: URL;
     try {
@@ -237,13 +264,21 @@ export function discoverMenuPdfs(html: string, baseUrl: string): string[] {
     if (seen.has(key)) continue;
     seen.add(key);
     const year = Number(/(20\d{2})/.exec(path)?.[1] ?? 0);
-    found.push({ url: u.href, year });
+    // A "full" menu (food, drinks and the evening bar in one file) beats a
+    // location's daytime-only sheet when only a few can be read.
+    const full = /full|complete|all/i.test(path) ? 1 : 0;
+    found.push({ url: u.href, year, full });
   }
-  return found.sort((a, b) => b.year - a.year).map((f) => f.url).slice(0, MAX_MENU_PDFS);
+  return found
+    .sort((a, b) => b.year - a.year || b.full - a.full)
+    .map((f) => f.url)
+    .slice(0, MAX_MENU_PDFS);
 }
 
-/** More than a couple is a site archiving every seasonal menu it ever had. */
-const MAX_MENU_PDFS = 3;
+/** More than a few is a site archiving every seasonal menu it ever had.
+ * Four covers a multi-location café's per-location sheets plus a bar menu;
+ * each is one model read, run in parallel. */
+const MAX_MENU_PDFS = 4;
 
 /**
  * A menu posted as a picture — common on Wix and hand-built sites. Only an
@@ -331,8 +366,9 @@ export function discoverMenuSubpages(html: string, baseUrl: string): string[] {
   return out;
 }
 
-/** A page is a menu hub when its own path says so. */
-const isMenuPath = (url: string) => /menu/i.test(new URL(url).pathname);
+/** A page is a menu hub when its own path says so — and a locations page
+ * is one too: that is where a multi-site café links each location's menu. */
+const isMenuPath = (url: string) => /menu|location/i.test(new URL(url).pathname);
 
 const MENU_FILE_BYTES = 8 * 1024 * 1024;
 const MENU_FILE_TIMEOUT_MS = 15_000;
@@ -385,33 +421,116 @@ export function discoverInternalLinks(html: string, baseUrl: string): string[] {
   const base = new URL(baseUrl);
   const scored: { url: string; score: number }[] = [];
   const seen = new Set<string>([(base.origin + base.pathname).replace(/\/+$/, "")]);
-  for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,120}?)<\/a>/gi)) {
+  // Theme nav wraps a label in several spans and an SVG chevron, so the
+  // anchor body runs long; a 120-character window matched a third of a
+  // Shopify homepage's links and none of the footer's.
+  for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,800}?)<\/a>/gi)) {
     const href = decodeEntities(m[1].trim());
-    if (/^(mailto:|tel:|javascript:)/i.test(href)) continue;
-    let u: URL;
-    try {
-      u = new URL(href, base);
-    } catch {
-      continue;
-    }
-    if (!sameSite(u.hostname, base.hostname) || !/^https?:$/.test(u.protocol)) continue;
-    if (/\.(pdf|jpe?g|png|gif|svg|webp|mp4|zip|docx?)$/i.test(u.pathname)) continue;
-    u.hash = "";
-    // Dedupe on origin+path — tracking params and trailing slashes vary
-    // across copies of the same nav link.
-    const key = (u.origin + u.pathname).replace(/\/+$/, "");
-    if (seen.has(key)) continue;
     const anchorText = m[2].replace(/<[^>]+>/g, " ");
-    const haystack = `${u.pathname} ${anchorText}`;
-    const score = LINK_PRIORITY.findIndex((re) => re.test(haystack));
-    if (score === -1) continue;
-    seen.add(key);
-    scored.push({ url: u.href, score });
+    const link = scoreInternalLink(href, anchorText, base);
+    if (!link || seen.has(link.key)) continue;
+    seen.add(link.key);
+    scored.push(link);
   }
   return scored
     .sort((a, b) => a.score - b.score)
     .slice(0, MAX_SUBPAGES)
     .map((s) => s.url);
+}
+
+/** One same-site link, scored by LINK_PRIORITY, or null when it is off-site,
+ * a file, chrome, or nothing the crawl reads. */
+function scoreInternalLink(
+  href: string,
+  anchorText: string,
+  base: URL,
+): { url: string; key: string; score: number } | null {
+  if (/^(mailto:|tel:|javascript:)/i.test(href)) return null;
+  let u: URL;
+  try {
+    u = new URL(href, base);
+  } catch {
+    return null;
+  }
+  if (!sameSite(u.hostname, base.hostname) || !/^https?:$/.test(u.protocol)) return null;
+  if (/\.(pdf|jpe?g|png|gif|svg|webp|mp4|zip|docx?|xml|txt|md)$/i.test(u.pathname)) return null;
+  if (LINK_SKIP.test(u.pathname)) return null;
+  u.hash = "";
+  // Dedupe on origin+path — tracking params and trailing slashes vary
+  // across copies of the same nav link.
+  const key = (u.origin + u.pathname).replace(/\/+$/, "");
+  const haystack = `${u.pathname} ${anchorText}`;
+  const score = LINK_PRIORITY.findIndex((re) => re.test(haystack));
+  if (score === -1) return null;
+  return { url: u.href, key, score };
+}
+
+/* ------------------------------ sitemaps ------------------------------ */
+
+const SITEMAP_TIMEOUT_MS = 6000;
+/** Child sitemaps worth opening: pages, not the product catalog or blog. */
+const SITEMAP_CHILD_SKIP = /product|collection|blog|post|article|image|video|news|tag|categor|author|agentic/i;
+const MAX_SITEMAP_CHILDREN = 3;
+
+async function fetchSitemapLocs(url: string): Promise<string[]> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), SITEMAP_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "user-agent": UA, accept: "application/xml,text/xml;q=0.9,*/*;q=0.5" },
+      redirect: "follow",
+    });
+    if (!res.ok) return [];
+    const type = (res.headers.get("content-type") ?? "").toLowerCase();
+    const text = (await res.text()).slice(0, MAX_BYTES);
+    // A site with no sitemap answers with its 404 page as HTML.
+    if (!/xml/.test(type) && !/^\s*<\?xml|<(urlset|sitemapindex)\b/i.test(text)) return [];
+    return [...text.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)].map((m) => decodeEntities(m[1].trim()));
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/**
+ * The pages a site lists in its sitemap that the homepage nav never links.
+ *
+ * Nav is what the owner wants a visitor to click; the sitemap is everything
+ * the platform published. Bellwood Coffee's nav carries Shop, Coffee, Merch
+ * and Locations, and its sitemap adds /pages/peachtree-menu, /pages/eav,
+ * /pages/riverside, /pages/decatur and /pages/brewing — a menu page and four
+ * location pages a crawl of the nav alone cannot know exist. Shopify,
+ * Squarespace, Wix and WordPress all publish one at /sitemap.xml (WordPress
+ * also at /wp-sitemap.xml), as an index of child sitemaps or a flat list.
+ * Only same-site pages come back, scored the way nav links are, best first.
+ */
+export async function discoverSitemapPages(siteUrl: string): Promise<string[]> {
+  const base = new URL(siteUrl);
+  const origin = base.origin;
+  let locs: string[] = [];
+  for (const candidate of [`${origin}/sitemap.xml`, `${origin}/sitemap_index.xml`, `${origin}/wp-sitemap.xml`]) {
+    locs = await fetchSitemapLocs(candidate);
+    if (locs.length > 0) break;
+  }
+  if (locs.length === 0) return [];
+  // An index lists other sitemaps; a flat sitemap lists pages. Both may mix.
+  const children = locs.filter((l) => /\.xml(\?|$)/i.test(l) && !SITEMAP_CHILD_SKIP.test(l));
+  const pages = locs.filter((l) => !/\.xml(\?|$)/i.test(l));
+  const childPages = (
+    await Promise.all(children.slice(0, MAX_SITEMAP_CHILDREN).map((c) => fetchSitemapLocs(c)))
+  ).flat();
+  const scored: { url: string; key: string; score: number }[] = [];
+  const seen = new Set<string>([(origin + base.pathname).replace(/\/+$/, "")]);
+  for (const loc of [...pages, ...childPages]) {
+    const slug = new URL(loc, base).pathname.split("/").filter(Boolean).pop() ?? "";
+    const link = scoreInternalLink(loc, slug.replace(/[-_]/g, " "), base);
+    if (!link || seen.has(link.key)) continue;
+    seen.add(link.key);
+    scored.push(link);
+  }
+  return scored.sort((a, b) => a.score - b.score).map((s) => s.url);
 }
 
 /** One NDJSON line per event on /api/import — the wizard narrates these. */
@@ -513,7 +632,22 @@ export async function fetchSiteCorpus(
     const pathKey = (u: string) => (new URL(u).origin + new URL(u).pathname).replace(/\/+$/, "");
     const linkSeen = new Set(pages.map((p) => pathKey(p.url)));
     const links: string[] = [];
-    for (const l of pages.flatMap((p) => discoverInternalLinks(p.html, p.url))) {
+    // Nav links and sitemap pages, pooled and re-ranked together: the
+    // sitemap turns up the menu and location pages the nav omits, and the
+    // priority order decides which of the two sources' pages get read when
+    // the cap bites. Menus first, then locations, then everything else.
+    const navLinks = pages.flatMap((p) => discoverInternalLinks(p.html, p.url));
+    const sitemapLinks = await discoverSitemapPages(url);
+    const rankOf = (l: string) => {
+      const slug = new URL(l).pathname.split("/").filter(Boolean).pop() ?? "";
+      const i = LINK_PRIORITY.findIndex((re) => re.test(`${new URL(l).pathname} ${slug.replace(/[-_]/g, " ")}`));
+      return i === -1 ? LINK_PRIORITY.length : i;
+    };
+    const pooled = [...navLinks, ...sitemapLinks]
+      .map((l, i) => ({ l, r: rankOf(l), i }))
+      .sort((a, b) => a.r - b.r || a.i - b.i)
+      .map((x) => x.l);
+    for (const l of pooled) {
       if (links.length >= MAX_SUBPAGES) break;
       const key = pathKey(l);
       if (linkSeen.has(key)) continue;
@@ -554,7 +688,8 @@ export async function fetchSiteCorpus(
 
     // Menu pages go first into the capped text, so the priced pages are the
     // last thing the cap cuts rather than the first.
-    const rank = (p: SitePage, i: number) => (i === 0 ? 0 : MENU_CHILD_WORDS.test(new URL(p.url).pathname) ? 1 : 2);
+    const rank = (p: SitePage, i: number) =>
+      i === 0 ? 0 : MENU_CHILD_WORDS.test(new URL(p.url).pathname) ? 1 : /location/i.test(new URL(p.url).pathname) ? 2 : 3;
     const ordered = pages.map((p, i) => ({ p, r: rank(p, i) })).sort((a, b) => a.r - b.r).map((x) => x.p);
     let text = "";
     for (const p of ordered) {
@@ -953,6 +1088,10 @@ export function extractImageUrls(html: string, baseUrl: string, cap = 6): string
     if (!/^https?:$/.test(u.protocol)) return;
     if (JUNK_IMAGE.test(u.pathname)) return;
     if (requireExt && !/\.(jpe?g|png|webp)$/i.test(u.pathname)) return;
+    // Shopify sizes every image in the query — a 160px request is a logo
+    // or a nav thumbnail, never a photo an ad can be built on.
+    const requested = Number(u.searchParams.get("width") ?? 0);
+    if (requested > 0 && requested < 400) return;
     // Filenames often carry dimensions ("-1024x265") — skip banners and
     // thumbnails: too short, or wider than 3:1 (logo strips).
     const dim = u.pathname.match(/-(\d{2,4})x(\d{2,4})(?=[-.])/);

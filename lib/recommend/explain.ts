@@ -1,5 +1,6 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, Opportunity, Signal } from "@/lib/db/types";
+import { indexSeries } from "@/lib/demand/series";
 import { applyRelevance, scoreOpportunity, type ScoredOpportunity } from "@/lib/scoring";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 
@@ -25,7 +26,7 @@ export async function explainOpportunity(
     repo.listLearnings(business.category),
     repo.listSignalsForCategory(business.category, { sinceDays: 14 }),
     repo.getBusinessBrief(business.id),
-    repo.getSeries(signal.normalized_term, signal.geo, 30),
+    repo.getSeries(signal.normalized_term, signal.geo, 30).then(indexSeries),
   ]);
   const coverage = categorySignals.find(
     (s) => s.metric_type === "news_coverage" && s.normalized_term === signal.normalized_term,

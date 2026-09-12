@@ -65,6 +65,23 @@ function dayOf(iso: string): string {
 }
 
 /**
+ * The daily series as one quantity.
+ *
+ * `signal_series_points` is keyed by (term, geo, day) and drops the source,
+ * so a term read by both Google Trends (a 0–100 index) and DataForSEO (raw
+ * monthly searches) has both under one key. Mixed, a 14,800 lands beside a
+ * 3 and the 30-day trajectory reads "+1,417,664%" — which the ranking used,
+ * and the pick's read repeated. When both are present the index is kept:
+ * it is the only one of the two with daily shape, and the volume rows are
+ * the same monthly total stamped on a few days.
+ */
+export function indexSeries<T extends { value: number }>(points: T[]): T[] {
+  const hasIndex = points.some((p) => p.value <= 100);
+  const hasVolume = points.some((p) => p.value > 100);
+  return hasIndex && hasVolume ? points.filter((p) => p.value <= 100) : points;
+}
+
+/**
  * @param signals every signal held for one term (any source), newest-first
  *   or not — order does not matter.
  * @param now the end of the most recent bucket.

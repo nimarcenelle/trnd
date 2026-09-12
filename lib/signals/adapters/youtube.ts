@@ -486,6 +486,12 @@ export function createYoutubeAdapter(
             delta_pct: read.deltaPct,
             window_days: Math.min(windowDays, CURRENT_DAYS),
             raw: {
+              // This read was NOT taken in the business's state. regionCode only accepts a country, so it is always US.
+              // The signal keeps termGeo so series and dedupe stay keyed to
+              // the watch term, but the demand formula must weight it for
+              // where it was actually measured — otherwise a global count
+              // gets a local multiplier.
+              measuredGeo: "US",
               uploads: read.uploads,
               uploadsPrev: read.uploadsPrev,
               views: read.views,

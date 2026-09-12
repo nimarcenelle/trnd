@@ -392,3 +392,35 @@ describe("confidence travels with the number", () => {
     ]).closest).toBe("metro");
   });
 });
+
+describe("a national read filed under a local geo", () => {
+  const now = new Date("2026-09-12T12:00:00Z");
+  const sig = (over: Partial<Signal>): Signal =>
+    ({
+      id: "s", source: "x", term: "chapel hill coffee shop",
+      normalized_term: "chapel_hill_coffee_shop", category: "Restaurants & cafés",
+      // Filed under the business's state so its series stays keyed to the
+      // watch term — but X takes no geo filter, so the read is global.
+      geo: "US-NC", metric_type: "posts", value: 5_119, delta_pct: 8,
+      window_days: 7, captured_at: now.toISOString(), raw: null, ...over,
+    }) as Signal;
+
+  it("weights it nationally when raw says where it was really measured", () => {
+    const honest = buildDemandLine([sig({ raw: { measuredGeo: "US" } })], [], now, 8, "NC");
+    const naive = buildDemandLine([sig({ raw: null })], [], now, 8, "NC");
+    // Same 5,119 posts: 0.05 national against 0.6 state is a 12x difference
+    // in what it contributes, and the naive read is the wrong one.
+    expect(honest.current!.reach!).toBeLessThan(naive.current!.reach!);
+    expect(honest.current!.closest).toBe("national");
+    expect(naive.current!.closest).toBe("state");
+  });
+
+  it("still trusts a genuinely geo-scoped source at its stored geo", () => {
+    // DataForSEO really is scoped to the state, and says nothing to override.
+    const line = buildDemandLine(
+      [sig({ source: "dataforseo", metric_type: "search_volume", value: 720, raw: null })],
+      [], now, 8, "NC",
+    );
+    expect(line.current!.closest).toBe("state");
+  });
+});

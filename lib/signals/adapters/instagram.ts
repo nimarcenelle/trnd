@@ -191,6 +191,12 @@ export function createInstagramAdapter(
             delta_pct: null,
             window_days: Math.min(windowDays, WINDOW_DAYS),
             raw: {
+              // This read was NOT taken in the business's state. Hashtag search is global.
+              // The signal keeps termGeo so series and dedupe stay keyed to
+              // the watch term, but the demand formula must weight it for
+              // where it was actually measured — otherwise a global count
+              // gets a local multiplier.
+              measuredGeo: "US",
               hashtag: target.tag,
               reels: read.reels,
               posts: read.posts,

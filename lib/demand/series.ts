@@ -122,7 +122,15 @@ export function buildDemandLine(
       [...latest.values()].map((s) => ({
         source: s.source,
         metricType: s.metric_type,
-        locality: localityFor(s.geo, businessRegion),
+        // Where it was MEASURED, not where it was filed. Four adapters
+        // (YouTube, X, the Apify TikTok read, Instagram) query nationally
+        // or globally while storing the business's state geo so their
+        // series stay keyed to the watch term — without this they would
+        // collect a local multiplier for a national count.
+        locality: localityFor(
+          (s.raw as { measuredGeo?: string } | null)?.measuredGeo ?? s.geo,
+          businessRegion,
+        ),
         // The monthly volume is replaced by this week's anchored estimate
         // wherever one exists: a flat monthly total repeated across eight
         // buckets is a step, not a trend.

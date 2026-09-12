@@ -30,6 +30,7 @@ const bizInput = (ownerId: string): NewBusiness => ({
   price_band: "$$",
   brand_voice_notes: null,
   photo_urls: [],
+  social_handles: {},
 });
 
 describe("meta ads pure helpers", () => {

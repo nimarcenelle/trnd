@@ -45,6 +45,7 @@ export function onboardingBusiness(
     price_band: null,
     brand_voice_notes: null,
     photo_urls: [],
+    social_handles: {},
     created_at: new Date().toISOString(),
   };
 }

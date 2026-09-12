@@ -52,6 +52,11 @@ export interface Profile {
   created_at: string;
 }
 
+export type SocialPlatform = "instagram" | "tiktok" | "facebook";
+/** Public handles, no @ — {"instagram": "bellwoodcoffee"}. Read from the
+ * site footer at onboarding (or a rival's site), editable in Settings. */
+export type SocialHandles = Partial<Record<SocialPlatform, string>>;
+
 export interface Business {
   id: string;
   owner_id: string;
@@ -68,6 +73,8 @@ export interface Business {
   brand_voice_notes: string | null;
   /** Photos from their own site, harvested at onboarding. */
   photo_urls: string[];
+  /** Their own accounts — the brand half of the social read. */
+  social_handles: SocialHandles;
   created_at: string;
 }
 
@@ -182,6 +189,26 @@ export interface Learning {
   updated_at: string;
 }
 
+/**
+ * The ONE customer the ads are for. Customer signals are not every signal
+ * in the category — they are what THIS person is searching, saying and
+ * reacting to, and a term is judged against their vocabulary before it can
+ * count as demand.
+ */
+export interface TargetCustomer {
+  /** One sentence: who they are and the situation they buy from. */
+  who: string;
+  /** The moments that trigger the purchase ("first hot week", "date night"). */
+  triggers: string[];
+  /** The words THEY use for what the business sells — 10-20 lowercase
+   * phrases; signal terms are matched against these. */
+  vocabulary: string[];
+  /** Where they talk and look: subreddits, hashtags, local pages. */
+  hangouts: string[];
+  /** Why they don't buy — the objections the copy must answer. */
+  objections: string[];
+}
+
 export interface BusinessBrief {
   id: string;
   business_id: string;
@@ -211,6 +238,9 @@ export interface BusinessBrief {
   /** 3-6 subreddit names (no r/ prefix) where this business's customers
    * actually talk — read alongside the category's stock list. */
   subreddits: string[];
+  /** The target customer — null (or an empty object from the DB default)
+   * on briefs written before brief-7; read it through `targetCustomerOf`. */
+  target_customer: TargetCustomer | null;
   model_used: string;
   prompt_version: string;
   created_at: string;
@@ -268,10 +298,17 @@ export interface Competitor {
   website: string | null;
   /** Google Places id once resolved — unlocks rating/review reads. */
   place_id: string | null;
+  /** Their public accounts, read from their site — the competitive half
+   * of the social read. */
+  social_handles: SocialHandles;
+  /** 0..1 — how directly they compete for the same customer: same items,
+   * same price band, same block. Null until their site has been read. */
+  directness: number | null;
+  directness_reason: string | null;
   created_at: string;
 }
 
-export type CompetitorReadKind = "ads" | "reviews" | "site";
+export type CompetitorReadKind = "ads" | "reviews" | "site" | "social" | "google_ads";
 
 /** One dated observation about a competitor (ad count, rating, site change). */
 export interface CompetitorRead {
@@ -300,6 +337,61 @@ export interface Review {
   published_at: string | null;
   source: "google" | "seed";
   captured_at: string;
+}
+
+export type SocialPostKind = "promo" | "new_item" | "event" | "behind_scenes" | "proof" | "other";
+
+/**
+ * One public post from the business's own account (competitor_id null) or a
+ * rival's. Engagement is the performance read — likes, comments, shares and
+ * views are what a public profile shows; there is no other honest number.
+ */
+export interface SocialPost {
+  id: string;
+  business_id: string;
+  competitor_id: string | null;
+  platform: SocialPlatform;
+  external_id: string;
+  url: string;
+  caption: string;
+  media_type: "video" | "image" | "carousel" | "text";
+  posted_at: string | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  views: number;
+  /** True when the platform marks it sponsored/boosted. */
+  is_ad: boolean;
+  /** What the post is doing — classified after capture; null until then. */
+  kind: SocialPostKind | null;
+  captured_at: string;
+}
+
+export type AdHistorySource = "meta_export" | "google_export" | "manual" | "meta_api";
+
+/**
+ * The owner's own ad history — one row per ad (or campaign when the export
+ * has no ad breakdown). The brand signal's "what has worked for YOU":
+ * an Ads Manager export, a synced account, or a hand entry.
+ */
+export interface AdHistory {
+  id: string;
+  business_id: string;
+  platform: "meta" | "google" | "tiktok" | "other";
+  campaign_name: string;
+  ad_name: string | null;
+  /** The ad's text when the export carried it (headline / body). */
+  copy: string | null;
+  impressions: number | null;
+  clicks: number | null;
+  spend_cents: number | null;
+  /** Platform "results" (leads, purchases, messages) when reported. */
+  results: number | null;
+  ctr: number | null;
+  started_on: string | null; // yyyy-mm-dd
+  ended_on: string | null;
+  source: AdHistorySource;
+  created_at: string;
 }
 
 /** Mined themes from the business's own reviews — regenerates as reviews land. */
@@ -354,7 +446,9 @@ export interface DemoRequest {
 
 /* ------------------------------ insert shapes ------------------------------ */
 
-export type NewBusiness = Omit<Business, "id" | "created_at">;
+export type NewBusiness = Omit<Business, "id" | "created_at" | "social_handles"> & {
+  social_handles?: SocialHandles;
+};
 export type NewService = Omit<Service, "id">;
 /**
  * The analyst note that opens a week's intel report — the one AI-written (or
@@ -466,12 +560,20 @@ export type NewCampaign = Omit<Campaign, "id" | "created_at" | "status" | "exter
 export type NewCreative = Omit<Creative, "id">;
 export type NewCampaignResult = Omit<CampaignResult, "id" | "recorded_at">;
 export type NewLearning = Omit<Learning, "id" | "updated_at">;
-export type NewBusinessBrief = Omit<BusinessBrief, "id" | "created_at">;
+export type NewBusinessBrief = Omit<BusinessBrief, "id" | "created_at" | "target_customer"> & {
+  target_customer?: TargetCustomer | null;
+};
 export type NewDemoRequest = Omit<DemoRequest, "id" | "created_at">;
 export type NewSubscription = Omit<Subscription, "id" | "created_at" | "updated_at">;
 export type NewConnection = Omit<Connection, "id" | "created_at" | "updated_at">;
-export type NewCompetitor = Omit<Competitor, "id" | "created_at">;
+export type NewCompetitor = Omit<
+  Competitor,
+  "id" | "created_at" | "social_handles" | "directness" | "directness_reason"
+> &
+  Partial<Pick<Competitor, "social_handles" | "directness" | "directness_reason">>;
 export type NewCompetitorRead = Omit<CompetitorRead, "id" | "captured_at"> & { captured_at?: string };
 export type NewReview = Omit<Review, "id" | "captured_at">;
+export type NewSocialPost = Omit<SocialPost, "id" | "captured_at">;
+export type NewAdHistory = Omit<AdHistory, "id" | "created_at">;
 export type NewReviewDigest = Omit<ReviewDigest, "id" | "created_at">;
 export type NewAlert = Omit<Alert, "id" | "created_at" | "read_at">;

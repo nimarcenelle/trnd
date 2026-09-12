@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Repo } from "../repo";
 import type {
+  AdHistory,
   Business,
   BusinessBrief,
   Campaign,
@@ -24,6 +25,7 @@ import type {
   Service,
   Signal,
   SignalSeriesPoint,
+  SocialPost,
   Subscription,
 } from "../types";
 
@@ -614,6 +616,72 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .maybeSingle();
       throwIf(error, "getReviewDigest");
       return (data as ReviewDigest | null) ?? null;
+    },
+
+    async upsertSocialPosts(inputs) {
+      if (inputs.length === 0) return 0;
+      // The identity index treats a null competitor as the zero uuid, so the
+      // conflict target is expressed the same way here.
+      const { count, error } = await sb.from("social_posts").upsert(
+        inputs.map((i) => ({ ...i, captured_at: new Date().toISOString() })),
+        {
+          onConflict: "business_id,coalesce(competitor_id, '00000000-0000-0000-0000-000000000000'::uuid),platform,external_id",
+          count: "exact",
+        },
+      );
+      if (error) {
+        // PostgREST cannot always express an expression index as a conflict
+        // target — fall back to insert-ignore, which keeps first captures.
+        const { count: c2, error: e2 } = await sb
+          .from("social_posts")
+          .insert(inputs.map((i) => ({ ...i, captured_at: new Date().toISOString() })), { count: "exact" });
+        if (e2 && !/duplicate key/i.test(e2.message)) throwIf(e2, "upsertSocialPosts");
+        return c2 ?? 0;
+      }
+      return count ?? 0;
+    },
+    async listSocialPosts(businessId, opts) {
+      const since = new Date(Date.now() - (opts?.sinceDays ?? 90) * 86400_000).toISOString();
+      let q = sb.from("social_posts").select("*").eq("business_id", businessId).gte("captured_at", since);
+      if (opts?.competitorId === null) q = q.is("competitor_id", null);
+      else if (opts?.competitorId) q = q.eq("competitor_id", opts.competitorId);
+      if (opts?.platform) q = q.eq("platform", opts.platform);
+      const { data, error } = await q.order("posted_at", { ascending: false, nullsFirst: false });
+      throwUnlessMissing(error, "listSocialPosts");
+      return (data ?? []) as SocialPost[];
+    },
+    async setSocialPostKinds(kinds) {
+      for (const k of kinds) {
+        const { error } = await sb.from("social_posts").update({ kind: k.kind }).eq("id", k.id);
+        throwIf(error, "setSocialPostKinds");
+      }
+    },
+
+    async upsertAdHistory(inputs) {
+      if (inputs.length === 0) return 0;
+      const { count, error } = await sb.from("ad_history").upsert(inputs, {
+        onConflict: "business_id,platform,campaign_name,ad_name,started_on",
+        ignoreDuplicates: true,
+        count: "exact",
+      });
+      throwIf(error, "upsertAdHistory");
+      return count ?? 0;
+    },
+    async listAdHistory(businessId) {
+      const { data, error } = await sb
+        .from("ad_history")
+        .select("*")
+        .eq("business_id", businessId)
+        .order("started_on", { ascending: false, nullsFirst: false });
+      throwUnlessMissing(error, "listAdHistory");
+      return (data ?? []) as AdHistory[];
+    },
+    async deleteAdHistory(businessId, opts) {
+      let q = sb.from("ad_history").delete({ count: "exact" }).eq("business_id", businessId);
+      if (opts?.source) q = q.eq("source", opts.source);
+      const { count, error } = await q;
+      throwIf(error, "deleteAdHistory");
+      return count ?? 0;
     },
 
     async createAlert(input) {

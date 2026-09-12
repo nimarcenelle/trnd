@@ -12,6 +12,8 @@ import type {
   DemoRequest,
   IntelNote,
   Learning,
+  AdHistory,
+  NewAdHistory,
   NewAlert,
   NewBusiness,
   NewBusinessBrief,
@@ -45,6 +47,9 @@ import type {
   Service,
   Signal,
   SignalSeriesPoint,
+  SocialPost,
+  NewSocialPost,
+  SocialPostKind,
   Subscription,
 } from "./types";
 
@@ -168,6 +173,23 @@ export interface Repo {
   listReviews(businessId: string, opts?: { competitorId?: string | null }): Promise<Review[]>;
   upsertReviewDigest(input: NewReviewDigest): Promise<ReviewDigest>;
   getReviewDigest(businessId: string): Promise<ReviewDigest | null>;
+
+  /* social posts — the business's own accounts and its rivals' */
+  /** Dedupes on (business, competitor, platform, external_id); an existing
+   * post has its engagement numbers refreshed. Returns rows written or updated. */
+  upsertSocialPosts(inputs: NewSocialPost[]): Promise<number>;
+  /** competitorId null = the business's own posts; undefined = everyone's. */
+  listSocialPosts(
+    businessId: string,
+    opts?: { competitorId?: string | null; sinceDays?: number; platform?: SocialPost["platform"] },
+  ): Promise<SocialPost[]>;
+  setSocialPostKinds(kinds: { id: string; kind: SocialPostKind }[]): Promise<void>;
+
+  /* ad history — the owner's own past ads and how they did */
+  /** Dedupes on (business, platform, campaign, ad, start). Returns rows written. */
+  upsertAdHistory(inputs: NewAdHistory[]): Promise<number>;
+  listAdHistory(businessId: string): Promise<AdHistory[]>;
+  deleteAdHistory(businessId: string, opts?: { source?: AdHistory["source"] }): Promise<number>;
 
   /* alerts — proactive nudges, deduped by key */
   /** No-ops on an existing dedupe_key. Returns the alert when newly created. */

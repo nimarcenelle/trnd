@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Repo } from "../repo";
 import type {
+  AdHistory,
   Alert,
   Business,
   BusinessBrief,
@@ -12,8 +13,11 @@ import type {
   Creative,
   IntelNote,
   Learning,
+  NewAdHistory,
   NewAlert,
   NewBusiness,
+  NewSocialPost,
+  SocialPostKind,
   NewCampaign,
   NewBusinessBrief,
   NewCampaignResult,
@@ -99,7 +103,12 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (actor.kind === "user" && input.owner_id !== actor.userId) {
         throw new OwnershipError("createBusiness for another owner");
       }
-      const row: Business = { ...input, id: randomUUID(), created_at: nowIso() };
+      const row: Business = {
+        ...input,
+        social_handles: input.social_handles ?? {},
+        id: randomUUID(),
+        created_at: nowIso(),
+      };
       store.businesses.push(row);
       saveStore();
       return row;
@@ -429,7 +438,12 @@ export function createDemoRepo(actor: DemoActor): Repo {
         saveStore();
         return existing;
       }
-      const row: BusinessBrief = { ...input, id: randomUUID(), created_at: nowIso() };
+      const row: BusinessBrief = {
+        ...input,
+        target_customer: input.target_customer ?? null,
+        id: randomUUID(),
+        created_at: nowIso(),
+      };
       store.business_briefs.push(row);
       saveStore();
       return row;
@@ -625,7 +639,14 @@ export function createDemoRepo(actor: DemoActor): Repo {
         (c) => c.business_id === input.business_id && c.name.toLowerCase() === input.name.toLowerCase(),
       );
       if (dupe) return dupe;
-      const row: Competitor = { ...input, id: randomUUID(), created_at: nowIso() };
+      const row: Competitor = {
+        ...input,
+        social_handles: input.social_handles ?? {},
+        directness: input.directness ?? null,
+        directness_reason: input.directness_reason ?? null,
+        id: randomUUID(),
+        created_at: nowIso(),
+      };
       store.competitors.push(row);
       saveStore();
       return row;
@@ -648,6 +669,7 @@ export function createDemoRepo(actor: DemoActor): Repo {
       assertOwnsBusiness(row.business_id);
       store.competitors = store.competitors.filter((c) => c.id !== id);
       store.competitor_reads = (store.competitor_reads ?? []).filter((r) => r.competitor_id !== id);
+      store.social_posts = (store.social_posts ?? []).filter((p) => p.competitor_id !== id);
       saveStore();
     },
     async upsertCompetitorReads(inputs: NewCompetitorRead[]) {
@@ -725,6 +747,99 @@ export function createDemoRepo(actor: DemoActor): Repo {
     async getReviewDigest(businessId) {
       if (!visibleBusinessIds().has(businessId)) return null;
       return (store.review_digests ?? []).find((d) => d.business_id === businessId) ?? null;
+    },
+
+    /* ----------------------------- social posts --------------------------- */
+    async upsertSocialPosts(inputs: NewSocialPost[]) {
+      store.social_posts ??= [];
+      let written = 0;
+      for (const i of inputs) {
+        assertOwnsBusiness(i.business_id);
+        const existing = store.social_posts.find(
+          (p) =>
+            p.business_id === i.business_id &&
+            (p.competitor_id ?? null) === (i.competitor_id ?? null) &&
+            p.platform === i.platform &&
+            p.external_id === i.external_id,
+        );
+        if (existing) {
+          // Engagement keeps climbing after capture — refresh the numbers,
+          // keep the classification.
+          Object.assign(existing, {
+            likes: i.likes,
+            comments: i.comments,
+            shares: i.shares,
+            views: i.views,
+            is_ad: i.is_ad,
+            kind: i.kind ?? existing.kind,
+            captured_at: nowIso(),
+          });
+        } else {
+          store.social_posts.push({ ...i, id: randomUUID(), captured_at: nowIso() });
+        }
+        written += 1;
+      }
+      if (written) saveStore();
+      return written;
+    },
+    async listSocialPosts(businessId, opts) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      const cutoff = Date.now() - (opts?.sinceDays ?? 90) * 86400_000;
+      return (store.social_posts ?? [])
+        .filter(
+          (p) =>
+            p.business_id === businessId &&
+            (opts?.competitorId === undefined || (p.competitor_id ?? null) === opts.competitorId) &&
+            (!opts?.platform || p.platform === opts.platform) &&
+            new Date(p.posted_at ?? p.captured_at).getTime() >= cutoff,
+        )
+        .sort((a, b) => (b.posted_at ?? b.captured_at).localeCompare(a.posted_at ?? a.captured_at));
+    },
+    async setSocialPostKinds(kinds) {
+      const byId = new Map(kinds.map((k) => [k.id, k.kind]));
+      for (const p of store.social_posts ?? []) {
+        const kind = byId.get(p.id);
+        if (kind) p.kind = kind;
+      }
+      if (kinds.length) saveStore();
+    },
+
+    /* ------------------------------ ad history ---------------------------- */
+    async upsertAdHistory(inputs: NewAdHistory[]) {
+      store.ad_history ??= [];
+      let written = 0;
+      for (const i of inputs) {
+        assertOwnsBusiness(i.business_id);
+        const exists = store.ad_history.some(
+          (r) =>
+            r.business_id === i.business_id &&
+            r.platform === i.platform &&
+            r.campaign_name === i.campaign_name &&
+            (r.ad_name ?? null) === (i.ad_name ?? null) &&
+            (r.started_on ?? null) === (i.started_on ?? null),
+        );
+        if (exists) continue;
+        store.ad_history.push({ ...i, id: randomUUID(), created_at: nowIso() });
+        written += 1;
+      }
+      if (written) saveStore();
+      return written;
+    },
+    async listAdHistory(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      return (store.ad_history ?? [])
+        .filter((r) => r.business_id === businessId)
+        .sort((a, b) => (b.started_on ?? "").localeCompare(a.started_on ?? ""));
+    },
+    async deleteAdHistory(businessId, opts) {
+      assertOwnsBusiness(businessId);
+      const before = (store.ad_history ?? []).length;
+      store.ad_history = (store.ad_history ?? []).filter(
+        (r) => !(r.business_id === businessId && (!opts?.source || r.source === opts.source)),
+      );
+      const removed = before - store.ad_history.length;
+      if (removed) saveStore();
+      return removed;
     },
 
     /* -------------------------------- alerts ------------------------------ */

@@ -122,6 +122,7 @@ function makeBusiness(c: EvalCase): { business: Business; services: Service[] } 
       price_band: c.price_band,
       brand_voice_notes: null,
       photo_urls: [],
+      social_handles: {},
       created_at: new Date().toISOString(),
     },
     services: c.services.map((s, i) => ({
@@ -174,7 +175,7 @@ async function main() {
     let brief: BusinessBrief | null = null;
     if (isGeminiConfigured) {
       const generated = await generateBusinessBrief(business, services);
-      brief = { ...generated, id: "eval-brief", created_at: new Date().toISOString() };
+      brief = { ...generated, target_customer: generated.target_customer ?? null, id: "eval-brief", created_at: new Date().toISOString() };
       const modelWritten = !brief.model_used.startsWith("trnd-template");
       if (!modelWritten) {
         fail(`brief fell back to the template (${brief.model_used})`);

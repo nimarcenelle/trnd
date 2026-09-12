@@ -24,6 +24,7 @@ const bizInput = (ownerId: string, name: string): NewBusiness => ({
   price_band: "$$",
   brand_voice_notes: null,
   photo_urls: [],
+  social_handles: {},
 });
 
 describe("demo repo enforces the ownership rules RLS would", () => {

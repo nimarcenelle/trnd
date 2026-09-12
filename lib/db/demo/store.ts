@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type {
+  AdHistory,
   Alert,
   Business,
   BusinessBrief,
@@ -24,6 +25,7 @@ import type {
   Service,
   Signal,
   SignalSeriesPoint,
+  SocialPost,
   Subscription,
 } from "../types";
 
@@ -62,6 +64,8 @@ export interface DemoStore {
   review_digests: ReviewDigest[];
   alerts: Alert[];
   demo_requests: DemoRequest[];
+  social_posts?: SocialPost[];
+  ad_history?: AdHistory[];
 }
 
 function emptyStore(): DemoStore {

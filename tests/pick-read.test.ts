@@ -108,7 +108,9 @@ describe("pick facts", () => {
     expect(facts!.text).toContain("Other menu items: Brow lamination ($85)");
     expect(facts!.text).toContain('The other picks this week: #2 "Brow Lamination" grade B');
     expect(facts!.text).toContain("Score meters (0-100)");
-    expect(facts!.text).toContain("No campaign built for this pick yet.");
+    // Whether an ad exists is deliberately not in the facts: it flips a few
+    // seconds after the read is written and used to rewrite every read twice.
+    expect(facts!.text).not.toMatch(/campaign (is already )?built/i);
     // Every opener names something on this page — none fits another pick.
     expect(facts!.questions).toContain('Why this over "Brow Lamination"?');
     expect(facts!.questions.some((q) => q.includes("Brow lamination instead"))).toBe(true);

@@ -35,11 +35,15 @@ export default function DemandGraph({
   weeks,
   caption,
   deltaPct = null,
+  mode = "points",
 }: {
   weeks: DemandWeek[];
   /** What the number means in people — never render the axis without it. */
   caption: string | null;
   deltaPct?: number | null;
+  /** "relative" means the line is this term's own shape against its own
+   * peak — readable, but not comparable with another pick. Say so. */
+  mode?: "points" | "relative";
 }) {
   if (weeks.length < 2) {
     return (
@@ -65,7 +69,9 @@ export default function DemandGraph({
   return (
     <figure className="demand">
       <figcaption className="demand__head">
-        <span className="demand__eyebrow">Demand, last 8 weeks</span>
+        <span className="demand__eyebrow">
+          Demand, last 8 weeks{mode === "relative" ? " · own scale" : " · TRND points"}
+        </span>
         {typeof deltaPct === "number" && (
           <span className={`demand__delta ${deltaPct >= 0 ? "is-up" : "is-down"}`}>
             {deltaPct >= 0 ? "↑" : "↓"}

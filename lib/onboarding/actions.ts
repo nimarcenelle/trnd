@@ -7,7 +7,7 @@ import { generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { fallbackDigest } from "@/lib/documents/parse";
-import { MAX_ONBOARDING_DOC_TEXT, type OnboardingDocument } from "@/lib/onboarding/menu-doc";
+import { MAX_ONBOARDING_DOC_TEXT, MAX_ONBOARDING_DOCS, type OnboardingDocument } from "@/lib/onboarding/menu-doc";
 
 export interface OnboardingState {
   error?: string;
@@ -67,29 +67,36 @@ export async function completeOnboardingAction(
     /* photos are a nice-to-have — never block onboarding on them */
   }
 
-  // A menu read during onboarding — kept as the first document.
-  let document: OnboardingDocument | null = null;
+  // Menus read during onboarding — kept as the business's first documents.
+  // Plural: prices are routinely split across a food menu, a drinks menu and
+  // a seasonal one, and reading only the first leaves the rest behind.
+  const documents: OnboardingDocument[] = [];
   try {
-    const raw = String(formData.get("document") ?? "");
+    // `document` is the pre-multi-upload field name; still accepted so a
+    // form rendered before this shipped still saves its menu.
+    const raw = String(formData.get("documents") ?? formData.get("document") ?? "");
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<OnboardingDocument>;
-      if (parsed && typeof parsed.name === "string" && typeof parsed.mime === "string" && typeof parsed.text === "string") {
-        const text = parsed.text.slice(0, MAX_ONBOARDING_DOC_TEXT);
+      const parsed = JSON.parse(raw) as unknown;
+      const list = Array.isArray(parsed) ? parsed : [parsed];
+      for (const entry of list.slice(0, MAX_ONBOARDING_DOCS)) {
+        const d = entry as Partial<OnboardingDocument>;
+        if (!d || typeof d.name !== "string" || typeof d.mime !== "string" || typeof d.text !== "string") continue;
+        const text = d.text.slice(0, MAX_ONBOARDING_DOC_TEXT);
         const digest =
-          parsed.digest && Array.isArray(parsed.digest.facts) && Array.isArray(parsed.digest.services_found)
-            ? parsed.digest
-            : fallbackDigest(parsed.name, parsed.mime, text);
-        document = {
-          name: parsed.name.slice(0, 120),
-          mime: parsed.mime.slice(0, 100),
+          d.digest && Array.isArray(d.digest.facts) && Array.isArray(d.digest.services_found)
+            ? d.digest
+            : fallbackDigest(d.name, d.mime, text);
+        documents.push({
+          name: d.name.slice(0, 120),
+          mime: d.mime.slice(0, 100),
           text,
           digest,
-          model_used: typeof parsed.model_used === "string" ? parsed.model_used.slice(0, 80) : "trnd-template/v1",
-        };
+          model_used: typeof d.model_used === "string" ? d.model_used.slice(0, 80) : "trnd-template/v1",
+        });
       }
     }
   } catch {
-    /* the services it produced are already in the rows — the document itself is a bonus */
+    /* the services they produced are already in the rows — the documents are a bonus */
   }
 
   const business = await repo.createBusiness({
@@ -129,7 +136,7 @@ export async function completeOnboardingAction(
     }),
   );
 
-  if (document) {
+  for (const document of documents) {
     try {
       await repo.createDocument({
         business_id: business.id,
@@ -141,7 +148,7 @@ export async function completeOnboardingAction(
         model_used: document.model_used,
       });
     } catch (err) {
-      console.warn("[onboarding] saving the menu document failed (non-fatal):", (err as Error).message);
+      console.warn("[onboarding] saving a menu document failed (non-fatal):", (err as Error).message);
     }
   }
 
@@ -165,7 +172,12 @@ export async function completeOnboardingAction(
   // The brief reads the menu the owner handed over alongside the site.
   const siteTextRaw = String(formData.get("site_text") ?? "").slice(0, 12_000);
   const siteText =
-    [siteTextRaw, document ? `=== DOCUMENT ${document.name} ===\n${document.text.slice(0, 8_000)}` : ""]
+    [
+      siteTextRaw,
+      // Every menu handed over, so the brief prices from all of them rather
+      // than whichever happened to be uploaded first.
+      ...documents.map((d) => `=== DOCUMENT ${d.name} ===\n${d.text.slice(0, 8_000)}`),
+    ]
       .filter(Boolean)
       .join("\n\n") || undefined;
   after(async () => {

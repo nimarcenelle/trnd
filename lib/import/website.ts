@@ -186,6 +186,62 @@ function sameSite(a: string, b: string): boolean {
   return bare(a) === bare(b);
 }
 
+/** Words that make a linked PDF a priced menu rather than a press kit. */
+const MENU_PDF_WORDS =
+  /menu|food|drink|coffee|dessert|brunch|lunch|dinner|breakfast|wine|beer|cocktail|price|list/i;
+
+/**
+ * Priced menus that live in a PDF on the site.
+ *
+ * `discoverInternalLinks` skips every .pdf, which is right for a text crawl
+ * and wrong for finding prices: a great many restaurants keep the real
+ * priced menu in exactly one PDF and link it from the menu page. Carolina
+ * Coffee Shop is the case — the homepage links Toast, so the import
+ * announced "the menu is on Toast" and asked the owner to upload one, while
+ * two priced PDFs (a coffee and dessert menu, and a current fall brunch
+ * menu) sat one click away on /carolina-coffee-shop-menu, discarded by the
+ * extension check.
+ *
+ * Matched on the filename or the anchor text, newest-looking first: a site
+ * that keeps last year's menu next to this year's should give up this
+ * year's, and a four-digit year in the name is the only ordering signal
+ * these files reliably carry.
+ */
+export function discoverMenuPdfs(html: string, baseUrl: string): string[] {
+  const base = new URL(baseUrl);
+  const found: { url: string; year: number }[] = [];
+  const seen = new Set<string>();
+  // Scanned on the href alone, not on a matched <a>…</a> pair. Squarespace
+  // wraps a linked menu in an image anchor whose markup runs to hundreds of
+  // characters before the closing tag, so pair-matching missed both of
+  // Carolina Coffee Shop's menus. A PDF's filename is the reliable signal
+  // anyway; the surrounding text is a bonus.
+  for (const m of html.matchAll(/href=["']([^"'#\s]+\.pdf)["']/gi)) {
+    const href = decodeEntities(m[1].trim());
+    let u: URL;
+    try {
+      u = new URL(href, base);
+    } catch {
+      continue;
+    }
+    if (!/^https?:$/.test(u.protocol)) continue;
+    const path = decodeURIComponent(u.pathname);
+    // A 200-character window after the link catches "Download our menu"
+    // when the filename itself is opaque ("/s/final-v3.pdf").
+    const near = html.slice(m.index ?? 0, (m.index ?? 0) + 200).replace(/<[^>]+>/g, " ");
+    if (!MENU_PDF_WORDS.test(`${path} ${near}`)) continue;
+    const key = u.origin + u.pathname;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const year = Number(/(20\d{2})/.exec(path)?.[1] ?? 0);
+    found.push({ url: u.href, year });
+  }
+  return found.sort((a, b) => b.year - a.year).map((f) => f.url).slice(0, MAX_MENU_PDFS);
+}
+
+/** More than a couple is a site archiving every seasonal menu it ever had. */
+const MAX_MENU_PDFS = 3;
+
 /**
  * Internal links that look like menu/services/pricing/about pages, best
  * first. Same site only; anchors, files, mailto/tel are skipped.

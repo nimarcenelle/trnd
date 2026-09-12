@@ -1,4 +1,4 @@
-import type { Signal } from "@/lib/db/types";
+import type { Signal, SignalSeriesPoint } from "@/lib/db/types";
 
 import { demandPoints, pointsCaption, type DemandPointsResult } from "./points";
 
@@ -28,8 +28,23 @@ export interface DemandWeekPoint {
   points: number;
 }
 
+export type DemandMode = "points" | "relative";
+
 export interface DemandLine {
   weeks: DemandWeekPoint[];
+  /**
+   * What the axis means.
+   *
+   * "points" is the real thing: absolute reach, comparable across picks.
+   * "relative" is the fallback — this term's own daily series scaled against
+   * its own peak, which shows the SHAPE of demand but says nothing about
+   * how big it is. A brand-new business has one day of signal history and
+   * therefore one weekly bucket, so without this the graph on every pick
+   * read "not enough history yet" while sixty days of series sat in the
+   * database unusable, because series rows drop the source and a value
+   * without a source cannot be converted to reach.
+   */
+  mode: DemandMode;
   /** This week's full result, for the caption and the headline number. */
   current: DemandPointsResult | null;
   caption: string | null;
@@ -47,7 +62,12 @@ function dayOf(iso: string): string {
  * @param now the end of the most recent bucket.
  * @param weeks how many 7-day buckets to walk back.
  */
-export function buildDemandLine(signals: Signal[], now = new Date(), weeks = 8): DemandLine {
+export function buildDemandLine(
+  signals: Signal[],
+  series: SignalSeriesPoint[] = [],
+  now = new Date(),
+  weeks = 8,
+): DemandLine {
   const buckets: DemandWeekPoint[] = [];
   let current: DemandPointsResult | null = null;
 
@@ -92,10 +112,55 @@ export function buildDemandLine(signals: Signal[], now = new Date(), weeks = 8):
         })()
       : null;
 
-  return {
-    weeks: buckets,
-    current,
-    caption: current ? pointsCaption(current) : null,
-    deltaPct,
-  };
+  if (buckets.length >= 2) {
+    return { weeks: buckets, mode: "points", current, caption: current ? pointsCaption(current) : null, deltaPct };
+  }
+
+  // Not enough absolute history to draw a comparable line — fall back to the
+  // shape, and say that is what it is.
+  const relative = weeklyRelative(series, now, weeks);
+  if (relative.length >= 2) {
+    const prev = relative[relative.length - 2].points;
+    const last = relative[relative.length - 1].points;
+    return {
+      weeks: relative,
+      mode: "relative",
+      current,
+      caption:
+        (current ? `${pointsCaption(current)} ` : "") +
+        "The line is this term's own movement, scaled against its own busiest week — shape, not size, until there is enough history to place it on the points scale.",
+      deltaPct: prev > 0 ? Math.round(((last - prev) / prev) * 100) : null,
+    };
+  }
+
+  return { weeks: buckets, mode: "points", current, caption: current ? pointsCaption(current) : null, deltaPct };
+}
+
+/**
+ * The daily series folded into weeks and scaled 0-100 against its own peak.
+ *
+ * Explicitly self-relative, which is why it is the fallback and never the
+ * default: two picks drawn this way can look identical and be orders of
+ * magnitude apart. It is still far better than an empty panel — an owner
+ * can see whether the thing is climbing.
+ */
+function weeklyRelative(series: SignalSeriesPoint[], now: Date, weeks: number): DemandWeekPoint[] {
+  if (series.length === 0) return [];
+  const buckets: { day: string; total: number }[] = [];
+  for (let w = weeks - 1; w >= 0; w--) {
+    const end = now.getTime() - w * 7 * DAY_MS;
+    const start = end - 7 * DAY_MS;
+    const inWeek = series.filter((p) => {
+      const at = Date.parse(`${p.day}T12:00:00Z`);
+      return Number.isFinite(at) && at > start && at <= end;
+    });
+    if (inWeek.length === 0) continue;
+    buckets.push({
+      day: dayOf(new Date(end).toISOString()),
+      total: inWeek.reduce((sum, p) => sum + p.value, 0) / inWeek.length,
+    });
+  }
+  const peak = Math.max(...buckets.map((b) => b.total), 0);
+  if (peak <= 0) return [];
+  return buckets.map((b) => ({ day: b.day, points: Math.round((b.total / peak) * 100) }));
 }

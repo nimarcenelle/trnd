@@ -47,7 +47,7 @@ export async function buildPickFacts(
 ): Promise<PickFacts | null> {
   const signal = signalIn ?? (await repo.getSignal(opportunity.signal_id));
   if (!signal) return null;
-  const [services, learnings, brief, weekOpps, campaign, categorySignals, explained, history] = await Promise.all([
+  const [services, learnings, brief, weekOpps, , categorySignals, explained, history] = await Promise.all([
     repo.listServices(business.id),
     repo.listLearnings(business.category),
     repo.getBusinessBrief(business.id),
@@ -129,11 +129,10 @@ export async function buildPickFacts(
     );
     lines.push(`The other picks this week: ${named.join("; ")}.`);
   }
-  lines.push(
-    campaign
-      ? `A campaign is already built for this pick (${campaign.status}): hook "${campaign.hook.slice(0, 120)}", offer "${campaign.offer.slice(0, 120)}".`
-      : `No campaign built for this pick yet.`,
-  );
+  // Whether an ad has been drafted is deliberately absent — from this text
+  // and from the fingerprint below. It changes on its own a few seconds
+  // after the read is written, and tracking it rewrote every read twice.
+  // The action bar already tells the owner whether an ad is waiting.
   lines.push(`Suggested test: ${budget.daily} a day, ${budget.test}, a 6-day A/B flight.`);
   // What TRND remembers about this term — the difference between week six
   // and week one. Absent in week one, and said so.
@@ -183,7 +182,13 @@ export async function buildPickFacts(
       opportunity.competitor_gap ?? "",
       rank,
       typeof explained.weekPct === "number" ? Math.round(explained.weekPct / 5) * 5 : "unmeasured",
-      campaign ? "campaign" : "nocampaign",
+      // Whether an ad has been drafted is deliberately NOT here. It used to
+      // be, and it guaranteed every read was written twice: once while the
+      // pick had no campaign, then invalidated the moment the auto-build
+      // landed, so switching between picks showed "TRND is writing the read"
+      // again on picks that already had one. The read answers whether the
+      // trend is worth acting on; the existence of a draft does not change
+      // that answer.
     ].join("|"),
   );
 

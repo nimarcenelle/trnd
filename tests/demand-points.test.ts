@@ -118,7 +118,7 @@ describe("the eight-week demand line", () => {
     }) as Signal;
 
   it("buckets signals into weeks and scores each week on its own", () => {
-    const line = buildDemandLine([sig(1), sig(8), sig(15)], now);
+    const line = buildDemandLine([sig(1), sig(8), sig(15)], [], now);
     expect(line.weeks).toHaveLength(3);
     expect(line.weeks.every((w) => w.points > 0)).toBe(true);
   });
@@ -126,30 +126,32 @@ describe("the eight-week demand line", () => {
   it("takes the latest read per source in a week, never the sum of seven days", () => {
     // A steady term read daily must not report seven times the demand.
     const daily = [1, 2, 3, 4, 5, 6].map((d) => sig(d));
-    const one = buildDemandLine([sig(1)], now);
-    const many = buildDemandLine(daily, now);
+    const one = buildDemandLine([sig(1)], [], now);
+    const many = buildDemandLine(daily, [], now);
     expect(many.weeks[many.weeks.length - 1].points).toBe(one.weeks[one.weeks.length - 1].points);
   });
 
   it("adds across sources within a week", () => {
     const both = buildDemandLine(
       [sig(1), sig(1, { id: "y", source: "youtube", metric_type: "shortform_views", value: 50_000 })],
+      [],
       now,
     );
-    const searchOnly = buildDemandLine([sig(1)], now);
+    const searchOnly = buildDemandLine([sig(1)], [], now);
     expect(both.weeks[0].points).toBeGreaterThan(searchOnly.weeks[0].points);
   });
 
   it("omits a week nothing was measured in rather than drawing through the gap", () => {
     // Weeks 1 and 3 measured, week 2 silent: three buckets would imply we
     // know demand held through the gap.
-    const line = buildDemandLine([sig(1), sig(15)], now);
+    const line = buildDemandLine([sig(1), sig(15)], [], now);
     expect(line.weeks).toHaveLength(2);
   });
 
   it("gives no caption and no points when only self-relative indices exist", () => {
     const line = buildDemandLine(
       [sig(1, { source: "google_trends", metric_type: "search_interest", value: 63 })],
+      [],
       now,
     );
     expect(line.weeks).toHaveLength(0);
@@ -160,9 +162,33 @@ describe("the eight-week demand line", () => {
   it("reports week-over-week movement in points", () => {
     const line = buildDemandLine(
       [sig(1, { value: 43_450 }), sig(8, { value: 4_345 })],
+      [],
       now,
     );
     expect(line.deltaPct).not.toBeNull();
     expect(line.deltaPct!).toBeGreaterThan(0);
+  });
+
+  it("falls back to the term's own shape when there is not enough absolute history", () => {
+    // A business that onboarded today has one weekly bucket and cannot be
+    // placed on the points scale — but sixty days of series may already exist.
+    const series = Array.from({ length: 30 }, (_, i) => ({
+      id: `p${i}`,
+      normalized_term: "cold_plunge",
+      geo: "US-NY",
+      day: new Date(now.getTime() - (29 - i) * 86400_000).toISOString().slice(0, 10),
+      value: 10 + i * 2,
+    }));
+    const line = buildDemandLine([sig(1)], series, now);
+    expect(line.mode).toBe("relative");
+    expect(line.weeks.length).toBeGreaterThanOrEqual(2);
+    // Scaled against its own peak, so the newest week tops out.
+    expect(line.weeks[line.weeks.length - 1].points).toBe(100);
+    expect(line.caption).toMatch(/shape, not size/);
+  });
+
+  it("prefers real points over the shape whenever it has the history", () => {
+    const line = buildDemandLine([sig(1), sig(8)], [{ id: "p", normalized_term: "x", geo: "US", day: "2026-09-01", value: 5 }], now);
+    expect(line.mode).toBe("points");
   });
 });

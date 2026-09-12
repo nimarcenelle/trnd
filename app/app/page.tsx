@@ -3,7 +3,12 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 
 import AnalysisProgress from "@/components/app/analysis-progress";
+// Two different waits, two different tools. The empty states below have no
+// pick to ask about and the whole page changes when the ranking lands, so
+// they poll the page. The pick screen has content already on it, so it asks
+// a cheap endpoint and repaints once — see AwaitContent.
 import AutoRefresh from "@/components/app/auto-refresh";
+import AwaitContent from "@/components/app/await-content";
 import GradePill from "@/components/app/grade-pill";
 import SubmitButton from "@/components/app/submit-button";
 import PickBriefing from "@/components/app/pick-briefing";
@@ -378,13 +383,19 @@ export default async function AppHome({
   const termSignals = signal
     ? termHistory.filter((s) => s.normalized_term === signal.normalized_term)
     : [];
-  const demand = buildDemandLine(termSignals, new Date(), 8);
+  // The daily series is the fallback shape when there is not yet enough
+  // absolute history to place this term on the points scale.
+  const demandSeries = signal ? await repo.getSeries(signal.normalized_term, signal.geo, 56) : [];
+  const demand = buildDemandLine(termSignals, demandSeries, new Date(), 8);
   const social = buildSocialProof(termSignals);
-  const proofHref = signal ? sourceUrl(signal) : null;
+  // Comes from the short-form read itself; see buildSocialProof.
+  const proofHref = social.href;
 
   return (
     <div className="page pick">
-      {(building || readInFlight) && <AutoRefresh everyMs={6000} times={building ? 15 : 3} />}
+      {(building || readInFlight) && (
+        <AwaitContent opportunityId={top.id} needsRead={readInFlight} needsCampaign={building} />
+      )}
 
       <header className="pick__top">
         <div className="pick__id">
@@ -423,7 +434,12 @@ export default async function AppHome({
           <div className="pick__row">
             <GradeCard score={Number(top.score)} />
             <div className="card pick__demand">
-              <DemandGraph weeks={demand.weeks} caption={demand.caption} deltaPct={demand.deltaPct} />
+              <DemandGraph
+                weeks={demand.weeks}
+                caption={demand.caption}
+                deltaPct={demand.deltaPct}
+                mode={demand.mode}
+              />
             </div>
           </div>
 

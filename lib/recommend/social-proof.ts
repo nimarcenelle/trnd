@@ -40,6 +40,10 @@ export interface SocialProof {
   examples: SocialExample[];
   /** Null when no short-form read exists at all for this term. */
   summary: string | null;
+  /** Where to go and see it — always a SHORT-FORM page. The page used to
+   * fall back to the pick's own signal here, which for a search-led pick is
+   * Google Trends: a "what short-form says" panel linking to a search chart. */
+  href: string | null;
 }
 
 interface ShortformRaw {
@@ -65,7 +69,7 @@ function compact(n: number): string {
 export function buildSocialProof(signals: Signal[]): SocialProof {
   const shortform = signals.filter((s) => s.metric_type === "shortform_views");
   if (shortform.length === 0) {
-    return { platforms: [], facts: [], examples: [], summary: null };
+    return { platforms: [], facts: [], examples: [], summary: null, href: null };
   }
 
   const platforms = [...new Set(shortform.map((s) => PLATFORM[s.source] ?? s.source))];
@@ -134,5 +138,7 @@ export function buildSocialProof(signals: Signal[]): SocialProof {
       ? `${platforms.join(" and ")} measured ${compact(views)} views on this in the last seven days.`
       : `${platforms.join(" and ")} carried this term this week, but pulled no measurable views.`;
 
-  return { platforms, facts, examples, summary };
+  // The first short-form signal that can name a page — never the pick's.
+  const href = shortform.map((s) => sourceUrl(s)).find((u): u is string => Boolean(u)) ?? null;
+  return { platforms, facts, examples, summary, href };
 }

@@ -48,7 +48,11 @@ export default function OnboardingWizard() {
   // listed them. Read by /api/import/document, folded into the rows, and
   // saved as the business's first document at the finish.
   const [menuHost, setMenuHost] = useState<{ name: string; url: string } | null>(null);
-  const [doc, setDoc] = useState<OnboardingDocument | null>(null);
+  // Plural: a restaurant's prices are routinely split across a food menu, a
+  // drinks menu and a brunch menu. Carolina Coffee Shop keeps a coffee and
+  // dessert PDF beside a seasonal brunch PDF; reading one and stopping
+  // leaves half the prices behind.
+  const [docs, setDocs] = useState<OnboardingDocument[]>([]);
   const [docMode, setDocMode] = useState<"file" | "paste">("file");
   const [docBusy, setDocBusy] = useState(false);
   const [docNote, setDocNote] = useState<string | null>(null);
@@ -194,44 +198,64 @@ export default function OnboardingWizard() {
     setServices((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
 
-  async function readMenu(file: File | null) {
-    const data = new FormData();
-    if (file) data.set("file", file);
-    else if (pasteText.trim().length >= 20) data.set("text", pasteText.trim());
-    else {
+  async function readMenu(files: File[] | null) {
+    const list = files ?? [];
+    if (list.length === 0 && pasteText.trim().length < 20) {
       setDocError("Paste at least a few lines of your menu.");
       return;
     }
-    data.set("business_name", name);
-    data.set("category", category);
-    data.set("city", city);
-    data.set("region", region);
     setDocBusy(true);
     setDocError(null);
     setDocNote(null);
-    try {
-      const res = await fetch("/api/import/document", { method: "POST", body: data });
-      const body = (await res.json().catch(() => ({}))) as Partial<OnboardingDocument> & { error?: string };
-      if (!res.ok || !body.digest) {
-        setDocError(body.error ?? "That didn't go through — try again.");
-        return;
+
+    // One request per file, in order, so a menu that fails to parse does not
+    // take the others down with it and the rows merge as each lands.
+    const jobs: (File | null)[] = list.length > 0 ? list : [null];
+    const read: OnboardingDocument[] = [];
+    const failed: string[] = [];
+    let items = 0;
+    let priced = 0;
+
+    for (const file of jobs) {
+      const data = new FormData();
+      if (file) data.set("file", file);
+      else data.set("text", pasteText.trim());
+      data.set("business_name", name);
+      data.set("category", category);
+      data.set("city", city);
+      data.set("region", region);
+      try {
+        const res = await fetch("/api/import/document", { method: "POST", body: data });
+        const body = (await res.json().catch(() => ({}))) as Partial<OnboardingDocument> & { error?: string };
+        if (!res.ok || !body.digest) {
+          failed.push(file?.name ?? "your pasted text");
+          continue;
+        }
+        const doc = body as OnboardingDocument;
+        const found = doc.digest.services_found;
+        read.push(doc);
+        items += found.length;
+        priced += found.filter((f) => f.price_cents !== null).length;
+        setServices((rows) => mergeServices(rows, found));
+      } catch {
+        failed.push(file?.name ?? "your pasted text");
       }
-      const read = body as OnboardingDocument;
-      const found = read.digest.services_found;
-      setDoc(read);
-      setServices((rows) => mergeServices(rows, found));
-      const priced = found.filter((f) => f.price_cents !== null).length;
+    }
+
+    setDocs((prev) => [...prev, ...read]);
+    if (read.length === 0) {
+      setDocError("None of those could be read — try a PDF, Word, Excel, or paste the text.");
+    } else {
+      const names = read.map((d) => d.name).join(", ");
       setDocNote(
-        found.length > 0
-          ? `Read ${read.name} — ${found.length} item${found.length === 1 ? "" : "s"}${priced > 0 ? `, ${priced} with prices` : ""}. They're in the list below; fix anything that's off.`
-          : `Read ${read.name}, but no items with prices were in it — it's kept with your business, and you can add what you sell below.`,
+        items > 0
+          ? `Read ${names} — ${items} item${items === 1 ? "" : "s"}${priced > 0 ? `, ${priced} with prices` : ""}. They're in the list below; fix anything that's off.` +
+              (failed.length > 0 ? ` Couldn't read ${failed.join(", ")}.` : "")
+          : `Read ${names}, but no items with prices were in ${read.length === 1 ? "it" : "them"} — kept with your business, and you can add what you sell below.`,
       );
       setPasteText("");
-    } catch {
-      setDocError("Couldn't reach TRND — check your connection and try again.");
-    } finally {
-      setDocBusy(false);
     }
+    setDocBusy(false);
   }
 
   // Free text — the business's identity in the customer's words. The stock
@@ -320,13 +344,14 @@ export default function OnboardingWizard() {
       {docMode === "file" ? (
         <input
           type="file"
+          multiple
           accept={ACCEPT_ATTR}
-          aria-label="Menu or price list file"
+          aria-label="Menu or price list files"
           className="input py-[9px] px-3 w-full"
           disabled={docBusy}
           onChange={(e) => {
-            const f = e.currentTarget.files?.[0] ?? null;
-            if (f) void readMenu(f);
+            const picked = Array.from(e.currentTarget.files ?? []);
+            if (picked.length > 0) void readMenu(picked);
           }}
         />
       ) : (
@@ -423,7 +448,7 @@ export default function OnboardingWizard() {
         <input type="hidden" name="brand_voice_notes" value={voice} />
         <input type="hidden" name="site_text" value={siteText} />
         <input type="hidden" name="photo_urls" value={JSON.stringify(photos)} />
-        <input type="hidden" name="document" value={doc ? JSON.stringify(doc) : ""} />
+        <input type="hidden" name="documents" value={docs.length > 0 ? JSON.stringify(docs) : ""} />
 
         {mode === "steps" && step === 0 && (
           <section>

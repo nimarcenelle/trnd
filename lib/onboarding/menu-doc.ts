@@ -17,6 +17,11 @@ export interface OnboardingDocument {
  * reads it alongside the site text, so it's capped like the site text. */
 export const MAX_ONBOARDING_DOC_TEXT = 40_000;
 
+/** How many menus one signup may hand over. Three covers food + drinks +
+ * seasonal, which is the real shape; past that it is someone uploading a
+ * folder. */
+export const MAX_ONBOARDING_DOCS = 5;
+
 export interface ServiceRow {
   name: string;
   price: string;

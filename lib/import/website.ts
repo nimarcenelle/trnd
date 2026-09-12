@@ -28,6 +28,10 @@ export interface SiteImport {
   /** Real photos from their own site — creative previews use these instead
    * of placeholders. */
   photos?: string[];
+  /** Where the menu actually lives when it's on an ordering platform the
+   * crawl can't read (Toast, Square, Clover…) — the wizard names it and
+   * asks for the menu directly instead of pretending the site had no prices. */
+  menuHost?: { name: string; url: string };
 }
 
 export interface SitePage {
@@ -113,6 +117,55 @@ const LINK_PRIORITY = [
   /book|schedule|catering|event/i,
 ];
 const MAX_SUBPAGES = 4;
+
+// Ordering platforms that hold a business's real menu and prices off-site.
+// Most sit behind bot challenges, so the crawl can't read them from
+// serverless — but knowing the menu is there changes what we tell the owner.
+const MENU_HOSTS: { re: RegExp; name: string }[] = [
+  { re: /(^|\.)toasttab\.com$/i, name: "Toast" },
+  { re: /(^|\.)(squareup\.com|square\.site)$/i, name: "Square" },
+  { re: /(^|\.)clover\.com$/i, name: "Clover" },
+  { re: /(^|\.)chownow\.com$/i, name: "ChowNow" },
+  { re: /(^|\.)popmenu\.com$/i, name: "Popmenu" },
+  { re: /(^|\.)getbento\.com$/i, name: "BentoBox" },
+  { re: /(^|\.)olo\.com$/i, name: "Olo" },
+  { re: /(^|\.)doordash\.com$/i, name: "DoorDash" },
+  { re: /(^|\.)ubereats\.com$/i, name: "Uber Eats" },
+  { re: /(^|\.)grubhub\.com$/i, name: "Grubhub" },
+  { re: /(^|\.)slicelife\.com$/i, name: "Slice" },
+  { re: /(^|\.)menufy\.com$/i, name: "Menufy" },
+  { re: /(^|\.)untappd\.com$/i, name: "Untappd" },
+];
+
+/**
+ * The first link to an ordering platform whose anchor or path says "menu"
+ * or "order" — "Online Menu → toasttab.com/caffedriade". Anchor text alone
+ * is enough on a known host: that's where owners keep the priced menu.
+ */
+export function discoverOffsiteMenu(html: string, baseUrl: string): { name: string; url: string } | null {
+  const base = new URL(baseUrl);
+  // Nav links wrap their label in layers of spans (theme "menu-fx"
+  // markup), so the anchor body is allowed to run long.
+  for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,800}?)<\/a>/gi)) {
+    let u: URL;
+    try {
+      u = new URL(decodeEntities(m[1].trim()), base);
+    } catch {
+      continue;
+    }
+    if (!/^https?:$/.test(u.protocol) || sameSite(u.hostname, base.hostname)) continue;
+    const host = MENU_HOSTS.find((h) => h.re.test(u.hostname));
+    if (!host) continue;
+    const anchor = m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    // A labeled menu/order link, or an image-only button to the platform —
+    // on a known host either is the menu.
+    const labeled = /menu|order|shop/i.test(`${anchor} ${u.pathname}`) || /menu|order/i.test(u.hostname);
+    if (!labeled && anchor.length > 0) continue;
+    u.hash = "";
+    return { name: host.name, url: u.href };
+  }
+  return null;
+}
 const MAX_CORPUS_CHARS = 24_000;
 // Below this much visible text a page is a JS husk — worth a headless render.
 const MIN_PAGE_TEXT = 500;
@@ -293,6 +346,22 @@ export async function fetchSiteCorpus(
     return { pages, text: text.trim() };
   } finally {
     await (renderer as Renderer | null)?.close();
+  }
+}
+
+/**
+ * One plain read of an off-site menu page. Most ordering platforms answer
+ * with a bot challenge or a JS husk — then this returns nothing and the
+ * wizard asks the owner for the menu instead. When a platform does serve
+ * HTML with prices, they're pooled like any other page.
+ */
+export async function readOffsiteMenu(url: string): Promise<ImportedService[]> {
+  try {
+    const html = await fetchOnce(url);
+    if (looksBlocked(html) || stripHtml(html).text.length < MIN_PAGE_TEXT) return [];
+    return extractFromHtml(html).services.filter((s) => s.price);
+  } catch {
+    return [];
   }
 }
 
@@ -754,6 +823,14 @@ export function extractFromPages(pages: SitePage[]): SiteImport {
     if (photos.length >= 6) break;
   }
   if (photos.length > 0) result.photos = photos;
+  // The menu may live on an ordering platform rather than the site itself.
+  for (const page of pages) {
+    const host = discoverOffsiteMenu(page.html, page.url);
+    if (host) {
+      result.menuHost = host;
+      break;
+    }
+  }
   // An explicit JSON-LD priceRange beats our median inference.
   result.priceBand = result.priceBand ?? inferPriceBand(result.services, result.category);
   return result;

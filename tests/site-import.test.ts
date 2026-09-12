@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   decodeEntities,
   discoverInternalLinks,
+  discoverOffsiteMenu,
   extractFromHtml,
   extractFromPages,
   inferPriceBand,
@@ -150,5 +151,29 @@ describe("site crawl", () => {
     expect(inferPriceBand(premium, "Restaurants & cafés")).toBe("$$$");
     expect(inferPriceBand(premium, undefined)).toBeUndefined();
     expect(inferPriceBand([], "Restaurants & cafés")).toBeUndefined();
+  });
+});
+
+describe("off-site menu hosts", () => {
+  const DRIADE = `<nav>
+    <a href="https://caffedriade.com/coffee/">Coffee Info</a>
+    <a href="https://www.toasttab.com/caffedriade/">Online Menu</a>
+    <a href="http://shopcarrborocoffee.com/">Carrboro Coffee Roasters</a>
+  </nav>`;
+
+  it("names the ordering platform the menu lives on", () => {
+    expect(discoverOffsiteMenu(DRIADE, "https://caffedriade.com/")).toEqual({
+      name: "Toast",
+      url: "https://www.toasttab.com/caffedriade/",
+    });
+  });
+
+  it("ignores same-site links and unknown hosts", () => {
+    expect(discoverOffsiteMenu(`<a href="/menu">Menu</a><a href="https://example.org/menu">Menu</a>`, "https://cafe.com/")).toBeNull();
+  });
+
+  it("surfaces the host through the page extractor", () => {
+    const pages = [{ url: "https://caffedriade.com/", html: `<html><head><title>Caffe Driade</title></head><body>${DRIADE}</body></html>` }];
+    expect(extractFromPages(pages).menuHost?.name).toBe("Toast");
   });
 });

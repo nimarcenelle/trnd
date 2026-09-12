@@ -6,6 +6,7 @@ import {
   inferPriceBand,
   normalizeUrl,
   probeStorefrontProducts,
+  readOffsiteMenu,
   type ImportEvent,
 } from "@/lib/import/website";
 
@@ -80,6 +81,26 @@ export async function POST(req: Request): Promise<Response> {
           data.services = await probeStorefrontProducts(url, corpus.pages[0].html);
           data.priceBand = data.priceBand ?? inferPriceBand(data.services, data.category);
         }
+        // The menu on an ordering platform: one honest attempt to read it,
+        // and if that fails the owner is told where it is and asked for it.
+        if (data.menuHost && !data.services.some((s) => s.price)) {
+          send({ type: "status", label: `Your menu is on ${data.menuHost.name} — trying to read it…` });
+          const priced = await readOffsiteMenu(data.menuHost.url);
+          if (priced.length > 0) {
+            const seen = new Set(data.services.map((s) => s.name.toLowerCase()));
+            for (const svc of priced) {
+              const key = svc.name.toLowerCase();
+              const existing = data.services.find((s) => s.name.toLowerCase() === key);
+              if (existing) existing.price = existing.price || svc.price;
+              else if (!seen.has(key) && data.services.length < 15) {
+                seen.add(key);
+                data.services.push(svc);
+              }
+            }
+            data.priceBand = data.priceBand ?? inferPriceBand(data.services, data.category);
+            delete data.menuHost;
+          }
+        }
         if (data.services.length > 0 || data.name || data.city) {
           send({ type: "partial", data });
         }
@@ -101,6 +122,7 @@ export async function POST(req: Request): Promise<Response> {
               voiceHint: refined.voiceHint ?? data.voiceHint,
               priceBand: refined.priceBand ?? inferPriceBand(services, category) ?? data.priceBand,
               photos: data.photos,
+              menuHost: services.some((s) => s.price) ? undefined : data.menuHost,
             };
           } catch (err) {
             console.warn("[import] Gemini refine failed — using heuristics:", (err as Error).message);

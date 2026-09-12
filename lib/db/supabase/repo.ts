@@ -31,6 +31,28 @@ function throwIf(error: { message: string } | null, ctx: string): void {
   if (error) throw new Error(`[supabase:${ctx}] ${error.message}`);
 }
 
+/**
+ * A table that a later migration adds and production hasn't run yet.
+ * Reads of optional, additive tables (pick reads, standing questions,
+ * documents) treat that as "nothing there" so one unapplied migration
+ * doesn't take down every screen — writes still fail loudly.
+ */
+function isMissingTable(error: { code?: string; message: string } | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === "PGRST205" ||
+    error.code === "42P01" ||
+    /could not find the table|relation .* does not exist/i.test(error.message)
+  );
+}
+function throwUnlessMissing(error: { code?: string; message: string } | null, ctx: string): void {
+  if (isMissingTable(error)) {
+    console.warn(`[supabase:${ctx}] table missing — run the pending migrations (supabase/migrations). Reading as empty.`);
+    return;
+  }
+  throwIf(error, ctx);
+}
+
 const UNIQUE_VIOLATION = "23505";
 
 /**
@@ -414,7 +436,7 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .select("*")
         .eq("opportunity_id", opportunityId)
         .maybeSingle();
-      throwIf(error, "getPickRead");
+      throwUnlessMissing(error, "getPickRead");
       return (data as PickRead | null) ?? null;
     },
     async listDocuments(businessId) {
@@ -423,7 +445,7 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .select("*")
         .eq("business_id", businessId)
         .order("created_at", { ascending: false });
-      throwIf(error, "listDocuments");
+      throwUnlessMissing(error, "listDocuments");
       return (data ?? []) as BusinessDocument[];
     },
     async createDocument(input) {
@@ -439,7 +461,7 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       let q = sb.from("standing_questions").select("*").eq("business_id", businessId);
       if (opts?.activeOnly) q = q.eq("active", true);
       const { data, error } = await q.order("created_at", { ascending: true });
-      throwIf(error, "listStandingQuestions");
+      throwUnlessMissing(error, "listStandingQuestions");
       return (data ?? []) as StandingQuestion[];
     },
     async createStandingQuestion(input) {

@@ -4,14 +4,11 @@ import { useActionState, useMemo, useRef, useState } from "react";
 
 import { completeOnboardingAction, type OnboardingState } from "@/lib/onboarding/actions";
 import { CATEGORIES } from "@/lib/db/types";
+import { ACCEPT_ATTR } from "@/lib/documents/parse";
 import type { ImportEvent, SiteImport } from "@/lib/import/website";
+import { mergeServices, type OnboardingDocument, type ServiceRow } from "@/lib/onboarding/menu-doc";
 
 const STEPS = ["Website", "Category", "Location", "Services", "Voice"] as const;
-
-interface ServiceRow {
-  name: string;
-  price: string;
-}
 
 const inputStyle: React.CSSProperties = {
   fontFamily: "var(--body)",
@@ -46,6 +43,18 @@ export default function OnboardingWizard() {
   const [siteText, setSiteText] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
 
+  // The menu, handed over directly: for sites whose prices live on an
+  // ordering platform (Toast, Square) the crawl can't read, or that never
+  // listed them. Read by /api/import/document, folded into the rows, and
+  // saved as the business's first document at the finish.
+  const [menuHost, setMenuHost] = useState<{ name: string; url: string } | null>(null);
+  const [doc, setDoc] = useState<OnboardingDocument | null>(null);
+  const [docMode, setDocMode] = useState<"file" | "paste">("file");
+  const [docBusy, setDocBusy] = useState(false);
+  const [docNote, setDocNote] = useState<string | null>(null);
+  const [docError, setDocError] = useState<string | null>(null);
+  const [pasteText, setPasteText] = useState("");
+
   // Website import: owner-initiated read of their own site, streamed as
   // NDJSON events so every stage shows up the moment it happens. Heuristics
   // land as a `partial` prefill; the AI pass follows as `final`. Failure is
@@ -76,6 +85,7 @@ export default function OnboardingWizard() {
       importedVoice.current = d.voiceHint;
     }
     if ((d.photos ?? []).length > 0) setPhotos(d.photos ?? []);
+    setMenuHost(d.menuHost ?? null);
     const chips = d.services.slice(0, 6).map((sv) => (sv.price ? `${sv.name} — $${sv.price}` : sv.name));
     if (d.services.length > 6) chips.push(`+${d.services.length - 6} more`);
     if (d.city) chips.push(`${d.city}${d.region ? `, ${d.region}` : ""}`);
@@ -89,11 +99,19 @@ export default function OnboardingWizard() {
     if (d.category) found.push("your category");
     if (d.priceBand) found.push("your price range");
     const gotName = Boolean(name.trim() || d.name);
+    const unpriced = d.services.length > 0 && !d.services.some((sv) => sv.price);
+    const menuAsk = d.menuHost
+      ? ` Your menu is on ${d.menuHost.name}, which doesn't let us read it — upload the menu or paste it below and the prices fill in.`
+      : d.services.length === 0
+        ? " Couldn't read a menu or price list — upload one or paste it below, or add what you sell by hand."
+        : unpriced
+          ? " No prices were listed on the site — upload your menu or paste it below and they fill in."
+          : "";
     setImportNote(
       (found.length > 0
         ? `Read your site — found ${found.join(", ")}. Confirm or edit below, then you're in.`
         : "Read your site — confirm the details below.") +
-        (d.services.length === 0 ? " Couldn't read a menu or price list, so add what you sell below." : "") +
+        menuAsk +
         (gotName ? "" : " Add your business name to continue."),
     );
     // Everything on one confirm screen — no more questions than needed.
@@ -176,6 +194,46 @@ export default function OnboardingWizard() {
     setServices((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
 
+  async function readMenu(file: File | null) {
+    const data = new FormData();
+    if (file) data.set("file", file);
+    else if (pasteText.trim().length >= 20) data.set("text", pasteText.trim());
+    else {
+      setDocError("Paste at least a few lines of your menu.");
+      return;
+    }
+    data.set("business_name", name);
+    data.set("category", category);
+    data.set("city", city);
+    data.set("region", region);
+    setDocBusy(true);
+    setDocError(null);
+    setDocNote(null);
+    try {
+      const res = await fetch("/api/import/document", { method: "POST", body: data });
+      const body = (await res.json().catch(() => ({}))) as Partial<OnboardingDocument> & { error?: string };
+      if (!res.ok || !body.digest) {
+        setDocError(body.error ?? "That didn't go through — try again.");
+        return;
+      }
+      const read = body as OnboardingDocument;
+      const found = read.digest.services_found;
+      setDoc(read);
+      setServices((rows) => mergeServices(rows, found));
+      const priced = found.filter((f) => f.price_cents !== null).length;
+      setDocNote(
+        found.length > 0
+          ? `Read ${read.name} — ${found.length} item${found.length === 1 ? "" : "s"}${priced > 0 ? `, ${priced} with prices` : ""}. They're in the list below; fix anything that's off.`
+          : `Read ${read.name}, but no items with prices were in it — it's kept with your business, and you can add what you sell below.`,
+      );
+      setPasteText("");
+    } catch {
+      setDocError("Couldn't reach TRND — check your connection and try again.");
+    } finally {
+      setDocBusy(false);
+    }
+  }
+
   // Free text — the business's identity in the customer's words. The stock
   // verticals are one-tap starting points, not the only allowed answers.
   const categoryPicker = (
@@ -228,6 +286,73 @@ export default function OnboardingWizard() {
         + Add another
       </button>
     </>
+  );
+
+  // Hand over the menu: a file or pasted text, read and folded into the
+  // rows above. A nested <form> can't live inside the wizard's form, so
+  // the controls submit through readMenu directly.
+  const menuPanel = (
+    <div className="mt-[18px] p-[14px] rounded-(--radius-sm) border border-dashed border-line-strong bg-(--bg-1)" aria-label="Upload your menu">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-[10px]">
+        <div>
+          <div className="text-[13.5px] font-semibold">Have a menu or price list?</div>
+          <div className="text-[12px] text-ink-faint leading-[1.5]">
+            {menuHost
+              ? `Your menu is on ${menuHost.name}, which we can't read. Upload it or paste it and the prices fill in.`
+              : "Upload it or paste it — the items and prices fill in above, and it stays with your business."}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {(["file", "paste"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              className="pill"
+              aria-pressed={docMode === m}
+              onClick={() => setDocMode(m)}
+              style={{ cursor: "pointer", background: docMode === m ? "var(--amber-soft)" : "var(--bg-2)", color: docMode === m ? "var(--amber-text)" : undefined }}
+            >
+              {m === "file" ? "Upload a file" : "Paste text"}
+            </button>
+          ))}
+        </div>
+      </div>
+      {docMode === "file" ? (
+        <input
+          type="file"
+          accept={ACCEPT_ATTR}
+          aria-label="Menu or price list file"
+          className="input py-[9px] px-3 w-full"
+          disabled={docBusy}
+          onChange={(e) => {
+            const f = e.currentTarget.files?.[0] ?? null;
+            if (f) void readMenu(f);
+          }}
+        />
+      ) : (
+        <div className="flex flex-col gap-2">
+          <textarea
+            aria-label="Pasted menu"
+            rows={5}
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder={"Cappuccino 4.75\nBrown Sugar Oat Latte 6\nBaked goods 3–5 …"}
+            className="input"
+            disabled={docBusy}
+          />
+          <div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void readMenu(null)} disabled={docBusy || pasteText.trim().length < 20} aria-busy={docBusy}>
+              {docBusy ? "Reading…" : "Read it"}
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="mt-2 min-h-[16px]" aria-live="polite">
+        {docBusy && docMode === "file" && <span className="mono-label">Reading your menu…</span>}
+        {docNote && <span className="mono-label text-(--mint-text)">{docNote}</span>}
+        {docError && <span className="font-mono text-[11px] text-red">{docError}</span>}
+      </div>
+    </div>
   );
 
   const locationFields = (
@@ -298,6 +423,7 @@ export default function OnboardingWizard() {
         <input type="hidden" name="brand_voice_notes" value={voice} />
         <input type="hidden" name="site_text" value={siteText} />
         <input type="hidden" name="photo_urls" value={JSON.stringify(photos)} />
+        <input type="hidden" name="document" value={doc ? JSON.stringify(doc) : ""} />
 
         {mode === "steps" && step === 0 && (
           <section>
@@ -374,6 +500,7 @@ export default function OnboardingWizard() {
               <label>What you sell</label>
             </div>
             {serviceRows}
+            {menuPanel}
             <div className="field mt-[18px]">
               <label htmlFor="ob-voice-r">Brand voice notes (optional)</label>
               <textarea id="ob-voice-r" rows={3} value={voice} onChange={(e) => setVoice(e.target.value)} placeholder='e.g. "Warm but direct. We never discount, we add value. No exclamation marks."' />
@@ -402,6 +529,7 @@ export default function OnboardingWizard() {
             <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">What do you sell?</h2>
             <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">TRND only recommends promoting things you actually offer.</p>
             {serviceRows}
+            {menuPanel}
           </section>
         )}
 

@@ -7,6 +7,21 @@ import { after } from "next/server";
 import { generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { getAdminRepo } from "@/lib/db/admin";
+import type { SocialHandles } from "@/lib/db/types";
+import { cleanSocialHandles, SOCIAL_PLATFORMS } from "@/lib/import/social-links";
+import { runIntelIngestForBusiness } from "@/lib/intel/ingest";
+import { normalizeHandle } from "@/lib/social";
+
+/** The three handle inputs, as pasted (URL or @handle), cut to what we
+ * store. A blank input clears that platform. */
+function handlesFromForm(formData: FormData): SocialHandles {
+  const raw: Record<string, string> = {};
+  for (const platform of SOCIAL_PLATFORMS) {
+    raw[platform] = normalizeHandle(platform, String(formData.get(platform) ?? "").slice(0, 300));
+  }
+  return cleanSocialHandles(raw);
+}
 
 export interface SettingsState {
   error?: string;
@@ -100,6 +115,27 @@ export async function toggleServiceAction(formData: FormData): Promise<void> {
   await repo.updateService(id, { is_active: active });
   refreshBriefAfterResponse(user.id);
   revalidatePath("/app/settings");
+}
+
+/** The owner's own Instagram, TikTok and Facebook. Saved, then their posts
+ * are read in the background so the brand signal has them next pick. */
+export async function updateSocialHandlesAction(formData: FormData): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const repo = await getUserRepo(user.id);
+  const business = await repo.getBusinessByOwner(user.id);
+  if (!business) redirect("/onboarding");
+  const updated = await repo.updateBusiness(business.id, { social_handles: handlesFromForm(formData) });
+  after(async () => {
+    try {
+      await runIntelIngestForBusiness(getAdminRepo(), updated);
+    } catch (err) {
+      console.warn("[settings] own accounts read failed (non-fatal):", (err as Error).message);
+    }
+  });
+  revalidatePath("/app/settings");
+  revalidatePath("/app");
+  revalidatePath("/app/report");
 }
 
 export async function deleteServiceAction(formData: FormData): Promise<void> {

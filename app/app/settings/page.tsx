@@ -5,6 +5,12 @@ import AccountPanel from "@/components/app/account-panel";
 import BusinessSettingsForm from "@/components/app/business-settings-form";
 import DocumentUpload from "@/components/app/document-upload";
 import { getSessionUser } from "@/lib/auth/session";
+import { clearAdHistoryAction, importAdExportAction } from "@/lib/ads/actions";
+import { bestTheme, readAdHistory } from "@/lib/ads/history-read";
+import type { AdHistory, SocialHandles } from "@/lib/db/types";
+import { handleUrl, SOCIAL_PLATFORMS } from "@/lib/import/social-links";
+import type { AdTheme } from "@/lib/signals/adlibrary-apify";
+import { isSocialReadAvailable } from "@/lib/social";
 import { getPlanState, PLAN_LABELS, PLAN_PRICES } from "@/lib/billing";
 import { openBillingPortalAction, startCheckoutAction } from "@/lib/billing/actions";
 import { seedCompetitorsAction } from "@/lib/intel/actions";
@@ -21,11 +27,17 @@ import {
   isPlacesConfigured,
   isStripeConfigured,
 } from "@/lib/env";
-import { addCompetitorAction, deleteCompetitorAction, disconnectMetaAction } from "@/lib/intel/actions";
+import {
+  addCompetitorAction,
+  deleteCompetitorAction,
+  disconnectMetaAction,
+  updateCompetitorHandlesAction,
+} from "@/lib/intel/actions";
 import {
   addServiceAction,
   deleteServiceAction,
   toggleServiceAction,
+  updateSocialHandlesAction,
 } from "@/lib/settings/actions";
 
 export const metadata = { title: "Settings — TRND" };
@@ -41,6 +53,73 @@ const BILLING_NOTICES: Record<string, { text: string; tone: "mint" | "faint" }> 
   error: { text: "Billing hit a snag — try again in a moment.", tone: "faint" },
 };
 
+const THEME_LINES: Record<AdTheme, string> = {
+  education: "teach something",
+  offer: "lead with a price or deal",
+  scarcity: "set a deadline",
+  social_proof: "show customer proof",
+  speed: "sell speed and convenience",
+  novelty: "announce something new",
+};
+
+const PLATFORM_LABELS = { instagram: "Instagram", tiktok: "TikTok", facebook: "Facebook" } as const;
+
+/** Codes set by lib/ads/actions.ts. Only numbers ride along in the URL. */
+function adsNotice(code: string, params: Record<string, string | string[] | undefined>) {
+  const num = (k: string) => Math.max(0, Math.floor(Number(params[k]) || 0));
+  const n = num("n");
+  const skipped = num("skipped");
+  const from = num("p") === 2 ? "Google Ads" : "Meta Ads Manager";
+  const ads = `${n} ad${n === 1 ? "" : "s"}`;
+  const skippedLine = skipped > 0 ? ` Skipped ${skipped} row${skipped === 1 ? "" : "s"} with no delivery.` : "";
+  switch (code) {
+    case "imported":
+      return { text: `Read ${ads} from ${from}. They replace your last ${from} upload.${skippedLine}`, tone: "mint" as const };
+    case "trimmed":
+      return { text: `Read ${ads} from ${from}, the ones that reached the most people.${skippedLine}`, tone: "mint" as const };
+    case "cleared":
+      return { text: "Your past ads are cleared.", tone: "faint" as const };
+    case "nofile":
+      return { text: "Pick a file to upload first.", tone: "red" as const };
+    case "toobig":
+      return { text: "That file is over 5 MB. Export a shorter date range and try again.", tone: "red" as const };
+    case "notexport":
+      return {
+        text: "This doesn't look like an ad export. From Meta, export Campaign name, Impressions and Amount spent. From Google Ads, download a report with Campaign, Impr. and Cost.",
+        tone: "red" as const,
+      };
+    case "empty":
+      return { text: "We found the columns but no ads with any delivery. Check the date range and export again.", tone: "red" as const };
+    case "error":
+      return { text: "That upload didn't go through. Try again in a moment.", tone: "red" as const };
+    default:
+      return null;
+  }
+}
+
+const pct = (n: number) => `${(n * 100).toFixed(n < 0.1 ? 2 : 1)}%`;
+const adCtr = (r: AdHistory) => (r.impressions && r.clicks !== null ? r.clicks / r.impressions : r.ctr);
+
+function HandleLinks({ handles }: { handles: SocialHandles }) {
+  const set = SOCIAL_PLATFORMS.filter((p) => handles[p]);
+  if (set.length === 0) return null;
+  return (
+    <span className="flex gap-3 flex-wrap">
+      {set.map((p) => (
+        <a
+          key={p}
+          href={handleUrl(p, handles[p]!)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-mono text-[11px] text-ink-soft underline"
+        >
+          {PLATFORM_LABELS[p]} @{handles[p]}
+        </a>
+      ))}
+    </span>
+  );
+}
+
 export default async function SettingsPage({ searchParams }: PageProps<"/app/settings">) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -52,14 +131,28 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   const justConnected = typeof params.connected === "string" ? params.connected : null;
   const billingFlag = String(params.billing ?? "");
   const billingNotice = BILLING_NOTICES[billingFlag] ?? null;
-  const [services, competitors, metaConnection, gbpConnection, plan, documents] = await Promise.all([
+  const adsFlag = String(params.ads ?? "");
+  const adNotice = adsNotice(adsFlag, params);
+  const [services, rivals, metaConnection, gbpConnection, plan, documents, adRows] = await Promise.all([
     repo.listServices(business.id),
     repo.listCompetitors(business.id),
     repo.getConnection(business.id, "meta"),
     repo.getConnection(business.id, "google_business"),
     getPlanState(repo, business),
     repo.listDocuments(business.id),
+    repo.listAdHistory(business.id).catch((err: Error) => {
+      console.warn("[settings] ad history read failed (non-fatal):", err.message);
+      return [] as AdHistory[];
+    }),
   ]);
+  // Most direct rivals first; ones not yet scored sit at the bottom.
+  const competitors = [...rivals].sort((a, b) => (b.directness ?? -1) - (a.directness ?? -1));
+  const adRead = adRows.length > 0 ? readAdHistory(adRows) : null;
+  const adTheme = adRows.length > 0 ? bestTheme(adRows) : null;
+  const bestAd = adRead?.best[0] ?? null;
+  const bestAdCtr = bestAd ? adCtr(bestAd) : null;
+  const socialReadOn = isSocialReadAvailable();
+  const ownHandles = business.social_handles ?? {};
   const serviceNames = new Set(services.map((s) => s.name.trim().toLowerCase()));
   const newItemsIn = (d: (typeof documents)[number]) =>
     d.digest.services_found.filter((x) => !serviceNames.has(x.name.trim().toLowerCase())).length;
@@ -134,6 +227,35 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           </span>
         </div>
         <BusinessSettingsForm business={business} />
+        <div className="mt-5 pt-4 border-t border-dashed border-line" id="accounts">
+          <p className="font-disp font-semibold text-[14.5px] mx-0 mt-0 mb-1">Your accounts</p>
+          <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-3 leading-[1.55]">
+            TRND reads your recent posts to see what your customers already respond to.
+          </p>
+          <div className="mb-3">
+            <HandleLinks handles={ownHandles} />
+          </div>
+          <form className="flex gap-[10px] flex-wrap" action={updateSocialHandlesAction}>
+            {SOCIAL_PLATFORMS.map((p) => (
+              <input
+                key={p}
+                name={p}
+                defaultValue={ownHandles[p] ?? ""}
+                placeholder={`${PLATFORM_LABELS[p]} handle or link`}
+                aria-label={`${PLATFORM_LABELS[p]} handle`}
+                className="input flex-[1_1_180px]"
+              />
+            ))}
+            <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Saving…">
+              Save accounts
+            </SubmitButton>
+          </form>
+          {!socialReadOn && (
+            <p className="text-[12px] text-ink-faint mx-0 mt-2 mb-0">
+              Posts are read once social reading is switched on for your workspace.
+            </p>
+          )}
+        </div>
       </section>
 
       <section className="panel mb-5">
@@ -257,6 +379,72 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         {documents.length < MAX_DOCUMENTS && <DocumentUpload modelReady={isGeminiConfigured} />}
       </section>
 
+      <section className="panel mb-5" id="ads">
+        <div className="panel__head">
+          <span className="panel__title">Your past ads</span>
+          <span className="panel__meta">
+            {adRead ? `${adRead.ads} ad${adRead.ads === 1 ? "" : "s"}` : "None yet"}
+          </span>
+        </div>
+        <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4 max-w-[640px] leading-[1.55]">
+          Export your results from Meta Ads Manager or Google Ads (CSV or Excel) and TRND learns which ads worked for you.
+        </p>
+
+        {adNotice && (
+          <p
+            className={`font-mono text-[11.5px] leading-[1.55] mx-0 mt-0 mb-4 pb-3 border-b border-dashed border-line ${
+              adNotice.tone === "mint" ? "text-(--mint-text)" : adNotice.tone === "red" ? "text-red" : "text-ink-faint"
+            }`}
+          >
+            {adNotice.text}
+          </p>
+        )}
+
+        {adRead && (
+          <div className="py-3 px-[14px] border border-line rounded-card-sm bg-bg-1 mb-[18px]">
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <span className="mono-label">{adRead.ads} ad{adRead.ads === 1 ? "" : "s"}</span>
+              <span className="mono-label">
+                ${Math.round(adRead.spendCents / 100).toLocaleString("en-US")} spent
+              </span>
+              {adRead.accountCtr !== null && (
+                <span className="mono-label">{pct(adRead.accountCtr)} click rate</span>
+              )}
+              <span className="flex-1" />
+              <form action={clearAdHistoryAction}>
+                <button type="submit" className="btn btn-ghost btn-sm py-[5px] px-3 text-[11.5px] text-red">
+                  Clear
+                </button>
+              </form>
+            </div>
+            {bestAd && bestAdCtr !== null && (
+              <p className="mx-0 mt-2 mb-0 text-[13px] leading-[1.55] text-ink-soft">
+                Your best ad: {bestAd.ad_name ?? bestAd.campaign_name}, at {pct(bestAdCtr)} click rate.
+              </p>
+            )}
+            {adTheme && adTheme.vsAccount >= 1.05 && (
+              <p className="mx-0 mt-1 mb-0 text-[13px] leading-[1.55] text-ink-soft">
+                Ads that {THEME_LINES[adTheme.theme]} ran {Math.round((adTheme.vsAccount - 1) * 100)}% above your average.
+              </p>
+            )}
+          </div>
+        )}
+
+        <form className="flex gap-[10px] flex-wrap items-center" action={importAdExportAction}>
+          <input
+            name="file"
+            type="file"
+            accept=".csv,.tsv,.txt,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            aria-label="Ad export to upload"
+            className="input py-[9px] px-3 flex-[1_1_260px]"
+            required
+          />
+          <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Reading…">
+            {adRead ? "Upload a new export" : "Upload export"}
+          </SubmitButton>
+        </form>
+      </section>
+
       <section className="panel mb-5" id="billing">
         <div className="panel__head">
           <span className="panel__title">Plan and billing</span>
@@ -339,27 +527,54 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           <span className="panel__meta">{competitors.length} tracked</span>
         </div>
         <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4">
-          Name the local rivals that matter. TRND reads their active Meta ads and Google
-          ratings daily — moves show up in your intel report and as alerts.
+          Name the local rivals that matter. TRND reads their ads, posts and Google ratings
+          daily. Moves show up in your intel report and as alerts. The closest rivals are listed first.
         </p>
         <div className="flex flex-col gap-[10px] mb-5">
-          {competitors.map((c) => (
-            <div className="flex items-center gap-3 py-3 px-[14px] border border-line rounded-card-sm bg-bg-1 flex-wrap"
-              key={c.id}
-             
-            >
-              <span className="font-disp font-semibold text-[14.5px] flex-[1_1_200px]">
-                {c.name}
-              </span>
-              <span className="mono-label">{c.place_id ? "Listing found" : c.website ?? "Watching ads"}</span>
-              <form action={deleteCompetitorAction}>
-                <input type="hidden" name="competitor_id" value={c.id} />
-                <button type="submit" className="btn btn-ghost btn-sm py-[5px] px-3 text-[11.5px] text-red">
-                  Stop watching
-                </button>
-              </form>
-            </div>
-          ))}
+          {competitors.map((c) => {
+            const handles = c.social_handles ?? {};
+            return (
+              <div className="py-3 px-[14px] border border-line rounded-card-sm bg-bg-1" key={c.id}>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex flex-col gap-1 flex-[1_1_200px] min-w-0">
+                    <span className="font-disp font-semibold text-[14.5px]">{c.name}</span>
+                    <HandleLinks handles={handles} />
+                    {c.directness_reason && (
+                      <span className="text-[12px] text-ink-faint leading-[1.5]">{c.directness_reason}</span>
+                    )}
+                  </div>
+                  <span className="mono-label">{c.place_id ? "Listing found" : c.website ?? "Watching ads"}</span>
+                  <form action={deleteCompetitorAction}>
+                    <input type="hidden" name="competitor_id" value={c.id} />
+                    <button type="submit" className="btn btn-ghost btn-sm py-[5px] px-3 text-[11.5px] text-red">
+                      Stop watching
+                    </button>
+                  </form>
+                </div>
+                <details className="mt-2">
+                  <summary className="mono-label cursor-pointer text-ink-faint">
+                    {SOCIAL_PLATFORMS.some((p) => handles[p]) ? "Edit accounts" : "Add accounts"}
+                  </summary>
+                  <form className="flex gap-2 flex-wrap mt-2" action={updateCompetitorHandlesAction}>
+                    <input type="hidden" name="competitor_id" value={c.id} />
+                    {SOCIAL_PLATFORMS.map((p) => (
+                      <input
+                        key={p}
+                        name={p}
+                        defaultValue={handles[p] ?? ""}
+                        placeholder={PLATFORM_LABELS[p]}
+                        aria-label={`${c.name} ${PLATFORM_LABELS[p]} handle`}
+                        className="input flex-[1_1_140px] py-[6px] text-[12.5px]"
+                      />
+                    ))}
+                    <SubmitButton className="btn btn-ghost btn-sm py-[5px] px-3 text-[11.5px]" pendingLabel="Saving…">
+                      Save
+                    </SubmitButton>
+                  </form>
+                </details>
+              </div>
+            );
+          })}
           {competitors.length === 0 && (
             <p className="text-[13.5px] text-ink-faint m-0">
               No competitors yet. Find the nearest ones, or add one by name.

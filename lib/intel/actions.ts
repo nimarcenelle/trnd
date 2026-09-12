@@ -8,7 +8,10 @@ import { launchPausedCampaign } from "@/lib/ads/meta";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { getAdminRepo } from "@/lib/db/admin";
+import type { SocialHandles } from "@/lib/db/types";
 import { isMetaAdsConfigured } from "@/lib/env";
+import { cleanSocialHandles, SOCIAL_PLATFORMS } from "@/lib/import/social-links";
+import { normalizeHandle } from "@/lib/social";
 import { enrichCompetitor } from "@/lib/intel/direct";
 import { runIntelIngestForBusiness } from "@/lib/intel/ingest";
 import { budgetFor } from "@/lib/recommend/insights";
@@ -74,6 +77,40 @@ export async function deleteCompetitorAction(formData: FormData): Promise<void> 
   await repo.deleteCompetitor(String(formData.get("competitor_id") ?? ""));
   revalidatePath("/app/settings");
   revalidatePath("/app/report");
+}
+
+/** The three handle inputs, as pasted (URL or @handle), cut to what we
+ * store. A blank input clears that platform. */
+function handlesFromForm(formData: FormData): SocialHandles {
+  const raw: Record<string, string> = {};
+  for (const platform of SOCIAL_PLATFORMS) {
+    raw[platform] = normalizeHandle(platform, String(formData.get(platform) ?? "").slice(0, 300));
+  }
+  return cleanSocialHandles(raw);
+}
+
+/** Set a rival's Instagram, TikTok and Facebook by hand, for the rivals
+ * whose site doesn't link them, then read their posts in the background. */
+export async function updateCompetitorHandlesAction(formData: FormData): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const repo = await getUserRepo(user.id);
+  const business = await repo.getBusinessByOwner(user.id);
+  if (!business) redirect("/onboarding");
+  const id = String(formData.get("competitor_id") ?? "");
+  const competitor = (await repo.listCompetitors(business.id)).find((c) => c.id === id);
+  if (!competitor) return;
+  await repo.updateCompetitor(competitor.id, { social_handles: handlesFromForm(formData) });
+  after(async () => {
+    try {
+      await runIntelIngestForBusiness(getAdminRepo(), business);
+    } catch (err) {
+      console.warn("[intel] rival accounts read failed (non-fatal):", (err as Error).message);
+    }
+  });
+  revalidatePath("/app/settings");
+  revalidatePath("/app/report");
+  revalidatePath("/app");
 }
 
 export async function markAlertsReadAction(): Promise<void> {

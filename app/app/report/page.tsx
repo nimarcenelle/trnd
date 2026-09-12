@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import AdCallCard from "@/components/app/ad-call-card";
 import AutoRefresh from "@/components/app/auto-refresh";
 import GradePill from "@/components/app/grade-pill";
 import PrintButton from "@/components/app/print-button";
@@ -163,6 +164,13 @@ export default async function ReportPage() {
         {notePending && <AutoRefresh everyMs={5000} times={12} />}
       </section>
 
+      {/* ---------- THE CALL on the #1 pick ---------- */}
+      {report.call && (
+        <div className="mt-[18px]">
+          <AdCallCard call={report.call} campaignId={report.callCampaignId ?? null} building={false} />
+        </div>
+      )}
+
       {/* ---------- RANKED OPPORTUNITIES ---------- */}
       <section className="panel mt-[18px]">
         <div className="panel__head">
@@ -222,7 +230,7 @@ export default async function ReportPage() {
         <section className="panel mt-[18px]">
           <div className="panel__head">
             <span className="panel__title">Competitor moves</span>
-            <span className="panel__meta">Read daily</span>
+            <span className="panel__meta">Direct rivals first · read daily</span>
           </div>
           <div className="grid grid-cols-[repeat(auto-fit,_minmax(280px,_1fr))] gap-4">
             {report.competitorsWatched.map((w) => (
@@ -235,6 +243,9 @@ export default async function ReportPage() {
                     </span>
                   )}
                 </div>
+                {w.directnessReason && (
+                  <p className="mx-0 mt-0 mb-2 text-[12px] leading-[1.5] text-ink-faint">{w.directnessReason}</p>
+                )}
                 {w.ads ? (
                   <p className="mx-0 mt-0 mb-2 text-[13px] text-ink">
                     {w.ads.summary.charAt(0).toUpperCase()}
@@ -250,6 +261,20 @@ export default async function ReportPage() {
                 ) : (
                   <p className="mx-0 mt-0 mb-2 text-[12.5px] text-ink-faint">
                     <span className="report-none">no ad read yet</span> — first read lands with the next daily scan
+                  </p>
+                )}
+                {w.social && (
+                  <p className="mx-0 mt-0 mb-2 text-[13px] text-ink">
+                    {w.social.summary.charAt(0).toUpperCase()}
+                    {w.social.summary.slice(1)}
+                    <span className="mono-label"> · {fmtDate(w.social.day)}</span>
+                  </p>
+                )}
+                {w.googleAds && (
+                  <p className="mx-0 mt-0 mb-2 text-[13px] text-ink">
+                    {w.googleAds.summary.charAt(0).toUpperCase()}
+                    {w.googleAds.summary.slice(1)}
+                    <span className="mono-label"> · {fmtDate(w.googleAds.day)}</span>
                   </p>
                 )}
                 {w.ads?.creatives.map((ad) => (

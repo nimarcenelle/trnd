@@ -5,7 +5,10 @@ import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { geoLabel } from "@/lib/signals/geo";
 import { titleCase } from "@/lib/text";
 
+import { bestTheme } from "@/lib/ads/history-read";
+
 import { explainOpportunity } from "./explain";
+import { loadSignalContext, rivalLinesOnTerm } from "./four-signals";
 import { buildBusinessHistory } from "./history";
 import { gradeFor } from "./grade";
 import { budgetFor, buildInsights } from "./insights";
@@ -88,6 +91,32 @@ export async function buildPickFacts(
     `Score meters (0-100): moving ${meter(c.normalizedDelta)}, fit to the menu ${meter(c.serviceMatch)}, open door (competitors not on it) ${meter(c.competitorGap)}, track record ${meter(c.historicalLift)}.${explained.unmeasured ? " No weekly read exists yet — the total is held down for that." : ""}${explained.sparse ? " Too few searches for Google to chart at this level — an idea that fits, not a measured wave." : ""}`,
   );
   lines.push(`Why it scored this way: ${opportunity.rationale}`);
+  // The four kinds of evidence, said once each: what the grade rests on.
+  // Worded as reads, not "signals": the read's voice rules ban the word.
+  const signalCtx = await loadSignalContext(repo, business, brief, categorySignals);
+  if (explained.signalReasons) {
+    const r = explained.signalReasons;
+    lines.push(`Your customer: ${r.customer}.`);
+    lines.push(`Your business: ${r.brand}.`);
+    lines.push(`Your direct rivals: ${r.competitive}.`);
+    if (explained.signals?.cultural !== null && explained.signals?.cultural !== undefined) {
+      lines.push(`Short-form culture (counts least, it shapes how the ad is made more than whether to run it): ${r.cultural}.`);
+    }
+  }
+  const targetCustomer = signalCtx.audience;
+  if (targetCustomer) {
+    lines.push(
+      `The target customer: ${targetCustomer.who}${targetCustomer.objections.length > 0 ? ` What makes them hesitate: ${targetCustomer.objections.join("; ")}.` : ""}`,
+    );
+  }
+  const rivalLines = rivalLinesOnTerm(signal.term, signalCtx);
+  if (rivalLines.length > 0) lines.push(`What the direct rivals are doing on this: ${rivalLines.join(" | ")}.`);
+  const ownBest = bestTheme(signalCtx.history);
+  if (ownBest) {
+    lines.push(
+      `Their own ad history: ${ownBest.theme.replace(/_/g, " ")} ads ran ${Math.round(Math.abs(ownBest.vsAccount - 1) * 100)}% ${ownBest.vsAccount >= 1 ? "above" : "below"} their account average across ${ownBest.ads} ads.`,
+    );
+  }
   lines.push(
     matched
       ? `Matched menu item: ${matched.name}${dollars(matched.price_cents) ? ` at ${dollars(matched.price_cents)}` : " (no price listed)"}${matched.description ? ` — ${matched.description}` : ""}.`
@@ -190,6 +219,10 @@ export async function buildPickFacts(
       // that existed. Whether the term is worth acting on does not change
       // with its neighbours.
       typeof explained.weekPct === "number" ? Math.round(explained.weekPct / 5) * 5 : "unmeasured",
+      // New rival moves or a newly named customer change what the read says.
+      rivalLines.length,
+      targetCustomer ? "customer" : "",
+      ownBest ? `${ownBest.theme}:${ownBest.ads}` : "",
       // Whether an ad has been drafted is deliberately NOT here. It used to
       // be, and it guaranteed every read was written twice: once while the
       // pick had no campaign, then invalidated the moment the auto-build

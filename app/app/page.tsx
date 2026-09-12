@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import AdCallCard from "@/components/app/ad-call-card";
 import AnalysisProgress from "@/components/app/analysis-progress";
 // Two different waits, two different tools. The empty states below have no
 // pick to ask about and the whole page changes when the ranking lands, so
@@ -31,13 +32,17 @@ import { campaignRebuildable } from "@/lib/campaigns/build";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { buildPickFacts } from "@/lib/recommend/pick-facts";
 import { buildBriefing } from "@/lib/recommend/briefing";
+import { buildAdCall } from "@/lib/recommend/ad-call";
+import { campaignSignalBrief, culturalForTerm, loadSignalContext, rivalTermRead } from "@/lib/recommend/four-signals";
+import { culturalFromSignal } from "@/lib/scoring";
+import { readAccount } from "@/lib/social/read";
 import { buildSocialProof } from "@/lib/recommend/social-proof";
 import { ensurePickRead, readIsCurrent } from "@/lib/recommend/read";
 import { tiktokHashtag } from "@/lib/recommend/howto";
 import { upcomingMoments } from "@/lib/recommend/seasonal";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { getPlanState } from "@/lib/billing";
-import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, businessJustOnboarded, generateBusinessBrief } from "@/lib/ai/brief";
+import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, businessJustOnboarded, generateBusinessBrief, targetCustomerOf } from "@/lib/ai/brief";
 import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { geoLabel } from "@/lib/signals/geo";
@@ -361,6 +366,45 @@ export default async function AppHome({
   const standing = await repo.listStandingQuestions(business.id, { activeOnly: true });
   const standingSuggestions = suggestStandingQuestions(business, services, brief, standing);
 
+  // ---- the call: run this ad, to whom, where, how, and why -----------------
+  // Built from the same four-signal evidence the ranking read, so every
+  // clause of it traces to a number the rest of this page shows.
+  const signalCtx = signal ? await loadSignalContext(repo, business, brief, termHistory) : null;
+  const signalBrief = signal && signalCtx ? campaignSignalBrief(signal, signalCtx) : null;
+  const scripts = campaign
+    ? (await repo.listCreatives(campaign.id))
+        .filter((c) => c.kind === "script")
+        .sort((a, b) => a.variant_index - b.variant_index)
+        .map((c) => c.content)
+    : [];
+  const culturalRead = signal && signalCtx ? (culturalFromSignal(signal) ?? culturalForTerm(signal, signalCtx.shortform)) : null;
+  const adCall =
+    signal && signalCtx
+      ? buildAdCall({
+          term: signal.term,
+          score: Number(top.score),
+          signals: explained?.signals,
+          signalReasons: explained?.signalReasons,
+          service: explained?.matchedService ?? null,
+          targetCustomer: targetCustomerOf(brief),
+          campaign: campaign
+            ? { angle: campaign.angle, hook: campaign.hook, offer: campaign.offer, audience: campaign.audience }
+            : null,
+          scripts,
+          culturalPlatform: culturalRead?.platform ?? null,
+          ownVideoShare: signalCtx.ownPosts.length >= 5 ? readAccount(signalCtx.ownPosts).videoShare : null,
+          medianDurationSec: signalBrief?.medianDurationSec ?? null,
+          weekPct: explained?.weekPct ?? null,
+          monthPct: explained?.monthPct ?? null,
+          geoLabel: geoLabel(signal.geo),
+          audiencePhrase: explained?.audiencePhrase ?? null,
+          rivals: rivalTermRead(signal.term, signalCtx),
+          rivalThemes: signalBrief?.rivalThemes ?? [],
+          ownBestTheme: signalBrief?.ownBestTheme ?? null,
+        })
+      : null;
+  const rivalLines = signalBrief?.rivalLines ?? [];
+
   // ---- the five things an owner sweeps before spending money ----------------
   // Fixed slots, same order every pick: why, rating, demand, social, rivals.
   const briefingRows = buildBriefing({
@@ -439,6 +483,9 @@ export default async function AppHome({
         <PickBriefing rows={briefingRows} />
 
         <main className="pick__main">
+          {/* 0 · THE CALL --------------------------------------------------- */}
+          {adCall && <AdCallCard call={adCall} campaignId={campaign?.id ?? null} building={building} />}
+
           {/* 1 · WHY ------------------------------------------------------- */}
           <section className="card pick__why">
             {read ? (
@@ -538,6 +585,18 @@ export default async function AppHome({
                 once. Shown only when it adds something. */}
             {explained?.competitorGapText && adAssessment?.countUsable && (
               <p className="pick__note">{explained.competitorGapText}</p>
+            )}
+            {/* The rivals that matter: the direct ones, and what they are
+                actually posting and paying to show on this. */}
+            {rivalLines.length > 0 && (
+              <>
+                <h3 className="pick__h mt-4">What your direct rivals are doing on it</h3>
+                <ul className="proof">
+                  {rivalLines.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </>
             )}
           </section>
 

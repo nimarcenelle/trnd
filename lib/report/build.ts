@@ -10,6 +10,13 @@ import { benchmarkFor } from "@/lib/results/benchmarks";
 import { normalizeTerm } from "@/lib/signals/normalize";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { sourceUrl } from "@/lib/signals/source-url";
+import { targetCustomerOf } from "@/lib/ai/brief";
+import { buildAdCall, type AdCall } from "@/lib/recommend/ad-call";
+import { explainOpportunity } from "@/lib/recommend/explain";
+import { campaignSignalBrief, culturalForTerm, DIRECT_MIN, loadSignalContext, rivalTermRead } from "@/lib/recommend/four-signals";
+import { culturalFromSignal } from "@/lib/scoring";
+import { geoLabel } from "@/lib/signals/geo";
+import { readAccount } from "@/lib/social/read";
 
 /**
  * The weekly intel report: every number on the page assembled here, each one
@@ -153,6 +160,14 @@ export interface WatchedCompetitor {
   reviews: { rating: number | null; count: number | null; day: string } | null;
   /** Ad count a week earlier, when we hold one — the delta the owner feels. */
   previousAdCount: number | null;
+  /** Why TRND counts them as a direct rival, in one sentence. */
+  directnessReason?: string | null;
+  /** False for a neighbour that sells something else; true or unknown otherwise. */
+  direct?: boolean;
+  /** Their posting: cadence and the move worth knowing about this week. */
+  social?: { summary: string; day: string; moves: string[] } | null;
+  /** What they are paying to show on Google. */
+  googleAds?: { summary: string; day: string } | null;
 }
 
 export interface SourceCount {
@@ -189,6 +204,10 @@ export interface IntelReport {
   history: string[];
   /** What the owner uploaded — menu, sales, brand, results — as FACTS lines. */
   documents: string[];
+  /** The week's call on the #1 pick: run this ad, to whom, where, how, why. */
+  call?: AdCall | null;
+  /** The campaign behind the call, when one is written. */
+  callCampaignId?: string | null;
 }
 
 const day = (iso: string) => iso.slice(0, 10);
@@ -364,6 +383,12 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
       .sort((a, b) => b.captured_at.localeCompare(a.captured_at));
     const latestAds = mine.find((r) => r.kind === "ads") ?? null;
     const latestReviews = mine.find((r) => r.kind === "reviews") ?? null;
+    const latestSocial = mine.find((r) => r.kind === "social") ?? null;
+    const latestGoogle = mine.find((r) => r.kind === "google_ads") ?? null;
+    const moves = ((latestSocial?.raw as { moves?: { line?: string }[] } | null)?.moves ?? [])
+      .map((m) => m.line)
+      .filter((l): l is string => typeof l === "string")
+      .slice(0, 2);
     const weekAgoAds =
       mine.find(
         (r) =>
@@ -386,8 +411,64 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
         ? { rating: latestReviews.rating, count: latestReviews.value, day: day(latestReviews.captured_at) }
         : null,
       previousAdCount: weekAgoAds?.value ?? null,
+      directnessReason: c.directness_reason ?? null,
+      direct: c.directness === null || c.directness === undefined || c.directness >= DIRECT_MIN,
+      social: latestSocial ? { summary: latestSocial.summary, day: day(latestSocial.captured_at), moves } : null,
+      googleAds: latestGoogle ? { summary: latestGoogle.summary, day: day(latestGoogle.captured_at) } : null,
     };
   });
+  // Direct rivals first: the neighbour that sells something else is context.
+  competitorsWatched.sort((a, b) => Number(b.direct !== false) - Number(a.direct !== false));
+
+  // ---- the call on the #1 pick, from the same evidence the dashboard reads
+  let call: AdCall | null = null;
+  let callCampaignId: string | null = null;
+  const lead = active[0];
+  if (lead) {
+    try {
+      const signal = await repo.getSignal(lead.signal_id);
+      if (signal) {
+        const [explained, signalCtx, campaign] = await Promise.all([
+          explainOpportunity(repo, business, lead, signal),
+          loadSignalContext(repo, business, brief, signals),
+          repo.getCampaignByOpportunity(lead.id),
+        ]);
+        const signalBrief = campaignSignalBrief(signal, signalCtx);
+        const scripts = campaign
+          ? (await repo.listCreatives(campaign.id))
+              .filter((c) => c.kind === "script")
+              .sort((a, b) => a.variant_index - b.variant_index)
+              .map((c) => c.content)
+          : [];
+        const cultural = culturalFromSignal(signal) ?? culturalForTerm(signal, signalCtx.shortform);
+        callCampaignId = campaign?.id ?? null;
+        call = buildAdCall({
+          term: signal.term,
+          score: Number(lead.score),
+          signals: explained.signals,
+          signalReasons: explained.signalReasons,
+          service: explained.matchedService,
+          targetCustomer: targetCustomerOf(brief),
+          campaign: campaign
+            ? { angle: campaign.angle, hook: campaign.hook, offer: campaign.offer, audience: campaign.audience }
+            : null,
+          scripts,
+          culturalPlatform: cultural?.platform ?? null,
+          ownVideoShare: signalCtx.ownPosts.length >= 5 ? readAccount(signalCtx.ownPosts).videoShare : null,
+          medianDurationSec: signalBrief.medianDurationSec,
+          weekPct: explained.weekPct ?? null,
+          monthPct: explained.monthPct ?? null,
+          geoLabel: geoLabel(signal.geo),
+          audiencePhrase: explained.audiencePhrase ?? null,
+          rivals: rivalTermRead(signal.term, signalCtx),
+          rivalThemes: signalBrief.rivalThemes,
+          ownBestTheme: signalBrief.ownBestTheme,
+        });
+      }
+    } catch (err) {
+      console.warn("[report] the call failed (non-fatal):", (err as Error).message);
+    }
+  }
 
   // ---- source provenance
   const bySource = new Map<SignalSource, { count: number; latest: string }>();
@@ -431,6 +512,8 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
     movers,
     seasonal: upcomingMoments(business.category),
     competitorsWatched,
+    call,
+    callCampaignId,
     voice,
     results: {
       launched,

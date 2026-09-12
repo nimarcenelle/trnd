@@ -1023,3 +1023,45 @@ textarea.input {
 }
 
 }
+
+/* ---------- the call: the one instruction the week ends in ---------- */
+.adcall { padding: 22px 24px; border-left: 3px solid var(--amber); }
+.adcall--small { border-left-color: var(--line-strong); }
+.adcall--skip { border-left-color: var(--line); }
+.adcall__verdict {
+  font-family: var(--font-disp, inherit);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.2;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+.adcall__promote { font-size: 16px; line-height: 1.5; margin: 0 0 16px; color: var(--ink); max-width: 68ch; }
+.adcall__rows { display: grid; gap: 10px; margin: 0; }
+.adcall__rows > div { display: grid; grid-template-columns: 72px 1fr; gap: 12px; }
+.adcall__rows dt {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+  padding-top: 3px;
+}
+.adcall__rows dd { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink-soft); }
+.adcall__why { margin: 0; padding-left: 18px; }
+.adcall__why li { margin-bottom: 4px; }
+.adcall__scripts { margin-top: 16px; }
+.adcall__scripts summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--amber-text, var(--ink)); }
+.adcall__scripts ol { margin: 12px 0; padding-left: 20px; display: grid; gap: 14px; }
+.adcall__scripts pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 0;
+  color: var(--ink);
+}
+@media (max-width: 640px) {
+  .adcall { padding: 18px; }
+  .adcall__rows > div { grid-template-columns: 1fr; gap: 2px; }
+}

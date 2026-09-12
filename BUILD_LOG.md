@@ -783,3 +783,43 @@ Salvador coffee beans to brew at home." Every one of those is one bug, fixed her
   hook "An espresso martini in a room where you can actually hear your friends talk";
   the brief names Gold Rush at Peachtree, the Riverside evening bar and the Mini-ccino.
   Gate green: 44 unit files (392 tests), tsc, lint on touched files.
+
+## P26 — Four signals, one call, and the DTC customer
+Two founder briefs on 2026-09-12. First: TRND is a creative decision engine built from four
+signals, each defined narrowly. Customer is the TARGET customer's signal, not every signal in
+the category. Competitive is the direct competitor, and exactly what it advertises and how that
+performs. Cultural is what the base scraper already does, weighted lowest. Brand is the products,
+the customer data, and the brand's own ad history and performance. Second: the customer is now a
+DTC brand spending $20K-$250K a month on paid social, at $500 a month, and the product answers
+"Know what ad to run next."
+
+- **Scoring** (lib/scoring.ts): customer 35%, brand 30%, competitive 25%, cultural 10%. A signal
+  with no read is left out and the rest renormalize; unknown competition still scores just under
+  neutral. Customer momentum is judged against the brief's named target customer (brief-7
+  `target_customer`: who, triggers, their vocabulary, hangouts, objections). Brand is 70% menu fit
+  and 30% proof, best evidence first: the brand's past ads on the term, then its own posts, then
+  category learnings. Competitive reads the named direct rivals on the term, and ads still running
+  after three weeks count harder. A short-form read reaches the customer signal at a quarter
+  strength, because a +200% TikTok read with no search behind it outranked a +40% search rise.
+- **Evidence** (lib/recommend/four-signals.ts, lib/intel/social-ingest.ts): Instagram, TikTok and
+  Facebook posts for the brand and its direct rivals (Apify, refreshed at most every 48 hours);
+  rivals' Meta Ad Library ads by Page with run length, and Google ads from the Ads Transparency
+  Center; the brand's ad history from uploaded Ads Manager or Google Ads exports and from a
+  connected Meta ad account (180 days, ad level, with each ad's copy).
+- **Direct rivals**: a local business keeps its five nearest places, now ranked by how directly they
+  compete (menu overlap, price band, distance) with a plain reason. An online brand gets competing
+  brands proposed by Gemini and verified by their own site and live ads; marketplaces and dead
+  domains are dropped.
+- **The call** (lib/recommend/ad-call.ts): "Run this ad. Promote X to Y on Z. Angle. Format. Why.
+  Here are 3 scripts to test." on the dashboard pick and at the top of the Monday report. Every
+  clause traces to a number on the page, and a clause with nothing behind it is left out. It
+  promotes what the written ad actually sells, not the scorer's menu match.
+- **The writer** (gemini-9): told who the ad is for in their words and doubts, what the direct
+  rivals are already saying (never echo it), what has worked for this brand, and the winning length.
+- **DTC**: businesses carry `market` (online or local), a monthly ad spend band and ad platforms.
+  Onboarding defaults to online for storefronts; online brands read demand nationally with no
+  radius, city or weather. Copy, prompts, pricing ($500/month) and the landing page follow the
+  positioning, with local wording kept for local businesses.
+- **Shipping ahead of the migration**: 0022 is idempotent, and until it is pasted the Supabase repo
+  drops columns production lacks and keeps writing. `scripts/probe-call.ts` prints the four-signal
+  read and the call for a business without writing anything.

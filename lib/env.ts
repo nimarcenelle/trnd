@@ -44,6 +44,12 @@ export const env = {
    * the keyless national Creative Center board. */
   apifyToken: process.env.APIFY_TOKEN ?? "",
   apifyTiktokActor: process.env.APIFY_TIKTOK_ACTOR ?? "",
+  /** Apify actors for the social and rival-ad reads. Each has a documented
+   * default in its adapter; these exist because actors get renamed. */
+  apifyInstagramActor: process.env.APIFY_INSTAGRAM_ACTOR ?? "",
+  apifyFacebookActor: process.env.APIFY_FACEBOOK_ACTOR ?? "",
+  apifyAdLibraryActor: process.env.APIFY_ADLIBRARY_ACTOR ?? "",
+  apifyGoogleAdsActor: process.env.APIFY_GOOGLE_ADS_ACTOR ?? "",
   /** X recent search — the written half of the conversation read. No
    * keyless path exists; read access is a paid tier. */
   xBearerToken: process.env.X_BEARER_TOKEN ?? "",

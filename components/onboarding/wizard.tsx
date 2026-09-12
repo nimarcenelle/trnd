@@ -662,18 +662,18 @@ export default function OnboardingWizard() {
           <section>
             <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">Start with your website.</h2>
             <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">
-              TRND reads your menu, offerings, prices, and location from it — one confirm screen instead of a questionnaire.
+              TRND reads your products, prices, and social accounts from it. You confirm one screen instead of filling in a questionnaire.
             </p>
             <div className="field">
               <label htmlFor="ob-web">Website</label>
-              <input id="ob-web" type="text" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourbusiness.com" autoFocus inputMode="url" autoComplete="url" />
+              <input id="ob-web" type="text" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourbrand.com" autoFocus inputMode="url" autoComplete="url" />
             </div>
             <div className="field">
               <label htmlFor="ob-name">Business name</label>
-              <input id="ob-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Corner Coffee Co." autoComplete="organization" />
+              <input id="ob-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your brand" autoComplete="organization" />
             </div>
             <p className="text-[12px] text-ink-faint mx-0 mt-[2px] mb-0 leading-[1.5]">
-              No website? Leave it blank — you can fill everything in by hand.
+              No website? Leave it blank and fill everything in by hand.
             </p>
             {(importing || importLog.length > 0) && (
               <div className="import-log" aria-live="polite">

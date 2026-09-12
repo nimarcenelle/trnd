@@ -27,6 +27,10 @@ export const env = {
   /** Meta Marketing API app — ad-account connect, results sync, launch. */
   metaAppId: process.env.META_APP_ID ?? "",
   metaAppSecret: process.env.META_APP_SECRET ?? "",
+  /** Flip to "1" only AFTER Meta App Review approves instagram_basic —
+   * requesting an unapproved scope degrades the live ad-connect consent
+   * screen, so the Reels read stays dark until the approval exists. */
+  metaInstagramScopes: process.env.META_INSTAGRAM_SCOPES === "1",
   /** Google Ads OAuth + developer token — seam; sync ships Meta-first. */
   googleAdsClientId: process.env.GOOGLE_ADS_CLIENT_ID ?? "",
   googleAdsClientSecret: process.env.GOOGLE_ADS_CLIENT_SECRET ?? "",
@@ -36,6 +40,10 @@ export const env = {
   /** Resend — weekly report email + alert digests. */
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM || "TRND <reports@usetrnd.com>",
+  /** Apify — the paid per-term TikTok read. Without it TikTok degrades to
+   * the keyless national Creative Center board. */
+  apifyToken: process.env.APIFY_TOKEN ?? "",
+  apifyTiktokActor: process.env.APIFY_TIKTOK_ACTOR ?? "",
   /** DataForSEO — the sturdy search-volume backbone for watch terms. */
   dataForSeoLogin: process.env.DATAFORSEO_LOGIN ?? "",
   dataForSeoPassword: process.env.DATAFORSEO_PASSWORD ?? "",
@@ -57,6 +65,8 @@ export const isGoogleAdsConfigured = Boolean(
   env.googleAdsClientId && env.googleAdsClientSecret && env.googleAdsDeveloperToken,
 );
 export const isPlacesConfigured = Boolean(env.placesApiKey);
+/** Per-term TikTok; the national board adapter runs regardless. */
+export const isApifyConfigured = Boolean(env.apifyToken);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isDataForSeoConfigured = Boolean(env.dataForSeoLogin && env.dataForSeoPassword);
 

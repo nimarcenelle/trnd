@@ -119,24 +119,71 @@ describe("history insight provenance", () => {
 });
 
 describe("short-form momentum insights", () => {
-  it("says the shorts read in views, uploads and the video doing the work", () => {
-    const [momentum] = buildInsights(
+  const shortform = (raw: Record<string, unknown>, delta: number | null = 62) =>
+    buildInsights(
       signal({
         source: "youtube",
         metric_type: "shortform_views",
         value: 1_240_000,
-        delta_pct: 62,
-        raw: { uploads: 14, uploadsPrev: 9, top: { id: "abc", title: "the 60-second color test", channel: "Studio A", views: 400_000 } },
+        delta_pct: delta,
+        raw,
       }),
       scored(),
       { learnings },
-    );
+    )[0];
+
+  it("says the shorts read in views, uploads and the video doing the work", () => {
+    const momentum = shortform({
+      uploads: 14,
+      uploadsPrev: 9,
+      top: { id: "abc", title: "the 60-second color test", channel: "Studio A", views: 400_000 },
+    });
     expect(momentum.kind).toBe("momentum");
-    expect(momentum.headline).toBe("↑62% views on Shorts this week");
+    // The delta is velocity, not raw views, so the headline must not claim
+    // "more views than last week" — a different and unmeasured statement.
+    expect(momentum.headline).toBe("Shorts on this are climbing ↑62%");
+    expect(momentum.headline).not.toMatch(/views/);
     expect(momentum.detail).toContain("1.2M views");
     expect(momentum.detail).toContain("14 new videos");
     expect(momentum.detail).toContain("More creators posted");
     expect(momentum.detail).toContain("the 60-second color test");
+  });
+
+  it("names the format: length, engagement, and who keeps working it", () => {
+    const momentum = shortform({
+      uploads: 14,
+      uploadsPrev: 9,
+      medianDurationSec: 18,
+      engagementPct: 6.4,
+      repeatChannels: ["Studio A", "Studio B"],
+      top: { id: "abc", title: "the 60-second color test", channel: "Studio A", views: 400_000 },
+      breakout: { id: "xyz", title: "undertone in one take", channel: "Nobody Studio", views: 40_000 },
+    });
+    expect(momentum.detail).toContain("about 18s");
+    expect(momentum.detail).toContain("6.4%");
+    expect(momentum.detail).toMatch(/Studio A has posted more than once/);
+    expect(momentum.detail).toContain("undertone in one take");
+  });
+
+  it("warns when the views are passive rather than engaged", () => {
+    const momentum = shortform({ uploads: 5, uploadsPrev: 5, engagementPct: 0.6 });
+    expect(momentum.detail).toMatch(/Engagement is thin/);
+    expect(momentum.detail).toMatch(/lead with the offer/);
+  });
+
+  it("discloses a widened read instead of passing it off as the local term", () => {
+    const momentum = shortform({ uploads: 6, uploadsPrev: 4, adjusted: true, measuredTerm: "cold plunge" });
+    expect(momentum.detail).toContain('Measured on "cold plunge"');
+  });
+
+  it("does not repeat the top video as the breakout when they are the same", () => {
+    const momentum = shortform({
+      uploads: 3,
+      uploadsPrev: 2,
+      top: { id: "abc", title: "same video", channel: "Studio A", views: 400_000 },
+      breakout: { id: "abc", title: "same video", channel: "Studio A", views: 400_000 },
+    });
+    expect(momentum.detail.match(/same video/g)).toHaveLength(1);
   });
 
   it("is honest that a tiktok board read is national, not local", () => {

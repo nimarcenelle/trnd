@@ -8,6 +8,7 @@ import { createGoogleNewsAdapter } from "./adapters/google-news";
 import { createGoogleTrendsRssAdapter } from "./adapters/google-trends-rss";
 import { createRedditAdapter } from "./adapters/reddit";
 import { createSuggestAdapter } from "./adapters/suggest";
+import { createTiktokApifyAdapter } from "./adapters/tiktok-apify";
 import { createTiktokCcAdapter } from "./adapters/tiktok-cc";
 import { createTrendsIotAdapter } from "./adapters/trends-iot";
 import { createTrendsRelatedAdapter } from "./adapters/trends-related";
@@ -84,6 +85,7 @@ export async function runSignalIngestForBusiness(
     // Short-form first: what a shop can act on this week is what people are
     // watching, and day one should show that rather than search alone.
     createYoutubeAdapter(),
+    createTiktokApifyAdapter(),
     createTiktokCcAdapter(),
     createDataForSeoAdapter(),
     createGoogleNewsAdapter(),
@@ -143,6 +145,9 @@ function defaultAdapters(): SignalAdapter[] {
   // unofficial Trends endpoints last, where a failure costs nothing.
   return [
     createYoutubeAdapter(),
+    // Per-term TikTok when it's paid for, the free national board either
+    // way — they answer different questions and both are worth storing.
+    createTiktokApifyAdapter(),
     createTiktokCcAdapter(),
     createDataForSeoAdapter(),
     createGoogleTrendsRssAdapter(),

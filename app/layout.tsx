@@ -1,10 +1,21 @@
 import type { Metadata, Viewport } from "next";
 
 // Self-hosted fonts (shipped with the app — no font CDN dependency at all).
-import "@fontsource/inter/400.css";
-import "@fontsource/inter/500.css";
-import "@fontsource/inter/600.css";
-import "@fontsource/inter/700.css";
+//
+// Three families doing three jobs, which is the point: Instrument Sans sets
+// display and body (the headline weight the concept calls for), IBM Plex
+// Mono sets the small-caps label rows — "#1 THIS WEEK · YOUR AREA",
+// "OPPORTUNITY GRADE" — that give the product its instrument-panel voice.
+// Every --font-* var used to resolve to Inter, so "mono" and "display" were
+// decorative names for the same face and nothing on screen could be keyed
+// to a role.
+import "@fontsource/instrument-sans/400.css";
+import "@fontsource/instrument-sans/500.css";
+import "@fontsource/instrument-sans/600.css";
+import "@fontsource/instrument-sans/700.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/ibm-plex-mono/600.css";
 
 import "./globals.css";
 

@@ -213,3 +213,35 @@ describe("intel note", () => {
     expect(await stranger.getIntelNote(biz.id, report.week)).toBeNull();
   });
 });
+
+describe("short-form format facts", () => {
+  it("pulls the format out of a deep short-form read", async () => {
+    const { formatRead } = await import("../lib/report/build");
+    const out = formatRead("shortform_views", {
+      medianDurationSec: 18,
+      engagementPct: 6.4,
+      repeatChannels: ["Studio A"],
+      top: { title: "the 60-second color test" },
+      breakout: { title: "undertone in one take" },
+    });
+    expect(out).toMatchObject({
+      medianDurationSec: 18,
+      engagementPct: 6.4,
+      topTitle: "the 60-second color test",
+      breakoutTitle: "undertone in one take",
+    });
+    expect(out?.actionPct).toBeNull();
+  });
+
+  it("returns nothing for non-short-form sources", async () => {
+    const { formatRead } = await import("../lib/report/build");
+    expect(formatRead("search_interest", { sparse: true })).toBeNull();
+  });
+
+  it("returns nothing for a row stored before the deep capture landed", async () => {
+    const { formatRead } = await import("../lib/report/build");
+    // The old shape carried uploads and a top video only — rendering that as
+    // a format would claim zero-second videos nobody engaged with.
+    expect(formatRead("shortform_views", { uploads: 14, uploadsPrev: 9 })).toBeNull();
+  });
+});

@@ -832,6 +832,25 @@ textarea.input {
 .actionbar__text { font-size: 14.5px; font-weight: 500; color: var(--ink); margin: 0; }
 .btn-lg { padding: 12px 22px; font-size: 14.5px; border-radius: 999px; }
 
+/* ---- news, and the way out ---- */
+.alertbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--card-stroke);
+  border-radius: 999px;
+  background: var(--bg-1);
+}
+.alertbar__dot {
+  width: 7px; height: 7px; border-radius: 999px;
+  background: var(--amber); flex-shrink: 0;
+}
+.alertbar__text { margin: 0; font-size: 13.5px; color: var(--ink); flex: 1; min-width: 0; }
+.alertbar__text a { color: inherit; }
+.passrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
 /* ---- everything that is not the sweep ---- */
 .more { margin-top: 6px; }
 .more > summary {

@@ -173,13 +173,14 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           <h3>Copy</h3>
         </div>
         <p className="lede">
-          Five headlines and three primary texts.
+          Pick the line that sounds like you, then copy it straight into Meta. Every version
+          below is ready to run — they are alternatives, not a checklist.
         </p>
-        <div className="two-col" style={{ display: "grid", gridTemplateColumns: "1.35fr 1fr", gap: 18, alignItems: "start" }}>
+        <div className="two-col">
           <div>
             <div className="panel__head mb-[10px]">
               <span className="panel__title">Headlines</span>
-              <span className="panel__meta">{headlines.length} variants</span>
+              <span className="panel__meta">the short line above the ad</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,_minmax(240px,_1fr))] gap-3 mb-5">
               {headlines.map((c) => (
@@ -188,7 +189,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
             </div>
             <div className="panel__head mb-[10px]">
               <span className="panel__title">Primary texts</span>
-              <span className="panel__meta">{primaries.length} variants</span>
+              <span className="panel__meta">the paragraph people read first</span>
             </div>
             <div className="grid grid-cols-[1fr] gap-3">
               {primaries.map((c) => (

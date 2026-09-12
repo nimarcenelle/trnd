@@ -19,8 +19,9 @@ import PickAsk from "@/components/app/pick-ask";
 import StandingQuestions from "@/components/app/standing-questions";
 import { getSessionUser } from "@/lib/auth/session";
 import BuildCampaignButton from "@/components/app/build-campaign-button";
+import { markAlertsReadAction } from "@/lib/intel/actions";
 import { suggestStandingQuestions } from "@/lib/intel/standing";
-import { scanMarketNowAction } from "@/lib/recommend/actions";
+import { passOnPickAction, scanMarketNowAction } from "@/lib/recommend/actions";
 import { getUserRepo } from "@/lib/db";
 import { getAdminRepo } from "@/lib/db/admin";
 import type { Signal } from "@/lib/db/types";
@@ -399,6 +400,27 @@ export default async function AppHome({
         <AwaitContent opportunityId={top.id} needsRead={readInFlight} needsCampaign={building} />
       )}
 
+      {/* What changed since they last looked. One line, dismissible, above
+          everything — it is the only thing on this screen that is news. */}
+      {unreadAlerts.length > 0 && (
+        <form action={markAlertsReadAction} className="alertbar">
+          <span className="alertbar__dot" aria-hidden="true" />
+          <p className="alertbar__text">
+            {unreadAlerts.length === 1 ? (
+              <Link href={unreadAlerts[0].href}>{unreadAlerts[0].title}</Link>
+            ) : (
+              <>
+                <Link href={unreadAlerts[0].href}>{unreadAlerts[0].title}</Link>
+                {` and ${unreadAlerts.length - 1} other${unreadAlerts.length === 2 ? "" : "s"}`}
+              </>
+            )}
+          </p>
+          <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="…">
+            Mark read
+          </SubmitButton>
+        </form>
+      )}
+
       <header className="pick__top">
         <div className="pick__id">
           <p className="pick__eyebrow">
@@ -570,6 +592,20 @@ export default async function AppHome({
                 hasCampaign={Boolean(campaign)}
                 rebuildable={Boolean(campaign) && campaignRebuildable(campaign!.status)}
               />
+              {picks.length > 1 && (
+                <form action={passOnPickAction} className="more__block passrow">
+                  <input type="hidden" name="opportunity_id" value={top.id} />
+                  <div>
+                    <h3 className="pick__h">Not this one</h3>
+                    <p className="pick__note mt-0">
+                      Pass on it and TRND stops offering it this week. The next pick takes its place.
+                    </p>
+                  </div>
+                  <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Passing…">
+                    Pass on this pick
+                  </SubmitButton>
+                </form>
+              )}
               {runnerUps.length > 0 && (
                 <div className="more__block">
                   <h3 className="pick__h">Also ranked this week</h3>

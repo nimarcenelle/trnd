@@ -12,6 +12,9 @@ import ThemeToggle from "@/components/theme-toggle";
 const LINKS = [
   { href: "/app", label: "This week" },
   { href: "/app/campaigns", label: "Campaigns" },
+  // The founding analysis is one of the four things the product IS, and it
+  // was reachable only by a link buried on the pick screen and in Settings.
+  { href: "/app/snapshot", label: "Snapshot" },
   { href: "/app/settings", label: "Settings" },
 ] as const;
 

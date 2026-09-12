@@ -4,11 +4,32 @@ import { useActionState, useMemo, useRef, useState } from "react";
 
 import { completeOnboardingAction, type OnboardingState } from "@/lib/onboarding/actions";
 import { CATEGORIES } from "@/lib/db/types";
-import { ACCEPT_ATTR } from "@/lib/documents/parse";
+import { ACCEPT_ATTR, mimeFor } from "@/lib/documents/parse";
 import type { ImportEvent, SiteImport } from "@/lib/import/website";
-import { mergeServices, type OnboardingDocument, type ServiceRow } from "@/lib/onboarding/menu-doc";
+import { MAX_ONBOARDING_DOCS, mergeServices, type OnboardingDocument, type ServiceRow } from "@/lib/onboarding/menu-doc";
 
 const STEPS = ["Website", "Category", "Location", "Services", "Voice"] as const;
+
+/** Rows shown before "show all" — a read menu can run to forty items. */
+const ROWS_SHOWN = 8;
+
+interface MenuFile {
+  id: string;
+  name: string;
+  source: "site" | "upload" | "paste";
+  status: "reading" | "done" | "failed";
+  doc?: OnboardingDocument;
+  error?: string;
+}
+
+function menuFileSummary(f: MenuFile): string {
+  if (f.status === "reading") return "Reading…";
+  if (f.status === "failed") return f.error ?? "Couldn't read this one";
+  const found = f.doc?.digest.services_found ?? [];
+  const priced = found.filter((s) => s.price_cents !== null).length;
+  if (found.length === 0) return "No priced items in it — kept with your business";
+  return `${found.length} item${found.length === 1 ? "" : "s"}${priced > 0 && priced < found.length ? `, ${priced} priced` : ""}${f.source === "site" ? " · found on your site" : ""}`;
+}
 
 const inputStyle: React.CSSProperties = {
   fontFamily: "var(--body)",
@@ -51,13 +72,16 @@ export default function OnboardingWizard() {
   // Plural: a restaurant's prices are routinely split across a food menu, a
   // drinks menu and a brunch menu. Carolina Coffee Shop keeps a coffee and
   // dessert PDF beside a seasonal brunch PDF; reading one and stopping
-  // leaves half the prices behind.
-  const [docs, setDocs] = useState<OnboardingDocument[]>([]);
-  const [docMode, setDocMode] = useState<"file" | "paste">("file");
-  const [docBusy, setDocBusy] = useState(false);
-  const [docNote, setDocNote] = useState<string | null>(null);
+  // leaves half the prices behind. Each file is its own row with its own
+  // outcome, so one that fails is named rather than lost in a summary.
+  const [menuFiles, setMenuFiles] = useState<MenuFile[]>([]);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
   const [pasteText, setPasteText] = useState("");
+  const [showAllRows, setShowAllRows] = useState(false);
+  const docs = menuFiles.flatMap((f) => (f.doc ? [f.doc] : []));
+  const docBusy = menuFiles.some((f) => f.status === "reading");
 
   // Website import: owner-initiated read of their own site, streamed as
   // NDJSON events so every stage shows up the moment it happens. Heuristics
@@ -96,9 +120,10 @@ export default function OnboardingWizard() {
     setFoundChips(chips);
   }
 
-  function finishImport(d: SiteImport) {
+  function finishImport(d: SiteImport, menuFilesRead = 0) {
     const found: string[] = [];
     if (d.services.length > 0) found.push(`${d.services.length} offering${d.services.length === 1 ? "" : "s"}`);
+    if (menuFilesRead > 0) found.push(`${menuFilesRead === 1 ? "a menu file" : `${menuFilesRead} menu files`}`);
     if (d.city) found.push("your location");
     if (d.category) found.push("your category");
     if (d.priceBand) found.push("your price range");
@@ -159,8 +184,16 @@ export default function OnboardingWizard() {
           } else if (event.type === "final") {
             applyImport(event.data);
             setSiteText(event.siteText);
+            const found = event.documents ?? [];
+            if (found.length > 0) {
+              // Their items are already merged into event.data.services.
+              setMenuFiles((prev) => [
+                ...prev.filter((f) => f.source !== "site"),
+                ...found.map((doc, i): MenuFile => ({ id: `site-${i}-${doc.name}`, name: doc.name, source: "site", status: "done", doc })),
+              ]);
+            }
             sawVerdict = true;
-            finishImport(event.data);
+            finishImport(event.data, found.length);
           } else {
             sawVerdict = true;
             setImportNote(event.reason);
@@ -198,64 +231,73 @@ export default function OnboardingWizard() {
     setServices((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
 
-  async function readMenu(files: File[] | null) {
-    const list = files ?? [];
-    if (list.length === 0 && pasteText.trim().length < 20) {
+  const fileSeq = useRef(0);
+
+  /** Read one menu — a file or the pasted text — into its own row. */
+  async function readOneMenu(id: string, file: File | null, text: string) {
+    const data = new FormData();
+    if (file) data.set("file", file);
+    else data.set("text", text);
+    data.set("business_name", name);
+    data.set("category", category);
+    data.set("city", city);
+    data.set("region", region);
+    let patch: Partial<MenuFile>;
+    try {
+      const res = await fetch("/api/import/document", { method: "POST", body: data });
+      const body = (await res.json().catch(() => ({}))) as Partial<OnboardingDocument> & { error?: string };
+      if (res.ok && body.digest) {
+        const doc = body as OnboardingDocument;
+        setServices((rows) => mergeServices(rows, doc.digest.services_found));
+        patch = { status: "done", doc };
+      } else {
+        patch = { status: "failed", error: body.error ?? "Couldn't read this one" };
+      }
+    } catch {
+      patch = { status: "failed", error: "Lost the connection — try it again" };
+    }
+    setMenuFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  }
+
+  function addMenuFiles(picked: File[]) {
+    setDocError(null);
+    const room = MAX_ONBOARDING_DOCS - menuFiles.filter((f) => f.status !== "failed").length;
+    if (room <= 0) {
+      setDocError(`That's ${MAX_ONBOARDING_DOCS} menus already — remove one to add another.`);
+      return;
+    }
+    const accepted = picked.filter((f) => mimeFor(f.name));
+    const skipped = picked.length - accepted.length;
+    const batch = accepted.slice(0, room).map((file) => ({ file, id: `up-${++fileSeq.current}` }));
+    const notes: string[] = [];
+    if (skipped > 0) notes.push(`${skipped} file${skipped === 1 ? " isn't" : "s aren't"} a menu format we read (PDF, photo, Word, Excel, CSV or text).`);
+    if (accepted.length > room) notes.push(`Only the first ${room} were added — ${MAX_ONBOARDING_DOCS} menus at most.`);
+    if (notes.length > 0) setDocError(notes.join(" "));
+    if (batch.length === 0) return;
+    setMenuFiles((prev) => [
+      ...prev,
+      ...batch.map(({ file, id }): MenuFile => ({ id, name: file.name, source: "upload", status: "reading" })),
+    ]);
+    // Two at a time: fast for a food + drinks pair, gentle on a folder.
+    const queue = [...batch];
+    const worker = async () => {
+      for (let job = queue.shift(); job; job = queue.shift()) await readOneMenu(job.id, job.file, "");
+    };
+    void Promise.all([worker(), worker()]);
+  }
+
+  function readPastedMenu() {
+    const text = pasteText.trim();
+    if (text.length < 20) {
       setDocError("Paste at least a few lines of your menu.");
       return;
     }
-    setDocBusy(true);
     setDocError(null);
-    setDocNote(null);
-
-    // One request per file, in order, so a menu that fails to parse does not
-    // take the others down with it and the rows merge as each lands.
-    const jobs: (File | null)[] = list.length > 0 ? list : [null];
-    const read: OnboardingDocument[] = [];
-    const failed: string[] = [];
-    let items = 0;
-    let priced = 0;
-
-    for (const file of jobs) {
-      const data = new FormData();
-      if (file) data.set("file", file);
-      else data.set("text", pasteText.trim());
-      data.set("business_name", name);
-      data.set("category", category);
-      data.set("city", city);
-      data.set("region", region);
-      try {
-        const res = await fetch("/api/import/document", { method: "POST", body: data });
-        const body = (await res.json().catch(() => ({}))) as Partial<OnboardingDocument> & { error?: string };
-        if (!res.ok || !body.digest) {
-          failed.push(file?.name ?? "your pasted text");
-          continue;
-        }
-        const doc = body as OnboardingDocument;
-        const found = doc.digest.services_found;
-        read.push(doc);
-        items += found.length;
-        priced += found.filter((f) => f.price_cents !== null).length;
-        setServices((rows) => mergeServices(rows, found));
-      } catch {
-        failed.push(file?.name ?? "your pasted text");
-      }
-    }
-
-    setDocs((prev) => [...prev, ...read]);
-    if (read.length === 0) {
-      setDocError("None of those could be read — try a PDF, Word, Excel, or paste the text.");
-    } else {
-      const names = read.map((d) => d.name).join(", ");
-      setDocNote(
-        items > 0
-          ? `Read ${names} — ${items} item${items === 1 ? "" : "s"}${priced > 0 ? `, ${priced} with prices` : ""}. They're in the list below; fix anything that's off.` +
-              (failed.length > 0 ? ` Couldn't read ${failed.join(", ")}.` : "")
-          : `Read ${names}, but no items with prices were in ${read.length === 1 ? "it" : "them"} — kept with your business, and you can add what you sell below.`,
-      );
-      setPasteText("");
-    }
-    setDocBusy(false);
+    const id = `paste-${++fileSeq.current}`;
+    setMenuFiles((prev) => [...prev, { id, name: "Pasted menu", source: "paste", status: "reading" }]);
+    setPasteText("");
+    setPasteOpen(false);
+    void readOneMenu(id, null, text);
   }
 
   // Free text — the business's identity in the customer's words. The stock
@@ -295,9 +337,10 @@ export default function OnboardingWizard() {
     </div>
   );
 
+  const hiddenRows = showAllRows ? 0 : Math.max(0, services.length - ROWS_SHOWN);
   const serviceRows = (
     <>
-      {services.map((row, i) => (
+      {(hiddenRows > 0 ? services.slice(0, ROWS_SHOWN) : services).map((row, i) => (
         <div className="grid grid-cols-[1fr_130px_40px] gap-[10px] mb-3" key={i}>
           <input aria-label={`Service ${i + 1} name`} type="text" value={row.name} onChange={(e) => setService(i, { name: e.target.value })} placeholder="e.g. Facial balancing consult" style={inputStyle} />
           <input aria-label={`Service ${i + 1} price`} type="text" value={row.price} onChange={(e) => setService(i, { price: e.target.value })} placeholder="$ price" style={inputStyle} />
@@ -306,56 +349,99 @@ export default function OnboardingWizard() {
           </button>
         </div>
       ))}
-      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setServices((r) => [...r, { name: "", price: "" }])}>
-        + Add another
-      </button>
+      <div className="flex gap-2 flex-wrap">
+        {hiddenRows > 0 && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAllRows(true)}>
+            Show all {services.length}
+          </button>
+        )}
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            setShowAllRows(true);
+            setServices((r) => [...r, { name: "", price: "" }]);
+          }}
+        >
+          + Add another
+        </button>
+      </div>
     </>
   );
 
-  // Hand over the menu: a file or pasted text, read and folded into the
-  // rows above. A nested <form> can't live inside the wizard's form, so
-  // the controls submit through readMenu directly.
+  // Hand over the menu: drop or choose files (several at once), or paste
+  // it, each read and folded into the rows above. A nested <form> can't
+  // live inside the wizard's form, and the file input carries no name, so
+  // none of this submits with it.
   const menuPanel = (
-    <div className="mt-[18px] p-[14px] rounded-(--radius-sm) border border-dashed border-line-strong bg-(--bg-1)" aria-label="Upload your menu">
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-[10px]">
-        <div>
-          <div className="text-[13.5px] font-semibold">Have a menu or price list?</div>
-          <div className="text-[12px] text-ink-faint leading-[1.5]">
-            {menuHost
-              ? `Your menu is on ${menuHost.name}, which we can't read. Upload it or paste it and the prices fill in.`
-              : "Upload it or paste it — the items and prices fill in above, and it stays with your business."}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {(["file", "paste"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              className="pill"
-              aria-pressed={docMode === m}
-              onClick={() => setDocMode(m)}
-              style={{ cursor: "pointer", background: docMode === m ? "var(--amber-soft)" : "var(--bg-2)", color: docMode === m ? "var(--amber-text)" : undefined }}
-            >
-              {m === "file" ? "Upload a file" : "Paste text"}
-            </button>
-          ))}
-        </div>
-      </div>
-      {docMode === "file" ? (
+    <div className="menu-hand" aria-label="Your menu">
+      <label
+        className="menu-drop"
+        data-dragging={dragging || undefined}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          addMenuFiles(Array.from(e.dataTransfer.files));
+        }}
+      >
         <input
           type="file"
           multiple
           accept={ACCEPT_ATTR}
           aria-label="Menu or price list files"
-          className="input py-[9px] px-3 w-full"
-          disabled={docBusy}
+          className="sr-only"
           onChange={(e) => {
-            const picked = Array.from(e.currentTarget.files ?? []);
-            if (picked.length > 0) void readMenu(picked);
+            addMenuFiles(Array.from(e.currentTarget.files ?? []));
+            // So choosing the same file again after removing it still fires.
+            e.currentTarget.value = "";
           }}
         />
-      ) : (
-        <div className="flex flex-col gap-2">
+        <span className="menu-drop__icon" aria-hidden="true">
+          ↑
+        </span>
+        <span className="menu-drop__title">
+          {docs.length > 0 ? "Add another menu" : dragging ? "Drop it here" : "Drop your menu here, or choose files"}
+        </span>
+        <span className="menu-drop__hint">
+          {menuHost && docs.length === 0
+            ? `Your menu is on ${menuHost.name}, which we can't read — a PDF, a photo of the printed menu, or a screenshot all work.`
+            : "PDF, a photo of the printed menu, Word or Excel — food, drinks and specials can be separate files."}
+        </span>
+      </label>
+
+      {menuFiles.length > 0 && (
+        <ul className="menu-files" aria-live="polite">
+          {menuFiles.map((f) => (
+            <li key={f.id} className="menu-file" data-status={f.status}>
+              <span className="menu-file__mark" aria-hidden="true">
+                {f.status === "done" ? "✓" : f.status === "failed" ? "!" : ""}
+              </span>
+              <span className="menu-file__body">
+                <span className="menu-file__name">{f.name}</span>
+                <span className="menu-file__meta">{menuFileSummary(f)}</span>
+              </span>
+              {f.status !== "reading" && (
+                <button
+                  type="button"
+                  className="menu-file__remove"
+                  aria-label={`Don't keep ${f.name}`}
+                  onClick={() => setMenuFiles((prev) => prev.filter((x) => x.id !== f.id))}
+                >
+                  ×
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {pasteOpen ? (
+        <div className="flex flex-col gap-2 mt-3">
           <textarea
             aria-label="Pasted menu"
             rows={5}
@@ -363,20 +449,26 @@ export default function OnboardingWizard() {
             onChange={(e) => setPasteText(e.target.value)}
             placeholder={"Cappuccino 4.75\nBrown Sugar Oat Latte 6\nBaked goods 3–5 …"}
             className="input"
-            disabled={docBusy}
+            autoFocus
           />
-          <div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void readMenu(null)} disabled={docBusy || pasteText.trim().length < 20} aria-busy={docBusy}>
-              {docBusy ? "Reading…" : "Read it"}
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={readPastedMenu} disabled={pasteText.trim().length < 20}>
+              Read it
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPasteOpen(false)}>
+              Cancel
             </button>
           </div>
         </div>
+      ) : (
+        <button type="button" className="menu-hand__paste" onClick={() => setPasteOpen(true)}>
+          No file? Paste the menu as text
+        </button>
       )}
-      <div className="mt-2 min-h-[16px]" aria-live="polite">
-        {docBusy && docMode === "file" && <span className="mono-label">Reading your menu…</span>}
-        {docNote && <span className="mono-label text-(--mint-text)">{docNote}</span>}
-        {docError && <span className="font-mono text-[11px] text-red">{docError}</span>}
-      </div>
+      {docError && <p className="font-mono text-[11px] text-red mt-2 mb-0">{docError}</p>}
+      {docs.some((d) => d.digest.services_found.length > 0) && !docBusy && (
+        <p className="mono-label text-(--mint-text) mt-2 mb-0">Their items are in the list above — fix anything that&apos;s off.</p>
+      )}
     </div>
   );
 

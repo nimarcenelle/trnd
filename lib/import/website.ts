@@ -1,4 +1,5 @@
 import { CATEGORIES } from "@/lib/db/types";
+import type { OnboardingDocument } from "@/lib/onboarding/menu-doc";
 import { verticalKey } from "@/lib/signals/vertical";
 
 import type { Renderer } from "./render";
@@ -117,6 +118,8 @@ const LINK_PRIORITY = [
   /book|schedule|catering|event/i,
 ];
 const MAX_SUBPAGES = 4;
+/** Pages read one level below a menu hub. */
+const MAX_MENU_SUBPAGES = 3;
 
 // Ordering platforms that hold a business's real menu and prices off-site.
 // Most sit behind bot challenges, so the crawl can't read them from
@@ -243,6 +246,138 @@ export function discoverMenuPdfs(html: string, baseUrl: string): string[] {
 const MAX_MENU_PDFS = 3;
 
 /**
+ * A menu posted as a picture — common on Wix and hand-built sites. Only an
+ * image whose own filename or alt text says "menu": photos of the food are
+ * everywhere and aren't worth a model read.
+ */
+export function discoverMenuImages(html: string, baseUrl: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const m of html.matchAll(/<img\b[^>]*>/gi)) {
+    const tag = m[0];
+    // Lazy loaders park the real image in data-src behind a placeholder src.
+    const src = /\bdata-src=["']([^"']+)["']/i.exec(tag)?.[1] ?? /\ssrc=["']([^"']+)["']/i.exec(tag)?.[1];
+    if (!src) continue;
+    let u: URL;
+    try {
+      u = new URL(decodeEntities(src.trim()), baseUrl);
+    } catch {
+      continue;
+    }
+    if (!/^https?:$/.test(u.protocol) || !/\.(jpe?g|png|webp)$/i.test(u.pathname)) continue;
+    const alt = /\balt=["']([^"']*)["']/i.exec(tag)?.[1] ?? "";
+    const file = decodeURIComponent(u.pathname.split("/").pop() ?? "");
+    if (!/\bmenu/i.test(`${file.replace(/[-_+]/g, " ")} ${alt}`)) continue;
+    const key = u.origin + u.pathname;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(u.href);
+    if (out.length >= 2) break;
+  }
+  return out;
+}
+
+/** The priced menu files a crawl turned up — PDFs first, then menu images. */
+export function discoverMenuFiles(pages: SitePage[]): string[] {
+  const seen = new Set<string>();
+  const pdfs: string[] = [];
+  const images: string[] = [];
+  const add = (list: string[], url: string) => {
+    const u = new URL(url);
+    const key = u.origin + u.pathname;
+    if (seen.has(key)) return;
+    seen.add(key);
+    list.push(url);
+  };
+  for (const p of pages) {
+    for (const url of discoverMenuPdfs(p.html, p.url)) add(pdfs, url);
+    for (const url of discoverMenuImages(p.html, p.url)) add(images, url);
+  }
+  return [...pdfs, ...images].slice(0, MAX_MENU_PDFS);
+}
+
+/** Words that make a same-site link one level below a menu page a menu. */
+const MENU_CHILD_WORDS =
+  /menu|food|drink|dessert|brunch|lunch|dinner|breakfast|happy-?hour|wine|beer|cocktail|bar|kids|catering|specials/i;
+
+/**
+ * The menus a menu page links to. A hub page ("/menu") routinely holds
+ * nothing but buttons — Breakfast, Lunch, Drinks — each to its own page with
+ * the prices, and a crawl that stops at the hub reads none of them.
+ */
+export function discoverMenuSubpages(html: string, baseUrl: string): string[] {
+  const base = new URL(baseUrl);
+  const out: string[] = [];
+  const seen = new Set<string>([(base.origin + base.pathname).replace(/\/+$/, "")]);
+  for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,400}?)<\/a>/gi)) {
+    const href = decodeEntities(m[1].trim());
+    if (/^(mailto:|tel:|javascript:)/i.test(href)) continue;
+    let u: URL;
+    try {
+      u = new URL(href, base);
+    } catch {
+      continue;
+    }
+    if (!sameSite(u.hostname, base.hostname) || !/^https?:$/.test(u.protocol)) continue;
+    if (/\.(pdf|jpe?g|png|gif|svg|webp|mp4|zip|docx?)$/i.test(u.pathname)) continue;
+    const key = (u.origin + u.pathname).replace(/\/+$/, "");
+    if (seen.has(key) || key === base.origin) continue;
+    const anchor = m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (!MENU_CHILD_WORDS.test(`${u.pathname} ${anchor}`)) continue;
+    seen.add(key);
+    u.hash = "";
+    out.push(u.href);
+  }
+  return out;
+}
+
+/** A page is a menu hub when its own path says so. */
+const isMenuPath = (url: string) => /menu/i.test(new URL(url).pathname);
+
+const MENU_FILE_BYTES = 8 * 1024 * 1024;
+const MENU_FILE_TIMEOUT_MS = 15_000;
+
+/**
+ * One read of a menu file the crawl found. Returns the bytes and a mime the
+ * document reader accepts, or null when the link is dead, too large, or not
+ * the file it claimed to be (a login wall answering for a PDF).
+ */
+export async function fetchMenuFile(url: string): Promise<{ name: string; mime: string; bytes: Uint8Array } | null> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), MENU_FILE_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: controller.signal, headers: { "user-agent": UA }, redirect: "follow" });
+    if (!res.ok) return null;
+    const type = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+    const mime =
+      type === "application/pdf" || /^image\/(jpeg|png|webp)$/.test(type)
+        ? type
+        : /\.pdf$/i.test(new URL(res.url || url).pathname) && type === "application/octet-stream"
+          ? "application/pdf"
+          : null;
+    if (!mime) return null;
+    if (Number(res.headers.get("content-length") ?? 0) > MENU_FILE_BYTES) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength === 0 || bytes.byteLength > MENU_FILE_BYTES) return null;
+    return { name: menuFileName(url), mime, bytes };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/** "/s/fall-2026-brunch-menu_-CCS.pdf" → "fall-2026-brunch-menu_-CCS.pdf". */
+export function menuFileName(url: string): string {
+  const last = new URL(url).pathname.split("/").filter(Boolean).pop() ?? "menu";
+  try {
+    return decodeURIComponent(last).replace(/\+/g, " ").slice(0, 120);
+  } catch {
+    return last.slice(0, 120);
+  }
+}
+
+/**
  * Internal links that look like menu/services/pricing/about pages, best
  * first. Same site only; anchors, files, mailto/tel are skipped.
  */
@@ -283,7 +418,14 @@ export function discoverInternalLinks(html: string, baseUrl: string): string[] {
 export type ImportEvent =
   | { type: "status"; label: string }
   | { type: "partial"; data: SiteImport }
-  | { type: "final"; data: SiteImport; siteText: string }
+  | {
+      type: "final";
+      data: SiteImport;
+      siteText: string;
+      /** Menu files found on the site and read — kept as the business's
+       * first documents, same as ones the owner uploads. */
+      documents?: OnboardingDocument[];
+    }
   | { type: "error"; reason: string };
 
 /** Progress events the crawl emits, so a caller can stream live status. */
@@ -378,22 +520,44 @@ export async function fetchSiteCorpus(
       linkSeen.add(key);
       links.push(l);
     }
+    const loadSubpages = async (urls: string[]) => {
+      const settled = await Promise.allSettled(urls.map((l) => fetchOnce(l)));
+      for (let i = 0; i < settled.length; i++) {
+        const r = settled[i];
+        let html = r.status === "fulfilled" ? r.value : null;
+        if (!html || stripHtml(html).text.length < MIN_PAGE_TEXT) {
+          html = (await renderPage(urls[i])) ?? html;
+        }
+        if (html && !looksBlocked(html)) {
+          pages.push({ url: urls[i], html });
+          onProgress?.({ kind: "page", path: pathOf(urls[i]) });
+        }
+      }
+    };
     if (links.length > 0) onProgress?.({ kind: "links", paths: links.map(pathOf) });
-    const settled = await Promise.allSettled(links.map((l) => fetchOnce(l)));
-    for (let i = 0; i < settled.length; i++) {
-      const r = settled[i];
-      let html = r.status === "fulfilled" ? r.value : null;
-      if (!html || stripHtml(html).text.length < MIN_PAGE_TEXT) {
-        html = (await renderPage(links[i])) ?? html;
-      }
-      if (html && !looksBlocked(html)) {
-        pages.push({ url: links[i], html });
-        onProgress?.({ kind: "page", path: pathOf(links[i]) });
-      }
+    await loadSubpages(links);
+
+    // One level further, below menu pages only: the breakfast, lunch and
+    // drinks pages a menu hub links to are where those prices live.
+    const menuLinks: string[] = [];
+    for (const l of pages.filter((p) => isMenuPath(p.url)).flatMap((p) => discoverMenuSubpages(p.html, p.url))) {
+      if (menuLinks.length >= MAX_MENU_SUBPAGES) break;
+      const key = pathKey(l);
+      if (linkSeen.has(key)) continue;
+      linkSeen.add(key);
+      menuLinks.push(l);
+    }
+    if (menuLinks.length > 0) {
+      onProgress?.({ kind: "links", paths: menuLinks.map(pathOf) });
+      await loadSubpages(menuLinks);
     }
 
+    // Menu pages go first into the capped text, so the priced pages are the
+    // last thing the cap cuts rather than the first.
+    const rank = (p: SitePage, i: number) => (i === 0 ? 0 : MENU_CHILD_WORDS.test(new URL(p.url).pathname) ? 1 : 2);
+    const ordered = pages.map((p, i) => ({ p, r: rank(p, i) })).sort((a, b) => a.r - b.r).map((x) => x.p);
     let text = "";
-    for (const p of pages) {
+    for (const p of ordered) {
       if (text.length >= MAX_CORPUS_CHARS) break;
       const path = new URL(p.url).pathname || "/";
       const stripped = stripHtml(p.html).text;

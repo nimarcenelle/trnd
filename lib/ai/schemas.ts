@@ -166,13 +166,19 @@ export const SiteExtractSchema = z.object({
 });
 export type SiteExtract = z.infer<typeof SiteExtractSchema>;
 
+/** Most items a document read keeps — a full diner menu runs past sixty. */
+export const MAX_DOCUMENT_SERVICES = 80;
+
+// Lists are trimmed, not rejected: a brunch menu with 45 items is a good
+// read, and failing the whole digest over it left the owner with nothing
+// (Carolina Coffee Shop's fall brunch PDF, every attempt).
 export const DocumentDigestSchema = z.object({
   kind: z.enum(["menu", "sales", "reviews", "brand", "results", "other"]),
   summary: z.string().min(20),
-  facts: z.array(z.string().min(8)).max(12),
+  facts: z.array(z.string()).transform((a) => a.filter((s) => s.trim().length >= 8).slice(0, 12)),
   services_found: z
-    .array(z.object({ name: z.string().min(2), price_cents: z.number().int().nullable() }))
-    .max(40),
-  watchouts: z.array(z.string().min(8)).max(4),
+    .array(z.object({ name: z.string(), price_cents: z.number().int().nullable() }))
+    .transform((a) => a.filter((s) => s.name.trim().length >= 2).slice(0, MAX_DOCUMENT_SERVICES)),
+  watchouts: z.array(z.string()).transform((a) => a.filter((s) => s.trim().length >= 8).slice(0, 4)),
 });
 export type DocumentDigestResult = z.infer<typeof DocumentDigestSchema>;

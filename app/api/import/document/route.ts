@@ -1,8 +1,7 @@
 import { getSessionUser } from "@/lib/auth/session";
-import type { Business } from "@/lib/db/types";
 import { digestUpload } from "@/lib/documents/digest";
 import { MAX_BYTES, mimeFor } from "@/lib/documents/parse";
-import { MAX_ONBOARDING_DOC_TEXT, type OnboardingDocument } from "@/lib/onboarding/menu-doc";
+import { MAX_ONBOARDING_DOC_TEXT, onboardingBusiness, type OnboardingDocument } from "@/lib/onboarding/menu-doc";
 
 export const maxDuration = 120;
 
@@ -36,7 +35,7 @@ export async function POST(req: Request): Promise<Response> {
   if (file instanceof File && file.size > 0) {
     name = file.name.slice(0, 120);
     const m = mimeFor(name);
-    if (!m) return Response.json({ error: "PDF, Word, Excel, CSV, TXT, MD or JSON." }, { status: 415 });
+    if (!m) return Response.json({ error: "PDF, a photo, Word, Excel, CSV, TXT, MD or JSON." }, { status: 415 });
     if (file.size > MAX_BYTES) return Response.json({ error: "Files up to 8 MB." }, { status: 413 });
     mime = m;
     bytes = new Uint8Array(await file.arrayBuffer());
@@ -48,25 +47,12 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: "Choose a file, or paste at least a few lines." }, { status: 400 });
   }
 
-  // The model's digest is written against the business — here that's what
-  // the wizard knows so far, which is enough context to read a menu.
-  const business: Business = {
-    id: "onboarding",
-    owner_id: user.id,
-    name: String(form.get("business_name") ?? "").trim().slice(0, 120) || "This business",
-    category: String(form.get("category") ?? "").trim().slice(0, 60) || "local business",
-    city: String(form.get("city") ?? "").trim().slice(0, 80) || "its city",
-    region: String(form.get("region") ?? "").trim().slice(0, 40) || null,
-    country: "US",
-    lat: null,
-    lng: null,
-    radius_miles: 20,
-    website: null,
-    price_band: null,
-    brand_voice_notes: null,
-    photo_urls: [],
-    created_at: new Date().toISOString(),
-  };
+  const business = onboardingBusiness(user.id, {
+    name: String(form.get("business_name") ?? ""),
+    category: String(form.get("category") ?? ""),
+    city: String(form.get("city") ?? ""),
+    region: String(form.get("region") ?? ""),
+  });
 
   try {
     const { text, digest, model_used } = await digestUpload(business, { name, mime, bytes });
@@ -74,6 +60,6 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json(doc);
   } catch (err) {
     console.warn("[import/document] read failed:", (err as Error).message);
-    return Response.json({ error: "Couldn't read that file — try a PDF, Word, Excel, or pasted text." }, { status: 422 });
+    return Response.json({ error: "Couldn't read that file — try a PDF, a photo of the menu, or pasted text." }, { status: 422 });
   }
 }

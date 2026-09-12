@@ -12,6 +12,12 @@ export const ACCEPTED: Record<string, string> = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   xls: "application/vnd.ms-excel",
+  // A photo of the paper menu is how a lot of owners actually have it.
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
 };
 export const ACCEPT_ATTR = Object.keys(ACCEPTED).map((e) => `.${e}`).join(",");
 export const MAX_BYTES = 8 * 1024 * 1024;
@@ -25,6 +31,9 @@ export function mimeFor(name: string): string | null {
 }
 
 export const isPdf = (mime: string) => mime === "application/pdf";
+export const isImage = (mime: string) => mime.startsWith("image/");
+/** Files only the model can read — the bytes go to it, not a text parser. */
+export const isModelRead = (mime: string) => isPdf(mime) || isImage(mime);
 export const isWord = (mime: string) => mime === ACCEPTED.docx;
 export const isSpreadsheet = (mime: string) => mime === ACCEPTED.xlsx || mime === ACCEPTED.xls;
 /** Read as a table: CSV, TSV, and every spreadsheet sheet. */
@@ -32,11 +41,11 @@ export const isTabular = (mime: string) => /csv|tab-separated/.test(mime) || isS
 
 /**
  * Text-like uploads decode straight to text; Word and Excel are unpacked
- * here (a spreadsheet becomes CSV, one block per sheet); PDFs need the
- * model and return null.
+ * here (a spreadsheet becomes CSV, one block per sheet); PDFs and photos
+ * need the model and return null.
  */
 export async function extractText(mime: string, bytes: Uint8Array): Promise<string | null> {
-  if (isPdf(mime)) return null;
+  if (isModelRead(mime)) return null;
   if (isWord(mime)) {
     const mammoth = await import("mammoth");
     const { value } = await mammoth.extractRawText({ buffer: Buffer.from(bytes) });
@@ -161,8 +170,8 @@ export function fallbackDigest(name: string, mime: string, text: string | null):
   if (text === null || text.trim() === "") {
     return {
       kind: "other",
-      summary: isPdf(mime)
-        ? "A PDF. It's kept, and will be read as soon as document reading is available for your workspace."
+      summary: isModelRead(mime)
+        ? `${isPdf(mime) ? "A PDF" : "A photo"}. It's kept, and will be read as soon as document reading is available for your workspace.`
         : "Nothing readable was found in this file.",
       facts: [],
       services_found: [],

@@ -1,4 +1,4 @@
-import type { DocumentDigest } from "@/lib/db/types";
+import type { Business, DocumentDigest } from "@/lib/db/types";
 
 /**
  * A menu or price list read during onboarding, before the business exists.
@@ -21,6 +21,33 @@ export const MAX_ONBOARDING_DOC_TEXT = 40_000;
  * seasonal, which is the real shape; past that it is someone uploading a
  * folder. */
 export const MAX_ONBOARDING_DOCS = 5;
+
+/**
+ * The business a menu is read against before the row exists — what the
+ * wizard knows so far, which is enough context to read a menu.
+ */
+export function onboardingBusiness(
+  ownerId: string,
+  known: { name?: string; category?: string; city?: string; region?: string },
+): Business {
+  return {
+    id: "onboarding",
+    owner_id: ownerId,
+    name: known.name?.trim().slice(0, 120) || "This business",
+    category: known.category?.trim().slice(0, 60) || "local business",
+    city: known.city?.trim().slice(0, 80) || "its city",
+    region: known.region?.trim().slice(0, 40) || null,
+    country: "US",
+    lat: null,
+    lng: null,
+    radius_miles: 20,
+    website: null,
+    price_band: null,
+    brand_voice_notes: null,
+    photo_urls: [],
+    created_at: new Date().toISOString(),
+  };
+}
 
 export interface ServiceRow {
   name: string;
@@ -71,6 +98,7 @@ export function mergeServices(rows: ServiceRow[], found: DocumentDigest["service
     }
   }
   const merged = [...out, ...additions].filter((r) => r.name.trim() || r.price.trim());
-  if (merged.length > 40) merged.length = 40;
+  // The review screen folds long lists away, so a full menu fits.
+  if (merged.length > 80) merged.length = 80;
   return merged.length > 0 ? merged : [{ name: "", price: "" }];
 }

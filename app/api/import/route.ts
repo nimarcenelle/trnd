@@ -1,14 +1,27 @@
 import { getSessionUser } from "@/lib/auth/session";
+import { digestUpload } from "@/lib/documents/digest";
 import { isGeminiConfigured } from "@/lib/env";
 import {
+  discoverMenuFiles,
   extractFromPages,
+  fetchMenuFile,
   fetchSiteCorpus,
   inferPriceBand,
+  menuFileName,
   normalizeUrl,
   probeStorefrontProducts,
   readOffsiteMenu,
   type ImportEvent,
 } from "@/lib/import/website";
+import {
+  MAX_ONBOARDING_DOC_TEXT,
+  mergeServices,
+  onboardingBusiness,
+  type OnboardingDocument,
+} from "@/lib/onboarding/menu-doc";
+
+// A crawl plus a model read of each menu file it turns up.
+export const maxDuration = 120;
 
 /** Site text round-trips through a hidden form field into brief generation. */
 const MAX_SITE_TEXT = 12_000;
@@ -105,6 +118,39 @@ export async function POST(req: Request): Promise<Response> {
           send({ type: "partial", data });
         }
 
+        // Menus kept in a PDF or an image on the site — the priced menu a
+        // lot of restaurants have and nothing else. Read alongside the
+        // refinement below, since they're the slowest thing here.
+        const menuFiles = isGeminiConfigured ? discoverMenuFiles(corpus.pages) : [];
+        if (menuFiles.length > 0) {
+          send({
+            type: "status",
+            label:
+              menuFiles.length === 1
+                ? `Found a menu file (${menuFileName(menuFiles[0])}) — reading it…`
+                : `Found ${menuFiles.length} menu files — reading them…`,
+          });
+        }
+        const known = { name: data.name, category: data.category, city: data.city, region: data.region };
+        const menuDocsRead = Promise.all(
+          menuFiles.map(async (fileUrl): Promise<OnboardingDocument | null> => {
+            const file = await fetchMenuFile(fileUrl);
+            if (!file) return null;
+            try {
+              const { text, digest, model_used } = await digestUpload(onboardingBusiness(user.id, known), file);
+              if (digest.services_found.length === 0 && digest.facts.length === 0) return null;
+              send({
+                type: "status",
+                label: `Read ${file.name} — ${digest.services_found.length} item${digest.services_found.length === 1 ? "" : "s"}`,
+              });
+              return { name: file.name, mime: file.mime, text: text.slice(0, MAX_ONBOARDING_DOC_TEXT), digest, model_used };
+            } catch (err) {
+              console.warn("[import] menu file read failed:", fileUrl, (err as Error).message);
+              return null;
+            }
+          }),
+        ).then((docs) => docs.filter((d): d is OnboardingDocument => d !== null));
+
         if (isGeminiConfigured) {
           send({ type: "status", label: "Making sense of what we found…" });
           try {
@@ -129,12 +175,31 @@ export async function POST(req: Request): Promise<Response> {
           }
         }
 
+        // The menu files are the owner's own priced list: they price what the
+        // site named and add what it didn't. After the refinement, so it
+        // can't replace them.
+        const documents = await menuDocsRead;
+        if (documents.length > 0) {
+          const rows = mergeServices(
+            data.services.map((s) => ({ name: s.name, price: s.price })),
+            documents.flatMap((d) => d.digest.services_found),
+          ).filter((r) => r.name.trim());
+          data.services = rows;
+          data.priceBand = data.priceBand ?? inferPriceBand(rows, data.category);
+          if (rows.some((r) => r.price)) delete data.menuHost;
+        }
+
         const foundAnything =
           Boolean(data.name || data.category || data.city) || data.services.length > 0;
         if (!foundAnything) {
           send({ type: "error", reason: "Reached the site but couldn't read offerings — fill in manually." });
         } else {
-          send({ type: "final", data, siteText: corpus.text.slice(0, MAX_SITE_TEXT) });
+          send({
+            type: "final",
+            data,
+            siteText: corpus.text.slice(0, MAX_SITE_TEXT),
+            documents: documents.length > 0 ? documents : undefined,
+          });
         }
       } catch (err) {
         send({

@@ -490,6 +490,151 @@ a.card:hover {
   }
 }
 
+/* ---------- Onboarding menu hand-over ----------
+   A drop target for menu files, then one row per file with its own
+   outcome — reading, what it held, or why it couldn't be read. */
+.menu-hand {
+  margin-top: 18px;
+}
+.menu-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 20px 16px;
+  text-align: center;
+  cursor: pointer;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.menu-drop:hover,
+.menu-drop:focus-within,
+.menu-drop[data-dragging] {
+  border-color: var(--amber);
+  background: var(--amber-soft);
+}
+.menu-drop:focus-within {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.menu-drop__icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--amber-text);
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+.menu-drop__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.menu-drop__hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  max-width: 420px;
+}
+.menu-files {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.menu-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+}
+.menu-file__mark {
+  flex: 0 0 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--bg-1);
+  color: var(--mint-text);
+}
+.menu-file[data-status="failed"] .menu-file__mark {
+  color: var(--red);
+}
+.menu-file[data-status="reading"] .menu-file__mark::before {
+  content: "●";
+  color: var(--amber);
+  animation: importPulse 1s ease-in-out infinite;
+}
+.menu-file__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.menu-file__name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-file__meta {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}
+.menu-file[data-status="failed"] .menu-file__meta {
+  color: var(--red);
+}
+.menu-file__remove {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.menu-file__remove:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.menu-hand__paste {
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.menu-hand__paste:hover {
+  color: var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-file[data-status="reading"] .menu-file__mark::before {
+    animation: none;
+  }
+}
+
 /* ------------------------------ legal pages ------------------------------ */
 .legal-body h2 {
   font-family: var(--disp);

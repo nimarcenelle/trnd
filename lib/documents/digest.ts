@@ -1,7 +1,7 @@
 import type { Business, DocumentDigest } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
 
-import { extractText, fallbackDigest, isPdf } from "./parse";
+import { extractText, fallbackDigest, isModelRead } from "./parse";
 
 export const DIGEST_FALLBACK_MODEL = "trnd-template/v1";
 
@@ -23,9 +23,9 @@ export async function digestUpload(
         name: doc.name,
         mime: doc.mime,
         text,
-        bytes: isPdf(doc.mime) ? doc.bytes : null,
+        bytes: isModelRead(doc.mime) ? doc.bytes : null,
       });
-      // A PDF's stored text is the model's own account of it — the facts
+      // A PDF or photo's stored text is the model's own account of it — the facts
       // and summary — since nothing else could read the bytes.
       return {
         text: text ?? [value.summary, ...value.facts].join("\n"),

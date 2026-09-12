@@ -44,7 +44,7 @@ export async function POST(req: Request): Promise<Response> {
   if (file instanceof File && file.size > 0) {
     name = file.name.slice(0, 120);
     const m = mimeFor(name);
-    if (!m) return Response.json({ error: "PDF, Word, Excel, CSV, TXT, MD or JSON." }, { status: 415 });
+    if (!m) return Response.json({ error: "PDF, a photo, Word, Excel, CSV, TXT, MD or JSON." }, { status: 415 });
     if (file.size > MAX_BYTES) return Response.json({ error: "Files up to 8 MB." }, { status: 413 });
     mime = m;
     bytes = new Uint8Array(await file.arrayBuffer());

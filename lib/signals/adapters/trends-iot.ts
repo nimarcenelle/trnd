@@ -90,12 +90,18 @@ function sleep(ms: number): Promise<void> {
  * qualifier isn't a known token ("sports massage flatiron"), drop the
  * trailing word — locality qualifiers trail in search phrasing.
  */
-export function coreTerm(term: string, locality: string[] = []): string {
+export function coreTerm(term: string, locality: string[] = [], opts: { strict?: boolean } = {}): string {
   const strip = new Set(["near", "me", "local", "nyc", ...locality.map((l) => l.toLowerCase())]);
   const parts = term.toLowerCase().trim().split(/\s+/);
   const kept = parts.filter((p) => !strip.has(p));
   if (kept.length > 0 && kept.length < parts.length) return kept.join(" ");
-  if (parts.length >= 3) return parts.slice(0, -1).join(" ");
+  // Dropping the trailing word assumes the qualifier trails — true for
+  // "sports massage flatiron", false for "post game drinks", where the last
+  // word is the head noun and losing it changes the subject entirely. On a
+  // search index a bad widen measures a broader term; on a live feed it
+  // measures a different topic ("post game" returned sports chatter and an
+  // NSFW top post for a café). `strict` callers take no read over a wrong one.
+  if (parts.length >= 3 && !opts.strict) return parts.slice(0, -1).join(" ");
   return term.toLowerCase().trim();
 }
 

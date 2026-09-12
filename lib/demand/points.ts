@@ -61,9 +61,12 @@ export const INTENT_WEIGHT: Partial<Record<SignalSource, number>> = {
   snapshot: 1,
   youtube: 0.02,
   tiktok: 0.02,
-  // A Reel impression is a view like any other; the hashtag reach that
-  // Instagram reports is closer to a view than to a post.
-  instagram: 0.02,
+  // A like or comment on a Reel is a deliberate act, not an impression:
+  // somebody stopped and touched it. That sits between being shown a video
+  // (0.02) and writing a post (0.6). Instagram reports no impression count
+  // to us at all — only reactions on a sample — so this weight is applied
+  // to reactions, never to a Reel count, which saturates at the page size.
+  instagram: 0.15,
   // A post on X is written, not watched — closer to a Reddit thread than to
   // a video impression. Rarer and more deliberate, so it counts for more.
   x: 0.6,
@@ -106,7 +109,7 @@ export function weeklyReach({ source, metricType, value }: ReachInput): number |
     case "conversation":
     case "posts":
       return value * weight;
-    case "reel_volume":
+    case "reel_reactions":
       return value * weight;
     case "coverage":
       return value * weight;

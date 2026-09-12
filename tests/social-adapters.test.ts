@@ -104,3 +104,21 @@ describe("Instagram Reels read", () => {
     expect(read.daily).toEqual([]);
   });
 });
+
+describe("widening must not change the subject", () => {
+  it("strips locality tokens in both modes", async () => {
+    const { coreTerm } = await import("../lib/signals/adapters/trends-iot");
+    expect(coreTerm("espresso bar near me", [])).toBe("espresso bar");
+    expect(coreTerm("espresso bar near me", [], { strict: true })).toBe("espresso bar");
+  });
+
+  it("refuses to guess at the trailing word when strict", async () => {
+    const { coreTerm } = await import("../lib/signals/adapters/trends-iot");
+    // "post game drinks" -> "post game" measured sports chatter for a café,
+    // with an NSFW top post. On a live feed a bad widen is a different
+    // subject, not a broader one.
+    expect(coreTerm("post game drinks", ["chapel", "hill", "nc"], { strict: true })).toBe("post game drinks");
+    // The search read still widens: a broader search term is survivable.
+    expect(coreTerm("post game drinks", ["chapel", "hill", "nc"])).toBe("post game");
+  });
+});

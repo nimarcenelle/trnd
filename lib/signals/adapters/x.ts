@@ -171,7 +171,10 @@ export function createXAdapter(
           // The same widen-and-disclose ladder the other adapters use: a
           // hyper-local phrase is not discussed on X by name.
           if ((read?.posts ?? 0) < THIN_POSTS && (target.locality?.length ?? 0) > 0) {
-            const widened = coreTerm(target.term, target.locality);
+            // Strict: X measures a live conversation, so a widen that
+            // guesses at the trailing word reads a different subject
+            // confidently rather than reading this one thinly.
+            const widened = coreTerm(target.term, target.locality, { strict: true });
             if (widened !== target.term.toLowerCase()) {
               const wider = await readTerm(widened);
               if ((wider?.posts ?? 0) > (read?.posts ?? 0)) {

@@ -47,7 +47,15 @@ interface RecentMediaResponse {
 }
 
 export interface ReelsRead {
-  /** Reels posted under the hashtag inside the window. */
+  /**
+   * Reels in the sample, NOT a total.
+   *
+   * `recent_media` returns one page, so this saturates at the page size the
+   * same way the first YouTube adapter's "video_volume" did — every busy
+   * hashtag reported the same capped number and the delta was meaningless.
+   * It is kept as context for the facts panel and is deliberately not what
+   * the demand score reads.
+   */
   reels: number;
   /** Everything posted under it, Reels or not — the denominator. */
   posts: number;
@@ -160,7 +168,9 @@ export function createInstagramAdapter(
             { breaker },
           );
           const read = readReels(media.data);
-          if (read.reels === 0) continue;
+          // No Reels at all is no read; Reels with no reaction yet is a real
+          // zero that the score should see rather than a row worth storing.
+          if (read.reels === 0 || read.reactions === 0) continue;
           seriesCache.push(
             ...read.daily.map((d) => ({ term: target.term, geo: termGeo, day: d.day, value: d.count })),
           );
@@ -169,8 +179,12 @@ export function createInstagramAdapter(
             term: target.term,
             category: target.category,
             geo: termGeo,
-            metric_type: "reel_volume",
-            value: read.reels,
+            metric_type: "reel_reactions",
+            // Reactions, not the Reel count. The count saturates at the
+            // page size and would report the same number for a hashtag with
+            // fifty posts and one with fifty thousand; reactions on the same
+            // sample measure attention and do not cap.
+            value: read.reactions,
             // Recent media is a 7-day window with no prior half to compare
             // against, so there is no honest weekly delta on the first read.
             // The daily series gives the ranking its movement instead.

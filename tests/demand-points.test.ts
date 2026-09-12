@@ -206,11 +206,24 @@ describe("the eight-week demand line", () => {
 });
 
 describe("the composite across every surface", () => {
-  it("weights a written post above a watched one", () => {
-    // Somebody typing is rarer and more deliberate than being shown a video.
-    const posted = demandPoints([{ source: "x", metricType: "posts", value: 1_000 }]);
-    const watched = demandPoints([{ source: "instagram", metricType: "reel_volume", value: 1_000 }]);
-    expect(posted.reach!).toBeGreaterThan(watched.reach!);
+  it("ranks the acts by how deliberate they are", () => {
+    const n = 1_000;
+    const searched = demandPoints([{ source: "dataforseo", metricType: "search_volume", value: n * 4.345 }]);
+    const posted = demandPoints([{ source: "x", metricType: "posts", value: n }]);
+    const reacted = demandPoints([{ source: "instagram", metricType: "reel_reactions", value: n }]);
+    const watched = demandPoints([{ source: "youtube", metricType: "shortform_views", value: n }]);
+    // Typing it into Google > writing a post > tapping like > being shown it.
+    expect(searched.reach!).toBeGreaterThan(posted.reach!);
+    expect(posted.reach!).toBeGreaterThan(reacted.reach!);
+    expect(reacted.reach!).toBeGreaterThan(watched.reach!);
+  });
+
+  it("will not read a Reel count, which saturates at the page size", () => {
+    // recent_media returns one page, so a count reports the same number for
+    // a hashtag with fifty posts and one with fifty thousand.
+    expect(
+      demandPoints([{ source: "instagram", metricType: "reel_volume", value: 25 }]).points,
+    ).toBeNull();
   });
 
   it("adds every surface into one comparable number", () => {
@@ -218,20 +231,31 @@ describe("the composite across every surface", () => {
       { source: "dataforseo", metricType: "search_volume", value: 4_345 },
       { source: "youtube", metricType: "shortform_views", value: 50_000 },
       { source: "tiktok", metricType: "shortform_views", value: 50_000 },
-      { source: "instagram", metricType: "reel_volume", value: 20_000 },
+      { source: "instagram", metricType: "reel_reactions", value: 2_000 },
       { source: "x", metricType: "posts", value: 500 },
       { source: "reddit", metricType: "conversation", value: 200 },
     ]);
     expect(all.contributing).toHaveLength(6);
-    // 1000 searches + 1000 + 1000 views + 400 reels + 300 posts + 120 threads
-    expect(all.reach).toBe(3_820);
+    // 1000 searches + 1000 + 1000 views + 300 reel reactions + 300 posts
+    // + 120 threads
+    expect(all.reach).toBe(3_720);
     expect(all.points).not.toBeNull();
   });
 
-  it("still refuses to let one viral surface drown the rest", () => {
-    const viral = demandPoints([{ source: "instagram", metricType: "reel_volume", value: 2_000_000 }]);
+  it("still refuses to let one viral video drown a metro of buyers", () => {
+    const viral = demandPoints([{ source: "youtube", metricType: "shortform_views", value: 2_000_000 }]);
     const buyers = demandPoints([{ source: "dataforseo", metricType: "search_volume", value: 260_000 }]);
     expect(buyers.points!).toBeGreaterThan(viral.points!);
+  });
+
+  it("keeps Instagram in proportion, because its input is a 25-item sample", () => {
+    // recent_media returns one page, so reactions land in the hundreds or
+    // low thousands — not the millions a view count can reach. The weight
+    // is set for that range, and a realistic Reels week must not outweigh
+    // real local search demand.
+    const reels = demandPoints([{ source: "instagram", metricType: "reel_reactions", value: 2_500 }]);
+    const searches = demandPoints([{ source: "dataforseo", metricType: "search_volume", value: 8_690 }]);
+    expect(searches.reach!).toBeGreaterThan(reels.reach!);
   });
 
 });

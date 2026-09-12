@@ -44,6 +44,13 @@ export const env = {
    * the keyless national Creative Center board. */
   apifyToken: process.env.APIFY_TOKEN ?? "",
   apifyTiktokActor: process.env.APIFY_TIKTOK_ACTOR ?? "",
+  /** X recent search — the written half of the conversation read. No
+   * keyless path exists; read access is a paid tier. */
+  xBearerToken: process.env.X_BEARER_TOKEN ?? "",
+  /** Instagram Graph — Reels volume per hashtag. Needs the Meta app, an
+   * Instagram Business account linked to a Page, and App Review. */
+  instagramToken: process.env.INSTAGRAM_ACCESS_TOKEN ?? "",
+  instagramUserId: process.env.INSTAGRAM_BUSINESS_ID ?? "",
   /** DataForSEO — the sturdy search-volume backbone for watch terms. */
   dataForSeoLogin: process.env.DATAFORSEO_LOGIN ?? "",
   dataForSeoPassword: process.env.DATAFORSEO_PASSWORD ?? "",
@@ -67,6 +74,9 @@ export const isGoogleAdsConfigured = Boolean(
 export const isPlacesConfigured = Boolean(env.placesApiKey);
 /** Per-term TikTok; the national board adapter runs regardless. */
 export const isApifyConfigured = Boolean(env.apifyToken);
+export const isXConfigured = Boolean(env.xBearerToken);
+/** Reels needs both halves: a token and the business account it reads as. */
+export const isInstagramConfigured = Boolean(env.instagramToken && env.instagramUserId);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isDataForSeoConfigured = Boolean(env.dataForSeoLogin && env.dataForSeoPassword);
 

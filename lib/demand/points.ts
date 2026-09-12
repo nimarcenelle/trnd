@@ -53,6 +53,12 @@ export const INTENT_WEIGHT: Partial<Record<SignalSource, number>> = {
   snapshot: 1,
   youtube: 0.02,
   tiktok: 0.02,
+  // A Reel impression is a view like any other; the hashtag reach that
+  // Instagram reports is closer to a view than to a post.
+  instagram: 0.02,
+  // A post on X is written, not watched — closer to a Reddit thread than to
+  // a video impression. Rarer and more deliberate, so it counts for more.
+  x: 0.6,
   reddit: 0.6,
   news: 0.5,
 };
@@ -90,6 +96,9 @@ export function weeklyReach({ source, metricType, value }: ReachInput): number |
       // Already a 7-day figure from both short-form adapters.
       return value * weight;
     case "conversation":
+    case "posts":
+      return value * weight;
+    case "reel_volume":
       return value * weight;
     case "coverage":
       return value * weight;

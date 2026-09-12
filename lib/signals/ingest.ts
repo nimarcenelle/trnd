@@ -8,11 +8,13 @@ import { createGoogleNewsAdapter } from "./adapters/google-news";
 import { createGoogleTrendsRssAdapter } from "./adapters/google-trends-rss";
 import { createRedditAdapter } from "./adapters/reddit";
 import { createSuggestAdapter } from "./adapters/suggest";
+import { createInstagramAdapter } from "./adapters/instagram";
 import { createTiktokApifyAdapter } from "./adapters/tiktok-apify";
 import { createTiktokCcAdapter } from "./adapters/tiktok-cc";
 import { createTrendsIotAdapter } from "./adapters/trends-iot";
 import { createTrendsRelatedAdapter } from "./adapters/trends-related";
 import { createWeatherAdapter } from "./adapters/weather";
+import { createXAdapter } from "./adapters/x";
 import { createYoutubeAdapter } from "./adapters/youtube";
 import { createMetaAdsAdapter } from "./adlibrary";
 import { CATEGORY_CONFIGS } from "./category-terms";
@@ -87,6 +89,8 @@ export async function runSignalIngestForBusiness(
     createYoutubeAdapter(),
     createTiktokApifyAdapter(),
     createTiktokCcAdapter(),
+    createInstagramAdapter(),
+    createXAdapter(),
     createDataForSeoAdapter(),
     createGoogleNewsAdapter(),
     createMetaAdsAdapter(),
@@ -149,6 +153,11 @@ function defaultAdapters(): SignalAdapter[] {
     // way — they answer different questions and both are worth storing.
     createTiktokApifyAdapter(),
     createTiktokCcAdapter(),
+    // The other two surfaces of the same question: Reels is where local
+    // operators actually post, X is the written half of the conversation.
+    // Both key-gated; both skip cleanly when unconfigured.
+    createInstagramAdapter(),
+    createXAdapter(),
     createDataForSeoAdapter(),
     createGoogleTrendsRssAdapter(),
     createWeatherAdapter(),

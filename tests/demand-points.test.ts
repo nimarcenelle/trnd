@@ -192,3 +192,33 @@ describe("the eight-week demand line", () => {
     expect(line.mode).toBe("points");
   });
 });
+
+describe("the composite across every surface", () => {
+  it("weights a written post above a watched one", () => {
+    // Somebody typing is rarer and more deliberate than being shown a video.
+    const posted = demandPoints([{ source: "x", metricType: "posts", value: 1_000 }]);
+    const watched = demandPoints([{ source: "instagram", metricType: "reel_volume", value: 1_000 }]);
+    expect(posted.reach!).toBeGreaterThan(watched.reach!);
+  });
+
+  it("adds every surface into one comparable number", () => {
+    const all = demandPoints([
+      { source: "dataforseo", metricType: "search_volume", value: 4_345 },
+      { source: "youtube", metricType: "shortform_views", value: 50_000 },
+      { source: "tiktok", metricType: "shortform_views", value: 50_000 },
+      { source: "instagram", metricType: "reel_volume", value: 20_000 },
+      { source: "x", metricType: "posts", value: 500 },
+      { source: "reddit", metricType: "conversation", value: 200 },
+    ]);
+    expect(all.contributing).toHaveLength(6);
+    // 1000 searches + 1000 + 1000 views + 400 reels + 300 posts + 120 threads
+    expect(all.reach).toBe(3_820);
+    expect(all.points).not.toBeNull();
+  });
+
+  it("still refuses to let one viral surface drown the rest", () => {
+    const viral = demandPoints([{ source: "instagram", metricType: "reel_volume", value: 2_000_000 }]);
+    const buyers = demandPoints([{ source: "dataforseo", metricType: "search_volume", value: 260_000 }]);
+    expect(buyers.points!).toBeGreaterThan(viral.points!);
+  });
+});

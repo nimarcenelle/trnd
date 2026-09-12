@@ -19,6 +19,8 @@ const SOURCE_NAMES: Record<SignalSource, string> = {
   news: "Google News",
   youtube: "YouTube Shorts",
   tiktok: "TikTok",
+  x: "X",
+  instagram: "Instagram",
   meta_ads: "Meta Ad Library",
   weather: "the forecast",
   dataforseo: "Google",
@@ -39,6 +41,8 @@ const PROOF_NAMES: Partial<Record<SignalSource, string>> = {
   news: "Google News",
   youtube: "YouTube Shorts",
   tiktok: "TikTok",
+  x: "X",
+  instagram: "Instagram",
   meta_ads: "Meta Ad Library",
 };
 
@@ -98,6 +102,10 @@ export function scaleNote(source: SignalSource, metric?: string): string | null 
       return "Views on Shorts posted about this in the last two weeks — this week's against the week before.";
     case "reddit":
       return `${metric ? metric.replace(/_/g, " ") : "Activity"} relative to this term's own 30-day peak.`;
+    case "x":
+      return "Posts mentioning this in the last seven days, and how far they travelled.";
+    case "instagram":
+      return "Reels posted under this hashtag in the last seven days.";
     default:
       return null;
   }
@@ -158,6 +166,16 @@ export function sourceUrl(ref: SourceRef): string | null {
       return typeof tag === "string" && tag.length > 1
         ? `https://www.tiktok.com/tag/${encodeURIComponent(tag.replace(/^#/, ""))}`
         : `https://www.tiktok.com/search?q=${q}`;
+    }
+    case "x":
+      // The live conversation, not a profile: what people are posting right
+      // now is the thing the read is about.
+      return `https://x.com/search?q=${q}&f=live`;
+    case "instagram": {
+      const tag = (ref.raw as { hashtag?: unknown } | null | undefined)?.hashtag;
+      return typeof tag === "string" && tag.length > 1
+        ? `https://www.instagram.com/explore/tags/${encodeURIComponent(tag.replace(/^#/, ""))}/`
+        : `https://www.instagram.com/explore/tags/${encodeURIComponent(term.replace(/[^a-z0-9]/gi, ""))}/`;
     }
     case "meta_ads":
       return `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=US&q=${q}&search_type=keyword_unordered`;

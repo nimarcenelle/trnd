@@ -32,6 +32,8 @@ export type SignalSource =
   | "weather"
   | "dataforseo"
   | "snapshot"
+  | "x"
+  | "instagram"
   | "seed";
 export type OpportunityStatus = "new" | "accepted" | "dismissed" | "launched";
 export type CampaignStatus = "draft" | "exported" | "live" | "complete";

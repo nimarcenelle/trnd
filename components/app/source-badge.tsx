@@ -8,6 +8,8 @@ const LABELS: Record<SignalSource, string> = {
   news: "Google News",
   youtube: "YouTube Shorts",
   tiktok: "TikTok",
+  x: "X",
+  instagram: "Instagram",
   meta_ads: "Meta Ad Library",
   weather: "Weather forecast",
   dataforseo: "Search volume",

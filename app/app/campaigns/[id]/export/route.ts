@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 
+import { NATIONWIDE_RADIUS } from "@/lib/signals/geo";
 /**
  * Campaign export: ?format=json (full payload) or ?format=csv (Meta-ready
  * creative sheet). Downloading flips a draft to `exported`.
@@ -44,7 +45,7 @@ export async function GET(
           esc(p?.content ?? ""),
           esc(campaign.offer),
           esc(campaign.audience.interests.join("; ")),
-          String(campaign.audience.radius_miles),
+          campaign.audience.radius_miles >= NATIONWIDE_RADIUS ? "US" : String(campaign.audience.radius_miles),
         ].join(","),
       );
     }

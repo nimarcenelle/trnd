@@ -2,6 +2,7 @@ import type { Business, Opportunity, Service, Signal } from "@/lib/db/types";
 
 import type { AngleResult, CampaignAssets } from "./schemas";
 
+import { isOnlineBusiness } from "@/lib/signals/geo";
 /**
  * Numeric-claim guard for generated ad copy. The model writes vivid copy,
  * and vivid copy invents measurements — a "50-degree plunge" whose owner
@@ -143,8 +144,11 @@ export function buildClaimFacts(ctx: {
     allowed.add(Math.round(p * 3));
     for (const q of prices) allowed.add(Math.round(p + q));
   }
-  allowed.add(ctx.business.radius_miles);
-  lines.push(`- service radius: ${ctx.business.radius_miles} miles`);
+  // An online DTC brand has no service radius; a mileage in its ad is invented.
+  if (!isOnlineBusiness(ctx.business)) {
+    allowed.add(ctx.business.radius_miles);
+    lines.push(`- service radius: ${ctx.business.radius_miles} miles`);
+  }
   if (ctx.signal.delta_pct != null) {
     allowed.add(Math.round(ctx.signal.delta_pct));
     lines.push(`- the demand signal "${ctx.signal.term}" is up ${Math.round(ctx.signal.delta_pct)}% this week`);

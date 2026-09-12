@@ -15,7 +15,7 @@ import { buildAdCall, type AdCall } from "@/lib/recommend/ad-call";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { campaignSignalBrief, culturalForTerm, DIRECT_MIN, loadSignalContext, rivalTermRead } from "@/lib/recommend/four-signals";
 import { culturalFromSignal } from "@/lib/scoring";
-import { businessStateGeo, geoLabel } from "@/lib/signals/geo";
+import { businessStateGeo, geoLabel, placeWords } from "@/lib/signals/geo";
 import { readAccount } from "@/lib/social/read";
 
 /**
@@ -316,7 +316,7 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
       ? assessAdRead(
           (adRead.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads,
           adRead.term,
-          [business.city, business.region ?? ""].filter(Boolean),
+          placeWords(business),
           adRead.value as number,
         )
       : null;
@@ -348,7 +348,7 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
       const read = assessAdRead(
         (s.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads,
         s.term,
-        [business.city, business.region ?? ""].filter(Boolean),
+        placeWords(business),
         s.value as number,
       );
       return {

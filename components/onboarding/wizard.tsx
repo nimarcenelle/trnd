@@ -550,8 +550,8 @@ export default function OnboardingWizard() {
     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="How you sell">
       {(
         [
-          ["online", "We sell online"],
-          ["local", "We're a local business"],
+          ["online", "Online DTC brand"],
+          ["local", "Local business"],
         ] as const
       ).map(([value, label]) => (
         <button

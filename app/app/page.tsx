@@ -45,7 +45,7 @@ import { getPlanState } from "@/lib/billing";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, businessJustOnboarded, generateBusinessBrief, targetCustomerOf } from "@/lib/ai/brief";
 import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
-import { businessStateGeo, geoLabel } from "@/lib/signals/geo";
+import { businessStateGeo, geoLabel, isOnlineBusiness, placeLabel, placeWords } from "@/lib/signals/geo";
 import { sourceUrl } from "@/lib/signals/source-url";
 import { sentenceCase, titleCase } from "@/lib/text";
 
@@ -202,7 +202,7 @@ export default async function AppHome({
               <span className="eyebrow m-0">This week · {weekRange}</span>
               <h1>Reading your market</h1>
               <p className="context">
-                Reading demand for <b>{business.category}</b> around {business.city}, then ranking
+                Reading demand for <b>{business.category}</b> {isOnlineBusiness(business) ? "across the US" : `around ${business.city}`}, then ranking
                 it against what you sell.
               </p>
             </div>
@@ -222,7 +222,7 @@ export default async function AppHome({
             <span className="eyebrow m-0">This week · {weekRange}</span>
             <h1>No recommendation this week</h1>
             <p className="context">
-              This week&apos;s reads for <b>{titleCase(business.category)}</b> around {business.city} didn&apos;t
+              This week&apos;s reads for <b>{titleCase(business.category)}</b> {isOnlineBusiness(business) ? "across the US" : `around ${business.city}`} didn&apos;t
               produce a pick worth spending on.
             </p>
           </div>
@@ -272,7 +272,7 @@ export default async function AppHome({
     ? assessAdRead(
         (adRead.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads,
         adRead.term,
-        [business.city, business.region ?? ""].filter(Boolean),
+        placeWords(business),
         adRead.value as number,
       )
     : null;
@@ -425,7 +425,7 @@ export default async function AppHome({
             : `${nextMoment.daysOut} days out`,
         }
       : null,
-    city: business.city,
+    city: placeLabel(business),
   });
   // Signals for THIS term only, over eight weeks — the category read above is
   // a 7-day window and cannot draw a line.
@@ -560,8 +560,8 @@ export default async function AppHome({
               <>
                 <p className="pick__para">
                   {adAssessment.count === 0
-                    ? `Nobody near ${business.city} is running ads on this right now — you would be first into an open field.`
-                    : `${adAssessment.count} advertiser${adAssessment.count === 1 ? "" : "s"} near ${business.city} ${adAssessment.count === 1 ? "is" : "are"} already running on this.`}
+                    ? `${isOnlineBusiness(business) ? "No competing brand is" : `Nobody near ${business.city} is`} running ads on this right now, so you would be first into an open field.`
+                    : `${adAssessment.count} advertiser${adAssessment.count === 1 ? "" : "s"}${isOnlineBusiness(business) ? "" : ` near ${business.city}`} ${adAssessment.count === 1 ? "is" : "are"} already running on this.`}
                   {adAssessment.unrelated > 0 &&
                     ` ${adAssessment.unrelated} keyword match${adAssessment.unrelated === 1 ? "" : "es"} were other industries and are not counted.`}
                 </p>
@@ -578,8 +578,9 @@ export default async function AppHome({
               </>
             ) : (
               <p className="pick__para">
-                No readable local ad count for this term — the keyword search returns national brand
-                spend, which cannot describe {business.city}. Treat the field as unknown rather than open.
+                {isOnlineBusiness(business)
+                  ? "No readable ad count for this term yet. Treat the field as unknown rather than open."
+                  : `No readable local ad count for this term. The keyword search returns national brand spend, which cannot describe ${business.city}. Treat the field as unknown rather than open.`}
               </p>
             )}
             {/* The scorer's gap line repeats the paragraph above almost

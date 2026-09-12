@@ -3,7 +3,7 @@ import type { Business, NewOpportunity, NewSignal, Opportunity, Signal } from "@
 import { indexSeries } from "@/lib/demand/series";
 import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity, tokens, type ScoredOpportunity } from "@/lib/scoring";
-import { businessStateGeo, localityFor, localityRegion } from "@/lib/signals/geo";
+import { businessStateGeo, localityFor, localityRegion, placeWords } from "@/lib/signals/geo";
 import { normalizeTerm } from "@/lib/signals/normalize";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { verticalKey } from "@/lib/signals/vertical";
@@ -207,7 +207,7 @@ export async function recommendForBusiness(
   // the term prefix too.
   const coverage = new Map<string, number>();
   const adCounts = new Map<string, number>();
-  const geoWords = [business.city, business.region ?? ""].filter(Boolean);
+  const geoWords = placeWords(business);
   for (const s of signals) {
     if (s.metric_type === "news_coverage" && typeof s.value === "number") {
       coverage.set(s.normalized_term, s.value);

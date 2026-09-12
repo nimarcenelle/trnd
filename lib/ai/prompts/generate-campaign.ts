@@ -1,6 +1,7 @@
 import type { Business, BusinessBrief, Opportunity, Service, Signal } from "@/lib/db/types";
 import type { CampaignSignalBrief } from "@/lib/recommend/four-signals";
 
+import { isOnlineBusiness, NATIONWIDE_RADIUS } from "@/lib/signals/geo";
 /** gemini-9: gemini-8's craft, written to the named target customer and
  * against what the direct rivals are already saying. */
 export const PROMPT_VERSION = "gemini-9";
@@ -99,8 +100,12 @@ function menuBlock({ services, service }: PromptCtx): string {
 function businessBlock(ctx: PromptCtx): string {
   const { business, service, brief } = ctx;
   return [
-    `BUSINESS: ${business.name} — ${business.category} in ${business.city}${business.region ? ", " + business.region : ""}.`,
-    `Radius: ${business.radius_miles} miles. Price band: ${business.price_band ?? "unknown"}.`,
+    isOnlineBusiness(business)
+      ? `BUSINESS: ${business.name}, an online DTC brand (${business.category}) selling nationally. Its location is not a factor: the ads run nationwide, so never name a city, a neighborhood or "near you".`
+      : `BUSINESS: ${business.name} — ${business.category} in ${business.city}${business.region ? ", " + business.region : ""}.`,
+    isOnlineBusiness(business)
+      ? `Price band: ${business.price_band ?? "unknown"}.`
+      : `Radius: ${business.radius_miles} miles. Price band: ${business.price_band ?? "unknown"}.`,
     service
       ? `Matched menu item: ${service.name}${price(service)} — the scorer's best guess at what this demand means on the menu. A starting point, not a constraint: if another MENU item is the truer answer to what these people want (the search says "beans", the thing they will actually buy on the block is the cup), lead with that item instead and say so in the angle.`
       : "No direct menu match — pick the menu item that best answers this demand, or recommend a sensible new offer built only from listed items.",
@@ -171,7 +176,9 @@ const ANGLE_FIELDS = (ctx: PromptCtx) => [
   "  reaches, in one concrete sentence (their situation, not their demographics);",
   "  include angle_type, one of: education | offer | scarcity | social_proof |",
   "  speed | novelty.",
-  `- audience.radius_miles must be ${ctx.business.radius_miles}.`,
+  isOnlineBusiness(ctx.business)
+    ? `- audience.radius_miles must be ${NATIONWIDE_RADIUS} (the ad runs nationwide).`
+    : `- audience.radius_miles must be ${ctx.business.radius_miles}.`,
 ];
 
 /** Call 2 of the brief — an angle slate. Three genuinely different ways to

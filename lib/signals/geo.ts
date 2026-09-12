@@ -155,6 +155,21 @@ export function localityRegion(business: { region: string | null; market?: strin
   return isOnlineBusiness(business) ? null : business.region;
 }
 
+/** Online DTC brands' ads run nationwide; the audience radius field holds this. */
+export const NATIONWIDE_RADIUS = 200;
+
+/** Place words for judging whether an ad is local: none for an online brand,
+ * whose competition is measured nationally. */
+export function placeWords(business: { city: string; region: string | null; market?: string | null }): string[] {
+  return isOnlineBusiness(business) ? [] : [business.city, business.region ?? ""].filter(Boolean);
+}
+
+/** Where a business sells, said to the owner. */
+export function placeLabel(business: { city: string; region: string | null; market?: string | null }): string {
+  if (isOnlineBusiness(business)) return "the US";
+  return `${business.city}${business.region ? `, ${business.region}` : ""}` || "your area";
+}
+
 export function localityFor(signalGeo: string, businessRegion: string | null): GeoLevel {
   if (!businessRegion) return "national";
   const stateGeo = `US-${businessRegion.trim().toUpperCase()}`;

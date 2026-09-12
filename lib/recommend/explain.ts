@@ -7,6 +7,7 @@ import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { extrasFor, loadSignalContext } from "./four-signals";
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
+import { placeWords } from "@/lib/signals/geo";
 /**
  * Re-derive the score breakdown for a stored opportunity so screens can show
  * their work. Uses the same inputs the recommend job used (services,
@@ -42,7 +43,7 @@ export async function explainOpportunity(
   );
   const adSample = (adRead?.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads;
   const adCount = adRead
-    ? assessAdRead(adSample, adRead.term, [business.city, business.region ?? ""].filter(Boolean), adRead.value as number).count
+    ? assessAdRead(adSample, adRead.term, placeWords(business), adRead.value as number).count
     : null;
   const { localityFor, localityRegion } = await import("@/lib/signals/geo");
   // The same four-signal evidence the ranking read, so the breakdown on

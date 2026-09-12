@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Business, Campaign } from "@/lib/db/types";
 import { env } from "@/lib/env";
 
+import { isOnlineBusiness } from "@/lib/signals/geo";
 /**
  * Meta Marketing API — connect (OAuth), read (insights), act (launch as
  * PAUSED so the owner always pulls the final trigger in Ads Manager).
@@ -333,8 +334,9 @@ export function buildAdSetPayload(
   dailyBudgetCents: number,
 ): Record<string, string> {
   const radius = Math.min(50, Math.max(1, campaign.audience.radius_miles || business.radius_miles));
+  // An online DTC brand sells nationally: its location is not a targeting input.
   const targeting =
-    business.lat !== null && business.lng !== null
+    !isOnlineBusiness(business) && business.lat !== null && business.lng !== null
       ? {
           geo_locations: {
             custom_locations: [

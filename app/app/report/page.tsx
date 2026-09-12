@@ -23,6 +23,7 @@ import {
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { titleCase } from "@/lib/text";
 
+import { isOnlineBusiness } from "@/lib/signals/geo";
 export const metadata = { title: "Intel report — TRND" };
 
 function fmtDate(d: string, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }) {
@@ -106,9 +107,11 @@ export default async function ReportPage() {
           <span className="eyebrow m-0">Weekly report · {weekRange}</span>
           <h1>Weekly report</h1>
           <p className="context">
-            <b>{titleCase(business.category)}</b> · {business.city}
-            {business.region ? `, ${business.region}` : ""} · {business.radius_miles}-mile radius ·
-            generated {generated}
+            <b>{titleCase(business.category)}</b> ·{" "}
+            {isOnlineBusiness(business)
+              ? "Online DTC brand, nationwide"
+              : `${business.city}${business.region ? `, ${business.region}` : ""} · ${business.radius_miles}-mile radius`}{" "}
+            · generated {generated}
           </p>
         </div>
         <div className="no-print flex items-center gap-[10px] flex-wrap">

@@ -157,8 +157,10 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
   } else {
     narrative.push(
       report.brief?.positioning
-        ? `No trend in ${business.city} beat what you already sell this week, so the play is your own positioning: ${report.brief.positioning}`
-        : `No trend in ${business.city} beat what you already sell this week, so the play is your own menu — one specific offer, priced, aimed at the ${business.radius_miles}-mile radius.`,
+        ? `No trend${online ? "" : ` in ${business.city}`} beat what you already sell this week, so the play is your own positioning: ${report.brief.positioning}`
+        : online
+          ? `No trend beat what you already sell this week, so the play is your own catalog: one product, one angle, tested against your current best ad.`
+          : `No trend in ${business.city} beat what you already sell this week, so the play is your own menu — one specific offer, priced, aimed at the ${business.radius_miles}-mile radius.`,
     );
     if (report.brief?.moat) narrative.push(report.brief.moat);
   }

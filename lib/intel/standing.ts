@@ -5,6 +5,7 @@ import { weekOf } from "@/lib/recommend/week";
 
 import { buildAskContext } from "./ask";
 
+import { isOnlineBusiness } from "@/lib/signals/geo";
 /** How many standing questions a business can keep — each costs one model
  * call a week, and more than a handful stops being "standing". */
 export const MAX_STANDING_QUESTIONS = 5;
@@ -24,7 +25,11 @@ export function suggestStandingQuestions(
   const top = services.find((s) => s.is_active) ?? null;
   const out = [
     "Who is advertising against me this week, and on what?",
-    top ? `Is my ${top.name} priced right for ${business.city} right now?` : `Which of my services are people searching for most right now?`,
+    top
+      ? isOnlineBusiness(business)
+        ? `Is my ${top.name} priced right against competing brands right now?`
+        : `Is my ${top.name} priced right for ${business.city} right now?`
+      : `Which of my services are people searching for most right now?`,
     "What should I be getting ready for next month?",
     brief?.customer_segments?.[0]
       ? `What is reaching ${brief.customer_segments[0].split(/[—:,(]/)[0].trim().toLowerCase()} this week?`

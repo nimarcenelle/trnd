@@ -12,6 +12,7 @@ import { titleCase } from "@/lib/text";
 import { getUserRepo } from "@/lib/db";
 import { refreshSnapshotAction } from "@/lib/snapshot/actions";
 
+import { isOnlineBusiness } from "@/lib/signals/geo";
 export const metadata = { title: "Company snapshot — TRND" };
 
 const CheckIcon = (
@@ -67,8 +68,8 @@ export default async function SnapshotPage() {
           <span className="eyebrow m-0">Your analysis</span>
           <h1>How TRND reads {business.name}</h1>
           <p className="context">
-            <b>{titleCase(business.category)}</b> · {business.city}
-            {business.region ? `, ${business.region}` : ""}
+            <b>{titleCase(business.category)}</b> ·{" "}
+            {isOnlineBusiness(business) ? "Online DTC brand" : `${business.city}${business.region ? `, ${business.region}` : ""}`}
           </p>
         </div>
         <form action={refreshSnapshotAction}>
@@ -80,8 +81,8 @@ export default async function SnapshotPage() {
 
       <div className="profile-bar">
         <div className="p-stat"><span className="k">Category</span><div className="v text-[15px]">{titleCase(business.category)}</div></div>
-        <div className="p-stat"><span className="k">Home base</span><div className="v text-[15px]">{business.city}{business.region ? `, ${business.region}` : ""}</div></div>
-        <div className="p-stat"><span className="k">Reach</span><div className="v">{business.radius_miles} mi</div></div>
+        <div className="p-stat"><span className="k">{isOnlineBusiness(business) ? "Sells" : "Home base"}</span><div className="v text-[15px]">{isOnlineBusiness(business) ? "Online, US" : `${business.city}${business.region ? `, ${business.region}` : ""}`}</div></div>
+        <div className="p-stat"><span className="k">Reach</span><div className="v">{isOnlineBusiness(business) ? "Nationwide" : `${business.radius_miles} mi`}</div></div>
         <div className="p-stat"><span className="k">Services</span><div className="v">{activeServices.length} active</div></div>
         <div className="p-stat"><span className="k">Price band</span><div className="v">{business.price_band ?? "$$"}</div></div>
       </div>

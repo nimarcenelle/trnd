@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import type { IntelReport } from "@/lib/report/build";
 import { titleCase } from "@/lib/text";
 
+import { isOnlineBusiness } from "@/lib/signals/geo";
 /**
  * The Monday email: analyst note + the ranking topline + unread alerts, all
  * inline-styled (email clients ignore stylesheets), linking into the app for
@@ -97,7 +98,7 @@ export function renderWeeklyReportEmail(opts: {
     <div style="text-align:center;margin:22px 0;">
       <a href="${url}" style="display:inline-block;background:#d99a12;color:#2b1b08;font-weight:600;font-size:14px;padding:12px 26px;border-radius:999px;text-decoration:none;">Open the full report →</a>
     </div>
-    <p style="margin:0;text-align:center;font-size:11px;color:#6f6759;">Every number in the report is traceable to a dated source read.<br/>TRND · ${esc(business.city)}${business.region ? `, ${esc(business.region)}` : ""}</p>
+    <p style="margin:0;text-align:center;font-size:11px;color:#6f6759;">Every number in the report is traceable to a dated source read.<br/>TRND${isOnlineBusiness(business) ? "" : ` · ${esc(business.city)}${business.region ? `, ${esc(business.region)}` : ""}`}</p>
   </div>
 </div>`;
 }

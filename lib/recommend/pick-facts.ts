@@ -2,7 +2,7 @@ import type { Repo } from "@/lib/db/repo";
 import type { Business, Opportunity, Signal } from "@/lib/db/types";
 import { documentFacts } from "@/lib/documents/digest";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
-import { geoLabel } from "@/lib/signals/geo";
+import { geoLabel, placeWords } from "@/lib/signals/geo";
 import { titleCase } from "@/lib/text";
 
 import { bestTheme } from "@/lib/ads/history-read";
@@ -138,7 +138,7 @@ export async function buildPickFacts(
     const assessed = assessAdRead(
       (adRead.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads,
       adRead.term,
-      [business.city, business.region ?? ""].filter(Boolean),
+      placeWords(business),
       adRead.value as number,
     );
     const sample = (assessed.ads ?? []).slice(0, 2);

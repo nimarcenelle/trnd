@@ -51,12 +51,14 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
   const budget = budgetFor(business?.price_band ?? null);
   // An online brand tests with a share of its monthly spend, not $25 a day.
   const onlineTest = business?.market === "online" ? creativeTestBudgetFor(business.monthly_ad_spend) : null;
+  // An online DTC brand's ads run nationwide; its location is not a factor.
+  const nationwide = business?.market === "online";
 
   const copyAll = [
     `ANGLE\n${campaign.angle}`,
     `HOOK\n${campaign.hook}`,
     `OFFER\n${campaign.offer}`,
-    `AUDIENCE\n${campaign.audience.who} · ${campaign.audience.age_range} · ${campaign.audience.radius_miles}mi\nWhy: ${campaign.audience.why}`,
+    `AUDIENCE\n${campaign.audience.who} · ${campaign.audience.age_range} · ${nationwide ? "nationwide" : `${campaign.audience.radius_miles}mi`}\nWhy: ${campaign.audience.why}`,
     ...(["headline", "primary_text", "script", "static_brief", "landing_copy"] as const).map(
       (kind) =>
         `${KIND_LABELS[kind].toUpperCase()}S\n` +
@@ -94,7 +96,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           <div>
             <span className="k">Audience</span>
             <p className="v text-[13.5px]">
-              {campaign.audience.who} · {campaign.audience.age_range} · {campaign.audience.radius_miles} mi
+              {campaign.audience.who} · {campaign.audience.age_range} · {nationwide ? "nationwide" : `${campaign.audience.radius_miles} mi`}
             </p>
           </div>
           <div>
@@ -263,8 +265,8 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
             </div>
           </div>
           <div className="t-box">
-            <span className="k">Radius</span>
-            <div className="v">{campaign.audience.radius_miles} miles from you</div>
+            <span className="k">{nationwide ? "Where" : "Radius"}</span>
+            <div className="v">{nationwide ? "Nationwide, United States" : `${campaign.audience.radius_miles} miles from you`}</div>
           </div>
           <div className="t-box">
             <span className="k">Audience</span>
@@ -308,7 +310,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
         <div className="checklist">
           {[
             "Copy the assets above into Meta Ads Manager (or export the CSV).",
-            `Set the audience: ${campaign.audience.who}, ${campaign.audience.age_range}, ${campaign.audience.radius_miles} mile radius.`,
+            `Set the audience: ${campaign.audience.who}, ${campaign.audience.age_range}, ${nationwide ? "nationwide" : `${campaign.audience.radius_miles} mile radius`}.`,
             onlineTest
               ? `Put ${onlineTest} behind it, against your current best ad.`
               : `Set ${budget.daily}/day and schedule the ${budget.test.split(" over ")[1]} test flight.`,

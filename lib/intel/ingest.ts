@@ -2,7 +2,7 @@ import type { Repo } from "@/lib/db/repo";
 import type { Business, NewReview } from "@/lib/db/types";
 import { isPlacesConfigured } from "@/lib/env";
 import { evaluateAlerts } from "@/lib/alerts/engine";
-import { businessStateGeo } from "@/lib/signals/geo";
+import { businessStateGeo, isOnlineBusiness } from "@/lib/signals/geo";
 import { fetchAdLibraryRead } from "@/lib/signals/adlibrary";
 import { generateReviewDigest } from "@/lib/reviews/digest";
 import { fetchPlaceReviews, findPlace } from "@/lib/reviews/places";
@@ -29,6 +29,9 @@ export interface IntelIngestSummary {
 
 async function ingestOwnReviews(repo: Repo, business: Business): Promise<number> {
   if (!isPlacesConfigured) return 0;
+  // An online DTC brand isn't a place: a name-and-city Places search would
+  // find somebody else's storefront and mine the wrong reviews.
+  if (isOnlineBusiness(business)) return 0;
   const gbp = await repo.getConnection(business.id, "google_business");
   let placeId = gbp?.account_id ?? null;
   if (!placeId) {
@@ -126,8 +129,8 @@ async function ingestCompetitors(repo: Repo, business: Business): Promise<number
     console.warn("[intel] renderer unavailable for competitor ads:", (err as Error).message);
   }
 
-  // ---- rating/review reads (Places-gated)
-  if (isPlacesConfigured) {
+  // ---- rating/review reads (Places-gated; local rivals only)
+  if (isPlacesConfigured && !isOnlineBusiness(business)) {
     for (const c of competitors) {
       try {
         let placeId = c.place_id;
@@ -220,7 +223,9 @@ export async function runIntelIngestForBusiness(
  *    targeted signal ingest, then re-rank so the picks see the fresh reads.
  */
 export async function ensureIntelFresh(repo: Repo, business: Business): Promise<void> {
-  if (isPlacesConfigured && !(await repo.getConnection(business.id, "google_business"))) {
+  // Online brands never get a Google listing, so without this guard every
+  // dashboard and report visit would re-run the whole paid intel ingest.
+  if (isPlacesConfigured && !isOnlineBusiness(business) && !(await repo.getConnection(business.id, "google_business"))) {
     await runIntelIngestForBusiness(repo, business);
   }
 

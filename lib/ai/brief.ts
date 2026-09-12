@@ -203,6 +203,8 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
   const vertical = verticalKey(business.category, active.map((s) => s.name));
   const named = active.slice(0, 3).map((s) => s.name);
   const place = `${business.city}${business.region ? `, ${business.region}` : ""}`;
+  // An online DTC brand's location is not a factor in its ads.
+  const online = business.market === "online";
   const band = business.price_band ?? "$$";
 
   const doesWell: string[] = [];
@@ -212,7 +214,9 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
     );
   }
   doesWell.push(
-    `A real place in ${place} — local intent converts far better than broad reach, and you own the ${business.radius_miles}-mile radius that matters.`,
+    online
+      ? `Sold online to the whole country: the customer is a person to reach in their feed, not a radius to cover.`
+      : `A real place in ${place} — local intent converts far better than broad reach, and you own the ${business.radius_miles}-mile radius that matters.`,
   );
   if (business.brand_voice_notes) {
     doesWell.push("A voice of your own — your ads can sound like you, not like a template.");
@@ -220,7 +224,7 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
 
   const advantages = [
     PRICE_ADVANTAGE[band] ?? PRICE_ADVANTAGE["$$"],
-    "Speed: TRND hands you a finished campaign while competitors are still noticing the trend — first-mover on local demand is cheap attention.",
+    `Speed: TRND hands you a finished campaign while competitors are still noticing the trend — first-mover on ${online ? "new" : "local"} demand is cheap attention.`,
     "One clear offer per ad, priced from your actual menu — specificity beats cleverness in this category.",
   ];
 
@@ -231,9 +235,11 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
 
   const bandWord = band === "$" ? "budget-friendly" : band === "$$$" ? "premium" : "mid-range";
   const positioning = [
-    `${business.name} is the ${bandWord} ${business.category.toLowerCase().replace(/ & /g, " and ")} answer for people within ${business.radius_miles} miles of ${place}`,
+    online
+      ? `${business.name} is the ${bandWord} ${business.category.toLowerCase().replace(/ & /g, " and ")} brand its customers find in their feed`
+      : `${business.name} is the ${bandWord} ${business.category.toLowerCase().replace(/ & /g, " and ")} answer for people within ${business.radius_miles} miles of ${place}`,
     named.length > 0 ? ` — known for ${named[0].toLowerCase()}` : "",
-    `. The idea your ads should repeat: one specific offer, from your real menu, for people close enough to act on it this week.`,
+    `. The idea your ads should repeat: one specific offer, from your real menu, for ${online ? "the one customer most likely to buy it" : "people close enough to act on it"} this week.`,
   ].join("");
 
   const range = priceRange(active);
@@ -241,7 +247,7 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
     ? `Your listed prices run ${fmt(range.low)} to ${fmt(range.high)} across ${range.count} priced offering${range.count === 1 ? "" : "s"}, which reads as ${bandWord} for ${business.category.toLowerCase()}. ${
         band === "$$$"
           ? "State prices plainly — at the premium end, the number qualifies the customer before the click."
-          : "Name the exact price in the ad — a real number outperforms 'affordable' in every local category."
+          : `Name the exact price in the ad — a real number outperforms 'affordable' in every ${online ? "" : "local "}category.`
       }`
     : `No prices are attached to your offerings yet — add them in Settings: ads that name a real number consistently beat vague claims, and TRND builds offers from your actual prices.`;
 
@@ -249,7 +255,9 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
     active[0]
       ? `${FIRST_MOVE_BY_BAND[band] ?? FIRST_MOVE_BY_BAND["$$"]} For you that's likely ${active[0].name}${active[0].price_cents ? ` at ${fmt(active[0].price_cents / 100)}` : ""}.`
       : FIRST_MOVE_BY_BAND[band] ?? FIRST_MOVE_BY_BAND["$$"],
-    `Point every ad at the ${business.radius_miles}-mile radius around ${business.city} — paying to reach people who can't visit is the most common local-ad money leak.`,
+    online
+      ? `Test one product and one angle at a time against your current best ad, so every result says which one worked.`
+      : `Point every ad at the ${business.radius_miles}-mile radius around ${business.city} — paying to reach people who can't visit is the most common local-ad money leak.`,
     `Record results after each campaign — TRND's recommendations sharpen with every real number you give it.`,
   ];
 
@@ -260,7 +268,7 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
   const seenTerms = new Set<string>();
   const watchTerms = [
     ...active.slice(0, 10).map((s) => s.name.toLowerCase()),
-    ...active.slice(0, 5).map((s) => `${s.name.toLowerCase()} near me`),
+    ...(online ? [] : active.slice(0, 5).map((s) => `${s.name.toLowerCase()} near me`)),
     ...(categoryConfig?.watchTerms ?? []),
   ]
     .map((t) => t.trim())
@@ -292,7 +300,9 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
   const targetCustomer: TargetCustomer = {
     who:
       segments[0] ??
-      `Someone within ${business.radius_miles} miles of ${business.city} who needs ${business.category.toLowerCase()} this week and is choosing between whoever is visible and the habit they already have.`,
+      (online
+        ? `Someone who buys ${business.category.toLowerCase()} online and is choosing between whichever brand shows up in their feed and the one they already use.`
+        : `Someone within ${business.radius_miles} miles of ${business.city} who needs ${business.category.toLowerCase()} this week and is choosing between whoever is visible and the habit they already have.`),
     triggers: TRIGGERS[vertical] ?? ["a need that came up this week", "a friend's recommendation", "seeing it on the way past"],
     vocabulary: targetVocabulary.length >= 6 ? targetVocabulary : [...targetVocabulary, ...(categoryConfig?.lexicon ?? [])].slice(0, 12),
     hangouts: (categoryConfig?.subreddits ?? []).slice(0, 4),

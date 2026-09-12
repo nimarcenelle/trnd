@@ -241,8 +241,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
               <div className="flex gap-4 flex-wrap">
                 {(
                   [
-                    ["online", "We sell online"],
-                    ["local", "We're a local business"],
+                    ["online", "Online DTC brand"],
+                    ["local", "Local business"],
                   ] as const
                 ).map(([value, label]) => (
                   <label key={value} className="flex items-center gap-2 text-[13.5px] cursor-pointer">

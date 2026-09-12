@@ -1,4 +1,4 @@
-import type { Learning, Signal } from "@/lib/db/types";
+import type { BusinessMarket, Learning, Signal } from "@/lib/db/types";
 import type { ScoredOpportunity } from "@/lib/scoring";
 import { deltaWindowLabel, metricLabel } from "@/lib/signals/source-url";
 import { sentenceCase } from "@/lib/text";
@@ -339,9 +339,32 @@ export function launchByFor(week: string, now: number = Date.now()): string {
 }
 
 /**
- * The "do this next" line is a move in the real world — what to put on the
- * counter, what to quote, what to say — never a chore about using TRND.
- * The campaign button sits right beside it; it doesn't need a second ad.
+ * A week's creative test for an online brand, sized as a share of what it
+ * already spends rather than a daily dollar figure. $25 a day is noise
+ * against a $50K month; 5-10% of the band's floor is enough to read a hook
+ * without betting the month on it. "under-20k" has no floor worth using, so
+ * it reads against $10K; an unknown band says the share and no number.
+ */
+export function creativeTestBudgetFor(monthlyAdSpend: string | null | undefined): string {
+  const floors: Record<string, number> = {
+    "under-20k": 10_000,
+    "20-50k": 20_000,
+    "50-100k": 50_000,
+    "100-250k": 100_000,
+    "250k-plus": 250_000,
+  };
+  const floor = monthlyAdSpend ? floors[monthlyAdSpend] : undefined;
+  if (!floor) return "5-10% of your monthly spend over one week";
+  const dollars = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
+  return `${dollars(floor * 0.05)} to ${dollars(floor * 0.1)} over one week`;
+}
+
+/**
+ * The "do this next" line is a move in the real world, never a chore about
+ * using TRND. For a local business that's what to put on the counter, what
+ * to quote, what to say. For an online brand it's a creative decision: which
+ * product, which hook, what share of spend to test it with. The campaign
+ * button sits right beside it; it doesn't need a second ad.
  */
 export function buildNextAction(opts: {
   hasCampaign: boolean;
@@ -352,9 +375,31 @@ export function buildNextAction(opts: {
   /** The matched menu item and its price, when there is one. */
   serviceName?: string | null;
   servicePrice?: string | null;
+  /** Online brands get creative moves and a share-of-spend test budget. */
+  market?: BusinessMarket;
+  monthlyAdSpend?: string | null;
 }): NextAction {
-  const budget = budgetFor(opts.priceBand);
   const term = opts.term ? `“${opts.term}”` : "this";
+  if (opts.market === "online") {
+    const test = creativeTestBudgetFor(opts.monthlyAdSpend);
+    if (opts.hasCampaign) {
+      return {
+        label: `Put the three scripts in test by ${opts.launchBy}`,
+        detail: `Run them against your current best ad at ${test}. Kill the two that lose on hook rate by day three and scale the one left.`,
+      };
+    }
+    if (opts.serviceName) {
+      return {
+        label: `Make the next ad about ${opts.serviceName}, in the words people use: ${term}`,
+        detail: `Open on the problem ${term} names, show ${opts.serviceName}${opts.servicePrice ? ` at ${opts.servicePrice}` : ""} in the first three seconds, and test it by ${opts.launchBy} at ${test}.`,
+      };
+    }
+    return {
+      label: `Pick the product that answers ${term} before you brief the ad`,
+      detail: `An ad without a product to point at tests the idea, not the offer. Choose one, then test it by ${opts.launchBy} at ${test}.`,
+    };
+  }
+  const budget = budgetFor(opts.priceBand);
   if (opts.hasCampaign) {
     return {
       label: `Get the ad live by ${opts.launchBy} at ${budget.daily}/day`,

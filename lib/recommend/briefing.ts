@@ -1,4 +1,4 @@
-import type { BusinessBrief, Service, Signal } from "@/lib/db/types";
+import type { BusinessBrief, BusinessMarket, Service, Signal } from "@/lib/db/types";
 import { AD_COUNT_LOCAL_MAX } from "@/lib/scoring";
 
 /**
@@ -57,6 +57,9 @@ export interface BriefingInput {
   /** A dated demand moment worth timing to, when one is near. */
   moment: { label: string; when: string } | null;
   city: string;
+  /** Online brands compete with other brands nationally, so the rival and
+   * price rows stop talking about a town and a menu. Absent means local. */
+  market?: BusinessMarket;
 }
 
 /**
@@ -125,6 +128,7 @@ function strongest(items: string[] | undefined): string | null {
 
 export function buildBriefing(input: BriefingInput): BriefingRow[] {
   const { brief, matchedService, adCount, adAdvertisers, moment, city } = input;
+  const online = input.market === "online";
   const rows: BriefingRow[] = [];
   const push = (slot: BriefingSlot, text: string | null) => {
     if (text && text.trim().length > 0) rows.push({ slot, text: leadCap(oneLine(text)) });
@@ -159,7 +163,9 @@ export function buildBriefing(input: BriefingInput): BriefingRow[] {
         : priced === 0 && (input.services ?? []).length > 0
           // Kept short on purpose: the rail cuts a line at 120 characters,
           // and a truncated instruction is worse than a terse one.
-          ? `No prices on your menu yet${input.priceBand ? ` (we only know the ${input.priceBand} band)` : ""} — add them in Settings so ads can name one.`
+          ? online
+            ? `No prices on your catalog yet${input.priceBand ? ` (we only know the ${input.priceBand} band)` : ""}. Add them in Settings so ads can name one.`
+            : `No prices on your menu yet${input.priceBand ? ` (we only know the ${input.priceBand} band)` : ""} — add them in Settings so ads can name one.`
           : firstSentence(brief?.pricing_read),
   );
 
@@ -173,7 +179,20 @@ export function buildBriefing(input: BriefingInput): BriefingRow[] {
 
   // RIVALS — the measured local field, never a guess. Above the local cap
   // the keyword read is national brand noise and cannot describe this town.
-  if (typeof adCount === "number") {
+  if (typeof adCount === "number" && online) {
+    // An online brand's field IS national, so a big count is a real read:
+    // the angle is taken, not the field unknown. One sentence each — the
+    // rail keeps only the first.
+    const named = adAdvertisers.slice(0, 2).filter(Boolean);
+    push(
+      "RIVALS",
+      adCount === 0
+        ? `No competing brand is running ads on this right now, so the angle is open.`
+        : adCount >= AD_COUNT_LOCAL_MAX
+          ? `Heavily advertised already${named.length > 0 ? `, including ${named.join(" and ")}` : ""}, so test an angle they aren't running.`
+          : `${adCount} competing ad${adCount === 1 ? "" : "s"} on this${named.length > 0 ? `, from ${named.join(" and ")}` : ""}, so don't repeat their line.`,
+    );
+  } else if (typeof adCount === "number") {
     if (adCount >= AD_COUNT_LOCAL_MAX) {
       push("RIVALS", `Too many ads on this nationally to read your local field — treat the competition here as unknown.`);
     } else if (adCount === 0) {

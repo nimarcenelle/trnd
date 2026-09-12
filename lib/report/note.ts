@@ -1,5 +1,6 @@
 import type { Business, NewIntelNote } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
+import { creativeTestBudgetFor } from "@/lib/recommend/insights";
 import { titleCase } from "@/lib/text";
 
 import type { IntelReport } from "./build";
@@ -112,8 +113,20 @@ export function reportFacts(report: IntelReport): string {
 export function buildFallbackIntelNote(business: Business, report: IntelReport): NewIntelNote {
   const top = report.ranked[0] ?? null;
   const thin = !top || top.score < THIN_BAR;
+  // An online brand's reader is a growth team deciding what to make next,
+  // not an owner deciding what to put on the counter. Same facts, creative
+  // moves, national field, spend framed as a test share.
+  const online = business.market === "online";
 
-  const headline = top
+  const headline = online
+    ? top
+      ? thin
+        ? `Nothing new this week fits the catalog closely enough to brief an ad on, so the next ad comes from your own analysis.`
+        : `Make "${titleCase(top.term)}" your next ad. It grades ${top.grade.letter}, ${top.grade.label.toLowerCase()}.`
+      : report.brief?.first_moves?.[0]
+        ? report.brief.first_moves[0]
+        : `Brief the next ad on your strongest product. No trend beat it this week.`
+    : top
     ? thin
       ? `Hold your spend this week — nothing in the pool squarely fits what you sell.`
       : `Run "${titleCase(top.term)}" this week — ${top.grade.label.toLowerCase()} at grade ${top.grade.letter}.`
@@ -122,7 +135,20 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
       : `Lead with your strongest offer this week — no trend beat it, so your own menu is the play.`;
 
   const narrative: string[] = [];
-  if (top) {
+  if (online && top) {
+    narrative.push(
+      thin
+        ? `TRND took ${report.signalsWatched} market reads across ${report.sourceCounts.length} source${report.sourceCounts.length === 1 ? "" : "s"} this week and none of them fit what ${business.name} sells well enough to spend creative on. The closest, "${titleCase(top.term)}", graded ${top.grade.letter}.`
+        : `Out of ${report.signalsWatched} market reads this week, "${titleCase(top.term)}" is the one worth the next ad: grade ${top.grade.letter}${top.matchedServiceName ? `, matching your ${top.matchedServiceName}` : ""}.`,
+    );
+  } else if (online) {
+    narrative.push(
+      report.brief?.positioning
+        ? `No trend beat your own catalog this week, so the next ad runs on your positioning: ${report.brief.positioning}`
+        : `No trend beat your own catalog this week, so the next ad leads with one product, one customer problem and one hook.`,
+    );
+    if (report.brief?.moat) narrative.push(report.brief.moat);
+  } else if (top) {
     narrative.push(
       thin
         ? `TRND took ${report.signalsWatched} market reads across ${report.sourceCounts.length} source${report.sourceCounts.length === 1 ? "" : "s"} this week and none of them fit what ${business.name} actually sells — the honest move is to wait rather than force a campaign. The closest fit, "${titleCase(top.term)}", graded ${top.grade.letter}.`
@@ -138,7 +164,11 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
   }
   const lowSat = report.demand.filter((d) => typeof d.adCount === "number" && d.adCount <= 5);
   const withReads = report.demand.filter((d) => d.lastRead !== null);
-  if (withReads.length > 0) {
+  if (withReads.length > 0 && online) {
+    narrative.push(
+      `Your ${report.demand.length} tracked demand terms are read daily${lowSat.length > 0 ? `. ${lowSat.map((d) => `"${d.term}"`).slice(0, 2).join(" and ")} ${lowSat.length === 1 ? "has" : "have"} little competing ad coverage right now, which is room for an angle nobody is running` : ""}.`,
+    );
+  } else if (withReads.length > 0) {
     narrative.push(
       `Your ${report.demand.length} tracked demand terms are read daily${lowSat.length > 0 ? `; ${lowSat.map((d) => `"${d.term}"`).slice(0, 2).join(" and ")} show${lowSat.length === 1 ? "s" : ""} little competing ad coverage right now — open ground when you want it` : ""}.`,
     );
@@ -157,7 +187,22 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
   // "record your results") read identically every week and get skipped.
   const actions: string[] = [];
   const topDemand = top ? report.demand.find((d) => d.term.toLowerCase() === top.term.toLowerCase()) ?? null : null;
-  if (top && !thin) {
+  const test = creativeTestBudgetFor(business.monthly_ad_spend);
+  if (online && top && !thin) {
+    const why =
+      typeof top.deltaPct === "number" && top.deltaPct >= 10
+        ? ` Searches for it are up ${Math.round(top.deltaPct)}% this week.`
+        : top.snapshotReason
+          ? ` ${top.snapshotReason.replace(/\.$/, "")}.`
+          : ` It's the strongest fit in this week's read.`;
+    actions.push(
+      top.hasCampaign
+        ? `Put the three "${titleCase(top.term)}" scripts in test against your current best ad at ${test}.${why}`
+        : top.matchedServiceName
+          ? `Brief the next ad on your ${top.matchedServiceName}, opening on the words customers use, "${titleCase(top.term)}", and test it at ${test}.${why}`
+          : `Test a hook built on "${titleCase(top.term)}" at ${test}.${why}`,
+    );
+  } else if (top && !thin) {
     const why =
       typeof top.deltaPct === "number" && top.deltaPct >= 10
         ? ` — searches for it are up ${Math.round(top.deltaPct)}% this week.`
@@ -178,7 +223,13 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
   // Open ground: the cheapest week to advertise a term is the week nobody
   // else is on it, and that number changes week to week.
   const open = report.demand.find((d) => typeof d.adCount === "number" && d.adCount <= 5 && d.term !== top?.term);
-  if (open) {
+  if (open && online) {
+    actions.push(
+      open.adCount === 0
+        ? `Test the "${open.term}" angle while no competing brand is advertising it.`
+        : `Test the "${open.term}" angle. Only ${open.adCount} competing ad${open.adCount === 1 ? " is" : "s are"} running on it.`,
+    );
+  } else if (open) {
     actions.push(
       open.adCount === 0
         ? `Put a search ad on "${open.term}" while nobody in ${business.city} is advertising it.`
@@ -186,7 +237,11 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
     );
   } else {
     const crowded = report.competitors.find((c) => c.estimate !== null && c.estimate > 5 && c.estimate <= 300);
-    if (crowded) {
+    if (crowded && online) {
+      actions.push(
+        `Skip the line the ${crowded.estimate} competing ads on "${crowded.term}" already run. Test a hook they aren't using and show the product in the first three seconds.`,
+      );
+    } else if (crowded) {
       actions.push(
         `Don't out-bid the ${crowded.estimate} rival ads on "${crowded.term}" — out-say them: name your price and your neighborhood in the first line.`,
       );
@@ -195,14 +250,29 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
   // Not every move is an ad. A term climbing is also a reason to move the
   // thing it maps to where a walk-in trips over it — the owner runs a shop,
   // not a media desk.
-  if (top && !thin && top.matchedServiceName) {
+  // For an online brand the equivalent off-ad move is the format: the length
+  // the winning short-form on the term runs is a production decision the
+  // team can make today.
+  const winningSecs = top?.format?.medianDurationSec ?? null;
+  if (online && top && !thin && winningSecs !== null) {
+    actions.push(
+      `Cut the TikTok and Reels version to about ${Math.round(winningSecs)} seconds, the length the winning videos on "${titleCase(top.term)}" run this week.`,
+    );
+  } else if (!online && top && !thin && top.matchedServiceName) {
     actions.push(
       `Put your ${top.matchedServiceName} where walk-ins see it first, with the price on it — "${titleCase(top.term)}" is what they're coming in asking for.`,
     );
   }
   // Their customers' own words beat anything a copywriter invents.
   const hook = report.voice?.copy_hooks?.[0];
-  if (hook) actions.push(`Open the ad with a line your own reviewers wrote: "${hook.replace(/^["']|["']$/g, "")}".`);
+  if (hook) {
+    const quoted = hook.replace(/^["']|["']$/g, "");
+    actions.push(
+      online
+        ? `Test a hook in your customers' own words: "${quoted}".`
+        : `Open the ad with a line your own reviewers wrote: "${quoted}".`,
+    );
+  }
   if (nextMoment?.prepNow) actions.push(`Start creative for ${nextMoment.label} now — inside the ${nextMoment.leadWeeks}-week prep window.`);
   if (report.results.avgCtr !== null) {
     const beating = report.results.avgCtr >= report.results.benchmark;
@@ -218,7 +288,11 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
     );
   }
   if (actions.length < 2 && report.brief?.advantages?.length) {
-    actions.push(`Lead with what your rivals can't say: ${report.brief.advantages[0]}`);
+    actions.push(
+      online
+        ? `Lead the next ad with what competing brands can't say: ${report.brief.advantages[0]}`
+        : `Lead with what your rivals can't say: ${report.brief.advantages[0]}`,
+    );
   }
   if (actions.length < 2) actions.push(`Read the competitor and customer-voice sections below — the ad angle is usually sitting in one of them.`);
 

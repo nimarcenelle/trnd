@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildInsights,
   buildNextAction,
+  creativeTestBudgetFor,
   launchByFor,
   buildResultsTakeaway,
 } from "../lib/recommend/insights";
@@ -86,6 +87,37 @@ describe("insight engine", () => {
     expect(bare.label).not.toMatch(/build the campaign/i);
     const live = buildNextAction({ hasCampaign: true, launchBy: "Aug 27", priceBand: "$$", term: "bike tune up nyc" });
     expect(live.label).toMatch(/live by Aug 27/);
+  });
+
+  it("an online brand's action is a creative move with a share-of-spend test", () => {
+    const a = buildNextAction({
+      hasCampaign: false,
+      launchBy: "Aug 27",
+      priceBand: "$$",
+      term: "dark spots",
+      serviceName: "Vitamin C Serum",
+      servicePrice: "$48",
+      market: "online",
+      monthlyAdSpend: "20-50k",
+    });
+    expect(a.label).toContain("Vitamin C Serum");
+    expect(a.label).toContain("“dark spots”");
+    // A $25-a-day budget is noise against a $20K month; the test is a share.
+    expect(a.detail).toContain("$1,000 to $2,000 over one week");
+    expect(a.detail).not.toMatch(/\/day|walk-ins|counter/);
+    expect(`${a.label} ${a.detail}`).not.toMatch(/—|→/);
+    const live = buildNextAction({ hasCampaign: true, launchBy: "Aug 27", priceBand: "$$", market: "online", monthlyAdSpend: null });
+    expect(live.label).toMatch(/three scripts in test by Aug 27/);
+    expect(live.detail).toContain("5-10% of your monthly spend");
+    // Local stays exactly as it was.
+    const local = buildNextAction({ hasCampaign: false, launchBy: "Aug 27", priceBand: "$$", term: "x", serviceName: "Tune-Up", market: "local" });
+    expect(local.detail).toContain("walk-ins");
+  });
+
+  it("sizes the online creative test from the spend band's floor", () => {
+    expect(creativeTestBudgetFor("100-250k")).toBe("$5,000 to $10,000 over one week");
+    expect(creativeTestBudgetFor("under-20k")).toBe("$500 to $1,000 over one week");
+    expect(creativeTestBudgetFor("not-a-band")).toMatch(/5-10% of your monthly spend/);
   });
 
   it("launch-by is three days into the week but never today or earlier", () => {

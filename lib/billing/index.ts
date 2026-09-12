@@ -26,31 +26,34 @@ export const PLAN_LABELS: Record<PlanId, string> = {
 };
 
 /**
- * One plan. Priced against the market a small business actually compares us
- * to: AI ad-creative tools ($39–249/mo), ad-spy tools ($129–269/mo), and
- * local-marketing suites ($244–399/mo). TRND is all three for one shop at
- * the single-tool price. Founding businesses lock it for life. The "pro"
- * plan id survives for subscriptions that already carry it; it is not sold.
+ * One plan, priced against what it replaces rather than other tools: a
+ * brand spending $50K a month on paid social isn't weighing $500, it's
+ * weighing $50K behind a mediocre ad. One incremental winner pays for a
+ * year. Founding brands lock the price. The "pro" id survives for
+ * subscriptions that already carry it and so the Stripe seam still
+ * compiles; it is not sold, and it prints the same price as the one plan.
+ * The Stripe price itself is an env var (STRIPE_PRICE_BASELINE), never an
+ * id in code.
  */
 export const PLAN_PRICES: Record<Exclude<PlanId, "trial">, string> = {
-  baseline: "$149/mo",
-  pro: "$299/mo",
+  baseline: "$500/mo",
+  pro: "$500/mo",
 };
 
 /** Annual, two months free — the same numbers the landing page prints. */
 export const PLAN_PRICES_ANNUAL: Record<Exclude<PlanId, "trial">, string> = {
-  baseline: "$1,490/yr",
-  pro: "$2,990/yr",
+  baseline: "$5,000/yr",
+  pro: "$5,000/yr",
 };
 
-/** What $149 buys — one list, printed everywhere the plan is described. */
+/** What $500 buys — one list, printed everywhere the plan is described. */
 export const BASELINE_FEATURES = [
-  "One ad a week, written for you before you open the app: hook, offer, headlines, scripts, targeting, budget, Meta CSV",
-  "Why this one — the demand behind it, graded, every number linked to its source",
-  "Your five nearest rivals found for you, their Meta ads and Google ratings read daily",
-  "The Monday report in your inbox",
-  "Your founding analysis: positioning, customers, pricing, seasonality, what never to run",
-  "Results tracking that sharpens next week",
+  "The next ad to run, every week: the product, the angle, the format, the audience, and three scripts to test",
+  "The four signals behind it, customer, culture, competition and your brand, with every number linked to its source",
+  "Your direct competitors' Meta and TikTok ads and posts, read daily, with what's saturated and what they left open",
+  "Learns from your Meta ad account and past exports, so the next call leans on what actually performed for you",
+  "The Monday brief in your inbox before your creative standup",
+  "Your founding analysis: positioning, target customer, what they search and say, and what never to run",
 ] as const;
 
 export interface PlanState {

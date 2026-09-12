@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Competitor, CompetitorRead, Opportunity, Signal } from "../lib/db/types";
-import { BASELINE_FEATURES, PLAN_PRICES } from "../lib/billing";
+import { BASELINE_FEATURES, PLAN_PRICES, PLAN_PRICES_ANNUAL } from "../lib/billing";
 import { isSelf, pickRivals } from "../lib/intel/seed-competitors";
 import type { DiscoveredPlace } from "../lib/prospect/discover";
 import { previousWeek, rankingChanges, rivalChanges } from "../lib/recommend/diff";
@@ -110,12 +110,18 @@ describe("what changed since last week", () => {
 });
 
 describe("pricing", () => {
-  it("sells one plan, and everything is in it", () => {
-    expect(PLAN_PRICES.baseline).toBe("$149/mo");
-    // Rivals, the Monday email, and the written-for-you ad all ride on the
-    // one plan — nothing an owner is shown is held behind a second tier.
-    expect(BASELINE_FEATURES.some((f) => /rivals/.test(f))).toBe(true);
+  it("sells one plan at $500, and everything is in it", () => {
+    expect(PLAN_PRICES.baseline).toBe("$500/mo");
+    expect(PLAN_PRICES_ANNUAL.baseline).toBe("$5,000/yr");
+    // The pro id still exists for old subscriptions but never prints a
+    // second price anywhere.
+    expect(PLAN_PRICES.pro).toBe(PLAN_PRICES.baseline);
+    // The next ad with its scripts, the competitors read daily, the Monday
+    // brief and the ad-account learning all ride on the one plan.
+    expect(BASELINE_FEATURES.some((f) => /three scripts/.test(f))).toBe(true);
+    expect(BASELINE_FEATURES.some((f) => /competitors/.test(f))).toBe(true);
     expect(BASELINE_FEATURES.some((f) => /Monday/.test(f))).toBe(true);
-    expect(BASELINE_FEATURES.some((f) => /written for you/.test(f))).toBe(true);
+    expect(BASELINE_FEATURES.some((f) => /Meta ad account/.test(f))).toBe(true);
+    for (const f of BASELINE_FEATURES) expect(f).not.toMatch(/—|→|near(est)? you|local/i);
   });
 });

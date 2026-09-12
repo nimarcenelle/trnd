@@ -1162,4 +1162,100 @@ hr.rule {
   background: var(--bg-1);
 }
 
+
+/* ---------- DTC PAGE: SIGNALS, LOOP, SAMPLE CALL ----------
+   The four-signal cards carry a sentence instead of a sparkline, the loop
+   reuses the flywheel list in a grid, and the sample call reuses the product
+   frame so the example reads as software, not a slide. */
+.sig-card__desc {
+  font-family: var(--body);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.model-line {
+  margin: 36px 0 0;
+  text-align: center;
+  font-family: var(--disp);
+  font-weight: 600;
+  font-size: clamp(17px, 2.2vw, 22px);
+  color: var(--ink);
+}
+.model-line span {
+  color: var(--ink-faint);
+  margin: 0 6px;
+}
+.model-line strong {
+  color: var(--amber-text);
+}
+.fly__list.loop {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 26px 32px;
+}
+#sample .pframe {
+  max-width: none;
+  margin-top: 0;
+}
+.sample {
+  padding: 26px 30px 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+.sample .pframe__eyebrow {
+  display: block;
+  margin-bottom: 10px;
+}
+.sample .pframe__title {
+  font-size: 21px;
+  line-height: 1.25;
+}
+.sample__facts {
+  margin: 22px 0 0;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sample__facts dt {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-bottom: 3px;
+}
+.sample__facts dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.sample__list {
+  margin: 0 0 20px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+@media (max-width: 900px) {
+  .fly__list.loop {
+    grid-template-columns: 1fr 1fr;
+  }
+  .sample {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+@media (max-width: 620px) {
+  .fly__list.loop {
+    grid-template-columns: 1fr;
+  }
+  .signals {
+    grid-template-columns: 1fr;
+  }
+}
 }

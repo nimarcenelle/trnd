@@ -65,6 +65,23 @@ describe("pick briefing", () => {
     expect(rows.find((r) => r.slot === "RIVALS")?.text).not.toMatch(/900/);
   });
 
+  it("reads an online brand's field nationally instead of calling it unknown", () => {
+    const flood = buildBriefing({ ...base, market: "online", adCount: 900, adAdvertisers: ["Glow Co", "Dew Lab"] });
+    const rivals = flood.find((r) => r.slot === "RIVALS")!.text;
+    expect(rivals).not.toMatch(/unknown|Atlanta|near/);
+    expect(rivals).toContain("Glow Co");
+    expect(rivals).toMatch(/angle they aren't running/);
+    const open = buildBriefing({ ...base, market: "online", adCount: 0 });
+    expect(open.find((r) => r.slot === "RIVALS")!.text).toMatch(/No competing brand/);
+    const some = buildBriefing({ ...base, market: "online", adCount: 3, adAdvertisers: ["Glow Co"] });
+    expect(some.find((r) => r.slot === "RIVALS")!.text).toBe("3 competing ads on this, from Glow Co, so don't repeat their line.");
+  });
+
+  it("calls an online brand's price list a catalog, not a menu", () => {
+    const rows = buildBriefing({ ...base, market: "online", services: [service(null)], priceBand: "$$" });
+    expect(rows.find((r) => r.slot === "ANCHOR")!.text).toMatch(/No prices on your catalog/);
+  });
+
   it("prefers a dated moment over a season for WHEN", () => {
     const rows = buildBriefing({ ...base, moment: { label: "New year recovery rush", when: "starts Jan 2" } });
     expect(rows.find((r) => r.slot === "WHEN")?.text).toContain("starts Jan 2");

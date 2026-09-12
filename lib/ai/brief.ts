@@ -1,10 +1,28 @@
-import type { Business, NewBusinessBrief, Service } from "@/lib/db/types";
+import type { Business, BusinessBrief, NewBusinessBrief, Service, TargetCustomer } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
 import { CATEGORY_CONFIGS } from "@/lib/signals/category-terms";
 import { verticalKey } from "@/lib/signals/vertical";
 
 export const BRIEF_FALLBACK_MODEL = "trnd-template/v3";
-export const BRIEF_PROMPT_VERSION = "brief-6";
+export const BRIEF_PROMPT_VERSION = "brief-7";
+
+/**
+ * The target customer a brief names — null for a brief written before
+ * brief-7 (the DB default is an empty object, which is the same "nobody
+ * named yet" and must not read as a customer with no name).
+ */
+export function targetCustomerOf(brief: Pick<BusinessBrief, "target_customer"> | null | undefined): TargetCustomer | null {
+  const tc = brief?.target_customer;
+  if (!tc || typeof tc !== "object" || typeof (tc as TargetCustomer).who !== "string" || !(tc as TargetCustomer).who) return null;
+  const t = tc as TargetCustomer;
+  return {
+    who: t.who,
+    triggers: Array.isArray(t.triggers) ? t.triggers : [],
+    vocabulary: Array.isArray(t.vocabulary) ? t.vocabulary : [],
+    hangouts: Array.isArray(t.hangouts) ? t.hangouts : [],
+    objections: Array.isArray(t.objections) ? t.objections : [],
+  };
+}
 
 /**
  * The full analysis a business gets when it joins: positioning, who buys,
@@ -104,6 +122,28 @@ const SEGMENTS: Record<string, string[]> = {
     "Cosmetic-intent patients (whitening, aligners, veneers) who research for weeks and convert on credibility.",
     "Lapsed patients who know they're overdue — a judgment-free re-entry offer is what moves them.",
   ],
+};
+
+/** What makes the target customer buy THIS week, by vertical. */
+const TRIGGERS: Record<string, string[]> = {
+  "Restaurants & cafés": ["Friday after work", "a weekend brunch plan", "somewhere to work for two hours", "the first warm patio day", "a birthday or date this week"],
+  "Home services": ["the first heat wave or freeze", "a leak or outage today", "a home sale or move-in", "a weekend project with quotes due"],
+  "Health & beauty": ["an event on the calendar", "a bad skin or hair week", "a friend's before-and-after", "a seasonal reset"],
+  "Fitness studios": ["a restart after a lapse", "a race or trip on the calendar", "a new-year or summer goal", "a friend who already goes"],
+  "Retail & boutiques": ["a gift deadline", "a wardrobe gap for an event", "a new-arrivals post", "a weekend browse"],
+  "Auto services": ["a warning light or noise", "a road trip next week", "a state inspection due", "the first cold snap"],
+  "Dental & wellness": ["pain that stopped being ignorable", "insurance benefits expiring", "an event with photos", "a lapsed cleaning reminder"],
+};
+
+/** The doubts the copy must answer, by vertical. */
+const OBJECTIONS: Record<string, string[]> = {
+  "Restaurants & cafés": ["it'll be too busy or too loud", "parking", "the price of a drink", "the place they already go is fine"],
+  "Home services": ["they won't show up on time", "the quote will grow", "cheaper on a lead-gen app"],
+  "Health & beauty": ["will it look natural", "the price", "a bad result they can't undo"],
+  "Fitness studios": ["too intense for a beginner", "the commitment", "nobody there like them"],
+  "Retail & boutiques": ["cheaper online", "won't fit or suit them", "no time to browse"],
+  "Auto services": ["getting upsold", "how long without the car", "the dealership is safer"],
+  "Dental & wellness": ["it will hurt", "insurance and cost", "switching providers is a hassle"],
 };
 
 const MARKET_CONTEXT: Record<string, string> = {
@@ -237,9 +277,32 @@ export function buildFallbackBrief(business: Business, services: Service[]): New
       .filter((w) => w.length > 3 && !seenWords.has(w) && (seenWords.add(w) || true)),
   ].slice(0, 24);
 
+  // The target customer without an LLM: the category's first segment as the
+  // person, the owner's own service names as the vocabulary. Thin on
+  // purpose — the model rewrites it — but never empty, because the ranking
+  // judges every term against this list.
+  const segments = SEGMENTS[vertical] ?? [];
+  const targetVocabulary = [
+    ...active.slice(0, 12).map((s) => s.name.toLowerCase()),
+    ...(categoryConfig?.watchTerms ?? []).slice(0, 8),
+  ]
+    .map((t) => t.trim())
+    .filter((t, i, arr) => t.length >= 2 && arr.indexOf(t) === i)
+    .slice(0, 20);
+  const targetCustomer: TargetCustomer = {
+    who:
+      segments[0] ??
+      `Someone within ${business.radius_miles} miles of ${business.city} who needs ${business.category.toLowerCase()} this week and is choosing between whoever is visible and the habit they already have.`,
+    triggers: TRIGGERS[vertical] ?? ["a need that came up this week", "a friend's recommendation", "seeing it on the way past"],
+    vocabulary: targetVocabulary.length >= 6 ? targetVocabulary : [...targetVocabulary, ...(categoryConfig?.lexicon ?? [])].slice(0, 12),
+    hangouts: (categoryConfig?.subreddits ?? []).slice(0, 4),
+    objections: OBJECTIONS[vertical] ?? ["not sure it's worth the price", "the place they already go is good enough"],
+  };
+
   return {
     business_id: business.id,
     positioning,
+    target_customer: targetCustomer,
     customer_segments: SEGMENTS[vertical] ?? [
       "Nearby customers with immediate intent — they choose among whoever is visible and close when the need hits.",
       "Repeat customers whose only comparison is their last visit — consistency is what keeps them.",

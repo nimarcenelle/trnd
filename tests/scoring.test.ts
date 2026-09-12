@@ -140,12 +140,64 @@ describe("applyRelevance", () => {
     expect(after.score).toBeGreaterThan(before.score);
   });
 
-  it("re-derives the total from the published weights, gated by fit", () => {
-    const after = applyRelevance(base(), 0.5, "Plausible stretch.");
-    const c = after.components;
-    const weighted =
-      0.35 * c.normalizedDelta + 0.25 * 0.5 + 0.2 * c.competitorGap + 0.2 * c.historicalLift;
+  it("re-derives the total from the four signals, brand rebuilt with the judged fit, gated by fit", () => {
+    const before = base();
+    const after = applyRelevance(before, 0.5, "Plausible stretch.");
+    const s = after.signals!;
+    // Brand is 70% fit, 30% proof, and the judged fit replaces the token match.
+    expect(s.brand).toBeCloseTo(0.7 * 0.5 + 0.3 * before.signalInputs!.proof, 3);
+    // No short-form read: cultural is left out and the weights renormalize.
+    expect(s.cultural).toBeNull();
+    const weighted = (0.35 * s.customer + 0.3 * s.brand + 0.25 * s.competitive) / 0.9;
     expect(after.score).toBe(Math.round(weighted * (0.3 + 0.7 * 0.5) * 100) / 10);
+  });
+
+  it("scores a term the target customer says above one they never would", () => {
+    const audience = {
+      who: "Remote workers near Glenwood who need a table and outlets for two hours",
+      triggers: ["somewhere to work", "friday after work"],
+      vocabulary: ["coffee shop to work", "iced latte", "wifi cafe"],
+      hangouts: [],
+      objections: ["too loud"],
+    };
+    const said = scoreOpportunity(signal({ term: "coffee shop to work" }), [], [], { coverageCount: 0 }, { audience });
+    const notSaid = scoreOpportunity(signal({ term: "espresso machine repair" }), [], [], { coverageCount: 0 }, { audience });
+    expect(said.signals!.customer).toBeGreaterThan(notSaid.signals!.customer);
+    expect(said.audiencePhrase).toBe("coffee shop to work");
+    expect(said.rationale).toMatch(/your target customer/);
+  });
+
+  it("counts named rivals already on a term against it, and their proven ads more", () => {
+    const open = scoreOpportunity(signal(), [], [], { coverageCount: 0 }, {
+      rivals: { watched: 5, onTerm: 0, names: [], proven: 0 },
+    });
+    const crowded = scoreOpportunity(signal(), [], [], { coverageCount: 0 }, {
+      rivals: { watched: 5, onTerm: 3, names: ["Octane", "Dancing Goats"], proven: 2 },
+    });
+    expect(open.signals!.competitive).toBeGreaterThan(crowded.signals!.competitive);
+    expect(crowded.signalReasons!.competitive).toMatch(/3 of your 5 direct rivals/);
+  });
+
+  it("lets this business's own past ads outweigh category learnings as proof", () => {
+    const learned: Learning = {
+      id: "l1", category: "Health & beauty", geo_bucket: "US", angle_type: "offer",
+      lift: 0.9, sample_size: 10, source: "measured", updated_at: new Date().toISOString(),
+    };
+    const flopped = scoreOpportunity(signal(), [service("Facial balancing consult")], [learned], { coverageCount: 0 }, {
+      history: { lift: 0.2, count: 3, reason: "your 3 past ads on this ran 60% below your account average" },
+    });
+    expect(flopped.signalInputs!.proof).toBe(0.2);
+    expect(flopped.rationale).toMatch(/60% below your account average/);
+  });
+
+  it("keeps culture the smallest weight: a viral format cannot carry a pick alone", () => {
+    const viral = scoreOpportunity(
+      signal({ source: "tiktok", metric_type: "shortform_views", delta_pct: 200, raw: { engagementPct: 9, actionPct: 3 } }),
+      [], [], { coverageCount: 0 },
+    );
+    const searched = scoreOpportunity(signal({ delta_pct: 40 }), [], [], { coverageCount: 0 });
+    expect(viral.signals!.cultural).toBe(1);
+    expect(searched.score).toBeGreaterThanOrEqual(viral.score);
   });
 
   it("momentum weighs the 30-day line, not just this week's delta", () => {

@@ -391,6 +391,17 @@ const briefResponseSchema: Schema = {
     watch_terms: { type: Type.ARRAY, items: { type: Type.STRING } },
     lexicon: { type: Type.ARRAY, items: { type: Type.STRING } },
     subreddits: { type: Type.ARRAY, items: { type: Type.STRING } },
+    target_customer: {
+      type: Type.OBJECT,
+      properties: {
+        who: { type: Type.STRING },
+        triggers: { type: Type.ARRAY, items: { type: Type.STRING } },
+        vocabulary: { type: Type.ARRAY, items: { type: Type.STRING } },
+        hangouts: { type: Type.ARRAY, items: { type: Type.STRING } },
+        objections: { type: Type.ARRAY, items: { type: Type.STRING } },
+      },
+      required: ["who", "triggers", "vocabulary", "hangouts", "objections"],
+    },
   },
   required: [
     "positioning",
@@ -406,6 +417,7 @@ const briefResponseSchema: Schema = {
     "watch_terms",
     "lexicon",
     "subreddits",
+    "target_customer",
   ],
 };
 
@@ -450,6 +462,12 @@ export async function generateBriefWithGemini(
     `- watch_terms: 18-30 short search phrases (2-4 words, lowercase, no hashtags) that real customers type when they want what THIS business sells — the demand terms TRND should watch for them. Cover three tiers: (1) each actual offering and its common name variants ("cold plunge near me", "contrast therapy"), (2) the problems and occasions that bring customers in ("muscle recovery", "sore after marathon", "hangover cure"), (3) the adjacent things those exact customers search that this business could credibly ride ("ice bath benefits", "sauna vs steam room"). Weight them toward what the local customer buys in person — for a café, the drinks, the food, the evening, the neighborhood — with the online catalog as a minority. Specific to the actual offerings; no two terms mere rewordings of each other; never generic category words.`,
     `- lexicon: 12-24 single keywords or short stems specific to what THIS business sells and who buys it ("plunge", "sauna", "recovery", "contrast", "wim hof") — the vocabulary for deciding whether an arbitrary trending phrase is relevant to them. Lowercase, no duplicates of each other, never generic marketing words.`,
     `- subreddits: 3-6 REAL, active subreddit names (no "r/" prefix) where this business's actual customers discuss what it sells (e.g. "coldplunge", "Sauna", "AdvancedRunning"). Only subreddits you are confident exist.`,
+    `- target_customer: the ONE customer every ad is for — not a list of segments, the person a $30-a-day local budget should reach first. TRND reads the market through this person: a trend only counts as demand if THEY would search or say it. Return an object:`,
+    `  - who: one sentence — who they are, the situation they are in, and what they are choosing between (include the non-obvious substitute: doing nothing, the habit they already have).`,
+    `  - triggers: 3-6 moments that make this person buy THIS WEEK ("first 90-degree day", "Friday after work", "kid's birthday next weekend", "the check-engine light"). Concrete, datable where possible.`,
+    `  - vocabulary: 10-20 lowercase words and short phrases THIS person actually types and says for what the business sells and the problem behind it — their words, not the owner's ("iced latte", "coffee shop open late", "somewhere to work", "date night", not "specialty beverage program"). TRND matches every trend term against this list; a phrase missing here will be scored as noise, so cover the whole want, including slang and misspellings people actually use.`,
+    `  - hangouts: 3-8 places this person's attention lives — subreddits (no r/), hashtags (with #), local pages or communities ("#atlantaeats", "r/Atlanta", "the Beltline"), where a post about the business would be seen by them.`,
+    `  - objections: 2-4 reasons this person does NOT buy today — the doubts the copy must answer ("it'll be too loud to work", "parking", "$7 for a latte").`,
     ``,
     `Ground every claim in the facts provided. Name real services and real prices. Where the facts are thin, reason from the category and city — but never invent a fact about this specific business (no invented awards, years in business, or reviews). List items are one sentence each. Two tests for every list item before you keep it: (1) the owner could not have written it themselves — if it restates a fact from above, replace it with what that fact implies; (2) it changes what they would put in an ad — who it targets, what it says, or when it runs. Specific to THIS business; if a sentence could be pasted into another business's analysis, rewrite it.`,
   ]

@@ -1,18 +1,37 @@
 /**
- * Opportunity scoring — the whole formula in one file, per the brief:
+ * Opportunity scoring — the whole formula in one file.
  *
- *   score = 0.35 * momentum           // how fast it's rising: this week vs
- *                                     // last, blended with the 30-day line
- *         + 0.25 * service_match      // does this business already sell it
- *         + 0.20 * competitor_gap     // inverse of local ad saturation (proxy)
- *         + 0.20 * historical_lift    // from `learnings`, 0.5 neutral when empty
+ * TRND answers one question: what should this business advertise next to
+ * reach more of the right customers. Four kinds of evidence answer it, and
+ * they do not count equally:
  *
- * Every component is 0..1; the total is rendered as 0–10 with one decimal.
- * A number with no explanation is exactly the "dashboard of mentions" TRND
- * refuses to be — buildRationale() turns the components into plain English.
+ *   score = 0.35 * customer      // what THE target customer is searching
+ *                                // and saying, measured where they live —
+ *                                // momentum judged against their own words
+ *         + 0.30 * brand         // what this business sells, and what has
+ *                                // actually worked for it: its past ads,
+ *                                // its own posts, then category learnings
+ *         + 0.25 * competitive   // what the direct rivals are advertising
+ *                                // and posting on it — whitespace is the gap
+ *         + 0.10 * cultural      // formats, sounds and short-form momentum.
+ *                                // Loud and national: it decides HOW an ad
+ *                                // is made far more than WHAT it sells, so
+ *                                // it is the smallest weight by design.
+ *
+ * Every signal is 0..1. A signal with no read at all (no short-form data,
+ * no named target customer) is left out and the remaining weights are
+ * renormalized — an unknown is not evidence either way. Competition is the
+ * exception: unknown competition scores just under neutral, never "open".
+ * Fit to the menu then GATES the total (applyRelevance), and evidence gates
+ * (sparse, unmeasured, thin volume, national conversation) cap it.
+ *
+ * The legacy four components (momentum, service match, competitor gap,
+ * historical lift) are still computed and kept on the result: the insight
+ * lines and meters read them, and they are the raw inputs the signals are
+ * built from. The total is the four signals.
  */
 
-import type { Learning, Service, Signal, SignalSeriesPoint } from "@/lib/db/types";
+import type { Learning, Service, Signal, SignalSeriesPoint, TargetCustomer } from "@/lib/db/types";
 
 /** Above this, a keyword-matched ad count is brand/national noise, not a
  * local read — excluded from scoring and labeled in every surface. */
@@ -40,12 +59,30 @@ export const SPARSE_EVIDENCE_GATE = 0.65;
  */
 export const NATIONAL_CONVERSATION_GATE = 0.62;
 
+/** The legacy component weights — still used when a result carries no
+ * four-signal read (rows scored before the four-signal model). */
 export const WEIGHTS = {
   normalizedDelta: 0.35,
   serviceMatch: 0.25,
   competitorGap: 0.2,
   historicalLift: 0.2,
 } as const;
+
+/** The four signal types and how much each decides the recommendation. */
+export const SIGNAL_WEIGHTS = {
+  customer: 0.35,
+  brand: 0.3,
+  competitive: 0.25,
+  cultural: 0.1,
+} as const;
+export type SignalKind = keyof typeof SIGNAL_WEIGHTS;
+
+export const SIGNAL_LABELS: Record<SignalKind, string> = {
+  customer: "Your customer",
+  brand: "Your business",
+  competitive: "Your rivals",
+  cultural: "Culture",
+};
 
 /** delta_pct saturates at +50% w/w; unknown delta sits neutral. */
 export function normalizedDelta(deltaPct: number | null): number {
@@ -319,6 +356,203 @@ export interface ScoredOpportunity {
   matchedService: Service | null;
   rationale: string;
   competitorGapText: string;
+  /** The four signals the total is built from. Absent on results scored
+   * before the four-signal model; applyRelevance then uses WEIGHTS. */
+  signals?: SignalScores;
+  /** One owner-readable line per signal — the "why" behind the grade. */
+  signalReasons?: SignalReasons;
+  signalInputs?: SignalInputs;
+  /** The target-customer phrase this term matched, when one did. */
+  audiencePhrase?: string | null;
+}
+
+/* ============================ the four signals ============================ */
+
+/** What the named direct rivals are doing on this term. */
+export interface RivalTermRead {
+  /** Rivals whose ads and posts were actually read. */
+  watched: number;
+  /** Of those, how many advertise or post on this term. */
+  onTerm: number;
+  /** Their names, for the "why" line. */
+  names: string[];
+  /** Rival ads on this term running 21+ days — the proxy for "working". */
+  proven: number;
+}
+
+/** The short-form read on this term — views momentum, how hard people react. */
+export interface CulturalRead {
+  platform: string;
+  deltaPct: number | null;
+  engagementPct: number | null;
+  /** Shares + saves per view, TikTok only. */
+  actionPct: number | null;
+}
+
+/** What has worked for THIS business on this term or angle. */
+export interface BrandProof {
+  /** 0..1, 0.5 = ran like the account average. */
+  lift: number;
+  /** How many of their own past ads or posts it rests on. */
+  count: number;
+  reason: string;
+}
+
+export interface FourSignalExtras {
+  audience?: TargetCustomer | null;
+  rivals?: RivalTermRead | null;
+  cultural?: CulturalRead | null;
+  /** Their own past ads on this term (lib/ads/history-read historyOnTerm). */
+  history?: BrandProof | null;
+  /** Their own posts on this term against their usual engagement. */
+  ownSocial?: BrandProof | null;
+}
+
+export interface SignalScores {
+  customer: number;
+  brand: number;
+  competitive: number;
+  /** Null when there is no short-form read — left out of the total. */
+  cultural: number | null;
+}
+
+export type SignalReasons = Record<SignalKind, string>;
+
+/** Everything applyRelevance needs to rebuild the brand signal with a new fit. */
+interface SignalInputs {
+  /** Brand's proof half — history, own posts, or learnings. */
+  proof: number;
+}
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
+/**
+ * Does the TARGET customer say this? Momentum on a phrase the person the
+ * ads are for would never type is somebody else's demand. Matched against
+ * the brief's vocabulary and triggers — their words, not the owner's.
+ */
+export function audienceMatch(
+  term: string,
+  audience: TargetCustomer | null | undefined,
+): { score: number | null; reason: string; phrase: string | null } {
+  if (!audience || audience.vocabulary.length === 0) {
+    return { score: null, reason: "", phrase: null };
+  }
+  const t = term.toLowerCase().trim();
+  const termTokens = tokens(t);
+  let best = { score: 0.2, phrase: null as string | null };
+  const consider = (phrase: string, weight: number) => {
+    const p = phrase.toLowerCase().trim();
+    if (!p) return;
+    let score = 0;
+    if (t === p || t.includes(p) || p.includes(t)) score = 1;
+    else {
+      const shared = [...tokens(p)].filter((x) => termTokens.has(x));
+      if (shared.length >= 2) score = 0.85;
+      else if (shared.length === 1 && shared[0].length > 4) score = 0.6;
+    }
+    score *= weight;
+    if (score > best.score) best = { score, phrase };
+  };
+  for (const v of audience.vocabulary) consider(v, 1);
+  for (const tr of audience.triggers) consider(tr, 0.85);
+  const who = audience.who.split(/[,.;]/)[0].trim();
+  const reason =
+    best.phrase === null
+      ? `not how your target customer talks about what you sell`
+      : best.score >= 0.85
+        ? `the words your target customer uses ("${best.phrase}")`
+        : `close to how your target customer talks ("${best.phrase}")`;
+  return { score: round3(best.score), reason: who ? reason : reason, phrase: best.phrase };
+}
+
+/** Cultural-source reads: the short-form and national conversation boards. */
+export function isCulturalSource(signal: Pick<Signal, "source" | "metric_type">): boolean {
+  return (
+    signal.metric_type === "shortform_views" ||
+    signal.metric_type === "conversation" ||
+    signal.source === "youtube" ||
+    signal.source === "tiktok" ||
+    signal.source === "instagram" ||
+    signal.source === "x"
+  );
+}
+
+/** A cultural read taken from the signal itself, when it is one. */
+export function culturalFromSignal(signal: Signal): CulturalRead | null {
+  if (!isCulturalSource(signal)) return null;
+  const raw = (signal.raw ?? {}) as { engagementPct?: unknown; actionPct?: unknown };
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  return {
+    platform: signal.source,
+    deltaPct: signal.delta_pct,
+    engagementPct: num(raw.engagementPct),
+    actionPct: num(raw.actionPct),
+  };
+}
+
+export function culturalSignal(read: CulturalRead | null | undefined): { score: number | null; reason: string } {
+  if (!read) return { score: null, reason: "" };
+  const platform = read.platform === "youtube" ? "Shorts" : read.platform === "tiktok" ? "TikTok" : read.platform === "instagram" ? "Reels" : read.platform === "x" ? "X" : read.platform;
+  const moving = read.deltaPct === null ? 0.5 : clamp01(read.deltaPct / 50);
+  const engaged =
+    read.engagementPct === null ? 0.5 : read.engagementPct >= 4 ? 1 : read.engagementPct < 1.5 ? 0.2 : 0.55;
+  const acted = typeof read.actionPct === "number" && read.actionPct >= 1 ? 0.1 : 0;
+  const score = round3(clamp01(0.6 * moving + 0.4 * engaged + acted));
+  const reason =
+    read.deltaPct === null
+      ? `${platform} is posting about it`
+      : `${platform} views on it ${read.deltaPct >= 0 ? "up" : "down"} ${Math.abs(Math.round(read.deltaPct))}%${
+          read.engagementPct !== null && read.engagementPct >= 4 ? ", and people are reacting" : ""
+        }`;
+  return { score, reason };
+}
+
+/**
+ * Whitespace among the rivals that matter. A market-wide ad count says how
+ * crowded the keyword is; the named direct rivals say whether the people a
+ * customer would actually compare you against are already saying it.
+ */
+export function competitiveSignal(
+  gap: { score: number; basis: CompetitorBasis; reason: string },
+  rivals: RivalTermRead | null | undefined,
+): { score: number; reason: string } {
+  if (!rivals || rivals.watched < 2) return { score: gap.score, reason: gap.reason };
+  const share = rivals.onTerm / rivals.watched;
+  const whitespace = clamp01(1 - share - 0.1 * rivals.proven);
+  const score = round3(gap.basis === "ads" ? 0.5 * gap.score + 0.5 * whitespace : 0.8 * whitespace + 0.2 * gap.score);
+  const reason =
+    rivals.onTerm === 0
+      ? `none of your ${rivals.watched} direct rivals is advertising or posting on this`
+      : `${rivals.onTerm} of your ${rivals.watched} direct rivals ${rivals.onTerm === 1 ? "is" : "are"} on this (${rivals.names.slice(0, 2).join(", ")})${
+          rivals.proven > 0 ? `, ${rivals.proven} with an ad that has run three weeks or more` : ""
+        }`;
+  return { score, reason };
+}
+
+/**
+ * Brand = fit to what they sell, plus proof it has worked for them. Fit
+ * carries most of it: proof is neutral for most businesses most weeks, and
+ * a flat term squarely on the menu must still beat a small rise on a term
+ * that shares one word with it.
+ */
+export const BRAND_FIT_SHARE = 0.7;
+export function brandSignal(fit: number, proof: number): number {
+  return round3(clamp01(BRAND_FIT_SHARE * fit + (1 - BRAND_FIT_SHARE) * proof));
+}
+
+/** Weighted total over the signals that exist, renormalized. */
+export function combineSignals(s: SignalScores): number {
+  let sum = 0;
+  let weight = 0;
+  for (const k of Object.keys(SIGNAL_WEIGHTS) as SignalKind[]) {
+    const v = s[k];
+    if (v === null) continue;
+    sum += SIGNAL_WEIGHTS[k] * v;
+    weight += SIGNAL_WEIGHTS[k];
+  }
+  return weight > 0 ? sum / weight : 0;
 }
 
 /**
@@ -337,15 +571,21 @@ export function applyRelevance(
 ): ScoredOpportunity {
   const fit = Math.min(1, Math.max(0, relevance));
   const c = result.components;
-  const weighted =
-    WEIGHTS.normalizedDelta * c.normalizedDelta +
-    WEIGHTS.serviceMatch * fit +
-    WEIGHTS.competitorGap * c.competitorGap +
-    WEIGHTS.historicalLift * c.historicalLift;
+  const signals =
+    result.signals && result.signalInputs
+      ? { ...result.signals, brand: brandSignal(fit, result.signalInputs.proof) }
+      : undefined;
+  const weighted = signals
+    ? combineSignals(signals)
+    : WEIGHTS.normalizedDelta * c.normalizedDelta +
+      WEIGHTS.serviceMatch * fit +
+      WEIGHTS.competitorGap * c.competitorGap +
+      WEIGHTS.historicalLift * c.historicalLift;
   const total = Math.min(1, weighted * (0.3 + 0.7 * fit) * (result.evidenceGate ?? 1) + result.localityBonus);
   return {
     ...result,
     score: Math.round(total * 100) / 10,
+    signals,
     components: { ...c, serviceMatch: fit },
     // A "matched service" claim under an irrelevant term reads as nonsense.
     matchedService: fit < 0.3 ? null : result.matchedService,
@@ -358,7 +598,10 @@ export function scoreOpportunity(
   services: Service[],
   learnings: Learning[],
   gap: GapInput,
-  opts: { locality?: SignalLocality; series?: Pick<SignalSeriesPoint, "value">[] } = {},
+  opts: {
+    locality?: SignalLocality;
+    series?: Pick<SignalSeriesPoint, "value">[];
+  } & FourSignalExtras = {},
 ): ScoredOpportunity {
   // Sparse by the adapter's own flag, or by the shape of the series it left
   // behind — a mostly-zero line is the same fact seen from the other side.
@@ -406,15 +649,36 @@ export function scoreOpportunity(
   const locality = opts.locality ?? "national";
   const localityBonus = LOCALITY_BONUS[locality];
 
-  const total = Math.min(
-    1,
-    (WEIGHTS.normalizedDelta * nd +
-      WEIGHTS.serviceMatch * sm.score +
-      WEIGHTS.competitorGap * cg.score +
-      WEIGHTS.historicalLift * hl.score) *
-      evidenceGate +
-      localityBonus,
-  );
+  // ---- the four signals
+  // A short-form or national-board read is cultural evidence, and it already
+  // counts at the cultural weight. Its momentum says little about whether
+  // THIS business's customer wants the thing, so only a quarter of it
+  // reaches the customer signal; the rest is pulled to neutral. Without
+  // this, a +200% TikTok read with no search behind it outranked a +40%
+  // search rise on the same menu.
+  const cultural = opts.cultural ?? culturalFromSignal(signal);
+  const culturalScore = culturalSignal(cultural);
+  const customerMomentum = isCulturalSource(signal) ? round3(0.25 * nd + 0.375) : nd;
+  const aud = audienceMatch(signal.term, opts.audience);
+  const customer = round3(aud.score === null ? customerMomentum : 0.65 * customerMomentum + 0.35 * aud.score);
+  const competitive = competitiveSignal(cg, opts.rivals);
+  // Proof, best evidence first: this business's own past ads on the term,
+  // then its own posts on it, then what similar businesses' results say.
+  const proofSource =
+    opts.history && opts.history.count > 0
+      ? opts.history
+      : opts.ownSocial && opts.ownSocial.count > 0
+        ? opts.ownSocial
+        : null;
+  const proof = proofSource ? proofSource.lift : hl.score;
+  const signals: SignalScores = {
+    customer,
+    brand: brandSignal(sm.score, proof),
+    competitive: competitive.score,
+    cultural: culturalScore.score,
+  };
+
+  const total = Math.min(1, combineSignals(signals) * evidenceGate + localityBonus);
 
   const monthText =
     typeof mo.monthPct === "number"
@@ -436,8 +700,25 @@ export function scoreOpportunity(
         : `showing ${metricText} right now — no weekly read yet, so momentum is scored conservatively${monthText}`;
   const localityText = LOCALITY_TEXT[locality] ? ` (${LOCALITY_TEXT[locality]})` : "";
 
+  const signalReasons: SignalReasons = {
+    customer: [deltaText, aud.reason].filter(Boolean).join("; "),
+    brand: [sm.reason, proofSource ? proofSource.reason : hl.reason].join("; "),
+    competitive: competitive.reason,
+    cultural: culturalScore.reason || "no short-form read on this yet",
+  };
+  const extraText = [
+    aud.score !== null ? aud.reason : "",
+    opts.rivals && opts.rivals.watched >= 2 ? competitive.reason : "",
+    proofSource ? proofSource.reason : "",
+    opts.cultural && culturalScore.reason ? culturalScore.reason : "",
+  ].filter(Boolean);
+
   return {
     score: Math.round(total * 100) / 10,
+    signals,
+    signalReasons,
+    signalInputs: { proof },
+    audiencePhrase: aud.phrase,
     components: {
       normalizedDelta: nd,
       serviceMatch: sm.score,
@@ -453,7 +734,9 @@ export function scoreOpportunity(
     evidenceGate,
     competitorBasis: cg.basis,
     matchedService: sm.service,
-    rationale: `"${signal.term}" is ${deltaText}${localityText}; ${sm.reason}; ${cg.reason}; ${hl.reason}.`,
+    rationale: `"${signal.term}" is ${deltaText}${localityText}; ${sm.reason}; ${cg.reason}; ${proofSource ? proofSource.reason : hl.reason}${
+      extraText.length > 0 ? `; ${extraText.filter((t) => t !== (proofSource?.reason ?? "")).join("; ")}` : ""
+    }.`,
     competitorGapText: cg.reason,
   };
 }

@@ -56,6 +56,16 @@ export const GenerationSchema = z.object({
 });
 export type GenerationResult = z.infer<typeof GenerationSchema>;
 
+/** The ONE customer the ads are for — see TargetCustomer in lib/db/types. */
+export const TargetCustomerSchema = z.object({
+  who: z.string().min(20),
+  triggers: z.array(z.string().min(4)).min(2).max(6),
+  vocabulary: z.array(z.string().min(2)).min(6).max(24),
+  hangouts: z.array(z.string().min(2)).max(8),
+  objections: z.array(z.string().min(6)).min(1).max(4),
+});
+export type TargetCustomerResult = z.infer<typeof TargetCustomerSchema>;
+
 export const BusinessBriefSchema = z.object({
   positioning: z.string().min(40),
   customer_segments: z.array(z.string().min(10)).min(2).max(4),
@@ -70,6 +80,7 @@ export const BusinessBriefSchema = z.object({
   watch_terms: z.array(z.string().min(3)).min(4).max(30),
   lexicon: z.array(z.string().min(2)).max(24),
   subreddits: z.array(z.string().min(2)).max(6),
+  target_customer: TargetCustomerSchema,
 });
 export type BusinessBriefResult = z.infer<typeof BusinessBriefSchema>;
 

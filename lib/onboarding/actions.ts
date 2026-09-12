@@ -6,6 +6,8 @@ import { after } from "next/server";
 import { generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { fallbackDigest } from "@/lib/documents/parse";
+import { MAX_ONBOARDING_DOC_TEXT, type OnboardingDocument } from "@/lib/onboarding/menu-doc";
 
 export interface OnboardingState {
   error?: string;
@@ -65,6 +67,31 @@ export async function completeOnboardingAction(
     /* photos are a nice-to-have — never block onboarding on them */
   }
 
+  // A menu read during onboarding — kept as the first document.
+  let document: OnboardingDocument | null = null;
+  try {
+    const raw = String(formData.get("document") ?? "");
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<OnboardingDocument>;
+      if (parsed && typeof parsed.name === "string" && typeof parsed.mime === "string" && typeof parsed.text === "string") {
+        const text = parsed.text.slice(0, MAX_ONBOARDING_DOC_TEXT);
+        const digest =
+          parsed.digest && Array.isArray(parsed.digest.facts) && Array.isArray(parsed.digest.services_found)
+            ? parsed.digest
+            : fallbackDigest(parsed.name, parsed.mime, text);
+        document = {
+          name: parsed.name.slice(0, 120),
+          mime: parsed.mime.slice(0, 100),
+          text,
+          digest,
+          model_used: typeof parsed.model_used === "string" ? parsed.model_used.slice(0, 80) : "trnd-template/v1",
+        };
+      }
+    }
+  } catch {
+    /* the services it produced are already in the rows — the document itself is a bonus */
+  }
+
   const business = await repo.createBusiness({
     owner_id: user.id,
     name,
@@ -102,6 +129,22 @@ export async function completeOnboardingAction(
     }),
   );
 
+  if (document) {
+    try {
+      await repo.createDocument({
+        business_id: business.id,
+        name: document.name,
+        mime: document.mime,
+        bytes: new TextEncoder().encode(document.text).byteLength,
+        text: document.text,
+        digest: document.digest,
+        model_used: document.model_used,
+      });
+    } catch (err) {
+      console.warn("[onboarding] saving the menu document failed (non-fatal):", (err as Error).message);
+    }
+  }
+
   // The joining gift: TRND's full analysis of the business — positioning,
   // customers, market, pricing, seasonality, and first moves. It takes the
   // model a minute, so it's written AFTER the redirect: the owner lands on
@@ -119,7 +162,12 @@ export async function completeOnboardingAction(
     ),
   );
 
-  const siteText = String(formData.get("site_text") ?? "").slice(0, 12_000) || undefined;
+  // The brief reads the menu the owner handed over alongside the site.
+  const siteTextRaw = String(formData.get("site_text") ?? "").slice(0, 12_000);
+  const siteText =
+    [siteTextRaw, document ? `=== DOCUMENT ${document.name} ===\n${document.text.slice(0, 8_000)}` : ""]
+      .filter(Boolean)
+      .join("\n\n") || undefined;
   after(async () => {
     // Ingest and ranking write shared tables (signals, signal_series,
     // opportunities) that RLS keeps read-only for user sessions — the jobs

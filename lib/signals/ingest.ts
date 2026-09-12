@@ -84,14 +84,16 @@ export async function runSignalIngestForBusiness(
     locality,
   }));
   const adapters: SignalAdapter[] = [
-    // Short-form first: what a shop can act on this week is what people are
-    // watching, and day one should show that rather than search alone.
+    // Search volume first, for the same reason as the daily run: it anchors
+    // the Trends index, so without it the demand score has a shape and no
+    // size on day one. Short-form follows — what a shop can act on this
+    // week is what people are watching.
+    createDataForSeoAdapter(),
     createYoutubeAdapter(),
     createTiktokApifyAdapter(),
     createTiktokCcAdapter(),
     createInstagramAdapter(),
     createXAdapter(),
-    createDataForSeoAdapter(),
     createGoogleNewsAdapter(),
     createMetaAdsAdapter(),
     createTrendsIotAdapter(),
@@ -139,32 +141,45 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-function defaultAdapters(): SignalAdapter[] {
-  // Order is priority, not preference: the run has a wall-clock budget, and
-  // whatever sits at the bottom is what gets skipped on a slow day. Short-
-  // form social leads because it's the basis of the product — YouTube Shorts
-  // per business term (key-gated), then TikTok's trending boards. Search
-  // volume follows as the demand backbone that confirms a trend is being
-  // acted on, then the saturation and context reads, then the fragile
-  // unofficial Trends endpoints last, where a failure costs nothing.
+export function defaultAdapters(): SignalAdapter[] {
+  // Order is priority, not preference: the run has a wall-clock budget and
+  // whatever sits at the bottom is what gets skipped on a slow day.
+  //
+  // Search volume leads, and that is a change. It used to sit sixth, behind
+  // the short-form reads, on the reasoning that short-form is the basis of
+  // the product. That stopped being the whole story the day the demand
+  // score started anchoring the Google Trends index to real volume: Trends
+  // is the most abundant signal held and contributes NOTHING without a
+  // volume to anchor it, so DataForSEO is now load-bearing for every term
+  // rather than one source among several.
+  //
+  // It also stopped being theoretical. Adding Instagram and X above it, and
+  // making the Shorts read twice as expensive per term, pushed it past the
+  // budget: it last wrote on 2026-09-10 and went 48 hours without a row
+  // while every adapter above it ran. Nothing failed and nothing was
+  // logged — it was simply never reached.
   return [
+    createDataForSeoAdapter(),
+    // Short-form next: the basis of the ranking, and the reads an owner
+    // acts on. YouTube per business term, then per-term TikTok when it is
+    // paid for, then the free national board.
     createYoutubeAdapter(),
-    // Per-term TikTok when it's paid for, the free national board either
-    // way — they answer different questions and both are worth storing.
     createTiktokApifyAdapter(),
     createTiktokCcAdapter(),
-    // The other two surfaces of the same question: Reels is where local
-    // operators actually post, X is the written half of the conversation.
-    // Both key-gated; both skip cleanly when unconfigured.
+    // Reels is where local operators actually post, X is the written half
+    // of the conversation. Both key-gated; both skip cleanly when unset.
     createInstagramAdapter(),
     createXAdapter(),
-    createDataForSeoAdapter(),
+    // Saturation and context.
     createGoogleTrendsRssAdapter(),
     createWeatherAdapter(),
     createSuggestAdapter(),
     createRedditAdapter(),
     createGoogleNewsAdapter(),
     createMetaAdsAdapter(),
+    // The fragile unofficial Trends endpoints last, where a failure costs
+    // nothing — but note the interest-over-time read is what the anchor
+    // above needs, so a run that never reaches it leaves volume unshaped.
     createTrendsIotAdapter(),
     createTrendsRelatedAdapter(),
   ];
@@ -270,6 +285,13 @@ export async function runIngest(
   for (const adapter of adapters) {
     const report: AdapterRunReport = { adapter: adapter.name, ok: false, signals: 0, seriesPoints: 0 };
     if (Date.now() - startedAt >= budgetMs) {
+      // This is how DataForSEO went 48 hours without writing a row: nothing
+      // failed, nothing errored, it was just never reached. A skip is a
+      // silent outage unless it is said out loud.
+      console.warn(
+        `[ingest] ${adapter.name} SKIPPED — the ${Math.round(budgetMs / 1000)}s budget was spent before it ran. ` +
+          `Everything below it in defaultAdapters() is being starved.`,
+      );
       report.skipped = "time budget exhausted";
       report.ok = true;
       reports.push(report);

@@ -85,3 +85,16 @@ describe("runIngest wall-clock budget", () => {
     expect(after).toMatchObject({ ok: true, signals: 1 });
   });
 });
+
+describe("the anchor must not be starved", () => {
+  it("runs search volume before anything that can spend the budget", async () => {
+    // DataForSEO anchors the Trends index; without it Trends contributes
+    // nothing to the demand score. It sat sixth behind the short-form reads
+    // and went 48 hours without writing a row — never failing, just never
+    // reached before the 240s budget ran out.
+    const { defaultAdapters } = await import("../lib/signals/ingest");
+    const order = defaultAdapters().map((a) => a.name);
+    expect(order.indexOf("dataforseo")).toBe(0);
+    expect(order.indexOf("dataforseo")).toBeLessThan(order.indexOf("youtube"));
+  });
+});

@@ -1,6 +1,7 @@
 import type { Signal, SignalSeriesPoint } from "@/lib/db/types";
 
-import { demandPoints, pointsCaption, type DemandPointsResult } from "./points";
+import { anchorTrendsToVolume } from "./anchor";
+import { demandPoints, pointsCaption, pointsFromReach, type DemandPointsResult } from "./points";
 
 /**
  * The eight-week demand line, in TRND points.
@@ -68,6 +69,24 @@ export function buildDemandLine(
   now = new Date(),
   weeks = 8,
 ): DemandLine {
+  // Search volume anchored to the Trends index, when the term has both.
+  // This is the only input with an absolute level AND weekly resolution, so
+  // where it exists it carries the line — see lib/demand/anchor.ts.
+  //
+  // The series table holds no source, so a term with both a Trends index and
+  // a DataForSEO monthly series has them mixed in one list. A Trends value is
+  // 0-100 by definition and a volume is a raw count, so the index is what is
+  // at or below 100; anchoring on a raw volume would blow the mean apart.
+  const volume = signals.find((s) => s.metric_type === "search_volume")?.value ?? null;
+  const anchored = new Map(
+    anchorTrendsToVolume(
+      volume,
+      series.filter((p) => p.value <= 100),
+      now,
+      weeks,
+    ).map((w) => [w.day, w.searches]),
+  );
+
   const buckets: DemandWeekPoint[] = [];
   let current: DemandPointsResult | null = null;
 
@@ -88,15 +107,22 @@ export function buildDemandLine(
       const prev = latest.get(key);
       if (!prev || Date.parse(s.captured_at) > Date.parse(prev.captured_at)) latest.set(key, s);
     }
+    const day = dayOf(new Date(end).toISOString());
     const result = demandPoints(
       [...latest.values()].map((s) => ({
         source: s.source,
         metricType: s.metric_type,
-        value: s.value,
+        // The monthly volume is replaced by this week's anchored estimate
+        // wherever one exists: a flat monthly total repeated across eight
+        // buckets is a step, not a trend.
+        value:
+          s.metric_type === "search_volume" && anchored.has(day)
+            ? anchored.get(day)! * 4.345
+            : s.value,
       })),
     );
     if (result.points === null) continue;
-    buckets.push({ day: dayOf(new Date(end).toISOString()), points: result.points });
+    buckets.push({ day, points: result.points });
     if (w === 0) current = result;
   }
 
@@ -114,6 +140,35 @@ export function buildDemandLine(
 
   if (buckets.length >= 2) {
     return { weeks: buckets, mode: "points", current, caption: current ? pointsCaption(current) : null, deltaPct };
+  }
+
+  // A term read once but anchored across eight weeks: the signal rows cannot
+  // fill the line on their own, but the anchored searches are real absolute
+  // numbers for every one of those weeks, so the line is still points.
+  if (anchored.size >= 2) {
+    const ordered = [...anchored.entries()].sort(([a], [b]) => a.localeCompare(b));
+    const fromAnchor = ordered.map(([day, searches]) => ({
+      day,
+      points: pointsFromReach(searches) ?? 0,
+    }));
+    const prev = fromAnchor[fromAnchor.length - 2].points;
+    const last = fromAnchor[fromAnchor.length - 1].points;
+    // The caption must describe the LINE. Reporting every source's reach
+    // above a search-only line put "about 51 weekly touches" over a line
+    // flat at zero — two true numbers that read as a contradiction.
+    const searchOnly: DemandPointsResult = {
+      points: fromAnchor[fromAnchor.length - 1].points,
+      reach: ordered[ordered.length - 1][1],
+      contributing: ["dataforseo"],
+      indexOnly: [],
+    };
+    return {
+      weeks: fromAnchor,
+      mode: "points",
+      current: searchOnly,
+      caption: pointsCaption(searchOnly),
+      deltaPct: prev > 0 ? Math.round(((last - prev) / prev) * 100) : null,
+    };
   }
 
   // Not enough absolute history to draw a comparable line — fall back to the

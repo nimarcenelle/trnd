@@ -38,7 +38,7 @@ describe("the points scale", () => {
   it("is fixed, so a pick's number does not move when another pick moves", () => {
     // The whole reason the scale is absolute rather than a percentile.
     expect(pointsFromReach(1000)).toBe(pointsFromReach(1000));
-    expect(pointsFromReach(1000)).toBe(40);
+    expect(pointsFromReach(1000)).toBe(47);
   });
 
   it("is logarithmic, so local terms are not crushed into the axis", () => {
@@ -53,6 +53,13 @@ describe("the points scale", () => {
   it("clamps rather than running off the top", () => {
     expect(pointsFromReach(50_000_000)).toBe(100);
     expect(pointsFromReach(1)).toBe(0);
+  });
+
+  it("keeps a small local term visible instead of flooring it to nothing", () => {
+    // ~26 searches a month is a real niche for a local roaster, not "no
+    // market" — it must be able to move on the scale.
+    expect(pointsFromReach(6)).toBeGreaterThan(0);
+    expect(pointsFromReach(12)).toBeGreaterThan(pointsFromReach(6)!);
   });
 
   it("round-trips points back to the reach they stand for", () => {
@@ -179,7 +186,12 @@ describe("the eight-week demand line", () => {
       day: new Date(now.getTime() - (29 - i) * 86400_000).toISOString().slice(0, 10),
       value: 10 + i * 2,
     }));
-    const line = buildDemandLine([sig(1)], series, now);
+    // No search volume to anchor with — a short-form-only term.
+    const line = buildDemandLine(
+      [sig(1, { source: "youtube", metric_type: "shortform_views", value: 132 })],
+      series,
+      now,
+    );
     expect(line.mode).toBe("relative");
     expect(line.weeks.length).toBeGreaterThanOrEqual(2);
     // Scaled against its own peak, so the newest week tops out.
@@ -220,5 +232,53 @@ describe("the composite across every surface", () => {
     const viral = demandPoints([{ source: "instagram", metricType: "reel_volume", value: 2_000_000 }]);
     const buyers = demandPoints([{ source: "dataforseo", metricType: "search_volume", value: 260_000 }]);
     expect(buyers.points!).toBeGreaterThan(viral.points!);
+  });
+
+});
+
+describe("the anchored demand line", () => {
+  const now = new Date("2026-09-10T00:00:00Z");
+  const sig = (daysAgo: number, over: Partial<Signal> = {}): Signal =>
+    ({
+      id: `s${daysAgo}`, source: "dataforseo", term: "cold plunge",
+      normalized_term: "cold_plunge", category: "Health & beauty", geo: "US-NY",
+      metric_type: "search_volume", value: 4345, delta_pct: null, window_days: 7,
+      captured_at: new Date(now.getTime() - daysAgo * 86400_000).toISOString(),
+      raw: null, ...over,
+    }) as Signal;
+
+  it("uses anchored weekly searches for the line when the term has volume", () => {
+    // One volume read plus a Trends index is enough for eight real weeks —
+    // the case that put "not enough history yet" on a term we could measure.
+    const index = Array.from({ length: 56 }, (_, i) => ({
+      id: `p${i}`,
+      normalized_term: "cold_plunge",
+      geo: "US-NY",
+      day: new Date(now.getTime() - (55 - i) * 86400_000).toISOString().slice(0, 10),
+      value: 20 + i,
+    }));
+    const line = buildDemandLine([sig(1, { value: 4_345 })], index, now);
+    expect(line.mode).toBe("points");
+    expect(line.weeks).toHaveLength(8);
+    // A rising index must read as a rising line.
+    expect(line.weeks[7].points).toBeGreaterThan(line.weeks[0].points);
+  });
+
+  it("ignores raw volumes sitting in the same series as the index", () => {
+    // signal_series_points holds no source, so a term with both has monthly
+    // volumes mixed into its daily index. A Trends value is 0-100; anchoring
+    // on a raw 4345 would blow the mean apart.
+    const mixed = [
+      ...Array.from({ length: 56 }, (_, i) => ({
+        id: `t${i}`, normalized_term: "x", geo: "US",
+        day: new Date(now.getTime() - (55 - i) * 86400_000).toISOString().slice(0, 10),
+        value: 50,
+      })),
+      { id: "v", normalized_term: "x", geo: "US", day: "2026-09-01", value: 4_345 },
+    ];
+    const line = buildDemandLine([sig(1, { value: 4_345 })], mixed, now);
+    // Flat index at 50 → every week is the average week, ~1000 searches.
+    expect(line.mode).toBe("points");
+    expect(new Set(line.weeks.map((w) => w.points)).size).toBe(1);
   });
 });

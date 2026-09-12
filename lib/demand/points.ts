@@ -30,8 +30,16 @@ import type { SignalSource } from "@/lib/db/types";
  * national noise no shop can act on.
  */
 
-/** A weekly touch on the floor of the scale — below this there is no market. */
-const REACH_FLOOR = 10;
+/**
+ * The bottom of the scale.
+ *
+ * Calibrated for the businesses this is for. At ten a week, a local term
+ * with thirty searches a month — a genuine niche for a coffee roaster —
+ * floored to zero and drew a line flat along the axis for eight weeks, so
+ * the bottom of an SMB's actual range was discarded as "no market". Two a
+ * week is the honest floor: below that there is nothing to advertise into.
+ */
+const REACH_FLOOR = 2;
 /** The top of the scale: national-scale weekly reach. Above it, points clamp
  * at 100 — the difference between 2M and 5M is not a decision an owner makes. */
 const REACH_CEIL = 1_000_000;

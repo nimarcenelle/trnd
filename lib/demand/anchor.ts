@@ -73,8 +73,14 @@ export function anchorTrendsToVolume(
   if (meanIndex <= 0) return [];
   const weeklyAverage = monthlyVolume / 4.345;
 
-  return buckets.map((b) => ({
-    day: b.day,
-    searches: Math.max(0, Math.round((b.mean / meanIndex) * weeklyAverage)),
-  }));
+  // A week whose index is flat at zero is Trends failing to resolve a
+  // long-tail term, not demand vanishing for seven days. Drawing it as zero
+  // puts a cliff in the middle of a line that has real volume behind it, so
+  // the week is omitted — a gap says "not measured", a zero says "nobody".
+  return buckets
+    .filter((b) => b.mean > 0)
+    .map((b) => ({
+      day: b.day,
+      searches: Math.max(0, Math.round((b.mean / meanIndex) * weeklyAverage)),
+    }));
 }

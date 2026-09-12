@@ -17,9 +17,9 @@
   --color-mint: var(--mint);
   --color-mint-ink: var(--mint-ink);
   --color-red: var(--red);
-  --font-disp: "Inter", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-mono: "Inter", system-ui, sans-serif;
+  --font-disp: var(--disp);
+  --font-body: var(--body);
+  --font-mono: var(--mono);
   --radius-card: 16px;
   --radius-card-sm: 10px;
 }
@@ -77,9 +77,12 @@
   /* One typeface. --disp and --mono survive as names so nothing breaks;
      display is the same family, heavier; "mono" is the same family with
      tabular figures. */
-  --disp: "Inter", system-ui, sans-serif;
-  --body: "Inter", system-ui, sans-serif;
-  --mono: "Inter", system-ui, sans-serif;
+  /* Three families, three jobs. These are the tokens every rule reads;
+     the @theme block above aliases Tailwind's --font-* onto them so the
+     utilities and the hand-written CSS can never drift apart. */
+  --disp: "Instrument Sans", system-ui, sans-serif;
+  --body: "Instrument Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -537,6 +540,309 @@ textarea.input {
 }
 .faint {
   color: var(--ink-faint);
+}
+
+
+/* ================= THE PICK SCREEN =================
+   One question per band, top to bottom: what is it, is it good, is it
+   growing, is anyone watching, who else is in. The left rail answers the
+   same seven things in the same order on every pick so it can be swept
+   rather than read. */
+.pick {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 64px;
+}
+/* .card carries no padding of its own — the pick screen's bands need it. */
+.pick__main > .card,
+.pick__why,
+.pick__social,
+.pick__rivals,
+.pick__demand {
+  padding: 20px;
+}
+.pick__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+.pick__eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 8px;
+}
+.pick__title {
+  font-family: var(--disp);
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 0;
+  color: var(--ink);
+}
+.pick__grid {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.pick__main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.pick__row {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+.pick__lede {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--ink);
+  margin: 0 0 10px;
+}
+.pick__para {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  margin: 0 0 10px;
+}
+.pick__para:last-child { margin-bottom: 0; }
+.pick__h {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 12px;
+  font-weight: 500;
+}
+.pick__note {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-faint);
+  margin: 10px 0 0;
+}
+.pick__note a, .proof a { color: var(--amber-text, var(--amber-ink)); }
+
+/* ---- pager ---- */
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.pager__arrow {
+  display: grid;
+  place-items: center;
+  width: 30px; height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-1);
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1;
+  text-decoration: none;
+}
+.pager__arrow:hover { border-color: var(--line-strong); color: var(--ink); }
+.pager__arrow.is-off { opacity: 0.35; }
+.pager__label {
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding: 0 14px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  height: 30px;
+  /* inline-flex, not grid: a grid container turns the <b> and the two text
+     nodes into three grid items and stacks "Pick / 1 / of 5" vertically. */
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-1);
+}
+.pager__label b { color: var(--ink); font-weight: 600; }
+.pager__dots { display: flex; gap: 5px; list-style: none; margin: 0 0 0 4px; padding: 0; }
+.pager__dots a {
+  display: block; width: 7px; height: 7px; border-radius: 999px;
+  background: var(--line-strong); opacity: 0.5;
+}
+.pager__dots a.is-on { background: var(--amber); opacity: 1; }
+
+/* ---- left rail ---- */
+.briefing {
+  border: 1px solid var(--card-stroke);
+  border-radius: var(--radius-card);
+  background: var(--bg-1);
+  padding: 20px;
+  position: sticky;
+  top: 18px;
+}
+.briefing__h {
+  font-family: var(--disp);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 14px;
+  color: var(--ink);
+}
+.briefing__list { margin: 0; }
+.briefing__row {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.briefing__row:first-child { border-top: 0; padding-top: 0; }
+.briefing__slot {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  margin: 2px 0 0;
+}
+.briefing__text {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* ---- grade ---- */
+.gradecard {
+  border: 1px solid var(--card-stroke);
+  border-radius: var(--radius-card);
+  background: var(--amber-soft, var(--bg-2));
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.gradecard__eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 10px;
+}
+.gradecard__row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.gradecard__letter {
+  font-family: var(--disp);
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.gradecard__label { font-size: 13.5px; font-weight: 600; color: var(--ink-soft); }
+.gradecard__sub { font-size: 12.5px; color: var(--ink-faint); margin: 8px 0 0; }
+.stars { display: flex; gap: 3px; margin-top: 12px; font-size: 17px; line-height: 1; }
+.stars__s { color: var(--line-strong); }
+.stars__s--1 { background: linear-gradient(90deg, var(--amber) 50%, var(--line-strong) 50%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.stars__s--2 { color: var(--amber); }
+
+/* ---- demand ---- */
+.demand__head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; margin-bottom: 10px; flex-wrap: wrap;
+}
+.demand__eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.demand__delta { font-size: 12.5px; font-weight: 600; }
+.demand__delta.is-up { color: var(--mint-text); }
+.demand__delta.is-down { color: var(--red); }
+.demand__svg { width: 100%; height: auto; display: block; }
+.demand__grid { stroke: var(--line); stroke-width: 1; }
+.demand__tick { font-family: var(--mono); font-size: 9.5px; fill: var(--ink-faint); }
+.demand__line { fill: none; stroke: var(--amber); stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+.demand__area { fill: var(--amber); opacity: 0.09; stroke: none; }
+.demand__dot { fill: var(--amber); stroke: var(--bg-1); stroke-width: 2; }
+.demand__caption { font-size: 12.5px; color: var(--ink-faint); margin: 8px 0 0; line-height: 1.5; }
+.demand__none { font-size: 13.5px; color: var(--ink-faint); margin: 6px 0 0; }
+
+/* ---- facts + proof ---- */
+.factgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card-sm);
+  overflow: hidden;
+  margin: 14px 0 0;
+}
+.factgrid__cell { background: var(--bg-1); padding: 12px 14px; }
+.factgrid__cell dt {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 5px;
+}
+.factgrid__cell dd { font-size: 13.5px; color: var(--ink); margin: 0; line-height: 1.45; }
+.proof { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.proof li { display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; line-height: 1.45; }
+.proof li span { color: var(--ink-faint); font-size: 12.5px; }
+
+/* ---- the one action ---- */
+.actionbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  border: 1px solid var(--card-stroke);
+  border-radius: var(--radius-card);
+  background: var(--bg-1);
+  padding: 18px 20px;
+}
+.actionbar__text { font-size: 14.5px; font-weight: 500; color: var(--ink); margin: 0; }
+.btn-lg { padding: 12px 22px; font-size: 14.5px; border-radius: 999px; }
+
+/* ---- everything that is not the sweep ---- */
+.more { margin-top: 6px; }
+.more > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink-faint);
+  padding: 10px 2px;
+  list-style: none;
+}
+.more > summary::-webkit-details-marker { display: none; }
+.more > summary::before { content: "＋ "; }
+.more[open] > summary::before { content: "－ "; }
+.more > summary:hover { color: var(--ink); }
+.more__body { display: flex; flex-direction: column; gap: 18px; padding-top: 8px; }
+.more__block { border-top: 1px solid var(--line); padding-top: 16px; }
+.runnerups { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.runnerups li { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; }
+
+@media (max-width: 960px) {
+  .pick__grid { grid-template-columns: minmax(0, 1fr); }
+  .briefing { position: static; }
+  .pick__row { grid-template-columns: minmax(0, 1fr); }
+  .pick__title { font-size: 30px; }
+  .pick__top { flex-direction: column; gap: 14px; }
 }
 
 }

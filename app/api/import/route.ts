@@ -10,10 +10,16 @@ import {
   looksLikeStorefront,
   menuFileName,
   normalizeUrl,
-  probeStorefrontProducts,
   readOffsiteMenu,
   type ImportEvent,
 } from "@/lib/import/website";
+import {
+  asCatalog,
+  fetchStorefrontCatalog,
+  fillCatalogPrices,
+  linkedProductHandles,
+  type CatalogProduct,
+} from "@/lib/import/catalog";
 import {
   MAX_ONBOARDING_DOC_TEXT,
   mergeServices,
@@ -87,6 +93,13 @@ export async function POST(req: Request): Promise<Response> {
         });
 
         let data = extractFromPages(corpus.pages);
+        // The store's own catalog prices every name, whoever wrote the name:
+        // the crawl, the model, or a menu file. See lib/import/catalog.ts.
+        let catalog: CatalogProduct[] = [];
+        const catalogOpts = {
+          brand: `${new URL(url).hostname.replace(/^www\./, "").split(".")[0]} ${data.name ?? ""}`,
+          linkedHandles: linkedProductHandles(corpus.pages),
+        };
         // JS-rendered storefronts (Shopify, Woo) hide the catalog from the
         // HTML crawl — their public JSON endpoints carry it instead. This is
         // the only product read that works in serverless prod for such sites.
@@ -95,13 +108,8 @@ export async function POST(req: Request): Promise<Response> {
         // catalog in the store, and the owner sells both.
         if (data.services.length === 0 || looksLikeStorefront(corpus.pages[0].html)) {
           send({ type: "status", label: "Checking the online store for products…" });
-          const products = await probeStorefrontProducts(url, corpus.pages[0].html);
-          const seen = new Set(data.services.map((s) => s.name.toLowerCase()));
-          for (const p of products) {
-            if (seen.has(p.name.toLowerCase())) continue;
-            seen.add(p.name.toLowerCase());
-            data.services.push(p);
-          }
+          catalog = await fetchStorefrontCatalog(url, corpus.pages[0].html);
+          data.services = fillCatalogPrices(data.services, catalog, { ...catalogOpts, append: 12 });
           data.priceBand = data.priceBand ?? inferPriceBand(data.services, data.category);
         }
         // The menu on an ordering platform: one honest attempt to read it,
@@ -166,8 +174,17 @@ export async function POST(req: Request): Promise<Response> {
           try {
             const { extractSiteWithGemini } = await import("@/lib/ai/gemini");
             const refined = await extractSiteWithGemini(corpus.text, url);
-            // Gemini wins where it found something; heuristics fill its gaps.
-            const services = refined.services.length > 0 ? refined.services : data.services;
+            // Gemini names the offerings where it found them; prices come from
+            // the store's catalog first, then from what the crawl priced, and
+            // priced catalog products it didn't name are kept.
+            const services =
+              refined.services.length > 0
+                ? fillCatalogPrices(
+                    fillCatalogPrices(refined.services, catalog, { ...catalogOpts, append: 12 }),
+                    asCatalog(data.services),
+                    catalogOpts,
+                  )
+                : data.services;
             const category = refined.category ?? data.category;
             data = {
               name: refined.name ?? data.name,

@@ -937,8 +937,11 @@ export function classifyCategory(text: string): (typeof CATEGORIES)[number] | un
 }
 
 // Storefront chrome and checkout math, not offerings.
+// Storefront price lines that aren't products: "FREE $16", "$99 $132" (a
+// sale price next to the old one), "You save $33", and a sentence cut off
+// right before its price ("Filters delivered every 90 days for $33").
 const JUNK_SERVICE_NAME =
-  /total|subtotal|shipping|delivery fee|tax|minimum|gift card|^(sale price|original price|regular price|unit price|price|from|starting at|now|was|save|only|add to cart)\b|[:：]$/i;
+  /total|subtotal|shipping|delivery fee|tax|minimum|gift card|^(sale price|original price|regular price|unit price|price|from|starting at|now|was|save|only|add to cart|you save|free)\b|^\$|^\d+\s?%|\s(for|every|of|to|per|with|at|just)$|[:：]$/i;
 
 /** Lines that look like "<offering> … $<price>" become service candidates. */
 function extractPricedItems(lines: string[]): ImportedService[] {

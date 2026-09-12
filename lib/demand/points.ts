@@ -1,4 +1,5 @@
 import type { SignalSource } from "@/lib/db/types";
+import type { GeoLevel } from "@/lib/signals/geo";
 
 /**
  * TRND Demand Points — the one number every pick is measured in.
@@ -77,11 +78,52 @@ export const INTENT_WEIGHT: Partial<Record<SignalSource, number>> = {
 /** Weeks in a month, for turning monthly search volume into a weekly rate. */
 const WEEKS_PER_MONTH = 4.345;
 
+/**
+ * How much a read counts, by where it was measured.
+ *
+ * The formula had no geography in it at all: `weeklyReach` looked at source,
+ * metric and value and never at `geo`, so a globally-measured X post and an
+ * NC-scoped search were summed as equals. Three of the five live surfaces
+ * (YouTube, the TikTok board, X) are national or global, which meant the
+ * composite quietly treated 330 million people and sixty thousand as the
+ * same market. Measured on two real reads for one Chapel Hill café, global
+ * chatter about "brunch" scored 56 points while in-market searches for the
+ * thing they actually sell scored 34.
+ *
+ * It also contradicted the grade, which has always known better —
+ * `LOCALITY_BONUS` in lib/scoring.ts rewards a metro read over a national
+ * one. The graph the owner looks at now agrees with the letter beside it.
+ *
+ * These are not population ratios. A metro is a fraction of a percent of the
+ * country, and weighting by that would zero national attention out
+ * entirely — but national attention genuinely does lead local demand by a
+ * week or two, so it keeps a floor. It counts as a leading indicator, not
+ * as this week's customers.
+ */
+export const LOCALITY_WEIGHT: Record<GeoLevel, number> = {
+  metro: 1,
+  state: 0.6,
+  // Not a population share — a state is roughly 3% of the country, and
+  // weighting by that would delete national attention from a formula where
+  // it is the earliest warning available. But national counts routinely run
+  // ten to a hundred times larger than a local one, so anything near 0.15
+  // lets raw national volume win every comparison on size alone. 0.05 keeps
+  // it as a leading indicator that can add to a local read without
+  // outvoting it.
+  national: 0.05,
+};
+
 export interface ReachInput {
   source: SignalSource;
   metricType: string;
   /** The signal's stored value, in whatever unit the source speaks. */
   value: number | null;
+  /**
+   * Where the read was taken, relative to the business. Omitted means
+   * "don't weight by geography" — used by callers that have already
+   * resolved it, and by tests measuring the intent weights alone.
+   */
+  locality?: GeoLevel;
 }
 
 /**
@@ -94,10 +136,11 @@ export interface ReachInput {
  * this module exists to remove. Those reads still drive momentum and the
  * grade — they just cannot contribute to an absolute scale.
  */
-export function weeklyReach({ source, metricType, value }: ReachInput): number | null {
+export function weeklyReach({ source, metricType, value, locality }: ReachInput): number | null {
   if (value === null || !Number.isFinite(value) || value <= 0) return null;
-  const weight = INTENT_WEIGHT[source];
-  if (weight === undefined) return null;
+  const intent = INTENT_WEIGHT[source];
+  if (intent === undefined) return null;
+  const weight = intent * (locality ? LOCALITY_WEIGHT[locality] : 1);
 
   switch (metricType) {
     case "search_volume":
@@ -135,6 +178,17 @@ export function reachFromPoints(points: number): number {
   return Math.round(REACH_FLOOR * (REACH_CEIL / REACH_FLOOR) ** ratio);
 }
 
+/**
+ * How much is actually behind a number.
+ *
+ * A term read once by one national source scored identically to one read by
+ * five sources across eight weeks, which is how a guess ends up sitting
+ * beside a measurement wearing the same face. The points stay honest and
+ * absolute — distorting them would break the comparability they exist for —
+ * and this travels alongside so a screen can say which kind of number it is.
+ */
+export type DemandConfidence = "thin" | "fair" | "solid";
+
 export interface DemandPointsResult {
   /** 0–100, or null when nothing measurable contributed. */
   points: number | null;
@@ -144,6 +198,24 @@ export interface DemandPointsResult {
   contributing: SignalSource[];
   /** Sources present but unusable because they are self-relative indices. */
   indexOnly: SignalSource[];
+  confidence: DemandConfidence;
+  /** The closest to home any contributing read was taken. */
+  closest: GeoLevel | null;
+}
+
+/**
+ * Two things make a read trustworthy: more than one surface saw it, and at
+ * least one saw it near the business. Either alone is fair; both is solid;
+ * neither is thin, however big the number.
+ */
+export function confidenceFor(
+  contributing: SignalSource[],
+  closest: GeoLevel | null,
+): DemandConfidence {
+  const inMarket = closest === "metro" || closest === "state";
+  if (contributing.length >= 2 && inMarket) return "solid";
+  if (contributing.length >= 2 || inMarket) return "fair";
+  return "thin";
 }
 
 /**
@@ -154,10 +226,13 @@ export interface DemandPointsResult {
  * honesty: without them, one viral video would outweigh every real buyer in
  * a metro.
  */
+const CLOSER: Record<GeoLevel, number> = { metro: 3, state: 2, national: 1 };
+
 export function demandPoints(signals: ReachInput[]): DemandPointsResult {
   let total = 0;
   const contributing: SignalSource[] = [];
   const indexOnly: SignalSource[] = [];
+  let closest: GeoLevel | null = null;
   for (const s of signals) {
     const reach = weeklyReach(s);
     if (reach === null) {
@@ -166,18 +241,35 @@ export function demandPoints(signals: ReachInput[]): DemandPointsResult {
     }
     total += reach;
     if (!contributing.includes(s.source)) contributing.push(s.source);
+    if (s.locality && (!closest || CLOSER[s.locality] > CLOSER[closest])) closest = s.locality;
   }
   if (contributing.length === 0) {
-    return { points: null, reach: null, contributing, indexOnly };
+    return {
+      points: null, reach: null, contributing, indexOnly,
+      confidence: "thin", closest: null,
+    };
   }
   const reach = Math.round(total);
-  return { points: pointsFromReach(reach), reach, contributing, indexOnly };
+  return {
+    points: pointsFromReach(reach),
+    reach,
+    contributing,
+    indexOnly,
+    confidence: confidenceFor(contributing, closest),
+    closest,
+  };
 }
 
 /**
  * A points number said in words, for the caption under the chart. The scale
  * is meaningless to an owner on its own — the reach behind it is not.
  */
+const CONFIDENCE_NOTE: Record<DemandConfidence, string> = {
+  solid: "",
+  fair: " Read on one surface, or only outside your area — treat it as a lead, not a count.",
+  thin: " Only one national read stands behind this — the weakest kind of evidence TRND holds.",
+};
+
 export function pointsCaption(result: DemandPointsResult): string | null {
   if (result.points === null || result.reach === null) return null;
   const people =
@@ -186,5 +278,8 @@ export function pointsCaption(result: DemandPointsResult): string | null {
       : result.reach >= 1_000
         ? `${(result.reach / 1_000).toFixed(result.reach >= 10_000 ? 0 : 1).replace(/\.0$/, "")}K`
         : String(result.reach);
-  return `${result.points} points — about ${people} weekly touches on this, weighted by how much each one means.`;
+  return (
+    `${result.points} points — about ${people} weekly touches on this, weighted by how much each one means and how close to you it was measured.` +
+    CONFIDENCE_NOTE[result.confidence]
+  );
 }

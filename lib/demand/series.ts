@@ -1,7 +1,14 @@
 import type { Signal, SignalSeriesPoint } from "@/lib/db/types";
+import { localityFor } from "@/lib/signals/geo";
 
 import { anchorTrendsToVolume } from "./anchor";
-import { demandPoints, pointsCaption, pointsFromReach, type DemandPointsResult } from "./points";
+import {
+  confidenceFor,
+  demandPoints,
+  pointsCaption,
+  pointsFromReach,
+  type DemandPointsResult,
+} from "./points";
 
 /**
  * The eight-week demand line, in TRND points.
@@ -68,6 +75,9 @@ export function buildDemandLine(
   series: SignalSeriesPoint[] = [],
   now = new Date(),
   weeks = 8,
+  /** The business's state, so each read can be weighted by how close to
+   * home it was taken. Null leaves every read unweighted. */
+  businessRegion: string | null = null,
 ): DemandLine {
   // Search volume anchored to the Trends index, when the term has both.
   // This is the only input with an absolute level AND weekly resolution, so
@@ -112,6 +122,7 @@ export function buildDemandLine(
       [...latest.values()].map((s) => ({
         source: s.source,
         metricType: s.metric_type,
+        locality: localityFor(s.geo, businessRegion),
         // The monthly volume is replaced by this week's anchored estimate
         // wherever one exists: a flat monthly total repeated across eight
         // buckets is a step, not a trend.
@@ -161,6 +172,14 @@ export function buildDemandLine(
       reach: ordered[ordered.length - 1][1],
       contributing: ["dataforseo"],
       indexOnly: [],
+      // One surface, but a geo-scoped one — see confidenceFor.
+      ...(() => {
+        const closest = localityFor(
+          signals.find((s) => s.metric_type === "search_volume")?.geo ?? "US",
+          businessRegion,
+        );
+        return { closest, confidence: confidenceFor(["dataforseo"], closest) };
+      })(),
     };
     return {
       weeks: fromAnchor,

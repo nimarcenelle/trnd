@@ -306,3 +306,89 @@ describe("the anchored demand line", () => {
     expect(new Set(line.weeks.map((w) => w.points)).size).toBe(1);
   });
 });
+
+describe("where a read was taken changes what it counts for", () => {
+  const posts = (locality?: "metro" | "state" | "national") =>
+    demandPoints([{ source: "x", metricType: "posts", value: 5_215, locality }]);
+
+  it("closes the gap between global chatter and a local term", () => {
+    // Both real reads for one Chapel Hill cafe. Unweighted, global "brunch"
+    // scored 56 against 34 for in-market "main street espresso" — a
+    // 22-point lead on nothing but national size.
+    //
+    // Weighting does not flip it, and should not: 5,215 posts a week IS a
+    // bigger phenomenon than 720 searches a month. What it removes is the
+    // lead being free. Whether a bigger thing is THEIRS is the relevance
+    // judge's job, not this number's.
+    const globalChatter = posts("national");
+    const inMarket = demandPoints([
+      { source: "dataforseo", metricType: "search_volume", value: 720, locality: "state" },
+    ]);
+    expect(globalChatter.points! - inMarket.points!).toBeLessThan(8);
+  });
+
+  it("ranks the same number by how close to home it was measured", () => {
+    expect(posts("metro").reach!).toBeGreaterThan(posts("state").reach!);
+    expect(posts("state").reach!).toBeGreaterThan(posts("national").reach!);
+  });
+
+  it("keeps national attention contributing — it leads local demand", () => {
+    // Zeroed out it would stop being the early warning it actually is.
+    expect(posts("national").reach!).toBeGreaterThan(0);
+  });
+
+  it("leaves a read unweighted when no locality is given", () => {
+    expect(posts(undefined).reach).toBe(posts("metro").reach);
+  });
+});
+
+describe("confidence travels with the number", () => {
+  const read = (sources: { source: "dataforseo" | "youtube" | "x"; locality?: "metro" | "state" | "national" }[]) =>
+    demandPoints(
+      sources.map((s) => ({
+        source: s.source,
+        metricType: s.source === "dataforseo" ? "search_volume" : s.source === "x" ? "posts" : "shortform_views",
+        value: 10_000,
+        locality: s.locality,
+      })),
+    );
+
+  it("calls a single national read thin, however big the number", () => {
+    const out = read([{ source: "youtube", locality: "national" }]);
+    expect(out.confidence).toBe("thin");
+    expect(out.points!).toBeGreaterThan(0);
+  });
+
+  it("calls two surfaces near home solid", () => {
+    expect(read([
+      { source: "dataforseo", locality: "state" },
+      { source: "youtube", locality: "national" },
+    ]).confidence).toBe("solid");
+  });
+
+  it("calls one in-market surface, or two distant ones, fair", () => {
+    expect(read([{ source: "dataforseo", locality: "state" }]).confidence).toBe("fair");
+    expect(read([
+      { source: "youtube", locality: "national" },
+      { source: "x", locality: "national" },
+    ]).confidence).toBe("fair");
+  });
+
+  it("says so in the caption rather than hiding it", () => {
+    const thin = pointsCaption(read([{ source: "youtube", locality: "national" }]))!;
+    expect(thin).toMatch(/weakest kind of evidence/);
+    const solid = pointsCaption(read([
+      { source: "dataforseo", locality: "state" },
+      { source: "youtube", locality: "national" },
+    ]))!;
+    expect(solid).not.toMatch(/weakest|treat it as a lead/);
+  });
+
+  it("reports the closest read, not the last one seen", () => {
+    expect(read([
+      { source: "youtube", locality: "national" },
+      { source: "dataforseo", locality: "metro" },
+      { source: "x", locality: "national" },
+    ]).closest).toBe("metro");
+  });
+});

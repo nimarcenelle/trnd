@@ -768,6 +768,19 @@ textarea.input {
   color: var(--ink-faint);
 }
 .demand__delta { font-size: 12.5px; font-weight: 600; }
+.demand__conf {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink-faint);
+  margin-right: auto;
+  margin-left: 8px;
+}
+.demand__conf--thin { border-color: var(--amber); color: var(--amber-text); }
 .demand__delta.is-up { color: var(--mint-text); }
 .demand__delta.is-down { color: var(--red); }
 .demand__svg { width: 100%; height: auto; display: block; }

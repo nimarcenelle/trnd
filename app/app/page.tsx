@@ -388,7 +388,7 @@ export default async function AppHome({
   // The daily series is the fallback shape when there is not yet enough
   // absolute history to place this term on the points scale.
   const demandSeries = signal ? await repo.getSeries(signal.normalized_term, signal.geo, 56) : [];
-  const demand = buildDemandLine(termSignals, demandSeries, new Date(), 8);
+  const demand = buildDemandLine(termSignals, demandSeries, new Date(), 8, business.region);
   const social = buildSocialProof(termSignals);
   // Comes from the short-form read itself; see buildSocialProof.
   const proofHref = social.href;
@@ -441,6 +441,7 @@ export default async function AppHome({
                 caption={demand.caption}
                 deltaPct={demand.deltaPct}
                 mode={demand.mode}
+                confidence={demand.current?.confidence ?? "thin"}
               />
             </div>
           </div>

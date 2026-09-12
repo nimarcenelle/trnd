@@ -36,6 +36,7 @@ export default function DemandGraph({
   caption,
   deltaPct = null,
   mode = "points",
+  confidence = "solid",
 }: {
   weeks: DemandWeek[];
   /** What the number means in people — never render the axis without it. */
@@ -44,6 +45,9 @@ export default function DemandGraph({
   /** "relative" means the line is this term's own shape against its own
    * peak — readable, but not comparable with another pick. Say so. */
   mode?: "points" | "relative";
+  /** How much is behind the number. A thin read must not wear the same face
+   * as a well-evidenced one. */
+  confidence?: "thin" | "fair" | "solid";
 }) {
   if (weeks.length < 2) {
     return (
@@ -72,6 +76,11 @@ export default function DemandGraph({
         <span className="demand__eyebrow">
           Demand, last 8 weeks{mode === "relative" ? " · own scale" : " · TRND points"}
         </span>
+        {confidence !== "solid" && (
+          <span className={`demand__conf demand__conf--${confidence}`}>
+            {confidence === "thin" ? "thin evidence" : "one source"}
+          </span>
+        )}
         {typeof deltaPct === "number" && (
           <span className={`demand__delta ${deltaPct >= 0 ? "is-up" : "is-down"}`}>
             {deltaPct >= 0 ? "↑" : "↓"}

@@ -21,11 +21,13 @@ export async function addStandingQuestionAction(formData: FormData): Promise<voi
   const existing = await repo.listStandingQuestions(business.id, { activeOnly: true });
   if (existing.length >= MAX_STANDING_QUESTIONS) return;
   if (existing.some((q) => q.question.toLowerCase() === question.toLowerCase())) return;
-  const created = await repo.createStandingQuestion({ business_id: business.id, question });
+  // A thrown action lands the owner on the error screen; a question that
+  // can't be kept (the table not yet migrated) is logged and dropped.
   try {
+    const created = await repo.createStandingQuestion({ business_id: business.id, question });
     await answerStandingQuestions(repo, business, { only: [created.id] });
   } catch (err) {
-    console.warn("[standing] first answer failed (non-fatal):", (err as Error).message);
+    console.warn("[standing] adding the question failed (non-fatal):", (err as Error).message);
   }
   revalidatePath("/app");
 }
@@ -35,6 +37,10 @@ export async function removeStandingQuestionAction(formData: FormData): Promise<
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
   const id = String(formData.get("id") ?? "");
-  if (id) await repo.setStandingQuestionActive(id, false);
+  try {
+    if (id) await repo.setStandingQuestionActive(id, false);
+  } catch (err) {
+    console.warn("[standing] removing the question failed (non-fatal):", (err as Error).message);
+  }
   revalidatePath("/app");
 }

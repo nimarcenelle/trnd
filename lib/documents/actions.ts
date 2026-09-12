@@ -11,7 +11,11 @@ export async function deleteDocumentAction(formData: FormData): Promise<void> {
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
   const id = String(formData.get("id") ?? "");
-  if (id) await repo.deleteDocument(id);
+  try {
+    if (id) await repo.deleteDocument(id);
+  } catch (err) {
+    console.warn("[documents] delete failed (non-fatal):", (err as Error).message);
+  }
   revalidatePath("/app/settings");
   revalidatePath("/app");
 }

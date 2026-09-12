@@ -126,6 +126,19 @@ describe("the ad call", () => {
     expect(call.promote).toMatch(/ to a burned-out professional who wants a quiet table on /);
   });
 
+  it("never promotes to a bare persona label", () => {
+    const campaign = {
+      angle: "a",
+      hook: "Gold Rush latte",
+      offer: "$6.75 Gold Rush latte",
+      audience: { who: "The 5 PM Transitioner", age_range: "25-45", angle_type: "offer" },
+    };
+    // Falls back to the brief's target customer.
+    expect(buildAdCall(base({ campaign })).promote).toMatch(/ to remote workers near Glenwood who need a table and outlets for two hours, 25-45, on /);
+    // With no target customer either, only the ages are said.
+    expect(buildAdCall(base({ campaign, targetCustomer: null })).promote).toMatch(/ to people 25-45 on /);
+  });
+
   it("leaves out a clause with nothing real behind it", () => {
     const call = buildAdCall(
       base({ rivals: null, rivalThemes: [], ownBestTheme: null, weekPct: 2, audiencePhrase: null, campaign: null }),

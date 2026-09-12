@@ -124,14 +124,26 @@ function platformFor(input: Pick<AdCallInput, "culturalPlatform" | "ownVideoShar
 const LABEL_WHO = /^(?:[Tt]he\s+)?(?:[A-Z0-9][\w'-]*\s+){0,4}[A-Z][\w'-]*,\s+who\s+(.+)$/;
 const LABEL_COLON = /^(?:[Tt]he\s+)?(?:[A-Z0-9][\w'-]*\s+){0,4}[A-Z][\w'-]*:\s+(.{12,})$/;
 
-/** The first clause of the target customer's description. */
+/** A label with nothing after it: "The 5 PM Transitioner", "Weekend Warriors". */
+const BARE_LABEL = /^(?:[Tt]he\s+)?(?:[A-Z0-9][\w'-]*\s*){1,5}$/;
+
+function describe(raw: string): string | null {
+  const text = raw.trim();
+  if (!text || BARE_LABEL.test(text)) return null;
+  const labelWho = LABEL_WHO.exec(text);
+  if (labelWho) return `someone who ${labelWho[1]}`;
+  const labelColon = LABEL_COLON.exec(text);
+  return labelColon ? labelColon[1] : text;
+}
+
+/** The first clause of the target customer's description. A bare persona
+ * label falls back to the brief's target customer, and to nobody at all
+ * rather than to a name a media buyer can't target. */
 function whoFor(input: AdCallInput): string | null {
-  let raw = (input.campaign?.audience.who || input.targetCustomer?.who || "").trim();
-  const labelWho = LABEL_WHO.exec(raw);
-  const labelColon = LABEL_COLON.exec(raw);
-  if (labelWho) raw = `someone who ${labelWho[1]}`;
-  else if (labelColon) raw = labelColon[1];
-  const first = raw.split(/(?<=[.;])\s|,\s(?:who|and|because|triggered)\b/)[0].trim().replace(/[.;,]+$/, "");
+  let raw = describe(input.campaign?.audience.who ?? "") ?? describe(input.targetCustomer?.who ?? "") ?? "";
+  // Cut at the first clause that describes their situation rather than who
+  // they are: ", and…", ", because…", ", comparing you against…".
+  const first = raw.split(/(?<=[.;])\s|,\s(?:who|and|because|triggered|[a-z]+ing)\b/)[0].trim().replace(/[.;,]+$/, "");
   if (!first) return null;
   const short = first.length > 90 ? `${first.slice(0, first.lastIndexOf(" ", 90)).trim()}` : first;
   return short.charAt(0).toLowerCase() + short.slice(1);
@@ -163,9 +175,11 @@ export function buildAdCall(input: AdCallInput): AdCall {
           ? `${/^[$\d]/.test(offer) ? "the " : ""}${offer}`
           : `"${input.term}"`;
   const who = whoFor(input);
-  const ages = input.campaign?.audience.age_range ? `, ${input.campaign.audience.age_range},` : "";
+  const ageRange = input.campaign?.audience.age_range?.trim() || "";
+  const ages = ageRange ? `, ${ageRange},` : "";
   const platform = platformFor(input);
-  const promote = `Promote ${thing}${who ? ` to ${who}${ages}` : ""} on ${platform}.`;
+  const audience = who ? ` to ${who}${ages}` : ageRange ? ` to people ${ageRange}` : "";
+  const promote = `Promote ${thing}${audience} on ${platform}.`;
 
   const angleType = input.campaign?.audience.angle_type ?? "offer";
   const seconds =

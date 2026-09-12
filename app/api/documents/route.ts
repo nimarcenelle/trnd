@@ -56,15 +56,21 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const { text, digest, model_used } = await digestUpload(business, { name, mime, bytes });
-  const doc = await repo.createDocument({
-    business_id: business.id,
-    name,
-    mime,
-    bytes: bytes.byteLength,
-    text,
-    digest,
-    model_used,
-  });
+  let doc;
+  try {
+    doc = await repo.createDocument({
+      business_id: business.id,
+      name,
+      mime,
+      bytes: bytes.byteLength,
+      text,
+      digest,
+      model_used,
+    });
+  } catch (err) {
+    console.warn("[documents] saving failed:", (err as Error).message);
+    return Response.json({ error: "Couldn't save it just now — try again in a few minutes." }, { status: 503 });
+  }
   revalidatePath("/app/settings");
   revalidatePath("/app", "layout");
   return Response.json({ id: doc.id, kind: digest.kind, facts: digest.facts.length, services: digest.services_found.length });

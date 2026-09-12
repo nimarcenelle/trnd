@@ -29,6 +29,18 @@ import type {
   Subscription,
 } from "../types";
 
+/** A business row read before 0022 carries none of its columns. */
+function withBusinessDefaults(b: Business): Business {
+  if (!b) return b;
+  return {
+    ...b,
+    social_handles: b.social_handles ?? {},
+    market: b.market ?? "local",
+    monthly_ad_spend: b.monthly_ad_spend ?? null,
+    ad_platforms: b.ad_platforms ?? [],
+  };
+}
+
 function throwIf(error: { message: string } | null, ctx: string): void {
   if (error) throw new Error(`[supabase:${ctx}] ${error.message}`);
 }
@@ -56,6 +68,52 @@ function throwUnlessMissing(error: { code?: string; message: string } | null, ct
 }
 
 const UNIQUE_VIOLATION = "23505";
+const CHECK_VIOLATION = "23514";
+
+type WriteResult = { data: unknown; error: { code?: string; message: string } | null };
+
+/**
+ * A column a later migration adds that production hasn't run yet. Migrations
+ * are pasted into the SQL editor by hand, so code routinely ships ahead of
+ * them; 0022 (social handles, market, the target customer, rival directness)
+ * is the case this was written for. Returns the column name, or null.
+ */
+function missingColumn(error: WriteResult["error"]): string | null {
+  if (!error) return null;
+  const m =
+    /could not find the '([^']+)' column/i.exec(error.message) ??
+    /column "?([a-z_]+)"? of relation .* does not exist/i.exec(error.message);
+  return m && (error.code === "PGRST204" || error.code === "42703" || /column/i.test(error.message)) ? m[1] : null;
+}
+
+function omit(row: Record<string, unknown>, key: string): Record<string, unknown> {
+  const copy = { ...row };
+  delete copy[key];
+  return copy;
+}
+
+/**
+ * Run a write; if it names a column the database doesn't have yet, drop that
+ * column and try again. A write losing the new feature's field beats onboarding
+ * failing outright because a migration hasn't been pasted.
+ */
+async function writeTolerant<Row extends object>(
+  row: Row | Row[],
+  run: (row: Record<string, unknown> | Record<string, unknown>[]) => PromiseLike<WriteResult>,
+  ctx: string,
+): Promise<WriteResult> {
+  let current: Record<string, unknown> | Record<string, unknown>[] = Array.isArray(row)
+    ? row.map((r) => ({ ...(r as Record<string, unknown>) }))
+    : { ...(row as Record<string, unknown>) };
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const result = await run(current);
+    const column = missingColumn(result.error);
+    if (!column) return result;
+    console.warn(`[supabase:${ctx}] column "${column}" missing — run migration 0022. Writing without it.`);
+    current = Array.isArray(current) ? current.map((r) => omit(r, column)) : omit(current, column);
+  }
+  return run(current);
+}
 
 /**
  * Thin passthrough over supabase-js. Row shapes equal the domain types, so
@@ -71,9 +129,13 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
     },
 
     async createBusiness(input) {
-      const { data, error } = await sb.from("businesses").insert(input).select().single();
+      const { data, error } = await writeTolerant(
+        input,
+        (row) => sb.from("businesses").insert(row).select().single(),
+        "createBusiness",
+      );
       throwIf(error, "createBusiness");
-      return data as Business;
+      return withBusinessDefaults(data as Business);
     },
     async getBusinessByOwner(ownerId) {
       const { data, error } = await sb
@@ -84,27 +146,26 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .limit(1)
         .maybeSingle();
       throwIf(error, "getBusinessByOwner");
-      return (data as Business | null) ?? null;
+      return data ? withBusinessDefaults(data as Business) : null;
     },
     async getBusiness(id) {
       const { data, error } = await sb.from("businesses").select("*").eq("id", id).maybeSingle();
       throwIf(error, "getBusiness");
-      return (data as Business | null) ?? null;
+      return data ? withBusinessDefaults(data as Business) : null;
     },
     async updateBusiness(id, patch) {
-      const { data, error } = await sb
-        .from("businesses")
-        .update(patch)
-        .eq("id", id)
-        .select()
-        .single();
+      const { data, error } = await writeTolerant(
+        patch,
+        (row) => sb.from("businesses").update(row).eq("id", id).select().single(),
+        "updateBusiness",
+      );
       throwIf(error, "updateBusiness");
-      return data as Business;
+      return withBusinessDefaults(data as Business);
     },
     async listAllBusinesses() {
       const { data, error } = await sb.from("businesses").select("*");
       throwIf(error, "listAllBusinesses");
-      return (data ?? []) as Business[];
+      return ((data ?? []) as Business[]).map(withBusinessDefaults);
     },
 
     async createServices(inputs) {
@@ -374,11 +435,11 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
     },
 
     async upsertBusinessBrief(input) {
-      const { data, error } = await sb
-        .from("business_briefs")
-        .upsert(input, { onConflict: "business_id" })
-        .select()
-        .single();
+      const { data, error } = await writeTolerant(
+        input,
+        (row) => sb.from("business_briefs").upsert(row, { onConflict: "business_id" }).select().single(),
+        "upsertBusinessBrief",
+      );
       throwIf(error, "upsertBusinessBrief");
       return data as BusinessBrief;
     },
@@ -531,11 +592,11 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
     },
 
     async createCompetitor(input) {
-      const { data, error } = await sb
-        .from("competitors")
-        .upsert(input, { onConflict: "business_id,name" })
-        .select()
-        .single();
+      const { data, error } = await writeTolerant(
+        input,
+        (row) => sb.from("competitors").upsert(row, { onConflict: "business_id,name" }).select().single(),
+        "createCompetitor",
+      );
       throwIf(error, "createCompetitor");
       return data as Competitor;
     },
@@ -549,7 +610,11 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       return (data ?? []) as Competitor[];
     },
     async updateCompetitor(id, patch) {
-      const { data, error } = await sb.from("competitors").update(patch).eq("id", id).select().single();
+      const { data, error } = await writeTolerant(
+        patch,
+        (row) => sb.from("competitors").update(row).eq("id", id).select().single(),
+        "updateCompetitor",
+      );
       throwIf(error, "updateCompetitor");
       return data as Competitor;
     },
@@ -567,6 +632,12 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         })),
         { onConflict: "competitor_id,kind,day", ignoreDuplicates: true, count: "exact" },
       );
+      if (error?.code === CHECK_VIOLATION && inputs.some((i) => i.kind === "social" || i.kind === "google_ads")) {
+        // Before 0022 the kind check only knows ads/reviews/site. Keep those.
+        console.warn("[supabase:upsertCompetitorReads] social/google_ads kinds rejected — run migration 0022.");
+        const legacy = inputs.filter((i) => i.kind !== "social" && i.kind !== "google_ads");
+        return legacy.length > 0 ? this.upsertCompetitorReads(legacy) : 0;
+      }
       throwIf(error, "upsertCompetitorReads");
       return count ?? 0;
     },
@@ -629,6 +700,10 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
           count: "exact",
         },
       );
+      if (isMissingTable(error)) {
+        console.warn("[supabase:upsertSocialPosts] social_posts missing — run migration 0022. Posts not kept.");
+        return 0;
+      }
       if (error) {
         // PostgREST cannot always express an expression index as a conflict
         // target — fall back to insert-ignore, which keeps first captures.

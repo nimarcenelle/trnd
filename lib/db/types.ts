@@ -75,8 +75,21 @@ export interface Business {
   photo_urls: string[];
   /** Their own accounts — the brand half of the social read. */
   social_handles: SocialHandles;
+  /** "online": a brand selling nationally online (the DTC customer), whose
+   * rivals are competing brands and whose demand is read nationally.
+   * "local": a place with a radius, whose rivals are nearby places. */
+  market: BusinessMarket;
+  /** Monthly paid social spend band, e.g. "20-50k". Null when not given. */
+  monthly_ad_spend: string | null;
+  /** Where they run ads: meta, tiktok, google, youtube, pinterest, snapchat. */
+  ad_platforms: AdPlatform[];
   created_at: string;
 }
+
+export type BusinessMarket = "online" | "local";
+export type AdPlatform = "meta" | "tiktok" | "google" | "youtube" | "pinterest" | "snapchat";
+export const AD_SPEND_BANDS = ["under-20k", "20-50k", "50-100k", "100-250k", "250k-plus"] as const;
+export type AdSpendBand = (typeof AD_SPEND_BANDS)[number];
 
 export interface Service {
   id: string;
@@ -446,8 +459,11 @@ export interface DemoRequest {
 
 /* ------------------------------ insert shapes ------------------------------ */
 
-export type NewBusiness = Omit<Business, "id" | "created_at" | "social_handles"> & {
+export type NewBusiness = Omit<Business, "id" | "created_at" | "social_handles" | "market" | "monthly_ad_spend" | "ad_platforms"> & {
   social_handles?: SocialHandles;
+  market?: BusinessMarket;
+  monthly_ad_spend?: string | null;
+  ad_platforms?: AdPlatform[];
 };
 export type NewService = Omit<Service, "id">;
 /**

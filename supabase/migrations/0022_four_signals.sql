@@ -8,7 +8,13 @@
 -- they use — signal terms are judged against that vocabulary.
 
 alter table public.businesses
-  add column social_handles jsonb not null default '{}'::jsonb;
+  add column social_handles jsonb not null default '{}'::jsonb,
+  -- Online brands (the DTC customer) compete by product and ads, nationally;
+  -- local businesses by place. Existing rows are local.
+  add column market text not null default 'local' check (market in ('online','local')),
+  -- A band like "20-50k": sizes test budgets and the stakes line.
+  add column monthly_ad_spend text,
+  add column ad_platforms text[] not null default '{}';
 
 alter table public.competitors
   add column social_handles jsonb not null default '{}'::jsonb,

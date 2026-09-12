@@ -20,6 +20,9 @@ const biz = (over: Partial<Business> = {}): Business => ({
   brand_voice_notes: "Warm neighborhood cafe.",
   photo_urls: [],
   social_handles: {},
+  market: "local",
+  monthly_ad_spend: null,
+  ad_platforms: [],
   created_at: "",
   ...over,
 });

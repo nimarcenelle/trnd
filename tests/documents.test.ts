@@ -32,6 +32,9 @@ const bizInput = (ownerId: string): NewBusiness => ({
   brand_voice_notes: null,
   photo_urls: [],
   social_handles: {},
+  market: "local",
+  monthly_ad_spend: null,
+  ad_platforms: [],
 });
 
 const SALES = `Item,Qty,Revenue

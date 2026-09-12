@@ -173,7 +173,7 @@ const assetsResponseSchema: Schema = {
 
 /* --------------------------------- calls --------------------------------- */
 
-async function structuredCall<T>(
+export async function structuredCall<T>(
   model: string,
   prompt: string,
   responseSchema: Schema,
@@ -234,7 +234,7 @@ async function structuredCallParts<T>(
 /** Pro first for creative quality; one Flash retry before the caller's
  * deterministic fallback — a retired pro model id must degrade to Flash,
  * not to the template. */
-async function creativeCall<T>(
+export async function creativeCall<T>(
   models: { flash: string; pro: string },
   prompt: string,
   responseSchema: Schema,

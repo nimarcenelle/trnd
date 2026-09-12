@@ -19,7 +19,7 @@ const business = {
   category: "espresso bar, wine bar & teahouse",
   city: "Chapel Hill", region: "NC", country: "US",
   lat: null, lng: null, radius_miles: 20, website: null, price_band: "mid",
-  brand_voice_notes: null, photo_urls: [], social_handles: {}, created_at: new Date().toISOString(),
+  brand_voice_notes: null, photo_urls: [], social_handles: {}, market: "local", monthly_ad_spend: null, ad_platforms: [], created_at: new Date().toISOString(),
 } as Business;
 
 const signal = {

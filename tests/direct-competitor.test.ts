@@ -171,6 +171,9 @@ const BUSINESS: Business = {
   brand_voice_notes: null,
   photo_urls: [],
   social_handles: {},
+  market: "local",
+  monthly_ad_spend: null,
+  ad_platforms: [],
   created_at: "2026-09-12T00:00:00Z",
 };
 

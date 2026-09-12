@@ -106,6 +106,9 @@ export function createDemoRepo(actor: DemoActor): Repo {
       const row: Business = {
         ...input,
         social_handles: input.social_handles ?? {},
+        market: input.market ?? "local",
+        monthly_ad_spend: input.monthly_ad_spend ?? null,
+        ad_platforms: input.ad_platforms ?? [],
         id: randomUUID(),
         created_at: nowIso(),
       };

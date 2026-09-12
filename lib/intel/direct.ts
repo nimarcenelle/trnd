@@ -314,8 +314,9 @@ export async function enrichCompetitor(
     });
     // Handles found on the site win; a site with no social links keeps
     // whatever was already known rather than erasing it.
-    const social_handles =
-      site && Object.keys(site.handles).length > 0 ? site.handles : competitor.social_handles ?? {};
+    // The site fills gaps; a handle the owner typed in Settings always wins,
+    // however many times the rival is re-read.
+    const social_handles = { ...(site?.handles ?? {}), ...(competitor.social_handles ?? {}) };
     return await repo.updateCompetitor(competitor.id, {
       social_handles,
       directness,

@@ -123,6 +123,9 @@ function makeBusiness(c: EvalCase): { business: Business; services: Service[] } 
       brand_voice_notes: null,
       photo_urls: [],
       social_handles: {},
+      market: "local",
+      monthly_ad_spend: null,
+      ad_platforms: [],
       created_at: new Date().toISOString(),
     },
     services: c.services.map((s, i) => ({

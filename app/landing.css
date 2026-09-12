@@ -889,6 +889,14 @@ hr.rule {
 .foot-col a:hover {
   color: var(--ink);
 }
+.foot-col a.foot-yt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
 .foot-bottom {
   display: flex;
   justify-content: space-between;

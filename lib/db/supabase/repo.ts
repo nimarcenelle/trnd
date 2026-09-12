@@ -197,6 +197,22 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwIf(error, "countSignalsCapturedOn");
       return count ?? 0;
     },
+    async expireYoutubeData(maxAgeDays) {
+      const cutoff = new Date(Date.now() - maxAgeDays * 86400_000);
+      const { error: scrubError, count: signalsScrubbed } = await sb
+        .from("signals")
+        .update({ value: null, delta_pct: null, raw: null }, { count: "exact" })
+        .eq("source", "youtube")
+        .lt("captured_at", cutoff.toISOString())
+        .or("raw.not.is.null,value.not.is.null");
+      throwIf(scrubError, "expireYoutubeData:signals");
+      const { error: seriesError, count: seriesDeleted } = await sb
+        .from("signal_series")
+        .delete({ count: "exact" })
+        .lt("day", cutoff.toISOString().slice(0, 10));
+      throwIf(seriesError, "expireYoutubeData:series");
+      return { signalsScrubbed: signalsScrubbed ?? 0, seriesDeleted: seriesDeleted ?? 0 };
+    },
 
     async upsertOpportunities(inputs) {
       if (inputs.length === 0) return [];

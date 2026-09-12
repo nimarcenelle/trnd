@@ -43,6 +43,21 @@ export default function TermsPage() {
         we store and how Google API data is handled.
       </p>
 
+      <h2>YouTube</h2>
+      <p>
+        TRND uses YouTube API Services to show short-form video trends. By using TRND, you agree
+        to be bound by the{" "}
+        <a className="text-amber" href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">
+          YouTube Terms of Service
+        </a>
+        . How Google handles data is covered by the{" "}
+        <a className="text-amber" href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">
+          Google Privacy Policy
+        </a>
+        , and what TRND does with YouTube data is in our{" "}
+        <a className="text-amber" href="/privacy">Privacy Policy</a>.
+      </p>
+
       <h2>Your content</h2>
       <p>
         You keep ownership of the website details, documents, and notes you give us. You let us

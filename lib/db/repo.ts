@@ -78,6 +78,12 @@ export interface Repo {
   upsertSeriesPoints(points: NewSeriesPoint[]): Promise<number>;
   getSeries(normalizedTerm: string, geo: string, days?: number): Promise<SignalSeriesPoint[]>;
   countSignalsCapturedOn(day: string, source?: string): Promise<number>;
+  /** YouTube API policy: API data may be kept at most 30 days unless
+   * refreshed. Blanks the numbers and payload on older YouTube signal rows
+   * (the rows stay, so opportunities citing them survive) and drops series
+   * points older than the window — every chart reads 30 days, and the series
+   * table carries no source column to single YouTube out. */
+  expireYoutubeData(maxAgeDays: number): Promise<{ signalsScrubbed: number; seriesDeleted: number }>;
 
   /* opportunities */
   upsertOpportunities(inputs: NewOpportunity[]): Promise<Opportunity[]>;

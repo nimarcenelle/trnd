@@ -221,6 +221,24 @@ export function createDemoRepo(actor: DemoActor): Repo {
         .filter((x) => x.normalized_term === normalizedTerm && x.geo === geo && x.day >= cutoff)
         .sort((a, b) => a.day.localeCompare(b.day));
     },
+    async expireYoutubeData(maxAgeDays: number) {
+      const cutoff = new Date(Date.now() - maxAgeDays * 86400_000);
+      let signalsScrubbed = 0;
+      for (const s of store.signals) {
+        if (s.source !== "youtube" || new Date(s.captured_at) >= cutoff) continue;
+        if (s.raw === null && s.value === null) continue;
+        s.value = null;
+        s.delta_pct = null;
+        s.raw = null;
+        signalsScrubbed += 1;
+      }
+      const day = cutoff.toISOString().slice(0, 10);
+      const before = store.signal_series.length;
+      store.signal_series = store.signal_series.filter((x) => x.day >= day);
+      const seriesDeleted = before - store.signal_series.length;
+      if (signalsScrubbed || seriesDeleted) saveStore();
+      return { signalsScrubbed, seriesDeleted };
+    },
     async countSignalsCapturedOn(day, source) {
       return store.signals.filter(
         (s) => s.captured_at.slice(0, 10) === day && (!source || s.source === source),

@@ -21,7 +21,15 @@ export async function POST(request: NextRequest) {
   const repo = getAdminRepo();
   const summary = await runIngest(repo);
   const intel = await runIntelIngest(repo);
-  return NextResponse.json({ ...summary, intel });
+  // YouTube API data is kept 30 days at most. A failure here must not sink
+  // the day's ingest, so it reports instead of throwing.
+  let retention: { signalsScrubbed: number; seriesDeleted: number } | { error: string };
+  try {
+    retention = await repo.expireYoutubeData(30);
+  } catch (err) {
+    retention = { error: (err as Error).message };
+  }
+  return NextResponse.json({ ...summary, intel, retention });
 }
 
 // Vercel Cron invokes with GET (same Bearer CRON_SECRET header).

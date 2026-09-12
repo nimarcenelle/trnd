@@ -65,6 +65,52 @@ export default function PrivacyPage() {
         it. It is never used to train general-purpose AI models.
       </p>
 
+      <h2>YouTube API Services</h2>
+      <p>
+        TRND uses YouTube API Services to measure which short-form videos are catching on for
+        the things a business sells. By using TRND, you agree to be bound by the{" "}
+        <a className="text-amber" href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">
+          YouTube Terms of Service
+        </a>
+        . How Google handles data is described in the{" "}
+        <a className="text-amber" href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">
+          Google Privacy Policy
+        </a>
+        .
+      </p>
+      <p>
+        <strong>What we access:</strong> public information about public YouTube videos that
+        match search terms tied to your business, such as title, channel name, publish date,
+        length, and view, like, and comment counts. We never ask you to sign in with YouTube, and
+        we don&apos;t access your YouTube account, channel, subscriptions, or watch history.
+      </p>
+      <p>
+        <strong>How we use and share it:</strong> to show you demand trends and example videos
+        inside TRND, with links back to YouTube. Parts of it may be included in the text sent to
+        Google Gemini to write your recommendations. We don&apos;t sell it or share it with
+        anyone else.
+      </p>
+      <p>
+        <strong>How long we keep it:</strong> YouTube data is refreshed or deleted within 30
+        days. Every day, TRND wipes the YouTube numbers and video details from anything older
+        than that. We don&apos;t place cookies or other tracking on your device for YouTube.
+      </p>
+      <p>
+        <strong>Deletion and revoking access:</strong> deleting your TRND account removes
+        everything tied to your business. To have data deleted without closing your account,
+        contact us below. If you ever gave any app access to your Google account, you can remove
+        that access on{" "}
+        <a
+          className="text-amber"
+          href="https://myaccount.google.com/connections"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Google&apos;s third-party connections page
+        </a>
+        .
+      </p>
+
       <h2>What we do with it</h2>
       <p>
         We use your data to run TRND: match what&apos;s trending to what you sell, write your

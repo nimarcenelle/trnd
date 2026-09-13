@@ -799,6 +799,15 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       for (const r of (runs.data ?? []) as PickRun[]) if (!latest.has(r.pick_id)) latest.set(r.pick_id, r);
       return picks.filter((p) => !dismissed.has(p.id)).map((pick) => ({ pick, run: latest.get(pick.id) ?? null }));
     },
+    async countWeekPicks(businessId, weekOf) {
+      const { count, error } = await sb
+        .from("picks")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", businessId)
+        .eq("week_of", weekOf);
+      throwUnlessMissing(error, "countWeekPicks");
+      return count ?? 0;
+    },
     async getPickDetail(pickId) {
       const { data, error } = await sb.from("picks").select("*").eq("id", pickId).maybeSingle();
       throwUnlessMissing(error, "getPickDetail");

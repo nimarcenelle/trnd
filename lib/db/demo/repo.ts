@@ -901,6 +901,10 @@ export function createDemoRepo(actor: DemoActor): Repo {
               .sort((a, b) => b.started_at.localeCompare(a.started_at))[0] ?? null,
         }));
     },
+    async countWeekPicks(businessId, weekOf) {
+      if (!visibleBusinessIds().has(businessId)) return 0;
+      return (store.picks ?? []).filter((p) => p.business_id === businessId && p.week_of === weekOf).length;
+    },
     async getPickDetail(pickId) {
       const pick = (store.picks ?? []).find((p) => p.id === pickId);
       if (!pick || !visibleBusinessIds().has(pick.business_id)) return null;

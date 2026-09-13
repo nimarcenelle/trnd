@@ -1,8 +1,9 @@
 {
   "crons": [
-    { "path": "/api/cron/ingest", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/recommend", "schedule": "0 10 * * 1" },
-    { "path": "/api/cron/weekly-email", "schedule": "30 10 * * 1" },
-    { "path": "/api/cron/sync-results", "schedule": "0 11 * * *" }
+    {"path": "/api/cron/ingest", "schedule": "0 9 * * *"},
+    {"path": "/api/cron/recommend", "schedule": "0 10 * * 1"},
+    {"path": "/api/cron/picks", "schedule": "20 10 * * 1"},
+    {"path": "/api/cron/weekly-email", "schedule": "30 10 * * 1"},
+    {"path": "/api/cron/sync-results", "schedule": "0 11 * * *"}
   ]
 }

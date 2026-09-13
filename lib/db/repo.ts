@@ -207,6 +207,9 @@ export interface Repo {
   /** The week's ready picks by rank, dismissed ones left out, each with its
    * latest run. */
   listReadyPicks(businessId: string, weekOf: string): Promise<{ pick: BrandPick; run: PickRun | null }[]>;
+  /** Picks of any status for a week, drafts included: the weekly job's
+   * "already written" check, so a drafts-only week is not retried forever. */
+  countWeekPicks(businessId: string, weekOf: string): Promise<number>;
   /** One pick with its evidence, scripts, latest run and dismissal state. */
   getPickDetail(pickId: string): Promise<PickDetail | null>;
   createPickFeedback(input: NewPickFeedback): Promise<PickFeedback>;

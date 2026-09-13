@@ -1,11 +1,11 @@
 import type { Repo } from "@/lib/db/repo";
-import type { Business, Opportunity, Signal } from "@/lib/db/types";
+import type { Business, BusinessBrief, Learning, Opportunity, Service, Signal, SignalSeriesPoint } from "@/lib/db/types";
 import { indexSeries } from "@/lib/demand/series";
 import { applyRelevance, scoreOpportunity, type ScoredOpportunity } from "@/lib/scoring";
 import { storedGrade, type StoredGrade } from "@/lib/scoring/grade-opportunity";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 
-import { extrasFor, loadSignalContext } from "./four-signals";
+import { extrasFor, loadSignalContext, type SignalContext } from "./four-signals";
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
 import { placeWords } from "@/lib/signals/geo";
@@ -16,6 +16,23 @@ export type ExplainedOpportunity = ScoredOpportunity & {
    * rows ranked before the four-signal model or before migration 0024. */
   grade: StoredGrade | null;
 };
+
+/**
+ * Reads the caller already holds. A page that explains a dozen rows loads
+ * the shared pieces once and hands them in; anything left out is read here,
+ * exactly as before. `brief` is null-able, so it is "given" when the key is
+ * present at all. `series` is the raw 30-day series for this signal.
+ */
+export interface ExplainGiven {
+  services?: Service[];
+  learnings?: Learning[];
+  /** The category pool of the last 14 days, as the ranking read it. */
+  categorySignals?: Signal[];
+  brief?: BusinessBrief | null;
+  /** The four-signal context for this business (built from the pool). */
+  signalCtx?: SignalContext;
+  series?: SignalSeriesPoint[];
+}
 
 /**
  * Re-derive the score breakdown for a stored opportunity so screens can show
@@ -35,13 +52,14 @@ export async function explainOpportunity(
   business: Business,
   opportunity: Opportunity,
   signal: Signal,
+  given: ExplainGiven = {},
 ): Promise<ExplainedOpportunity> {
   const [services, learnings, categorySignals, brief, series] = await Promise.all([
-    repo.listServices(business.id),
-    repo.listLearnings(business.category),
-    repo.listSignalsForCategory(business.category, { sinceDays: 14 }),
-    repo.getBusinessBrief(business.id),
-    repo.getSeries(signal.normalized_term, signal.geo, 30).then(indexSeries),
+    given.services ?? repo.listServices(business.id),
+    given.learnings ?? repo.listLearnings(business.category),
+    given.categorySignals ?? repo.listSignalsForCategory(business.category, { sinceDays: 14 }),
+    given.brief !== undefined ? given.brief : repo.getBusinessBrief(business.id),
+    given.series ? indexSeries(given.series) : repo.getSeries(signal.normalized_term, signal.geo, 30).then(indexSeries),
   ]);
   const coverage = categorySignals.find(
     (s) => s.metric_type === "news_coverage" && s.normalized_term === signal.normalized_term,
@@ -61,7 +79,7 @@ export async function explainOpportunity(
   const { localityFor, localityRegion } = await import("@/lib/signals/geo");
   // The same four-signal evidence the ranking read, so the breakdown on
   // screen is the breakdown the stored score used.
-  const signalCtx = await loadSignalContext(repo, business, brief, categorySignals);
+  const signalCtx = given.signalCtx ?? (await loadSignalContext(repo, business, brief, categorySignals));
   const scored = scoreOpportunity(
     signal,
     services,

@@ -9,6 +9,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { setOpportunityStatusAction } from "@/lib/campaigns/actions";
 import { getUserRepo } from "@/lib/db";
 import { explainOpportunity } from "@/lib/recommend/explain";
+import { loadSignalContext } from "@/lib/recommend/four-signals";
 import { buildInsights } from "@/lib/recommend/insights";
 import { weekOf } from "@/lib/recommend/recommend";
 import { deltaWindowLabel, metricLabel, scaleNote } from "@/lib/signals/source-url";
@@ -24,21 +25,38 @@ export default async function OpportunitiesPage() {
   if (!business) redirect("/onboarding");
 
   const week = weekOf();
-  const [opportunities, learnings, services] = await Promise.all([
+  // Everything the explanations share is read once here, not once per row.
+  const [opportunities, learnings, services, categorySignals, brief] = await Promise.all([
     repo.listOpportunities(business.id, week),
     repo.listLearnings(business.category),
     repo.listServices(business.id),
+    repo.listSignalsForCategory(business.category, { sinceDays: 14 }),
+    repo.getBusinessBrief(business.id),
   ]);
   const serviceById = new Map(services.map((s) => [s.id, s]));
+  const [signalCtx, signalRows] = await Promise.all([
+    loadSignalContext(repo, business, brief, categorySignals),
+    repo.getSignalsByIds(opportunities.map((o) => o.signal_id)),
+  ]);
+  const signalById = new Map(signalRows.map((s) => [s.id, s]));
 
   const enriched = await Promise.all(
     opportunities.map(async (o) => {
-      const signal = await repo.getSignal(o.signal_id);
-      const [campaign, series, explained] = await Promise.all([
+      const signal = signalById.get(o.signal_id) ?? null;
+      const [campaign, series] = await Promise.all([
         repo.getCampaignByOpportunity(o.id),
         signal ? repo.getSeries(signal.normalized_term, signal.geo, 30) : Promise.resolve([]),
-        signal ? explainOpportunity(repo, business, o, signal) : Promise.resolve(null),
       ]);
+      const explained = signal
+        ? await explainOpportunity(repo, business, o, signal, {
+            services,
+            learnings,
+            categorySignals,
+            brief,
+            signalCtx,
+            series,
+          })
+        : null;
       const insights =
         signal && explained
           ? buildInsights(signal, explained, {

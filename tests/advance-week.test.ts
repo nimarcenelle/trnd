@@ -172,3 +172,40 @@ describe("a read the budget cut short", () => {
     expect(await runWeekStage(admin, biz, "scan", { scan })).toBe("scan");
   });
 });
+
+describe("a fresh signup's first hop", () => {
+  beforeEach(() => resetStore());
+
+  it("scans the market and reads the accounts in the same hop, then ranks", async () => {
+    const { admin, biz } = await seed({ signalToday: false, posts: false });
+    const ran: string[] = [];
+    const next = await runWeekStage(admin, biz, "scan", {
+      scan: async () => {
+        ran.push("scan");
+      },
+      intel: async () => {
+        ran.push("intel");
+      },
+    });
+    expect(ran.sort()).toEqual(["intel", "scan"]);
+    expect(next).toBe("rank");
+  });
+
+  it("comes back for the intel read alone when only that ran out of budget", async () => {
+    const { admin, biz } = await seed({ signalToday: false, posts: false });
+    const next = await runWeekStage(admin, biz, "scan", {
+      scan: async () => undefined,
+      intel: async () => ({ exhausted: true }),
+    });
+    expect(next).toBe("intel");
+  });
+
+  it("ranks a week again when its rows carry no grade", async () => {
+    const { admin, user, biz } = await seed();
+    const sig = (await admin.listSignalsForCategory(biz.category, { sinceDays: 1 }))[0];
+    await admin.upsertOpportunities([
+      { business_id: biz.id, signal_id: sig.id, week_of: weekOf(), score: 7, rationale: "r", matched_service_id: null, competitor_gap: null, relevance: null, grade: null, grade_score: null, signal_scores: {} },
+    ]);
+    expect(await nextWeekStage(user, biz)).toBe("rank");
+  });
+});

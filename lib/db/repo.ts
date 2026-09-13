@@ -68,6 +68,11 @@ import type {
  * lib/db/supabase (RLS-scoped or service-role) and lib/db/demo (local store
  * that enforces the same ownership rules RLS would).
  */
+/** The most recent ad-history rows one read returns. A five-year Ads
+ * Manager export for a busy account can hold thousands of rows; the reads
+ * (best ads, usual CTR, themes) settle long before that. */
+export const MAX_AD_HISTORY_READ = 500;
+
 export interface Repo {
   /* profiles */
   getProfile(userId: string): Promise<Profile | null>;
@@ -90,6 +95,9 @@ export interface Repo {
   upsertSignals(inputs: NewSignal[]): Promise<number>;
   listSignalsForCategory(category: string, opts?: { geo?: string; sinceDays?: number }): Promise<Signal[]>;
   getSignal(id: string): Promise<Signal | null>;
+  /** The rows for these ids in one read (unknown ids are skipped, order
+   * unspecified); for a page or report that holds many opportunities. */
+  getSignalsByIds(ids: string[]): Promise<Signal[]>;
   upsertSeriesPoints(points: NewSeriesPoint[]): Promise<number>;
   getSeries(normalizedTerm: string, geo: string, days?: number): Promise<SignalSeriesPoint[]>;
   countSignalsCapturedOn(day: string, source?: string): Promise<number>;
@@ -198,6 +206,7 @@ export interface Repo {
   /* ad history — the owner's own past ads and how they did */
   /** Dedupes on (business, platform, campaign, ad, start). Returns rows written. */
   upsertAdHistory(inputs: NewAdHistory[]): Promise<number>;
+  /** Newest first, at most MAX_AD_HISTORY_READ rows. */
   listAdHistory(businessId: string): Promise<AdHistory[]>;
   deleteAdHistory(businessId: string, opts?: { source?: AdHistory["source"] }): Promise<number>;
 

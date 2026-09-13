@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { Repo } from "../repo";
+import { MAX_AD_HISTORY_READ, type Repo } from "../repo";
 import type {
   BrandPick,
   PickEvidence,
@@ -228,6 +228,22 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       const { data, error } = await sb.from("signals").select("*").eq("id", id).maybeSingle();
       throwIf(error, "getSignal");
       return (data as Signal | null) ?? null;
+    },
+    async getSignalsByIds(ids) {
+      const unique = [...new Set(ids)];
+      if (unique.length === 0) return [];
+      // PostgREST puts the id list in the query string; 200 uuids keep it
+      // well under the URL limit.
+      const chunks: string[][] = [];
+      for (let i = 0; i < unique.length; i += 200) chunks.push(unique.slice(i, i + 200));
+      const pages = await Promise.all(
+        chunks.map(async (chunk) => {
+          const { data, error } = await sb.from("signals").select("*").in("id", chunk);
+          throwIf(error, "getSignalsByIds");
+          return (data ?? []) as Signal[];
+        }),
+      );
+      return pages.flat();
     },
     async upsertSeriesPoints(points) {
       if (points.length === 0) return 0;
@@ -753,7 +769,8 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         .from("ad_history")
         .select("*")
         .eq("business_id", businessId)
-        .order("started_on", { ascending: false, nullsFirst: false });
+        .order("started_on", { ascending: false, nullsFirst: false })
+        .limit(MAX_AD_HISTORY_READ);
       throwUnlessMissing(error, "listAdHistory");
       return (data ?? []) as AdHistory[];
     },

@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { MAX_AD_HISTORY_ROWS, parseAdExport } from "@/lib/ads/import";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 
@@ -41,6 +40,9 @@ export async function importAdExportAction(formData: FormData): Promise<void> {
   if (!(file instanceof File) || file.size === 0) back("nofile");
   if (file.size > MAX_AD_EXPORT_BYTES) back("toobig");
 
+  // The parser carries the xlsx reader; loaded here so the Settings route's
+  // module graph stays free of it until an owner actually uploads a file.
+  const { MAX_AD_HISTORY_ROWS, parseAdExport } = await import("@/lib/ads/import");
   let read: ReturnType<typeof parseAdExport>;
   try {
     read = parseAdExport({ name: file.name, mime: file.type, bytes: new Uint8Array(await file.arrayBuffer()) });

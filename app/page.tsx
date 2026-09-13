@@ -75,6 +75,72 @@ const SAMPLE_SCRIPTS = [
   "The ingredient list next to the $12 drugstore version, and what the difference does.",
 ];
 
+/** The product, in the hero: one pick as the app shows it. Illustrative. */
+function HeroPick() {
+  const points = [22, 24, 23, 26, 25, 28, 27, 31, 30, 34, 38, 37, 43, 47, 52, 58, 57, 66, 74, 81];
+  const w = 260;
+  const h = 64;
+  const max = Math.max(...points);
+  const d = points
+    .map((v, i) => `${i === 0 ? "M" : "L"}${((i / (points.length - 1)) * w).toFixed(1)},${(h - (v / max) * (h - 6) - 2).toFixed(1)}`)
+    .join(" ");
+  return (
+    <div className="pframe hero__pick" role="group" aria-label="An example pick, as the app shows it">
+      <div className="pframe__bar">
+        <i />
+        <i />
+        <i />
+        <span>Example · this week</span>
+      </div>
+      <div className="hpick">
+        <div className="hpick__main">
+          <div className="hpick__top">
+            <span className="pframe__eyebrow">#1 this week</span>
+            <span className="hpick__grade" title="Grade B+, 78 of 100">
+              B+
+            </span>
+          </div>
+          <h2 className="hpick__title">Dark spots after acne</h2>
+          <p className="hpick__finding">
+            Your customers are searching &ldquo;dark spots after acne.&rdquo; Your catalog says vitamin C serum.
+          </p>
+          <dl className="hpick__bet">
+            <div>
+              <dt>What to run</dt>
+              <dd>The vitamin C serum to women 25 to 40, on TikTok and Reels</dd>
+            </div>
+            <div>
+              <dt>Budget</dt>
+              <dd>$600 · 7 days</dd>
+            </div>
+            <div>
+              <dt>Kill rule</dt>
+              <dd>Kill if click-through is under 1.2% after day 3</dd>
+            </div>
+          </dl>
+        </div>
+        <div className="hpick__side">
+          <span className="pframe__eyebrow">Searches for &ldquo;dark spots after acne&rdquo;</span>
+          <div className="hpick__demand">
+            <strong>↑47%</strong>
+            <span className="hpick__chip">vs last week</span>
+          </div>
+          <svg className="hpick__spark" viewBox={`0 0 ${w} ${h}`} width="100%" height={h} aria-hidden="true">
+            <path d={`${d} L${w},${h} L0,${h} Z`} fill="var(--mint)" opacity="0.18" />
+            <path d={d} fill="none" stroke="var(--mint-text)" strokeWidth="2" />
+          </svg>
+          <span className="pframe__eyebrow">Three hooks to test</span>
+          <ol className="hpick__hooks">
+            <li>&ldquo;Day one. Day 28. Same mark.&rdquo;</li>
+            <li>&ldquo;I tried four serums for this. Here&rsquo;s the one I finished.&rdquo;</li>
+            <li>&ldquo;The $12 version, the ingredient list, and what the difference does.&rdquo;</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   return (
     <>
@@ -106,13 +172,12 @@ export default function Home() {
         <div className="wrap hero__inner">
           <div className="eyebrow">For growth teams at DTC brands</div>
           <h1>
-            Know what to advertise <em>before your competitors do.</em>
+            Know what ad <em>to run next.</em>
           </h1>
           <p className="hero__sub">
-            TRND is an AI creative strategist for brands where paid social drives growth. Every
-            week it reads your customers, your category, your competitors and your own ad results,
-            and tells you the next ad to make: the product, the audience, the angle, the format,
-            and three scripts to test.
+            An AI creative strategist for DTC brands. Every week it reads your customers, your
+            category, your competitors and your own results, and calls the next ad: the product,
+            the audience, the angle, the format, and three scripts to test.
           </p>
           <div className="hero__ctas">
             <Link href="/signup" className="btn btn-primary">
@@ -127,6 +192,7 @@ export default function Home() {
             <span className="pill">A new call every week</span>
             <span className="pill">One plan, $500 a month</span>
           </div>
+          <HeroPick />
         </div>
       </header>
 

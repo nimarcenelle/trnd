@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { Repo } from "../repo";
+import { MAX_AD_HISTORY_READ, type Repo } from "../repo";
 import type {
   AdHistory,
   Alert,
@@ -218,6 +218,10 @@ export function createDemoRepo(actor: DemoActor): Repo {
     },
     async getSignal(id) {
       return store.signals.find((s) => s.id === id) ?? null;
+    },
+    async getSignalsByIds(ids) {
+      const wanted = new Set(ids);
+      return store.signals.filter((s) => wanted.has(s.id));
     },
     async upsertSeriesPoints(points: NewSeriesPoint[]) {
       let written = 0;
@@ -843,7 +847,8 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (!visibleBusinessIds().has(businessId)) return [];
       return (store.ad_history ?? [])
         .filter((r) => r.business_id === businessId)
-        .sort((a, b) => (b.started_on ?? "").localeCompare(a.started_on ?? ""));
+        .sort((a, b) => (b.started_on ?? "").localeCompare(a.started_on ?? ""))
+        .slice(0, MAX_AD_HISTORY_READ);
     },
     async deleteAdHistory(businessId, opts) {
       assertOwnsBusiness(businessId);

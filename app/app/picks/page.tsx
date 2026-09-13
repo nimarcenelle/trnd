@@ -11,7 +11,7 @@ import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, genera
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import type { Alert } from "@/lib/db/types";
-import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
+import { isEmailConfigured, isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { markAlertsReadAction } from "@/lib/intel/actions";
 import { kickWeekJob } from "@/lib/picks/kick";
 import { weekProgress } from "@/lib/picks/progress";
@@ -46,7 +46,9 @@ function AlertBar({ alerts }: { alerts: Alert[] }) {
       <span className="alertbar__dot" aria-hidden="true" />
       <p className="alertbar__text">
         <Link href={alerts[0].href}>{alerts[0].title}</Link>
-        {alerts.length > 1 && ` and ${alerts.length - 1} other${alerts.length === 2 ? "" : "s"}`}
+        {alerts.length > 1 && (
+          <span className="alertbar__more"> · {alerts.length - 1} more alert{alerts.length === 2 ? "" : "s"}</span>
+        )}
       </p>
       <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="…">
         Mark read
@@ -140,8 +142,9 @@ export default async function PicksPage() {
             <span className="eyebrow m-0">This week · {weekRange}</span>
             <h1>{current?.label ?? "Getting your first picks ready"}</h1>
             <p className="context">
-              Your first five picks land in a few minutes. Each step below fills in as it finishes; this page refreshes
-              itself.
+              Your first picks take about five minutes: TRND reads your customers, your category and your competitors
+              before it grades anything. Each step fills in as it finishes and this page refreshes itself
+              {isEmailConfigured ? ", and you get one email when the picks are written" : ""}.
             </p>
           </div>
         </div>

@@ -1259,3 +1259,127 @@ hr.rule {
   }
 }
 }
+
+
+/* ---------- The product in the hero ---------- */
+.hero__pick {
+  margin-top: 44px;
+  max-width: 920px;
+}
+.hpick {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 0;
+}
+.hpick__main {
+  padding: 24px 28px 26px;
+  border-right: 1px solid var(--line);
+}
+.hpick__side {
+  padding: 24px 28px 26px;
+  background: var(--bg-2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hpick__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.hpick__grade {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: var(--mint-text);
+  border: 1px solid var(--mint);
+  background: color-mix(in srgb, var(--mint) 14%, transparent);
+}
+.hpick__title {
+  font-family: var(--disp);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 12px 0 10px;
+}
+.hpick__finding {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 0 0 18px;
+}
+.hpick__bet {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.hpick__bet div {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+.hpick__bet dt {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.hpick__bet dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.hpick__demand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hpick__demand strong {
+  font-family: var(--disp);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--mint-text);
+}
+.hpick__chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-soft);
+}
+.hpick__spark {
+  display: block;
+  margin: 2px 0 10px;
+}
+.hpick__hooks {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+@media (max-width: 720px) {
+  .hpick {
+    grid-template-columns: 1fr;
+  }
+  .hpick__main {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 20px 18px;
+  }
+  .hpick__side {
+    padding: 18px;
+  }
+  .hpick__title {
+    font-size: 24px;
+  }
+}

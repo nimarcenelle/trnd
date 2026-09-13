@@ -237,9 +237,12 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
 
   // ---- ranked opportunities, each with its signal and judge reason
   const active = opportunities.filter((o) => o.status !== "dismissed");
+  const signalById = new Map(
+    (await repo.getSignalsByIds(active.map((o) => o.signal_id))).map((s) => [s.id, s]),
+  );
   const ranked: RankedRow[] = [];
   for (const [i, o] of active.entries()) {
-    const signal = await repo.getSignal(o.signal_id);
+    const signal = signalById.get(o.signal_id);
     if (!signal) continue;
     ranked.push({
       rank: i + 1,
@@ -426,11 +429,13 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
   const lead = active[0];
   if (lead) {
     try {
-      const signal = await repo.getSignal(lead.signal_id);
+      const signal = signalById.get(lead.signal_id);
       if (signal) {
-        const [explained, signalCtx, campaign] = await Promise.all([
-          explainOpportunity(repo, business, lead, signal),
-          loadSignalContext(repo, business, brief, signals),
+        // The explanation reuses this context and the reads above instead
+        // of loading its own copies.
+        const signalCtx = await loadSignalContext(repo, business, brief, signals);
+        const [explained, campaign] = await Promise.all([
+          explainOpportunity(repo, business, lead, signal, { services, brief, signalCtx }),
           repo.getCampaignByOpportunity(lead.id),
         ]);
         const signalBrief = campaignSignalBrief(signal, signalCtx);

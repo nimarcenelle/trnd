@@ -35,23 +35,26 @@ export async function buildBusinessHistory(
   const weekKeys: string[] = [thisWeek];
   for (let i = 1; i < weeks; i++) weekKeys.push(previousWeek(weekKeys[i - 1]));
 
-  const signalCache = new Map<string, Signal | null>();
-  const signalFor = async (id: string) => {
-    if (!signalCache.has(id)) signalCache.set(id, await repo.getSignal(id));
-    return signalCache.get(id) ?? null;
-  };
+  // ---- rankings, week by week: the weeks read at once, their signals in one go
+  const rowsByWeek = await Promise.all(
+    weekKeys.map(async (week) =>
+      (await repo.listOpportunities(business.id, week)).sort((a, b) => Number(b.score) - Number(a.score)),
+    ),
+  );
+  const signalById = new Map<string, Signal>(
+    (await repo.getSignalsByIds(rowsByWeek.flat().map((o) => o.signal_id))).map((s) => [s.id, s]),
+  );
 
-  // ---- rankings, week by week
   type Seen = { week: string; weeksAgo: number; rank: number; opportunity: Opportunity };
   const perTerm = new Map<string, { term: string; seen: Seen[] }>();
   let weeksRanked = 0;
   for (let i = 0; i < weekKeys.length; i++) {
-    const rows = (await repo.listOpportunities(business.id, weekKeys[i])).sort((a, b) => Number(b.score) - Number(a.score));
+    const rows = rowsByWeek[i];
     if (rows.length === 0) continue;
     weeksRanked++;
     let rank = 0;
     for (const o of rows) {
-      const s = await signalFor(o.signal_id);
+      const s = signalById.get(o.signal_id);
       if (!s) continue;
       if (o.status !== "dismissed") rank++;
       const entry = perTerm.get(s.normalized_term) ?? { term: s.term, seen: [] };

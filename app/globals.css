@@ -994,6 +994,7 @@ textarea.input {
 }
 .alertbar__text { margin: 0; font-size: 13.5px; color: var(--ink); flex: 1; min-width: 0; }
 .alertbar__text a { color: inherit; }
+.alertbar__more { color: var(--ink-faint); }
 .passrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 
 /* ---- everything that is not the sweep ---- */

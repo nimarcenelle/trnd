@@ -1,6 +1,7 @@
 import { generateBusinessBrief, businessJustOnboarded } from "@/lib/ai/brief";
 import type { Repo } from "@/lib/db/repo";
 import type { Business } from "@/lib/db/types";
+import { env, isEmailConfigured } from "@/lib/env";
 import { weekOf } from "@/lib/recommend/week";
 
 import { generateWeekPicks } from "./generate";
@@ -67,6 +68,9 @@ export async function nextWeekStage(
     if (own.length === 0 && reads.length === 0) return "intel";
   }
   const opportunities = await repo.listOpportunities(business.id, week);
+  // A week ranked before the four-signal grade existed carries rows with no
+  // grade; it is ranked again so its picks can carry one.
+  if (opportunities.length > 0 && opportunities.every((o) => o.grade == null)) return "rank";
   if (opportunities.length === 0) {
     // A ranking writes a reading for every term it graded. Readings today
     // and no opportunities is a ranking that held everything: an honest
@@ -78,7 +82,23 @@ export async function nextWeekStage(
     return pool.length > 0 ? "rank" : "done";
   }
   if ((await repo.countWeekPicks(business.id, week)) === 0) return "picks";
+  // Picks written from an ungraded ranking are written again once the
+  // ranking has grades, so the page never shows a pick without its grade.
+  const ready = await repo.listReadyPicks(business.id, week).catch(() => []);
+  if (ready.length > 0 && ready.every((r) => r.pick.grade == null) && opportunities.some((o) => o.grade != null)) {
+    return "picks";
+  }
   return "done";
+}
+
+/** Whether the intel read (own accounts and rivals) is still owed today. */
+async function intelOwed(repo: Repo, business: Business): Promise<boolean> {
+  if (!businessJustOnboarded(business.created_at)) return false;
+  const [own, reads] = await Promise.all([
+    repo.listSocialPosts(business.id, { competitorId: null, sinceDays: 120 }).catch(() => []),
+    repo.listCompetitorReads(business.id, { sinceDays: 1 }).catch(() => []),
+  ]);
+  return own.length === 0 && reads.length === 0;
 }
 
 async function defaultBrief(repo: Repo, business: Business): Promise<void> {
@@ -106,8 +126,36 @@ async function defaultRank(repo: Repo, business: Business): Promise<void> {
 }
 
 async function defaultPicks(repo: Repo, business: Business): Promise<void> {
+  const first = (await repo.countWeekPicks(business.id, weekOf())) === 0 && businessJustOnboarded(business.created_at);
   const written = await generateWeekPicks(repo, business);
   console.log(`[week] picks for ${business.id}: ${written.ready} ready, ${written.draft} draft`);
+  if (first && written.ready > 0) await emailFirstPicks(repo, business, written.ready);
+}
+
+/**
+ * The first picks take minutes to write, and nobody sits on a wait screen
+ * for minutes. The owner gets one line when they land, with the link. A
+ * missing email key skips quietly; the page still shows the picks.
+ */
+async function emailFirstPicks(repo: Repo, business: Business, count: number): Promise<void> {
+  if (!isEmailConfigured) return;
+  try {
+    const owner = await repo.getProfile(business.owner_id);
+    if (!owner?.email) return;
+    const { sendEmail } = await import("@/lib/email/send");
+    const url = `${env.appUrl}/app/picks`;
+    await sendEmail({
+      to: owner.email,
+      subject: `Your first ${count === 1 ? "pick is" : `${count} picks are`} ready`,
+      html: `<p style="font:15px/1.5 -apple-system,Segoe UI,sans-serif;color:#23201a">TRND finished reading ${escapeHtml(business.name)}'s customers, category and competitors. This week's ${count === 1 ? "pick is" : "picks are"} written.</p><p style="font:15px/1.5 -apple-system,Segoe UI,sans-serif"><a href="${url}" style="color:#9a6a12;font-weight:600">See the ad to run next →</a></p>`,
+    });
+  } catch (err) {
+    console.warn(`[week] first-picks email failed for ${business.id} (non-fatal):`, (err as Error).message);
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 }
 
 /** Run one stage and say which comes next. Never throws past a stage: a
@@ -127,8 +175,25 @@ export async function runWeekStage(
     picks: deps.picks ?? defaultPicks,
   }[stage];
   let outcome: StageOutcome;
+  // The market scan and the intel read are independent and each is minutes
+  // of I/O, so a fresh signup's scan hop runs both at once instead of one
+  // hop after the other: the first pick lands minutes sooner.
+  let intelOutcome: StageOutcome = undefined;
+  let ranIntel = false;
   try {
-    outcome = await run(repo, business);
+    if (stage === "scan" && (await intelOwed(repo, business))) {
+      ranIntel = true;
+      const intel = deps.intel ?? defaultIntel;
+      [outcome, intelOutcome] = await Promise.all([
+        run(repo, business),
+        intel(repo, business).catch((err: Error) => {
+          console.warn(`[week] stage intel failed for ${business.id} (non-fatal):`, err.message);
+          return undefined;
+        }),
+      ]);
+    } else {
+      outcome = await run(repo, business);
+    }
   } catch (err) {
     console.warn(`[week] stage ${stage} failed for ${business.id} (non-fatal):`, (err as Error).message);
     return "done";
@@ -136,11 +201,14 @@ export async function runWeekStage(
   // A read the budget cut short runs again: the next hop resumes where
   // this one stopped (terms and accounts read today are skipped).
   const exhausted = Boolean(outcome && typeof outcome === "object" && outcome.exhausted);
+  const intelExhausted = Boolean(intelOutcome && typeof intelOutcome === "object" && intelOutcome.exhausted);
   switch (stage) {
     case "brief":
       return nextWeekStage(repo, business);
     case "scan":
-      return exhausted ? "scan" : nextWeekStage(repo, business);
+      if (exhausted) return "scan";
+      if (intelExhausted) return "intel";
+      return ranIntel ? "rank" : nextWeekStage(repo, business);
     case "intel":
       return exhausted ? "intel" : "rank";
     case "rank":

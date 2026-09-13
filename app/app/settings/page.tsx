@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 
 import AccountPanel from "@/components/app/account-panel";
 import BusinessSettingsForm from "@/components/app/business-settings-form";
@@ -101,6 +102,42 @@ function adsNotice(code: string, params: Record<string, string | string[] | unde
 
 const pct = (n: number) => `${(n * 100).toFixed(n < 0.1 ? 2 : 1)}%`;
 const adCtr = (r: AdHistory) => (r.impressions && r.clicks !== null ? r.clicks / r.impressions : r.ctr);
+
+/** Past these counts a list folds; the page stays a page, not a scroll. */
+const SERVICES_SHOWN = 12;
+const COMPETITORS_SHOWN = 8;
+
+/**
+ * The first `shown` items as they are, the rest behind a native disclosure.
+ * Every item still renders (each carries its own forms), so nothing here
+ * needs the client; a long list just stops making a long page.
+ */
+function FoldedList<T>({
+  items,
+  shown,
+  noun,
+  children,
+}: {
+  items: T[];
+  shown: number;
+  noun: string;
+  children: (item: T) => ReactNode;
+}) {
+  const rest = items.slice(shown);
+  return (
+    <>
+      {items.slice(0, shown).map((item) => children(item))}
+      {rest.length > 0 && (
+        <details>
+          <summary className="mono-label cursor-pointer text-ink-faint">
+            Show all {items.length} {noun}
+          </summary>
+          <div className="flex flex-col gap-[10px] mt-[10px]">{rest.map((item) => children(item))}</div>
+        </details>
+      )}
+    </>
+  );
+}
 
 function HandleLinks({ handles }: { handles: SocialHandles }) {
   const set = SOCIAL_PLATFORMS.filter((p) => handles[p]);
@@ -324,7 +361,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           Inactive services stay listed but stop matching signals.
         </p>
         <div className="flex flex-col gap-[10px] mb-5">
-          {services.map((s) => (
+          <FoldedList items={services} shown={SERVICES_SHOWN} noun="services">
+            {(s) => (
             <div
               key={s.id}
               style={{
@@ -361,7 +399,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                 </form>
               </div>
             </div>
-          ))}
+            )}
+          </FoldedList>
           {services.length === 0 && (
             <p className="text-[13.5px] text-ink-faint m-0">
               No services yet — add what you sell so signals can match.
@@ -588,7 +627,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           daily. Moves show up in your intel report and as alerts. The closest rivals are listed first.
         </p>
         <div className="flex flex-col gap-[10px] mb-5">
-          {competitors.map((c) => {
+          <FoldedList items={competitors} shown={COMPETITORS_SHOWN} noun="competitors">
+            {(c) => {
             const handles = c.social_handles ?? {};
             return (
               <div className="py-3 px-[14px] border border-line rounded-card-sm bg-bg-1" key={c.id}>
@@ -631,7 +671,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                 </details>
               </div>
             );
-          })}
+            }}
+          </FoldedList>
           {competitors.length === 0 && (
             <p className="text-[13.5px] text-ink-faint m-0">
               No competitors yet. Find the nearest ones, or add one by name.

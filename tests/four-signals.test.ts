@@ -176,3 +176,18 @@ describe("culture for a search-led pick", () => {
     expect(campaignSignalBrief(signal({}), ctx({ shortform: [shortform] })).medianDurationSec).toBe(18);
   });
 });
+
+describe("the rivals Competitive watches", () => {
+  it("is everyone over the bar, or the nearest three when nobody clears it", async () => {
+    const { competitiveSet } = await import("../lib/recommend/four-signals");
+    const far = rival("f", "Far", 0.2);
+    const near1 = rival("n1", "Near one", 0.45);
+    const near2 = rival("n2", "Near two", 0.35);
+    const near3 = rival("n3", "Near three", 0.31);
+    const near4 = rival("n4", "Near four", 0.3);
+    expect(competitiveSet([octane, near1, far]).map((c) => c.id)).toEqual(["c1"]);
+    expect(competitiveSet([goats, near1]).map((c) => c.id)).toEqual(["c2"]);
+    expect(competitiveSet([far, near2, near4, near1, near3]).map((c) => c.id)).toEqual(["n1", "n2", "n3"]);
+    expect(competitiveSet([far])).toEqual([]);
+  });
+});

@@ -34,6 +34,25 @@ import { engagementOf, postsOnTerm, readAccount, rivalMoves } from "@/lib/social
 
 /** Below this a rival is a neighbour, not a competitor for the same customer. */
 export const DIRECT_MIN = 0.5;
+/** With nobody over the bar, the closest rivals at least this near are
+ * watched anyway: a Competitive read on the nearest brands beats none. */
+export const NEAR_MIN = 0.3;
+const NEAR_COUNT = 3;
+
+/**
+ * The rivals the Competitive signal watches: everyone over the bar, and an
+ * unscored rival until it is scored. When nobody clears the bar, the three
+ * nearest that are at least near. A brand is never graded against an empty
+ * field for want of a perfect rival.
+ */
+export function competitiveSet(competitors: Competitor[]): Competitor[] {
+  const direct = competitors.filter((c) => c.directness === null || c.directness === undefined || c.directness >= DIRECT_MIN);
+  if (direct.length > 0) return direct;
+  return competitors
+    .filter((c) => typeof c.directness === "number" && c.directness >= NEAR_MIN)
+    .sort((a, b) => (b.directness ?? 0) - (a.directness ?? 0))
+    .slice(0, NEAR_COUNT);
+}
 /** A rival ad this old is still running because it works. */
 const PROVEN_DAYS = 21;
 /** Fewer own posts than this and "your usual" is not a number. */
@@ -76,7 +95,7 @@ export async function loadSignalContext(
     safe(repo.listCompetitorReads(business.id, { sinceDays: RIVAL_WINDOW_DAYS }), [] as CompetitorRead[]),
     safe(repo.listAdHistory(business.id), [] as AdHistory[]),
   ]);
-  const direct = competitors.filter((c) => c.directness === null || c.directness === undefined || c.directness >= DIRECT_MIN);
+  const direct = competitiveSet(competitors);
   const directIds = new Set(direct.map((c) => c.id));
   const latestAds = new Map<string, CompetitorRead>();
   for (const r of reads) {

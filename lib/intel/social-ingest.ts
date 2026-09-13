@@ -1,6 +1,6 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, Competitor, SocialPlatform } from "@/lib/db/types";
-import { DIRECT_MIN } from "@/lib/recommend/four-signals";
+import { competitiveSet } from "@/lib/recommend/four-signals";
 import { fetchAdvertiserAds, isAdLibraryApifyAvailable, readAdvertiser } from "@/lib/signals/adlibrary-apify";
 import { fetchGoogleAds, readGoogleAds } from "@/lib/signals/google-ads-transparency";
 import { fetchAccountPosts, isSocialReadAvailable } from "@/lib/social";
@@ -29,8 +29,9 @@ export interface SocialIngestSummary {
   exhausted: boolean;
 }
 
-function isDirect(c: Competitor): boolean {
-  return c.directness === null || c.directness === undefined || c.directness >= DIRECT_MIN;
+/** The same set the Competitive signal grades against (four-signals.ts). */
+function watched(competitors: Competitor[]): Competitor[] {
+  return competitiveSet(competitors);
 }
 
 /** A read of the same public account by another workspace inside this
@@ -153,7 +154,7 @@ export async function ingestSocialAccounts(
     }
   }
 
-  for (const c of competitors.filter(isDirect)) {
+  for (const c of watched(competitors)) {
     for (const platform of PLATFORMS) {
       const handle = c.social_handles?.[platform];
       if (!handle) continue;
@@ -226,7 +227,7 @@ export async function ingestRivalAds(
 ): Promise<{ written: number; exhausted: boolean }> {
   let written = 0;
   const deadline = opts.deadline ?? Infinity;
-  for (const c of competitors.filter(isDirect)) {
+  for (const c of watched(competitors)) {
     if (Date.now() > deadline) return { written, exhausted: true };
     if (isAdLibraryApifyAvailable()) {
       try {

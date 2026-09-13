@@ -25,6 +25,8 @@ export interface IntelIngestSummary {
   /** Own + rival posts written, and rival ad reads (Meta via Apify, Google). */
   socialPosts?: number;
   rivalAdReads?: number;
+  /** True when the budget ran out with accounts or rivals still unread. */
+  exhausted?: boolean;
 }
 
 async function ingestOwnReviews(repo: Repo, business: Business): Promise<number> {
@@ -173,15 +175,21 @@ async function ingestCompetitors(repo: Repo, business: Business): Promise<number
   return written;
 }
 
+/** One brand's reads fit one job hop; what is left continues on the next. */
+export const INTEL_BUDGET_MS = 200_000;
+
 export async function runIntelIngestForBusiness(
   repo: Repo,
   business: Business,
+  opts: { budgetMs?: number } = {},
 ): Promise<IntelIngestSummary> {
+  const deadline = Date.now() + (opts.budgetMs ?? INTEL_BUDGET_MS);
   const summary: IntelIngestSummary = {
     businessId: business.id,
     reviewsWritten: 0,
     competitorReads: 0,
     alertsCreated: 0,
+    exhausted: false,
   };
   try {
     summary.reviewsWritten = await ingestOwnReviews(repo, business);
@@ -201,11 +209,14 @@ export async function runIntelIngestForBusiness(
     // A rival scored under the bar is re-read weekly, so a mis-score (or a
     // rival that changed its range) does not leave it unwatched for good.
     const competitors = await rescoreRivals(repo, business, await repo.listCompetitors(business.id));
-    const social = await ingestSocialAccounts(repo, business, competitors);
+    const social = await ingestSocialAccounts(repo, business, competitors, { deadline });
     summary.socialPosts = social.ownPosts + social.rivalPosts;
     summary.competitorReads += social.rivalReads;
-    summary.rivalAdReads = await ingestRivalAds(repo, business, competitors);
-    summary.competitorReads += summary.rivalAdReads;
+    summary.exhausted = social.exhausted;
+    const ads = await ingestRivalAds(repo, business, competitors, { deadline });
+    summary.rivalAdReads = ads.written;
+    summary.competitorReads += ads.written;
+    summary.exhausted = summary.exhausted || ads.exhausted;
   } catch (err) {
     console.warn(`[intel] social and rival ads failed for ${business.id}:`, (err as Error).message);
   }
@@ -250,17 +261,24 @@ export async function ensureIntelFresh(repo: Repo, business: Business): Promise<
   );
   if (hasDemandReads) return;
   const { runSignalIngestForBusiness } = await import("@/lib/signals/ingest");
-  const written = await runSignalIngestForBusiness(repo, business);
+  const { written } = await runSignalIngestForBusiness(repo, business);
   if (written > 0) {
     const { rerankWeek } = await import("@/lib/recommend/rerank");
     await rerankWeek(repo, business);
   }
 }
 
-export async function runIntelIngest(repo: Repo): Promise<IntelIngestSummary[]> {
+/** Every brand's daily intel, inside one invocation's budget. A brand the
+ * budget did not reach waits for tomorrow; accounts read inside two days
+ * are skipped, so each day's run gets further than the last. */
+export async function runIntelIngest(repo: Repo, opts: { budgetMs?: number } = {}): Promise<IntelIngestSummary[]> {
+  const startedAt = Date.now();
+  const budgetMs = opts.budgetMs ?? 240_000;
   const out: IntelIngestSummary[] = [];
   for (const b of await repo.listAllBusinesses()) {
-    out.push(await runIntelIngestForBusiness(repo, b));
+    const left = budgetMs - (Date.now() - startedAt);
+    if (left <= 0) break;
+    out.push(await runIntelIngestForBusiness(repo, b, { budgetMs: Math.min(INTEL_BUDGET_MS, left) }));
   }
   return out;
 }

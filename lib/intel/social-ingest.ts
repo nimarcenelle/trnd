@@ -25,6 +25,8 @@ export interface SocialIngestSummary {
   ownPosts: number;
   rivalPosts: number;
   rivalReads: number;
+  /** True when the deadline passed with accounts still unread. */
+  exhausted: boolean;
 }
 
 function isDirect(c: Competitor): boolean {
@@ -129,13 +131,21 @@ export async function ingestSocialAccounts(
   repo: Repo,
   business: Business,
   competitors: Competitor[],
+  opts: { deadline?: number } = {},
 ): Promise<SocialIngestSummary> {
-  const summary: SocialIngestSummary = { ownPosts: 0, rivalPosts: 0, rivalReads: 0 };
+  const summary: SocialIngestSummary = { ownPosts: 0, rivalPosts: 0, rivalReads: 0, exhausted: false };
   const now = Date.now();
+  const deadline = opts.deadline ?? Infinity;
+  // Checked before each paid read, never mid-read.
+  const outOfTime = () => Date.now() > deadline;
 
   for (const platform of PLATFORMS) {
     const handle = business.social_handles?.[platform];
     if (!handle) continue;
+    if (outOfTime()) {
+      summary.exhausted = true;
+      return summary;
+    }
     try {
       summary.ownPosts += await readAccountInto(repo, business, null, platform, handle, now);
     } catch (err) {
@@ -147,6 +157,10 @@ export async function ingestSocialAccounts(
     for (const platform of PLATFORMS) {
       const handle = c.social_handles?.[platform];
       if (!handle) continue;
+      if (outOfTime()) {
+        summary.exhausted = true;
+        return summary;
+      }
       try {
         summary.rivalPosts += await readAccountInto(repo, business, c.id, platform, handle, now);
       } catch (err) {
@@ -204,9 +218,16 @@ const domainOf = (url: string | null): string | null => {
  * for a US commercial advertiser, so "working" is read the only honest way
  * available: an ad still running after three weeks is one they kept paying for.
  */
-export async function ingestRivalAds(repo: Repo, business: Business, competitors: Competitor[]): Promise<number> {
+export async function ingestRivalAds(
+  repo: Repo,
+  business: Business,
+  competitors: Competitor[],
+  opts: { deadline?: number } = {},
+): Promise<{ written: number; exhausted: boolean }> {
   let written = 0;
+  const deadline = opts.deadline ?? Infinity;
   for (const c of competitors.filter(isDirect)) {
+    if (Date.now() > deadline) return { written, exhausted: true };
     if (isAdLibraryApifyAvailable()) {
       try {
         const ads = (await fetchAdvertiserAds(c.name)).filter((a) => sameAdvertiser(c.name, a.advertiser));
@@ -274,5 +295,5 @@ export async function ingestRivalAds(repo: Repo, business: Business, competitors
       console.warn(`[intel:ads] Google read for ${c.name} failed:`, (err as Error).message);
     }
   }
-  return written;
+  return { written, exhausted: false };
 }

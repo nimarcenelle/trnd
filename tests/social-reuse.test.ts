@@ -58,3 +58,14 @@ describe("reusing a recent read of the same account", () => {
     expect((await ingestSocialAccounts(admin, only, [])).ownPosts).toBe(0);
   });
 });
+
+describe("the deadline", () => {
+  beforeEach(() => resetStore());
+
+  it("stops before a paid read once the deadline has passed, and says so", async () => {
+    const admin = createDemoRepo({ kind: "admin" });
+    const biz = await createDemoRepo({ kind: "user", userId: "d" }).createBusiness(input("d", { instagram: "late" }));
+    const summary = await ingestSocialAccounts(admin, biz, [], { deadline: Date.now() - 1 });
+    expect(summary).toMatchObject({ ownPosts: 0, exhausted: true });
+  });
+});

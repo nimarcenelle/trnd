@@ -20,8 +20,8 @@ import { nextWeekStage, runWeekStage } from "./advance-week";
  */
 
 const KICK_WINDOW_MS = 2 * 60_000;
-/** Stages one inline run may chain: brief, scan, intel, rank, picks, and a check. */
-const MAX_INLINE_STAGES = 6;
+/** Stages one inline run may chain, resumed reads included. */
+const MAX_INLINE_STAGES = 12;
 const kicks = new Map<string, number>();
 
 /**

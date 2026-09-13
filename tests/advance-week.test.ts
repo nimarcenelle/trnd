@@ -158,3 +158,17 @@ describe("where the job is asked for", () => {
     expect(jobUrl("abc", 2, "https://www.usetrnd.com").searchParams.get("hop")).toBe("2");
   });
 });
+
+describe("a read the budget cut short", () => {
+  beforeEach(() => resetStore());
+
+  it("runs the same stage again until it finishes, then moves on", async () => {
+    const { admin, biz } = await seed({ posts: false });
+    let calls = 0;
+    const intel = async () => ({ exhausted: calls++ === 0 });
+    expect(await runWeekStage(admin, biz, "intel", { intel })).toBe("intel");
+    expect(await runWeekStage(admin, biz, "intel", { intel })).toBe("rank");
+    const scan = async () => ({ exhausted: true });
+    expect(await runWeekStage(admin, biz, "scan", { scan })).toBe("scan");
+  });
+});

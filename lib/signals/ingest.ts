@@ -94,10 +94,25 @@ function toSignalRows(raw: Awaited<ReturnType<SignalAdapter["fetch"]>>): NewSign
  * — so a new business's demand tracker fills in at onboarding instead of
  * waiting for the next daily cron. Idempotent like the daily job.
  */
+export interface BusinessIngestResult {
+  written: number;
+  /** True when the budget ran out with adapters still to run. */
+  exhausted: boolean;
+}
+
+/** Sources whose per-term reads cost money: a term read today is not read again. */
+const PAID_SOURCES: Record<string, string> = { tiktok_apify: "tiktok", youtube: "youtube", x: "x", instagram: "instagram" };
+/** A first read fits one job hop; what is left continues on the next. */
+export const BUSINESS_INGEST_BUDGET_MS = 200_000;
+
 export async function runSignalIngestForBusiness(
   repo: Repo,
   business: Business,
-): Promise<number> {
+  opts: { budgetMs?: number } = {},
+): Promise<BusinessIngestResult> {
+  const startedAt = Date.now();
+  const budgetMs = opts.budgetMs ?? BUSINESS_INGEST_BUDGET_MS;
+  const remaining = () => budgetMs - (Date.now() - startedAt);
   const brief = await repo.getBusinessBrief(business.id);
   // Brief v5 watchlists run 18-30 terms; day one reads the strongest dozen,
   // plus the target customer's own phrases — the demand that matters is
@@ -109,7 +124,7 @@ export async function runSignalIngestForBusiness(
     seen.add(k);
     return true;
   });
-  if (terms.length === 0) return 0;
+  if (terms.length === 0) return { written: 0, exhausted: false };
   const stateGeo = businessStateGeo(business) ?? "US";
   const locality = localityTokens(business);
   const watch = terms.map((t) => ({
@@ -118,6 +133,18 @@ export async function runSignalIngestForBusiness(
     geo: stateGeo,
     locality,
   }));
+  // What today already holds, so a hop that resumes a cut-short read pays
+  // only for the terms it did not reach.
+  const readToday = new Map<string, Set<string>>();
+  try {
+    for (const row of await repo.listSignalsForCategory(business.category, { sinceDays: 1 })) {
+      const set = readToday.get(row.source) ?? new Set<string>();
+      set.add(row.term.toLowerCase().trim());
+      readToday.set(row.source, set);
+    }
+  } catch {
+    /* an unreadable pool only costs a repeated read */
+  }
   const adapters: SignalAdapter[] = [
     // Search volume first, for the same reason as the daily run: it anchors
     // the Trends index, so without it the demand score has a shape and no
@@ -134,13 +161,24 @@ export async function runSignalIngestForBusiness(
     createTrendsIotAdapter(),
   ];
   let written = 0;
+  let exhausted = false;
   for (const adapter of adapters) {
+    // Checked before an adapter starts, never mid-adapter: a source's read
+    // is one call, and cutting it short wastes what it already paid for.
+    if (remaining() <= 0) {
+      exhausted = true;
+      break;
+    }
     try {
       if (!(await adapter.isAvailable())) continue;
-      const raw = await adapter.fetch({ terms: [], watch, geo: "US", windowDays: 7 });
+      const source = PAID_SOURCES[adapter.name];
+      const done = source ? readToday.get(source) : undefined;
+      const todo = done ? watch.filter((w) => !done.has(w.term)) : watch;
+      if (todo.length === 0) continue;
+      const raw = await withTimeout(adapter.fetch({ terms: [], watch: todo, geo: "US", windowDays: 7 }), remaining());
       written += await repo.upsertSignals(toSignalRows(raw));
       if (adapter.fetchSeries) {
-        const series = await adapter.fetchSeries({ terms: [], watch, geo: "US", windowDays: 7 });
+        const series = await adapter.fetchSeries({ terms: [], watch: todo, geo: "US", windowDays: 7 });
         await repo.upsertSeriesPoints(
           series.map((p) => ({
             normalized_term: normalizeTerm(p.term),
@@ -151,10 +189,14 @@ export async function runSignalIngestForBusiness(
         );
       }
     } catch (err) {
-      console.warn(`[ingest:business] adapter ${adapter.name} failed:`, (err as Error).message);
+      const message = (err as Error).message;
+      // A read that outlived the budget is picked up by the next hop; the
+      // terms it did reach were stored as the adapter went.
+      if (message === "timed out") exhausted = true;
+      console.warn(`[ingest:business] adapter ${adapter.name} failed:`, message);
     }
   }
-  return written;
+  return { written, exhausted };
 }
 
 /** Rejects with "timed out" when the adapter call outlives its slice — the

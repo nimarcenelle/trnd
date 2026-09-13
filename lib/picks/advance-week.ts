@@ -26,12 +26,15 @@ import { generateWeekPicks } from "./generate";
 
 export type WeekStage = "brief" | "scan" | "intel" | "rank" | "picks" | "done";
 
+/** A stage says when its budget ran out with work left, so it runs again. */
+export type StageOutcome = void | { exhausted?: boolean };
+
 export interface StageDeps {
-  brief?: (repo: Repo, business: Business) => Promise<void>;
-  scan?: (repo: Repo, business: Business) => Promise<void>;
-  intel?: (repo: Repo, business: Business) => Promise<void>;
-  rank?: (repo: Repo, business: Business) => Promise<void>;
-  picks?: (repo: Repo, business: Business) => Promise<void>;
+  brief?: (repo: Repo, business: Business) => Promise<StageOutcome>;
+  scan?: (repo: Repo, business: Business) => Promise<StageOutcome>;
+  intel?: (repo: Repo, business: Business) => Promise<StageOutcome>;
+  rank?: (repo: Repo, business: Business) => Promise<StageOutcome>;
+  picks?: (repo: Repo, business: Business) => Promise<StageOutcome>;
 }
 
 /** What the week still needs, read from the database alone. */
@@ -82,19 +85,19 @@ async function defaultBrief(repo: Repo, business: Business): Promise<void> {
   await repo.upsertBusinessBrief(await generateBusinessBrief(business, await repo.listServices(business.id)));
 }
 
-async function defaultScan(repo: Repo, business: Business): Promise<void> {
+async function defaultScan(repo: Repo, business: Business): Promise<StageOutcome> {
   const { runSignalIngestForBusiness } = await import("@/lib/signals/ingest");
-  await runSignalIngestForBusiness(repo, business);
+  return runSignalIngestForBusiness(repo, business);
 }
 
-async function defaultIntel(repo: Repo, business: Business): Promise<void> {
+async function defaultIntel(repo: Repo, business: Business): Promise<StageOutcome> {
   if ((await repo.listCompetitors(business.id)).length === 0) {
     const { seedCompetitors } = await import("@/lib/intel/seed-competitors");
     const seeded = await seedCompetitors(repo, business);
     if (seeded.note) console.log(`[week] rivals for ${business.id}: ${seeded.note}`);
   }
   const { runIntelIngestForBusiness } = await import("@/lib/intel/ingest");
-  await runIntelIngestForBusiness(repo, business);
+  return runIntelIngestForBusiness(repo, business);
 }
 
 async function defaultRank(repo: Repo, business: Business): Promise<void> {
@@ -123,19 +126,23 @@ export async function runWeekStage(
     rank: deps.rank ?? defaultRank,
     picks: deps.picks ?? defaultPicks,
   }[stage];
+  let outcome: StageOutcome;
   try {
-    await run(repo, business);
+    outcome = await run(repo, business);
   } catch (err) {
     console.warn(`[week] stage ${stage} failed for ${business.id} (non-fatal):`, (err as Error).message);
     return "done";
   }
+  // A read the budget cut short runs again: the next hop resumes where
+  // this one stopped (terms and accounts read today are skipped).
+  const exhausted = Boolean(outcome && typeof outcome === "object" && outcome.exhausted);
   switch (stage) {
     case "brief":
       return nextWeekStage(repo, business);
     case "scan":
-      return nextWeekStage(repo, business);
+      return exhausted ? "scan" : nextWeekStage(repo, business);
     case "intel":
-      return "rank";
+      return exhausted ? "intel" : "rank";
     case "rank":
       return (await repo.listOpportunities(business.id, weekOf())).length > 0 ? "picks" : "done";
     default:

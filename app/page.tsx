@@ -62,20 +62,9 @@ const LOOP = [
   { n: "06", h: "Learning", p: "What won feeds the next call, so your hit rate climbs instead of resetting." },
 ];
 
-// The sample is labeled as an example on the page and in the footer. The
-// shape is exactly what the weekly call returns; the brand is invented.
-const SAMPLE_WHY = [
-  "Searches for “dark spots after acne” are up week over week, with the rise linked to its source.",
-  "Your three closest competitors are all running routine videos. None show a result on camera.",
-  "Your own best ad last quarter was a close-up demo, not a lifestyle shot.",
-];
-const SAMPLE_SCRIPTS = [
-  "Close-up of the mark, day one. Same mark, day 28. No voiceover, just the dates on screen.",
-  "“I tried four serums for this. Here’s the one I finished.” Creator to camera, 20 seconds.",
-  "The ingredient list next to the $12 drugstore version, and what the difference does.",
-];
-
-/** The product, in the hero: one pick as the app shows it. Illustrative. */
+/** The product, in the hero: one pick as the app shows it. The shape is
+ * exactly what a week returns; the brand is invented and labeled as such
+ * on the frame and in the footer. */
 function HeroPick() {
   const points = [22, 24, 23, 26, 25, 28, 27, 31, 30, 34, 38, 37, 43, 47, 52, 58, 57, 66, 74, 81];
   const w = 260;
@@ -153,7 +142,7 @@ export default function Home() {
         <div className="nav__links">
           <a href="#problem">Problem</a>
           <a href="#signals">Signals</a>
-          <a href="#sample">The call</a>
+          <a href="#how">How it works</a>
           <a href="#pricing">Pricing</a>
         </div>
         <div className="nav__right">
@@ -298,59 +287,6 @@ export default function Home() {
 
       <hr className="rule" />
 
-      <section className="block" id="sample">
-        <div className="wrap">
-          <div className="head reveal">
-            <span className="eyebrow">Example</span>
-            <h2>What the weekly call looks like.</h2>
-            <p>An illustrative brand. Yours is built from your products, customers and competitors.</p>
-          </div>
-          <div className="pframe reveal" role="group" aria-label="An example of TRND's weekly ad call">
-            <div className="pframe__bar">
-              <i />
-              <i />
-              <i />
-              <span>Example · this week</span>
-            </div>
-            <div className="sample">
-              <div>
-                <span className="pframe__eyebrow">Run this ad</span>
-                <div className="pframe__title">
-                  Promote the vitamin C serum to women 25 to 40 fighting post-acne marks, on TikTok
-                  and Reels.
-                </div>
-                <dl className="sample__facts">
-                  <div>
-                    <dt>Angle</dt>
-                    <dd>Proof over promise. Show the mark fading, not the routine.</dd>
-                  </div>
-                  <div>
-                    <dt>Format</dt>
-                    <dd>20-second creator close-up, one take, dates on screen.</dd>
-                  </div>
-                </dl>
-              </div>
-              <div>
-                <span className="pframe__eyebrow">Why</span>
-                <ul className="sample__list">
-                  {SAMPLE_WHY.map((w) => (
-                    <li key={w}>{w}</li>
-                  ))}
-                </ul>
-                <span className="pframe__eyebrow">Three scripts to test</span>
-                <ol className="sample__list">
-                  {SAMPLE_SCRIPTS.map((w) => (
-                    <li key={w}>{w}</li>
-                  ))}
-                </ol>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <hr className="rule" />
-
       <section className="block" id="pricing">
         <div className="wrap">
           <div className="head reveal">
@@ -442,7 +378,7 @@ export default function Home() {
                 <h3>Product</h3>
                 <a href="#problem">Problem</a>
                 <a href="#signals">Four signals</a>
-                <a href="#sample">The weekly call</a>
+                <a href="#how">How it works</a>
               </div>
               <div className="foot-col">
                 <h3>Company</h3>

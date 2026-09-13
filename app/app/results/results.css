@@ -1,0 +1,189 @@
+/* Results: a row of stat tiles, then the recorded campaigns as a table at
+   the density of the pick list. Tokens only; dark mode falls out of them. */
+@layer components {
+.res__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 0 0 18px;
+}
+.res__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 18px 14px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elev-1);
+}
+.res__num {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.res__num.is-up {
+  color: var(--mint-text);
+}
+.res__label {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+.res__read {
+  margin: 0 0 22px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 68ch;
+}
+.res__section {
+  margin-bottom: 26px;
+}
+.res__section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+}
+.res__count {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.res__live {
+  display: grid;
+  gap: 10px;
+}
+.res__live-row {
+  padding: 14px 18px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elev-1);
+}
+.res__live-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.res__live-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.res__live-title:hover .res__term {
+  color: var(--amber-text);
+}
+.res__term {
+  font-family: var(--disp);
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.res__line {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.res__table-wrap {
+  overflow-x: auto;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elev-1);
+}
+.res__table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.res__table th {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+.res__table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.res__table tr:last-child td {
+  border-bottom: none;
+}
+.res__table .num {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.res__table td.res__date {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.res__table .res__campaign {
+  max-width: 320px;
+  min-width: 200px;
+}
+.res__table .res__campaign a {
+  display: block;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.res__table .res__campaign a:hover {
+  color: var(--amber-text);
+}
+.res__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.res__empty {
+  max-width: 620px;
+}
+.res__empty p {
+  margin: 0 0 16px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+@media (max-width: 640px) {
+  .res__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .res__num {
+    font-size: 20px;
+  }
+}
+}

@@ -1,0 +1,292 @@
+/* ---------- WEEKLY REPORT ----------
+   The report reads like the pick page: one idea per card, rows in the
+   `.picks-row` idiom, numbers in mono on the right. Tokens only; every
+   color here resolves through globals.css in both themes. Classes are
+   prefixed `rpt-` because a page stylesheet stays loaded across routes. */
+
+.rpt .page-head > div {
+  max-width: 760px;
+}
+.rpt .page-head h1 {
+  text-wrap: balance;
+}
+
+.rpt-card {
+  margin-top: 18px;
+}
+.rpt-card > .eyebrow {
+  display: block;
+  margin: 0 0 14px;
+}
+.rpt-card__empty {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.rpt-card__empty .btn {
+  margin-left: 10px;
+}
+
+/* ---------- this week: the actions ---------- */
+.rpt-actions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rpt-actions li {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 500;
+  color: var(--ink);
+}
+.rpt-actions li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.rpt-actions__n {
+  flex: 0 0 auto;
+  min-width: 1.4em;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--amber-text);
+  text-align: right;
+}
+.rpt-why {
+  margin-top: 14px;
+}
+.rpt-why > summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-faint);
+}
+.rpt-why > summary::-webkit-details-marker {
+  display: none;
+}
+.rpt-why > summary::before {
+  content: "›";
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+.rpt-why[open] > summary::before {
+  transform: rotate(90deg);
+}
+.rpt-why > summary:hover {
+  color: var(--ink);
+}
+.rpt-why p {
+  margin: 10px 0 0;
+  max-width: 68ch;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.rpt-status {
+  margin: 16px 0 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+/* ---------- run this ad: the call, in the shared frame ---------- */
+.rpt-call .adcall {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ---------- ranked picks and competitors: rows ---------- */
+.rpt-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  column-gap: 18px;
+}
+/* Competitors: no rank, no grade, no source — the name, one line, a count. */
+.rpt-rows--plain {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.rpt-rows > li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+.rpt-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding: 13px 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+}
+.rpt-rows > li:first-child .rpt-row {
+  border-top: 0;
+  padding-top: 0;
+}
+.rpt-rows > li:last-child .rpt-row {
+  padding-bottom: 0;
+}
+.rpt-row__rank {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--amber-text);
+  min-width: 1.4em;
+  text-align: right;
+}
+.rpt-row__head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rpt-row__term {
+  font-family: var(--disp);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.rpt-row__line {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* On a wide screen the numbers are cells of the shared grid. */
+.rpt-row__meta {
+  display: contents;
+}
+.rpt-row__grade-cell {
+  justify-self: center;
+}
+.rpt-row__grade-cell:empty {
+  display: none;
+}
+.rpt-row__source {
+  justify-self: end;
+}
+.rpt-row__source:empty {
+  display: none;
+}
+
+/* A number: mono, tabular, an arrow for direction, the window after it. */
+.rpt-num {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.rpt-num__arrow {
+  display: inline-block;
+  margin-right: 5px;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+.rpt-num.is-up .rpt-num__arrow {
+  color: var(--mint-text);
+}
+.rpt-num.is-down .rpt-num__arrow {
+  color: var(--red);
+}
+.rpt-num__window {
+  color: var(--ink-faint);
+}
+
+/* ---------- what moved: two columns ---------- */
+.rpt-moves {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.rpt-moves li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.rpt-moves li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.rpt-moves li:last-child {
+  padding-bottom: 0;
+}
+.rpt-moves__term {
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+a.rpt-moves__term:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- footer ---------- */
+.rpt-foot {
+  margin: 18px 0 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+/* ---------- phone: the same stacking as .picks-row ---------- */
+@media (max-width: 760px) {
+  .rpt-rows {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rpt-rows > li {
+    display: block;
+  }
+  .rpt-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 6px;
+  }
+  .rpt-rows--plain .rpt-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rpt-row__rank {
+    align-self: start;
+    padding-top: 2px;
+  }
+  .rpt-row__meta {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    min-width: 0;
+  }
+  .rpt-row__grade-cell,
+  .rpt-row__source {
+    justify-self: auto;
+  }
+}

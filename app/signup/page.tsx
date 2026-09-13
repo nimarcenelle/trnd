@@ -12,7 +12,7 @@ export default async function SignupPage() {
   return (
     <AuthShell
       title="Create your account."
-      sub="Two minutes of setup, then TRND starts reading your market."
+      sub="Fourteen days free, no card. Two minutes of setup, then TRND starts reading your market."
     >
       <AuthForm mode="signup" />
     </AuthShell>

@@ -1163,10 +1163,10 @@ hr.rule {
 }
 
 
-/* ---------- DTC PAGE: SIGNALS, LOOP, SAMPLE CALL ----------
-   The four-signal cards carry a sentence instead of a sparkline, the loop
-   reuses the flywheel list in a grid, and the sample call reuses the product
-   frame so the example reads as software, not a slide. */
+/* ---------- DTC PAGE: SIGNALS AND THE LOOP ----------
+   The four-signal cards carry a sentence instead of a sparkline, and the
+   loop reuses the flywheel list in a grid. The product example lives in the
+   hero (`.hero__pick`). */
 .sig-card__desc {
   font-family: var(--body);
   font-size: 13px;
@@ -1193,61 +1193,9 @@ hr.rule {
   grid-template-columns: repeat(3, 1fr);
   gap: 26px 32px;
 }
-#sample .pframe {
-  max-width: none;
-  margin-top: 0;
-}
-.sample {
-  padding: 26px 30px 28px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
-}
-.sample .pframe__eyebrow {
-  display: block;
-  margin-bottom: 10px;
-}
-.sample .pframe__title {
-  font-size: 21px;
-  line-height: 1.25;
-}
-.sample__facts {
-  margin: 22px 0 0;
-  padding-top: 16px;
-  border-top: 1px dashed var(--line);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.sample__facts dt {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--ink-faint);
-  margin-bottom: 3px;
-}
-.sample__facts dd {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--ink);
-}
-.sample__list {
-  margin: 0 0 20px;
-  padding-left: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
 @media (max-width: 900px) {
   .fly__list.loop {
     grid-template-columns: 1fr 1fr;
-  }
-  .sample {
-    grid-template-columns: 1fr;
-    gap: 20px;
   }
 }
 @media (max-width: 620px) {

@@ -1,3 +1,5 @@
+import "../campaigns.css";
+
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -9,12 +11,14 @@ import ResultEntryForm from "@/components/app/result-entry-form";
 import StatusTimeline from "@/components/app/status-timeline";
 import { getSessionUser } from "@/lib/auth/session";
 import { markLaunchedAction } from "@/lib/campaigns/actions";
-import { tiktokHashtag, trendLinks } from "@/lib/recommend/howto";
-import { forecastFlight, forecastLine } from "@/lib/recommend/forecast";
-import { budgetFor, creativeTestBudgetFor } from "@/lib/recommend/insights";
-import { sentenceCase } from "@/lib/text";
+import { statusChip } from "@/lib/campaigns/view";
 import { getUserRepo } from "@/lib/db";
 import type { Creative } from "@/lib/db/types";
+import { shortDate } from "@/lib/picks/list";
+import { forecastFlight, forecastLine } from "@/lib/recommend/forecast";
+import { tiktokHashtag, trendLinks } from "@/lib/recommend/howto";
+import { budgetFor, creativeTestBudgetFor } from "@/lib/recommend/insights";
+import { sentenceCase } from "@/lib/text";
 
 export const metadata = { title: "Campaign — TRND" };
 
@@ -26,6 +30,16 @@ const KIND_LABELS: Record<Creative["kind"], string> = {
   landing_copy: "Landing copy",
 };
 
+const fmtMoney = (cents: number | null) =>
+  cents === null ? "—" : `$${(cents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+const fmtNum = (n: number | null) => (n === null ? "—" : n.toLocaleString("en-US"));
+
+/**
+ * One campaign, whole. The head is the headline with the term and the
+ * service under it; then the status and its actions, the results once it
+ * is live, and the plan on the left with the in-feed preview on the right;
+ * then the copy to run.
+ */
 export default async function CampaignPage({ params }: PageProps<"/app/campaigns/[id]">) {
   const { id } = await params;
   const user = await getSessionUser();
@@ -33,26 +47,34 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
   const repo = await getUserRepo(user.id);
   const campaign = await repo.getCampaign(id);
   if (!campaign) notFound();
-  const [creatives, opportunity, business, metaConnection] = await Promise.all([
+  const [creatives, opportunity, business, metaConnection, services] = await Promise.all([
     repo.listCreatives(id),
     repo.getOpportunity(campaign.opportunity_id),
     repo.getBusiness(campaign.business_id),
     repo.getConnection(campaign.business_id, "meta"),
+    repo.listServices(campaign.business_id),
   ]);
   const metaReady = metaConnection?.status === "connected" && Boolean(metaConnection.account_id);
   const campaignResults = (await repo.listResultsForBusiness(campaign.business_id)).filter(
     (r) => r.campaign_id === campaign.id,
   );
   const signal = opportunity ? await repo.getSignal(opportunity.signal_id) : null;
+  const service = opportunity?.matched_service_id
+    ? (services.find((s) => s.id === opportunity.matched_service_id) ?? null)
+    : null;
 
   const byKind = (kind: Creative["kind"]) => creatives.filter((c) => c.kind === kind);
   const headlines = byKind("headline");
   const primaries = byKind("primary_text");
+  const scripts = byKind("script");
+  const briefs = byKind("static_brief");
+  const landing = byKind("landing_copy");
   const budget = budgetFor(business?.price_band ?? null);
   // An online brand tests with a share of its monthly spend, not $25 a day.
   const onlineTest = business?.market === "online" ? creativeTestBudgetFor(business.monthly_ad_spend) : null;
   // An online DTC brand's ads run nationwide; its location is not a factor.
   const nationwide = business?.market === "online";
+  const where = nationwide ? "Nationwide, United States" : `${campaign.audience.radius_miles} miles from you`;
 
   const copyAll = [
     `ANGLE\n${campaign.angle}`,
@@ -69,142 +91,164 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
   ].join("\n\n———\n\n");
 
   const launched = campaign.status === "live" || campaign.status === "complete";
+  const chip = statusChip(campaign.status);
+  const links = signal ? trendLinks(signal.term, { hashtag: tiktokHashtag(signal) }) : null;
+  const context = [signal ? sentenceCase(signal.term) : null, service?.name ?? null].filter(Boolean).join(" · ");
+
+  const plan: { label: string; value: string; mono?: boolean }[] = [
+    { label: "Angle", value: campaign.angle },
+    { label: "Offer", value: campaign.offer },
+    { label: "Budget", value: onlineTest ?? `${budget.daily} / day`, mono: true },
+    { label: "Audience", value: `${campaign.audience.who} · ${campaign.audience.age_range}` },
+    { label: "Where", value: where },
+    {
+      label: "Flight",
+      value: onlineTest
+        ? "Run it against your current best ad at the same budget, and keep the winner."
+        : "Days 1–3, headline 1 against headline 2 on primary text 1; days 4–6, keep the winner and swap in primary text 2.",
+    },
+    { label: "Kill rule", value: "Pause anything under half your median CTR after 1,000 impressions." },
+    { label: "Why them", value: campaign.audience.why },
+  ];
+  if (!onlineTest) {
+    plan.splice(7, 0, {
+      label: "Expect",
+      value: forecastLine(forecastFlight({ daily: budget.daily, category: business?.category ?? "" })),
+    });
+  }
 
   return (
-    <div className="page">
-      <Link href="/app/picks" className="mono-label inline-block mb-4">
-        Back to this week
+    <div className="page campd">
+      <Link href="/app/campaigns" className="mono-label campd__back">
+        All campaigns
       </Link>
 
-      {/* ---------- HEADER ---------- */}
-      <header className="panel panel--hero py-[30px] px-8">
-        <div className="flex justify-between gap-5 flex-wrap items-start">
-          <div className="max-w-[620px]">
-            <h1 className="h-disp" style={{ fontSize: "clamp(24px,3vw,34px)", margin: "0 0 12px", lineHeight: 1.12 }}>
-              {campaign.hook}
-            </h1>
-            <p className="text-[15px] leading-[1.65] text-ink-soft m-0">{campaign.angle}</p>
-          </div>
-          <StatusTimeline status={campaign.status} />
+      <div className="page-head">
+        <div>
+          <span className="eyebrow m-0">Campaign · built {shortDate(campaign.created_at)}</span>
+          <h1>{sentenceCase(campaign.hook)}</h1>
+          {context && <p className="context">{context}</p>}
         </div>
+      </div>
 
-        <div className="facts-grid mt-6 pt-5 border-t border-dashed border-line">
-          <div>
-            <span className="k text-(--amber-text)">Offer</span>
-            <p className="v font-semibold font-disp">{campaign.offer}</p>
-          </div>
-          <div>
-            <span className="k">Audience</span>
-            <p className="v text-[13.5px]">
-              {campaign.audience.who} · {campaign.audience.age_range} · {nationwide ? "nationwide" : `${campaign.audience.radius_miles} mi`}
-            </p>
-          </div>
-          <div>
-            <span className="k">Source signal</span>
-            <p className="v text-[13.5px]">{signal ? `"${sentenceCase(signal.term)}"` : "—"}</p>
-          </div>
-          <div>
-            <span className="k">Built</span>
-            <p className="v text-[13.5px]">
-              {new Date(campaign.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-            </p>
-          </div>
-        </div>
+      <div className="campd__top">
+        <div className="campd__col">
+          <section className="campd__card campd__status" aria-labelledby="campd-status">
+            <div className="campd__card-head">
+              <h2 id="campd-status" className="campd__h2">
+                Status
+              </h2>
+              <span className={`badge${chip.tone ? ` badge--${chip.tone}` : ""}`}>
+                <i />
+                {chip.label}
+              </span>
+            </div>
+            <StatusTimeline status={campaign.status} />
+            <div className="campd__actions">
+              {metaReady && !campaign.external_id && <LaunchToMetaButton campaignId={campaign.id} />}
+              {campaign.external_id && (
+                <span className="badge badge--mint">
+                  <i />
+                  In your Meta account · {campaign.external_status ?? "PAUSED"}
+                </span>
+              )}
+              {!launched ? (
+                <form action={markLaunchedAction}>
+                  <input type="hidden" name="campaign_id" value={campaign.id} />
+                  <button type="submit" className={`btn btn-sm ${metaReady ? "btn-ghost" : "btn-primary"}`}>
+                    Mark as launched
+                  </button>
+                </form>
+              ) : (
+                <a href="#results" className="btn btn-primary btn-sm">
+                  Record results
+                </a>
+              )}
+              <CopyAllButton text={copyAll} />
+              <a className="btn btn-ghost btn-sm" href={`/app/campaigns/${campaign.id}/export?format=csv`}>
+                CSV for Meta
+              </a>
+              <a className="btn btn-ghost btn-sm" href={`/app/campaigns/${campaign.id}/export?format=json`}>
+                JSON
+              </a>
+            </div>
+            {!metaReady && (
+              <p className="campd__note">
+                Connect your Meta ad account in <Link href="/app/settings">Settings</Link> to launch from here and
+                sync results.
+              </p>
+            )}
+          </section>
 
-      </header>
-
-      {/* ---------- STEP 1 · SHOOT ---------- */}
-      <section className="step-card">
-        <div className="step-head">
-          <span className="step-num">1</span>
-          <h3>Creative</h3>
-        </div>
-        <p className="lede">
-          Three shot directions. Each can be taken on a phone.
-        </p>
-        <div className="creative-grid">
-          {byKind("static_brief").map((c, i) => {
-            const photo = (business?.photo_urls ?? [])[i];
-            return (
-              <div key={c.id} className="creative-card">
-                <div
-                  className={`art art--${(i % 3) + 1}`}
-                  style={
-                    photo
-                      ? {
-                          backgroundImage: `linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.45)), url(${JSON.stringify(photo)})`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                          color: "#fff",
-                        }
-                      : undefined
-                  }
-                  title={photo ? "One of your own site photos — a starting point for this shot" : undefined}
-                >
-                  {String(i + 1).padStart(2, "0")}
-                </div>
-                <div className="cap">
-                  <span className="tag">Direction {i + 1}</span>
-                  <span className="desc">{c.content}</span>
-                </div>
+          {launched && (
+            <section className="campd__card" id="results" aria-labelledby="campd-results">
+              <div className="campd__card-head">
+                <h2 id="campd-results" className="campd__h2">
+                  Results
+                </h2>
+                {campaignResults.length > 0 && (
+                  <span className="campd__card-meta">
+                    {campaignResults.length} {campaignResults.length === 1 ? "entry" : "entries"}
+                  </span>
+                )}
               </div>
-            );
-          })}
+              <ResultEntryForm campaignId={campaign.id} />
+              {campaignResults.length > 0 && (
+                <div className="campd__table">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th className="num">Impressions</th>
+                        <th className="num">Clicks</th>
+                        <th className="num">CTR</th>
+                        <th className="num">Spend</th>
+                        <th className="num">Bookings</th>
+                        <th className="num">Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {campaignResults.map((r) => (
+                        <tr key={r.id}>
+                          <td className="whitespace-nowrap">{shortDate(r.recorded_at)}</td>
+                          <td className="num">{fmtNum(r.impressions)}</td>
+                          <td className="num">{fmtNum(r.clicks)}</td>
+                          <td className="num">{r.ctr === null ? "—" : `${(Number(r.ctr) * 100).toFixed(2)}%`}</td>
+                          <td className="num">{fmtMoney(r.spend_cents)}</td>
+                          <td className="num">{fmtNum(r.bookings)}</td>
+                          <td className="num">{fmtMoney(r.revenue_cents)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <Link href="/app/results" className="mono-label campd__link">
+                All results
+              </Link>
+            </section>
+          )}
+
+          <section className="campd__card" aria-labelledby="campd-plan">
+            <h2 id="campd-plan" className="campd__h2">
+              The plan
+            </h2>
+            <dl className="campd__rows">
+              {plan.map((row) => (
+                <div key={row.label}>
+                  <dt>{row.label}</dt>
+                  <dd className={row.mono ? "is-mono" : undefined}>{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         </div>
 
-        <details className="section-disclosure mt-[18px]">
-          <summary>
-            <span className="panel__title">Video scripts</span>
-            <span className="summary-right">
-              <span className="panel__meta">{byKind("script").length} scripts · 20–30s each</span>
-              <span className="summary-open-hint">open ↓</span>
-            </span>
-          </summary>
-          <div className="section-body">
-            <div className="grid grid-cols-[repeat(auto-fill,_minmax(340px,_1fr))] gap-3">
-              {byKind("script").map((c) => (
-                <CopyBlock key={c.id} label={`Script ${c.variant_index + 1}`} content={c.content} mono />
-              ))}
-            </div>
-          </div>
-        </details>
-      </section>
-
-      {/* ---------- STEP 2 · WRITE ---------- */}
-      <section className="step-card">
-        <div className="step-head">
-          <span className="step-num">2</span>
-          <h3>Copy</h3>
-        </div>
-        <p className="lede">
-          Pick the line that sounds like you, then copy it straight into Meta. Every version
-          below is ready to run — they are alternatives, not a checklist.
-        </p>
-        <div className="two-col">
-          <div>
-            <div className="panel__head mb-[10px]">
-              <span className="panel__title">Headlines</span>
-              <span className="panel__meta">the short line above the ad</span>
-            </div>
-            <div className="grid grid-cols-[repeat(auto-fill,_minmax(240px,_1fr))] gap-3 mb-5">
-              {headlines.map((c) => (
-                <CopyBlock key={c.id} label={`Headline ${c.variant_index + 1}`} content={c.content} />
-              ))}
-            </div>
-            <div className="panel__head mb-[10px]">
-              <span className="panel__title">Primary texts</span>
-              <span className="panel__meta">the paragraph people read first</span>
-            </div>
-            <div className="grid grid-cols-[1fr] gap-3">
-              {primaries.map((c) => (
-                <CopyBlock key={c.id} label={`Primary text ${c.variant_index + 1}`} content={c.content} />
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="panel__head mb-[10px]">
-              <span className="panel__title">In-feed preview</span>
-            </div>
+        <div className="campd__col campd__col--side">
+          <section className="campd__card campd__preview" aria-labelledby="campd-preview">
+            <h2 id="campd-preview" className="campd__h2">
+              In-feed preview
+            </h2>
             <AdPreview
               businessName={business?.name ?? "Your business"}
               primaryText={primaries[0]?.content ?? campaign.angle}
@@ -212,207 +256,95 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
               mediaLine={campaign.offer}
               imageUrl={(business?.photo_urls ?? [])[0] ?? null}
             />
-          </div>
+          </section>
         </div>
+      </div>
 
-        {signal && (
-          <div className="ref-links">
-            <a className="ref-link" href={trendLinks(signal.term, { hashtag: tiktokHashtag(signal) }).tiktok} target="_blank" rel="noopener noreferrer">
-              See what&apos;s working on TikTok
-            </a>
-            <a className="ref-link" href={trendLinks(signal.term, { hashtag: tiktokHashtag(signal) }).instagram} target="_blank" rel="noopener noreferrer">
-              See what&apos;s working on Instagram
-            </a>
-          </div>
-        )}
-
-        <details className="section-disclosure mt-[18px]">
-          <summary>
-            <span className="panel__title">Landing copy</span>
-            <span className="summary-right">
-              <span className="panel__meta">For the landing page</span>
-              <span className="summary-open-hint">open ↓</span>
-            </span>
-          </summary>
-          <div className="section-body">
-            <div className="max-w-[720px]">
-              {byKind("landing_copy").map((c) => (
-                <CopyBlock key={c.id} label="Landing section" content={c.content} />
+      <div className="campd__work">
+        {headlines.length > 0 && (
+          <section className="campd__card" aria-labelledby="campd-headlines">
+            <h2 id="campd-headlines" className="campd__h2">
+              Headlines
+            </h2>
+            <div className="campd__copy-grid">
+              {headlines.map((c) => (
+                <CopyBlock key={c.id} label={`Headline ${c.variant_index + 1}`} content={c.content} />
               ))}
             </div>
-          </div>
-        </details>
-      </section>
-
-      {/* ---------- STEP 3 · TARGET ---------- */}
-      <section className="step-card">
-        <div className="step-head">
-          <span className="step-num">3</span>
-          <h3>Targeting and budget</h3>
-        </div>
-        <p className="lede">A starting point sized to your price band.</p>
-        <div className="target-grid">
-          <div className="t-box">
-            <span className="k">Suggested budget</span>
-            <div className="v">{onlineTest ?? `${budget.daily} / day`}</div>
-          </div>
-          <div className="t-box col-span-full">
-            <span className="k">What a 6-day test should return</span>
-            <div className="v text-[13.5px] leading-[1.5]">
-              {onlineTest
-                ? "Run it against your current best ad at the same budget, and keep the winner."
-                : forecastLine(forecastFlight({ daily: budget.daily, category: business?.category ?? "" }))}
-            </div>
-          </div>
-          <div className="t-box">
-            <span className="k">{nationwide ? "Where" : "Radius"}</span>
-            <div className="v">{nationwide ? "Nationwide, United States" : `${campaign.audience.radius_miles} miles from you`}</div>
-          </div>
-          <div className="t-box">
-            <span className="k">Audience</span>
-            <div className="v">
-              {campaign.audience.who} · {campaign.audience.age_range}
-            </div>
-          </div>
-        </div>
-        <div className="flight mt-[18px]">
-          <div className="flight__step">
-            <span className="flight__when">Days 1–3</span>
-            <p className="flight__what">
-              <b>Headline 1 vs headline 2</b>, both on primary text 1, even spend.
-            </p>
-          </div>
-          <div className="flight__step">
-            <span className="flight__when">Days 4–6</span>
-            <p className="flight__what">
-              <b>Keep the winner</b>, swap in primary text 2 against it.
-            </p>
-          </div>
-          <div className="flight__step">
-            <span className="flight__when">Kill rule</span>
-            <p className="flight__what">
-              Pause anything under <b>half your median CTR</b> after 1,000 impressions.
-            </p>
-          </div>
-        </div>
-        <p className="mt-4 mb-0 text-[13px] leading-[1.6] text-ink-soft max-w-[640px]">
-          <span className="mono-label text-(--amber-text)">Why this audience: </span>
-          {campaign.audience.why}
-        </p>
-      </section>
-
-      {/* ---------- STEP 4 · LAUNCH ---------- */}
-      <section className="step-card">
-        <div className="step-head">
-          <span className="step-num">4</span>
-          <h3>Launch</h3>
-        </div>
-        <div className="checklist">
-          {[
-            "Copy the assets above into Meta Ads Manager (or export the CSV).",
-            `Set the audience: ${campaign.audience.who}, ${campaign.audience.age_range}, ${nationwide ? "nationwide" : `${campaign.audience.radius_miles} mile radius`}.`,
-            onlineTest
-              ? `Put ${onlineTest} behind it, against your current best ad.`
-              : `Set ${budget.daily}/day and schedule the ${budget.test.split(" over ")[1]} test flight.`,
-            "Mark as launched here, then record results after the flight — that's what sharpens next week.",
-          ].map((t, i) => (
-            <div key={i}>
-              <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M3 8.5L6.5 12L13 4" stroke="var(--amber)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              </svg>
-              {t}
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-[10px] flex-wrap mt-5">
-          {metaReady && !campaign.external_id && <LaunchToMetaButton campaignId={campaign.id} />}
-          {campaign.external_id && (
-            <span className="badge badge--mint self-center">
-              <i />
-              In your Meta account · {campaign.external_status ?? "PAUSED"} — results sync daily
-            </span>
-          )}
-          {!launched ? (
-            <form action={markLaunchedAction}>
-              <input type="hidden" name="campaign_id" value={campaign.id} />
-              <button type="submit" className={`btn btn-sm ${metaReady ? "btn-ghost" : "btn-primary"}`}>
-                Mark as launched
-              </button>
-            </form>
-          ) : (
-            <a href="#results" className="btn btn-primary btn-sm">
-              Record results ↓
-            </a>
-          )}
-          <CopyAllButton text={copyAll} />
-          <a className="btn btn-ghost btn-sm" href={`/app/campaigns/${campaign.id}/export?format=json`}>
-            Download JSON
-          </a>
-          <a className="btn btn-ghost btn-sm" href={`/app/campaigns/${campaign.id}/export?format=csv`}>
-            CSV for Meta
-          </a>
-        </div>
-        {!metaReady && (
-          <div className="lock-note">
-            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-              <rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none" />
-              <path d="M4 5V3.5a2 2 0 0 1 4 0V5" stroke="currentColor" strokeWidth="1.2" fill="none" />
-            </svg>
-            One-click launch &amp; auto-synced results — connect your Meta ad account in Settings
-          </div>
+          </section>
         )}
-      </section>
 
-      {/* ---------- STEP 5 · RECORD (once launched) ---------- */}
-      {launched && (
-        <section className="step-card" id="results">
-          <div className="step-head">
-            <span className="step-num">5</span>
-            <h3>Results</h3>
-          </div>
-          <p className="lede">
-            Enter what your ad account reports after the flight.
-          </p>
-          <ResultEntryForm campaignId={campaign.id} />
-          {campaignResults.length > 0 && (
-            <div className="overflow-x-auto mt-[18px]">
-              <table className="data-table min-w-[640px]">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th className="num">Impressions</th>
-                    <th className="num">Clicks</th>
-                    <th className="num">CTR</th>
-                    <th className="num">Spend</th>
-                    <th className="num">Bookings</th>
-                    <th className="num">Revenue</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {campaignResults.map((r) => (
-                    <tr key={r.id}>
-                      <td className="whitespace-nowrap">
-                        {new Date(r.recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </td>
-                      <td className="num">{r.impressions === null ? "—" : r.impressions.toLocaleString("en-US")}</td>
-                      <td className="num">{r.clicks === null ? "—" : r.clicks.toLocaleString("en-US")}</td>
-                      <td className="num text-(--mint-text) font-semibold">
-                        {r.ctr === null ? "—" : `${(Number(r.ctr) * 100).toFixed(2)}%`}
-                      </td>
-                      <td className="num">{r.spend_cents === null ? "—" : `$${(r.spend_cents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}`}</td>
-                      <td className="num">{r.bookings === null ? "—" : r.bookings.toLocaleString("en-US")}</td>
-                      <td className="num">{r.revenue_cents === null ? "—" : `$${(r.revenue_cents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}`}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {primaries.length > 0 && (
+          <section className="campd__card" aria-labelledby="campd-primary">
+            <h2 id="campd-primary" className="campd__h2">
+              Primary text
+            </h2>
+            <div className="campd__copy-stack">
+              {primaries.map((c) => (
+                <CopyBlock key={c.id} label={`Primary text ${c.variant_index + 1}`} content={c.content} />
+              ))}
             </div>
-          )}
-          <Link href="/app/results" className="mono-label inline-block mt-4 text-(--amber-text)">
-            All results
-          </Link>
-        </section>
-      )}
+          </section>
+        )}
+
+        {(scripts.length > 0 || briefs.length > 0 || landing.length > 0) && (
+          <section className="campd__card" aria-labelledby="campd-more">
+            <h2 id="campd-more" className="campd__h2">
+              More to run
+            </h2>
+            {scripts.length > 0 && (
+              <details className="campd__more">
+                <summary>
+                  <span>Video scripts</span>
+                  <span className="campd__card-meta">{scripts.length} · 20–30s each</span>
+                </summary>
+                <div className="campd__more-body campd__copy-grid">
+                  {scripts.map((c) => (
+                    <CopyBlock key={c.id} label={`Script ${c.variant_index + 1}`} content={c.content} mono />
+                  ))}
+                </div>
+              </details>
+            )}
+            {briefs.length > 0 && (
+              <details className="campd__more">
+                <summary>
+                  <span>Shot directions</span>
+                  <span className="campd__card-meta">{briefs.length}, each doable on a phone</span>
+                </summary>
+                <div className="campd__more-body">
+                  <ol className="campd__directions">
+                    {briefs.map((c) => (
+                      <li key={c.id}>{c.content}</li>
+                    ))}
+                  </ol>
+                </div>
+              </details>
+            )}
+            {landing.length > 0 && (
+              <details className="campd__more">
+                <summary>
+                  <span>Landing copy</span>
+                </summary>
+                <div className="campd__more-body campd__copy-stack">
+                  {landing.map((c) => (
+                    <CopyBlock key={c.id} label="Landing section" content={c.content} />
+                  ))}
+                </div>
+              </details>
+            )}
+            {links && (
+              <div className="campd__refs">
+                <a className="btn btn-ghost btn-sm" href={links.tiktok} target="_blank" rel="noopener noreferrer">
+                  What&apos;s running on TikTok
+                </a>
+                <a className="btn btn-ghost btn-sm" href={links.instagram} target="_blank" rel="noopener noreferrer">
+                  What&apos;s running on Instagram
+                </a>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
     </div>
   );
 }

@@ -22,7 +22,7 @@ import "./globals.css";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://usetrnd.com";
 const TITLE = "TRND: Know what ad to run next";
 const DESCRIPTION =
-  "TRND reads real-time demand signal and turns it into a finished ad campaign for your business — every day. Built for small businesses, not agencies.";
+  "An AI creative strategist for DTC brands. Every week TRND reads your customers, your category, your competitors and your own results, and calls the next ad to run: the product, the audience, the angle, the format and three scripts to test.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

@@ -1,23 +1,22 @@
+import "./campaigns.css";
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import StatusTimeline from "@/components/app/status-timeline";
 import ListRuns from "@/components/picks/list-runs";
 import { getSessionUser } from "@/lib/auth/session";
+import { GROUP_LABEL, STATUS_ORDER, statusChip } from "@/lib/campaigns/view";
 import { getUserRepo } from "@/lib/db";
-import type { Campaign } from "@/lib/db/types";
+import { shortDate } from "@/lib/picks/list";
 import { sentenceCase } from "@/lib/text";
 
 export const metadata = { title: "Campaigns — TRND" };
 
-const ORDER: Campaign["status"][] = ["live", "draft", "exported", "complete"];
-const GROUP_LABEL: Record<Campaign["status"], string> = {
-  live: "Live — waiting on results",
-  draft: "Drafts — ready to launch",
-  exported: "Exported",
-  complete: "Complete",
-};
-
+/**
+ * Every campaign, grouped by what it needs next. Each card is the term, the
+ * headline under it, its status, and when it was built; the runs from this
+ * week's picks sit above the groups.
+ */
 export default async function CampaignsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -40,7 +39,7 @@ export default async function CampaignsPage() {
     ),
   );
 
-  const groups = ORDER.map((status) => ({
+  const groups = STATUS_ORDER.map((status) => ({
     status,
     items: campaigns.filter((c) => c.status === status),
   })).filter((g) => g.items.length > 0);
@@ -49,58 +48,54 @@ export default async function CampaignsPage() {
     <div className="page">
       <div className="page-head">
         <div>
+          <span className="eyebrow m-0">Built from your picks</span>
           <h1>Campaigns</h1>
-          <p className="context">
-            Drafts are ready to launch. Live campaigns are waiting on results.
-          </p>
+          <p className="context">Drafts are ready to launch; live ones are waiting on results.</p>
         </div>
-        <div className="flex gap-[10px] items-center flex-wrap">
-          <span className="badge"><i />{campaigns.length} total</span>
+        {campaigns.length > 0 && (
           <Link href="/app/results" className="btn btn-ghost btn-sm">
             All results
           </Link>
-        </div>
+        )}
       </div>
 
       <ListRuns runs={pickRuns} />
 
       {campaigns.length === 0 && pickRuns.length === 0 && (
-        <div className="panel max-w-[620px]">
-          <p className="mx-0 mt-0 mb-4 text-ink-soft text-[14.5px] leading-[1.6]">
-            Nothing running yet. When you run one of this week&apos;s picks, it shows up here.
-          </p>
+        <div className="panel camps__empty">
+          <p>Nothing running yet. A pick you run shows up here.</p>
           <Link href="/app/picks" className="btn btn-primary btn-sm">
-            See this week&apos;s picks
+            This week&apos;s picks
           </Link>
         </div>
       )}
 
       {groups.map((g) => (
-        <section className="mb-[26px]" key={g.status}>
-          <div className="panel__head mb-3">
-            <span className={`panel__title${g.status === "live" || g.status === "complete" ? " mint" : ""}`}>
+        <section className="camps__group" key={g.status} aria-labelledby={`camps-${g.status}`}>
+          <div className="camps__group-head">
+            <span id={`camps-${g.status}`} className="eyebrow m-0">
               {GROUP_LABEL[g.status]}
             </span>
-            <span className="panel__meta">{g.items.length}</span>
+            <span className="camps__count">{g.items.length}</span>
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,_minmax(320px,_1fr))] gap-[14px]">
+          <div className="camps__grid">
             {g.items.map((c) => {
               const term = signalTermByCampaign.get(c.id);
+              const chip = statusChip(c.status);
               return (
-                <Link key={c.id} href={`/app/campaigns/${c.id}`} className="panel block py-5 px-[22px]">
-                  {term && (
-                    <span className="mono-label text-(--amber-text) block mb-2">
-                      {sentenceCase(term)}
+                <Link key={c.id} href={`/app/campaigns/${c.id}`} className="camps__card">
+                  <span className="camps__head">
+                    <span className="camps__term">{sentenceCase(term ?? c.hook)}</span>
+                    {term && <span className="camps__headline">{sentenceCase(c.hook)}</span>}
+                  </span>
+                  <span className="camps__foot">
+                    <span className={`badge${chip.tone ? ` badge--${chip.tone}` : ""}`}>
+                      <i />
+                      {chip.label}
                     </span>
-                  )}
-                  <p className="font-disp font-semibold text-[15.5px] mx-0 mt-0 mb-[14px] leading-[1.35]">
-                    {c.hook}
-                  </p>
-                  <StatusTimeline status={c.status} compact />
-                  <p className="text-[12px] text-ink-faint mx-0 mt-[14px] mb-0">
-                    {new Date(c.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {c.channel} ·{" "}
-                    {c.status === "draft" ? "launch today" : c.status === "live" ? "enter results when ready" : "done"}
-                  </p>
+                    {/* A campaign row carries no budget or duration of its own; the date stands alone. */}
+                    <span className="camps__meta">{shortDate(c.created_at)}</span>
+                  </span>
                 </Link>
               );
             })}

@@ -1,3 +1,5 @@
+import "./ask.css";
+
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
@@ -32,17 +34,17 @@ export default async function AskPage() {
   });
 
   return (
-    <div className="page max-w-[900px]">
+    <div className="page ask">
       <div className="page-head">
         <div>
           <span className="eyebrow m-0">Ask</span>
           <h1>Ask about your market</h1>
-          <p className="context">
-            Answers are grounded in your own data and say what they assumed.
-          </p>
+          <p className="context">Answers come from your own data and say what they assumed.</p>
         </div>
       </div>
-      <AskPanel />
+      <div className="panel">
+        <AskPanel />
+      </div>
     </div>
   );
 }

@@ -159,19 +159,16 @@ async function emailFirstPicks(repo: Repo, business: Business, count: number): P
     const owner = await repo.getProfile(business.owner_id);
     if (!owner?.email) return;
     const { sendEmail } = await import("@/lib/email/send");
+    const { firstPicksSubject, renderFirstPicksEmail } = await import("@/lib/email/first-picks");
     const url = `${env.appUrl}/app/picks`;
     await sendEmail({
       to: owner.email,
-      subject: `Your first ${count === 1 ? "pick is" : `${count} picks are`} ready`,
-      html: `<p style="font:15px/1.5 -apple-system,Segoe UI,sans-serif;color:#23201a">TRND finished reading ${escapeHtml(business.name)}'s customers, category and competitors. This week's ${count === 1 ? "pick is" : "picks are"} written.</p><p style="font:15px/1.5 -apple-system,Segoe UI,sans-serif"><a href="${url}" style="color:#9a6a12;font-weight:600">See the ad to run next →</a></p>`,
+      subject: firstPicksSubject(count),
+      html: renderFirstPicksEmail({ businessName: business.name, count, url }),
     });
   } catch (err) {
     console.warn(`[week] first-picks email failed for ${business.id} (non-fatal):`, (err as Error).message);
   }
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 }
 
 /** Run one stage and say which comes next. Never throws past a stage: a

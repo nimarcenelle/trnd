@@ -1,13 +1,15 @@
+import "./opportunities.css";
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import BuildCampaignButton from "@/components/app/build-campaign-button";
-import DeltaChip from "@/components/app/delta-chip";
 import SourceBadge from "@/components/app/source-badge";
 import Sparkline from "@/components/app/sparkline";
 import { getSessionUser } from "@/lib/auth/session";
 import { setOpportunityStatusAction } from "@/lib/campaigns/actions";
 import { getUserRepo } from "@/lib/db";
+import { gradeChip } from "@/lib/picks/list";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { loadSignalContext } from "@/lib/recommend/four-signals";
 import { buildInsights } from "@/lib/recommend/insights";
@@ -17,6 +19,11 @@ import { sentenceCase } from "@/lib/text";
 
 export const metadata = { title: "Opportunities — TRND" };
 
+/**
+ * The week's ranking, one row per term: the rank is the judgement, the
+ * grade and the movement sit on the right in mono, and the why opens
+ * under the row for anyone who wants it.
+ */
 export default async function OpportunitiesPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -66,7 +73,7 @@ export default async function OpportunitiesPage() {
               snapshotReason: o.rationale?.match(/Snapshot read: (.+)$/)?.[1] ?? null,
             })
           : [];
-      return { o, signal, campaign, series, explained, insights };
+      return { o, signal, campaign, series, insights };
     }),
   );
 
@@ -77,6 +84,13 @@ export default async function OpportunitiesPage() {
   });
   const accepted = opportunities.filter((x) => x.status === "accepted" || x.status === "launched").length;
   const dismissed = opportunities.filter((x) => x.status === "dismissed").length;
+  const counts = [
+    `${opportunities.length} ranked`,
+    accepted > 0 ? `${accepted} accepted` : null,
+    dismissed > 0 ? `${dismissed} dismissed` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="page">
@@ -85,111 +99,73 @@ export default async function OpportunitiesPage() {
           <span className="eyebrow m-0">Week of {weekLabel}</span>
           <h1>Ranked opportunities</h1>
           <p className="context">
-            Open any row to see why it scored the way it did.
+            {counts}. Open <b>Why</b> on a row to see how it scored.
           </p>
-        </div>
-        <div className="flex gap-2">
-          <span className="badge"><i />{opportunities.length} ranked</span>
-          {accepted > 0 && <span className="badge badge--mint"><i />{accepted} accepted</span>}
-          {dismissed > 0 && <span className="badge badge--faint"><i />{dismissed} dismissed</span>}
         </div>
       </div>
 
       {opportunities.length === 0 && (
-        <div className="panel max-w-[620px]">
-          <p className="m-0 text-ink-soft text-[14.5px] leading-[1.6]">
-            Nothing ranked yet this week. Visit{" "}
-            <Link className="text-(--amber-text)" href="/app/picks">
-              This week
-            </Link>{" "}
-            to generate your ranking.
-          </p>
+        <div className="panel opps__empty">
+          <p>Nothing ranked yet this week.</p>
+          <Link href="/app/picks" className="btn btn-primary btn-sm">
+            This week&apos;s picks
+          </Link>
         </div>
       )}
 
-      <div className="flex flex-col gap-[14px]">
+      <ol className="opps-list">
         {enriched.map(({ o, signal, campaign, series, insights }, idx) => {
           const isDismissed = o.status === "dismissed";
           const matched = o.matched_service_id ? serviceById.get(o.matched_service_id) : null;
-          const tags = insights
-            .filter((i) => i.kind !== "momentum")
-            .map((i) => i.headline)
-            .slice(0, 3);
+          const grade = gradeChip(o);
+          const delta = typeof signal?.delta_pct === "number" && Number.isFinite(signal.delta_pct) ? Math.round(signal.delta_pct) : null;
+          const direction = delta === null || delta === 0 ? "flat" : delta > 0 ? "up" : "down";
+          const arrow = direction === "up" ? "↑" : direction === "down" ? "↓" : "→";
+          const line = [signal ? sentenceCase(metricLabel(signal.metric_type)) : null, matched ? `matched to ${matched.name}` : null]
+            .filter(Boolean)
+            .join(" · ");
+          const status =
+            o.status === "new"
+              ? null
+              : { label: sentenceCase(o.status), tone: o.status === "dismissed" ? "faint" : "mint" };
           return (
-            <div key={o.id} className={`opp-row${isDismissed ? " opp-row--dismissed" : ""}${idx === 0 && !isDismissed ? " opp-row--lead" : ""}`}>
-              <span className="rank">#{idx + 1}</span>
-              <div className="min-w-0">
-                <div className="flex gap-3 items-baseline flex-wrap">
-                  <span className="term">{signal ? sentenceCase(signal.term) : "Opportunity"}</span>
-                  {o.status !== "new" && (
-                    <span className={`badge${o.status === "launched" || o.status === "accepted" ? " badge--mint" : " badge--faint"}`}>
+            <li key={o.id} className={`opps-row${isDismissed ? " is-dismissed" : ""}`}>
+              <span className="opps-row__rank" aria-hidden="true">
+                {idx + 1}
+              </span>
+              <div className="opps-row__head">
+                <div className="opps-row__title">
+                  <span className="opps-row__term">{signal ? sentenceCase(signal.term) : "Opportunity"}</span>
+                  {status && (
+                    <span className={`badge badge--${status.tone}`}>
                       <i />
-                      {sentenceCase(o.status)}
+                      {status.label}
                     </span>
                   )}
                 </div>
-                <p className="why mt-[6px] font-mono text-[11.5px] text-(--mint-text) flex gap-2 items-center flex-wrap">
-                  {typeof signal?.delta_pct === "number" && (
-                    <DeltaChip delta={signal.delta_pct} />
-                  )}
-                  <span>
-                    {signal ? metricLabel(signal.metric_type) : ""}
-                    {typeof signal?.delta_pct === "number" ? ` ${deltaWindowLabel(signal.source)}` : ""}
-                    {matched ? ` · matched to ${matched.name}` : ""}
-                  </span>
-                </p>
-                {tags.length > 0 && (
-                  <div className="opp-tags">
-                    {tags.map((t) => (
-                      <span key={t}>{t}</span>
-                    ))}
-                  </div>
-                )}
-
-                <details className="disclosure mt-3">
-                  <summary>
-                    <span className="chev">›</span>
-                    <span className="mono-label text-ink-soft">
-                      why it ranked
-                    </span>
-                  </summary>
-                  <div className="disclosure__body">
-                    <div className="flex gap-7 flex-wrap items-start">
-                      <div className="flex-[1_1_300px] max-w-[460px]">
-                        {insights.map((ins) => (
-                          <div className="insight" key={ins.kind}>
-                            <span className={`insight__dot insight__dot--${ins.kind}`} />
-                            <div>
-                              <span className="insight__headline">{ins.headline}</span>
-                              <p className="insight__detail">{ins.detail}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="score-card">
-                        <div className="score-card__demand">
-                          <span className="mono-label text-(--mint-text) block mb-2">
-                            Demand — 30d
-                          </span>
-                          <Sparkline
-                            points={series}
-                            width={440}
-                            height={72}
-                            fluid
-                            axes
-                            note={signal ? scaleNote(signal.source, signal.metric_type) : null}
-                          />
-                        </div>
-                        {signal && (
-                          <SourceBadge source={signal.source} metric={signal.metric_type} term={signal.term} geo={signal.geo} raw={signal.raw} />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </details>
+                {line && <span className="opps-row__line">{line}</span>}
               </div>
-              <div className="side">
-                <div className="actions">
+              <div className="opps-row__meta">
+                {/* Always rendered, so the shared columns stay put on rows without a grade. */}
+                <span className="opps-row__grade-cell">
+                  {grade && (
+                    <span className={`picks-grade is-${grade.tone}`} title={grade.meaning}>
+                      <span aria-hidden="true">{grade.letter}</span>
+                      <span className="sr-only">{grade.description}</span>
+                    </span>
+                  )}
+                </span>
+                <span className={`opps-row__delta is-${direction}`}>
+                  {delta !== null && signal && (
+                    <>
+                      <span className="opps-row__arrow" aria-hidden="true">
+                        {arrow}
+                      </span>
+                      {Math.abs(delta)}% {deltaWindowLabel(signal.source)}
+                    </>
+                  )}
+                </span>
+                <div className="opps-row__actions">
                   {campaign ? (
                     <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary btn-sm">
                       View campaign
@@ -218,10 +194,40 @@ export default async function OpportunitiesPage() {
                   )}
                 </div>
               </div>
-            </div>
+              {(insights.length > 0 || signal) && (
+                <details className="opps-row__why">
+                  <summary>Why</summary>
+                  <div className="opps-row__why-body">
+                    {insights.length > 0 && (
+                      <ul className="opps-row__insights">
+                        {insights.map((ins) => (
+                          <li key={ins.kind}>
+                            <b>{sentenceCase(ins.headline)}</b>
+                            <span>{ins.detail}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {signal && (
+                      <div className="opps-row__demand">
+                        <Sparkline
+                          points={series}
+                          width={440}
+                          height={72}
+                          fluid
+                          axes
+                          note={scaleNote(signal.source, signal.metric_type)}
+                        />
+                        <SourceBadge source={signal.source} metric={signal.metric_type} term={signal.term} geo={signal.geo} raw={signal.raw} />
+                      </div>
+                    )}
+                  </div>
+                </details>
+              )}
+            </li>
           );
         })}
-      </div>
+      </ol>
     </div>
   );
 }

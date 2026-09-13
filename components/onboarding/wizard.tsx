@@ -632,7 +632,7 @@ export default function OnboardingWizard() {
               />
               <span
                 className="mono-label"
-                style={{ fontSize: 9.5, marginTop: 6, display: "block", color: done ? "var(--amber-text)" : undefined, textAlign: mode === "review" && isLast ? "right" : undefined }}
+                style={{ fontSize: 10.5, marginTop: 7, display: "block", color: done ? "var(--amber-text)" : undefined, textAlign: mode === "review" && isLast ? "right" : undefined }}
               >
                 {label}
               </span>

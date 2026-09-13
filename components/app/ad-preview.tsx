@@ -26,40 +26,38 @@ export default function AdPreview({
   // here as a full paragraph of white text across the image; clamp it so a
   // verbose generation degrades to a short line rather than wallpaper.
   const overlay = mediaLine.length > 48 ? `${mediaLine.slice(0, 45).trimEnd()}…` : mediaLine;
+  // The card that holds it names it; no caption underneath.
   return (
-    <div>
-      <div className="ad-preview">
-        <div className="ad-preview__top">
-          <span className="ad-preview__avatar">{initial}</span>
-          <span>
-            <span className="ad-preview__name">{sentenceCase(businessName)}</span>
-            <br />
-            <span className="ad-preview__sponsored">Sponsored</span>
-          </span>
-        </div>
-        <p className="ad-preview__text">{truncated}</p>
-        <div
-          className="ad-preview__media"
-          style={
-            imageUrl
-              ? {
-                  backgroundImage: `linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.45)), url(${JSON.stringify(imageUrl)})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                  color: "#fff",
-                  textShadow: "0 1px 6px rgba(0,0,0,0.6)",
-                }
-              : undefined
-          }
-        >
-          {overlay}
-        </div>
-        <div className="ad-preview__bottom">
-          <span className="ad-preview__headline">{headline}</span>
-          <span className="ad-preview__cta">{cta}</span>
-        </div>
+    <div className="ad-preview">
+      <div className="ad-preview__top">
+        <span className="ad-preview__avatar">{initial}</span>
+        <span>
+          <span className="ad-preview__name">{sentenceCase(businessName)}</span>
+          <br />
+          <span className="ad-preview__sponsored">Sponsored</span>
+        </span>
       </div>
-      <p className="ad-preview__note">in-feed preview — variant 1</p>
+      <p className="ad-preview__text">{truncated}</p>
+      <div
+        className="ad-preview__media"
+        style={
+          imageUrl
+            ? {
+                backgroundImage: `linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.45)), url(${JSON.stringify(imageUrl)})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                color: "#fff",
+                textShadow: "0 1px 6px rgba(0,0,0,0.6)",
+              }
+            : undefined
+        }
+      >
+        {overlay}
+      </div>
+      <div className="ad-preview__bottom">
+        <span className="ad-preview__headline">{headline}</span>
+        <span className="ad-preview__cta">{cta}</span>
+      </div>
     </div>
   );
 }

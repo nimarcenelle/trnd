@@ -2,8 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import BuildCampaignButton from "@/components/app/build-campaign-button";
-import GradePill from "@/components/app/grade-pill";
-import ScoreBreakdown from "@/components/app/score-breakdown";
 import DeltaChip from "@/components/app/delta-chip";
 import SourceBadge from "@/components/app/source-badge";
 import Sparkline from "@/components/app/sparkline";
@@ -134,7 +132,7 @@ export default async function OpportunitiesPage() {
                   <summary>
                     <span className="chev">›</span>
                     <span className="mono-label text-ink-soft">
-                      why this score
+                      why it ranked
                     </span>
                   </summary>
                   <div className="disclosure__body">
@@ -151,7 +149,6 @@ export default async function OpportunitiesPage() {
                         ))}
                       </div>
                       <div className="score-card">
-                        {explained && <ScoreBreakdown components={explained.components} />}
                         <div className="score-card__demand">
                           <span className="mono-label text-(--mint-text) block mb-2">
                             Demand — 30d
@@ -174,7 +171,6 @@ export default async function OpportunitiesPage() {
                 </details>
               </div>
               <div className="side">
-                <GradePill score={Number(o.score)} lead={idx === 0 && !isDismissed} />
                 <div className="actions">
                   {campaign ? (
                     <Link href={`/app/campaigns/${campaign.id}`} className="btn btn-primary btn-sm">

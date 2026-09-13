@@ -4,7 +4,6 @@ import { after } from "next/server";
 
 import AdCallCard from "@/components/app/ad-call-card";
 import AutoRefresh from "@/components/app/auto-refresh";
-import GradePill from "@/components/app/grade-pill";
 import PrintButton from "@/components/app/print-button";
 import DeltaChip from "@/components/app/delta-chip";
 import SourceBadge from "@/components/app/source-badge";
@@ -220,9 +219,6 @@ export default async function ReportPage() {
                   {r.competitorGap ? ` ${r.competitorGap.charAt(0).toUpperCase()}${r.competitorGap.slice(1)}.` : ""}
                 </p>
               </div>
-              {/* The letter IS the verdict — a second number under it just
-                  invites reconciling two scales. */}
-              <GradePill score={r.score} lead={r.rank === 1} />
             </div>
           ))}
         </div>

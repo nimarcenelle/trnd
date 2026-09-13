@@ -44,7 +44,7 @@ export default async function OpportunitiesPage() {
           ? buildInsights(signal, explained, {
               learnings,
               // A judged-unfit row must not pitch itself as a new offer.
-              unfit: Number(o.score) < 4.3 && !o.matched_service_id,
+              unfit: Number(o.score) < 5 && !o.matched_service_id,
               snapshotReason: o.rationale?.match(/Snapshot read: (.+)$/)?.[1] ?? null,
             })
           : [];

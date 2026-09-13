@@ -849,3 +849,26 @@ what the brand shoots on Tuesday. The primary reader is the person making the cr
 - **Found on real data**: a dry run on eskiin (`scripts/probe-picks.ts`, writes nothing) showed
   an H1 quoting the wrong product, "+200%" on 688 views, 60- and 8-second scripts, and a finding
   with no gap in it. Each is now a validation rule or a code path, with tests.
+
+## P28 — The four-signal scoring model
+Founder spec, 2026-09-13. Customer, Culture, Competitive and Brand each score 0-100 as a
+percentile against a rolling 90-day baseline for the brand (category for Culture and
+Competitive), with a confidence. A low-confidence signal is left out of the grade and its
+weight redistributed with a visible note, never averaged in as a credible-looking 50.
+
+- **Contract** (lib/scoring/model.ts): weights customer 35, brand 25, culture 20, competitive 20;
+  bands A+ 90, A 80, B+ 70, B 60, C 50, Hold below (never build a campaign).
+- **Scorers** (lib/scoring/{customer,culture,competitive,brand}.ts): the founder's sub-weights.
+  Thin baselines fall back to absolute curves capped at medium confidence. Zero competitors
+  connected returns no computed score, a note and an "Add competitors" link.
+- **Wiring**: gather.ts builds each input from real data and keeps each day's readings in
+  `signal_readings` (migration 0024) as the next run's baseline; the ranking sorts by grade,
+  drops Holds, and stores grade, grade score and signal scores on opportunities and picks. Every
+  older letter reads from the same bands.
+- **UI and learning loop v1**: picks show the grade and each signal's score and confidence (or
+  its note); completing a run records spend, impressions, clicks, purchases and revenue and
+  writes the run into the brand's own ad history. Learned per-brand weights are v2.
+- **Found on real data**: every eskiin term read "holding steady" because the lifecycle only
+  compared week to week. It now also reads 60+ days against the first month, and a jump inside
+  the last six weeks that is holding reads as growing. eskiin grades on Customer and Culture only
+  (no competitors connected, no ad history), so Culture's lifecycle weighs 36% for it.

@@ -95,8 +95,8 @@ describe("what changed since last week", () => {
       { opportunity: opp("c0", 6), signal: sig("flat tire repair") },
     ];
     const lines = rankingChanges(now, then).map((l) => l.text);
-    expect(lines).toContain("“bike tune up” moved B+ → A.");
-    expect(lines).toContain("New this week: “cargo bike assembly” (B+).");
+    expect(lines).toContain("“bike tune up” moved B → A.");
+    expect(lines).toContain("New this week: “cargo bike assembly” (B).");
     expect(lines).toContain("“flat tire repair” fell out of the ranking.");
   });
 

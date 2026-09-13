@@ -30,7 +30,19 @@ export async function rerankWeek(repo: Repo, business: Business, opts: { picks?:
   // read" the moment an owner paged to them.
   const picks = await rankedPicks(repo, business, result.opportunityIds);
   await writeTopPickReads(repo, business, picks, picks.length);
-  if (opts.picks !== false) await regenerateWeekPicks(repo, business);
+  if (opts.picks === false) return;
+  if (result.allHeld) {
+    // Everything held: take down last run's picks (a pick someone already ran
+    // or dismissed stays, by replace_week_picks' own rule). Generating would
+    // stop at the empty ranking and leave them up.
+    try {
+      await repo.replaceWeekPicks(business.id, week, []);
+    } catch (err) {
+      console.warn(`[picks] clearing an all-Hold week for ${business.id} failed (non-fatal):`, (err as Error).message);
+    }
+    return;
+  }
+  await regenerateWeekPicks(repo, business);
 }
 
 /**

@@ -134,3 +134,46 @@ describe("scoreCulture", () => {
     }
   });
 });
+
+describe("a rise that happened last week", () => {
+  it("still reads as growing, not holding steady", async () => {
+    const { lifecycleStage } = await import("../lib/scoring/lifecycle");
+    // Three weeks around 100, then two weeks around 190 and 205: 93% above
+    // the month before it, only 8% above the week before.
+    const days = [...Array(16).fill(100), ...Array(7).fill(190), ...Array(7).fill(205)];
+    const series = days.map((v, i) => ({ day: `2026-08-${String(i + 1).padStart(2, "0")}`, value: v }));
+    expect(lifecycleStage(series)).toBe("growing");
+  });
+});
+
+describe("moves that happened weeks ago", () => {
+  const day = (i: number) => new Date(Date.UTC(2026, 5, 1) + i * 86400_000).toISOString().slice(0, 10);
+  const toSeries = (values: number[]) => values.map((value, i) => ({ day: day(i), value }));
+
+  it("reads a jump from nothing that has held for three weeks as growing", async () => {
+    const { readLifecycle } = await import("../lib/scoring/lifecycle");
+    // eskiin's "brassy blonde hair": zeros, then about 23 and holding.
+    const values = [...Array(69).fill(0), ...Array(21).fill(0).map((_, i) => 22 + (i % 4))];
+    const read = readLifecycle(toSeries(values))!;
+    expect(read.stage).toBe("growing");
+    expect(read.basis).toBe("quarter");
+    const { scoreCulture } = await import("../lib/scoring/culture");
+    const lifecycle = scoreCulture({ term: "t", category: "c", categoryGrowthPct: null, categoryGrowthBaseline: [], seasonal: null, series: toSeries(values) }).components.find((c) => c.key === "lifecycle")!;
+    expect(lifecycle.detail).toBe("Rising: up from almost nothing three months ago, and holding at its new level");
+  });
+
+  it("reads a slow slide over the quarter as declining", async () => {
+    const { readLifecycle } = await import("../lib/scoring/lifecycle");
+    // eskiin's "hard water": about 83 a quarter ago, about 45 now, flat week to week.
+    const values = Array(90).fill(0).map((_, i) => Math.round(83 - (38 * Math.min(i, 69)) / 69));
+    const read = readLifecycle(toSeries(values))!;
+    expect(read.stage).toBe("declining");
+    expect(read.basis).toBe("quarter");
+  });
+
+  it("leaves a short series to the weekly read", async () => {
+    const { readLifecycle } = await import("../lib/scoring/lifecycle");
+    expect(readLifecycle(toSeries(Array(30).fill(40)))!.quarterChange).toBeNull();
+  });
+});
+

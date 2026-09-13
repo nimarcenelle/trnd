@@ -69,7 +69,8 @@ export async function buildPickFacts(
   const term = titleCase(signal.term);
   const grade = gradeFor(Number(opportunity.score));
   const matched = services.find((s) => s.id === opportunity.matched_service_id) ?? null;
-  const thin = Number(opportunity.score) < 4.3;
+  // Below the C band floor (5.0 on this column) the grade is a Hold.
+  const thin = Number(opportunity.score) < 5;
   const snapshotReason = opportunity.rationale?.match(/Snapshot read: (.+)$/)?.[1] ?? null;
   const insights = buildInsights(signal, explained, {
     learnings,

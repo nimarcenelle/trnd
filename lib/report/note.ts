@@ -10,7 +10,8 @@ export const INTEL_NOTE_FALLBACK_MODEL = "trnd-template/v1";
 export const INTEL_NOTE_PROMPT_VERSION = "intel-3";
 
 /** The same worth-running bar the dashboard uses. */
-const THIN_BAR = 4.3;
+/** The C band floor on the 0-10 column: below it the grade is a Hold. */
+const THIN_BAR = 5;
 
 const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
 

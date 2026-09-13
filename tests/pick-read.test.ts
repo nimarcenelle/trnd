@@ -107,10 +107,11 @@ describe("pick facts", () => {
     expect(facts).not.toBeNull();
     expect(facts!.rank).toBe(1);
     expect(facts!.text).toContain('Pick #1 of 2 ranked this week: "Korean Glass Skin Facial"');
-    expect(facts!.text).toContain("grade A-");
+    // 7.4 on the 0-10 column is 74 on the four-signal bands: a B+.
+    expect(facts!.text).toContain("grade B+");
     expect(facts!.text).toContain("Matched menu item: Glass skin facial at $140");
     expect(facts!.text).toContain("Other menu items: Brow lamination ($85)");
-    expect(facts!.text).toContain('The other picks this week: #2 "Brow Lamination" grade B');
+    expect(facts!.text).toContain('The other picks this week: #2 "Brow Lamination" grade C');
     expect(facts!.text).toContain("Score meters (0-100)");
     // Whether an ad exists is deliberately not in the facts: it flips a few
     // seconds after the read is written and used to rewrite every read twice.

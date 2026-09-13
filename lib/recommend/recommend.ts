@@ -136,6 +136,10 @@ export interface RecommendBusinessResult {
   topScore: number | null;
   /** The week's current opportunity ids after this run. */
   opportunityIds: string[];
+  /** True when candidates were graded and every one held. Distinct from an
+   * empty run held for a missing analysis: this week really has no pick,
+   * so last run's picks must come down. */
+  allHeld?: boolean;
 }
 
 /**
@@ -397,7 +401,7 @@ export async function recommendForBusiness(
     .slice(0, TOP_N);
 
   if (top.length === 0) {
-    return { businessId: business.id, created: 0, topScore: null, opportunityIds: [] };
+    return { businessId: business.id, created: 0, topScore: null, opportunityIds: [], allHeld: graded.length > 0 };
   }
 
   const week = weekOf();

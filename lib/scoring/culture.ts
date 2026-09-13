@@ -43,10 +43,20 @@ function growthPhrase(score: number): string {
 function lifecycleDetail(read: LifecycleRead | null): string {
   if (!read) return "Too little daily history to tell where this is headed";
   const change = Math.round(Math.abs(read.weekChange) * 100);
+  const q = read.quarterChange;
+  if (read.basis === "quarter" && q !== null) {
+    if (read.stage === "growing") {
+      return !Number.isFinite(q) || q > 4
+        ? "Rising: up from almost nothing three months ago, and holding at its new level"
+        : `Rising: up ${Math.round(q * 100)}% on three months ago, and holding at its new level`;
+    }
+    if (read.stage === "declining") return `Falling: down ${Math.round(Math.abs(q) * 100)}% on three months ago`;
+  }
   switch (read.stage) {
     case "emerging":
       return `Early: still small, and up ${change}% on the week before`;
     case "growing":
+      if (read.basis === "month") return `Rising: well above its past month, and up ${change}% on the week before`;
       return read.relativeLevel < 1
         ? `Rising: up ${change}% on the week before and still below its peak`
         : `Rising: up ${change}% on the week before and at a new high`;

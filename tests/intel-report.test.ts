@@ -140,7 +140,8 @@ describe("buildIntelReport", () => {
       term: "cold plunge chapel hill",
       source: "snapshot",
       snapshotReason: "Exactly what they sell.",
-      grade: expect.objectContaining({ letter: "A-" }),
+      // 7.2 on the 0-10 column is 72 on the four-signal bands: a B+.
+      grade: expect.objectContaining({ letter: "B+" }),
     });
 
     const plunge = report.demand.find((d) => d.term === "cold plunge chapel hill")!;
@@ -232,7 +233,7 @@ describe("intel note", () => {
     expect(facts).toContain("3 local news mentions");
     expect(facts).toContain("2 competing Meta ads");
     expect(facts).toContain("Rival Recovery");
-    expect(facts).toContain("grade A-");
+    expect(facts).toContain("grade B+");
   });
 
   it("notes persist per business-week and stay owner-scoped", async () => {

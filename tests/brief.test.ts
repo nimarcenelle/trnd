@@ -84,13 +84,14 @@ describe("business brief fallback", () => {
 
 describe("opportunity grades", () => {
   it("maps scores to stable letter bands", () => {
+    // The four-signal bands, read from the 0-10 column.
+    expect(gradeFor(9.5).letter).toBe("A+");
     expect(gradeFor(8.4).letter).toBe("A");
-    expect(gradeFor(7.2).letter).toBe("A-");
-    expect(gradeFor(6.8).letter).toBe("B+");
-    expect(gradeFor(5.8).letter).toBe("B");
-    expect(gradeFor(5.1).letter).toBe("B-");
-    expect(gradeFor(4.4).letter).toBe("C+");
-    expect(gradeFor(3).letter).toBe("C");
+    expect(gradeFor(7.2).letter).toBe("B+");
+    expect(gradeFor(6.8).letter).toBe("B");
+    expect(gradeFor(5.4).letter).toBe("C");
+    expect(gradeFor(4.99).letter).toBe("Hold");
+    expect(gradeFor(3).sub).toBe("Don't build a campaign yet");
   });
   it("clamps the ring fill to 0..1", () => {
     expect(gradeFor(12).pct).toBe(1);

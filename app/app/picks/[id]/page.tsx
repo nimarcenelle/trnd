@@ -162,7 +162,9 @@ function GradeCard({ grade }: { grade: GradeView & { label: string } }) {
 function Demand({ view }: { view: DetailView }) {
   const { metric } = view;
   const lead = view.demandDeltas[0];
-  const tone = lead?.direction ?? "flat";
+  // The line is the brand's mint unless demand is actually falling: a flat
+  // week in grey read as a warning it was not.
+  const tone = lead?.direction === "down" ? "down" : "up";
   // An interest index has no level to print (a Trends "63" is relative to its
   // own peak), so the lead change stands in the value slot and its window
   // becomes the chip; a dash under a heading is a gap, not a number.

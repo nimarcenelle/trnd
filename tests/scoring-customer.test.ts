@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { absoluteVolumeScore, CUSTOMER_LOW_NOTE, ratioScore } from "../lib/scoring/customer";
+import { absoluteVolumeScore, actionScore, CUSTOMER_LOW_NOTE, MIN_ACTIVITY, ratioScore } from "../lib/scoring/customer";
 import {
   classifyIntent,
   intentStrength,
@@ -158,5 +158,59 @@ describe("scoreCustomer confidence and weights", () => {
       expect(c.detail).toBeTruthy();
       expect(c.detail).not.toMatch(/[—→]|percentile/i);
     }
+  });
+});
+
+describe("volume kinds and the shares-and-saves read", () => {
+  it("scores each kind of level on its own curve", () => {
+    // 10,000 monthly searches is the top of the searches curve...
+    expect(absoluteVolumeScore(10_000)).toBe(100);
+    expect(absoluteVolumeScore(10_000, "search_volume")).toBe(100);
+    // ...but 10,000 short-form views is a middling week.
+    expect(absoluteVolumeScore(10_000, "shortform_views")).toBe(75);
+    expect(absoluteVolumeScore(1_000, "shortform_views")).toBeCloseTo(50, 0);
+    expect(absoluteVolumeScore(100, "shortform_views")).toBeCloseTo(26, 0);
+    // An index is already 0-100.
+    expect(absoluteVolumeScore(63, "search_interest")).toBe(63);
+    expect(absoluteVolumeScore(140, "index")).toBe(100);
+    expect(absoluteVolumeScore(50, "conversation")).toBeCloseTo(42.8, 0);
+  });
+
+  it("names the kind in the volume detail", () => {
+    const views = scoreCustomer(full({ level: 688, levelKind: "shortform_views", levelBaseline: [] }));
+    expect(comp(views, "volume").detail).toContain("688 short-form views this week");
+    const idx = scoreCustomer(full({ level: 63, levelKind: "index", levelBaseline: [] }));
+    expect(comp(idx, "volume").detail).toContain("Search interest at 63 of 100");
+  });
+
+  it("turns shares and saves per view into intent: 0.1% is 25, 0.5% is 50, 1% is 75, 2% is 100", () => {
+    expect(actionScore(0)).toBe(0);
+    expect(actionScore(0.1)).toBe(25);
+    expect(actionScore(0.5)).toBe(50);
+    expect(actionScore(1)).toBe(75);
+    expect(actionScore(2)).toBe(100);
+    expect(actionScore(9)).toBe(100);
+  });
+
+  it("does not judge intent from fewer than three posts", () => {
+    const one = scoreCustomer(full({ activity: [{ text: "best filter for hard water" }] }));
+    expect(comp(one, "intent").score).toBeNull();
+    expect(comp(one, "intent").detail).toContain("Only 1 customer post read on this, too few to judge");
+    const three = scoreCustomer(full({ activity: activity.slice(0, MIN_ACTIVITY) }));
+    expect(comp(three, "intent").score).not.toBeNull();
+  });
+
+  it("reads intent from shares and saves alone when nobody's words were read", () => {
+    const s = scoreCustomer(full({ activity: [], actionPct: 2.2 }));
+    expect(comp(s, "intent").score).toBe(100);
+    expect(comp(s, "intent").detail).toMatch(/^Shares and saves run 2.2% of views on its short-form, strong for the format$/);
+  });
+
+  it("blends what they write with whether they save it, words first", () => {
+    const words = scoreCustomer(full({ actionPct: null }));
+    const both = scoreCustomer(full({ actionPct: 2 }));
+    const text = comp(words, "intent").score as number;
+    expect(comp(both, "intent").score).toBeCloseTo(0.6 * text + 0.4 * 100, 0);
+    expect(comp(both, "intent").detail).toContain("and shares and saves run 2.0% of views");
   });
 });

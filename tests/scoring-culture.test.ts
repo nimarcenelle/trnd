@@ -177,3 +177,17 @@ describe("moves that happened weeks ago", () => {
   });
 });
 
+
+describe("seasonal fit from the term's own year", () => {
+  it("uses the measured fit over the calendar when a year of history answered it", () => {
+    const s = scoreCulture(full({ seasonal: { inWindow: true, daysOut: null, label: "This time last year ran 40% above the term's yearly norm", fit: 86 } }));
+    expect(comp(s, "seasonal").score).toBe(86);
+    expect(comp(s, "seasonal").detail).toBe("This time last year ran 40% above the term's yearly norm");
+  });
+
+  it("falls back to the calendar window when no fit was measured", () => {
+    const s = scoreCulture(full({ seasonal: { inWindow: true, daysOut: 0, label: "Back to school", fit: null } }));
+    expect(comp(s, "seasonal").score).toBe(90);
+    expect(comp(s, "seasonal").detail).toBe("In season now: Back to school");
+  });
+});

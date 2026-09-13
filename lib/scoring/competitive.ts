@@ -17,6 +17,8 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 
 export const NO_COMPETITORS_NOTE = "No competitors connected yet";
 export const NOTHING_READ_NOTE = "Competitors added, but nothing of theirs has been read yet";
+/** Posts and ads seen across the rivals before the read is high confidence. */
+export const HIGH_EVIDENCE_ITEMS = 12;
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
@@ -81,5 +83,9 @@ export function scoreCompetitive(input: CompetitiveInput): SignalScore {
     { key: "weakness", label: "Competitor weakness", weight: w.weakness, score: weakness, detail: weaknessDetail },
   ];
 
-  return signalScore("competitive", components, read >= 3 && prior !== null ? "high" : "medium");
+  // High needs three rivals read, a prior window, and enough of their
+  // output seen to say what they run: a rival with one post is a glimpse.
+  const evidence = input.evidenceItems ?? HIGH_EVIDENCE_ITEMS;
+  const confidence = read >= 3 && prior !== null && evidence >= HIGH_EVIDENCE_ITEMS ? "high" : "medium";
+  return signalScore("competitive", components, confidence);
 }

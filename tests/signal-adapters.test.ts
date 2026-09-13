@@ -443,6 +443,20 @@ describe("tiktok per-term read (apify)", () => {
     expect(read.deltaPct!).toBeGreaterThan(0);
   });
 
+  it("keeps the month's posts in the corpus, this week's first and flagged as recent", () => {
+    const read = readTikTok(
+      [
+        post({ id: "week", publishedAt: at(2), views: 500, caption: "why is my hair so brittle" }),
+        post({ id: "month", publishedAt: at(15), views: 9_000, caption: "best shower filter for hard water" }),
+        post({ id: "older", publishedAt: at(26), views: 100, caption: "chlorine ruined my blonde" }),
+      ],
+      now,
+    );
+    expect(read.uploads).toBe(1);
+    expect(read.corpus.map((c) => c.id)).toEqual(["week", "month", "older"]);
+    expect(read.corpus.map((c) => c.recent)).toEqual([true, false, false]);
+  });
+
   it("drops long-form and anything outside the window", () => {
     const read = readTikTok(
       [

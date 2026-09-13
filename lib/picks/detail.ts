@@ -113,9 +113,35 @@ export interface EvidenceGroup {
   claims: EvidenceClaim[];
 }
 
+/** One line on what each signal reads, shown when the owner taps it. */
+export const SIGNAL_ABOUT: Record<PickSignal, string> = {
+  customer: "Who your customer is, then what that specific group is doing on social right now.",
+  culture: "The whole category, wider than your own customers, to catch what is rising before it reaches them.",
+  competitive: "What your direct competitors are running: what is working, what is crowded, where the gap is.",
+  brand: "Your own ad history, organic traction and catalog: proof you can run this one.",
+};
+
+export interface SignalReadSignal extends GradeSignalView {
+  about: string;
+}
+
+/** The four signals as the Signal read card shows them, always in order. A
+ * signal the stored grade could not read is shown as a gap, never skipped. */
+export interface SignalReadView {
+  signals: SignalReadSignal[];
+}
+
 export interface DetailView {
   sections: DetailSection[];
+  /** The term, the page's title. */
+  term: string;
+  /** 1..5 within the week. */
+  rank: number;
   finding: string;
+  /** "Relative demand for this term. Higher means more people searching." */
+  demandExplainer: string;
+  /** The four signals for the Signal read card; null on a pick written before the grade. */
+  signalRead: SignalReadView | null;
   metric: FormattedMetric & { value: string | null; sparkline: { d: string; v: number }[] };
   bet: { what: string; budget: string; duration: string; killRule: string };
   scripts: { script: PickScript; text: string }[];
@@ -205,6 +231,36 @@ export function buildEvidenceGroups(evidence: PickDetail["evidence"], grade: Gra
   });
 }
 
+/** What the metric counts, in the owner's terms. */
+export function demandExplainer(label: string): string {
+  const l = label.toLowerCase();
+  if (/search/.test(l)) return "Relative demand for this term. Higher means more people searching.";
+  if (/view|watch|tiktok|short/.test(l)) return "Relative demand for this term. Higher means more people watching.";
+  if (/post|mention|talk|convers/.test(l)) return "Relative demand for this term. Higher means more people talking about it.";
+  return "Relative demand for this term. Higher means more people on it.";
+}
+
+/** The Signal read: every signal in order, a gap standing in for one the
+ * stored grade lacks, so the four columns are always four. */
+export function buildSignalRead(grade: GradeView | null): SignalReadView | null {
+  if (!grade) return null;
+  return {
+    signals: SIGNAL_ORDER.map((name) => {
+      const found = grade.signals.find((s) => s.name === name);
+      const base: GradeSignalView = found ?? {
+        name,
+        label: SIGNAL_LABELS[name],
+        score: null,
+        confidence: "low",
+        note: null,
+        cta: null,
+        components: [],
+      };
+      return { ...base, about: SIGNAL_ABOUT[name] };
+    }),
+  };
+}
+
 export function buildDetailView(detail: PickDetail): DetailView {
   const { pick } = detail;
   const guardrail = pick.guardrail?.trim() || null;
@@ -224,7 +280,11 @@ export function buildDetailView(detail: PickDetail): DetailView {
 
   return {
     sections,
+    term: pick.term,
+    rank: pick.rank,
     finding: pick.finding,
+    demandExplainer: demandExplainer(pick.metric_label),
+    signalRead: buildSignalRead(grade),
     metric: { ...formatMetric(pick), value: formatMetricValue(pick.metric_value), sparkline },
     bet: {
       what: pick.bet_what,

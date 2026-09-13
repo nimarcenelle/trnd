@@ -201,6 +201,11 @@ export interface DailyPoint {
   value: number;
 }
 
+/** What a volume level counts. 14,800 monthly searches, a Trends index of
+ * 63 and 471 short-form views are three scales; the absolute fallback (used
+ * until a baseline exists) needs to know which it is looking at. */
+export type LevelKind = "search_volume" | "search_interest" | "shortform_views" | "conversation" | "index";
+
 export interface CustomerInput {
   term: string;
   /** How closely the term is this brand's persona talking, 0-1; null when no
@@ -210,6 +215,11 @@ export interface CustomerInput {
   personaSource: "orders" | "engagement" | "brief" | null;
   /** This week's volume reading for the term (searches, mentions, views). */
   level: number | null;
+  /** What `level` counts. Defaults to search volume. */
+  levelKind?: LevelKind;
+  /** Shares and saves per view on this term's short-form this month, as a
+   * percent: the truest sign a post made someone act. Null when unread. */
+  actionPct?: number | null;
   /** Trailing 90 days of this brand's persona-matched volume readings. */
   levelBaseline: number[];
   /** Social activity from the persona group on this term: mentions, comments,
@@ -229,8 +239,10 @@ export interface CultureInput {
   categoryGrowthPct: number | null;
   /** Trailing 90 days of this category's growth readings. */
   categoryGrowthBaseline: number[];
-  /** Is this historically the active window for the term or its category. */
-  seasonal: { inWindow: boolean; daysOut: number | null; label: string | null } | null;
+  /** Is this historically the active window for the term or its category.
+   * `fit` (0-100) is set when a year of the term's own history answered
+   * that; otherwise the category calendar's window and distance do. */
+  seasonal: { inWindow: boolean; daysOut: number | null; label: string | null; fit?: number | null } | null;
   /** Daily series for the term or its category, up to 90 days, oldest first. */
   series: DailyPoint[];
 }
@@ -240,6 +252,9 @@ export interface CompetitiveInput {
   competitorsConnected: number;
   /** Of those, how many have ads or posts that were actually read. */
   competitorsRead: number;
+  /** Posts and distinct ads read across those rivals: how much stands
+   * behind the whitespace call. Defaults to enough when not given. */
+  evidenceItems?: number;
   /** Competitors running this exact angle now (last 14 days). */
   rivalsOnAngleNow: number;
   /** Competitors running it in the prior window (15-45 days ago); null when unread. */

@@ -4,16 +4,19 @@ import { notFound, redirect } from "next/navigation";
 import DetailActions from "@/components/picks/detail-actions";
 import DetailCopyButton from "@/components/picks/detail-copy-button";
 import DetailSparkline from "@/components/picks/detail-sparkline";
+import SignalRead from "@/components/picks/signal-read";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { buildDetailView, isPickId, viewableDetail, type DetailSection, type DetailView } from "@/lib/picks/detail";
-import { gradeTone } from "@/lib/picks/grade-view";
+import { gradeTone, type GradeView } from "@/lib/picks/grade-view";
 
 export const metadata = { title: "Pick — TRND" };
 
 /**
- * One pick, whole: the finding, the bet, three scripts, the guardrail, why,
- * and the decision. Everything renders from the one getPickDetail read.
+ * One pick, whole. The head is the term, the Signal read and the finding on
+ * the left with the grade and the demand read on the right, and the
+ * guardrail under the finding; then the bet, the scripts, why, and the
+ * decision. Everything renders from the one getPickDetail read.
  */
 export default async function PickDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,15 +31,14 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
 
   const view = buildDetailView(detail);
   const render: Record<DetailSection, () => React.ReactNode> = {
-    finding: () => <Finding key="finding" view={view} />,
+    finding: () => <Head key="finding" view={view} />,
     bet: () => <Bet key="bet" view={view} />,
-    // The guardrail sits beside the scripts, so the two render as a pair.
     scripts: () => (
-      <div key="scripts" className={`pickd__work${view.guardrail ? " pickd__work--guarded" : ""}`}>
+      <div key="scripts" className="pickd__work">
         <Scripts view={view} />
-        {view.guardrail && <Guardrail text={view.guardrail} />}
       </div>
     ),
+    // Rendered inside the head, under the finding.
     guardrail: () => null,
     why: () => <Why key="why" view={view} />,
     actions: () => (
@@ -60,41 +62,92 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
   );
 }
 
-function Finding({ view }: { view: DetailView }) {
-  const { metric } = view;
+function Head({ view }: { view: DetailView }) {
   return (
-    <section className="pickd__finding" aria-labelledby="pickd-finding">
-      <h1 id="pickd-finding" className="pickd__h1">
-        {view.finding}
-      </h1>
-      <div className="pickd__metric">
-        <div className="pickd__metric-text">
-          <span className="pickd__metric-label">{metric.label}</span>
-          <span className="pickd__metric-figures">
-            {metric.value && <b className="pickd__metric-value">{metric.value}</b>}
-            {metric.delta && <span className={`pickd__delta is-${metric.direction}`}>{metric.delta}</span>}
-            <span className="pickd__metric-window">{metric.window}</span>
-          </span>
-        </div>
-        {view.grade && (
-          <span
-            className={`pickd__grade is-${gradeTone(view.grade.letter)}`}
-            title={view.grade.score === null ? undefined : `Opportunity Grade ${view.grade.score} of 100`}
-          >
-            <span className="sr-only">Opportunity Grade </span>
-            {view.grade.label}
-          </span>
-        )}
-        <DetailSparkline points={metric.sparkline} label={metric.label} direction={metric.direction} />
+    <section className="pickd__head" aria-labelledby="pickd-title">
+      <div className="pickd__kicker">
+        <span className="mono-label">#{view.rank} this week</span>
       </div>
-      {view.grade && view.grade.excludedNotes.length > 0 && (
+      <h1 id="pickd-title" className="pickd__title">
+        {view.term}
+      </h1>
+      <div className="pickd__top">
+        <div className="pickd__col">
+          {view.signalRead && <SignalRead read={view.signalRead} />}
+          <Finding view={view} />
+          {view.guardrail && <Guardrail text={view.guardrail} />}
+        </div>
+        <div className="pickd__col pickd__col--side">
+          {view.grade && <GradeCard grade={view.grade} />}
+          <Demand view={view} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Finding({ view }: { view: DetailView }) {
+  return (
+    <div className="pickd__card pickd__finding-card">
+      <h2 className="pickd__h2">The finding</h2>
+      <p>{view.finding}</p>
+    </div>
+  );
+}
+
+/** The score's fifth, as stars: 0-100 to 0-5, half-steps rounded down. */
+function starsFor(score: number | null): { filled: number; label: string } {
+  const filled = score === null ? 0 : Math.max(0, Math.min(5, Math.floor(score / 20)));
+  return { filled, label: `${filled} of 5` };
+}
+
+function GradeCard({ grade }: { grade: GradeView & { label: string } }) {
+  const stars = starsFor(grade.score);
+  return (
+    <div className={`pickd__card pickd__grade-card is-${gradeTone(grade.letter)}`}>
+      <h2 className="pickd__h2">Opportunity Grade</h2>
+      <p className="pickd__grade-letter">
+        <span className="sr-only">Grade </span>
+        {grade.letter}
+      </p>
+      {grade.score !== null && (
+        <span className="pickd__stars" role="img" aria-label={`${stars.label} stars`}>
+          {Array.from({ length: 5 }, (_, i) => (i < stars.filled ? <b key={i}>★</b> : <span key={i}>☆</span>))}
+        </span>
+      )}
+      <p className="pickd__grade-meaning">{grade.meaning}</p>
+      {grade.score !== null && <p className="pickd__grade-score">{grade.score} of 100</p>}
+      {grade.excludedNotes.length > 0 && (
         <ul className="pickd__excluded">
-          {view.grade.excludedNotes.map((note) => (
+          {grade.excludedNotes.map((note) => (
             <li key={note}>{note}</li>
           ))}
         </ul>
       )}
-    </section>
+    </div>
+  );
+}
+
+function Demand({ view }: { view: DetailView }) {
+  const { metric } = view;
+  return (
+    <div className="pickd__card pickd__demand">
+      <h2 className="pickd__h2">{metric.label}</h2>
+      <div className="pickd__demand-row">
+        {metric.value ? <p className="pickd__demand-value">{metric.value}</p> : <p className="pickd__demand-value">–</p>}
+        <DetailSparkline points={metric.sparkline} label={metric.label} direction={metric.direction} />
+      </div>
+      <div className="pickd__chips">
+        {metric.delta ? (
+          <span className={`pickd__chip is-${metric.direction}`}>
+            {metric.delta} {metric.window}
+          </span>
+        ) : (
+          <span className="pickd__chip">{metric.window}</span>
+        )}
+      </div>
+      <p className="pickd__demand-explainer">{view.demandExplainer}</p>
+    </div>
   );
 }
 

@@ -16,6 +16,7 @@ const { generateWeekPicks } = await import("../lib/picks/generate");
 const { fallbackPickWrite } = await import("../lib/ai/pick-writer");
 const { gatherSignalInputs, loadGradeContext } = await import("../lib/scoring/gather");
 const { DOESNT_FIT_NOTE, gradeOpportunity } = await import("../lib/scoring/grade-opportunity");
+const { NOTHING_READ_NOTE } = await import("../lib/scoring/competitive");
 const { buildBusinessFitContext, judgeTermRelevance } = await import("../lib/recommend/relevance");
 
 const smokehouse = (ownerId: string, over: Partial<NewBusiness> = {}): NewBusiness => ({
@@ -240,5 +241,47 @@ describe("the Opportunity Grade, gathered from the repo", () => {
     const tomorrow = await gatherSignalInputs(user, biz, signal, await loadGradeContext(user, biz, { now: new Date(Date.now() + DAY) }));
     expect(tomorrow.customer.levelBaseline).toEqual([5400]);
     expect(tomorrow.brand.liftBaseline).toContain(1.429);
+  });
+});
+
+describe("what counts as a rival read", () => {
+  beforeEach(() => resetStore());
+
+  async function withRival(reads: { kind: "ads" | "google_ads"; raw: Record<string, unknown> }[]) {
+    const { admin, user, biz, signals } = await seed({ mismatch: false });
+    const rival = await user.createCompetitor({
+      business_id: biz.id,
+      name: "Smoke Ring",
+      website: "https://smokering.example",
+      place_id: null,
+      social_handles: {},
+      directness: 0.8,
+      directness_reason: "Sells the same brisket",
+    });
+    await admin.upsertCompetitorReads(
+      reads.map((r) => ({ competitor_id: rival.id, business_id: biz.id, kind: r.kind, value: 0, rating: null, summary: "", raw: r.raw })),
+    );
+    const brisket = signals.find((s) => s.source === "seed")!;
+    const ctx = await loadGradeContext(user, biz);
+    return gradeOpportunity(user, biz, brisket, ctx, { fit: 0.9 });
+  }
+
+  it("does not count an empty ad read as reading the rival", async () => {
+    const { grade } = await withRival([{ kind: "ads", raw: { ads: [] } }]);
+    expect(grade.signals.competitive.confidence).toBe("low");
+    expect(grade.signals.competitive.note).toBe(NOTHING_READ_NOTE);
+    expect(grade.excluded).toContain("competitive");
+  });
+
+  it("counts a Google Transparency read with real ads, and reads their running days", async () => {
+    const { grade } = await withRival([
+      {
+        kind: "google_ads",
+        raw: { sample: [{ snippet: "Smoked brisket by the pound, shipped", firstShown: "2026-08-01", lastShown: "2026-09-10", format: "text" }] },
+      },
+    ]);
+    expect(grade.signals.competitive.confidence).toBe("medium");
+    const whitespace = grade.signals.competitive.components.find((c) => c.key === "whitespace");
+    expect(whitespace?.detail).toBe("1 of 1 competitor already run this angle");
   });
 });

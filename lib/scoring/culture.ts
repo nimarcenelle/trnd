@@ -87,7 +87,11 @@ export function scoreCulture(input: CultureInput): SignalScore {
   let seasonal: number | null = null;
   let seasonalDetail = "No seasonal pattern known for this";
   const s = input.seasonal;
-  if (s) {
+  if (s && typeof s.fit === "number" && Number.isFinite(s.fit)) {
+    // A year of the term's own history answered it: no calendar needed.
+    seasonal = round1(clamp(s.fit));
+    seasonalDetail = s.label ?? (s.inWindow ? "In its usual active window" : "Outside its usual active window");
+  } else if (s) {
     const what = s.label ?? "its season";
     if (s.inWindow) {
       seasonal = 90;

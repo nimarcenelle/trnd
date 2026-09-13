@@ -9,6 +9,9 @@ import {
   UNREAD_DIRECTNESS_CAP,
   type DirectnessInput,
   type RivalSiteRead,
+  customerCoverage,
+  productCoverage,
+  rescoreRivals,
 } from "../lib/intel/direct";
 import { orderByDirectness } from "../lib/intel/seed-competitors";
 
@@ -266,5 +269,122 @@ describe("enrichCompetitor", () => {
       fetchHtml: async () => HOME,
     });
     expect(out).toBe(COMPETITOR);
+  });
+});
+
+describe("scoreDirectness for an online brand with a catalog of bundles", () => {
+  // A Shopify catalog: one product cut thirteen ways. Item-by-item overlap
+  // finds almost none of it on a rival's site.
+  const SHOWER_SERVICES = [
+    "Wall Mount Filtered Showerhead (Autoship)",
+    "Wall Mount Filtered Showerhead (No Autoship)",
+    "Basic Bundle (1 Showerhead + 3 Replacement Filters)",
+    "Filter Subscription Refill",
+    "Shipping Protection",
+    "Shower Steamers",
+    "Handheld Filtered Showerhead",
+    "Limited-Edition Gold Wall Mount Showerhead",
+    "Double Bundle (2 Showerheads + 6 Replacement Filters)",
+    "Wall Mount Filter Replacement",
+    "Handheld Filter Replacement",
+  ].map((name) => ({ name, price_cents: 11500 }));
+  const LEXICON = ["chlorine", "hardwater", "breakout", "brassy", "eczema", "shedding", "renter", "pressure", "scalp", "filter"];
+  const RIVAL_SITE: RivalSiteRead = {
+    text: "The filtered shower head that removes chlorine and hard water minerals. Replacement filters ship every 90 days. Renter friendly, no drop in pressure. Better skin and scalp in a week.",
+    services: [],
+    priceBand: null,
+    handles: {},
+  };
+  const SCALP_SITE: RivalSiteRead = {
+    text: "Cold processed scalp serum and hair oil. Stem cell scalp treatment for thinning hair.",
+    services: [],
+    priceBand: null,
+    handles: {},
+  };
+  const own = (rival: DirectnessInput["rival"], lexicon = LEXICON): DirectnessInput => ({
+    ownServices: SHOWER_SERVICES,
+    ownCategory: "filtered showerhead brand",
+    ownPriceBand: "$$",
+    ownLexicon: lexicon,
+    ownMarket: "online",
+    rival,
+  });
+
+  it("reads the product words on most items and the category, matching 'shower head' written apart", () => {
+    const p = productCoverage(SHOWER_SERVICES.map((s) => s.name), "filtered showerhead brand", RIVAL_SITE.text);
+    expect(p.matched).toEqual(expect.arrayContaining(["showerhead", "filtered", "replacement", "filter"]));
+    expect(p.matched).not.toContain("brand");
+    expect(p.coverage).toBe(1);
+    const c = customerCoverage(LEXICON, RIVAL_SITE.text);
+    expect(c.matched).toEqual(expect.arrayContaining(["chlorine", "hardwater", "renter", "pressure", "scalp"]));
+    expect(c.coverage).toBe(1);
+  });
+
+  it("calls a rival selling the same product to the same customer direct, whatever its catalog", () => {
+    const rival = scoreDirectness(own({ name: "Canopy", site: RIVAL_SITE }));
+    expect(rival.directness).toBeGreaterThanOrEqual(0.5);
+    expect(rival.reason).toBe("Sells filtered showerhead and filter like you, to a customer who talks about chlorine, hardwater and renter.");
+    expect(rival.reason).not.toMatch(/bundle|replacement|autoship|[—–→]/);
+  });
+
+  it("still leaves a same-customer brand selling something else under the bar", () => {
+    const scalp = scoreDirectness(own({ name: "Act+Acre", site: SCALP_SITE }));
+    expect(scalp.directness).toBeLessThan(0.5);
+  });
+
+  it("scores on product words alone when the brief has no lexicon", () => {
+    const rival = scoreDirectness(own({ name: "Canopy", site: RIVAL_SITE }, []));
+    expect(rival.directness).toBeGreaterThanOrEqual(0.5);
+    expect(rival.reason).toBe("Sells filtered showerhead and filter like you.");
+  });
+
+  it("does not touch the local formula", () => {
+    const local = scoreDirectness({ ...own({ name: "Cafe", site: CAFE_SITE }), ownMarket: "local", ownServices: OWN_SERVICES, ownCategory: "Restaurants & cafés" });
+    expect(local.reason).toMatch(/^Sells the same /);
+  });
+});
+
+describe("rescoreRivals", () => {
+  const ONLINE: Business = { ...BUSINESS, market: "online", category: "filtered showerhead brand" };
+  const rival = (over: Partial<Competitor>): Competitor => ({ ...COMPETITOR, ...over });
+
+  function fakeRepo(reads: { competitor_id: string; kind: string }[] = []) {
+    const writes: { updates: string[]; reads: unknown[] } = { updates: [], reads: [] };
+    const repo = {
+      listCompetitorReads: async () => reads.map((r) => ({ ...r, captured_at: "2026-09-12T00:00:00Z" })),
+      listServices: async () => [],
+      getBusinessBrief: async () => null,
+      updateCompetitor: async (id: string, patch: Partial<NewCompetitor>) => {
+        writes.updates.push(id);
+        return { ...COMPETITOR, id, ...patch } as Competitor;
+      },
+      upsertCompetitorReads: async (rows: unknown[]) => {
+        writes.reads.push(...rows);
+        return rows.length;
+      },
+    } as unknown as Repo;
+    return { repo, writes };
+  }
+
+  it("re-reads only the rivals under the bar, and never one read this week", async () => {
+    const { repo, writes } = fakeRepo([{ competitor_id: "under-recent", kind: "site" }]);
+    const rows = [
+      rival({ id: "direct", directness: 0.7 }),
+      rival({ id: "under", directness: 0.28 }),
+      rival({ id: "under-recent", directness: 0.25 }),
+      rival({ id: "unscored", directness: null }),
+      rival({ id: "no-site", directness: 0.2, website: null }),
+    ];
+    const out = await rescoreRivals(repo, ONLINE, rows);
+    expect(writes.updates).toEqual(["under"]);
+    expect(writes.reads).toHaveLength(1);
+    expect((writes.reads[0] as { kind: string }).kind).toBe("site");
+    expect(out.map((c) => c.id)).toEqual(rows.map((c) => c.id));
+  });
+
+  it("does nothing when every rival is direct", async () => {
+    const { repo, writes } = fakeRepo();
+    await rescoreRivals(repo, ONLINE, [rival({ directness: 0.9 })]);
+    expect(writes.updates).toEqual([]);
   });
 });

@@ -300,3 +300,46 @@ describe("export filename", () => {
     expect(exportFilename("a".repeat(100))).toBe(`trnd-pick-${"a".repeat(60)}.txt`);
   });
 });
+
+describe("the head of the detail page", () => {
+  it("titles the page with the term and rank, and explains the metric in the owner's terms", () => {
+    const view = buildDetailView(detail({ pick: pick({ term: "hard water", rank: 3 }) }));
+    expect(view.term).toBe("hard water");
+    expect(view.rank).toBe(3);
+    expect(view.demandExplainer).toBe("Relative demand for this term. Higher means more people searching.");
+    expect(buildDetailView(detail({ pick: pick({ metric_label: 'TikTok views on "hard water"' }) })).demandExplainer).toContain("watching");
+    expect(buildDetailView(detail({ pick: pick({ metric_label: 'Posts about "hard water"' }) })).demandExplainer).toContain("talking about it");
+  });
+
+  it("has no Signal read on a pick written before the grade", () => {
+    expect(buildDetailView(detail()).signalRead).toBeNull();
+  });
+
+  it("always shows four signals in order, a gap standing in for one the grade lacks", () => {
+    const view = buildDetailView(detail({ pick: pick(graded()) }));
+    expect(view.signalRead?.signals.map((s) => s.name)).toEqual(["customer", "culture", "competitive", "brand"]);
+    const customer = view.signalRead!.signals[0];
+    expect(customer.score).toBe(82);
+    expect(customer.confidence).toBe("high");
+    expect(customer.about).toMatch(/^Who your customer is/);
+    expect(customer.components.map((c) => c.label)).toEqual(["Volume", "Intent"]);
+    const competitive = view.signalRead!.signals[2];
+    expect(competitive.score).toBeNull();
+    expect(competitive.note).toBe("No competitors connected yet");
+    expect(competitive.cta?.href).toBe("/app/settings#competitors");
+
+    // A stored grade missing a signal entirely still shows four columns.
+    const g = graded();
+    const blob = { ...(g.signal_scores as Record<string, unknown>) };
+    delete blob.brand;
+    const short = buildDetailView(detail({ pick: pick({ ...g, signal_scores: blob }) }));
+    expect(short.signalRead?.signals.map((s) => s.name)).toEqual(["customer", "culture", "competitive", "brand"]);
+    expect(short.signalRead?.signals[3]).toMatchObject({ score: null, confidence: "low", note: null });
+  });
+
+  it("writes every about line and explainer plainly, with no dashes or arrows", () => {
+    const view = buildDetailView(detail({ pick: pick(graded()) }));
+    for (const s of view.signalRead!.signals) expect(s.about).not.toMatch(/[—–→]/);
+    expect(view.demandExplainer).not.toMatch(/[—–→]/);
+  });
+});

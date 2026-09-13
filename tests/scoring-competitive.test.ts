@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { NO_COMPETITORS_NOTE, NOTHING_READ_NOTE } from "../lib/scoring/competitive";
+import { HIGH_EVIDENCE_ITEMS, NO_COMPETITORS_NOTE, NOTHING_READ_NOTE } from "../lib/scoring/competitive";
 import { NEUTRAL_PLACEHOLDER, scoreCompetitive, type CompetitiveInput } from "../lib/scoring/index";
 
 const full = (over: Partial<CompetitiveInput> = {}): CompetitiveInput => ({
@@ -91,5 +91,13 @@ describe("scoreCompetitive", () => {
 
   it("writes plain details with no em dashes or arrows", () => {
     for (const c of scoreCompetitive(full()).components) expect(c.detail).not.toMatch(/[—→]/);
+  });
+});
+
+describe("how much stands behind the read", () => {
+  it("is medium, not high, when three rivals were read but barely", () => {
+    expect(scoreCompetitive(full({ evidenceItems: 3 })).confidence).toBe("medium");
+    expect(scoreCompetitive(full({ evidenceItems: HIGH_EVIDENCE_ITEMS })).confidence).toBe("high");
+    expect(scoreCompetitive(full()).confidence).toBe("high");
   });
 });

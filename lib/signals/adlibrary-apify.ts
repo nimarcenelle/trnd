@@ -309,7 +309,8 @@ const breaker = new CircuitBreaker("adlibrary_apify");
 
 /**
  * The rival's ads by Page name. Key-gated; every failure is a warn and an
- * empty list, because one dead source is never a failed report.
+ * empty list when the token is unset; a read that fails throws, so a
+ * caller never mistakes an outage for a quiet advertiser.
  */
 export async function fetchAdvertiserAds(
   pageName: string,
@@ -338,7 +339,10 @@ export async function fetchAdvertiserAds(
     const parsed = JSON.parse(text) as unknown;
     return Array.isArray(parsed) ? toAdvertiserAds(parsed) : [];
   } catch (err) {
+    // A failed read is not "no ads". Callers store nothing and read again
+    // tomorrow; an empty list here was written up as "no active Meta ads"
+    // for rivals whose read never happened.
     console.warn(`[signals:adlibrary_apify] "${name}" failed:`, (err as Error).message);
-    return [];
+    throw err;
   }
 }

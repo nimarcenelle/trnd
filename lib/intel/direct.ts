@@ -183,6 +183,90 @@ function rivalFocus(rivalServices: { name: string }[], vocab: Set<string>): numb
   return toks.filter((t) => vocab.has(t)).length / toks.length;
 }
 
+// Category words that name the business type, not the product.
+const CATEGORY_FILLER = new Set(["brand", "brands", "online", "store", "shop", "company", "dtc", "direct", "consumer"]);
+
+/**
+ * What a DTC brand sells is the words on MOST of its items ("showerhead",
+ * "filter"), plus its category, never the variant words on one ("gold",
+ * "autoship"). The rarity-weighted menu overlap above reads a Shopify
+ * catalog of bundles and refills as thirteen different products and finds
+ * almost none of them on a rival's site, which is how five filtered
+ * showerhead brands scored as neighbours of a filtered showerhead brand.
+ * Returns the share of product words the rival's site carries, and which.
+ */
+export function productCoverage(
+  ownItems: string[],
+  ownCategory: string,
+  rivalText: string,
+): { coverage: number; matched: string[] } {
+  const df = new Map<string, number>();
+  for (const name of ownItems) for (const t of new Set(menuTokens(name))) df.set(t, (df.get(t) ?? 0) + 1);
+  const floor = Math.max(2, Math.ceil(ownItems.length * 0.25));
+  const product = new Set<string>();
+  for (const [t, n] of df) if (n >= floor) product.add(t);
+  for (const t of menuTokens(ownCategory)) if (!CATEGORY_FILLER.has(t)) product.add(t);
+  if (product.size === 0) return { coverage: 0, matched: [] };
+  const rival = new Set(menuTokens(rivalText));
+  const squashed = rivalText.toLowerCase().replace(/[^a-z0-9]/g, "");
+  // "showerheads" on their site is "showerhead" on yours, and "shower head"
+  // written as two words is the same product.
+  const has = (t: string) =>
+    rival.has(t) ||
+    rival.has(`${t}s`) ||
+    (t.endsWith("s") && rival.has(t.slice(0, -1))) ||
+    (t.length >= 6 && squashed.includes(t));
+  const matched = [...product].filter(has);
+  // A rival never lists your bundles and refills by name: six of ten
+  // product words on their site is the same product, and full marks.
+  return { coverage: Math.min(1, matched.length / product.size / PRODUCT_FULL_SHARE), matched };
+}
+
+// Packaging words: true product-word matches, but not how an owner names the product.
+const PACKAGING = new Set(["bundle", "bundles", "replacement", "refill", "refills", "subscription", "autoship", "kit", "pack", "set", "wall", "mount", "mounted", "shipping", "protection"]);
+
+/** The matched product words as an owner would say them: the category
+ * phrase when the rival carries all of it ("filtered showerhead"), then up
+ * to two more product words, never packaging. */
+function productPhrase(matched: string[], ownCategory: string): string[] {
+  const category = menuTokens(ownCategory).filter((t) => !CATEGORY_FILLER.has(t));
+  const hit = new Set(matched);
+  const out: string[] = [];
+  if (category.length > 0 && category.every((t) => hit.has(t))) out.push(category.join(" "));
+  const used = new Set(category);
+  for (const t of matched) {
+    if (out.length >= 3) break;
+    if (used.has(t) || PACKAGING.has(t)) continue;
+    // "filters" beside "filter", or a word the category phrase already says.
+    if (used.has(t.replace(/s$/, "")) || used.has(`${t}s`)) continue;
+    used.add(t);
+    out.push(t);
+  }
+  return out;
+}
+
+/** Share of a brand's product words a rival must carry to count as selling the same thing. */
+const PRODUCT_FULL_SHARE = 0.6;
+/** Lexicon hits that say the rival talks to the same customer. */
+const CUSTOMER_FULL_HITS = 4;
+
+/**
+ * The customer a brand sells to is the brief's lexicon: the words that
+ * customer uses ("chlorine", "brassy", "renter"). A rival whose site speaks
+ * that language is selling to the same person. Multi-word lexicon entries
+ * arrive squashed ("hardwater"), so the squashed site text is checked too.
+ * Four hits is full marks: a lexicon runs to twenty words and no site says
+ * them all.
+ */
+export function customerCoverage(ownLexicon: string[], rivalText: string): { coverage: number; matched: string[] } {
+  const words = [...new Set(ownLexicon.map((w) => w.toLowerCase().replace(/[^a-z0-9]/g, "")).filter((w) => w.length > 2))];
+  if (words.length === 0) return { coverage: 0, matched: [] };
+  const rival = new Set(menuTokens(rivalText));
+  const squashed = rivalText.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const matched = words.filter((w) => rival.has(w) || (w.length >= 6 && squashed.includes(w)));
+  return { coverage: Math.min(1, matched.length / Math.min(CUSTOMER_FULL_HITS, words.length)), matched };
+}
+
 /** "Cold Brew (16oz)" to "cold brew": how an owner says an item in a sentence. */
 function plainItem(name: string): string {
   return name
@@ -250,7 +334,20 @@ export function scoreDirectness(input: DirectnessInput): { directness: number; r
   const rivalText = `${site.services.map((s) => s.name).join("\n")}\n${site.text}`;
   const overlap = menuOverlap(ownItems, rivalText);
   const focus = rivalFocus(site.services, overlap.vocab);
-  const menuScore = focus === null ? overlap.coverage : 0.6 * overlap.coverage + 0.4 * focus;
+  let menuScore = focus === null ? overlap.coverage : 0.6 * overlap.coverage + 0.4 * focus;
+
+  // Online, the same product to the same customer is the whole test. The
+  // item-by-item overlap still counts when it is the stronger read (a rival
+  // with the identical range), but a rival carrying the brand's product
+  // words and speaking its customer's language is direct even when its
+  // catalog is cut differently.
+  const product = online ? productCoverage(input.ownServices.map((s) => s.name), input.ownCategory, rivalText) : null;
+  const customer = online ? customerCoverage(input.ownLexicon, rivalText) : null;
+  let sameMarket = 0;
+  if (product && customer) {
+    sameMarket = input.ownLexicon.length === 0 ? product.coverage : 0.6 * product.coverage + 0.4 * customer.coverage;
+    menuScore = Math.max(menuScore, sameMarket);
+  }
 
   const ownBand = BANDS.indexOf(input.ownPriceBand ?? "");
   const rivalBand = BANDS.indexOf(site.priceBand ?? "");
@@ -268,8 +365,15 @@ export function scoreDirectness(input: DirectnessInput): { directness: number; r
   let lead: string;
   // A brand's owner says "range", not "menu", and names the product plainly.
   if (online) {
-    if (menuScore >= 0.45 && items.length > 0) lead = `Sells ${listPhrase(items)}`;
-    else if (menuScore >= 0.2 && items.length > 0) lead = `Overlaps with some of your range, like ${listPhrase(items)}`;
+    const productWords = product ? productPhrase(product.matched, input.ownCategory) : [];
+    const customerWords = customer?.matched.slice(0, 3) ?? [];
+    if (menuScore >= 0.45 && items.length > 0 && overlap.coverage >= sameMarket) lead = `Sells ${listPhrase(items)}`;
+    else if (sameMarket >= 0.45 && productWords.length > 0) {
+      lead = `Sells ${listPhrase(productWords)} like you${
+        customerWords.length > 0 ? `, to a customer who talks about ${listPhrase(customerWords)}` : ""
+      }`;
+    } else if (menuScore >= 0.2 && items.length > 0) lead = `Overlaps with some of your range, like ${listPhrase(items)}`;
+    else if (menuScore >= 0.2 && productWords.length > 0) lead = `Overlaps with some of your range, like ${listPhrase(productWords)}`;
     else lead = "Sells to a customer like yours, but little of your range shows up on their site";
   } else if (menuScore >= 0.45 && items.length > 0) lead = `Sells the same ${listPhrase(items)} you do`;
   else if (menuScore >= 0.2 && items.length > 0) lead = `Overlaps with some of your menu, like ${listPhrase(items)}`;
@@ -356,4 +460,57 @@ export async function enrichCompetitor(
     console.warn("[intel] competitor enrichment failed (non-fatal):", (err as Error).message);
     return competitor;
   }
+}
+
+/** Below this a rival is a neighbour, not a competitor for the same customer.
+ * The same bar four-signals.ts and the social read apply. */
+export const DIRECT_MIN = 0.5;
+/** A rival under the bar is re-read this often: sites change, and so does the scorer. */
+const RESCORE_DAYS = 7;
+/** Site reads per business per run, so a re-score never crowds out the day's reads. */
+const RESCORE_CAP = 5;
+
+/**
+ * Re-read the rivals that scored under the bar, at most weekly. A rival that
+ * was mis-scored (the online catalog case above) stays unread forever
+ * otherwise: nothing of theirs is scraped, so nothing ever changes the
+ * verdict. Returns the rows as they now stand.
+ */
+export async function rescoreRivals(repo: Repo, business: Business, competitors: Competitor[]): Promise<Competitor[]> {
+  const under = competitors.filter((c) => typeof c.directness === "number" && c.directness < DIRECT_MIN && c.website);
+  if (under.length === 0) return competitors;
+  let recent = new Set<string>();
+  try {
+    const reads = await repo.listCompetitorReads(business.id, { sinceDays: RESCORE_DAYS });
+    recent = new Set(reads.filter((r) => r.kind === "site").map((r) => r.competitor_id));
+  } catch {
+    /* no reads table yet: re-score anyway */
+  }
+  const due = under.filter((c) => !recent.has(c.id)).slice(0, RESCORE_CAP);
+  if (due.length === 0) return competitors;
+  const [ownServices, brief] = await Promise.all([
+    repo.listServices(business.id).catch(() => []),
+    repo.getBusinessBrief(business.id).catch(() => null),
+  ]);
+  const updated = new Map<string, Competitor>();
+  for (const c of due) {
+    const row = await enrichCompetitor(repo, business, c, { ownServices, brief });
+    updated.set(c.id, row);
+    try {
+      await repo.upsertCompetitorReads([
+        {
+          competitor_id: c.id,
+          business_id: business.id,
+          kind: "site",
+          value: row.directness,
+          rating: null,
+          summary: row.directness_reason ?? "Site re-read",
+          raw: { rescored: true, before: c.directness, after: row.directness },
+        },
+      ]);
+    } catch (err) {
+      console.warn(`[intel] site read for ${c.name} not stored (non-fatal):`, (err as Error).message);
+    }
+  }
+  return competitors.map((c) => updated.get(c.id) ?? c);
 }

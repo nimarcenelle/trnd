@@ -74,6 +74,9 @@ export interface TikTokPost {
 
 export interface TikTokCard {
   id: string;
+  /** Posted inside the current week. Older cards are the month's context:
+   * what people said, for the Customer read, not what is winning now. */
+  recent: boolean;
   caption: string;
   author: string;
   durationSec: number;
@@ -106,6 +109,9 @@ export interface TikTokRead {
 /** Below this many followers a post's reach came from the format rather
  * than an existing audience — which is the only kind a local shop can copy. */
 const SMALL_ACCOUNT_FOLLOWERS = 10_000;
+/** Cards kept per read: this week's winners, then the month behind them. */
+const CORPUS_RECENT = 12;
+const CORPUS_OLDER = 18;
 
 export function toPosts(items: ApifyTikTokItem[]): TikTokPost[] {
   const out: TikTokPost[] = [];
@@ -213,20 +219,26 @@ export function readTikTok(posts: TikTokPost[], now = new Date()): TikTokRead {
     .map(([tag]) => tag)
     .slice(0, 8);
 
-  read.corpus = current
-    .map((p) => ({
-      id: p.id,
-      caption: p.caption,
-      author: p.author,
-      durationSec: p.durationSec,
-      views: p.views,
-      velocity: Math.round(postVelocity(p, now)),
-      engagementPct: p.views > 0 ? Number((((p.likes + p.comments) / p.views) * 100).toFixed(2)) : null,
-      actionPct: p.views > 0 ? Number((((p.shares + p.saves) / p.views) * 100).toFixed(2)) : null,
-      fromSmallAccount: p.authorFollowers > 0 && p.authorFollowers < SMALL_ACCOUNT_FOLLOWERS,
-    }))
-    .sort((a, b) => b.velocity - a.velocity)
-    .slice(0, 12);
+  // The whole month's posts, this week's first. A week alone is one or two
+  // videos on a niche term, and the Customer read needs what people said,
+  // not only what is winning right now.
+  const card = (p: TikTokPost, recent: boolean): TikTokCard => ({
+    id: p.id,
+    recent,
+    caption: p.caption,
+    author: p.author,
+    durationSec: p.durationSec,
+    views: p.views,
+    velocity: Math.round(postVelocity(p, now)),
+    engagementPct: p.views > 0 ? Number((((p.likes + p.comments) / p.views) * 100).toFixed(2)) : null,
+    actionPct: p.views > 0 ? Number((((p.shares + p.saves) / p.views) * 100).toFixed(2)) : null,
+    fromSmallAccount: p.authorFollowers > 0 && p.authorFollowers < SMALL_ACCOUNT_FOLLOWERS,
+  });
+  const byVelocity = (a: TikTokCard, b: TikTokCard) => b.velocity - a.velocity;
+  read.corpus = [
+    ...current.map((p) => card(p, true)).sort(byVelocity).slice(0, CORPUS_RECENT),
+    ...baseline.map((p) => card(p, false)).sort(byVelocity).slice(0, CORPUS_OLDER),
+  ];
 
   return read;
 }

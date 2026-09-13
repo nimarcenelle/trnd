@@ -32,7 +32,7 @@ import { upcomingMoments } from "@/lib/recommend/seasonal";
 import { audienceMatch, matchService, tokens } from "@/lib/scoring";
 import { engagementOf, postsOnTerm } from "@/lib/social/read";
 
-import type { BrandInput, CompetitiveInput, CultureInput, CustomerInput, DailyPoint, SignalName } from "./model";
+import type { BrandInput, CompetitiveInput, CultureInput, CustomerInput, DailyPoint, LevelKind, SignalName } from "./model";
 
 export const SETTINGS_HREF = "/app/settings";
 
@@ -48,7 +48,15 @@ const WEAK_AD_DAYS = 7;
 /** Fewer own posts than this and "your usual" is not a number. */
 const OWN_POSTS_MIN = 5;
 /** Enough customer words to classify; past this it is the same words again. */
-const MAX_ACTIVITY = 40;
+const MAX_ACTIVITY = 60;
+/** A year of the term's own history, for "is this its usual active window". */
+export const SEASON_DAYS = 400;
+/** Under this span or this many points a year's shape is not readable. */
+const SEASON_MIN_SPAN_DAYS = 300;
+const SEASON_MIN_POINTS = 30;
+const SEASON_MIN_MONTHS = 8;
+/** Short-form views behind a shares-and-saves rate before it means anything. */
+const MIN_ACTION_VIEWS = 2000;
 /** Category growth needs a few reads before a median means anything. */
 const MIN_GROWTH_READS = 3;
 /** Culture growth is read once per category, not per term. */
@@ -135,8 +143,10 @@ export async function loadGradeContext(
     services,
     pool,
     signals,
+    // Meta (kind "ads") and Google (kind "google_ads") reads both say what a
+    // rival is paying to show.
     adReads: reads
-      .filter((r) => r.kind === "ads" && direct.has(r.competitor_id))
+      .filter((r) => (r.kind === "ads" || r.kind === "google_ads") && direct.has(r.competitor_id))
       .sort((a, b) => a.captured_at.localeCompare(b.captured_at)),
     baselines: { customer, culture, competitive, brand },
     now: given.now ?? new Date(),
@@ -275,6 +285,81 @@ function categoryGrowth(reads: Signal[], now: Date): number | null {
   return moves.length >= MIN_GROWTH_READS ? Math.round(median(moves) * 10) / 10 : null;
 }
 
+/**
+ * Is this the term's usual active window, read from a year of its own
+ * history: how the same five weeks ran last year against that year's
+ * monthly norm. A term whose Septembers run 40% above its norm is in season
+ * whatever the category calendar says. Null under a year of readable data.
+ */
+export function seasonalFromSeries(points: DailyPoint[], now: Date): CultureInput["seasonal"] {
+  const xs = points.filter((p) => Number.isFinite(p.value) && /^\d{4}-\d{2}-\d{2}$/.test(p.day)).sort((a, b) => a.day.localeCompare(b.day));
+  if (xs.length < SEASON_MIN_POINTS) return null;
+  const first = Date.parse(xs[0].day);
+  const last = Date.parse(xs[xs.length - 1].day);
+  if (last - first < SEASON_MIN_SPAN_DAYS * DAY_MS) return null;
+
+  const yearAgo = now.getTime() - 365 * DAY_MS;
+  const window = xs.filter((p) => {
+    const t = Date.parse(p.day);
+    return t >= yearAgo - 14 * DAY_MS && t <= yearAgo + 21 * DAY_MS;
+  });
+  if (window.length < 2) return null;
+
+  const months = new Map<string, number[]>();
+  for (const p of xs) {
+    const t = Date.parse(p.day);
+    if (t < now.getTime() - 400 * DAY_MS || t > now.getTime() - 30 * DAY_MS) continue;
+    const key = p.day.slice(0, 7);
+    months.set(key, [...(months.get(key) ?? []), p.value]);
+  }
+  if (months.size < SEASON_MIN_MONTHS) return null;
+  const norm = median([...months.values()].map((vs) => vs.reduce((a, b) => a + b, 0) / vs.length));
+  if (norm <= 0) return null;
+  const ratio = window.reduce((a, p) => a + p.value, 0) / window.length / norm;
+
+  // 0.6 or less is 10, the norm is 50, 1.5 or more is 95.
+  const fit = ratio <= 1 ? Math.max(10, 50 - ((1 - ratio) / 0.4) * 40) : Math.min(95, 50 + ((ratio - 1) / 0.5) * 45);
+  const diff = Math.round(Math.abs(ratio - 1) * 100);
+  const label =
+    diff < 8
+      ? "This time last year ran about at the term's yearly norm"
+      : `This time last year ran ${diff}% ${ratio > 1 ? "above" : "below"} the term's yearly norm`;
+  return { inWindow: ratio >= 1.15, daysOut: null, label, fit: Math.round(fit * 10) / 10 };
+}
+
+/** The kind of level a signal row's value is, for the absolute volume curve. */
+export function levelKindOf(metricType: string | null): LevelKind {
+  switch (metricType) {
+    case "search_volume":
+      return "search_volume";
+    case "search_interest":
+      return "search_interest";
+    case "shortform_views":
+      return "shortform_views";
+    case "conversation":
+    case "news_coverage":
+    case "search_intent":
+      return "conversation";
+    default:
+      return "index";
+  }
+}
+
+/** Shares and saves per view on the term's short-form, the strongest read
+ * across its sources this fortnight. Null when no short-form read carries one. */
+export function actionPctFor(signal: Signal, reads: Signal[]): number | null {
+  let best: { pct: number; views: number } | null = null;
+  for (const s of reads) {
+    if (s.metric_type !== "shortform_views" || !matchesTerm(s, signal)) continue;
+    const raw = (s.raw ?? {}) as { actionPct?: unknown; views?: unknown };
+    const views = isNum(raw.views) ? raw.views : isNum(s.value) ? s.value : 0;
+    // One seven-second video with no shares is not a read on the term.
+    if (!isNum(raw.actionPct) || raw.actionPct < 0 || views < MIN_ACTION_VIEWS) continue;
+    if (best === null || views > best.views) best = { pct: raw.actionPct, views };
+  }
+  return best?.pct ?? null;
+}
+
 /** Is this the term's (or the category's) active window. Null when the
  * category has no calendar at all, which is unknown, not "off season". */
 function seasonalFor(term: string, category: string, now: Date): CultureInput["seasonal"] {
@@ -294,9 +379,18 @@ interface StoredAd {
   runningDays?: unknown;
 }
 
+/** A Meta read stores `ads`; a Google Transparency read stores `sample`,
+ * whose first and last shown dates give the running days. */
 function adsOf(read: CompetitorRead): StoredAd[] {
-  const ads = (read.raw as { ads?: unknown } | null)?.ads;
-  return Array.isArray(ads) ? (ads as StoredAd[]) : [];
+  const raw = read.raw as { ads?: unknown; sample?: unknown } | null;
+  if (Array.isArray(raw?.ads)) return raw.ads as StoredAd[];
+  if (!Array.isArray(raw?.sample)) return [];
+  return (raw.sample as { snippet?: unknown; firstShown?: unknown; lastShown?: unknown }[]).map((a) => {
+    const first = typeof a.firstShown === "string" ? Date.parse(a.firstShown) : NaN;
+    const last = typeof a.lastShown === "string" ? Date.parse(a.lastShown) : NaN;
+    const days = Number.isFinite(first) && Number.isFinite(last) ? Math.max(0, Math.round((last - first) / DAY_MS)) : null;
+    return { snippet: a.snippet, runningDays: days };
+  });
 }
 
 const adCaption = (a: StoredAd) =>
@@ -312,7 +406,14 @@ function competitiveFor(term: string, ctx: GradeContext): CompetitiveInput {
   const readsBy = new Map<string, CompetitorRead[]>();
   for (const r of ctx.adReads) readsBy.set(r.competitor_id, [...(readsBy.get(r.competitor_id) ?? []), r]);
 
-  const read = direct.filter((c) => postsBy.has(c.id) || readsBy.has(c.id));
+  // A rival is read when something of theirs was actually seen: a post, or
+  // an ad. An ad read that came back empty (no ads, or a read that failed
+  // upstream and stored nothing) is not a read, or every quiet week would
+  // score as open whitespace at high confidence.
+  const read = direct.filter(
+    (c) => (postsBy.get(c.id)?.length ?? 0) > 0 || (readsBy.get(c.id) ?? []).some((r) => adsOf(r).length > 0),
+  );
+  let evidence = 0;
   let onNow = 0;
   let onPrior = 0;
   let onAngle = 0;
@@ -342,6 +443,7 @@ function competitiveFor(term: string, ctx: GradeContext): CompetitiveInput {
       }
     }
     const adsOn = [...ads.values()];
+    evidence += posts.length + [...new Set(reads.flatMap((r) => adsOf(r).map(adCaption)))].length;
 
     const isNow =
       postsOn.some((p) => ageDays(p.posted_at ?? p.captured_at) <= NOW_DAYS) ||
@@ -366,6 +468,7 @@ function competitiveFor(term: string, ctx: GradeContext): CompetitiveInput {
   return {
     competitorsConnected: direct.length,
     competitorsRead: read.length,
+    evidenceItems: evidence,
     rivalsOnAngleNow: onNow,
     rivalsOnAnglePrior: read.length === 0 ? null : onPrior,
     rivalAdsOnAngle: onAngle,
@@ -424,10 +527,14 @@ export async function gatherSignalInputs(
 ): Promise<GatheredInputs> {
   const today = dayOf(ctx.now);
   const reads = latestReads(ctx.pool);
-  const rawSeries = await safe(repo.getSeries(signal.normalized_term, signal.geo, BASELINE_DAYS), []);
-  const series: DailyPoint[] = indexSeries(rawSeries)
+  // A year of the term's history is read once: the last 90 days are the
+  // lifecycle and velocity series, the whole year is the seasonal read.
+  const rawSeries = await safe(repo.getSeries(signal.normalized_term, signal.geo, SEASON_DAYS), []);
+  const yearSeries: DailyPoint[] = indexSeries(rawSeries)
     .map((p) => ({ day: p.day, value: p.value }))
     .sort((a, b) => a.day.localeCompare(b.day));
+  const seriesFloor = dayOf(new Date(ctx.now.getTime() - BASELINE_DAYS * DAY_MS));
+  const series = yearSeries.filter((p) => p.day >= seriesFloor);
 
   // Customer. A level is only comparable to levels of the same kind: 14,800
   // monthly searches and a Trends 63 are not one scale, so each metric keeps
@@ -440,12 +547,21 @@ export async function gatherSignalInputs(
       ? round3(lastWeek.reduce((s, p) => s + p.value, 0) / lastWeek.length)
       : null;
   const levelKey = `level_${isNum(signal.value) ? signal.metric_type : "series"}`;
+  // A series-derived level is the index the series keeps (0-100) unless the
+  // term only ever had raw volumes stored.
+  const levelKind: LevelKind = isNum(signal.value)
+    ? levelKindOf(signal.metric_type)
+    : lastWeek.every((p) => p.value <= 100)
+      ? "index"
+      : "search_volume";
   const persona = personaFor(signal.term, ctx.brief, ctx.signals.ownPosts);
   const customer: CustomerInput = {
     term: signal.term,
     personaMatch: persona.personaMatch,
     personaSource: persona.personaSource,
     level,
+    levelKind,
+    actionPct: actionPctFor(signal, reads),
     levelBaseline: baselineOf(ctx.baselines.customer, levelKey, today),
     activity: activityFor(signal, reads, ctx.signals),
     series,
@@ -457,7 +573,8 @@ export async function gatherSignalInputs(
     category: business.category,
     categoryGrowthPct: growth,
     categoryGrowthBaseline: baselineOf(ctx.baselines.culture, "growthPct", today),
-    seasonal: seasonalFor(signal.term, business.category, ctx.now),
+    // The term's own year beats the category calendar when it is readable.
+    seasonal: seasonalFromSeries(yearSeries, ctx.now) ?? seasonalFor(signal.term, business.category, ctx.now),
     series,
   };
 

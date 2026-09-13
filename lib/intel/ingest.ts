@@ -197,7 +197,10 @@ export async function runIntelIngestForBusiness(
   // and what those rivals are paying to show.
   try {
     const { ingestRivalAds, ingestSocialAccounts } = await import("@/lib/intel/social-ingest");
-    const competitors = await repo.listCompetitors(business.id);
+    const { rescoreRivals } = await import("@/lib/intel/direct");
+    // A rival scored under the bar is re-read weekly, so a mis-score (or a
+    // rival that changed its range) does not leave it unwatched for good.
+    const competitors = await rescoreRivals(repo, business, await repo.listCompetitors(business.id));
     const social = await ingestSocialAccounts(repo, business, competitors);
     summary.socialPosts = social.ownPosts + social.rivalPosts;
     summary.competitorReads += social.rivalReads;

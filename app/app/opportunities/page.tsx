@@ -90,7 +90,7 @@ export default async function OpportunitiesPage() {
       )}
 
       <div className="flex flex-col gap-[14px]">
-        {enriched.map(({ o, signal, campaign, series, explained, insights }, idx) => {
+        {enriched.map(({ o, signal, campaign, series, insights }, idx) => {
           const isDismissed = o.status === "dismissed";
           const matched = o.matched_service_id ? serviceById.get(o.matched_service_id) : null;
           const tags = insights

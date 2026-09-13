@@ -76,6 +76,19 @@ export interface PickWriteContext {
   term: string;
   /** The pick's metric delta: the finding may not print it. */
   deltaPct: number | null;
+  /** Hold the model to a real gap: the finding names the item the bet runs,
+   * and never quotes the brand using the customer's own words back. Off for
+   * the keyless template, which has no page copy to find a gap in. */
+  gap?: boolean;
+}
+
+/** Content words: lowercase, four letters or more, plural-blind. */
+function contentWords(s: string): string[] {
+  return s
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 3)
+    .map((w) => (w.length > 4 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w));
 }
 
 const normalizeQuotes = (s: string) => s.replace(/[“”]/g, '"');
@@ -97,6 +110,34 @@ export function pickWriteSchemaFor(ctx: PickWriteContext) {
     // The metric is shown once, by the page. A finding is words against words.
     if (/\d\s?%/.test(v.finding) || mentionsDelta(v.finding, ctx.deltaPct)) {
       issue.addIssue({ code: "custom", path: ["finding"], message: "finding must not contain the metric number" });
+    }
+    if (ctx.gap) {
+      const quotes = [...normalizeQuotes(v.finding).matchAll(/"([^"]+)"/g)].map((m) => m[1].replace(/[.,;:]+$/, ""));
+      const brandWords = quotes[1] ? contentWords(quotes[1]) : [];
+      const termWords = contentWords(ctx.term);
+      // "searching 'filtered showerhead', page says 'Handheld Filtered
+      // Showerhead'" is a match, not a finding.
+      if (brandWords.length > 0 && termWords.length > 0 && termWords.every((w) => brandWords.includes(w))) {
+        issue.addIssue({
+          code: "custom",
+          path: ["finding"],
+          message: 'the brand already uses the customer\'s words; name what the page leads with instead ("leads with")',
+        });
+      }
+      // The H1 said the page sells Shower Steamers while the bet ran the
+      // showerhead. The item in the finding is the item the ad sells.
+      const leadsWith = /\bleads with\b/i.test(v.finding);
+      // Compare the item's own words only: a bet line that repeats the term
+      // ("the base of the everything shower") must not let "Shower
+      // Steamers" pass as the showerhead because both say "shower".
+      const itemWords = brandWords.filter((w) => !termWords.includes(w));
+      if (!leadsWith && itemWords.length > 0) {
+        const bet = new Set(contentWords(v.bet_what).filter((w) => !termWords.includes(w)));
+        const shared = itemWords.filter((w) => bet.has(w)).length;
+        if (shared * 2 < itemWords.length) {
+          issue.addIssue({ code: "custom", path: ["finding"], message: "the item in the finding must be the item bet_what runs" });
+        }
+      }
     }
     const theses = new Set(v.scripts.map((s) => s.thesis.trim().toLowerCase()));
     const labels = new Set(v.scripts.map((s) => s.variant_label.trim().toLowerCase()));

@@ -72,14 +72,15 @@ export async function writePickWithGemini(
   input: PickWriterInput,
   models?: { flash: string; pro: string },
 ): Promise<{ value: PickWrite; model: string }> {
-  const { resolveModels, structuredCall } = await import("./gemini");
+  const { creativeCall, resolveModels } = await import("./gemini");
   const m = models ?? (await resolveModels());
-  const schema = pickWriteSchemaFor({ term: input.term, deltaPct: input.deltaPct });
-  // Pro: this is the creative call the whole page rests on. structuredCall
-  // retries once at a lower temperature; a second failure is the caller's
-  // draft, not a Flash rewrite of someone else's brief.
-  const value = await structuredCall(m.pro, buildPickPrompt(input), PICK_RESPONSE_SCHEMA, (d) => schema.parse(d));
-  return { value, model: m.pro };
+  const schema = pickWriteSchemaFor({ term: input.term, deltaPct: input.deltaPct, gap: true });
+  // Pro first: this is the creative call the whole page rests on, with one
+  // lower-temperature retry. Then Flash, under the same validation. A Pro
+  // outage (or a retired Pro id) used to turn every pick of the week into a
+  // draft, which is an empty list; a Flash pick that passes the same checks
+  // is better than no week at all.
+  return creativeCall(m, buildPickPrompt(input), PICK_RESPONSE_SCHEMA, (d) => schema.parse(d));
 }
 
 /* ------------------------------ keyless path ------------------------------ */

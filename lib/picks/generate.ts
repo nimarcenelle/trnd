@@ -60,11 +60,37 @@ function median(xs: number[]): number {
 }
 
 /** The winning short-form length when one was read, inside what a paid
- * placement will actually hold. */
+ * placement will actually hold. Organic TikToks on a term can run 80 seconds
+ * and a trend clip can run 7; a Reels or TikTok ad that works runs 15 to 45. */
 function scriptSeconds(medianSec: number | null): number {
   return typeof medianSec === "number" && medianSec > 0
-    ? Math.min(60, Math.max(8, Math.round(medianSec)))
+    ? Math.min(45, Math.max(15, Math.round(medianSec)))
     : DEFAULT_SCRIPT_SECONDS;
+}
+
+/** Below this, a short-form view count is too small to carry a percentage:
+ * "+200% week over week" on 688 views is a rounding error dressed as news. */
+const MIN_SHORTFORM_VIEWS = 5_000;
+
+/**
+ * The signal the pick's one metric is read from. Normally the pick's own. A
+ * short-form read on a tiny base hands over to a search read on the same term
+ * when one exists; with none, there is no honest metric and the pick stays a
+ * draft ("better to show four picks than one broken one").
+ */
+function metricSource(signal: Signal, pool: Signal[]): Signal | null {
+  if (!isCulturalSource(signal)) return signal;
+  const level = Number(signal.value);
+  if (Number.isFinite(level) && level >= MIN_SHORTFORM_VIEWS) return signal;
+  return (
+    pool.find(
+      (s) =>
+        matchesTerm(s, signal) &&
+        !isCulturalSource(s) &&
+        (s.metric_type === "search_volume" || s.metric_type === "search_interest") &&
+        typeof s.delta_pct === "number",
+    ) ?? null
+  );
 }
 
 const matchesTerm = (s: Pick<Signal, "normalized_term">, signal: Pick<Signal, "normalized_term">) =>
@@ -159,7 +185,18 @@ async function buildBundle(repo: Repo, input: WeekInputs, opportunity: Opportuni
     repo.getSeries(signal.normalized_term, signal.geo, 30),
   ]);
   const series = indexSeries(rawSeries);
-  const metric = pickMetric({ signal, weekPct: explained.weekPct, monthPct: explained.monthPct, series });
+  const source = metricSource(signal, pool);
+  const metric =
+    source === null
+      ? null
+      : source.id === signal.id
+        ? pickMetric({ signal, weekPct: explained.weekPct, monthPct: explained.monthPct, series })
+        : pickMetric({
+            signal: source,
+            weekPct: source.delta_pct,
+            monthPct: null,
+            series: indexSeries(await repo.getSeries(source.normalized_term, source.geo, 30)),
+          });
   const matched = services.find((s) => s.id === opportunity.matched_service_id) ?? explained.matchedService ?? null;
   const shortform = isCulturalSource(signal) ? signal : (ctx.shortform.find((s) => matchesTerm(s, signal)) ?? null);
 

@@ -10,10 +10,10 @@ import PrintButton from "@/components/app/print-button";
 import SourceBadge from "@/components/app/source-badge";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
-import { getAdminRepo } from "@/lib/db/admin";
 import { isGeminiConfigured } from "@/lib/env";
 import { gradeTone } from "@/lib/picks/grade-view";
-import { dueForKick, truncateFinding } from "@/lib/picks/list";
+import { kickWeekJob } from "@/lib/picks/kick";
+import { truncateFinding } from "@/lib/picks/list";
 import { buildIntelReport, type RankedRow, type WatchedCompetitor } from "@/lib/report/build";
 import {
   buildFallbackIntelNote,
@@ -21,19 +21,12 @@ import {
   INTEL_NOTE_FALLBACK_MODEL,
   noteFingerprint,
 } from "@/lib/report/note";
-import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
+import { weekOf } from "@/lib/recommend/week";
 import { isOnlineBusiness } from "@/lib/signals/geo";
 import { proofName } from "@/lib/signals/source-url";
 import { sentenceCase } from "@/lib/text";
 
 export const metadata = { title: "Weekly report — TRND" };
-
-/** One ranking-and-read pass per business per instance per window: the page
- * refreshes itself every few seconds while the note lands, and each refresh
- * must not start the pass again. */
-const freshKicks = new Map<string, number>();
-const FRESH_KICK_WINDOW_MS = 10 * 60_000;
-const requestTime = () => Date.now();
 
 function fmtDate(d: string, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }) {
   return new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
@@ -67,27 +60,11 @@ export default async function ReportPage() {
   // it runs on the service repo.
   const week = weekOf();
   const ranked = (await repo.listOpportunities(business.id, week)).length > 0;
-  const now = requestTime();
-  if (dueForKick(freshKicks.get(business.id), now, FRESH_KICK_WINDOW_MS)) {
-    freshKicks.set(business.id, now);
-    after(async () => {
-      const admin = getAdminRepo();
-      if (!ranked) {
-        try {
-          await recommendForBusiness(admin, business);
-        } catch (err) {
-          console.warn("[report] ranking failed (non-fatal):", (err as Error).message);
-        }
-      }
-      try {
-        const { ensureIntelFresh } = await import("@/lib/intel/ingest");
-        await ensureIntelFresh(admin, business);
-      } catch (err) {
-        console.warn("[report] intel refresh failed (non-fatal):", (err as Error).message);
-      }
-    });
-  }
-
+  // An un-ranked week is asked for from the week job, which has the time
+  // budget a ranking and its reads need. Nothing heavy runs in this
+  // function: work left running here after the response outlived the
+  // platform's limit and cut off the next render of this page.
+  if (!ranked) await kickWeekJob(business.id);
   const report = await buildIntelReport(repo, business);
 
   // The analyst note: stored per week; written in the background on first

@@ -7,6 +7,7 @@ import DetailSparkline from "@/components/picks/detail-sparkline";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { buildDetailView, isPickId, viewableDetail, type DetailSection, type DetailView } from "@/lib/picks/detail";
+import { gradeTone } from "@/lib/picks/grade-view";
 
 export const metadata = { title: "Pick — TRND" };
 
@@ -75,8 +76,24 @@ function Finding({ view }: { view: DetailView }) {
             <span className="pickd__metric-window">{metric.window}</span>
           </span>
         </div>
+        {view.grade && (
+          <span
+            className={`pickd__grade is-${gradeTone(view.grade.letter)}`}
+            title={view.grade.score === null ? undefined : `Opportunity Grade ${view.grade.score} of 100`}
+          >
+            <span className="sr-only">Opportunity Grade </span>
+            {view.grade.label}
+          </span>
+        )}
         <DetailSparkline points={metric.sparkline} label={metric.label} direction={metric.direction} />
       </div>
+      {view.grade && view.grade.excludedNotes.length > 0 && (
+        <ul className="pickd__excluded">
+          {view.grade.excludedNotes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -180,8 +197,21 @@ function Why({ view }: { view: DetailView }) {
       <summary>Why this pick</summary>
       <div className="pickd__groups">
         {view.groups.map((g) => (
-          <section key={g.signal} className="pickd__group">
-            <h3>{g.label}</h3>
+          <section key={g.signal} className={`pickd__group${g.header?.kind === "gap" ? " is-gap" : ""}`}>
+            <h3>{g.header?.text ?? g.label}</h3>
+            {g.header?.kind === "gap" && g.header.cta && (
+              <Link href={g.header.cta.href} className="pickd__group-cta">
+                {g.header.cta.label}
+              </Link>
+            )}
+            {g.components.length > 0 && (
+              <ul className="pickd__components">
+                {g.components.map((c) => (
+                  <li key={c.key}>{c.text}</li>
+                ))}
+              </ul>
+            )}
+            {g.claims.length > 0 && (
             <ul>
               {g.claims.map((c) => (
                 <li key={c.id}>
@@ -194,6 +224,7 @@ function Why({ view }: { view: DetailView }) {
                 </li>
               ))}
             </ul>
+            )}
           </section>
         ))}
       </div>

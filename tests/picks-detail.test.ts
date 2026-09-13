@@ -15,6 +15,7 @@ import {
   viewableDetail,
 } from "../lib/picks/detail";
 import { pickToText, scriptToText } from "../lib/picks/format";
+import { combineSignals, signalScore } from "../lib/scoring/model";
 
 const PICK_ID = "7f1c2a9e-3b4d-4c5e-8f60-1a2b3c4d5e6f";
 
@@ -201,6 +202,93 @@ describe("the detail render model", () => {
     expect(view.scripts[0].text).toBe(scriptToText(script(0)));
     const sorted = [script(0), script(1), script(2)];
     expect(view.copyAll).toBe(pickToText({ pick: d.pick, scripts: sorted }));
+  });
+});
+
+/** A pick as the ranking job writes it now: grade, score and the four signals. */
+function graded(over: { brandLow?: boolean } = {}): Partial<BrandPick> {
+  const g = combineSignals({
+    customer: signalScore(
+      "customer",
+      [
+        { key: "volume", label: "Volume", weight: 40, score: 82, detail: "40,500 searches this week" },
+        { key: "intent", label: "Intent", weight: 35, score: null },
+      ],
+      "high",
+    ),
+    culture: signalScore("culture", [{ key: "growth", label: "Growth", weight: 40, score: 88 }], "medium"),
+    competitive: signalScore("competitive", [], "low", {
+      note: "No competitors connected yet",
+      cta: { label: "Connect competitors", href: "/app/settings#competitors" },
+    }),
+    brand: over.brandLow
+      ? signalScore("brand", [{ key: "similarity", label: "Similarity", weight: 40, score: 70 }], "low")
+      : signalScore("brand", [{ key: "similarity", label: "Similarity", weight: 40, score: 80 }], "medium"),
+  });
+  const { signals, weightsUsed, excluded, notes } = g;
+  return {
+    grade: g.grade,
+    grade_score: g.score,
+    signal_scores: JSON.parse(JSON.stringify({ ...signals, weightsUsed, excluded, notes })),
+  };
+}
+
+describe("the grade on the detail page", () => {
+  it("has no grade, notes or header numbers on a pick written before the grade", () => {
+    const view = buildDetailView(detail());
+    expect(view.grade).toBeNull();
+    expect(view.groups.every((g) => g.header === null && g.components.length === 0)).toBe(true);
+  });
+
+  it("puts the letter and its meaning beside the one metric, and the excluded notes under it", () => {
+    const view = buildDetailView(detail({ pick: pick(graded()) }));
+    expect(view.grade?.letter).toBe("A");
+    expect(view.grade?.label).toBe("A · Strong, clear go");
+    expect(view.grade?.excludedNotes).toEqual(["Competitive wasn't factored in: no competitors connected yet."]);
+    // The metric is still said once, and the grade label never repeats it.
+    expect(view.metric.text).toBe("+49% week over week");
+    expect(view.grade?.label).not.toContain(view.metric.delta);
+  });
+
+  it("gives no excluded notes when every signal counted", () => {
+    const g = graded();
+    const blob = { ...(g.signal_scores as Record<string, unknown>), notes: [], excluded: [] };
+    expect(buildDetailView(detail({ pick: pick({ ...g, signal_scores: blob }) })).grade?.excludedNotes).toEqual([]);
+  });
+
+  it("heads each group with its score and confidence, and a gap with its note and fix link", () => {
+    const view = buildDetailView(detail({ pick: pick(graded()) }));
+    expect(view.groups.map((g) => g.header?.text)).toEqual([
+      "Customer · 82 · high confidence",
+      "Culture · 88 · medium confidence",
+      "Competitive · No competitors connected yet",
+      "Brand · 80 · medium confidence",
+    ]);
+    const competitive = view.groups[2].header;
+    expect(competitive).toMatchObject({ kind: "gap", cta: { label: "Connect competitors", href: "/app/settings#competitors" } });
+    // The placeholder 50 never renders as a number.
+    expect(competitive?.text).not.toMatch(/\d/);
+  });
+
+  it("lists components under a medium or high signal, never under a gap", () => {
+    const view = buildDetailView(detail({ pick: pick(graded()) }));
+    expect(view.groups[0].components.map((c) => c.text)).toEqual(["Volume · 82 · 40,500 searches this week", "Intent · no data"]);
+    expect(view.groups[2].components).toEqual([]);
+  });
+
+  it("shows a low-confidence signal with a note even without evidence, and still omits one with neither", () => {
+    const view = buildDetailView(detail({ pick: pick(graded({ brandLow: true })), evidence: [ev("customer", 0)] }));
+    // Competitive has a note and no evidence: shown. Brand is low with no
+    // note and no evidence: omitted. Culture has a score but no evidence: omitted.
+    expect(view.groups.map((g) => g.label)).toEqual(["Customer", "Competitive"]);
+    expect(view.groups[1].claims).toEqual([]);
+    expect(view.sections).toContain("why");
+  });
+
+  it("keeps a low-confidence signal's evidence under a dim header when it has no note", () => {
+    const view = buildDetailView(detail({ pick: pick(graded({ brandLow: true })) }));
+    expect(view.groups[3].header).toMatchObject({ kind: "gap", text: "Brand · low confidence", note: null });
+    expect(view.groups[3].claims).toHaveLength(1);
   });
 });
 

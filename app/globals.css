@@ -1123,6 +1123,24 @@ textarea.input {
 .pickd__delta.is-up { color: var(--mint-text); }
 .pickd__delta.is-down { color: var(--red); }
 .pickd__metric-window { font-size: 13px; color: var(--ink-faint); }
+.pickd__grade {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.pickd__grade.is-mint { color: var(--mint-text); border-color: var(--mint); background: var(--mint-soft); }
+.pickd__grade.is-amber { color: var(--amber-text); border-color: var(--amber); background: var(--amber-softer); }
+.pickd__grade.is-faint { border-style: dashed; }
+/* Signals left out of the grade: one quiet line each, under the metric. */
+.pickd__excluded { list-style: none; margin: 8px 0 0; padding: 0 2px; display: grid; gap: 2px; }
+.pickd__excluded li { font-size: 12.5px; line-height: 1.5; color: var(--ink-faint); }
 .pickd__spark { flex-shrink: 0; color: var(--ink-faint); }
 .pickd__spark.is-up { color: var(--mint); }
 .pickd__spark.is-down { color: var(--red); }
@@ -1220,6 +1238,12 @@ textarea.input {
 .pickd__group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .pickd__group li { display: flex; flex-direction: column; gap: 2px; font-size: 14px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
 .pickd__group a { font-size: 12.5px; color: var(--amber-text); text-decoration: underline; text-underline-offset: 2px; }
+.pickd__components { margin: -2px 0 10px !important; gap: 2px !important; }
+.pickd__components li { font-size: 12.5px; line-height: 1.45; color: var(--ink-soft); }
+/* A low-confidence signal: the gap is shown, dimmer than a reading. */
+.pickd__group.is-gap h3 { font-weight: 500; letter-spacing: 0.02em; text-transform: none; font-size: 12.5px; font-style: italic; }
+.pickd__group.is-gap > ul { opacity: 0.8; }
+.pickd__group .pickd__group-cta { display: inline-block; margin: -4px 0 8px; font-size: 12.5px; }
 
 /* 6. actions */
 .pickd__footer {
@@ -1275,7 +1299,7 @@ textarea.input {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
   column-gap: 20px;
   row-gap: 10px;
 }
@@ -1356,6 +1380,36 @@ textarea.input {
   color: var(--ink);
   white-space: nowrap;
 }
+.picks-row__grade-cell {
+  justify-self: center;
+}
+.picks-grade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2em;
+  padding: 2px 7px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-soft);
+}
+.picks-grade.is-mint {
+  color: var(--mint-text);
+  border-color: var(--mint);
+  background: var(--mint-soft);
+}
+.picks-grade.is-amber {
+  color: var(--amber-text);
+  border-color: var(--amber);
+  background: var(--amber-softer);
+}
+.picks-grade.is-faint {
+  border-style: dashed;
+}
 .picks-row__status {
   justify-self: end;
 }
@@ -1392,6 +1446,9 @@ textarea.input {
   }
   .picks-row__status {
     justify-self: auto;
+  }
+  .picks-row__grade-cell:empty {
+    display: none;
   }
 }
 
@@ -1441,6 +1498,75 @@ textarea.input {
 .picks-run__actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 8px;
+}
+.picks-run__stats {
+  margin: 4px 0 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+/* "Mark completed" opens into the results form, full width under the run. */
+.picks-run__actions:has(.picks-run__complete[open]) {
+  flex-basis: 100%;
+}
+.picks-run__complete[open] {
+  flex: 1 1 100%;
+}
+.picks-run__complete > summary {
+  list-style: none;
+}
+.picks-run__complete > summary::-webkit-details-marker {
+  display: none;
+}
+.picks-run__complete[open] > summary {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.picks-run__results {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--line);
+}
+.picks-run__results .btn {
+  justify-self: start;
+}
+.picks-run__results-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.picks-run__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.picks-run__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.picks-run__field > span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-faint);
+}
+.picks-run__field .input {
+  padding: 8px 10px;
+  width: 100%;
+}
+.picks-run__error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--red);
+}
+@media (max-width: 520px) {
+  .picks-run__fields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
 }
 }

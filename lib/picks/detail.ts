@@ -1,5 +1,6 @@
 import type { BrandPick, PickDetail, PickDismissReason, PickScript, PickSignal } from "@/lib/db/types";
 import { formatMetric, formatUsd, pickToText, scriptToText, type FormattedMetric } from "@/lib/picks/format";
+import { gradeLabel, readGrade, type GradeSignalView, type GradeView } from "@/lib/picks/grade-view";
 
 /**
  * The pick detail page as data: what renders, in what order, and what the
@@ -91,9 +92,24 @@ export interface EvidenceClaim {
   sourceLabel: string | null;
 }
 
+/**
+ * What a Why group's header says about its signal's score.
+ * - scored: "Customer · 82 · high confidence"
+ * - gap: a low-confidence signal, "Competitive · No competitors connected yet",
+ *   rendered dimmer with its fix link when there is one
+ * - null: the pick predates the grade, the header is the bare label
+ */
+export type GroupHeader =
+  | { kind: "scored"; text: string; score: number; confidence: "high" | "medium" }
+  | { kind: "gap"; text: string; note: string | null; cta: { label: string; href: string } | null }
+  | null;
+
 export interface EvidenceGroup {
   signal: PickSignal;
   label: string;
+  header: GroupHeader;
+  /** Component lines for a medium or high signal: "Volume · 74 · 40,500 searches". */
+  components: { key: string; text: string }[];
   claims: EvidenceClaim[];
 }
 
@@ -104,6 +120,8 @@ export interface DetailView {
   bet: { what: string; budget: string; duration: string; killRule: string };
   scripts: { script: PickScript; text: string }[];
   guardrail: string | null;
+  /** The Opportunity Grade the pick was written with; null on older picks. */
+  grade: (GradeView & { label: string }) | null;
   groups: EvidenceGroup[];
   mode: ActionMode;
   copyAll: string;
@@ -137,7 +155,39 @@ function linkLabel(href: string, label: string | null): string {
   return new URL(href).hostname.replace(/^www\./, "");
 }
 
-export function buildEvidenceGroups(evidence: PickDetail["evidence"]): EvidenceGroup[] {
+export function groupHeader(signal: GradeSignalView | undefined): GroupHeader {
+  if (!signal) return null;
+  if (signal.confidence === "low" || signal.score === null) {
+    return {
+      kind: "gap",
+      text: `${signal.label} · ${signal.note ?? "low confidence"}`,
+      note: signal.note,
+      cta: signal.cta,
+    };
+  }
+  return {
+    kind: "scored",
+    text: `${signal.label} · ${signal.score} · ${signal.confidence} confidence`,
+    score: signal.score,
+    confidence: signal.confidence,
+  };
+}
+
+/** "Volume · 74 · 40,500 searches this week"; a component with no data says so. */
+export function componentLines(signal: GradeSignalView | undefined): { key: string; text: string }[] {
+  if (!signal || signal.confidence === "low") return [];
+  return signal.components.map((c) => ({
+    key: c.key,
+    text: [c.label, c.score === null ? "no data" : String(c.score), c.detail].filter(Boolean).join(" · "),
+  }));
+}
+
+/**
+ * Customer, Culture, Competitive, Brand. A group renders when it has
+ * evidence, or when its signal was low confidence and carries a note: the
+ * gap is surfaced, never hidden. No evidence and no note, no group.
+ */
+export function buildEvidenceGroups(evidence: PickDetail["evidence"], grade: GradeView | null = null): EvidenceGroup[] {
   return SIGNAL_ORDER.flatMap((signal) => {
     const claims = evidence
       .filter((e) => e.signal === signal && e.claim.trim())
@@ -147,14 +197,19 @@ export function buildEvidenceGroups(evidence: PickDetail["evidence"]): EvidenceG
         const href = safeHref(e.source_url);
         return { id: e.id, claim: e.claim.trim(), href, sourceLabel: href ? linkLabel(href, e.source_label) : null };
       });
-    return claims.length ? [{ signal, label: SIGNAL_LABELS[signal], claims }] : [];
+    const scored = grade?.signals.find((s) => s.name === signal);
+    const header = groupHeader(scored);
+    const surfacedGap = header?.kind === "gap" && header.note !== null;
+    if (!claims.length && !surfacedGap) return [];
+    return [{ signal, label: SIGNAL_LABELS[signal], header, components: componentLines(scored), claims }];
   });
 }
 
 export function buildDetailView(detail: PickDetail): DetailView {
   const { pick } = detail;
   const guardrail = pick.guardrail?.trim() || null;
-  const groups = buildEvidenceGroups(detail.evidence);
+  const grade = readGrade(pick);
+  const groups = buildEvidenceGroups(detail.evidence, grade);
   const scripts = [...detail.scripts].sort((a, b) => a.position - b.position);
   const sparkline = (pick.sparkline ?? []).filter((p) => Number.isFinite(p.v)).slice(-SPARKLINE_POINTS);
 
@@ -179,6 +234,7 @@ export function buildDetailView(detail: PickDetail): DetailView {
     },
     scripts: scripts.map((script) => ({ script, text: scriptToText(script) })),
     guardrail,
+    grade: grade ? { ...grade, label: gradeLabel(grade) } : null,
     groups,
     mode: actionMode(detail),
     copyAll: pickToText({ pick, scripts }),

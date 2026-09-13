@@ -6,6 +6,7 @@ import {
   arrowGlyph,
   dueForKick,
   generationDecision,
+  gradeChip,
   legacyPickIndex,
   runChip,
   shortDate,
@@ -23,6 +24,24 @@ describe("runChip", () => {
   it("gives no chip to a pick nobody ran", () => {
     expect(runChip(null)).toBeNull();
     expect(runChip(undefined)).toBeNull();
+  });
+});
+
+describe("gradeChip", () => {
+  it("shows the letter with its meaning as the description", () => {
+    expect(gradeChip({ grade: "A", grade_score: 83.4, signal_scores: {} })).toEqual({
+      letter: "A",
+      meaning: "Strong, clear go",
+      description: "Grade A: Strong, clear go",
+      tone: "mint",
+    });
+    expect(gradeChip({ grade: "C", grade_score: 52 })).toMatchObject({ letter: "C", tone: "faint" });
+  });
+
+  it("gives no chip to a pick written before the grade", () => {
+    expect(gradeChip({})).toBeNull();
+    expect(gradeChip({ grade: null, grade_score: null, signal_scores: null })).toBeNull();
+    expect(gradeChip({ grade: "excellent" })).toBeNull();
   });
 });
 

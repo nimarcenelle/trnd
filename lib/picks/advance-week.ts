@@ -4,7 +4,7 @@ import type { Business } from "@/lib/db/types";
 import { env, isEmailConfigured } from "@/lib/env";
 import { weekOf } from "@/lib/recommend/week";
 
-import { generateWeekPicks } from "./generate";
+import { eligibleWeekOpportunities, generateWeekPicks } from "./generate";
 
 /**
  * A brand's week, advanced one stage at a time.
@@ -81,7 +81,13 @@ export async function nextWeekStage(
     const pool = await repo.listSignalsForCategory(business.category, { sinceDays: 14 });
     return pool.length > 0 ? "rank" : "done";
   }
-  if ((await repo.countWeekPicks(business.id, week)) === 0) return "picks";
+  const count = await repo.countWeekPicks(business.id, week);
+  if (count === 0) return "picks";
+  // A fresh signup's first pick is written alone so it lands sooner; the
+  // rest of the week is still owed while only that one exists.
+  if (count === 1 && businessJustOnboarded(business.created_at) && eligibleWeekOpportunities(opportunities).length > 1) {
+    return "picks";
+  }
   // Picks written from an ungraded ranking are written again once the
   // ranking has grades, so the page never shows a pick without its grade.
   const ready = await repo.listReadyPicks(business.id, week).catch(() => []);
@@ -126,10 +132,20 @@ async function defaultRank(repo: Repo, business: Business): Promise<void> {
 }
 
 async function defaultPicks(repo: Repo, business: Business): Promise<void> {
-  const first = (await repo.countWeekPicks(business.id, weekOf())) === 0 && businessJustOnboarded(business.created_at);
-  const written = await generateWeekPicks(repo, business);
+  const count = await repo.countWeekPicks(business.id, weekOf());
+  const fresh = businessJustOnboarded(business.created_at);
+  // A fresh signup gets its first pick alone, in about a third of the time
+  // the five take, then the rest of the week with that one reused as built.
+  // Nobody sits on a wait screen for the last pick when the first is ready.
+  let built: Awaited<ReturnType<typeof generateWeekPicks>>["bundles"] = [];
+  if (fresh && count === 0) {
+    const first = await generateWeekPicks(repo, business, { limit: 1 });
+    built = first.bundles;
+    console.log(`[week] first pick for ${business.id}: ${first.ready} ready, ${first.draft} draft`);
+  }
+  const written = await generateWeekPicks(repo, business, { built });
   console.log(`[week] picks for ${business.id}: ${written.ready} ready, ${written.draft} draft`);
-  if (first && written.ready > 0) await emailFirstPicks(repo, business, written.ready);
+  if (fresh && count === 0 && written.ready > 0) await emailFirstPicks(repo, business, written.ready);
 }
 
 /**

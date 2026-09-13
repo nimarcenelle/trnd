@@ -209,3 +209,34 @@ describe("a fresh signup's first hop", () => {
     expect(await nextWeekStage(user, biz)).toBe("rank");
   });
 });
+
+describe("the first pick before the rest", () => {
+  beforeEach(() => resetStore());
+
+  it("still owes the week while a fresh signup has one pick and more graded rows", async () => {
+    const { admin, user, biz } = await seed({ opportunity: true });
+    const sig = (await admin.listSignalsForCategory(biz.category, { sinceDays: 1 }))[0];
+    await admin.upsertSignals([
+      { source: "seed", term: "brassy hair", normalized_term: "brassy_hair", category: biz.category, geo: "US", metric_type: "search_volume", value: 80, delta_pct: 5, window_days: 7, raw: null },
+    ] as never);
+    const sig2 = (await admin.listSignalsForCategory(biz.category, { sinceDays: 1 })).find((s) => s.id !== sig.id)!;
+    await admin.upsertOpportunities([
+      { business_id: biz.id, signal_id: sig2.id, week_of: weekOf(), score: 6, rationale: "r", matched_service_id: null, competitor_gap: null, relevance: null, grade: "B", grade_score: 60, signal_scores: {} },
+    ]);
+    const { generateWeekPicks } = await import("../lib/picks/generate");
+    const writer = async () => ({
+      finding: 'Your customers are searching "hard water" and your catalog answers it directly.',
+      bet_what: "The filter to renters on Reels",
+      guardrail: null,
+      scripts: [1, 2, 3].map((i) => ({ variant_label: `v${i}`, thesis: `thesis ${i} long enough to pass`, hook: `hook ${i} long enough`, beats: [], cta: "Shop", duration_seconds: 20 })),
+    });
+    const first = await generateWeekPicks(admin, biz, { limit: 1, writer: writer as never });
+    expect(first.bundles).toHaveLength(1);
+    expect(await admin.countWeekPicks(biz.id, weekOf())).toBe(1);
+    expect(await nextWeekStage(user, biz)).toBe("picks");
+    const rest = await generateWeekPicks(admin, biz, { built: first.bundles, writer: writer as never });
+    expect(rest.bundles).toHaveLength(2);
+    expect(await admin.countWeekPicks(biz.id, weekOf())).toBe(2);
+    expect(await nextWeekStage(user, biz)).toBe("done");
+  });
+});

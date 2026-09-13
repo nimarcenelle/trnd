@@ -1738,6 +1738,37 @@ textarea.input {
 .wk-progress__row.is-todo .wk-progress__label { color: var(--ink-faint); }
 .wk-progress__detail { font-size: 13px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
 @keyframes wk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.wk-progress__mark.is-live { display: inline-block; margin: 0 8px 0 0; vertical-align: middle; border-color: var(--amber); background: var(--amber); animation: wk-pulse 1.4s ease-in-out infinite; }
+.wk-progress__typical { font-weight: 400; color: var(--ink-faint); }
+
+/* the first-week wait: what was found on the left, the steps on the right */
+.wk { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.wk-main { display: grid; gap: 22px; }
+.wk-side { position: sticky; top: 76px; }
+.wk-analysis { display: grid; gap: 10px; }
+.wk-analysis .mono-label, .wk-found .mono-label { margin: 0; }
+.wk-analysis__positioning { margin: 0; font-family: var(--disp); font-size: 17px; line-height: 1.5; letter-spacing: -0.005em; color: var(--ink); }
+.wk-analysis__who { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink-soft); }
+.wk-analysis__who b { color: var(--ink); font-weight: 600; }
+.wk-analysis__link { font-size: 13.5px; font-weight: 600; color: var(--amber-text); text-decoration: none; justify-self: start; }
+.wk-analysis__link:hover { text-decoration: underline; }
+.wk-analysis.is-pending { gap: 8px; }
+.wk-chips { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.wk-chips li { font-size: 12.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--ink-soft); background: var(--bg-2); }
+.wk-found { display: grid; gap: 8px; padding-top: 18px; border-top: 1px solid var(--line); }
+.wk-found__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.wk-found__list li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14.5px; }
+.wk-found__term { min-width: 0; overflow-wrap: anywhere; }
+.wk-found__delta { font-family: var(--mono); font-size: 12.5px; color: var(--mint-text); white-space: nowrap; }
+.wk-found__meta { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); white-space: nowrap; }
+.wk-clock { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.wk-clock__elapsed { font-family: var(--disp); font-size: 26px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.wk-clock__left { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); text-align: right; }
+.wk-more { margin: 0 0 14px; font-size: 14px; color: var(--ink-soft); display: flex; align-items: center; }
+@media (max-width: 860px) {
+  .wk { grid-template-columns: 1fr; }
+  .wk-side { position: static; order: -1; }
+}
 .wk-ranked { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
 .wk-ranked .mono-label { margin: 0 0 8px; }
 .wk-ranked__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

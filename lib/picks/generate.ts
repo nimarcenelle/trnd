@@ -43,6 +43,11 @@ export interface GenerateWeekPicksOptions {
   models?: { flash: string; pro: string };
   /** Replaces the default writer (Gemini, or the keyless template). */
   writer?: PickWriter;
+  /** Write only the top N of the week: the first pick lands before the rest. */
+  limit?: number;
+  /** Bundles already built this week, keyed by opportunity id, reused as-is
+   * instead of being written again by the model. */
+  built?: NewPickBundle[];
 }
 
 export interface GenerateWeekPicksResult {
@@ -273,25 +278,35 @@ async function buildBundle(repo: Repo, input: WeekInputs, opportunity: Opportuni
   };
 }
 
+/** The week's rows that can become picks, best first, at most a week's worth. */
+export function eligibleWeekOpportunities(stored: Opportunity[]): Opportunity[] {
+  const live = stored.filter((o) => o.status !== "dismissed");
+  // Once the week has graded rows, an ungraded one is a leftover from a
+  // ranking before the model, and its legacy score says nothing about
+  // whether the model would hold it. Only a week with no grades at all
+  // still ranks on the legacy score.
+  const graded = live.some((o) => o.grade);
+  return (
+    live
+      // A Hold is "don't build a campaign yet". The ranking no longer stores
+      // one, but a row written by hand or by an older ranking must still never
+      // become a pick.
+      .filter((o) => o.grade !== "Hold" && (!graded || o.grade))
+      .sort((a, b) => rankScoreOf(b) - rankScoreOf(a))
+      .slice(0, PICKS_PER_WEEK)
+  );
+}
+
 export async function generateWeekPicks(
   repo: Repo,
   business: Business,
   opts: GenerateWeekPicksOptions = {},
 ): Promise<GenerateWeekPicksResult> {
   const week = opts.weekOf ?? currentWeek();
-  const stored = (await repo.listOpportunities(business.id, week)).filter((o) => o.status !== "dismissed");
-  // Once the week has graded rows, an ungraded one is a leftover from a
-  // ranking before the model, and its legacy score says nothing about
-  // whether the model would hold it. Only a week with no grades at all
-  // still ranks on the legacy score.
-  const graded = stored.some((o) => o.grade);
-  const opportunities = stored
-    // A Hold is "don't build a campaign yet". The ranking no longer stores
-    // one, but a row written by hand or by an older ranking must still never
-    // become a pick.
-    .filter((o) => o.grade !== "Hold" && (!graded || o.grade))
-    .sort((a, b) => rankScoreOf(b) - rankScoreOf(a))
-    .slice(0, PICKS_PER_WEEK);
+  const opportunities = eligibleWeekOpportunities(await repo.listOpportunities(business.id, week)).slice(
+    0,
+    opts.limit ?? PICKS_PER_WEEK,
+  );
   // An empty ranking (held for a missing analysis, or nothing fits) leaves
   // last run's picks alone rather than wiping the week.
   if (opportunities.length === 0) return { ready: 0, draft: 0, pickIds: [], bundles: [] };
@@ -312,8 +327,11 @@ export async function generateWeekPicks(
     writer: opts.writer ?? defaultPickWriter(opts.models),
   };
 
+  const reuse = new Map((opts.built ?? []).map((b) => [b.pick.opportunity_id, b]));
   const built = await Promise.all(
     opportunities.map(async (o) => {
+      const had = reuse.get(o.id);
+      if (had) return had;
       try {
         return await buildBundle(repo, inputs, o);
       } catch (err) {

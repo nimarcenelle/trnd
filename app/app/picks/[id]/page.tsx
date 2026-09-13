@@ -28,7 +28,9 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
   const business = await repo.getBusinessByOwner(user.id);
   if (!business) redirect("/onboarding");
   const detail = viewableDetail(await repo.getPickDetail(id), business.id);
-  if (!detail) notFound();
+  // The week's picks are rewritten under new ids when the rest of a fresh
+  // week lands; a link to the old id goes back to the list, not to a 404.
+  if (!detail) redirect("/app/picks");
 
   const view = buildDetailView(detail);
   const render: Record<DetailSection, () => React.ReactNode> = {

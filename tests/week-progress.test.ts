@@ -65,7 +65,7 @@ describe("the first-week progress", () => {
     expect(p.stage).toBe("picks");
     expect(p.steps.map((s) => s.state)).toEqual(["done", "done", "done", "done", "current"]);
     expect(p.steps[0].detail).toBe("2 terms to watch");
-    expect(p.steps[1].detail).toBe("1 terms read across 1 sources");
+    expect(p.steps[1].detail).toBe("1 term read across 1 source");
     expect(p.steps[2].detail).toBe(`1 of your posts · 1 competitor: ${rival.name}`);
     expect(p.steps[3].detail).toBe("1 graded");
     expect(p.ranked).toEqual([{ term: "hard water", grade: "B" }]);

@@ -6,13 +6,21 @@ import { after } from "next/server";
 // changes when the picks land, so they poll the page itself.
 import AutoRefresh from "@/components/app/auto-refresh";
 import SubmitButton from "@/components/app/submit-button";
+import WeekClock from "@/components/app/week-clock";
 import ListRow from "@/components/picks/list-row";
-import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
+import {
+  BRIEF_FALLBACK_MODEL,
+  BRIEF_PROMPT_VERSION,
+  briefLikelyInFlight,
+  businessJustOnboarded,
+  generateBusinessBrief,
+} from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import type { Alert } from "@/lib/db/types";
 import { isEmailConfigured, isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { markAlertsReadAction } from "@/lib/intel/actions";
+import { eligibleWeekOpportunities } from "@/lib/picks/generate";
 import { kickWeekJob } from "@/lib/picks/kick";
 import { weekProgress } from "@/lib/picks/progress";
 import { dueForKick, weekRangeLabel } from "@/lib/picks/list";
@@ -102,6 +110,21 @@ export default async function PicksPage() {
   }
 
   if (rows.length > 0) {
+    // A fresh signup's first pick lands alone; the rest of the week follows
+    // in about a minute. Say so above the list and ask for it, rather than
+    // showing one row as if that were the week.
+    let writingMore = 0;
+    if (businessJustOnboarded(business.created_at)) {
+      const [count, opportunities] = await Promise.all([
+        repo.countWeekPicks(business.id, week),
+        repo.listOpportunities(business.id, week),
+      ]);
+      const expected = eligibleWeekOpportunities(opportunities).length;
+      if (count === 1 && expected > 1) {
+        writingMore = expected - 1;
+        await kickWeekJob(business.id, { now: requestTime() });
+      }
+    }
     return (
       <div className="page picks">
         <AlertBar alerts={unreadAlerts} />
@@ -111,6 +134,13 @@ export default async function PicksPage() {
             <p className="context">{weekRange}</p>
           </div>
         </div>
+        {writingMore > 0 && (
+          <p className="wk-more" role="status">
+            <span className="wk-progress__mark is-live" aria-hidden="true" />
+            Your first pick is ready. The other {writingMore} land in about a minute; this page refreshes itself.
+            <AutoRefresh everyMs={6000} times={30} />
+          </p>
+        )}
         <ol className="picks-list" aria-label={`Picks for ${weekRange}, ranked`}>
           {rows.map(({ pick, run }) => (
             <li key={pick.id}>
@@ -134,6 +164,8 @@ export default async function PicksPage() {
     const briefInFlight = !brief && briefLikelyInFlight(business.created_at);
     if (!briefInFlight) await kickWeekJob(business.id, { now });
     const current = progress.steps.find((s) => s.state === "current");
+    const { analysis, found } = progress;
+    const firstPickMin = Math.max(1, Math.ceil(progress.remainingSec / 60));
     return (
       <div className="page picks">
         <AutoRefresh everyMs={6000} times={100} />
@@ -142,42 +174,112 @@ export default async function PicksPage() {
             <span className="eyebrow m-0">This week · {weekRange}</span>
             <h1>{current?.label ?? "Getting your first picks ready"}</h1>
             <p className="context">
-              Your first picks take about five minutes: TRND reads your customers, your category and your competitors
-              before it grades anything. Each step fills in as it finishes and this page refreshes itself
-              {isEmailConfigured ? ", and you get one email when the picks are written" : ""}.
+              Your first pick lands in about {firstPickMin} minute{firstPickMin === 1 ? "" : "s"}, the rest of the week
+              a minute after. TRND reads your customers, your category and your competitors before it grades anything,
+              and what it finds shows up here as it lands
+              {isEmailConfigured ? ". You get one email when the picks are written" : ""}.
             </p>
           </div>
         </div>
-        <div className="panel max-w-[680px]">
-          <ol className="wk-progress" aria-label="Progress">
-            {progress.steps.map((step) => (
-              <li key={step.key} className={`wk-progress__row is-${step.state}`}>
-                <span className="wk-progress__mark" aria-hidden="true" />
-                <span className="wk-progress__text">
-                  <span className="wk-progress__label">{step.label}</span>
-                  {step.detail && <span className="wk-progress__detail">{step.detail}</span>}
-                </span>
-              </li>
-            ))}
-          </ol>
-          {progress.ranked.length > 0 && (
-            <div className="wk-ranked">
-              <p className="mono-label">This week&apos;s opportunities, being written up</p>
-              <ul className="wk-ranked__list">
-                {progress.ranked.map((r) => (
-                  <li key={r.term}>
-                    <span className="wk-ranked__term">{sentenceCase(r.term)}</span>
-                    {r.grade && <span className="picks-grade is-amber">{r.grade}</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {brief && (
-            <Link className="btn btn-ghost btn-sm mt-[18px]" href="/app/snapshot">
-              View the analysis
-            </Link>
-          )}
+        <div className="wk">
+          <section className="panel wk-main" aria-label="What TRND has found so far">
+            {analysis ? (
+              <div className="wk-analysis">
+                <p className="mono-label">Your analysis</p>
+                <p className="wk-analysis__positioning">{analysis.positioning}</p>
+                {analysis.who && (
+                  <p className="wk-analysis__who">
+                    <b>Who buys:</b> {analysis.who}
+                  </p>
+                )}
+                {analysis.watchTerms.length > 0 && (
+                  <ul className="wk-chips" aria-label="Terms being watched">
+                    {analysis.watchTerms.map((t) => (
+                      <li key={t}>{sentenceCase(t)}</li>
+                    ))}
+                  </ul>
+                )}
+                {brief && (
+                  <Link className="wk-analysis__link" href="/app/snapshot">
+                    Read the full analysis
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="wk-analysis is-pending" aria-busy="true">
+                <p className="mono-label">Your analysis</p>
+                <div className="skeleton h-[14px] w-[90%]" />
+                <div className="skeleton h-[14px] w-[76%]" />
+                <div className="skeleton h-[14px] w-[58%]" />
+              </div>
+            )}
+
+            {found.terms.length > 0 && (
+              <div className="wk-found">
+                <p className="mono-label">Rising right now</p>
+                <ul className="wk-found__list">
+                  {found.terms.map((t) => (
+                    <li key={t.term}>
+                      <span className="wk-found__term">{sentenceCase(t.term)}</span>
+                      <span className="wk-found__delta">↑{t.deltaPct}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {found.rivals.length > 0 && (
+              <div className="wk-found">
+                <p className="mono-label">Competitors being read</p>
+                <ul className="wk-found__list">
+                  {found.rivals.map((r) => (
+                    <li key={r.name}>
+                      <span className="wk-found__term">{sentenceCase(r.name)}</span>
+                      {r.ads !== null && (
+                        <span className="wk-found__meta">
+                          {r.ads} active ad{r.ads === 1 ? "" : "s"}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {progress.ranked.length > 0 && (
+              <div className="wk-ranked">
+                <p className="mono-label">This week&apos;s opportunities, being written up</p>
+                <ul className="wk-ranked__list">
+                  {progress.ranked.map((r) => (
+                    <li key={r.term}>
+                      <span className="wk-ranked__term">{sentenceCase(r.term)}</span>
+                      {r.grade && <span className="picks-grade is-amber">{r.grade}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+
+          <aside className="panel wk-side" aria-label="Progress">
+            <WeekClock startedAt={business.created_at} remainingSec={progress.remainingSec} />
+            <ol className="wk-progress">
+              {progress.steps.map((step) => (
+                <li key={step.key} className={`wk-progress__row is-${step.state}`}>
+                  <span className="wk-progress__mark" aria-hidden="true" />
+                  <span className="wk-progress__text">
+                    <span className="wk-progress__label">
+                      {step.label}
+                      {step.state === "current" && (
+                        <span className="wk-progress__typical"> · usually about {step.typicalSec}s</span>
+                      )}
+                    </span>
+                    {step.detail && <span className="wk-progress__detail">{step.detail}</span>}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </aside>
         </div>
       </div>
     );

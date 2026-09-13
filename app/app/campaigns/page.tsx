@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import StatusTimeline from "@/components/app/status-timeline";
+import ListRuns from "@/components/picks/list-runs";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import type { Campaign } from "@/lib/db/types";
@@ -24,7 +25,11 @@ export default async function CampaignsPage() {
   const business = await repo.getBusinessByOwner(user.id);
   if (!business) redirect("/onboarding");
 
-  const campaigns = await repo.listCampaigns(business.id);
+  const [campaigns, pickRuns] = await Promise.all([
+    repo.listCampaigns(business.id),
+    // A pick someone said they are running belongs here beside the campaigns.
+    repo.listPickRuns(business.id),
+  ]);
   const signalTermByCampaign = new Map<string, string | null>(
     await Promise.all(
       campaigns.map(async (c) => {
@@ -57,14 +62,15 @@ export default async function CampaignsPage() {
         </div>
       </div>
 
-      {campaigns.length === 0 && (
+      <ListRuns runs={pickRuns} />
+
+      {campaigns.length === 0 && pickRuns.length === 0 && (
         <div className="panel max-w-[620px]">
           <p className="mx-0 mt-0 mb-4 text-ink-soft text-[14.5px] leading-[1.6]">
-            No campaigns yet. Your first one is a single click from this week&apos;s
-            recommendation — finished copy, scripts, and targeting included.
+            Nothing running yet. When you run one of this week&apos;s picks, it shows up here.
           </p>
-          <Link href="/app" className="btn btn-primary btn-sm">
-            See this week&apos;s recommendation
+          <Link href="/app/picks" className="btn btn-primary btn-sm">
+            See this week&apos;s picks
           </Link>
         </div>
       )}

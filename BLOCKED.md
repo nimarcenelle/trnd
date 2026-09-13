@@ -188,3 +188,12 @@ What the customer, competitive, cultural and brand signals need that code cannot
   Set `STRIPE_PRICE_BASELINE` to the new price id.
 - **Meta ad account history**: syncing every ad a brand ran needs the existing `ads_read`
   scope through App Review for accounts outside the app's testers.
+
+## Picks rebuild (2026-09-12)
+
+- **Migration 0023** (`supabase/migrations/0023_picks.sql`): the `picks`, `pick_evidence`,
+  `pick_scripts`, `pick_feedback` and `pick_runs` tables with RLS, and the
+  `replace_week_picks()` function the weekly job writes through. Paste it into the Supabase
+  SQL editor before deploying the picks pages; it is idempotent. Until it runs, the list reads
+  as empty (the repo treats missing tables as no rows) and the weekly job's write fails and is
+  logged, so no picks appear.

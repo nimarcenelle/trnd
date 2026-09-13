@@ -14,6 +14,14 @@ import type {
   Learning,
   AdHistory,
   NewAdHistory,
+  BrandPick,
+  NewPickBundle,
+  NewPickFeedback,
+  NewPickRun,
+  PickDetail,
+  PickFeedback,
+  PickRun,
+  PickRunStatus,
   NewAlert,
   NewBusiness,
   NewBusinessBrief,
@@ -190,6 +198,22 @@ export interface Repo {
   upsertAdHistory(inputs: NewAdHistory[]): Promise<number>;
   listAdHistory(businessId: string): Promise<AdHistory[]>;
   deleteAdHistory(businessId: string, opts?: { source?: AdHistory["source"] }): Promise<number>;
+
+  /* picks — the week's ads, written whole by the weekly job */
+  /** Replaces a week's picks (keeping any with a run or a dismissal) in one
+   * transaction. A pick without three scripts and one evidence row is stored
+   * as a draft whatever status it asked for. Returns the new pick ids. */
+  replaceWeekPicks(businessId: string, weekOf: string, picks: NewPickBundle[]): Promise<string[]>;
+  /** The week's ready picks by rank, dismissed ones left out, each with its
+   * latest run. */
+  listReadyPicks(businessId: string, weekOf: string): Promise<{ pick: BrandPick; run: PickRun | null }[]>;
+  /** One pick with its evidence, scripts, latest run and dismissal state. */
+  getPickDetail(pickId: string): Promise<PickDetail | null>;
+  createPickFeedback(input: NewPickFeedback): Promise<PickFeedback>;
+  createPickRun(input: NewPickRun): Promise<PickRun>;
+  updatePickRun(id: string, patch: Partial<Pick<PickRun, "status" | "ended_at" | "spend_usd" | "result_note">> & { status?: PickRunStatus }): Promise<PickRun>;
+  /** Every run for a business, newest first, with its pick. */
+  listPickRuns(businessId: string): Promise<{ run: PickRun; pick: BrandPick }[]>;
 
   /* alerts — proactive nudges, deduped by key */
   /** No-ops on an existing dedupe_key. Returns the alert when newly created. */

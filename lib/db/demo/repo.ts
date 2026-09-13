@@ -4,6 +4,12 @@ import type { Repo } from "../repo";
 import type {
   AdHistory,
   Alert,
+  BrandPick,
+  NewPickBundle,
+  NewPickFeedback,
+  NewPickRun,
+  PickFeedback,
+  PickRun,
   Business,
   BusinessBrief,
   Campaign,
@@ -843,6 +849,111 @@ export function createDemoRepo(actor: DemoActor): Repo {
       const removed = before - store.ad_history.length;
       if (removed) saveStore();
       return removed;
+    },
+
+    /* -------------------------------- picks --------------------------------- */
+    async replaceWeekPicks(businessId: string, weekOf: string, bundles: NewPickBundle[]) {
+      assertOwnsBusiness(businessId);
+      store.picks ??= [];
+      store.pick_evidence ??= [];
+      store.pick_scripts ??= [];
+      store.pick_feedback ??= [];
+      store.pick_runs ??= [];
+      // Same rule as replace_week_picks(): a pick someone acted on stays.
+      const acted = new Set([...store.pick_runs.map((r) => r.pick_id), ...store.pick_feedback.map((f) => f.pick_id)]);
+      const removed = new Set(
+        store.picks.filter((p) => p.business_id === businessId && p.week_of === weekOf && !acted.has(p.id)).map((p) => p.id),
+      );
+      store.picks = store.picks.filter((p) => !removed.has(p.id));
+      store.pick_evidence = store.pick_evidence.filter((e) => !removed.has(e.pick_id));
+      store.pick_scripts = store.pick_scripts.filter((sc) => !removed.has(sc.pick_id));
+      const ids: string[] = [];
+      for (const bundle of bundles) {
+        const id = randomUUID();
+        const ready = bundle.scripts.length >= 3 && bundle.evidence.length >= 1;
+        const row: BrandPick = {
+          ...bundle.pick,
+          id,
+          business_id: businessId,
+          week_of: weekOf,
+          status: ready ? bundle.pick.status : "draft",
+          created_at: nowIso(),
+        };
+        store.picks.push(row);
+        bundle.evidence.forEach((e, i) => store.pick_evidence!.push({ ...e, id: randomUUID(), pick_id: id, position: i }));
+        bundle.scripts.forEach((sc, i) => store.pick_scripts!.push({ ...sc, id: randomUUID(), pick_id: id, position: i }));
+        ids.push(id);
+      }
+      saveStore();
+      return ids;
+    },
+    async listReadyPicks(businessId, weekOf) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      const dismissed = new Set((store.pick_feedback ?? []).filter((f) => f.action === "dismissed").map((f) => f.pick_id));
+      return (store.picks ?? [])
+        .filter((p) => p.business_id === businessId && p.week_of === weekOf && p.status === "ready" && !dismissed.has(p.id))
+        .sort((a, b) => a.rank - b.rank)
+        .map((pick) => ({
+          pick,
+          run:
+            [...(store.pick_runs ?? [])]
+              .filter((r) => r.pick_id === pick.id)
+              .sort((a, b) => b.started_at.localeCompare(a.started_at))[0] ?? null,
+        }));
+    },
+    async getPickDetail(pickId) {
+      const pick = (store.picks ?? []).find((p) => p.id === pickId);
+      if (!pick || !visibleBusinessIds().has(pick.business_id)) return null;
+      return {
+        pick,
+        evidence: (store.pick_evidence ?? []).filter((e) => e.pick_id === pickId).sort((a, b) => a.position - b.position),
+        scripts: (store.pick_scripts ?? []).filter((sc) => sc.pick_id === pickId).sort((a, b) => a.position - b.position),
+        run:
+          [...(store.pick_runs ?? [])]
+            .filter((r) => r.pick_id === pickId)
+            .sort((a, b) => b.started_at.localeCompare(a.started_at))[0] ?? null,
+        dismissed: (store.pick_feedback ?? []).some((f) => f.pick_id === pickId && f.action === "dismissed"),
+      };
+    },
+    async createPickFeedback(input: NewPickFeedback) {
+      assertOwnsBusiness(input.business_id);
+      store.pick_feedback ??= [];
+      const row: PickFeedback = { ...input, id: randomUUID(), created_at: nowIso() };
+      store.pick_feedback.push(row);
+      saveStore();
+      return row;
+    },
+    async createPickRun(input: NewPickRun) {
+      assertOwnsBusiness(input.business_id);
+      store.pick_runs ??= [];
+      const row: PickRun = {
+        ...input,
+        id: randomUUID(),
+        started_at: input.started_at ?? nowIso(),
+        ended_at: input.ended_at ?? null,
+        spend_usd: input.spend_usd ?? null,
+        result_note: input.result_note ?? null,
+        meta_campaign_id: input.meta_campaign_id ?? null,
+      };
+      store.pick_runs.push(row);
+      saveStore();
+      return row;
+    },
+    async updatePickRun(id, patch) {
+      const row = (store.pick_runs ?? []).find((r) => r.id === id);
+      if (!row) throw new OwnershipError(`pick run ${id} not found`);
+      assertOwnsBusiness(row.business_id);
+      Object.assign(row, patch);
+      saveStore();
+      return row;
+    },
+    async listPickRuns(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      const picks = new Map((store.picks ?? []).map((p) => [p.id, p]));
+      return (store.pick_runs ?? [])
+        .filter((r) => r.business_id === businessId && picks.has(r.pick_id))
+        .sort((a, b) => b.started_at.localeCompare(a.started_at))
+        .map((run) => ({ run, pick: picks.get(run.pick_id)! }));
     },
 
     /* -------------------------------- alerts ------------------------------ */

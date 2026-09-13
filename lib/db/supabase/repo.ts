@@ -2,6 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Repo } from "../repo";
 import type {
+  BrandPick,
+  PickEvidence,
+  PickRun,
+  PickScript,
+  PickFeedback,
   AdHistory,
   Business,
   BusinessBrief,
@@ -757,6 +762,93 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       const { count, error } = await q;
       throwIf(error, "deleteAdHistory");
       return count ?? 0;
+    },
+
+    async replaceWeekPicks(businessId, weekOf, picks) {
+      // One call, one transaction: see replace_week_picks() in 0023_picks.sql.
+      const { data, error } = await sb.rpc("replace_week_picks", {
+        p_business_id: businessId,
+        p_week_of: weekOf,
+        p_picks: picks,
+      });
+      throwIf(error, "replaceWeekPicks");
+      return ((data ?? []) as unknown[]).map((v) =>
+        String(v !== null && typeof v === "object" ? Object.values(v as Record<string, unknown>)[0] : v),
+      );
+    },
+    async listReadyPicks(businessId, weekOf) {
+      const { data, error } = await sb
+        .from("picks")
+        .select("*")
+        .eq("business_id", businessId)
+        .eq("week_of", weekOf)
+        .eq("status", "ready")
+        .order("rank");
+      throwUnlessMissing(error, "listReadyPicks");
+      const picks = (data ?? []) as BrandPick[];
+      if (picks.length === 0) return [];
+      const ids = picks.map((p) => p.id);
+      const [feedback, runs] = await Promise.all([
+        sb.from("pick_feedback").select("pick_id").in("pick_id", ids).eq("action", "dismissed"),
+        sb.from("pick_runs").select("*").in("pick_id", ids).order("started_at", { ascending: false }),
+      ]);
+      throwUnlessMissing(feedback.error, "listReadyPicks:feedback");
+      throwUnlessMissing(runs.error, "listReadyPicks:runs");
+      const dismissed = new Set(((feedback.data ?? []) as { pick_id: string }[]).map((r) => r.pick_id));
+      const latest = new Map<string, PickRun>();
+      for (const r of (runs.data ?? []) as PickRun[]) if (!latest.has(r.pick_id)) latest.set(r.pick_id, r);
+      return picks.filter((p) => !dismissed.has(p.id)).map((pick) => ({ pick, run: latest.get(pick.id) ?? null }));
+    },
+    async getPickDetail(pickId) {
+      const { data, error } = await sb.from("picks").select("*").eq("id", pickId).maybeSingle();
+      throwUnlessMissing(error, "getPickDetail");
+      if (!data) return null;
+      const [evidence, scripts, runs, feedback] = await Promise.all([
+        sb.from("pick_evidence").select("*").eq("pick_id", pickId).order("position"),
+        sb.from("pick_scripts").select("*").eq("pick_id", pickId).order("position"),
+        sb.from("pick_runs").select("*").eq("pick_id", pickId).order("started_at", { ascending: false }).limit(1),
+        sb.from("pick_feedback").select("id").eq("pick_id", pickId).eq("action", "dismissed").limit(1),
+      ]);
+      throwIf(evidence.error, "getPickDetail:evidence");
+      throwIf(scripts.error, "getPickDetail:scripts");
+      throwUnlessMissing(runs.error, "getPickDetail:runs");
+      throwUnlessMissing(feedback.error, "getPickDetail:feedback");
+      return {
+        pick: data as BrandPick,
+        evidence: (evidence.data ?? []) as PickEvidence[],
+        scripts: (scripts.data ?? []) as PickScript[],
+        run: (((runs.data ?? []) as PickRun[])[0] ?? null),
+        dismissed: (feedback.data ?? []).length > 0,
+      };
+    },
+    async createPickFeedback(input) {
+      const { data, error } = await sb.from("pick_feedback").insert(input).select().single();
+      throwIf(error, "createPickFeedback");
+      return data as PickFeedback;
+    },
+    async createPickRun(input) {
+      const { data, error } = await sb.from("pick_runs").insert(input).select().single();
+      throwIf(error, "createPickRun");
+      return data as PickRun;
+    },
+    async updatePickRun(id, patch) {
+      const { data, error } = await sb.from("pick_runs").update(patch).eq("id", id).select().single();
+      throwIf(error, "updatePickRun");
+      return data as PickRun;
+    },
+    async listPickRuns(businessId) {
+      const { data, error } = await sb
+        .from("pick_runs")
+        .select("*")
+        .eq("business_id", businessId)
+        .order("started_at", { ascending: false });
+      throwUnlessMissing(error, "listPickRuns");
+      const runs = (data ?? []) as PickRun[];
+      if (runs.length === 0) return [];
+      const picks = await sb.from("picks").select("*").in("id", [...new Set(runs.map((r) => r.pick_id))]);
+      throwUnlessMissing(picks.error, "listPickRuns:picks");
+      const byId = new Map(((picks.data ?? []) as BrandPick[]).map((p) => [p.id, p]));
+      return runs.filter((r) => byId.has(r.pick_id)).map((run) => ({ run, pick: byId.get(run.pick_id)! }));
     },
 
     async createAlert(input) {

@@ -457,6 +457,116 @@ export interface DemoRequest {
   created_at: string;
 }
 
+/* ---------------------------------- picks ---------------------------------- */
+
+export type PickStatus = "draft" | "ready" | "published";
+export type PickSignal = "customer" | "culture" | "competitive" | "brand";
+export type PickMetricWindow = "week" | "30d";
+export type PickDismissReason = "wrong_customer" | "already_tried" | "off_brand" | "cant_shoot" | "other";
+export type PickRunStatus = "running" | "completed" | "killed";
+
+/** One beat of a script: what the camera sees, what is on screen, what is said. */
+export interface PickBeat {
+  visual: string;
+  on_screen_text: string;
+  vo: string;
+}
+
+/**
+ * A week's pick, written whole by the weekly job: the finding (the mismatch
+ * between the customer's words and the brand's), exactly one metric, the bet
+ * with its kill rule, and an optional guardrail. Named BrandPick because
+ * TypeScript already owns `Pick`.
+ */
+export interface BrandPick {
+  id: string;
+  business_id: string;
+  opportunity_id: string | null;
+  week_of: string; // yyyy-mm-dd (Monday)
+  rank: number; // 1..5
+  geo: string;
+  term: string;
+  finding: string;
+  metric_label: string;
+  metric_value: number | null;
+  metric_delta_pct: number | null;
+  metric_window: PickMetricWindow;
+  sparkline: { d: string; v: number }[];
+  bet_what: string;
+  bet_budget_usd: number;
+  bet_duration_days: number;
+  bet_kill_rule: string;
+  guardrail: string | null;
+  status: PickStatus;
+  created_at: string;
+}
+
+export interface PickEvidence {
+  id: string;
+  pick_id: string;
+  signal: PickSignal;
+  claim: string;
+  source_url: string | null;
+  source_label: string | null;
+  position: number;
+}
+
+export interface PickScript {
+  id: string;
+  pick_id: string;
+  position: number;
+  variant_label: string;
+  thesis: string;
+  hook: string;
+  beats: PickBeat[];
+  cta: string;
+  duration_seconds: number;
+}
+
+export interface PickFeedback {
+  id: string;
+  pick_id: string;
+  business_id: string;
+  user_id: string | null;
+  action: "running" | "dismissed";
+  reason: PickDismissReason | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface PickRun {
+  id: string;
+  pick_id: string;
+  business_id: string;
+  status: PickRunStatus;
+  started_at: string;
+  ended_at: string | null;
+  spend_usd: number | null;
+  result_note: string | null;
+  /** Reserved for the ad-account integration. */
+  meta_campaign_id: string | null;
+}
+
+/** What the weekly job hands the database for one pick. */
+export interface NewPickBundle {
+  pick: Omit<BrandPick, "id" | "business_id" | "week_of" | "created_at">;
+  evidence: Omit<PickEvidence, "id" | "pick_id" | "position">[];
+  scripts: Omit<PickScript, "id" | "pick_id" | "position">[];
+}
+
+/** A pick with everything the detail page renders, read in one go. */
+export interface PickDetail {
+  pick: BrandPick;
+  evidence: PickEvidence[];
+  scripts: PickScript[];
+  run: PickRun | null;
+  dismissed: boolean;
+}
+
+export type NewPickFeedback = Omit<PickFeedback, "id" | "created_at">;
+export type NewPickRun = Omit<PickRun, "id" | "started_at" | "ended_at" | "spend_usd" | "result_note" | "meta_campaign_id"> &
+  Partial<Pick<PickRun, "started_at" | "ended_at" | "spend_usd" | "result_note" | "meta_campaign_id">>;
+
 /* ------------------------------ insert shapes ------------------------------ */
 
 export type NewBusiness = Omit<Business, "id" | "created_at" | "social_handles" | "market" | "monthly_ad_spend" | "ad_platforms"> & {

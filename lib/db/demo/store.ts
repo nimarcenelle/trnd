@@ -4,6 +4,11 @@ import path from "node:path";
 import type {
   AdHistory,
   Alert,
+  BrandPick,
+  PickEvidence,
+  PickFeedback,
+  PickRun,
+  PickScript,
   Business,
   BusinessBrief,
   Campaign,
@@ -66,6 +71,11 @@ export interface DemoStore {
   demo_requests: DemoRequest[];
   social_posts?: SocialPost[];
   ad_history?: AdHistory[];
+  picks?: BrandPick[];
+  pick_evidence?: PickEvidence[];
+  pick_scripts?: PickScript[];
+  pick_feedback?: PickFeedback[];
+  pick_runs?: PickRun[];
 }
 
 function emptyStore(): DemoStore {

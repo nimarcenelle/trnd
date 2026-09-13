@@ -3,6 +3,7 @@ import { decideMarket, hasStreetAddress } from "@/lib/onboarding/market";
 import type { OnboardingDocument } from "@/lib/onboarding/menu-doc";
 import { verticalKey } from "@/lib/signals/vertical";
 
+import { fetchViaReader, isRefusal } from "./reader";
 import type { Renderer } from "./render";
 import { poolSocialHandles } from "./social-links";
 
@@ -100,19 +101,41 @@ async function fetchOnce(url: string): Promise<string> {
   }
 }
 
-/** One fetch, then a single www./bare-host variant retry — nothing noisier. */
+/**
+ * One fetch, then a single www./bare-host variant retry. A refusal (a WAF
+ * 403, or a 200 that is only a challenge page) goes to the reader proxy,
+ * which renders the page in a browser on its side (lib/import/reader.ts).
+ * A blocked page that the reader cannot read either comes back as it was,
+ * so callers' looksBlocked checks still see it.
+ */
 export async function fetchSiteHtml(url: string): Promise<string> {
-  try {
-    return await fetchOnce(url);
-  } catch (first) {
-    const u = new URL(url);
-    u.hostname = u.hostname.startsWith("www.") ? u.hostname.slice(4) : `www.${u.hostname}`;
+  const direct = async (target: string): Promise<{ html: string | null; error: unknown }> => {
     try {
-      return await fetchOnce(u.toString());
-    } catch {
-      throw first;
+      return { html: await fetchOnce(target), error: null };
+    } catch (error) {
+      return { html: null, error };
+    }
+  };
+  const first = await direct(url);
+  if (first.html && !looksBlocked(first.html)) return first.html;
+
+  const refused = first.html ? true : isRefusal(first.error);
+  if (refused) {
+    try {
+      const rendered = await fetchViaReader(url, "html");
+      if (!looksBlocked(rendered)) return rendered;
+    } catch (err) {
+      console.warn(`[import] reader fallback failed for ${url}:`, (err as Error).message);
     }
   }
+
+  const u = new URL(url);
+  u.hostname = u.hostname.startsWith("www.") ? u.hostname.slice(4) : `www.${u.hostname}`;
+  const second = await direct(u.toString());
+  if (second.html && !looksBlocked(second.html)) return second.html;
+
+  if (first.html) return first.html;
+  throw first.error;
 }
 
 /* ------------------------------ site crawl ------------------------------ */

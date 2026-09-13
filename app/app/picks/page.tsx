@@ -8,35 +8,22 @@ import AnalysisProgress from "@/components/app/analysis-progress";
 import AutoRefresh from "@/components/app/auto-refresh";
 import SubmitButton from "@/components/app/submit-button";
 import ListRow from "@/components/picks/list-row";
-import {
-  BRIEF_FALLBACK_MODEL,
-  BRIEF_PROMPT_VERSION,
-  briefLikelyInFlight,
-  businessJustOnboarded,
-  generateBusinessBrief,
-} from "@/lib/ai/brief";
+import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
-import { getAdminRepo } from "@/lib/db/admin";
-import type { Alert, Business } from "@/lib/db/types";
+import type { Alert } from "@/lib/db/types";
 import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { markAlertsReadAction } from "@/lib/intel/actions";
-import { dueForKick, generationDecision, weekRangeLabel, type GenerationEntry } from "@/lib/picks/list";
+import { nextWeekStage } from "@/lib/picks/advance-week";
+import { kickWeekJob } from "@/lib/picks/kick";
+import { dueForKick, weekRangeLabel } from "@/lib/picks/list";
 import { weekOf } from "@/lib/recommend/week";
 import { isOnlineBusiness } from "@/lib/signals/geo";
 import { titleCase } from "@/lib/text";
 
 export const metadata = { title: "This week — TRND" };
 
-/*
- * Per-process memory of the background kicks this page makes. The repo can
- * list a week's ready picks but not its drafts, so "this week holds no picks
- * at all" cannot be read back. Without this, a week the job wrote only drafts
- * for would regenerate on every silent refresh. A second instance may kick
- * once more; the weekly job replaces the week either way, so that costs a
- * run, never a loop.
- */
-const generation = new Map<string, GenerationEntry>();
+// Per-process memory of the last analysis refresh this page asked for.
 const briefKicks = new Map<string, number>();
 const BRIEF_KICK_WINDOW_MS = 15 * 60_000;
 
@@ -46,53 +33,10 @@ function requestTime(): number {
   return Date.now();
 }
 
-// The list page never calls a model on the request path. Everything that
-// writes (the analysis, the market read, the picks) runs here, after the
-// response, on the service repo: ranking and picks write tables RLS keeps
-// read-only for user sessions.
-function kickWeekPicks(business: Business, week: string, opts: { scanFirst: boolean; healBrief: boolean }) {
-  const key = `${business.id}:${week}`;
-  generation.set(key, { state: "running", at: Date.now() });
-  after(async () => {
-    const jobRepo = getAdminRepo();
-    try {
-      if (opts.healBrief) {
-        // The onboarding write died somewhere. Picks are judged against the
-        // analysis, so it comes first.
-        await jobRepo.upsertBusinessBrief(
-          await generateBusinessBrief(business, await jobRepo.listServices(business.id)),
-        );
-      }
-      if (opts.scanFirst) {
-        // A fresh signup whose onboarding scan hiccuped: read the market
-        // before writing picks about it.
-        const { runSignalIngestForBusiness } = await import("@/lib/signals/ingest");
-        await runSignalIngestForBusiness(jobRepo, business);
-      }
-      if (opts.healBrief || opts.scanFirst) {
-        const { rerankWeek } = await import("@/lib/recommend/rerank");
-        await rerankWeek(jobRepo, business);
-      } else if ((await jobRepo.listOpportunities(business.id, week)).length === 0) {
-        // First visit of the week before the cron: pull the market reads and
-        // rank them so the picks have something to be written from.
-        try {
-          const { ensureIntelFresh } = await import("@/lib/intel/ingest");
-          await ensureIntelFresh(jobRepo, business);
-        } catch (err) {
-          console.warn("[picks] first-visit intel refresh failed (non-fatal):", (err as Error).message);
-        }
-        const { recommendForBusiness } = await import("@/lib/recommend/recommend");
-        await recommendForBusiness(jobRepo, business);
-      }
-      const { generateWeekPicks } = await import("@/lib/picks/generate");
-      const result = await generateWeekPicks(jobRepo, business);
-      generation.set(key, { state: "done", at: Date.now(), ready: result.ready });
-    } catch (err) {
-      generation.set(key, { state: "done", at: Date.now(), ready: 0 });
-      console.warn("[picks] week generation failed (non-fatal):", (err as Error).message);
-    }
-  });
-}
+// The list page never calls a model on the request path, and never runs
+// the week's chain itself: the week job does, one stage per invocation
+// (lib/picks/advance-week.ts). This page reads what the week still needs
+// and asks for the next stage.
 
 function AlertBar({ alerts }: { alerts: Alert[] }) {
   // What changed since they last looked. One line, above everything: it is
@@ -178,15 +122,12 @@ export default async function PicksPage() {
   }
 
   const where = isOnlineBusiness(business) ? "across the US" : `around ${business.city}`;
-  const key = `${business.id}:${week}`;
 
   // Brand-new business, analysis still being written. The picks are judged
-  // against it, so nothing is written before it lands.
+  // against it, so nothing is written before it lands. Onboarding writes
+  // it; if that died, the week job writes it again.
   if (!brief && isGeminiConfigured) {
-    const inFlight = briefLikelyInFlight(business.created_at);
-    if (!inFlight && generationDecision(generation.get(key), now) === "kick") {
-      kickWeekPicks(business, week, { scanFirst: false, healBrief: true });
-    }
+    if (!briefLikelyInFlight(business.created_at)) kickWeekJob(business.id, { now });
     return (
       <div className="page picks">
         <AutoRefresh everyMs={8000} times={60} />
@@ -211,19 +152,12 @@ export default async function PicksPage() {
     );
   }
 
-  // Analysis done, this week's picks not written yet. Kick once, then wait.
-  const decision = brief ? generationDecision(generation.get(key), now) : "settled";
-  if (decision === "kick" && brief) {
-    // Only a freshly onboarded business with no reads today gets a market
-    // scan first: that is the signup whose own scan hiccuped, and the guard
-    // keeps a quiet market from buying a paid scan on every visit.
-    const scanFirst =
-      isSupabaseConfigured &&
-      businessJustOnboarded(business.created_at) &&
-      (await repo.listSignalsForCategory(business.category, { sinceDays: 1 })).length === 0;
-    kickWeekPicks(business, week, { scanFirst, healBrief: false });
-  }
-  if (decision !== "settled") {
+  // What the week still needs, read from the database: nothing in memory
+  // decides whether an owner sees "writing" or "no picks". A stage left to
+  // run means the week is still being written, and the job is asked for it.
+  const stage = await nextWeekStage(repo, business, { scanAllowed: isSupabaseConfigured });
+  if (stage !== "done") {
+    kickWeekJob(business.id, { now });
     return (
       <div className="page picks">
         <AutoRefresh everyMs={8000} times={60} />

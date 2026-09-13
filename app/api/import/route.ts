@@ -234,7 +234,7 @@ export async function POST(req: Request): Promise<Response> {
         const foundAnything =
           Boolean(data.name || data.category || data.city) || data.services.length > 0;
         if (!foundAnything) {
-          send({ type: "error", reason: "Reached the site but couldn't read offerings — fill in manually." });
+          send({ type: "error", reason: "Reached the site but couldn't read offerings. Fill in manually." });
         } else {
           send({
             type: "final",
@@ -246,7 +246,7 @@ export async function POST(req: Request): Promise<Response> {
       } catch (err) {
         send({
           type: "error",
-          reason: `Couldn't reach the site (${(err as Error).message.slice(0, 60)}) — fill in the details manually.`,
+          reason: `Couldn't reach the site (${(err as Error).message.slice(0, 60)}). Fill in the details manually.`,
         });
       } finally {
         controller.close();

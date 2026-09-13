@@ -1,4 +1,5 @@
 import { probeStorefrontProducts } from "./website";
+import { fetchViaReader, isRefusal } from "@/lib/import/reader";
 
 /**
  * A storefront's own catalog, used to price what the site names.
@@ -237,6 +238,9 @@ async function fetchJsonDefault(url: string): Promise<unknown> {
     },
     redirect: "follow",
   });
+  // A storefront behind a bot wall refuses the JSON too; the reader proxy
+  // fetches it from a browser and hands the text back untouched.
+  if (isRefusal(new Error(`HTTP ${res.status}`))) return JSON.parse(await fetchViaReader(url, "text"));
   if (!res.ok || !/json/i.test(res.headers.get("content-type") ?? "")) throw new Error(`catalog ${res.status}`);
   return res.json();
 }

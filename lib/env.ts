@@ -43,6 +43,8 @@ export const env = {
   /** Apify — the paid per-term TikTok read. Without it TikTok degrades to
    * the keyless national Creative Center board. */
   apifyToken: process.env.APIFY_TOKEN ?? "",
+  /** Optional: raises the reader proxy's rate limit (lib/import/reader.ts). */
+  jinaApiKey: process.env.JINA_API_KEY ?? "",
   apifyTiktokActor: process.env.APIFY_TIKTOK_ACTOR ?? "",
   /** Apify actors for the social and rival-ad reads. Each has a documented
    * default in its adapter; these exist because actors get renamed. */

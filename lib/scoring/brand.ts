@@ -20,7 +20,7 @@ import {
 const clamp = (n: number, lo = 0, hi = 100) => Math.min(hi, Math.max(lo, n));
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-export const BRAND_LOW_NOTE = "No ad history or posts to learn from yet";
+export const BRAND_LOW_NOTE = "Your ads and posts haven't been read yet";
 export const BRAND_THIN_NOTE = "Too little of your own history on this to lean on yet";
 export const BRAND_HIGH_MIN_ADS = 10;
 
@@ -94,7 +94,7 @@ export function scoreBrand(input: BrandInput): SignalScore {
 
   // Organic validation.
   let organic: number | null = null;
-  let organicDetail = input.organic.posts > 0 ? "None of your recent posts were on this" : "No posts of yours read yet";
+  let organicDetail = input.organic.posts > 0 ? "None of your recent posts were on this" : "Your accounts haven't been read yet";
   if (input.organic.onTermPosts > 0 && input.organic.engagementRatio !== null) {
     organic = engagementScore(input.organic.engagementRatio);
     const n = input.organic.onTermPosts;

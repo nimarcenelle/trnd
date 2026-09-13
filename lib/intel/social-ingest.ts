@@ -31,6 +31,65 @@ function isDirect(c: Competitor): boolean {
   return c.directness === null || c.directness === undefined || c.directness >= DIRECT_MIN;
 }
 
+/** A read of the same public account by another workspace inside this
+ * window is this workspace's read too: the posts are the same posts. */
+const REUSE_DAYS = 7;
+
+/**
+ * The same handle read recently under another business (a brand that signed
+ * up twice, a rival two brands share) is copied rather than scraped again:
+ * one paid read per account per week, and a fresh signup starts with the
+ * posts on day one instead of an empty Brand column.
+ */
+async function reuseRecentRead(
+  repo: Repo,
+  business: Business,
+  competitorId: string | null,
+  platform: SocialPlatform,
+  handle: string,
+  now: number,
+): Promise<number> {
+  const want = handle.toLowerCase();
+  const floor = now - REUSE_DAYS * 86_400_000;
+  let others: Business[] = [];
+  try {
+    others = (await repo.listAllBusinesses()).filter((b) => b.id !== business.id);
+  } catch {
+    return 0;
+  }
+  for (const other of others) {
+    const sources: { competitorId: string | null }[] = [];
+    if (other.social_handles?.[platform]?.toLowerCase() === want) sources.push({ competitorId: null });
+    const rivals = await repo.listCompetitors(other.id).catch(() => []);
+    for (const c of rivals) if (c.social_handles?.[platform]?.toLowerCase() === want) sources.push({ competitorId: c.id });
+    for (const source of sources) {
+      const posts = (await repo.listSocialPosts(other.id, { competitorId: source.competitorId, platform, sinceDays: 120 })).filter(
+        (p) => Date.parse(p.captured_at) >= floor,
+      );
+      if (posts.length === 0) continue;
+      return repo.upsertSocialPosts(
+        posts.map((p) => ({
+          business_id: business.id,
+          competitor_id: competitorId,
+          platform: p.platform,
+          external_id: p.external_id,
+          url: p.url,
+          caption: p.caption,
+          media_type: p.media_type,
+          posted_at: p.posted_at,
+          likes: p.likes,
+          comments: p.comments,
+          shares: p.shares,
+          views: p.views,
+          is_ad: p.is_ad,
+          kind: p.kind,
+        })),
+      );
+    }
+  }
+  return 0;
+}
+
 async function readAccountInto(
   repo: Repo,
   business: Business,
@@ -41,6 +100,10 @@ async function readAccountInto(
 ): Promise<number> {
   const existing = await repo.listSocialPosts(business.id, { competitorId, platform, sinceDays: 120 });
   if (existing.some((p) => now - Date.parse(p.captured_at) < REFRESH_HOURS * 3_600_000)) return 0;
+  const reused = await reuseRecentRead(repo, business, competitorId, platform, handle, now);
+  if (reused > 0) return reused;
+  // Only the scrape itself needs the paid reader; a reuse never does.
+  if (!isSocialReadAvailable()) return 0;
   const drafts = await fetchAccountPosts(platform, handle);
   if (drafts.length === 0) return 0;
   return repo.upsertSocialPosts(
@@ -68,7 +131,6 @@ export async function ingestSocialAccounts(
   competitors: Competitor[],
 ): Promise<SocialIngestSummary> {
   const summary: SocialIngestSummary = { ownPosts: 0, rivalPosts: 0, rivalReads: 0 };
-  if (!isSocialReadAvailable()) return summary;
   const now = Date.now();
 
   for (const platform of PLATFORMS) {

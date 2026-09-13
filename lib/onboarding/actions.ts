@@ -212,58 +212,20 @@ export async function completeOnboardingAction(
       .filter(Boolean)
       .join("\n\n") || undefined;
   after(async () => {
-    // Ingest and ranking write shared tables (signals, signal_series,
-    // opportunities) that RLS keeps read-only for user sessions — the jobs
-    // run on the service repo, same as the crons. Ownership was already
-    // established above through the user-scoped repo.
-    const { getAdminRepo } = await import("@/lib/db/admin");
-    const jobRepo = getAdminRepo();
+    // The analysis reads the site text and menus the import just fetched,
+    // so it is written here. Everything after it (the market scan, the read
+    // of the brand's accounts and rivals, the ranking, the picks) is five
+    // to eight minutes of work the platform would cut short inside this
+    // action: the week job runs it one stage at a time, on its own clock
+    // (lib/picks/advance-week.ts).
     try {
       const brief = await generateBusinessBrief(business, createdServices, siteText);
       await repo.upsertBusinessBrief(brief);
-      // Day-one demand reads for the new watch terms (news, ads, search
-      // volume) — tolerated failure; the ranking works without them.
-      try {
-        const { runSignalIngestForBusiness } = await import("@/lib/signals/ingest");
-        await runSignalIngestForBusiness(jobRepo, business);
-      } catch (err) {
-        console.warn("[onboarding] day-one signal ingest failed (non-fatal):", (err as Error).message);
-      }
-      // The dashboard's first ranking ran before the analysis existed —
-      // re-rank now so it's snapshot-judged, not category-matched.
-      const { rerankWeek } = await import("@/lib/recommend/rerank");
-      await rerankWeek(jobRepo, business, { picks: false });
-      // Day-one picks, so a new brand's first page holds this week's ads.
-      // Written here rather than inside the rerank: this block already runs
-      // after the response, so there is nothing to defer.
-      try {
-        const { generateWeekPicks } = await import("@/lib/picks/generate");
-        const written = await generateWeekPicks(jobRepo, business);
-        console.log(`[onboarding] day-one picks: ${written.ready} ready, ${written.draft} draft`);
-      } catch (err) {
-        console.warn("[onboarding] day-one picks failed (non-fatal):", (err as Error).message);
-      }
     } catch (err) {
       console.warn("[onboarding] brief generation failed (non-fatal):", (err as Error).message);
     }
-    // The rivals an owner would name, found for them — before the first
-    // intel read so day one already holds their ads and ratings.
-    try {
-      const { seedCompetitors } = await import("@/lib/intel/seed-competitors");
-      const seeded = await seedCompetitors(jobRepo, business);
-      if (seeded.note) console.log(`[onboarding] rivals: ${seeded.note}`);
-    } catch (err) {
-      console.warn("[onboarding] rival discovery failed (non-fatal):", (err as Error).message);
-    }
-    // Day-one intel, not cron-day intel: resolve the Google listing, pull
-    // reviews, mine the digest — so Ask and the report have voice-of-customer
-    // from the first session.
-    try {
-      const { runIntelIngestForBusiness } = await import("@/lib/intel/ingest");
-      await runIntelIngestForBusiness(jobRepo, business);
-    } catch (err) {
-      console.warn("[onboarding] intel ingest failed (non-fatal):", (err as Error).message);
-    }
+    const { kickWeekJob } = await import("@/lib/picks/kick");
+    kickWeekJob(business.id);
   });
 
   redirect("/app/picks");

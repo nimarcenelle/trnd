@@ -6,7 +6,7 @@ import ListRuns from "@/components/picks/list-runs";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import type { Campaign } from "@/lib/db/types";
-import { titleCase } from "@/lib/text";
+import { sentenceCase } from "@/lib/text";
 
 export const metadata = { title: "Campaigns — TRND" };
 
@@ -90,7 +90,7 @@ export default async function CampaignsPage() {
                 <Link key={c.id} href={`/app/campaigns/${c.id}`} className="panel block py-5 px-[22px]">
                   {term && (
                     <span className="mono-label text-(--amber-text) block mb-2">
-                      {titleCase(term)}
+                      {sentenceCase(term)}
                     </span>
                   )}
                   <p className="font-disp font-semibold text-[15.5px] mx-0 mt-0 mb-[14px] leading-[1.35]">

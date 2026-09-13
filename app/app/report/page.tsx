@@ -20,7 +20,7 @@ import {
   noteFingerprint,
 } from "@/lib/report/note";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
-import { titleCase } from "@/lib/text";
+import { sentenceCase } from "@/lib/text";
 
 import { isOnlineBusiness } from "@/lib/signals/geo";
 export const metadata = { title: "Intel report — TRND" };
@@ -106,7 +106,7 @@ export default async function ReportPage() {
           <span className="eyebrow m-0">Weekly report · {weekRange}</span>
           <h1>Weekly report</h1>
           <p className="context">
-            <b>{titleCase(business.category)}</b> ·{" "}
+            <b>{sentenceCase(business.category)}</b> ·{" "}
             {isOnlineBusiness(business)
               ? "Online DTC brand, nationwide"
               : `${business.city}${business.region ? `, ${business.region}` : ""} · ${business.radius_miles}-mile radius`}{" "}
@@ -201,7 +201,7 @@ export default async function ReportPage() {
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex gap-[10px] items-center flex-wrap">
-                  <span className="font-disp font-semibold text-[15px]">{titleCase(r.term)}</span>
+                  <span className="font-disp font-semibold text-[15px]">{sentenceCase(r.term)}</span>
                   <SourceBadge source={r.source} metric={r.metric} href={r.sourceUrl} />
                   {typeof r.deltaPct === "number" && <DeltaChip delta={r.deltaPct} />}
                   {r.sparse && (
@@ -390,7 +390,7 @@ export default async function ReportPage() {
                 <tbody>
                   {report.demand.map((d) => (
                     <tr key={d.term}>
-                      <td className="font-disp font-semibold">{titleCase(d.term)}</td>
+                      <td className="font-disp font-semibold">{sentenceCase(d.term)}</td>
                       <td>
                         {d.interestLevel !== null && !d.interestSparse ? (
                           <span className="inline-flex gap-2 items-baseline flex-wrap">
@@ -461,7 +461,7 @@ export default async function ReportPage() {
               {report.competitors.map((c) => (
                 <div className="border border-line rounded-card-sm py-[14px] px-4" key={c.term}>
                   <div className="flex justify-between gap-[10px] items-baseline mb-2">
-                    <span className="font-disp font-semibold text-[13.5px]">{titleCase(c.term)}</span>
+                    <span className="font-disp font-semibold text-[13.5px]">{sentenceCase(c.term)}</span>
                     <span className="mono-label whitespace-nowrap">
                       {c.estimate === null || c.adCount > 300
                         ? `${c.adCount} keyword matches`
@@ -514,7 +514,7 @@ export default async function ReportPage() {
                     borderBottom: i < report.movers.length - 1 ? "1px dashed var(--line)" : "none",
                   }}
                 >
-                  <span className="text-[13.5px] leading-[1.4]">{titleCase(m.term)}</span>
+                  <span className="text-[13.5px] leading-[1.4]">{sentenceCase(m.term)}</span>
                   <DeltaChip delta={m.deltaPct} />
                 </div>
               ))}

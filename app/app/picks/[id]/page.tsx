@@ -9,6 +9,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { buildDetailView, isPickId, viewableDetail, type DetailSection, type DetailView } from "@/lib/picks/detail";
 import { gradeTone, type GradeView } from "@/lib/picks/grade-view";
+import { sentenceCase } from "@/lib/text";
 
 export const metadata = { title: "Pick — TRND" };
 
@@ -69,7 +70,7 @@ function Head({ view }: { view: DetailView }) {
         <span className="mono-label">#{view.rank} this week</span>
       </div>
       <h1 id="pickd-title" className="pickd__title">
-        {view.term}
+        {sentenceCase(view.term)}
       </h1>
       <div className="pickd__top">
         <div className="pickd__col">

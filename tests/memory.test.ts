@@ -122,17 +122,17 @@ describe("what TRND remembers", () => {
     const h = await buildBusinessHistory(user, biz);
     expect(h.weeksRanked).toBe(3);
     const line = h.byTerm.get("korean_glass_skin_facial")!;
-    expect(line).toContain('"Korean Glass Skin Facial": ranked 2 of the last 3 weeks');
+    expect(line).toContain('"Korean glass skin facial": ranked 2 of the last 3 weeks');
     expect(line).toContain("you passed on it last week");
     expect(line).toContain("returned 2.50% clicks, 9 bookings on $180");
     expect(h.lines[0]).toMatch(/^Memory: 3 weeks of rankings on file, 1 ad written, 1 launched, 1 result recorded\./);
 
     // …and the pick's facts, the report's facts, and the Monday note all carry it.
     const facts = await buildPickFacts(user, biz, thisWeek);
-    expect(facts!.text).toContain("Where this pick has been: \"Korean Glass Skin Facial\": ranked 2 of the last 3 weeks");
+    expect(facts!.text).toContain("Where this pick has been: \"Korean glass skin facial\": ranked 2 of the last 3 weeks");
     const report = await buildIntelReport(user, biz);
     expect(report.history.length).toBeGreaterThan(0);
-    expect(reportFacts(report)).toContain("Remembered: \"Korean Glass Skin Facial\"");
+    expect(reportFacts(report)).toContain("Remembered: \"Korean glass skin facial\"");
   });
 
   it("says so in week one instead of inventing a past", async () => {

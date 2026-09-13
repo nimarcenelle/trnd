@@ -3,7 +3,7 @@ import type { Business, Opportunity, Signal } from "@/lib/db/types";
 import { documentFacts } from "@/lib/documents/digest";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { geoLabel, placeWords } from "@/lib/signals/geo";
-import { titleCase } from "@/lib/text";
+import { sentenceCase } from "@/lib/text";
 
 import { bestTheme } from "@/lib/ads/history-read";
 
@@ -66,7 +66,7 @@ export async function buildPickFacts(
 
   const active = weekOpps.filter((o) => o.status !== "dismissed");
   const rank = Math.max(1, active.findIndex((o) => o.id === opportunity.id) + 1);
-  const term = titleCase(signal.term);
+  const term = sentenceCase(signal.term);
   const grade = gradeFor(Number(opportunity.score));
   const matched = services.find((s) => s.id === opportunity.matched_service_id) ?? null;
   // Below the C band floor (5.0 on this column) the grade is a Hold.
@@ -156,7 +156,7 @@ export async function buildPickFacts(
         const s = await repo.getSignal(o.signal_id);
         const svc = services.find((x) => x.id === o.matched_service_id);
         const i = active.findIndex((x) => x.id === o.id) + 1;
-        return `#${i} "${s ? titleCase(s.term) : "opportunity"}" grade ${gradeFor(Number(o.score)).letter}${svc ? ` (matches ${svc.name})` : ""}`;
+        return `#${i} "${s ? sentenceCase(s.term) : "opportunity"}" grade ${gradeFor(Number(o.score)).letter}${svc ? ` (matches ${svc.name})` : ""}`;
       }),
     );
     lines.push(`The other picks this week: ${named.join("; ")}.`);
@@ -202,7 +202,7 @@ export async function buildPickFacts(
   // this page, so none of them fit a different pick.
   const questions: string[] = [];
   const runnerUp = rivals[0] ? await repo.getSignal(rivals[0].signal_id) : null;
-  if (runnerUp) questions.push(`Why this over "${titleCase(runnerUp.term)}"?`);
+  if (runnerUp) questions.push(`Why this over "${sentenceCase(runnerUp.term)}"?`);
   questions.push(
     business.market === "online"
       ? `How much of this week's spend should go to testing this?`

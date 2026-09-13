@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
+import { sentenceCase } from "@/lib/text";
 
 // Three tabs for a one-decision product. Report, Opportunities, Snapshot and
 // Ask still exist as routes — This week links into each where it earns it —
@@ -32,7 +33,7 @@ export default function AppNav({
     <nav className="app-shell-nav">
       <div className="app-shell-nav__left">
         <Brand href="/app/picks" size={16} />
-        <span className="app-shell-nav__biz mono-label">{businessName}</span>
+        <span className="app-shell-nav__biz mono-label">{sentenceCase(businessName)}</span>
       </div>
       <div className="app-tabs" role="navigation" aria-label="App sections">
         {LINKS.map((l) => {

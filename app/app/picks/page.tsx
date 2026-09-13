@@ -18,7 +18,7 @@ import { weekProgress } from "@/lib/picks/progress";
 import { dueForKick, weekRangeLabel } from "@/lib/picks/list";
 import { weekOf } from "@/lib/recommend/week";
 import { isOnlineBusiness } from "@/lib/signals/geo";
-import { titleCase } from "@/lib/text";
+import { sentenceCase } from "@/lib/text";
 
 export const metadata = { title: "This week — TRND" };
 
@@ -163,7 +163,7 @@ export default async function PicksPage() {
               <ul className="wk-ranked__list">
                 {progress.ranked.map((r) => (
                   <li key={r.term}>
-                    <span className="wk-ranked__term">{r.term}</span>
+                    <span className="wk-ranked__term">{sentenceCase(r.term)}</span>
                     {r.grade && <span className="picks-grade is-amber">{r.grade}</span>}
                   </li>
                 ))}
@@ -188,7 +188,7 @@ export default async function PicksPage() {
           <span className="eyebrow m-0">This week · {weekRange}</span>
           <h1>No picks this week</h1>
           <p className="context">
-            This week&apos;s reads for <b>{titleCase(business.category)}</b> {where} did not turn up a pick worth
+            This week&apos;s reads for <b>{sentenceCase(business.category)}</b> {where} did not turn up a pick worth
             spending on.
           </p>
         </div>

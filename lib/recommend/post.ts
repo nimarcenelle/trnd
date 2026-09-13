@@ -1,4 +1,4 @@
-import { titleCase } from "@/lib/text";
+import { sentenceCase } from "@/lib/text";
 
 /**
  * The zero-budget move: a ready-to-paste organic post built from what TRND
@@ -22,7 +22,7 @@ export function buildOrganicPost(opts: {
   if (opts.hook) {
     lines.push(opts.hook);
   } else {
-    lines.push(`${titleCase(opts.term)} — it's what we do at ${opts.businessName}.`);
+    lines.push(`${sentenceCase(opts.term)} — it's what we do at ${opts.businessName}.`);
   }
 
   const quote = (opts.copyHooks ?? []).find((h) => h.length >= 12 && h.length <= 90);

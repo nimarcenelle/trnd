@@ -1,6 +1,6 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, Opportunity, Signal } from "@/lib/db/types";
-import { titleCase } from "@/lib/text";
+import { sentenceCase } from "@/lib/text";
 
 import { gradeFor } from "./grade";
 import { previousWeek, weekOf } from "./week";
@@ -100,7 +100,7 @@ export async function buildBusinessHistory(
       );
     }
     if (bits.length === 0) continue;
-    const line = `"${titleCase(term)}": ${bits.join("; ")}.`;
+    const line = `"${sentenceCase(term)}": ${bits.join("; ")}.`;
     byTerm.set(key, line);
     lines.push(line);
   }

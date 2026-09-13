@@ -6,7 +6,7 @@ import { businessStateGeo } from "@/lib/signals/geo";
 import { weekOf } from "@/lib/recommend/recommend";
 import { upcomingMoments } from "@/lib/recommend/seasonal";
 import { benchmarkFor } from "@/lib/results/benchmarks";
-import { titleCase } from "@/lib/text";
+import { sentenceCase } from "@/lib/text";
 
 /**
  * The proactive half of the product: TRND notices, the owner doesn't have to
@@ -52,8 +52,8 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
       // feed full of identical percentages reads as broken.
       title:
         s.delta_pct >= 100
-          ? `"${titleCase(s.term)}" doubled or more this week`
-          : `"${titleCase(s.term)}" is up ${Math.round(s.delta_pct)}% this week`,
+          ? `"${sentenceCase(s.term)}" doubled or more this week`
+          : `"${sentenceCase(s.term)}" is up ${Math.round(s.delta_pct)}% this week`,
       body: `It matches what you sell and is in this week's ranking.`,
       href: "/app/picks",
       dedupe_key: `spike:${s.normalized_term}:${week}`,

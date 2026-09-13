@@ -1,7 +1,7 @@
 import type { Alert, Business, IntelNote, StandingQuestion } from "@/lib/db/types";
 import { env } from "@/lib/env";
 import type { IntelReport } from "@/lib/report/build";
-import { titleCase } from "@/lib/text";
+import { sentenceCase } from "@/lib/text";
 
 import { isOnlineBusiness } from "@/lib/signals/geo";
 /**
@@ -40,7 +40,7 @@ export function renderWeeklyReportEmail(opts: {
       (r) => `
       <tr>
         <td style="padding:8px 10px 8px 0;font-size:13px;color:#6f6759;white-space:nowrap;">#${r.rank}</td>
-        <td style="padding:8px 10px 8px 0;font-size:14px;color:#23201a;font-weight:600;">${esc(titleCase(r.term))}</td>
+        <td style="padding:8px 10px 8px 0;font-size:14px;color:#23201a;font-weight:600;">${esc(sentenceCase(r.term))}</td>
         <td style="padding:8px 0;font-size:13px;color:#8a6208;font-weight:700;text-align:right;">${r.grade.letter} · ${r.score.toFixed(1)}/10</td>
       </tr>`,
     )

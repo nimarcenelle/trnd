@@ -1,8 +1,18 @@
-import { isGeminiConfigured, isStripeConfigured, isSupabaseConfigured } from "@/lib/env";
+import {
+  env,
+  isApifyConfigured,
+  isDataForSeoConfigured,
+  isEmailConfigured,
+  isGeminiConfigured,
+  isMetaAdsConfigured,
+  isStripeConfigured,
+  isSupabaseConfigured,
+} from "@/lib/env";
 
 /**
  * Ops probe for uptime monitors and deploy checks. No auth, no secrets —
- * only which integration mode each subsystem is running in.
+ * only which integration mode each subsystem is running in, and whether
+ * the keys a paying customer's week depends on are present.
  */
 export async function GET(): Promise<Response> {
   let database: "supabase" | "demo-store" | "error" = isSupabaseConfigured ? "supabase" : "demo-store";
@@ -20,7 +30,17 @@ export async function GET(): Promise<Response> {
     mode: {
       database,
       generation: isGeminiConfigured ? "gemini" : "template",
-      billing: isStripeConfigured ? "stripe" : "off",
+      billing: isStripeConfigured ? (env.stripeSecretKey.startsWith("sk_live_") ? "stripe-live" : "stripe-test") : "off",
+    },
+    /** Presence only, never values: what a customer's week and receipt need. */
+    keys: {
+      stripePriceBaseline: Boolean(env.stripePriceBaseline),
+      stripeWebhook: Boolean(env.stripeWebhookSecret),
+      email: isEmailConfigured,
+      apify: isApifyConfigured,
+      dataForSeo: isDataForSeoConfigured,
+      metaAds: isMetaAdsConfigured,
+      cron: Boolean(env.cronSecret),
     },
   };
   return Response.json(body, {

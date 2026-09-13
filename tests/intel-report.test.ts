@@ -168,7 +168,7 @@ describe("intel note", () => {
     const { user, biz } = await seed();
     const report = await buildIntelReport(user, biz);
     const note = buildFallbackIntelNote(biz, report);
-    expect(note.headline).toContain("Cold Plunge Chapel Hill");
+    expect(note.headline).toContain("Cold plunge chapel hill");
     expect(note.headline).not.toContain("Hold");
     expect(note.actions.length).toBeGreaterThanOrEqual(2);
     expect(note.week_of).toBe(weekOf());
@@ -182,7 +182,7 @@ describe("intel note", () => {
     // with no data at all ("build the campaign", "record your results") is
     // filler, and filler is what gets a report skipped.
     expect(text).not.toMatch(/record (your |the )?results|takes under a minute|check the dashboard/i);
-    expect(text).toMatch(/Cold Plunge Chapel Hill/i);
+    expect(text).toMatch(/Cold plunge chapel hill/i);
   });
 
   it("an online brand's fallback note makes creative calls, not counter moves", async () => {
@@ -190,7 +190,7 @@ describe("intel note", () => {
     const report = await buildIntelReport(user, biz);
     const brand = { ...biz, market: "online" as const, monthly_ad_spend: "20-50k" };
     const note = buildFallbackIntelNote(brand, report);
-    expect(note.headline).toContain("Cold Plunge Chapel Hill");
+    expect(note.headline).toContain("Cold plunge chapel hill");
     expect(note.headline).toMatch(/next ad/);
     const text = [note.headline, ...note.narrative, ...note.actions].join(" ");
     expect(text).not.toMatch(/walk-ins|counter|register|search ad|near you|mile radius/i);
@@ -200,7 +200,7 @@ describe("intel note", () => {
     expect(note.actions.length).toBeGreaterThanOrEqual(2);
     // Local copy is untouched for the same report.
     const local = buildFallbackIntelNote(biz, report).actions.join(" ");
-    expect(local).toMatch(/Run an ad on "Cold Plunge Chapel Hill" this week/);
+    expect(local).toMatch(/Run an ad on "Cold plunge chapel hill" this week/);
     expect(local).not.toMatch(/over one week/);
   });
 

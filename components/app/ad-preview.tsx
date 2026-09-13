@@ -2,6 +2,8 @@
  * How the finished ad reads in-feed. Deliberately rendered on light "paper"
  * in both themes — it previews a Meta placement, not the TRND UI.
  */
+import { sentenceCase } from "@/lib/text";
+
 export default function AdPreview({
   businessName,
   primaryText,
@@ -30,7 +32,7 @@ export default function AdPreview({
         <div className="ad-preview__top">
           <span className="ad-preview__avatar">{initial}</span>
           <span>
-            <span className="ad-preview__name">{businessName}</span>
+            <span className="ad-preview__name">{sentenceCase(businessName)}</span>
             <br />
             <span className="ad-preview__sponsored">Sponsored</span>
           </span>

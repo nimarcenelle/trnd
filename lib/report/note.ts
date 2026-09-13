@@ -1,7 +1,7 @@
 import type { Business, NewIntelNote } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
 import { creativeTestBudgetFor } from "@/lib/recommend/insights";
-import { titleCase } from "@/lib/text";
+import { sentenceCase } from "@/lib/text";
 
 import type { IntelReport } from "./build";
 
@@ -27,7 +27,7 @@ export function reportFacts(report: IntelReport): string {
   );
   for (const r of report.ranked.slice(0, 5)) {
     lines.push(
-      `Ranked #${r.rank}: "${titleCase(r.term)}" — grade ${r.grade.letter} (${r.score}/10), ${r.metric.replace(/_/g, " ")}${typeof r.deltaPct === "number" ? ` up ${Math.round(r.deltaPct)}% this week` : ""}${r.matchedServiceName ? `, matches your ${r.matchedServiceName}` : ", no menu match"}${r.snapshotReason ? `. Judge: ${r.snapshotReason}` : ""}${r.competitorGap ? ` Saturation: ${r.competitorGap}.` : ""}${r.hasCampaign ? " (campaign already built)" : ""}`,
+      `Ranked #${r.rank}: "${sentenceCase(r.term)}" — grade ${r.grade.letter} (${r.score}/10), ${r.metric.replace(/_/g, " ")}${typeof r.deltaPct === "number" ? ` up ${Math.round(r.deltaPct)}% this week` : ""}${r.matchedServiceName ? `, matches your ${r.matchedServiceName}` : ", no menu match"}${r.snapshotReason ? `. Judge: ${r.snapshotReason}` : ""}${r.competitorGap ? ` Saturation: ${r.competitorGap}.` : ""}${r.hasCampaign ? " (campaign already built)" : ""}`,
     );
   }
   for (const r of report.ranked.slice(0, 5)) {
@@ -41,7 +41,7 @@ export function reportFacts(report: IntelReport): string {
     if (f.hashtags.length > 0) bits.push(`tagged ${f.hashtags.slice(0, 3).map((h) => `#${h}`).join(", ")}`);
     if (f.topTitle) bits.push(`the top one is "${f.topTitle}"`);
     if (f.breakoutTitle && f.breakoutTitle !== f.topTitle) bits.push(`the fastest climber is "${f.breakoutTitle}"`);
-    if (bits.length > 0) lines.push(`Short-form format on "${titleCase(r.term)}": ${bits.join("; ")}.`);
+    if (bits.length > 0) lines.push(`Short-form format on "${sentenceCase(r.term)}": ${bits.join("; ")}.`);
   }
   if (report.ranked.length === 0) {
     lines.push(`Ranked: no trend cleared the bar for paid spend this week — the move comes from the rest of these facts.`);
@@ -123,14 +123,14 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
     ? top
       ? thin
         ? `Nothing new this week fits the catalog closely enough to brief an ad on, so the next ad comes from your own analysis.`
-        : `Make "${titleCase(top.term)}" your next ad. It grades ${top.grade.letter}, ${top.grade.label.toLowerCase()}.`
+        : `Make "${sentenceCase(top.term)}" your next ad. It grades ${top.grade.letter}, ${top.grade.label.toLowerCase()}.`
       : report.brief?.first_moves?.[0]
         ? report.brief.first_moves[0]
         : `Brief the next ad on your strongest product. No trend beat it this week.`
     : top
     ? thin
       ? `Hold your spend this week — nothing in the pool squarely fits what you sell.`
-      : `Run "${titleCase(top.term)}" this week — ${top.grade.label.toLowerCase()} at grade ${top.grade.letter}.`
+      : `Run "${sentenceCase(top.term)}" this week — ${top.grade.label.toLowerCase()} at grade ${top.grade.letter}.`
     : report.brief?.first_moves?.[0]
       ? report.brief.first_moves[0]
       : `Lead with your strongest offer this week — no trend beat it, so your own menu is the play.`;
@@ -139,8 +139,8 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
   if (online && top) {
     narrative.push(
       thin
-        ? `TRND took ${report.signalsWatched} market reads across ${report.sourceCounts.length} source${report.sourceCounts.length === 1 ? "" : "s"} this week and none of them fit what ${business.name} sells well enough to spend creative on. The closest, "${titleCase(top.term)}", graded ${top.grade.letter}.`
-        : `Out of ${report.signalsWatched} market reads this week, "${titleCase(top.term)}" is the one worth the next ad: grade ${top.grade.letter}${top.matchedServiceName ? `, matching your ${top.matchedServiceName}` : ""}.`,
+        ? `TRND took ${report.signalsWatched} market reads across ${report.sourceCounts.length} source${report.sourceCounts.length === 1 ? "" : "s"} this week and none of them fit what ${business.name} sells well enough to spend creative on. The closest, "${sentenceCase(top.term)}", graded ${top.grade.letter}.`
+        : `Out of ${report.signalsWatched} market reads this week, "${sentenceCase(top.term)}" is the one worth the next ad: grade ${top.grade.letter}${top.matchedServiceName ? `, matching your ${top.matchedServiceName}` : ""}.`,
     );
   } else if (online) {
     narrative.push(
@@ -152,8 +152,8 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
   } else if (top) {
     narrative.push(
       thin
-        ? `TRND took ${report.signalsWatched} market reads across ${report.sourceCounts.length} source${report.sourceCounts.length === 1 ? "" : "s"} this week and none of them fit what ${business.name} actually sells — the honest move is to wait rather than force a campaign. The closest fit, "${titleCase(top.term)}", graded ${top.grade.letter}.`
-        : `Out of ${report.signalsWatched} market reads this week, "${titleCase(top.term)}" is the one worth your budget: grade ${top.grade.letter}${top.matchedServiceName ? `, matching your ${top.matchedServiceName}` : ""}${top.competitorGap ? ` — ${top.competitorGap.toLowerCase()}` : ""}.`,
+        ? `TRND took ${report.signalsWatched} market reads across ${report.sourceCounts.length} source${report.sourceCounts.length === 1 ? "" : "s"} this week and none of them fit what ${business.name} actually sells — the honest move is to wait rather than force a campaign. The closest fit, "${sentenceCase(top.term)}", graded ${top.grade.letter}.`
+        : `Out of ${report.signalsWatched} market reads this week, "${sentenceCase(top.term)}" is the one worth your budget: grade ${top.grade.letter}${top.matchedServiceName ? `, matching your ${top.matchedServiceName}` : ""}${top.competitorGap ? ` — ${top.competitorGap.toLowerCase()}` : ""}.`,
     );
   } else {
     narrative.push(
@@ -200,10 +200,10 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
           : ` It's the strongest fit in this week's read.`;
     actions.push(
       top.hasCampaign
-        ? `Put the three "${titleCase(top.term)}" scripts in test against your current best ad at ${test}.${why}`
+        ? `Put the three "${sentenceCase(top.term)}" scripts in test against your current best ad at ${test}.${why}`
         : top.matchedServiceName
-          ? `Brief the next ad on your ${top.matchedServiceName}, opening on the words customers use, "${titleCase(top.term)}", and test it at ${test}.${why}`
-          : `Test a hook built on "${titleCase(top.term)}" at ${test}.${why}`,
+          ? `Brief the next ad on your ${top.matchedServiceName}, opening on the words customers use, "${sentenceCase(top.term)}", and test it at ${test}.${why}`
+          : `Test a hook built on "${sentenceCase(top.term)}" at ${test}.${why}`,
     );
   } else if (top && !thin) {
     const why =
@@ -214,10 +214,10 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
           : ` — it's the strongest fit in this week's read.`;
     actions.push(
       top.hasCampaign
-        ? `Launch the "${titleCase(top.term)}" campaign that's already written${top.matchedServiceName ? `, pointed at your ${top.matchedServiceName}` : ""}${why}`
+        ? `Launch the "${sentenceCase(top.term)}" campaign that's already written${top.matchedServiceName ? `, pointed at your ${top.matchedServiceName}` : ""}${why}`
         : top.matchedServiceName
-          ? `Put this week's ad money behind your ${top.matchedServiceName}, in the words people are typing: "${titleCase(top.term)}"${why}`
-          : `Run an ad on "${titleCase(top.term)}" this week${why}`,
+          ? `Put this week's ad money behind your ${top.matchedServiceName}, in the words people are typing: "${sentenceCase(top.term)}"${why}`
+          : `Run an ad on "${sentenceCase(top.term)}" this week${why}`,
     );
   }
   if ((thin || !top) && report.brief?.first_moves?.length) {
@@ -259,11 +259,11 @@ export function buildFallbackIntelNote(business: Business, report: IntelReport):
   const winningSecs = top?.format?.medianDurationSec ?? null;
   if (online && top && !thin && winningSecs !== null) {
     actions.push(
-      `Cut the TikTok and Reels version to about ${Math.round(winningSecs)} seconds, the length the winning videos on "${titleCase(top.term)}" run this week.`,
+      `Cut the TikTok and Reels version to about ${Math.round(winningSecs)} seconds, the length the winning videos on "${sentenceCase(top.term)}" run this week.`,
     );
   } else if (!online && top && !thin && top.matchedServiceName) {
     actions.push(
-      `Put your ${top.matchedServiceName} where walk-ins see it first, with the price on it — "${titleCase(top.term)}" is what they're coming in asking for.`,
+      `Put your ${top.matchedServiceName} where walk-ins see it first, with the price on it — "${sentenceCase(top.term)}" is what they're coming in asking for.`,
     );
   }
   // Their customers' own words beat anything a copywriter invents.

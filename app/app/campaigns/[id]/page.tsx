@@ -12,7 +12,7 @@ import { markLaunchedAction } from "@/lib/campaigns/actions";
 import { tiktokHashtag, trendLinks } from "@/lib/recommend/howto";
 import { forecastFlight, forecastLine } from "@/lib/recommend/forecast";
 import { budgetFor, creativeTestBudgetFor } from "@/lib/recommend/insights";
-import { titleCase } from "@/lib/text";
+import { sentenceCase } from "@/lib/text";
 import { getUserRepo } from "@/lib/db";
 import type { Creative } from "@/lib/db/types";
 
@@ -101,7 +101,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
           </div>
           <div>
             <span className="k">Source signal</span>
-            <p className="v text-[13.5px]">{signal ? `"${titleCase(signal.term)}"` : "—"}</p>
+            <p className="v text-[13.5px]">{signal ? `"${sentenceCase(signal.term)}"` : "—"}</p>
           </div>
           <div>
             <span className="k">Built</span>

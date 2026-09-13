@@ -1727,7 +1727,6 @@ textarea.input {
 .wk-ranked .mono-label { margin: 0 0 8px; }
 .wk-ranked__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .wk-ranked__list li { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--ink); }
-.wk-ranked__term { text-transform: capitalize; }
 @media (prefers-reduced-motion: reduce) { .wk-progress__row.is-current .wk-progress__mark { animation: none; } }
 
 /* the demand line on a pick, shaped like the dashboard's demand graph */

@@ -1,24 +1,9 @@
-/** Casing helpers for display text. Data stays lowercase; display dresses up. */
-
-const SMALL_WORDS = new Set([
-  "a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on",
-  "or", "per", "the", "to", "vs", "via",
-]);
-
-/** Title Case for term-style titles: "korean glass skin facial" → "Korean Glass Skin Facial". */
-export function titleCase(input: string): string {
-  const words = input.split(/\s+/);
-  return words
-    .map((word, i) => {
-      const lower = word.toLowerCase();
-      if (i !== 0 && i !== words.length - 1 && SMALL_WORDS.has(lower)) return lower;
-      // Preserve leading punctuation like quotes or ↑
-      const m = lower.match(/^([^a-z0-9]*)(.)(.*)$/);
-      if (!m) return word;
-      return m[1] + m[2].toUpperCase() + m[3];
-    })
-    .join(" ");
-}
+/**
+ * Casing for display text. Data stays as entered (terms lowercase, names as
+ * typed); display prints everything in sentence case: the first letter is
+ * capitalized and the rest is left alone. Nothing is title-cased and
+ * nothing a brand typed in lowercase stays lowercase on the page.
+ */
 
 /** Sentence case: capitalize the first letter character, leave the rest. */
 export function sentenceCase(input: string): string {

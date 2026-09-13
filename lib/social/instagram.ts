@@ -19,6 +19,13 @@ import { classifyPost, type SocialDraft } from "./read";
 /** Overridable because actors get renamed and deprecated out from under you. */
 const DEFAULT_ACTOR = "apify/instagram-profile-scraper";
 const CAPTION_CHARS = 400;
+/**
+ * Posts asked for per profile. The read compares a recent window against a
+ * baseline, and 30 covers both for an account posting daily. Matches what
+ * the TikTok and Facebook readers ask for, so one brand's three platforms
+ * bill alike.
+ */
+const POSTS_PER_PROFILE = 30;
 
 /** The subset of the profile actor's output this reads. Everything is
  * optional — actor schemas drift, and a renamed field must degrade to a
@@ -99,7 +106,10 @@ export async function fetchInstagramPosts(
   try {
     const items = await runActorSync<ApifyInstagramItem>(
       actor,
-      { usernames: [handle] },
+      // The actor bills per result and nests the posts inside each profile,
+      // so the runner's own array ceiling bounds profiles, not posts. Name
+      // the limit here so capActorInput can clamp it.
+      { usernames: [handle], resultsLimit: POSTS_PER_PROFILE },
       { breaker: opts.breaker ?? breaker, fetchText: opts.fetchText },
     );
     return toInstagramPosts(items);

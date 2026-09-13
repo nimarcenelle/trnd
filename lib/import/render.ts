@@ -9,8 +9,12 @@
  * This is a single owner-initiated read of the owner's own site — the same
  * class of request as a link unfurler — so it presents as the real browser
  * it is: full Chromium in new-headless mode (not the easily fingerprinted
- * headless shell), a normal UA, and a short wait for JS challenges to clear.
+ * headless shell) and a normal UA. Sitting through a JS challenge is a
+ * separate thing — it works around a site's stated access controls — so it
+ * is off unless ALLOW_CHALLENGE_BYPASS says otherwise.
  */
+
+import { isChallengeBypassAllowed } from "@/lib/env";
 
 import { looksBlocked } from "./website";
 
@@ -54,8 +58,10 @@ export async function getRenderer(): Promise<Renderer | null> {
           await page.waitForLoadState("networkidle", { timeout: SETTLE_TIMEOUT_MS }).catch(() => {});
           let html = await page.content();
           // A JS challenge page (Cloudflare "Just a moment…") usually clears
-          // itself once the browser proves it runs JavaScript — wait once.
-          if (looksBlocked(html)) {
+          // itself once the browser proves it runs JavaScript — wait once,
+          // but only with the opt-in. Without it we hand back the challenge
+          // page and the caller's looksBlocked path takes over.
+          if (isChallengeBypassAllowed && looksBlocked(html)) {
             await page.waitForTimeout(CHALLENGE_WAIT_MS);
             html = await page.content();
           }

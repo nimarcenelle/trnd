@@ -3,6 +3,10 @@
  * (max 3 attempts), and a per-adapter circuit breaker that disables the
  * adapter for the rest of the run after repeated failure. One dead source is
  * a logged warning, never a failed run.
+ *
+ * Both defaults are overridable per call, because they are wrong for a
+ * request that starts billed work on the other end. A retry is only free
+ * when the request is.
  */
 
 const TIMEOUT_MS = 10_000;
@@ -54,20 +58,34 @@ export interface FetchTextOptions {
   retryOn4xx?: boolean;
   method?: "GET" | "POST";
   body?: string;
+  /**
+   * Override the 10s default. A request that starts paid work on the other
+   * end needs long enough to finish it: a synchronous Apify actor run bills
+   * per run, so aborting at 10s and retrying bills the run again for nothing.
+   */
+  timeoutMs?: number;
+  /**
+   * Override the 3-attempt default. Set to 1 for any request that is not
+   * safe to repeat — again, a billed actor run is charged per attempt, not
+   * per result.
+   */
+  maxAttempts?: number;
 }
 
 export async function fetchText(url: string, opts: FetchTextOptions = {}): Promise<string> {
   if (opts.breaker?.isOpen) {
     throw new Error(`circuit open for ${opts.breaker.name}`);
   }
+  const timeoutMs = opts.timeoutMs ?? TIMEOUT_MS;
+  const maxAttempts = Math.max(1, opts.maxAttempts ?? MAX_ATTEMPTS);
   let lastError: unknown;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const res = await fetch(url, {
         method: opts.method ?? "GET",
         headers: opts.headers,
         body: opts.body,
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
         cache: "no-store",
       });
       if (!res.ok) {
@@ -86,7 +104,7 @@ export async function fetchText(url: string, opts: FetchTextOptions = {}): Promi
         break; // no retry on 4xx
       }
       opts.breaker?.recordFailure();
-      if (opts.breaker?.isOpen || attempt === MAX_ATTEMPTS) break;
+      if (opts.breaker?.isOpen || attempt === maxAttempts) break;
       await sleep(2 ** attempt * 500); // 1s, 2s
     }
   }

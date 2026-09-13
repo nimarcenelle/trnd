@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { Competitor, CompetitorRead, Opportunity, Signal } from "../lib/db/types";
-import { BASELINE_FEATURES, PLAN_PRICES, PLAN_PRICES_ANNUAL } from "../lib/billing";
+import {
+  BASELINE_FEATURES,
+  FOUNDING_PRICE,
+  FOUNDING_PRICE_ANNUAL,
+  PLAN_PRICES,
+  PLAN_PRICES_ANNUAL,
+  STANDARD_PRICE,
+} from "../lib/billing";
 import { isSelf, pickRivals } from "../lib/intel/seed-competitors";
 import type { DiscoveredPlace } from "../lib/prospect/discover";
 import { previousWeek, rankingChanges, rivalChanges } from "../lib/recommend/diff";
@@ -110,12 +117,15 @@ describe("what changed since last week", () => {
 });
 
 describe("pricing", () => {
-  it("sells one plan at $500, and everything is in it", () => {
-    expect(PLAN_PRICES.baseline).toBe("$500/mo");
-    expect(PLAN_PRICES_ANNUAL.baseline).toBe("$5,000/yr");
-    // The pro id still exists for old subscriptions but never prints a
-    // second price anywhere.
-    expect(PLAN_PRICES.pro).toBe(PLAN_PRICES.baseline);
+  it("sells one plan at the founding rate, and everything is in it", () => {
+    // What a brand signing up today is offered. The standard rate is what it
+    // becomes once the founding cohort closes; only STRIPE_PRICE_BASELINE
+    // moves at that point.
+    expect(PLAN_PRICES.baseline).toBe(FOUNDING_PRICE);
+    expect(PLAN_PRICES_ANNUAL.baseline).toBe(FOUNDING_PRICE_ANNUAL);
+    // The pro id still exists for old subscriptions. It is not sold, and it
+    // prints the rate those subscriptions were written at.
+    expect(PLAN_PRICES.pro).toBe(STANDARD_PRICE);
     // The next ad with its scripts, the competitors read daily, the Monday
     // brief and the ad-account learning all ride on the one plan.
     expect(BASELINE_FEATURES.some((f) => /three scripts/.test(f))).toBe(true);

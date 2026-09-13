@@ -1,6 +1,6 @@
 import ThemeToggle from "@/components/theme-toggle";
 
-export const metadata = { title: "TRND — Styleguide" };
+export const metadata = { title: "TRND — Styleguide", robots: { index: false, follow: false } };
 
 const TOKENS = [
   "bg",

@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
       <AppNav businessName={business.name} signOut={signOutAction} />
       {isStripeConfigured && plan.locked && (
         <div className="demo-strip" role="status">
-          <b>Trial ended.</b> Your campaigns stay yours. Pick a plan to keep building.{" "}
+          <b>Trial ended.</b> Your campaigns stay yours. Pick a plan to see this week&apos;s call.{" "}
           <Link className="text-(--amber-text) font-semibold" href="/app/settings#billing">
             Choose a plan
           </Link>

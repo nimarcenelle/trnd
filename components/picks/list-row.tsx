@@ -11,13 +11,25 @@ import { arrowGlyph, gradeChip, runChip, truncateFinding } from "@/lib/picks/lis
  * order an owner scans. The grade shows as its letter only; what the letter
  * means is its title and its spoken description. A pick written before the
  * grade existed shows no chip.
+ *
+ * `locked` is a lapsed account: the finding, the grade and the metric still
+ * show, because they are the reason to come back. The bet does not — it is
+ * the first line of what the plan buys.
  */
-export default function ListRow({ pick, run }: { pick: BrandPick; run: PickRun | null }) {
+export default function ListRow({
+  pick,
+  run,
+  locked = false,
+}: {
+  pick: BrandPick;
+  run: PickRun | null;
+  locked?: boolean;
+}) {
   const metric = formatMetric(pick);
   const chip = runChip(run?.status);
   const grade = gradeChip(pick);
   const id = `pick-${pick.id}`;
-  const describedBy = [grade ? `${id}-grade` : null, `${id}-metric`, `${id}-bet`, chip ? `${id}-status` : null]
+  const describedBy = [grade ? `${id}-grade` : null, `${id}-metric`, locked ? null : `${id}-bet`, chip ? `${id}-status` : null]
     .filter(Boolean)
     .join(" ");
   return (
@@ -44,8 +56,8 @@ export default function ListRow({ pick, run }: { pick: BrandPick; run: PickRun |
           </span>
           {metric.text}
         </span>
-        <span id={`${id}-bet`} className="picks-row__bet">
-          {formatBet(pick)}
+        <span id={locked ? undefined : `${id}-bet`} className="picks-row__bet">
+          {locked ? "" : formatBet(pick)}
         </span>
         <span className="picks-row__status">
           {chip && (

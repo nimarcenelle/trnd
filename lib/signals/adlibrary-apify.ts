@@ -27,11 +27,32 @@ import { CircuitBreaker, fetchText } from "./http";
  */
 
 const RUN_URL = "https://api.apify.com/v2/acts";
+
+/**
+ * A synchronous actor run is billed per run and routinely takes longer than
+ * the 10s default, so the default retry bills the same work two more times
+ * for nothing. One attempt, and long enough to actually finish.
+ */
+const RUN_TIMEOUT_MS = 120_000;
+const RUN_ATTEMPTS = 1;
 /** Overridable via APIFY_ADLIBRARY_ACTOR because actors get renamed and
  * deprecated out from under you. */
 const DEFAULT_ACTOR = "curious_coder/facebook-ads-library-scraper";
 /** Per-rival cap: cost is per item, and thirty is enough to read a theme. */
 const RESULTS_PER_PAGE = 30;
+/**
+ * The hard ceiling on one rival's dataset, applied after the run as well as
+ * asked for in the input.
+ *
+ * The actor bills per ad returned, and `readAdvertiser` only ever surfaces
+ * five in the sample plus counts — so results past this point are paid for
+ * and then thrown away. It sits above RESULTS_PER_PAGE rather than on it
+ * because the count field is a request: this actor has shipped versions that
+ * page past it, and a rival running two hundred ads would otherwise bill all
+ * two hundred against one brand whose whole month is $250. Raising
+ * RESULTS_PER_PAGE without raising this would silently cap the read.
+ */
+const MAX_RESULTS_PER_RIVAL = 40;
 /** Survived ≥3 weeks on the rival's budget — the "still running" proxy. */
 export const PROVEN_DAYS = 21;
 const WEEK_DAYS = 7;
@@ -334,10 +355,21 @@ export async function fetchAdvertiserAds(
         headers: { "content-type": "application/json" },
         body: JSON.stringify(adLibraryActorInput(name)),
         breaker,
+        timeoutMs: RUN_TIMEOUT_MS,
+        maxAttempts: RUN_ATTEMPTS,
       },
     );
     const parsed = JSON.parse(text) as unknown;
-    return Array.isArray(parsed) ? toAdvertiserAds(parsed) : [];
+    if (!Array.isArray(parsed)) return [];
+    // Actors ignore limits they do not recognise. The items are already
+    // billed by the time they land here, so the warning is the point: a
+    // runaway rival read shows up in the run's logs, not just the invoice.
+    if (parsed.length > MAX_RESULTS_PER_RIVAL) {
+      console.warn(
+        `[signals:adlibrary_apify] "${name}" returned ${parsed.length} ads over the ${MAX_RESULTS_PER_RIVAL} ceiling — keeping ${MAX_RESULTS_PER_RIVAL}`,
+      );
+    }
+    return toAdvertiserAds(parsed.slice(0, MAX_RESULTS_PER_RIVAL));
   } catch (err) {
     // A failed read is not "no ads". Callers store nothing and read again
     // tomorrow; an empty list here was written up as "no active Meta ads"

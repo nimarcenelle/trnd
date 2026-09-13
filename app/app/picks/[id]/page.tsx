@@ -4,10 +4,19 @@ import { notFound, redirect } from "next/navigation";
 import DetailActions from "@/components/picks/detail-actions";
 import DetailCopyButton from "@/components/picks/detail-copy-button";
 import DemandChart from "@/components/picks/demand-chart";
+import LockedWall from "@/components/picks/locked-wall";
 import SignalRead from "@/components/picks/signal-read";
 import { getSessionUser } from "@/lib/auth/session";
+import { getPlanState } from "@/lib/billing";
 import { getUserRepo } from "@/lib/db";
-import { buildDetailView, isPickId, viewableDetail, type DetailSection, type DetailView } from "@/lib/picks/detail";
+import {
+  buildDetailView,
+  isPickId,
+  viewableDetail,
+  visibleSections,
+  type DetailSection,
+  type DetailView,
+} from "@/lib/picks/detail";
 import { gradeTone, type GradeView } from "@/lib/picks/grade-view";
 
 export const metadata = { title: "Pick — TRND" };
@@ -30,6 +39,10 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
   if (!detail) notFound();
 
   const view = buildDetailView(detail);
+  // A lapsed account keeps the finding and the grade and loses the rest: the
+  // bet, the scripts and the evidence are what the plan buys.
+  const plan = await getPlanState(repo, business);
+  const sections = visibleSections(view.sections, plan.locked);
   const render: Record<DetailSection, () => React.ReactNode> = {
     finding: () => <Head key="finding" view={view} />,
     bet: () => <Bet key="bet" view={view} />,
@@ -57,7 +70,8 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
       <Link href="/app/picks" className="mono-label pickd__back">
         All picks
       </Link>
-      {view.sections.map((s) => render[s]())}
+      {sections.map((s) => render[s]())}
+      {plan.locked && <LockedWall reason={plan.lockedReason} />}
     </div>
   );
 }

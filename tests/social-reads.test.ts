@@ -215,7 +215,8 @@ describe("fetch paths", () => {
       "https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items?token=tok",
     );
     expect(init.method).toBe("POST");
-    expect(JSON.parse(init.body)).toEqual({ usernames: ["bellwood"] });
+    // The actor bills per result, so the request names its own limit.
+    expect(JSON.parse(init.body)).toEqual({ usernames: ["bellwood"], resultsLimit: 30 });
     expect(posts.map((p) => p.likes)).toEqual([3]);
   });
 

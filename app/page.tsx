@@ -1,4 +1,10 @@
-import { BASELINE_FEATURES } from "@/lib/billing";
+import {
+  BASELINE_FEATURES,
+  FOUNDING_PRICE_ANNUAL,
+  FOUNDING_SEATS,
+  GUARANTEE,
+  STANDARD_PRICE,
+} from "@/lib/billing";
 import Link from "next/link";
 
 import DemoForm from "@/components/landing/demo-form";
@@ -125,7 +131,7 @@ export default function Home() {
           <div className="hero__proof">
             <span className="pill">Meta, TikTok and Instagram</span>
             <span className="pill">A new call every week</span>
-            <span className="pill">One plan, $500 a month</span>
+            <span className="pill">Founding rate, $250 a month</span>
           </div>
         </div>
       </header>
@@ -289,13 +295,15 @@ export default function Home() {
         <div className="wrap">
           <div className="head reveal">
             <span className="eyebrow">Pricing</span>
-            <h2>One plan. $500 a month.</h2>
+            <h2>One plan. $250 a month for the first {FOUNDING_SEATS} brands.</h2>
             <p>
-              A brand spending $50,000 a month on paid social isn&apos;t worried about $500. It&apos;s
-              worried about putting $50,000 behind a mediocre ad. TRND helps you find winners faster,
-              raise your creative hit rate, spot openings before competitors do, and cut the hours
-              and media spend that go into ads that lose. One extra winning ad pays for it many
-              times over.
+              The first {FOUNDING_SEATS} brands pay $250 a month and keep that rate for as long as
+              they stay. After that it is {STANDARD_PRICE}. TRND is new, and you cannot check its
+              calls against another brand&apos;s results yet, so the risk sits on our side of the
+              table.
+            </p>
+            <p className="guarantee-line">
+              <b>{GUARANTEE}</b>
             </p>
           </div>
 
@@ -304,10 +312,10 @@ export default function Home() {
               <span className="tier__badge">TRND</span>
               <h3 className="tier__name">TRND</h3>
               <div className="tier__price">
-                $500<small>/ MO</small>
+                $250<small>/ MO</small>
               </div>
               <p className="tier__promise">
-                Every week: the next ad to run, and why. Or $5,000 a year, two months free.
+                Every week: the next ad to run, and why. Or {FOUNDING_PRICE_ANNUAL}, two months free.
               </p>
               <div className="tier__list">
                 {BASELINE_FEATURES.map((f) => (
@@ -322,7 +330,8 @@ export default function Home() {
           </div>
 
           <p className="founding-note reveal">
-            Founding brands lock their price. The ads TRND wrote for you are yours.{" "}
+            Founding brands lock the rate for life. The ads TRND wrote for you are yours on any
+            plan, or none.{" "}
             <a href="#demo">Talk to us.</a>
           </p>
         </div>

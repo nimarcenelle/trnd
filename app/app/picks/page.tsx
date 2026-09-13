@@ -9,6 +9,7 @@ import SubmitButton from "@/components/app/submit-button";
 import ListRow from "@/components/picks/list-row";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
+import { getPlanState } from "@/lib/billing";
 import { getUserRepo } from "@/lib/db";
 import type { Alert } from "@/lib/db/types";
 import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
@@ -64,10 +65,11 @@ export default async function PicksPage() {
 
   const week = weekOf();
   const weekRange = weekRangeLabel(week);
-  const [rows, unreadAlerts, brief] = await Promise.all([
+  const [rows, unreadAlerts, brief, plan] = await Promise.all([
     repo.listReadyPicks(business.id, week),
     repo.listAlerts(business.id, { unreadOnly: true, limit: 5 }),
     repo.getBusinessBrief(business.id),
+    getPlanState(repo, business),
   ]);
 
   // Re-evaluate alerts after the response. Idempotent (deduped keys), so the
@@ -112,7 +114,7 @@ export default async function PicksPage() {
         <ol className="picks-list" aria-label={`Picks for ${weekRange}, ranked`}>
           {rows.map(({ pick, run }) => (
             <li key={pick.id}>
-              <ListRow pick={pick} run={run} />
+              <ListRow pick={pick} run={run} locked={plan.locked} />
             </li>
           ))}
         </ol>

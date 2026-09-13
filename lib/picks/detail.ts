@@ -309,6 +309,23 @@ export function buildSignalRead(grade: GradeView | null): SignalReadView | null 
   };
 }
 
+/**
+ * What a lapsed account still sees on a pick.
+ *
+ * The finding and the grade render in the head, so keeping "finding" keeps
+ * both: the brand can see a call was made this week and how strong it is.
+ * Everything else is what the plan buys — the bet, the three scripts, the
+ * guardrail and the evidence — and it goes behind the wall. The actions row
+ * goes too, because every action on it (run, export, dismiss) acts on work
+ * that is now held.
+ *
+ * Campaigns already built are never filtered by this; they live on their own
+ * pages and stay readable and exportable forever.
+ */
+export function visibleSections(sections: DetailSection[], locked: boolean): DetailSection[] {
+  return locked ? sections.filter((s) => s === "finding") : sections;
+}
+
 export function buildDetailView(detail: PickDetail): DetailView {
   const { pick } = detail;
   const guardrail = pick.guardrail?.trim() || null;

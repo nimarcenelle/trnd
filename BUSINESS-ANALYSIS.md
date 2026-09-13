@@ -43,6 +43,77 @@ What blocks a sale, in order of severity:
 
 ---
 
+## Update, 13 September 2026 — what shipped
+
+The diagnosis that follows stands: the product still has no recorded result, and that is
+still the thing that decides whether it sells. What changed is everything around it that was
+also blocking a sale. All of it is on `claude/business-analysis-sellability-5xszzv`,
+with 819 tests, a clean typecheck, clean lint and a green production build.
+
+**The offer.** One price, sourced from `lib/billing/index.ts`, which every surface now
+reads instead of hardcoding:
+
+| | Monthly | Annual |
+|---|---|---|
+| Founding, first 10 brands, locked for life | $250 | $2,500 |
+| Standard, after the cohort closes | $500 | $5,000 |
+
+Only `STRIPE_PRICE_BASELINE` moves when the cohort closes. Nothing in code changes.
+
+**A guarantee stands in for the missing proof.** Run a TRND call in the first 30 days,
+and if it does not beat the brand's own trailing median cost per result, the month is
+refunded. It is on the landing page, in the settings panel and in the terms, and it is
+honoured by hand in Stripe, because an automated refund needs a results feed that only
+exists for connected Meta accounts. The landing page now says the product is new rather
+than implying a track record it does not have.
+
+**The paywall converts instead of leaking.** Gating only the campaign build meant a
+lapsed trial kept receiving the weekly call, which is the product, so the trial never
+really ended. The lock now holds the call: the finding and the grade stay visible, and
+the bet, the three scripts, the guardrail and the evidence go behind a wall that names
+the price. The list row blanks its bet column, and the pick export returns 402 instead
+of handing the same text back as a download. Campaigns already built are never touched,
+and the terms now say "the campaigns you built" so the promise and the gate cannot be
+read against each other.
+
+**Cost of goods is bounded.** Every model call carries an explicit output-token ceiling
+sized from its own schema, against an SDK default of 64K that let one looping response
+bill more than a brand pays in a month. Apify actor runs are capped at 40 results with
+a per-process ledger that logs a truncation. The largest hole was quieter: a synchronous
+actor run is billed per run, and the shared HTTP helper was aborting at 10 seconds and
+retrying three times, so every slow social read was billed three times for one result.
+Billed calls now run once, with two minutes to finish.
+
+**The surfaces that created legal exposure are off by default.** The cold-email
+prospector targets local businesses through Google Places, which is the customer the
+company left, and sent unsolicited mail with no unsubscribe path; it now needs
+`PROSPECTOR_ENABLED=1`. The site renderer that waited out Cloudflare challenges now
+needs `ALLOW_CHALLENGE_BYPASS=1`. Ordinary JavaScript rendering is unaffected. The admin
+gate failed open when `ADMIN_EMAILS` was unset, which left a live mail-sending tool open
+to any signed-in user; it now fails closed.
+
+**A second person can work on it.** GitHub Actions runs typegen, typecheck, lint and the
+suite on every push and pull request. `.env.example` carries the eleven variables the
+code read but never documented. The README, the product doc and the go-live checklist
+describe one customer at one price, and their stale claims are corrected against the
+code rather than restated.
+
+### What did not change, and why
+
+- **The local-business machinery stays.** Metro resolution, weather triggers, menu-PDF
+  reading and Places rivals still run for businesses flagged `market = local`. Ripping
+  it out is a large refactor with real regression risk and no effect on closing a brand
+  this month. It is documented as the dormant path rather than deleted.
+- **The trial still takes no card.** For a product with no proof, demanding a card
+  before the brand has seen a call is the worst of both worlds. The wall is the
+  conversion mechanism instead.
+- **No live seat counter on the landing page.** An honest one would read ten of ten
+  remaining, which advertises zero customers. The cap is stated without a count.
+- **The signal keys are still unset.** That is an account-and-spend task for the founder,
+  not a code change. `GO-LIVE.md` is the list, now ordered for a DTC brand.
+
+---
+
 ## What TRND is, as built
 
 An AI creative strategist. Onboarding crawls the brand's site and catalog, writes a founding
@@ -65,13 +136,13 @@ Apify actors for Instagram, TikTok, Facebook and the Meta Ad Library, and Vercel
 | Problem and promise | Sharp, specific, correct question | A |
 | Engineering completeness | Production-shaped, tested, type-clean | A- |
 | Evidence the picks are right | None recorded; every real-data dry run found a wrong #1 before a fix | F |
-| Customer definition | Flipped local SMB → DTC on 2026-09-12; code is still mostly local-first | D |
+| Customer definition | Flipped local SMB → DTC on 2026-09-12. Docs and pricing now say one thing; the code keeps a dormant local path | C+ |
 | Data supply | Free sources blocked in prod; paid backbone (DataForSEO) not yet keyed; scrapers | D+ |
 | Defensibility | Claimed moat is results data; the table is empty and account sync needs Meta App Review | D |
-| Pricing and packaging | $500 flat, no card at trial, paywall gates only campaign builds | C- |
+| Pricing and packaging | Was $500 flat with a paywall that gated only campaign builds. Now founding $250 with a guarantee, and the wall holds the weekly call | B |
 | Go-to-market | Landing page, demo form, founder alerts, cold-email prospector; no pipeline | D |
-| Operations | No CI, no error tracking, no LLM spend cap, hand-pasted migrations, bus factor 1 | D+ |
-| Legal exposure | Cloudflare-waiting headless scrapes, unofficial Google endpoints, cold email | C- |
+| Operations | CI and cost ceilings added. Still no error tracking, still hand-pasted migrations, still bus factor 1 | C |
+| Legal exposure | The challenge-waiting scraper and the cold-email tool are now off by default. Unofficial Google endpoints remain | C+ |
 
 ---
 
@@ -172,8 +243,10 @@ The "what creative next" space is occupied, and the buyer knows the names:
 | Foreplay | Swipe file and ad discovery, 500k+ ads | $59 / $175 / $459 per month |
 | Meta Ads AI Connectors (open beta, Apr 2026) | Manage, analyze and build campaigns through AI agents inside Meta | Free with the platform |
 
-Against that set TRND is priced at or above the top tier of each with no ad library, no
-ad-account integration, and no proof. Its actual differentiators are real but unproven:
+Against that set TRND was priced at or above the top tier of each with no ad library, no
+ad-account integration, and no proof. The founding rate of $250 now sits between Atria's
+entry and its Plus tier, and inside Motion's range, which is where a product with no
+track record belongs. Its actual differentiators are real but unproven:
 the *single weekly call* format (a decision, not a dashboard), the bet and kill rule,
 scripts written against the brand's real catalog and price, and demand signal from outside
 the ad platform (search, short-form, weather, rivals). Those are worth $500 if they work.
@@ -218,10 +291,10 @@ What a buyer, an investor, or a second engineer would flag:
   maintain 31k lines of `lib/` without the session transcripts.
 - **Docs drift.** README says 109 tests and $149; there are 792 and $500.
 
-## 6. Unit economics at $500/month
+## 6. Unit economics
 
-Rough per-brand monthly cost of goods, assuming keys are set and the brand has five direct
-rivals:
+Rough per-brand monthly cost of goods at the founding rate of $250, assuming keys are set
+and the brand has five direct rivals:
 
 | Item | Estimate |
 |---|---|
@@ -233,8 +306,10 @@ rivals:
 | Vercel and Supabase share | $2–10 |
 | **Total** | **~$30–115 per brand per month** |
 
-Gross margin is fine (75–90%) if the Apify reads are capped, which they are (48-hour
-refresh, direct rivals only). The problem is not margin; it is acquisition. Brands spending
+Gross margin holds at roughly 55–85% on $250 now that the reads are capped in three
+places: the 48-hour refresh and direct-rivals-only rules that already existed, a 40-result
+ceiling per actor run, and the removal of the retry that was billing every slow actor run
+three times. The problem is not margin; it is acquisition. Brands spending
 $20k–$250k/month are reached through founder networks, agencies and communities, not
 through a self-serve "Start free, no card" button, which mostly attracts tire-kickers who
 never connect an account. The prospector tool aims at local businesses via Google Places
@@ -252,15 +327,21 @@ building is the results ledger: brands, picks, what ran, what it returned.
 
 ## What needs to change
 
+Items marked **shipped** were done on 13 September 2026; see the update section above.
+Everything else is outstanding, and every outstanding item needs a person, an account or
+a customer rather than more code.
+
 ### Horizon 0 — this week: decide and reconcile
 
-1. **Commit to one customer in writing.** DTC brands with $20k–$100k/month on Meta and
-   TikTok and no in-house creative strategist. Update `README.md`, `PRODUCT.md`, the
-   onboarding copy, the prompts' budget framing and the prospector's discovery source to
-   match. Delete or archive the $149 and $250 references.
-2. **Set the keys.** Gemini, DataForSEO, YouTube, Resend, `CRON_SECRET`, `ADMIN_EMAILS`.
-   `GO-LIVE.md` already lists them; nothing here needs code. Run one full week on a real
-   brand in production and read every pick as the buyer would.
+1. **Commit to one customer in writing — shipped.** DTC brands spending $20k–$150k a
+   month on paid social with no in-house creative strategist. The README, the product doc
+   and the go-live checklist now say it, and the $149 and $250-with-a-Pro-tier references
+   are gone. The prospector's local discovery source is off rather than retargeted.
+2. **Set the keys — outstanding, and now the single biggest blocker.** Gemini,
+   DataForSEO, YouTube, Apify, Resend, `CRON_SECRET`, `ADMIN_EMAILS` (which is now
+   required, since the admin gate fails closed). `GO-LIVE.md` lists them in DTC order.
+   Nothing here needs code. Run one full week on a real brand in production and read
+   every pick as the buyer would.
 3. **Start Meta App Review now** for `ads_read` and `ads_management`. It takes weeks, it
    gates both the results loop and one-click launch, and it works immediately for test
    users, which is enough for the pilot.
@@ -278,24 +359,28 @@ building is the results ledger: brands, picks, what ran, what it returned.
 6. **Kill what does not survive contact.** After five brands, every source that never
    contributed to a pick that ran should be removed or left dark. Expect the weather,
    menu-PDF and DMA machinery to go on the shelf for the DTC product.
-7. **Instrument.** Add Sentry (or equivalent), a per-tenant LLM token ledger with a monthly
-   cap, and an alert when the Monday job writes zero picks for any brand.
+7. **Instrument — partly shipped.** Output-token ceilings, Apify result ceilings and a
+   per-process spend ledger are in. Still missing: Sentry or equivalent, a per-tenant
+   token ledger that survives the process, and an alert when the Monday job writes zero
+   picks for any brand.
 
 ### Horizon 2 — weeks 8–12: package and sell
 
-8. **Pricing:** keep one plan, but require a card at trial or replace the free trial with a
-   "first call free" that ends in a checkout. Consider spend-tiered pricing like Motion so a
-   $20k brand pays $250 and a $150k brand pays $750. Lock in a founding rate for the pilot
-   brands in exchange for a case study.
-9. **Gate the pick after trial.** The pick is the product; a lapsed account should see last
-   week's call and a checkout, not this week's.
-10. **Replace scrapers with licensed reads.** Apify actors for the Ad Library and social are
-    acceptable; the Cloudflare-waiting renderer and unofficial Google endpoints should be
-    behind a flag that is off in production. Add a physical address and unsubscribe link to
-    every prospector email, or retire the tool.
-11. **Ops hygiene for a second person:** GitHub Actions running lint, typegen+tsc, and
-    vitest on every PR; `supabase db push` in a deploy step; fill in `.env.example`; fix
-    the two lint errors.
+8. **Pricing — shipped, with one option left open.** The founding rate is in and locked
+   for the first ten brands. Spend-tiered pricing like Motion, where a $20k brand pays
+   $250 and a $150k brand pays $750, is the next move once there are enough customers to
+   tier; it needs a second Stripe price and a band on the business, both of which exist.
+9. **Gate the pick after trial — shipped.** The wall holds the bet, the scripts and the
+   evidence, keeps the finding and the grade, and the export route returns 402.
+10. **Replace scrapers with licensed reads — partly shipped.** The challenge-waiting
+    renderer and the cold-email prospector are behind flags that default off. Still
+    outstanding: the unofficial Google Trends and autocomplete endpoints, which
+    DataForSEO replaces, and a decision on whether the prospector comes back with a
+    physical address and an unsubscribe link or stays retired.
+11. **Ops hygiene for a second person — mostly shipped.** GitHub Actions runs typegen,
+    typecheck, lint and the suite on every push and pull request; `.env.example` is
+    complete; the lint errors are gone. Still outstanding: `supabase db push` in a deploy
+    step, so migrations stop being pasted into the SQL editor by hand.
 
 ### The bar for "sellable"
 
@@ -307,9 +392,10 @@ TRND is sellable as a subscription when all of these are true:
 - Weekly open rate of the Monday call across pilot brands is above 60%.
 - The signal keys are set in production, the crons have run for four consecutive weeks
   without a silent failure, and error tracking exists to prove it.
-- The docs, landing page and onboarding describe one customer at one price.
+- The docs, landing page and onboarding describe one customer at one price. **Done.**
 
-Until then, sell the pilot. The product is close enough that five brands will say yes to
+Four of the five are still open, and all four need the keys set and a brand in the
+product. Until then, sell the pilot. The product is close enough that five brands will say yes to
 "I'll tell you what ad to run next week; if it doesn't beat your median, you pay nothing."
 That sentence is the sales pitch, and the code is already built to back it. What is
 missing is the evidence, and only customers can supply it.

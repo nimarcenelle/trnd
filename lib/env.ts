@@ -87,6 +87,14 @@ export const isXConfigured = Boolean(env.xBearerToken);
 export const isInstagramConfigured = Boolean(env.instagramToken && env.instagramUserId);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isDataForSeoConfigured = Boolean(env.dataForSeoLogin && env.dataForSeoPassword);
+/** Cold-email prospector (/admin/prospector). Off unless PROSPECTOR_ENABLED
+ * is exactly "1": it mails businesses that never asked to hear from us, so
+ * the default has to be dark and the opt-in deliberate. */
+export const isProspectorEnabled = process.env.PROSPECTOR_ENABLED === "1";
+/** Lets the headless renderer sit through a JS challenge instead of giving
+ * up. Off unless ALLOW_CHALLENGE_BYPASS is exactly "1" — waiting out a
+ * challenge works around a site's stated access controls. */
+export const isChallengeBypassAllowed = process.env.ALLOW_CHALLENGE_BYPASS === "1";
 
 let warned = false;
 /** One loud console note per process, so demo mode is never silent. */

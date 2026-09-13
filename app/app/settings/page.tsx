@@ -11,7 +11,7 @@ import type { AdHistory, SocialHandles } from "@/lib/db/types";
 import { handleUrl, SOCIAL_PLATFORMS } from "@/lib/import/social-links";
 import type { AdTheme } from "@/lib/signals/adlibrary-apify";
 import { isSocialReadAvailable } from "@/lib/social";
-import { getPlanState, PLAN_LABELS, PLAN_PRICES } from "@/lib/billing";
+import { FOUNDING_SEATS, getPlanState, GUARANTEE, PLAN_LABELS, PLAN_PRICES } from "@/lib/billing";
 import { openBillingPortalAction, startCheckoutAction } from "@/lib/billing/actions";
 import { seedCompetitorsAction } from "@/lib/intel/actions";
 import { adoptDocumentServicesAction, deleteDocumentAction } from "@/lib/documents/actions";
@@ -539,8 +539,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           <p className="text-[13.5px] text-ink-soft m-0 leading-[1.55]">
             {plan.plan === "trial"
               ? plan.locked
-                ? "Everything you generated stays yours. Pick a plan to keep the weekly recommendations and campaign builds coming."
-                : "Full product, no card required. Pick a plan any time — founding businesses lock their price for life."
+                ? "Everything you generated stays yours. Pick a plan to see this week's call."
+                : `Full product, no card required. The first ${FOUNDING_SEATS} brands lock ${PLAN_PRICES.baseline} for life.`
               : "One ad a week, written before you open the app, your rivals read daily, and the Monday report in your inbox — recorded results sharpen the next one."}
           </p>
         </div>
@@ -562,6 +562,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                 </button>
               </form>
             )}
+            <p className="basis-full text-[12.5px] text-ink-faint m-0 leading-[1.6]">{GUARANTEE}</p>
           </div>
         ) : (
           <p className="text-[12.5px] text-ink-faint m-0 leading-[1.6]">

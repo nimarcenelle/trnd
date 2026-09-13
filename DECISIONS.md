@@ -127,3 +127,28 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
 - **Word and Excel uploads read on the server, keyless.** `mammoth` unpacks .docx to text;
   SheetJS turns every sheet of an .xlsx/.xls into CSV (the first sheet is the table the
   deterministic digest reads). Neither needs the model; PDFs still do.
+- **Repricing to a founding cohort, and a guarantee instead of a case study
+  (2026-09-13, user direction: "this needs to be sellable asap").** The product had
+  no recorded result to point at, and $500 sat above Atria's entry (~$129), Motion
+  ($99-500) and Foreplay ($59-459) with no ad library and no account integration
+  behind it. Two rates now live in `lib/billing/index.ts` and everything that prints
+  a price reads them: **$250/mo or $2,500/yr for the first 10 brands, locked while
+  the subscription runs; $500/mo or $5,000/yr after.** `STRIPE_PRICE_BASELINE` points
+  at the founding price now and at the standard price when the cohort closes — no
+  code change. The missing proof is carried by a **results guarantee**: run a call in
+  the first 30 days, and if it does not beat the brand's own trailing median cost per
+  result, the month is refunded. It is honoured by hand in Stripe, because an
+  automated refund needs a results feed that only exists for connected Meta accounts.
+  The landing page says the product is new rather than implying a track record it
+  does not have.
+- **The wall moved from the campaign build to the week's call.** Gating only
+  `POST /api/campaigns/build` was a hole: the pick IS the product, so a lapsed trial
+  kept receiving the thing it had stopped paying for, and the trial never really
+  ended. `locked` now also holds the pick — `visibleSections()` in `lib/picks/detail.ts`
+  keeps the finding and the grade (enough to know a call was made and how strong) and
+  holds the bet, the scripts, the guardrail and the evidence. The list row blanks its
+  bet column. `GET /app/picks/[id]/export` returns 402 rather than handing the same
+  text back as a download, which would have made the wall decorative. Campaigns
+  already built are never touched: they stay readable and exportable forever, and the
+  terms now say "the campaigns you built" rather than "anything you generated", so
+  the promise and the gate cannot be read against each other.

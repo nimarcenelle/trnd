@@ -5,7 +5,7 @@ import PickPager from "@/components/app/pick-pager";
 import { buildBriefing } from "@/lib/recommend/briefing";
 import type { BusinessBrief, Service } from "@/lib/db/types";
 
-export const metadata = { title: "TRND — Pick screen reference" };
+export const metadata = { title: "TRND — Pick screen reference", robots: { index: false, follow: false } };
 
 /**
  * A no-auth reference of the pick screen's parts, with fixture data.

@@ -9,7 +9,7 @@ export const metadata = { title: "Terms of Service — TRND" };
  */
 export default function TermsPage() {
   return (
-    <LegalShell title="Terms of Service" updated="September 12, 2026">
+    <LegalShell title="Terms of Service" updated="September 13, 2026">
       <h2>What TRND is</h2>
       <p>
         TRND recommends what a business should advertise each week, generates the campaign
@@ -26,11 +26,22 @@ export default function TermsPage() {
 
       <h2>Plans, trials, and billing</h2>
       <p>
-        Every new business starts a 14-day free trial — full product, no card required. Paid
-        plans are billed monthly through Stripe and you can cancel anytime from the billing
+        Every new business starts a 14-day free trial — full product, no card required. When the
+        trial ends, the current week&apos;s call is held behind the plan and new campaign builds
+        stop. The campaigns you built stay readable and exportable, on any plan or none.
+      </p>
+      <p>
+        Paid plans are billed monthly through Stripe and you can cancel anytime from the billing
         portal; cancellation stops future charges and your plan runs to the end of the paid
-        period. Founding-business pricing stays locked while your subscription is continuous.
-        The campaigns you generated are yours — export them any time, on any plan or none.
+        period. Founding pricing is limited to the first ten brands and stays locked while your
+        subscription is continuous.
+      </p>
+      <p>
+        <b>The results guarantee.</b> Run a TRND call within your first 30 days of paying. If it
+        does not beat your own trailing median cost per result, write to us within that period
+        and we refund the first month in full. You keep everything TRND generated. We rely on the
+        figures from your ad account for the comparison, so we ask you to share them or connect
+        the account. One refund per business.
       </p>
 
       <h2>Connected ad accounts</h2>

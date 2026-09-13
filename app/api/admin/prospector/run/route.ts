@@ -1,5 +1,5 @@
 import { getAdminUser } from "@/lib/auth/admin";
-import { isPlacesConfigured } from "@/lib/env";
+import { isPlacesConfigured, isProspectorEnabled } from "@/lib/env";
 import { runProspectPipeline } from "@/lib/prospect/pipeline";
 import type { RunEvent } from "@/lib/prospect/types";
 
@@ -10,6 +10,9 @@ export const maxDuration = 300;
  * shape of streaming as /api/import.
  */
 export async function POST(req: Request): Promise<Response> {
+  if (!isProspectorEnabled) {
+    return Response.json({ type: "error", reason: "Not authorized." }, { status: 404 });
+  }
   if (!(await getAdminUser())) {
     return Response.json({ type: "error", reason: "Not authorized." }, { status: 404 });
   }

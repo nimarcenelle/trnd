@@ -1,4 +1,5 @@
 import { getAdminUser } from "@/lib/auth/admin";
+import { isProspectorEnabled } from "@/lib/env";
 import { sendOutreach } from "@/lib/prospect/outreach";
 import { setLeadStatus } from "@/lib/prospect/store";
 
@@ -17,6 +18,9 @@ interface OutreachBody {
  * exactly what went out.
  */
 export async function POST(req: Request): Promise<Response> {
+  if (!isProspectorEnabled) {
+    return Response.json({ error: "Not authorized." }, { status: 404 });
+  }
   if (!(await getAdminUser())) {
     return Response.json({ error: "Not authorized." }, { status: 404 });
   }

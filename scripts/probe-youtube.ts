@@ -1,7 +1,23 @@
 // Diagnostic: run the deep YouTube Shorts read live and print the format.
 import "./env";
 
-import { createYoutubeAdapter } from "../lib/signals/adapters/youtube";
+import { createYoutubeAdapter, type ShortsRead, type ShortVideo } from "../lib/signals/adapters/youtube";
+
+/** What the YouTube adapter puts in signal.raw — the column is typed
+ * `unknown`, so the shape has to be restated to read it. The two video
+ * refs are trimmed down before they go in. */
+type ShortRef = Pick<ShortVideo, "id" | "title" | "channel" | "views" | "durationSec">;
+type YoutubeSignalRaw = Pick<
+  ShortsRead,
+  "uploads" | "uploadsPrev" | "viewsPrev" | "engagementPct" | "medianDurationSec" | "repeatChannels" | "corpus"
+> & {
+  top: ShortRef | null;
+  breakout: ShortRef | null;
+  measuredTerm: string;
+  adjusted: boolean;
+  deep: boolean;
+  sampled: number;
+};
 
 async function main() {
   const term = process.argv[2] ?? "cold plunge";
@@ -14,7 +30,7 @@ async function main() {
     windowDays: 7,
   });
   for (const s of signals) {
-    const r = s.raw as Record<string, any>;
+    const r = s.raw as YoutubeSignalRaw;
     console.log(`term        ${s.term}${r.adjusted ? `  (measured as "${r.measuredTerm}")` : ""}`);
     console.log(`sampled     ${r.sampled} videos, deep=${r.deep}`);
     console.log(`views       ${s.value?.toLocaleString()} this week  (prev weekly avg ${r.viewsPrev?.toLocaleString()})`);

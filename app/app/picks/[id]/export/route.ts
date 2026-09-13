@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getSessionUser } from "@/lib/auth/session";
+import { getPlanState } from "@/lib/billing";
 import { getUserRepo } from "@/lib/db";
 import { exportFilename, isPickId, viewableDetail } from "@/lib/picks/detail";
 import { pickToText } from "@/lib/picks/format";
@@ -16,6 +17,13 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (!business) return new NextResponse("Not found", { status: 404 });
   const detail = viewableDetail(await repo.getPickDetail(id), business.id);
   if (!detail) return new NextResponse("Not found", { status: 404 });
+
+  // The same gate the page applies. Without it the wall is decorative: this
+  // route hands back the bet and the scripts as plain text.
+  const plan = await getPlanState(repo, business);
+  if (plan.locked) {
+    return new NextResponse(`${plan.lockedReason ?? "Your plan has ended."}\n`, { status: 402 });
+  }
 
   const scripts = [...detail.scripts].sort((a, b) => a.position - b.position);
   return new NextResponse(pickToText({ pick: detail.pick, scripts }), {

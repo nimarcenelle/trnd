@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 
 import type { Repo } from "../repo";
 import type {
-  AdHistory,
   Alert,
   BrandPick,
   NewPickBundle,
@@ -11,7 +10,6 @@ import type {
   PickFeedback,
   PickRun,
   NewSignalReading,
-  SignalReading,
   Business,
   BusinessBrief,
   Campaign,
@@ -25,7 +23,6 @@ import type {
   NewAlert,
   NewBusiness,
   NewSocialPost,
-  SocialPostKind,
   NewCampaign,
   NewBusinessBrief,
   NewCampaignResult,

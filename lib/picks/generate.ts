@@ -7,6 +7,7 @@ import { explainOpportunity } from "@/lib/recommend/explain";
 import { campaignSignalBrief, loadSignalContext, type SignalContext } from "@/lib/recommend/four-signals";
 import { weekOf as currentWeek } from "@/lib/recommend/week";
 import { isCulturalSource } from "@/lib/scoring";
+import { rankScoreOf } from "@/lib/scoring/grade-opportunity";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { isOnlineBusiness, placeWords } from "@/lib/signals/geo";
 import { engagementOf, postsOnTerm } from "@/lib/social/read";
@@ -258,6 +259,11 @@ async function buildBundle(repo: Repo, input: WeekInputs, opportunity: Opportuni
       ...bet,
       bet_what: words.bet_what,
       guardrail: written?.guardrail ?? null,
+      // The grade the week was ranked on travels with the pick, so the pick
+      // page shows the same verdict and signal breakdown as the ranking.
+      grade: opportunity.grade ?? null,
+      grade_score: opportunity.grade_score == null ? null : Number(opportunity.grade_score),
+      signal_scores: opportunity.signal_scores ?? {},
       status: ready ? "ready" : "draft",
     },
     evidence,
@@ -274,8 +280,11 @@ export async function generateWeekPicks(
 ): Promise<GenerateWeekPicksResult> {
   const week = opts.weekOf ?? currentWeek();
   const opportunities = (await repo.listOpportunities(business.id, week))
-    .filter((o) => o.status !== "dismissed")
-    .sort((a, b) => Number(b.score) - Number(a.score))
+    // A Hold is "don't build a campaign yet". The ranking no longer stores
+    // one, but a row written by hand or by an older ranking must still never
+    // become a pick.
+    .filter((o) => o.status !== "dismissed" && o.grade !== "Hold")
+    .sort((a, b) => rankScoreOf(b) - rankScoreOf(a))
     .slice(0, PICKS_PER_WEEK);
   // An empty ranking (held for a missing analysis, or nothing fits) leaves
   // last run's picks alone rather than wiping the week.

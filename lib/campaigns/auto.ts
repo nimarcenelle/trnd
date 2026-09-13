@@ -4,9 +4,10 @@ import type { Business, Campaign, Opportunity } from "@/lib/db/types";
 
 import { buildCampaignForOpportunity } from "./build";
 
-/** The same worth-running bar the dashboard uses: below it, nothing is
- * built unasked — the owner can still "Build anyway". */
-export const WORTH_RUNNING = 4.3;
+/** The C band's floor on the 0-10 score (an Opportunity Grade of 50). A Hold
+ * is "don't build a campaign yet", so it is never built unasked; the owner
+ * can still "Build anyway". */
+export const WORTH_RUNNING = 5.0;
 
 /** Builds in flight in this process, by opportunity — a second dashboard
  * load (or the cron landing mid-build) must not write a second campaign. */

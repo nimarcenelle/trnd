@@ -19,8 +19,10 @@ import type { RivalTermRead, SignalReasons, SignalScores } from "@/lib/scoring";
 
 export type AdVerdict = "run" | "small" | "skip";
 
-/** The dashboard's worth-running bar (lib/campaigns/auto.ts). */
-const SMALL_AT = 4.3;
+/** Grade bands on the 0-10 score (lib/scoring/model.ts): B+ and up is worth
+ * running, C and B are worth a small test, and a Hold is held. SMALL_AT is
+ * the same bar the auto-build uses (lib/campaigns/auto.ts). */
+const SMALL_AT = 5;
 const RUN_AT = 7;
 
 export interface AdCallInput {
@@ -140,7 +142,7 @@ function describe(raw: string): string | null {
  * label falls back to the brief's target customer, and to nobody at all
  * rather than to a name a media buyer can't target. */
 function whoFor(input: AdCallInput): string | null {
-  let raw = describe(input.campaign?.audience.who ?? "") ?? describe(input.targetCustomer?.who ?? "") ?? "";
+  const raw = describe(input.campaign?.audience.who ?? "") ?? describe(input.targetCustomer?.who ?? "") ?? "";
   // Cut at the first clause that describes their situation rather than who
   // they are: ", and…", ", because…", ", comparing you against…".
   const first = raw.split(/(?<=[.;])\s|,\s(?:who|and|because|triggered|[a-z]+ing)\b/)[0].trim().replace(/[.;,]+$/, "");

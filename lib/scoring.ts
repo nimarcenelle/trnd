@@ -28,7 +28,14 @@
  * The legacy four components (momentum, service match, competitor gap,
  * historical lift) are still computed and kept on the result: the insight
  * lines and meters read them, and they are the raw inputs the signals are
- * built from. The total is the four signals.
+ * built from.
+ *
+ * This total no longer ranks the week. The Opportunity Grade does
+ * (lib/scoring/model.ts, graded in lib/scoring/grade-opportunity.ts): 0-100
+ * percentile signals with a confidence, 35/25/20/20. What this file's total
+ * still decides is which terms reach the judged candidate pool, and the fit
+ * and evidence gates the grade's catalog gate reads (applyRelevance's judged
+ * fit). Nothing stores it: the ranking writes grade_score / 10 as `score`.
  */
 
 import type { Learning, Service, Signal, SignalSeriesPoint, TargetCustomer } from "@/lib/db/types";

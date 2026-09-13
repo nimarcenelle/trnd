@@ -1,8 +1,10 @@
 import type { Repo } from "@/lib/db/repo";
-import type { Business, NewOpportunity, NewSignal, Opportunity, Signal } from "@/lib/db/types";
+import type { Business, NewOpportunity, NewSignal, NewSignalReading, Opportunity, Signal } from "@/lib/db/types";
 import { indexSeries } from "@/lib/demand/series";
 import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity, tokens, type ScoredOpportunity } from "@/lib/scoring";
+import { dedupeReadings, loadGradeContext } from "@/lib/scoring/gather";
+import { gradeOpportunity, storedSignalScores } from "@/lib/scoring/grade-opportunity";
 import { businessStateGeo, localityFor, localityRegion, placeWords } from "@/lib/signals/geo";
 import { normalizeTerm } from "@/lib/signals/normalize";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
@@ -361,29 +363,64 @@ export async function recommendForBusiness(
       }
     }
   }
-  scored = scored.slice(0, TOP_N);
+  // The Opportunity Grade decides the order and what is stored
+  // (lib/scoring/model.ts). The legacy total above built and trimmed the
+  // judged pool; it no longer ranks. The judged fit rides along so the
+  // grade's catalog gate uses the same read the pool was filtered on.
+  const gradeCtx = await loadGradeContext(repo, business, { brief, services, pool: signals, signals: signalCtx });
+  const readings: NewSignalReading[] = [];
+  const graded = await Promise.all(
+    scored.map(async (entry) => {
+      const { grade, readings: taken } = await gradeOpportunity(repo, business, entry.signal, gradeCtx, {
+        fit: entry.result.components.serviceMatch,
+      });
+      readings.push(...taken);
+      return { ...entry, grade };
+    }),
+  );
+  // Every graded term's readings are kept, not just the five stored: the
+  // baseline is what this brand's weeks look like, not what won them.
+  if (readings.length > 0) {
+    try {
+      await repo.upsertSignalReadings(dedupeReadings(readings));
+    } catch (err) {
+      console.warn("[recommend] signal readings not stored (non-fatal):", (err as Error).message);
+    }
+  }
 
-  if (scored.length === 0) {
+  // A Hold is "don't build a campaign yet", so it never takes a seat in the
+  // week's five. When every candidate holds, the week stores nothing rather
+  // than dressing the least-bad Hold up as a pick.
+  const top = graded
+    .filter((e) => !e.grade.hold)
+    .sort((a, b) => b.grade.score - a.grade.score || b.result.score - a.result.score)
+    .slice(0, TOP_N);
+
+  if (top.length === 0) {
     return { businessId: business.id, created: 0, topScore: null, opportunityIds: [] };
   }
 
   const week = weekOf();
-  const inputs: NewOpportunity[] = scored.map(({ signal, result, relevance }) => ({
+  const inputs: NewOpportunity[] = top.map(({ signal, result, relevance, grade }) => ({
     business_id: business.id,
     signal_id: signal.id,
     week_of: week,
-    score: result.score,
+    // The 0-10 column every existing reader knows, on the grade's scale.
+    score: Math.round(grade.score * 10) / 100,
     rationale: result.rationale,
     matched_service_id: result.matchedService?.id ?? null,
     competitor_gap: result.competitorGapText,
     relevance,
+    grade: grade.grade,
+    grade_score: grade.score,
+    signal_scores: storedSignalScores(grade),
   }));
   const rows = await repo.upsertOpportunities(inputs);
 
   return {
     businessId: business.id,
     created: inputs.length,
-    topScore: scored[0].result.score,
+    topScore: inputs[0].score,
     opportunityIds: rows.map((r) => r.id),
   };
 }

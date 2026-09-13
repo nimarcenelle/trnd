@@ -2,12 +2,21 @@ import type { Repo } from "@/lib/db/repo";
 import type { Business, Opportunity, Signal } from "@/lib/db/types";
 import { indexSeries } from "@/lib/demand/series";
 import { applyRelevance, scoreOpportunity, type ScoredOpportunity } from "@/lib/scoring";
+import { storedGrade, type StoredGrade } from "@/lib/scoring/grade-opportunity";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 
 import { extrasFor, loadSignalContext } from "./four-signals";
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
 import { placeWords } from "@/lib/signals/geo";
+
+export type ExplainedOpportunity = ScoredOpportunity & {
+  /** The Opportunity Grade the ranking stored: letter, 0-100 score, the four
+   * signal scores with their confidence, and the owner-facing notes. Null on
+   * rows ranked before the four-signal model or before migration 0024. */
+  grade: StoredGrade | null;
+};
+
 /**
  * Re-derive the score breakdown for a stored opportunity so screens can show
  * their work. Uses the same inputs the recommend job used (services,
@@ -16,13 +25,17 @@ import { placeWords } from "@/lib/signals/geo";
  * judged fit the stored score actually used, not the raw token match. With
  * no persisted judgment, the deterministic fit judge gives the same kind of
  * read keylessly.
+ *
+ * The legacy components still feed the meters and insight lines. The grade
+ * is not re-derived: baselines move daily, and a screen must show the grade
+ * the week was ranked on, so it is read back as stored.
  */
 export async function explainOpportunity(
   repo: Repo,
   business: Business,
   opportunity: Opportunity,
   signal: Signal,
-): Promise<ScoredOpportunity> {
+): Promise<ExplainedOpportunity> {
   const [services, learnings, categorySignals, brief, series] = await Promise.all([
     repo.listServices(business.id),
     repo.listLearnings(business.category),
@@ -59,14 +72,17 @@ export async function explainOpportunity(
     },
     { locality: localityFor(signal.geo, localityRegion(business)), series, ...extrasFor(signal, signalCtx) },
   );
+  const grade = storedGrade(opportunity);
+  const withGrade = (s: ScoredOpportunity): ExplainedOpportunity =>
+    grade ? { ...s, score: Math.round(grade.score * 10) / 100, grade } : { ...s, grade: null };
   // A judged ranking persisted its relevance — show exactly what it used.
   if (opportunity.relevance != null) {
     const reason =
       opportunity.rationale.match(/Snapshot read: (.+)$/)?.[1] ?? "judged against your snapshot";
-    return applyRelevance(scored, Number(opportunity.relevance), reason);
+    return withGrade(applyRelevance(scored, Number(opportunity.relevance), reason));
   }
   // Unjudged (legacy rows): the deterministic judge is the honest stand-in.
   const fitCtx = buildBusinessFitContext(business, services, brief);
   const j = judgeTermRelevance(signal.term, business.category, fitCtx);
-  return applyRelevance(scored, j.relevance, j.reason, "Fit read");
+  return withGrade(applyRelevance(scored, j.relevance, j.reason, "Fit read"));
 }

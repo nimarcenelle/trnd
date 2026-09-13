@@ -94,6 +94,14 @@ describe("the week's ad is written without being asked", () => {
     expect(await ensureWeekCampaign(user, biz, top)).toBeNull();
     expect((await user.listCampaigns(biz.id)).length).toBe(0);
 
+    // A Hold (grade score under 50) is never built, even above the old 4.3 bar.
+    const held = await seed(4.9);
+    expect(shouldAutoBuild(held.top, false, false)).toBe(false);
+    expect(await ensureWeekCampaign(held.user, held.biz, held.top)).toBeNull();
+    // The C band's floor is the bar.
+    const marginal = await seed(5);
+    expect(shouldAutoBuild(marginal.top, false, false)).toBe(true);
+
     const strong = await seed(8.1);
     await strong.user.setOpportunityStatus(strong.top.id, "dismissed");
     const dismissed = (await strong.user.getOpportunity(strong.top.id))!;

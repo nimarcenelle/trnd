@@ -73,9 +73,14 @@ describe("the ad call", () => {
     expect(buildAdCall(base()).scripts).toEqual(["one", "two", "three"]);
   });
 
-  it("scales the verdict with the grade", () => {
+  it("scales the verdict with the grade bands", () => {
+    // B+ (70) and up runs; C (50) through B runs small; a Hold is held.
+    expect(buildAdCall(base({ score: 7 })).headline).toBe("Run this ad.");
+    expect(buildAdCall(base({ score: 6.9 })).headline).toBe("Run this ad, small.");
     expect(buildAdCall(base({ score: 5 })).headline).toBe("Run this ad, small.");
-    expect(buildAdCall(base({ score: 3 })).verdict).toBe("skip");
+    // The old 4.3 bar ran a C+ small; under the grade bands it is a Hold.
+    expect(buildAdCall(base({ score: 4.9 })).verdict).toBe("skip");
+    expect(buildAdCall(base({ score: 3 })).headline).toBe("Hold this one this week.");
   });
 
   it("rides the platform that measured the term", () => {

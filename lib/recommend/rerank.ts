@@ -1,5 +1,7 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business } from "@/lib/db/types";
+import { isGeminiConfigured } from "@/lib/env";
+import { generateWeekPicks } from "@/lib/picks/generate";
 
 import { rankedPicks, recommendForBusiness, weekOf } from "./recommend";
 import { writeTopPickReads } from "./read";
@@ -11,8 +13,11 @@ import { writeTopPickReads } from "./read";
  * rows that fell out of the new ranking (and have no campaign) are removed.
  * Used by the owner's re-rank button AND automatically whenever the
  * founding analysis (re)lands.
+ *
+ * A new ranking means new picks, so the week's picks are rewritten after it
+ * unless the caller writes them itself (`picks: false`).
  */
-export async function rerankWeek(repo: Repo, business: Business): Promise<void> {
+export async function rerankWeek(repo: Repo, business: Business, opts: { picks?: boolean } = {}): Promise<void> {
   const week = weekOf();
   const result = await recommendForBusiness(repo, business);
   const campaigns = await repo.listCampaigns(business.id);
@@ -25,4 +30,33 @@ export async function rerankWeek(repo: Repo, business: Business): Promise<void> 
   // read" the moment an owner paged to them.
   const picks = await rankedPicks(repo, business, result.opportunityIds);
   await writeTopPickReads(repo, business, picks, picks.length);
+  if (opts.picks !== false) await regenerateWeekPicks(repo, business);
+}
+
+/**
+ * Rewrite the week's picks without ever throwing and without holding a
+ * request open on the model.
+ *
+ * Several owner actions (the re-rank button, the market scan, the snapshot
+ * refresh) await rerankWeek inside the request. Five Pro calls must not sit
+ * between a click and its redirect, so inside a request the picks are
+ * written after the response. Outside one, `after` throws and the job simply
+ * waits for them. The keyless template is fast and runs inline.
+ */
+export async function regenerateWeekPicks(repo: Repo, business: Business): Promise<void> {
+  const run = async () => {
+    try {
+      const written = await generateWeekPicks(repo, business);
+      console.log(`[picks] ${business.id}: ${written.ready} ready, ${written.draft} draft`);
+    } catch (err) {
+      console.warn(`[picks] regeneration for ${business.id} failed (non-fatal):`, (err as Error).message);
+    }
+  };
+  if (!isGeminiConfigured) return run();
+  try {
+    const { after } = await import("next/server");
+    after(run);
+  } catch {
+    await run();
+  }
 }

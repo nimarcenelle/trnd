@@ -402,6 +402,16 @@ export async function runRecommend(repo: Repo): Promise<RecommendBusinessResult[
     try {
       const result = await recommendForBusiness(repo, b);
       results.push(result);
+      // The week's picks, written whole from the ranking just stored, and
+      // before the reads and campaigns below so Monday's list never waits
+      // behind them. A failure here costs the picks, never the ranking.
+      try {
+        const { generateWeekPicks } = await import("@/lib/picks/generate");
+        const written = await generateWeekPicks(repo, b);
+        console.log(`[recommend] picks for ${b.id}: ${written.ready} ready, ${written.draft} draft`);
+      } catch (err) {
+        console.warn(`[recommend] picks for ${b.id} failed (non-fatal):`, (err as Error).message);
+      }
       // The read on the top picks is written from the facts just ranked, so
       // Monday's first look already has it. Never blocks the ranking: the
       // dashboard self-heals a missing read after its own response.

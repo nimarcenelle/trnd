@@ -65,7 +65,7 @@ export async function completeOnboardingAction(
 
   const repo = await getUserRepo(user.id);
   const existing = await repo.getBusinessByOwner(user.id);
-  if (existing) redirect("/app");
+  if (existing) redirect("/app/picks");
 
   let photoUrls: string[] = [];
   try {
@@ -232,7 +232,17 @@ export async function completeOnboardingAction(
       // The dashboard's first ranking ran before the analysis existed —
       // re-rank now so it's snapshot-judged, not category-matched.
       const { rerankWeek } = await import("@/lib/recommend/rerank");
-      await rerankWeek(jobRepo, business);
+      await rerankWeek(jobRepo, business, { picks: false });
+      // Day-one picks, so a new brand's first page holds this week's ads.
+      // Written here rather than inside the rerank: this block already runs
+      // after the response, so there is nothing to defer.
+      try {
+        const { generateWeekPicks } = await import("@/lib/picks/generate");
+        const written = await generateWeekPicks(jobRepo, business);
+        console.log(`[onboarding] day-one picks: ${written.ready} ready, ${written.draft} draft`);
+      } catch (err) {
+        console.warn("[onboarding] day-one picks failed (non-fatal):", (err as Error).message);
+      }
     } catch (err) {
       console.warn("[onboarding] brief generation failed (non-fatal):", (err as Error).message);
     }
@@ -256,5 +266,5 @@ export async function completeOnboardingAction(
     }
   });
 
-  redirect("/app");
+  redirect("/app/picks");
 }

@@ -38,8 +38,11 @@ export interface RivalSiteRead {
   handles: SocialHandles;
 }
 
-/** Same total budget as one onboarding fetch: a rival read never holds up a seed. */
-const READ_BUDGET_MS = 8000;
+/** Room for the reader proxy, which renders a bot-walled site in a browser
+ * before answering: Jolie's storefront took twelve seconds that way, and an
+ * eight-second budget wrote up the most direct rival of all as unreadable.
+ * Rival reads run inside the budgeted week job, never on a request. */
+const READ_BUDGET_MS = 25_000;
 const MAX_RIVAL_TEXT = 6000;
 
 /** Resolves null when the promise fails or the budget runs out first. */
@@ -218,8 +221,13 @@ export function productCoverage(
     (t.length >= 6 && squashed.includes(t));
   const matched = [...product].filter(has);
   // A rival never lists your bundles and refills by name: six of ten
-  // product words on their site is the same product, and full marks.
-  return { coverage: Math.min(1, matched.length / product.size / PRODUCT_FULL_SHARE), matched };
+  // product words on their site is the same product, and full marks. So is
+  // the whole category phrase: a site that says "filtered showerhead" sells
+  // what a filtered showerhead brand sells, however thin the rest of the
+  // read came back.
+  const category = menuTokens(ownCategory).filter((t) => !CATEGORY_FILLER.has(t));
+  const wholeCategory = category.length > 0 && category.every(has);
+  return { coverage: wholeCategory ? 1 : Math.min(1, matched.length / product.size / PRODUCT_FULL_SHARE), matched };
 }
 
 // Packaging words: true product-word matches, but not how an owner names the product.

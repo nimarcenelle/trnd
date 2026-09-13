@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { absoluteLiftScore, BRAND_LOW_NOTE, BRAND_THIN_NOTE, engagementScore } from "../lib/scoring/brand";
-import { NEUTRAL_PLACEHOLDER, scoreBrand, type BrandInput } from "../lib/scoring/index";
+import { scoreBrand, type BrandInput } from "../lib/scoring/index";
 
 const liftBaseline = [0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.4, 1.6, 1.8];
 
@@ -75,7 +75,9 @@ describe("brand mappings", () => {
 
   it("leaves organic out when no posts are on the term", () => {
     expect(comp(scoreBrand(full()), "organic").score).toBe(75);
-    expect(comp(scoreBrand(full({ organic: { posts: 20, onTermPosts: 0, engagementRatio: null } })), "organic").score).toBeNull();
+    // An account that was read and never posted on this is a low reading, not a gap.
+    expect(comp(scoreBrand(full({ organic: { posts: 20, onTermPosts: 0, engagementRatio: null } })), "organic").score).toBe(30);
+    expect(comp(scoreBrand(full({ organic: { posts: 2, onTermPosts: 0, engagementRatio: null } })), "organic").score).toBeNull();
   });
 });
 
@@ -104,13 +106,12 @@ describe("scoreBrand confidence", () => {
     expect(s.score).toBe(Math.round(((30 * 80 + 30 * 75) / 60) * 10) / 10);
   });
 
-  it("is low for a brand-new brand with only catalog fit", () => {
+  it("stands on a judged catalog fit alone for a brand-new brand, at medium", () => {
     const s = scoreBrand(brandNew());
     expect(comp(s, "economics").score).toBe(90);
-    expect(s.confidence).toBe("low");
-    expect(s.score).toBe(NEUTRAL_PLACEHOLDER);
-    expect(s.note).toBe(BRAND_LOW_NOTE);
-    expect(s.cta).toEqual({ label: "Import past ads", href: "/settings/ads" });
+    expect(s.confidence).toBe("medium");
+    expect(s.score).toBe(90);
+    expect(s.note).toBeNull();
   });
 
   it("is low with nothing at all", () => {

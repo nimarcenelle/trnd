@@ -23,6 +23,10 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 export const BRAND_LOW_NOTE = "Your ads and posts haven't been read yet";
 export const BRAND_THIN_NOTE = "Too little of your own history on this to lean on yet";
 export const BRAND_HIGH_MIN_ADS = 10;
+/** Posts read before "you never posted on this" is a reading rather than a gap. */
+export const ORGANIC_READ_MIN = 5;
+/** What no organic proof scores: low, not nothing. */
+export const NO_ORGANIC_SCORE = 30;
 
 /** Lift ratio fallback: 0.5 or less is 0, 1.0 is 50, 1.5 or more is 100. */
 export function absoluteLiftScore(ratio: number): number {
@@ -92,9 +96,12 @@ export function scoreBrand(input: BrandInput): SignalScore {
     economicsDetail = issues.length ? `${base}, but ${issues.join(" and ")}` : base;
   }
 
-  // Organic validation.
+  // Organic validation. An account that has been read and has never posted
+  // on this is a reading, not a gap: no organic proof yet, scored low, so
+  // the signal still counts and the owner sees why.
   let organic: number | null = null;
   let organicDetail = input.organic.posts > 0 ? "None of your recent posts were on this" : "Your accounts haven't been read yet";
+  if (input.organic.posts >= ORGANIC_READ_MIN && input.organic.onTermPosts === 0) organic = NO_ORGANIC_SCORE;
   if (input.organic.onTermPosts > 0 && input.organic.engagementRatio !== null) {
     organic = engagementScore(input.organic.engagementRatio);
     const n = input.organic.onTermPosts;
@@ -110,8 +117,11 @@ export function scoreBrand(input: BrandInput): SignalScore {
   const present = components.filter((c) => c.score !== null).length;
   let confidence: Confidence = "low";
   // High needs a ranked lift, so the absolute fallback never gets past medium.
+  // A judged catalog fit alone is a reading the grade can stand on: it is
+  // the same judgment the fit gate rests on, and every brand has a catalog.
+  // Low is for a brand with nothing read at all.
   if (input.adHistoryAds >= BRAND_HIGH_MIN_ADS && present === 3 && pct !== null) confidence = "high";
-  else if (present >= 2) confidence = "medium";
+  else if (present >= 2 || (economics !== null && e.fit !== null)) confidence = "medium";
 
   if (confidence !== "low") return signalScore("brand", components, confidence);
   const cta = { label: "Import past ads", href: input.settingsHref };

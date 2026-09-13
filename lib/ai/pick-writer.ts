@@ -46,22 +46,19 @@ export const PICK_RESPONSE_SCHEMA = {
           variant_label: { type: "STRING" },
           thesis: { type: "STRING" },
           hook: { type: "STRING" },
-          beats: {
-            type: "ARRAY",
-            items: {
-              type: "OBJECT",
-              properties: {
-                visual: { type: "STRING" },
-                on_screen_text: { type: "STRING" },
-                vo: { type: "STRING" },
-              },
-              required: ["visual", "on_screen_text", "vo"],
+          direction: {
+            type: "OBJECT",
+            properties: {
+              show: { type: "STRING" },
+              say: { type: "STRING" },
+              prove: { type: "STRING" },
             },
+            required: ["show", "say", "prove"],
           },
           cta: { type: "STRING" },
           duration_seconds: { type: "INTEGER" },
         },
-        required: ["variant_label", "thesis", "hook", "beats", "cta", "duration_seconds"],
+        required: ["variant_label", "thesis", "hook", "direction", "cta", "duration_seconds"],
       },
     },
   },
@@ -84,13 +81,6 @@ export async function writePickWithGemini(
 }
 
 /* ------------------------------ keyless path ------------------------------ */
-
-function words(s: string, max: number): string {
-  const w = s.replace(/\s+/g, " ").trim().split(" ");
-  return w.slice(0, max).join(" ");
-}
-
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Health, beauty and body products are where Meta's personal attributes
  * rule and before-and-after limits actually bite. */
@@ -121,11 +111,12 @@ export function fallbackPickWrite(input: PickWriterInput): PickWrite {
     variant_label: "Problem first",
     thesis: `Open on the problem people mean by "${term}" and let ${product} answer it.`,
     hook: `This is what people mean by "${term}"`,
-    beats: [
-      { visual: `Close on the problem people mean by "${term}", in real light, no setup.`, on_screen_text: cap(words(term, 6)), vo: "" },
-      { visual: `Hands put ${product} to use in one take.`, on_screen_text: words(product, 6), vo: "" },
-      { visual: "The same shot as the opening, after.", on_screen_text: price ? `${words(product, 4)}, ${price}` : words(product, 6), vo: "" },
-    ],
+beats: [],
+direction: {
+      show: `The problem people mean by "${term}", in a real setting with the light as it is, then ${product} put to use by one person, then the same view after.`,
+      say: `Name the problem the way the customer does, then say plainly what ${product} does about it. No promise of a result, just what changes and why.`,
+      prove: `One thing the viewer can check: what ${product} is made of, what it removes, or a customer in their own words. Nothing invented.`,
+    },
     cta,
     duration_seconds: durationSec,
   };
@@ -134,11 +125,12 @@ export function fallbackPickWrite(input: PickWriterInput): PickWrite {
         variant_label: "Price anchor",
         thesis: "Lead with the listed price so the decision feels small.",
         hook: `${product}, ${price}. Here is what that gets you.`,
-        beats: [
-          { visual: `${product} on a plain surface, price card beside it.`, on_screen_text: price, vo: "" },
-          { visual: `${product} in use, one continuous shot.`, on_screen_text: "", vo: `This is ${product}.` },
-          { visual: "Close on the detail that makes it worth the price.", on_screen_text: words(term, 6), vo: "" },
-        ],
+        beats: [],
+    direction: {
+          show: `${product} on a plain surface with the price in view, then in use in one continuous shot, then the detail that earns the price.`,
+          say: `Say the price early and let the rest of the video explain what it buys. Talk about the item, not about the viewer.`,
+          prove: `The listed price, exactly as the page shows it, and one concrete detail of the item that is true on the page.`,
+        },
         cta,
         duration_seconds: durationSec,
       }
@@ -146,11 +138,12 @@ export function fallbackPickWrite(input: PickWriterInput): PickWrite {
         variant_label: "Side by side",
         thesis: `Put what they use now next to ${product} and let the difference show.`,
         hook: `What you use now, next to ${product}`,
-        beats: [
-          { visual: "What most people use now, shot plainly.", on_screen_text: "Most people use this", vo: "" },
-          { visual: `${product} in the same spot, same light.`, on_screen_text: words(product, 6), vo: "" },
-          { visual: `${product} in use, one continuous shot.`, on_screen_text: words(term, 6), vo: "" },
-        ],
+        beats: [],
+    direction: {
+          show: `What most people use now, shot plainly, then ${product} in the same spot and light, then ${product} in use.`,
+          say: `Describe the difference the viewer would notice, without naming another brand and without saying theirs is bad.`,
+          prove: `One visible difference the camera can show, not a claimed result.`,
+        },
         cta,
         duration_seconds: durationSec,
       };
@@ -158,11 +151,12 @@ export function fallbackPickWrite(input: PickWriterInput): PickWrite {
     variant_label: "One take",
     thesis: `Show ${product} used start to finish with no cuts, so it looks as easy as it is.`,
     hook: `One take, start to finish, with ${product}`,
-    beats: [
-      { visual: `${product} in hand, before it is opened or used.`, on_screen_text: "No cuts", vo: "" },
-      { visual: "The whole use, one continuous shot from the same angle.", on_screen_text: "", vo: "" },
-      { visual: "The finished result, held for two seconds.", on_screen_text: words(product, 6), vo: "" },
-    ],
+beats: [],
+direction: {
+      show: `${product} from unopened to finished, one continuous shot, no cuts, held two seconds on the result.`,
+      say: `Talk through what you are doing as you do it, as you would to a friend. Let the lack of cuts make the point about how easy it is.`,
+      prove: `That it really is one take: the clock, the light or the background must not change.`,
+    },
     cta,
     duration_seconds: durationSec,
   };

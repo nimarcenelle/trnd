@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import DetailActions from "@/components/picks/detail-actions";
 import DetailCopyButton from "@/components/picks/detail-copy-button";
-import DetailSparkline from "@/components/picks/detail-sparkline";
+import DemandChart from "@/components/picks/demand-chart";
 import SignalRead from "@/components/picks/signal-read";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
@@ -130,22 +130,27 @@ function GradeCard({ grade }: { grade: GradeView & { label: string } }) {
 
 function Demand({ view }: { view: DetailView }) {
   const { metric } = view;
+  const lead = view.demandDeltas[0];
+  const tone = lead?.direction ?? "flat";
   return (
     <div className="pickd__card pickd__demand">
       <h2 className="pickd__h2">{metric.label}</h2>
       <div className="pickd__demand-row">
-        {metric.value ? <p className="pickd__demand-value">{metric.value}</p> : <p className="pickd__demand-value">–</p>}
-        <DetailSparkline points={metric.sparkline} label={metric.label} direction={metric.direction} />
+        <p className="pickd__demand-value">{metric.value ?? "–"}</p>
+        <div className="pickd__chips">
+          {view.demandDeltas.length > 0 ? (
+            view.demandDeltas.map((d) => (
+              <span key={d.window} className={`pickd__chip is-${d.direction}`}>
+                <span aria-hidden="true">{d.direction === "up" ? "↑" : d.direction === "down" ? "↓" : "→"}</span>
+                {Math.abs(d.pct)}% {d.window}
+              </span>
+            ))
+          ) : (
+            <span className="pickd__chip">{metric.window}</span>
+          )}
+        </div>
       </div>
-      <div className="pickd__chips">
-        {metric.delta ? (
-          <span className={`pickd__chip is-${metric.direction}`}>
-            {metric.delta} {metric.window}
-          </span>
-        ) : (
-          <span className="pickd__chip">{metric.window}</span>
-        )}
-      </div>
+      <DemandChart points={metric.sparkline} label={metric.label} tone={tone} />
       <p className="pickd__demand-explainer">{view.demandExplainer}</p>
     </div>
   );
@@ -195,36 +200,53 @@ function Scripts({ view }: { view: DetailView }) {
               <span className="pickd__k">Hook</span>
               {script.hook}
             </p>
-            <ol className="pickd__beats">
-              {script.beats.map((b, i) => (
-                <li key={i} className="pickd__beat">
-                  <dl>
-                    <div>
-                      <dt>Visual</dt>
-                      <dd>{b.visual}</dd>
-                    </div>
-                    {b.on_screen_text && (
+            {script.direction ? (
+              <dl className="pickd__direction">
+                {(
+                  [
+                    ["Show", script.direction.show],
+                    ["Say", script.direction.say],
+                    ["Prove", script.direction.prove],
+                  ] as const
+                ).map(([k, v]) => (
+                  <div key={k}>
+                    <dt>{k}</dt>
+                    <dd>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <ol className="pickd__beats">
+                {script.beats.map((b, i) => (
+                  <li key={i} className="pickd__beat">
+                    <dl>
                       <div>
-                        <dt>On screen</dt>
-                        <dd>{b.on_screen_text}</dd>
+                        <dt>Visual</dt>
+                        <dd>{b.visual}</dd>
                       </div>
-                    )}
-                    {b.vo && (
-                      <div>
-                        <dt>Voiceover</dt>
-                        <dd>{b.vo}</dd>
-                      </div>
-                    )}
-                  </dl>
-                </li>
-              ))}
-            </ol>
+                      {b.on_screen_text && (
+                        <div>
+                          <dt>On screen</dt>
+                          <dd>{b.on_screen_text}</dd>
+                        </div>
+                      )}
+                      {b.vo && (
+                        <div>
+                          <dt>Voiceover</dt>
+                          <dd>{b.vo}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  </li>
+                ))}
+              </ol>
+            )}
             <footer className="pickd__script-foot">
               <span>
-                <span className="pickd__k">CTA</span>
+                <span className="pickd__k">Close</span>
                 {script.cta}
               </span>
-              <span className="pickd__runtime">{script.duration_seconds}s</span>
+              <span className="pickd__runtime">about {script.duration_seconds}s</span>
             </footer>
           </article>
         ))}

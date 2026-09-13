@@ -11,6 +11,11 @@ const script = (label: string, thesis: string) => ({
     { visual: "Hands twist the old head off in one move", on_screen_text: "", vo: "Sixty seconds, no tools." },
     { visual: "Water runs clear through the new filtered head", on_screen_text: "Filtered", vo: "" },
   ],
+  direction: {
+    show: "A real bathroom, the old showerhead still on the wall, then the filter going on by hand in one shot.",
+    say: "Name the problem the way the customer does, then say plainly what the filter changes about the water.",
+    prove: "What the filter removes, as the product page states it. No results promised.",
+  },
   cta: "The Wall Mount Filtered Showerhead, $149",
   duration_seconds: 20,
 });

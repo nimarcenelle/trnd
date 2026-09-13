@@ -520,6 +520,20 @@ export interface PickEvidence {
   position: number;
 }
 
+/**
+ * Direction for a script: guidance a creator interprets, never lines to
+ * read. The hook is the only verbatim line a pick carries. A shot list with
+ * voiceover dictated the ad, and an ad that fails is then TRND's ad.
+ */
+export interface PickDirection {
+  /** What the video should show: setting, the item in use, what to avoid. */
+  show: string;
+  /** The argument to make, in the creator's own words. */
+  say: string;
+  /** The one claim to back up, and with what; or what not to claim. */
+  prove: string;
+}
+
 export interface PickScript {
   id: string;
   pick_id: string;
@@ -527,7 +541,10 @@ export interface PickScript {
   variant_label: string;
   thesis: string;
   hook: string;
+  /** Shot list from picks written before direction existed; empty on new picks. */
   beats: PickBeat[];
+  /** Null on picks written before direction existed. */
+  direction: PickDirection | null;
   cta: string;
   duration_seconds: number;
 }

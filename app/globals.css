@@ -1729,3 +1729,21 @@ textarea.input {
 .wk-ranked__list li { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--ink); }
 .wk-ranked__term { text-transform: capitalize; }
 @media (prefers-reduced-motion: reduce) { .wk-progress__row.is-current .wk-progress__mark { animation: none; } }
+
+/* the demand line on a pick, shaped like the dashboard's demand graph */
+.pickd__demand-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.pickd__chip.is-flat { color: var(--ink-soft); }
+.dchart { width: 100%; height: auto; display: block; margin: 4px 0 6px; color: var(--mint-text); }
+.dchart.is-down { color: var(--red); }
+.dchart.is-flat { color: var(--ink-soft); }
+.dchart__grid { stroke: var(--line); stroke-width: 1; }
+.dchart__line { fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+.dchart__area { fill: currentColor; opacity: 0.1; stroke: none; }
+.dchart__dot { fill: currentColor; stroke: var(--bg-1); stroke-width: 2; }
+.dchart__tick { font-family: var(--mono); font-size: 9.5px; fill: var(--ink-faint); }
+
+/* a script's direction: guidance, not lines */
+.pickd__direction { margin: 0 0 14px; display: grid; gap: 10px; }
+.pickd__direction > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.pickd__direction dt { font-size: 11.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); padding-top: 2px; }
+.pickd__direction dd { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--ink); overflow-wrap: anywhere; }

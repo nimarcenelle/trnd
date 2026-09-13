@@ -49,9 +49,11 @@ export function formatBet(pick: Pick<BrandPick, "bet_budget_usd" | "bet_duration
 
 /** One script as plain text, for its copy button. */
 export function scriptToText(
-  script: Pick<PickScript, "variant_label" | "thesis" | "hook" | "beats" | "cta" | "duration_seconds">,
+  script: Pick<PickScript, "variant_label" | "thesis" | "hook" | "beats" | "cta" | "duration_seconds"> & { direction?: PickScript["direction"] },
 ): string {
-  const beats = script.beats
+  const body = script.direction
+    ? [`Show: ${script.direction.show}`, `Say: ${script.direction.say}`, `Prove: ${script.direction.prove}`].join("\n")
+    : script.beats
     .map((b, i) =>
       [
         `${i + 1}. Visual: ${b.visual}`,
@@ -66,10 +68,10 @@ export function scriptToText(
     `${script.variant_label}: ${script.thesis}`,
     `Hook: ${script.hook}`,
     "",
-    beats,
+    body,
     "",
-    `CTA: ${script.cta}`,
-    `Runtime: ${script.duration_seconds}s`,
+    `Close: ${script.cta}`,
+    `Length: about ${script.duration_seconds}s`,
   ].join("\n");
 }
 

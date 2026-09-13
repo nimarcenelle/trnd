@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { PickBeat } from "@/lib/db/types";
+import type { PickBeat, PickDirection } from "@/lib/db/types";
 
 import { mentionsDelta } from "./metric";
 
@@ -12,7 +12,6 @@ import { mentionsDelta } from "./metric";
  */
 
 export const SCRIPTS_PER_PICK = 3;
-export const BEATS_MIN = 3;
 export const BEATS_MAX = 5;
 
 /**
@@ -40,11 +39,19 @@ const BeatSchema = z.object({
   vo: z.string().max(320).nullish(),
 });
 
+const DirectionSchema = z.object({
+  show: text(20, 360),
+  say: text(20, 360),
+  prove: text(10, 360),
+});
+
 const ScriptSchema = z.object({
   variant_label: text(2, 40),
   thesis: text(3, 200),
   hook: text(8, 160),
-  beats: z.array(BeatSchema).min(BEATS_MIN).max(BEATS_MAX),
+  // A shot list is no longer asked for; one that arrives is kept but never shown first.
+  beats: z.array(BeatSchema).max(BEATS_MAX).default([]),
+  direction: DirectionSchema,
   cta: text(3, 100),
   duration_seconds: z.number().min(5).max(90),
 });
@@ -61,6 +68,7 @@ export interface PickWriteScript {
   thesis: string;
   hook: string;
   beats: PickBeat[];
+  direction: PickDirection;
   cta: string;
   duration_seconds: number;
 }
@@ -158,6 +166,7 @@ export function pickWriteSchemaFor(ctx: PickWriteContext) {
           on_screen_text: plainText(b.on_screen_text ?? ""),
           vo: plainText(b.vo ?? ""),
         })),
+        direction: { show: plainText(s.direction.show), say: plainText(s.direction.say), prove: plainText(s.direction.prove) },
         cta: plainText(s.cta),
         duration_seconds: Math.round(s.duration_seconds),
       })),

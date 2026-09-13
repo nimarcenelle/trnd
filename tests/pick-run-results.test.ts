@@ -158,6 +158,11 @@ const bundle = (): NewPickBundle => ({
     thesis: "Problem first",
     hook: `Hook ${label}`,
     beats: [{ visual: "Crust on a showerhead", on_screen_text: "", vo: "" }],
+    direction: {
+      show: "A real bathroom, the old showerhead still on the wall, then the filter going on by hand in one shot.",
+      say: "Name the problem the way the customer does, then say plainly what the filter changes about the water.",
+      prove: "What the filter removes, as the product page states it. No results promised.",
+    },
     cta: "Shop the filter",
     duration_seconds: 20,
   })),

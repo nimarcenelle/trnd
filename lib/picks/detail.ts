@@ -140,6 +140,8 @@ export interface DetailView {
   finding: string;
   /** "Relative demand for this term. Higher means more people searching." */
   demandExplainer: string;
+  /** The chips beside the number, read from the line itself. */
+  demandDeltas: DemandDelta[];
   /** The four signals for the Signal read card; null on a pick written before the grade. */
   signalRead: SignalReadView | null;
   metric: FormattedMetric & { value: string | null; sparkline: { d: string; v: number }[] };
@@ -151,6 +153,52 @@ export interface DetailView {
   groups: EvidenceGroup[];
   mode: ActionMode;
   copyAll: string;
+}
+
+/** One direction chip on the demand card. */
+export interface DemandDelta {
+  pct: number;
+  direction: "up" | "down" | "flat";
+  window: "vs last week" | "over 30 days";
+}
+
+const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
+/**
+ * What the line itself says, so the chips and the line never disagree. The
+ * stored delta comes from the metric's own source, and a monthly search
+ * total can read 0% while the daily index under it jumped and held. With
+ * two weeks of points, "vs last week" is the last seven days against the
+ * seven before; with thirty, "over 30 days" is the last seven against the
+ * first seven of the window. Fewer points than that: the stored delta.
+ */
+export function demandDeltas(
+  sparkline: { d: string; v: number }[],
+  stored: { pct: number | null; window: "week" | "30d" },
+): DemandDelta[] {
+  const values = sparkline.map((p) => p.v).filter((v) => Number.isFinite(v));
+  const chip = (ratio: number, window: DemandDelta["window"]): DemandDelta | null => {
+    if (!Number.isFinite(ratio)) return null;
+    const pct = Math.round((ratio - 1) * 100);
+    return { pct, direction: pct > 2 ? "up" : pct < -2 ? "down" : "flat", window };
+  };
+  const out: DemandDelta[] = [];
+  if (values.length >= 14) {
+    const last = mean(values.slice(-7));
+    const prev = mean(values.slice(-14, -7));
+    const week = prev > 0 ? chip(last / prev, "vs last week") : last > 0 ? chip(Infinity, "vs last week") : chip(1, "vs last week");
+    if (week) out.push(week.pct === Infinity ? { ...week, pct: 100 } : week);
+  }
+  if (values.length >= 30) {
+    const last = mean(values.slice(-7));
+    const first = mean(values.slice(0, 7));
+    const month = first > 0 ? chip(last / first, "over 30 days") : null;
+    if (month) out.push(month);
+  } else if (typeof stored.pct === "number" && Number.isFinite(stored.pct)) {
+    const pct = Math.round(stored.pct);
+    out.push({ pct, direction: pct > 2 ? "up" : pct < -2 ? "down" : "flat", window: stored.window === "week" ? "vs last week" : "over 30 days" });
+  }
+  return out;
 }
 
 /** "40,500" — the metric's raw value, or null when there isn't one. */
@@ -284,6 +332,7 @@ export function buildDetailView(detail: PickDetail): DetailView {
     rank: pick.rank,
     finding: pick.finding,
     demandExplainer: demandExplainer(pick.metric_label),
+    demandDeltas: demandDeltas(sparkline, { pct: pick.metric_delta_pct, window: pick.metric_window }),
     signalRead: buildSignalRead(grade),
     metric: { ...formatMetric(pick), value: formatMetricValue(pick.metric_value), sparkline },
     bet: {

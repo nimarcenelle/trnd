@@ -38,6 +38,11 @@ const script: PickScript = {
     { visual: "Hand wipes white crust off a showerhead", on_screen_text: "This is on your skin", vo: "" },
     { visual: "Swap to the filter in 20 seconds", on_screen_text: "", vo: "Twist off, twist on." },
   ],
+  direction: {
+    show: "A real bathroom, the old showerhead still on the wall, then the filter going on by hand in one shot.",
+    say: "Name the problem the way the customer does, then say plainly what the filter changes about the water.",
+    prove: "What the filter removes, as the product page states it. No results promised.",
+  },
   cta: "Shop the filter",
   duration_seconds: 20,
 };
@@ -63,21 +68,27 @@ describe("a pick's numbers", () => {
 });
 
 describe("copying a pick", () => {
-  it("turns a script into plain text a shooter can paste", () => {
+  it("turns a script into plain text a shooter can paste: direction, never lines to read", () => {
     expect(scriptToText(script)).toBe(
       [
         "A: Problem first",
         "Hook: Your shower is why your hair feels like straw",
         "",
-        "1. Visual: Hand wipes white crust off a showerhead",
-        "   On screen: This is on your skin",
-        "2. Visual: Swap to the filter in 20 seconds",
-        "   Voiceover: Twist off, twist on.",
+        "Show: A real bathroom, the old showerhead still on the wall, then the filter going on by hand in one shot.",
+        "Say: Name the problem the way the customer does, then say plainly what the filter changes about the water.",
+        "Prove: What the filter removes, as the product page states it. No results promised.",
         "",
-        "CTA: Shop the filter",
-        "Runtime: 20s",
+        "Close: Shop the filter",
+        "Length: about 20s",
       ].join("\n"),
     );
+  });
+
+  it("falls back to the shot list on a pick written before direction existed", () => {
+    const text = scriptToText({ ...script, direction: null });
+    expect(text).toContain("1. Visual: Hand wipes white crust off a showerhead");
+    expect(text).toContain("   Voiceover: Twist off, twist on.");
+    expect(text).not.toContain("Show:");
   });
 
   it("copies the whole pick with the metric exactly once and the guardrail only when there is one", () => {

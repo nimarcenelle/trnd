@@ -63,7 +63,7 @@ export default function PickReference() {
           <p className="pick__eyebrow">#1 this week · Atlanta metro</p>
           <h1 className="pick__title">Contrast therapy sessions</h1>
         </div>
-        <PickPager index={0} total={5} terms={["contrast therapy", "cold plunge", "infrared sauna", "recovery membership", "sports massage"]} />
+        <PickPager index={0} items={["contrast therapy", "cold plunge", "infrared sauna", "recovery membership", "sports massage"].map((term, i) => ({ href: `/styleguide/pick?p=${i + 1}`, term }))} />
       </header>
 
       <div className="pick__grid">

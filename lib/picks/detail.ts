@@ -196,7 +196,12 @@ export function demandDeltas(
     if (month) out.push(month);
   } else if (typeof stored.pct === "number" && Number.isFinite(stored.pct)) {
     const pct = Math.round(stored.pct);
-    out.push({ pct, direction: pct > 2 ? "up" : pct < -2 ? "down" : "flat", window: stored.window === "week" ? "vs last week" : "over 30 days" });
+    const window = stored.window === "week" ? "vs last week" : "over 30 days";
+    // The stored figure fills in only for a window the line itself could
+    // not read; two chips for the same window said the same thing twice.
+    if (!out.some((d) => d.window === window)) {
+      out.push({ pct, direction: pct > 2 ? "up" : pct < -2 ? "down" : "flat", window });
+    }
   }
   return out;
 }

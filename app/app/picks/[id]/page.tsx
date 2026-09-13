@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import AutoRefresh from "@/components/app/auto-refresh";
+import PickPager from "@/components/app/pick-pager";
+import AlertBar from "@/components/picks/alert-bar";
 import DetailActions from "@/components/picks/detail-actions";
 import DetailCopyButton from "@/components/picks/detail-copy-button";
 import DemandChart from "@/components/picks/demand-chart";
@@ -9,6 +12,9 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { buildDetailView, isPickId, viewableDetail, type DetailSection, type DetailView } from "@/lib/picks/detail";
 import { gradeTone, type GradeView } from "@/lib/picks/grade-view";
+import { weekRangeLabel } from "@/lib/picks/list";
+import { weekStillWriting } from "@/lib/picks/progress";
+import { weekOf } from "@/lib/recommend/week";
 import { sentenceCase } from "@/lib/text";
 
 export const metadata = { title: "Pick — TRND" };
@@ -32,9 +38,19 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
   // week lands; a link to the old id goes back to the list, not to a 404.
   if (!detail) redirect("/app/picks");
 
+  const week = weekOf();
+  const [siblings, unreadAlerts, writing] = await Promise.all([
+    repo.listReadyPicks(business.id, week),
+    repo.listAlerts(business.id, { unreadOnly: true, limit: 5 }),
+    weekStillWriting(repo, business),
+  ]);
+  const items = siblings.map((s) => ({ href: `/app/picks/${s.pick.id}`, term: sentenceCase(s.pick.term) }));
+  const index = Math.max(0, siblings.findIndex((s) => s.pick.id === id));
+  const head = { items, index, weekRange: weekRangeLabel(week), writing };
+
   const view = buildDetailView(detail);
   const render: Record<DetailSection, () => React.ReactNode> = {
-    finding: () => <Head key="finding" view={view} />,
+    finding: () => <Head key="finding" view={view} head={head} />,
     bet: () => <Bet key="bet" view={view} />,
     scripts: () => (
       <div key="scripts" className="pickd__work">
@@ -57,23 +73,38 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="page pickd">
-      <Link href="/app/picks" className="mono-label pickd__back">
-        All picks
-      </Link>
+      <AlertBar alerts={unreadAlerts} />
       {view.sections.map((s) => render[s]())}
     </div>
   );
 }
 
-function Head({ view }: { view: DetailView }) {
+interface HeadContext {
+  items: { href: string; term: string }[];
+  index: number;
+  weekRange: string;
+  writing: number;
+}
+
+function Head({ view, head }: { view: DetailView; head: HeadContext }) {
   return (
     <section className="pickd__head" aria-labelledby="pickd-title">
       <div className="pickd__kicker">
-        <span className="mono-label">#{view.rank} this week</span>
+        <span className="mono-label">
+          Pick {head.index + 1} · {head.weekRange}
+        </span>
+        <PickPager index={head.index} items={head.items} />
       </div>
       <h1 id="pickd-title" className="pickd__title">
         {sentenceCase(view.term)}
       </h1>
+      {head.writing > 0 && (
+        <p className="wk-more" role="status">
+          <span className="wk-progress__mark is-live" aria-hidden="true" />
+          The other {head.writing} pick{head.writing === 1 ? "" : "s"} land in about a minute.
+          <AutoRefresh everyMs={6000} times={30} />
+        </p>
+      )}
       <div className="pickd__top">
         <div className="pickd__col">
           {view.signalRead && <SignalRead read={view.signalRead} />}
@@ -98,28 +129,25 @@ function Finding({ view }: { view: DetailView }) {
   );
 }
 
-/** The score's fifth, as stars: 0-100 to 0-5, half-steps rounded down. */
-function starsFor(score: number | null): { filled: number; label: string } {
-  const filled = score === null ? 0 : Math.max(0, Math.min(5, Math.floor(score / 20)));
-  return { filled, label: `${filled} of 5` };
-}
-
 function GradeCard({ grade }: { grade: GradeView & { label: string } }) {
-  const stars = starsFor(grade.score);
   return (
     <div className={`pickd__card pickd__grade-card is-${gradeTone(grade.letter)}`}>
-      <h2 className="pickd__h2">Opportunity Grade</h2>
-      <p className="pickd__grade-letter">
-        <span className="sr-only">Grade </span>
-        {grade.letter}
-      </p>
+      <h2 className="pickd__h2">Opportunity grade</h2>
+      <div className="pickd__grade-row">
+        <p className="pickd__grade-letter">
+          <span className="sr-only">Grade </span>
+          {grade.letter}
+        </p>
+        <div className="pickd__grade-text">
+          <p className="pickd__grade-meaning">{grade.meaning}</p>
+          {grade.score !== null && <p className="pickd__grade-score">{grade.score} of 100</p>}
+        </div>
+      </div>
       {grade.score !== null && (
-        <span className="pickd__stars" role="img" aria-label={`${stars.label} stars`}>
-          {Array.from({ length: 5 }, (_, i) => (i < stars.filled ? <b key={i}>★</b> : <span key={i}>☆</span>))}
+        <span className="pickd__grade-bar" aria-hidden="true">
+          <span style={{ width: `${Math.max(2, Math.min(100, grade.score))}%` }} />
         </span>
       )}
-      <p className="pickd__grade-meaning">{grade.meaning}</p>
-      {grade.score !== null && <p className="pickd__grade-score">{grade.score} of 100</p>}
       {grade.excludedNotes.length > 0 && (
         <ul className="pickd__excluded">
           {grade.excludedNotes.map((note) => (

@@ -87,7 +87,11 @@ function levelPhrase(level: number, kind: LevelKind): string {
       return `${n} posts about it this week`;
     case "search_interest":
     case "index":
-      return `Search interest at ${n} of 100 this week`;
+      // An interest index reads against its own peak; above 100 it is a
+      // multiple of the usual level, not a score out of 100.
+      return level > 100
+        ? `Search interest at ${(level / 100).toFixed(1)}× its usual level this week`
+        : `Search interest at ${n} of 100 this week`;
     default:
       return `${n} searches this week`;
   }

@@ -1588,7 +1588,8 @@ textarea.input {
    The top of a pick: the term, then the Signal read and the finding on the
    left with the grade and the demand read on the right. One column under
    900px, in reading order: signals, finding, guardrail, then the grade. */
-.pickd__kicker { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 6px; }
+.pickd__kicker { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 8px; }
+.pickd .wk-more { margin: -8px 0 16px; }
 .pickd__kicker .mono-label { color: var(--ink-faint); }
 .pickd__title {
   font-family: var(--disp);
@@ -1621,21 +1622,24 @@ textarea.input {
 .pickd__grade-card { border-color: var(--amber-soft); background: var(--amber-softer); }
 .pickd__grade-card.is-mint { border-color: var(--mint); background: var(--mint-soft); }
 .pickd__grade-card.is-faint { background: var(--bg-1); }
+.pickd__grade-row { display: flex; align-items: center; gap: 16px; }
 .pickd__grade-letter {
   font-family: var(--disp);
   font-size: 44px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   line-height: 1;
-  margin: 0 0 6px;
+  margin: 0;
   color: var(--ink);
 }
 .pickd__grade-card.is-mint .pickd__grade-letter { color: var(--mint-text); }
 .pickd__grade-card.is-amber .pickd__grade-letter { color: var(--amber-display); }
-.pickd__stars { display: inline-flex; gap: 2px; font-size: 14px; letter-spacing: 0.04em; color: var(--ink-faint); margin-bottom: 6px; }
-.pickd__stars b { color: var(--amber-display); font-weight: 400; }
-.pickd__grade-meaning { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--ink); }
-.pickd__grade-score { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); margin: 6px 0 0; }
+.pickd__grade-text { display: grid; gap: 2px; min-width: 0; }
+.pickd__grade-meaning { margin: 0; font-size: 15px; line-height: 1.4; color: var(--ink); font-weight: 600; letter-spacing: -0.005em; }
+.pickd__grade-score { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); margin: 0; }
+.pickd__grade-bar { display: block; height: 4px; border-radius: 999px; background: var(--line); margin: 14px 0 0; overflow: hidden; }
+.pickd__grade-bar span { display: block; height: 100%; border-radius: 999px; background: var(--amber-display); }
+.pickd__grade-card.is-mint .pickd__grade-bar span { background: var(--mint-text); }
 .pickd__grade-card .pickd__excluded { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 
 /* the demand read */
@@ -1673,45 +1677,38 @@ textarea.input {
 /* the signal read */
 .sigread__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .sigread__hint { font-size: 12px; color: var(--ink-faint); }
-.sigread__bars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 6px 0 14px; }
-.sigread__bar {
+.sigread__tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 8px 0 14px; }
+.sigread__tile {
   display: grid;
-  grid-template-rows: auto 88px auto;
-  justify-items: center;
   gap: 6px;
-  padding: 6px 4px 8px;
-  border: 1px solid transparent;
+  justify-items: start;
+  text-align: left;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: transparent;
+  background: var(--bg-1);
   cursor: pointer;
   color: var(--ink-soft);
   font: inherit;
+  min-width: 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
-.sigread__bar:hover { background: var(--bg); }
-.sigread__bar.is-selected { border-color: var(--line-strong); background: var(--bg); color: var(--ink); }
-.sigread__bar:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
-.sigread__score { font-family: var(--mono); font-size: 13px; font-weight: 600; }
-.sigread__bar.is-gap .sigread__score { color: var(--ink-faint); }
-.sigread__track {
-  width: 100%;
-  max-width: 44px;
-  height: 100%;
-  display: flex;
-  align-items: flex-end;
-  border-radius: 8px;
-  background: var(--line);
-  overflow: hidden;
-}
-.sigread__fill { width: 100%; border-radius: 8px; background: currentColor; opacity: 0.85; transition: height 240ms ease; }
-.sigread__bar.is-customer .sigread__fill { background: var(--mint-text); }
-.sigread__bar.is-culture .sigread__fill { background: var(--amber); }
-.sigread__bar.is-competitive .sigread__fill { background: var(--red); }
-.sigread__bar.is-brand .sigread__fill { background: var(--ink-soft); }
-.sigread__bar.is-gap .sigread__fill { background: transparent; border: 1.5px dashed var(--line-strong); }
-.sigread__label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; }
+.sigread__tile:hover { border-color: var(--line-strong); }
+.sigread__tile.is-selected { border-color: var(--line-strong); background: var(--bg-2); color: var(--ink); }
+.sigread__tile:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.sigread__score { font-family: var(--disp); font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: var(--ink); }
+.sigread__tile.is-gap .sigread__score { color: var(--ink-faint); font-weight: 500; }
+.sigread__track { width: 100%; height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.sigread__fill { display: block; height: 100%; border-radius: 999px; background: currentColor; transition: width 240ms ease; }
+.sigread__tile.is-customer .sigread__fill { background: var(--mint-text); }
+.sigread__tile.is-culture .sigread__fill { background: var(--amber); }
+.sigread__tile.is-competitive .sigread__fill { background: var(--red); }
+.sigread__tile.is-brand .sigread__fill { background: var(--ink-soft); }
+.sigread__label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); }
+@media (max-width: 560px) { .sigread__tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .sigread__why { border-top: 1px solid var(--line); padding-top: 12px; }
-.sigread__about { margin: 0 0 8px; font-family: var(--mono); font-size: 12px; line-height: 1.5; color: var(--ink-faint); }
-.sigread__line { margin: 0 0 8px; font-size: 14.5px; line-height: 1.55; color: var(--ink); }
+.sigread__about { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: var(--ink-faint); }
+.sigread__line { margin: 0 0 4px; font-size: 14.5px; line-height: 1.55; color: var(--ink); }
 .sigread__line.is-gap { color: var(--ink-soft); }
 .sigread__conf { font-size: 12.5px; color: var(--ink-faint); }
 .sigread__cta { color: var(--amber-text); text-decoration: underline; text-underline-offset: 2px; font-size: 13.5px; }
@@ -1719,6 +1716,7 @@ textarea.input {
 .sigread__components li { display: grid; grid-template-columns: 96px 44px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 13px; line-height: 1.5; }
 .sigread__comp-label { color: var(--ink-soft); }
 .sigread__comp-score { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+.sigread__comp-score.is-gap { color: var(--ink-faint); }
 .sigread__comp-detail { color: var(--ink-soft); overflow-wrap: anywhere; }
 @media (max-width: 520px) {
   .sigread__components li { grid-template-columns: 84px 40px minmax(0, 1fr); }

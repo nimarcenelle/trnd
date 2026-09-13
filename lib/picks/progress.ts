@@ -1,4 +1,4 @@
-import { targetCustomerOf } from "@/lib/ai/brief";
+import { businessJustOnboarded, targetCustomerOf } from "@/lib/ai/brief";
 import type { Repo } from "@/lib/db/repo";
 import type { Business } from "@/lib/db/types";
 import { competitiveSet } from "@/lib/recommend/four-signals";
@@ -43,6 +43,22 @@ export interface WeekProgress {
 }
 
 const ORDER: WeekStage[] = ["brief", "scan", "intel", "rank", "picks"];
+
+/**
+ * How many picks a fresh signup's week still owes: the first pick is written
+ * alone, and while it is the only one the rest are on their way. Zero once
+ * the week is whole, or for any business past its first days.
+ */
+export async function weekStillWriting(repo: Repo, business: Business): Promise<number> {
+  if (!businessJustOnboarded(business.created_at)) return 0;
+  const week = weekOf();
+  const [count, opportunities] = await Promise.all([
+    repo.countWeekPicks(business.id, week),
+    repo.listOpportunities(business.id, week),
+  ]);
+  const expected = eligibleWeekOpportunities(opportunities).length;
+  return count === 1 && expected > 1 ? expected - 1 : 0;
+}
 
 const LABELS: Record<WeekStage, string> = {
   brief: "Reading your business",

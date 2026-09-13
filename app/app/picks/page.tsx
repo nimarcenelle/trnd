@@ -5,22 +5,11 @@ import { after } from "next/server";
 // The waiting states below have nothing on them to keep, and the whole page
 // changes when the picks land, so they poll the page itself.
 import AutoRefresh from "@/components/app/auto-refresh";
-import SubmitButton from "@/components/app/submit-button";
 import WeekClock from "@/components/app/week-clock";
-import ListRow from "@/components/picks/list-row";
-import {
-  BRIEF_FALLBACK_MODEL,
-  BRIEF_PROMPT_VERSION,
-  briefLikelyInFlight,
-  businessJustOnboarded,
-  generateBusinessBrief,
-} from "@/lib/ai/brief";
+import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
-import type { Alert } from "@/lib/db/types";
 import { isEmailConfigured, isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
-import { markAlertsReadAction } from "@/lib/intel/actions";
-import { eligibleWeekOpportunities } from "@/lib/picks/generate";
 import { kickWeekJob } from "@/lib/picks/kick";
 import { weekProgress } from "@/lib/picks/progress";
 import { dueForKick, weekRangeLabel } from "@/lib/picks/list";
@@ -40,30 +29,10 @@ function requestTime(): number {
   return Date.now();
 }
 
-// The list page never calls a model on the request path, and never runs
-// the week's chain itself: the week job does, one stage per invocation
-// (lib/picks/advance-week.ts). This page reads what the week still needs
-// and asks for the next stage.
-
-function AlertBar({ alerts }: { alerts: Alert[] }) {
-  // What changed since they last looked. One line, above everything: it is
-  // the only thing on this screen that is news.
-  if (alerts.length === 0) return null;
-  return (
-    <form action={markAlertsReadAction} className="alertbar">
-      <span className="alertbar__dot" aria-hidden="true" />
-      <p className="alertbar__text">
-        <Link href={alerts[0].href}>{alerts[0].title}</Link>
-        {alerts.length > 1 && (
-          <span className="alertbar__more"> · {alerts.length - 1} more alert{alerts.length === 2 ? "" : "s"}</span>
-        )}
-      </p>
-      <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="…">
-        Mark read
-      </SubmitButton>
-    </form>
-  );
-}
+// This route never calls a model on the request path, and never runs the
+// week's chain itself: the week job does, one stage per invocation
+// (lib/picks/advance-week.ts). It reads what the week still needs, asks for
+// the next stage, and once picks exist sends the owner to the first one.
 
 export default async function PicksPage() {
   const user = await getSessionUser();
@@ -74,11 +43,7 @@ export default async function PicksPage() {
 
   const week = weekOf();
   const weekRange = weekRangeLabel(week);
-  const [rows, unreadAlerts, brief] = await Promise.all([
-    repo.listReadyPicks(business.id, week),
-    repo.listAlerts(business.id, { unreadOnly: true, limit: 5 }),
-    repo.getBusinessBrief(business.id),
-  ]);
+  const [rows, brief] = await Promise.all([repo.listReadyPicks(business.id, week), repo.getBusinessBrief(business.id)]);
 
   // Re-evaluate alerts after the response. Idempotent (deduped keys), so the
   // week's page doubles as the alert heartbeat between crons.
@@ -109,48 +74,9 @@ export default async function PicksPage() {
     });
   }
 
-  if (rows.length > 0) {
-    // A fresh signup's first pick lands alone; the rest of the week follows
-    // in about a minute. Say so above the list and ask for it, rather than
-    // showing one row as if that were the week.
-    let writingMore = 0;
-    if (businessJustOnboarded(business.created_at)) {
-      const [count, opportunities] = await Promise.all([
-        repo.countWeekPicks(business.id, week),
-        repo.listOpportunities(business.id, week),
-      ]);
-      const expected = eligibleWeekOpportunities(opportunities).length;
-      if (count === 1 && expected > 1) {
-        writingMore = expected - 1;
-        await kickWeekJob(business.id, { now: requestTime() });
-      }
-    }
-    return (
-      <div className="page picks">
-        <AlertBar alerts={unreadAlerts} />
-        <div className="page-head">
-          <div>
-            <h1>This week</h1>
-            <p className="context">{weekRange}</p>
-          </div>
-        </div>
-        {writingMore > 0 && (
-          <p className="wk-more" role="status">
-            <span className="wk-progress__mark is-live" aria-hidden="true" />
-            Your first pick is ready. The other {writingMore} land in about a minute; this page refreshes itself.
-            <AutoRefresh everyMs={6000} times={30} />
-          </p>
-        )}
-        <ol className="picks-list" aria-label={`Picks for ${weekRange}, ranked`}>
-          {rows.map(({ pick, run }) => (
-            <li key={pick.id}>
-              <ListRow pick={pick} run={run} />
-            </li>
-          ))}
-        </ol>
-      </div>
-    );
-  }
+  // The week opens on its first pick; the pick page carries the pager for
+  // the rest. There is no list to read between the wait and the work.
+  if (rows.length > 0) redirect(`/app/picks/${rows[0].pick.id}`);
 
   const where = isOnlineBusiness(business) ? "across the US" : `around ${business.city}`;
 
@@ -287,7 +213,6 @@ export default async function PicksPage() {
 
   return (
     <div className="page picks">
-      <AlertBar alerts={unreadAlerts} />
       <div className="page-head">
         <div>
           <span className="eyebrow m-0">This week · {weekRange}</span>

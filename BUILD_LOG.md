@@ -823,3 +823,29 @@ DTC brand spending $20K-$250K a month on paid social, at $500 a month, and the p
 - **Shipping ahead of the migration**: 0022 is idempotent, and until it is pasted the Supabase repo
   drops columns production lacks and keeps writing. `scripts/probe-call.ts` prints the four-signal
   read and the call for a business without writing anything.
+
+## P27 — Picks: the ad, the bet, and when to kill it
+Founder spec, 2026-09-12: the pick page stopped at "here is an interesting trend"; it must end
+at "here is the ad, here is the bet, here is when to kill it", and every element must change
+what the brand shoots on Tuesday. The primary reader is the person making the creative.
+
+- **Schema** (0023): `picks`, `pick_evidence`, `pick_scripts`, `pick_feedback`, `pick_runs`,
+  RLS by business, and `replace_week_picks()`, which writes a week in one transaction, keeps
+  picks someone ran or dismissed, and stores anything without three scripts and one evidence
+  row as a draft.
+- **Generation** (lib/picks): written upstream, never on a page. Code computes the one metric
+  (week change, else 30 days; a short-form read under 5,000 views hands over to search, or the
+  pick stays a draft), the sparkline, the bet sized from the brand's spend, a kill rule that is a
+  threshold, and evidence by signal with sources that never restate the metric. The model writes
+  the finding (the customer's words against the brand's, naming the item the bet runs, or what
+  the page leads with when there is no word gap), what to run, a guardrail or null, and three
+  scripts of 15 to 45 seconds; zod validates it, Pro then Flash, else a draft. Its own cron runs
+  twenty minutes after ranking with a two-minute budget per invocation and hands the rest on.
+- **Pages**: `/app/picks` is five ranked rows (finding, one metric, bet, run status) and replaces
+  the carousel; `/app/picks/[id]` renders the finding, metric and sparkline, the bet, three
+  script cards with copy, the guardrail only when there is one, collapsed evidence by signal, and
+  a sticky footer to copy, export, run it (a run under Campaigns) or dismiss it with a reason.
+  `/picks` and `/app` redirect. No composite scores, no narrative paragraph, no "no data" copy.
+- **Found on real data**: a dry run on eskiin (`scripts/probe-picks.ts`, writes nothing) showed
+  an H1 quoting the wrong product, "+200%" on 688 views, 60- and 8-second scripts, and a finding
+  with no gap in it. Each is now a validation rule or a code path, with tests.

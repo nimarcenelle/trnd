@@ -1,0 +1,199 @@
+import type { BrandPick, PickDetail, PickDismissReason, PickScript, PickSignal } from "@/lib/db/types";
+import { formatMetric, formatUsd, pickToText, scriptToText, type FormattedMetric } from "@/lib/picks/format";
+
+/**
+ * The pick detail page as data: what renders, in what order, and what the
+ * two feedback actions accept. Pure (no "use server", no session) so every
+ * rule here is tested directly and the page only maps it to markup.
+ */
+
+/* ------------------------------ feedback input ----------------------------- */
+
+export const DISMISS_REASONS = [
+  { value: "wrong_customer", label: "Wrong customer" },
+  { value: "already_tried", label: "Already tried" },
+  { value: "off_brand", label: "Off-brand" },
+  { value: "cant_shoot", label: "Can't shoot it" },
+  { value: "other", label: "Other" },
+] as const satisfies readonly { value: PickDismissReason; label: string }[];
+
+export const NOTE_MAX_LENGTH = 500;
+
+/** One of the five reasons, or null for anything else. */
+export function parseDismissReason(raw: unknown): PickDismissReason | null {
+  if (typeof raw !== "string") return null;
+  const hit = DISMISS_REASONS.find((r) => r.value === raw);
+  return hit ? hit.value : null;
+}
+
+/** The optional note: trimmed, capped at 500 characters, empty is null. */
+export function cleanNote(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  // Cap by code point so an emoji at the boundary is never cut in half.
+  const chars = Array.from(trimmed);
+  return chars.length <= NOTE_MAX_LENGTH ? trimmed : chars.slice(0, NOTE_MAX_LENGTH).join("").trimEnd();
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Pick ids are uuids; anything else is a 404 before it reaches the database. */
+export function isPickId(raw: unknown): raw is string {
+  return typeof raw === "string" && UUID.test(raw);
+}
+
+/* -------------------------------- visibility ------------------------------- */
+
+/** Drafts never render. Only a ready pick has a detail page. */
+export function isRenderablePick(pick: Pick<BrandPick, "status">): boolean {
+  return pick.status === "ready";
+}
+
+/** The detail, if it belongs to this business and is ready; otherwise null (a 404). */
+export function viewableDetail(detail: PickDetail | null, businessId: string): PickDetail | null {
+  if (!detail) return null;
+  if (detail.pick.business_id !== businessId) return null;
+  if (!isRenderablePick(detail.pick)) return null;
+  return detail;
+}
+
+export type ActionMode = "open" | "running" | "dismissed";
+
+/** Dismissed wins (copy and export only); a live run hides the two decisions. */
+export function actionMode(detail: Pick<PickDetail, "dismissed" | "run">): ActionMode {
+  if (detail.dismissed) return "dismissed";
+  if (detail.run?.status === "running") return "running";
+  return "open";
+}
+
+/* -------------------------------- render model ----------------------------- */
+
+export const SIGNAL_ORDER: readonly PickSignal[] = ["customer", "culture", "competitive", "brand"];
+
+export const SIGNAL_LABELS: Record<PickSignal, string> = {
+  customer: "Customer",
+  culture: "Culture",
+  competitive: "Competitive",
+  brand: "Brand",
+};
+
+export const MAX_CLAIMS_PER_GROUP = 2;
+export const SPARKLINE_POINTS = 30;
+
+export type DetailSection = "finding" | "bet" | "scripts" | "guardrail" | "why" | "actions";
+
+export interface EvidenceClaim {
+  id: string;
+  claim: string;
+  /** http(s) only; anything else renders the claim without a link. */
+  href: string | null;
+  sourceLabel: string | null;
+}
+
+export interface EvidenceGroup {
+  signal: PickSignal;
+  label: string;
+  claims: EvidenceClaim[];
+}
+
+export interface DetailView {
+  sections: DetailSection[];
+  finding: string;
+  metric: FormattedMetric & { value: string | null; sparkline: { d: string; v: number }[] };
+  bet: { what: string; budget: string; duration: string; killRule: string };
+  scripts: { script: PickScript; text: string }[];
+  guardrail: string | null;
+  groups: EvidenceGroup[];
+  mode: ActionMode;
+  copyAll: string;
+}
+
+/** "40,500" — the metric's raw value, or null when there isn't one. */
+export function formatMetricValue(value: number | null): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.round(value).toLocaleString("en-US");
+}
+
+/** "5 days" / "1 day", said the way pickToText says it. */
+export function formatDays(days: number): string {
+  return `${days} day${days === 1 ? "" : "s"}`;
+}
+
+/** An http(s) link, or null. Evidence urls come from crawls and models. */
+export function safeHref(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function linkLabel(href: string, label: string | null): string {
+  const given = label?.trim();
+  if (given) return given;
+  return new URL(href).hostname.replace(/^www\./, "");
+}
+
+export function buildEvidenceGroups(evidence: PickDetail["evidence"]): EvidenceGroup[] {
+  return SIGNAL_ORDER.flatMap((signal) => {
+    const claims = evidence
+      .filter((e) => e.signal === signal && e.claim.trim())
+      .sort((a, b) => a.position - b.position)
+      .slice(0, MAX_CLAIMS_PER_GROUP)
+      .map((e): EvidenceClaim => {
+        const href = safeHref(e.source_url);
+        return { id: e.id, claim: e.claim.trim(), href, sourceLabel: href ? linkLabel(href, e.source_label) : null };
+      });
+    return claims.length ? [{ signal, label: SIGNAL_LABELS[signal], claims }] : [];
+  });
+}
+
+export function buildDetailView(detail: PickDetail): DetailView {
+  const { pick } = detail;
+  const guardrail = pick.guardrail?.trim() || null;
+  const groups = buildEvidenceGroups(detail.evidence);
+  const scripts = [...detail.scripts].sort((a, b) => a.position - b.position);
+  const sparkline = (pick.sparkline ?? []).filter((p) => Number.isFinite(p.v)).slice(-SPARKLINE_POINTS);
+
+  const sections: DetailSection[] = [
+    "finding",
+    "bet",
+    "scripts",
+    ...(guardrail ? (["guardrail"] as const) : []),
+    ...(groups.length ? (["why"] as const) : []),
+    "actions",
+  ];
+
+  return {
+    sections,
+    finding: pick.finding,
+    metric: { ...formatMetric(pick), value: formatMetricValue(pick.metric_value), sparkline },
+    bet: {
+      what: pick.bet_what,
+      budget: formatUsd(Number(pick.bet_budget_usd)),
+      duration: formatDays(pick.bet_duration_days),
+      killRule: pick.bet_kill_rule,
+    },
+    scripts: scripts.map((script) => ({ script, text: scriptToText(script) })),
+    guardrail,
+    groups,
+    mode: actionMode(detail),
+    copyAll: pickToText({ pick, scripts }),
+  };
+}
+
+/** "trnd-pick-hard-water.txt" */
+export function exportFilename(term: string): string {
+  const slug = term
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/g, "");
+  return `trnd-pick-${slug || "export"}.txt`;
+}

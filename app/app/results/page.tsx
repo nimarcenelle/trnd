@@ -112,7 +112,7 @@ export default async function ResultsPage() {
             <h3>No campaigns launched yet</h3>
             <p>
               Build a campaign from{" "}
-              <Link className="text-(--amber-text)" href="/app">
+              <Link className="text-(--amber-text)" href="/app/picks">
                 this week&apos;s recommendation
               </Link>
               , mark it launched, and its numbers — clicks, bookings, cost per result — start

@@ -80,7 +80,7 @@ export async function completePasswordResetAction(
   const sb = await createServerSupabase();
   const { error } = await sb.auth.updateUser({ password: next });
   if (error) return { error: error.message };
-  redirect("/app");
+  redirect("/app/picks");
 }
 
 /**

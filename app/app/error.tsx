@@ -17,7 +17,8 @@ export default function AppError({ reset }: { error: Error; reset: () => void })
         <button className="btn btn-primary btn-sm" onClick={reset}>
           Try again
         </button>
-        <a href="/app" className="btn btn-ghost btn-sm">
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- a full reload is the point: it resets whatever broke */}
+        <a href="/app/picks" className="btn btn-ghost btn-sm">
           This week
         </a>
       </div>

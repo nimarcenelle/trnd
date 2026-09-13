@@ -67,7 +67,7 @@ export async function seedCompetitorsAction(): Promise<void> {
   }
   revalidatePath("/app/settings");
   revalidatePath("/app/report");
-  revalidatePath("/app");
+  revalidatePath("/app", "layout");
 }
 
 export async function deleteCompetitorAction(formData: FormData): Promise<void> {
@@ -110,7 +110,7 @@ export async function updateCompetitorHandlesAction(formData: FormData): Promise
   });
   revalidatePath("/app/settings");
   revalidatePath("/app/report");
-  revalidatePath("/app");
+  revalidatePath("/app", "layout");
 }
 
 export async function markAlertsReadAction(): Promise<void> {
@@ -120,7 +120,7 @@ export async function markAlertsReadAction(): Promise<void> {
   const business = await repo.getBusinessByOwner(user.id);
   if (!business) return;
   await repo.markAlertsRead(business.id);
-  revalidatePath("/app");
+  revalidatePath("/app", "layout");
 }
 
 export async function disconnectMetaAction(): Promise<void> {

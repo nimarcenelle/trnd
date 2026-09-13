@@ -83,7 +83,7 @@ export default async function OpportunitiesPage() {
         <div className="panel max-w-[620px]">
           <p className="m-0 text-ink-soft text-[14.5px] leading-[1.6]">
             Nothing ranked yet this week. Visit{" "}
-            <Link className="text-(--amber-text)" href="/app">
+            <Link className="text-(--amber-text)" href="/app/picks">
               This week
             </Link>{" "}
             to generate your ranking.

@@ -29,7 +29,7 @@ export async function addStandingQuestionAction(formData: FormData): Promise<voi
   } catch (err) {
     console.warn("[standing] adding the question failed (non-fatal):", (err as Error).message);
   }
-  revalidatePath("/app");
+  revalidatePath("/app", "layout");
 }
 
 export async function removeStandingQuestionAction(formData: FormData): Promise<void> {
@@ -42,5 +42,5 @@ export async function removeStandingQuestionAction(formData: FormData): Promise<
   } catch (err) {
     console.warn("[standing] removing the question failed (non-fatal):", (err as Error).message);
   }
-  revalidatePath("/app");
+  revalidatePath("/app", "layout");
 }

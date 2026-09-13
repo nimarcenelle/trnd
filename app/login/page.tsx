@@ -8,7 +8,7 @@ export const metadata = { title: "Sign in — TRND" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const user = await getSessionUser();
-  if (user) redirect("/app");
+  if (user) redirect("/app/picks");
   const { error } = await searchParams;
   return (
     <AuthShell title="Welcome back." sub="Sign in to see this week's recommendation.">

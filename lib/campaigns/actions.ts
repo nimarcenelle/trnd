@@ -14,7 +14,7 @@ export async function setOpportunityStatusAction(formData: FormData): Promise<vo
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
   await repo.setOpportunityStatus(id, status);
-  revalidatePath("/app");
+  revalidatePath("/app", "layout");
   revalidatePath("/app/opportunities");
 }
 
@@ -29,5 +29,5 @@ export async function markLaunchedAction(formData: FormData): Promise<void> {
   await repo.setCampaignStatus(campaignId, "live");
   await repo.setOpportunityStatus(campaign.opportunity_id, "launched");
   revalidatePath(`/app/campaigns/${campaignId}`);
-  revalidatePath("/app");
+  revalidatePath("/app", "layout");
 }

@@ -72,7 +72,7 @@ export default async function CampaignPage({ params }: PageProps<"/app/campaigns
 
   return (
     <div className="page">
-      <Link href="/app" className="mono-label inline-block mb-4">
+      <Link href="/app/picks" className="mono-label inline-block mb-4">
         Back to this week
       </Link>
 

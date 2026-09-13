@@ -13,7 +13,7 @@ export default async function OnboardingPage() {
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
   const business = await repo.getBusinessByOwner(user.id);
-  if (business) redirect("/app");
+  if (business) redirect("/app/picks");
 
   return (
     <main className="min-h-dvh flex flex-col">

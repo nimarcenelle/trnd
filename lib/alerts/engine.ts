@@ -55,7 +55,7 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
           ? `"${titleCase(s.term)}" doubled or more this week`
           : `"${titleCase(s.term)}" is up ${Math.round(s.delta_pct)}% this week`,
       body: `It matches what you sell and is in this week's ranking.`,
-      href: "/app",
+      href: "/app/picks",
       dedupe_key: `spike:${s.normalized_term}:${week}`,
     });
   }

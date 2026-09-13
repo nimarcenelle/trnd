@@ -245,7 +245,7 @@ export default async function SnapshotPage() {
               <p className="text-[12.5px]">
                 Search phrases your customers actually type, read daily{isDataForSeoConfigured ? " in your own metro" : " — nationally until the metro volume feed is switched on"}. When one
                 of them moves, it shows up ranked in{" "}
-                <Link className="text-(--amber-text)" href="/app">This week</Link> with a campaign
+                <Link className="text-(--amber-text)" href="/app/picks">This week</Link> with a campaign
                 ready to build — that&apos;s the point of this page.
               </p>
             </div>

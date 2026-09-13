@@ -8,7 +8,7 @@ export const metadata = { title: "Reset password — TRND" };
 
 export default async function ForgotPage() {
   const user = await getSessionUser();
-  if (user) redirect("/app");
+  if (user) redirect("/app/picks");
   return (
     <AuthShell
       title="Reset your password."

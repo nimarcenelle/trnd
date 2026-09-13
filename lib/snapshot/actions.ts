@@ -27,5 +27,5 @@ export async function refreshSnapshotAction(): Promise<void> {
     console.warn("[snapshot] refresh failed (non-fatal):", (err as Error).message);
   }
   revalidatePath("/app/snapshot");
-  revalidatePath("/app");
+  revalidatePath("/app", "layout");
 }

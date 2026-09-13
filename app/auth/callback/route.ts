@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   // Recovery links land here too — `next` names the in-app destination
   // (path only, so the redirect can never leave the site).
   const next = searchParams.get("next") ?? "";
-  const dest = next.startsWith("/") && !next.startsWith("//") ? next : "/app";
+  const dest = next.startsWith("/") && !next.startsWith("//") ? next : "/app/picks";
   if (code && isSupabaseConfigured) {
     const sb = await createServerSupabase();
     const { error } = await sb.auth.exchangeCodeForSession(code);

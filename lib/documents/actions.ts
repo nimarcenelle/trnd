@@ -17,7 +17,7 @@ export async function deleteDocumentAction(formData: FormData): Promise<void> {
     console.warn("[documents] delete failed (non-fatal):", (err as Error).message);
   }
   revalidatePath("/app/settings");
-  revalidatePath("/app");
+  revalidatePath("/app", "layout");
 }
 
 /** Put the priced items a document listed onto the menu — the ones that

@@ -66,7 +66,7 @@ export async function POST(req: Request): Promise<Response> {
         if ("error" in result) {
           send({ type: "error", reason: result.error });
         } else {
-          revalidatePath("/app");
+          revalidatePath("/app", "layout");
           revalidatePath("/app/opportunities");
           revalidatePath("/app/campaigns");
           revalidatePath(`/app/campaigns/${result.campaignId}`);

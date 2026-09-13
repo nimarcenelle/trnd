@@ -116,7 +116,7 @@ export default async function ReportPage() {
         </div>
         <div className="no-print flex items-center gap-[10px] flex-wrap">
           <PrintButton />
-          <Link href="/app" className="btn btn-ghost btn-sm">
+          <Link href="/app/picks" className="btn btn-ghost btn-sm">
             This week&apos;s dashboard
           </Link>
         </div>

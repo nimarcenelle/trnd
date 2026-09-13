@@ -13,7 +13,7 @@ const MAX_AD_EXPORT_BYTES = 5 * 1024 * 1024;
 
 function revalidateAdSurfaces() {
   revalidatePath("/app/settings");
-  revalidatePath("/app");
+  revalidatePath("/app", "layout");
   revalidatePath("/app/report");
 }
 

@@ -54,6 +54,6 @@ export async function submitResultAction(
 
   revalidatePath("/app/results");
   revalidatePath(`/app/campaigns/${campaignId}`);
-  revalidatePath("/app");
+  revalidatePath("/app", "layout");
   return { ok: true };
 }

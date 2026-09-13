@@ -8,7 +8,7 @@ export const metadata = { title: "Create account — TRND" };
 
 export default async function SignupPage() {
   const user = await getSessionUser();
-  if (user) redirect("/app");
+  if (user) redirect("/app/picks");
   return (
     <AuthShell
       title="Create your account."

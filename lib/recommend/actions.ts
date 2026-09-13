@@ -66,5 +66,5 @@ export async function passOnPickAction(formData: FormData): Promise<void> {
   if (opportunity) await repo.setOpportunityStatus(opportunity.id, "dismissed");
   revalidatePath("/app", "layout");
   revalidatePath("/app/opportunities");
-  redirect("/app");
+  redirect("/app/picks");
 }

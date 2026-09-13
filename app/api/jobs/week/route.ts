@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, after } from "next/server";
 
 import { getAdminRepo } from "@/lib/db/admin";
 import { env, isSupabaseConfigured } from "@/lib/env";
@@ -35,7 +35,11 @@ export async function POST(request: NextRequest) {
   let handedOff = false;
   if (next !== "done" && hop + 1 < MAX_HOPS) {
     handedOff = true;
-    requestWeekJob(businessId, hop + 1, request.nextUrl.origin);
+    // Sent after the response: a request fired on the way out was frozen
+    // with the function and never left, so a week stalled between stages
+    // until the next visit asked again.
+    const origin = request.nextUrl.origin;
+    after(() => requestWeekJob(businessId, hop + 1, origin));
   }
   return NextResponse.json({ businessId, ran: stage, next, hop, handedOff });
 }

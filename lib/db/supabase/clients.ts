@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 import { env } from "@/lib/env";
 
@@ -9,8 +10,10 @@ export { createAdminSupabase } from "./admin-client";
 /**
  * Request-scoped client carrying the signed-in user's session — all queries
  * run under RLS. Only usable inside Server Components / Actions / Routes.
+ * Memoized per request: the layout, the page and every helper under them
+ * used to build their own client, and each one paid the cookie parse again.
  */
-export async function createServerSupabase(): Promise<SupabaseClient> {
+export const createServerSupabase = cache(async function createServerSupabase(): Promise<SupabaseClient> {
   const cookieStore = await cookies();
   return createServerClient(env.supabaseUrl, env.supabaseAnonKey, {
     cookies: {
@@ -28,4 +31,4 @@ export async function createServerSupabase(): Promise<SupabaseClient> {
       },
     },
   });
-}
+});

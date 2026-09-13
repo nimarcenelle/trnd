@@ -1342,15 +1342,27 @@ textarea.input {
   min-width: 1.4em;
   text-align: right;
 }
-.picks-row__finding {
+.picks-row__head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.picks-row__term {
   font-family: var(--disp);
   font-weight: 600;
-  font-size: 15.5px;
-  line-height: 1.35;
-  min-width: 0;
-  white-space: nowrap;
+  font-size: 16px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.picks-row__finding {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 /* On a wide screen the numbers are cells of the shared grid. */
 .picks-row__meta {

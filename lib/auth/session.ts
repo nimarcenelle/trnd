@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 import { isSupabaseConfigured } from "@/lib/env";
 import { createServerSupabase } from "@/lib/db/supabase/clients";
@@ -13,8 +14,12 @@ export interface SessionUser {
   fullName: string | null;
 }
 
-/** The one way the app asks "who is signed in?" — mode-agnostic. */
-export async function getSessionUser(): Promise<SessionUser | null> {
+/**
+ * The one way the app asks "who is signed in?" — mode-agnostic. Memoized
+ * per request: `auth.getUser()` is a round trip to the auth server, and the
+ * layout and the page under it both ask.
+ */
+export const getSessionUser = cache(async function getSessionUser(): Promise<SessionUser | null> {
   if (isSupabaseConfigured) {
     const sb = await createServerSupabase();
     const {
@@ -34,4 +39,4 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const user = loadStore().users.find((u) => u.id === userId);
   if (!user) return null;
   return { id: user.id, email: user.email, fullName: user.full_name };
-}
+});

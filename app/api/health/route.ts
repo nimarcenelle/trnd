@@ -24,8 +24,22 @@ export async function GET(): Promise<Response> {
       database = "error";
     }
   }
+  // One trivial query, timed: the function-to-database round trip is the
+  // unit every page pays several times over, so it belongs on the probe.
+  let dbRttMs: number | null = null;
+  if (isSupabaseConfigured) {
+    try {
+      const { createAdminSupabase } = await import("@/lib/db/supabase/admin-client");
+      const started = Date.now();
+      await createAdminSupabase().from("businesses").select("id").limit(1);
+      dbRttMs = Date.now() - started;
+    } catch {
+      dbRttMs = null;
+    }
+  }
   const body = {
     ok: database !== "error",
+    dbRttMs,
     time: new Date().toISOString(),
     mode: {
       database,

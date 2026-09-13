@@ -3,12 +3,13 @@ import Link from "next/link";
 import type { BrandPick, PickRun } from "@/lib/db/types";
 import { formatBet, formatMetric } from "@/lib/picks/format";
 import { arrowGlyph, gradeChip, runChip, truncateFinding } from "@/lib/picks/list";
+import { sentenceCase } from "@/lib/text";
 
 /**
- * One ranked pick as a single full-width link. The finding is the link's
- * name; the grade, metric, bet and status are its description, so a screen
- * reader hears the finding first and the judgement and numbers after, the
- * order an owner scans. The grade shows as its letter only; what the letter
+ * One ranked pick as a single full-width link. The term is the link's name
+ * and the finding sits under it in full; the grade, metric, bet and status
+ * are its description, so a screen reader hears the term, then the finding,
+ * then the judgement and numbers, the order an owner scans. The grade shows as its letter only; what the letter
  * means is its title and its spoken description. A pick written before the
  * grade existed shows no chip.
  */
@@ -21,12 +22,13 @@ export default function ListRow({ pick, run }: { pick: BrandPick; run: PickRun |
     .filter(Boolean)
     .join(" ");
   return (
-    <Link href={`/app/picks/${pick.id}`} className="picks-row" aria-label={pick.finding} aria-describedby={describedBy}>
+    <Link href={`/app/picks/${pick.id}`} className="picks-row" aria-describedby={describedBy}>
       <span className="picks-row__rank" aria-hidden="true">
         {pick.rank}
       </span>
-      <span className="picks-row__finding" title={pick.finding}>
-        {truncateFinding(pick.finding)}
+      <span className="picks-row__head">
+        <span className="picks-row__term">{sentenceCase(pick.term)}</span>
+        <span className="picks-row__finding">{truncateFinding(pick.finding, 220)}</span>
       </span>
       <span className="picks-row__meta">
         {/* Always rendered, so the shared columns stay put on rows without a grade. */}

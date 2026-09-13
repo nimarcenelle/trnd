@@ -19,11 +19,19 @@ import {
   INTEL_NOTE_FALLBACK_MODEL,
   noteFingerprint,
 } from "@/lib/report/note";
+import { dueForKick } from "@/lib/picks/list";
 import { recommendForBusiness, weekOf } from "@/lib/recommend/recommend";
 import { sentenceCase } from "@/lib/text";
 
 import { isOnlineBusiness } from "@/lib/signals/geo";
 export const metadata = { title: "Intel report — TRND" };
+
+/** One ranking-and-read pass per business per instance per window: the page
+ * refreshes itself every few seconds while the note lands, and each refresh
+ * must not start the pass again. */
+const freshKicks = new Map<string, number>();
+const FRESH_KICK_WINDOW_MS = 10 * 60_000;
+const requestTime = () => Date.now();
 
 function fmtDate(d: string, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }) {
   return new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
@@ -43,26 +51,34 @@ export default async function ReportPage() {
   const business = await repo.getBusinessByOwner(user.id);
   if (!business) redirect("/onboarding");
 
-  // The report reads this week's ranking — make sure one exists first.
+  // The report reads this week's ranking and this week's demand reads. When
+  // either is missing they are written AFTER this response, never inside it:
+  // a ranking is a model call and a demand read is minutes of scrapes, and a
+  // page that waited on them held a blank tab for as long as that took. The
+  // page renders what exists now and refreshes itself while the rest lands.
   // Ranking writes shared tables RLS keeps read-only for user sessions, so
-  // it runs on the service repo; a failed rank renders the report without
-  // picks instead of the error boundary.
+  // it runs on the service repo.
   const week = weekOf();
-  if ((await repo.listOpportunities(business.id, week)).length === 0) {
-    try {
-      await recommendForBusiness(getAdminRepo(), business);
-    } catch (err) {
-      console.warn("[report] ranking failed (non-fatal):", (err as Error).message);
-    }
-  }
-  // The report analyzes before it renders: if this business has no demand
-  // reads or no listing yet, pull them now — an owner never opens a report
-  // that tells them to wait for one.
-  try {
-    const { ensureIntelFresh } = await import("@/lib/intel/ingest");
-    await ensureIntelFresh(getAdminRepo(), business);
-  } catch (err) {
-    console.warn("[report] intel refresh failed (non-fatal):", (err as Error).message);
+  const ranked = (await repo.listOpportunities(business.id, week)).length > 0;
+  const now = requestTime();
+  if (dueForKick(freshKicks.get(business.id), now, FRESH_KICK_WINDOW_MS)) {
+    freshKicks.set(business.id, now);
+    after(async () => {
+      const admin = getAdminRepo();
+      if (!ranked) {
+        try {
+          await recommendForBusiness(admin, business);
+        } catch (err) {
+          console.warn("[report] ranking failed (non-fatal):", (err as Error).message);
+        }
+      }
+      try {
+        const { ensureIntelFresh } = await import("@/lib/intel/ingest");
+        await ensureIntelFresh(admin, business);
+      } catch (err) {
+        console.warn("[report] intel refresh failed (non-fatal):", (err as Error).message);
+      }
+    });
   }
 
   const report = await buildIntelReport(repo, business);
@@ -89,7 +105,7 @@ export default async function ReportPage() {
   // The written note lands in the background a few seconds after this render.
   // Without a nudge the owner sits on the assembled version until they happen
   // to reload — which reads as the page being stuck, not as work in progress.
-  const notePending = note.model_used === INTEL_NOTE_FALLBACK_MODEL && isGeminiConfigured;
+  const notePending = (note.model_used === INTEL_NOTE_FALLBACK_MODEL && isGeminiConfigured) || !ranked;
 
   const weekRange = `${fmtDate(report.week)} – ${fmtDate(report.weekEnd)}`;
   const generated = new Date(report.generatedAt).toLocaleDateString("en-US", {
@@ -163,7 +179,7 @@ export default async function ReportPage() {
             "From this week's data only — every claim traces to the sections below."
           )}
         </p>
-        {notePending && <AutoRefresh everyMs={5000} times={12} />}
+        {notePending && <AutoRefresh everyMs={5000} times={36} />}
       </section>
 
       {/* ---------- THE CALL on the #1 pick ---------- */}

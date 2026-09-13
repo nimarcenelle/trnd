@@ -23,11 +23,14 @@ export default async function ResultsPage() {
   const business = await repo.getBusinessByOwner(user.id);
   if (!business) redirect("/onboarding");
 
-  const campaigns = await repo.listCampaigns(business.id);
+  const [campaigns, results, allLearnings] = await Promise.all([
+    repo.listCampaigns(business.id),
+    repo.listResultsForBusiness(business.id),
+    repo.listLearnings(business.category),
+  ]);
   const liveOnes = campaigns.filter((c) => c.status === "live");
-  const results = await repo.listResultsForBusiness(business.id);
   const campaignById = new Map(campaigns.map((c) => [c.id, c]));
-  const learnings = (await repo.listLearnings(business.category)).filter((l) => l.source === "measured");
+  const learnings = allLearnings.filter((l) => l.source === "measured");
 
   // Roll-ups for the KPI row.
   const sum = (f: (r: (typeof results)[number]) => number | null) =>

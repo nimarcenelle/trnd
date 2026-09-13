@@ -40,8 +40,7 @@ export default async function SnapshotPage() {
   const business = await repo.getBusinessByOwner(user.id);
   if (!business) redirect("/onboarding");
 
-  const services = await repo.listServices(business.id);
-  const brief = await repo.getBusinessBrief(business.id);
+  const [services, brief] = await Promise.all([repo.listServices(business.id), repo.getBusinessBrief(business.id)]);
   // Missing → the onboarding background job is probably still writing it;
   // only kick a fresh generation if enough time has passed that it clearly
   // isn't coming. Either way the page waits politely and refreshes itself.
@@ -89,7 +88,7 @@ export default async function SnapshotPage() {
 
       {!brief ? (
         <div className="empty-state">
-          <AutoRefresh everyMs={6000} />
+          <AutoRefresh everyMs={6000} times={50} />
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
             <path d="M8 6h18l6 6v22H8z" stroke="var(--ink-faint)" strokeWidth="2" strokeLinejoin="round" />
             <path d="M26 6v6h6" stroke="var(--ink-faint)" strokeWidth="2" strokeLinejoin="round" />

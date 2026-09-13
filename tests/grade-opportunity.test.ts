@@ -215,6 +215,29 @@ describe("the Opportunity Grade, gathered from the repo", () => {
     expect(picks.bundles[0].pick).toMatchObject({ grade: top.grade, grade_score: Number(top.grade_score) });
   });
 
+  it("clears rows that fell out of the ranking, so a stale term never keeps a seat", async () => {
+    const { admin, user, biz } = await seed();
+    const martini = (await admin.listSignalsForCategory(biz.category, { sinceDays: 1 })).find((s) => s.term === "espresso martini")!;
+    // Yesterday's ranking left this row, ungraded, with a legacy score that
+    // would put it first.
+    await admin.upsertOpportunities([
+      {
+        business_id: biz.id,
+        signal_id: martini.id,
+        week_of: weekOf(),
+        score: 9.9,
+        rationale: "Ranked yesterday.",
+        matched_service_id: null,
+        competitor_gap: null,
+        relevance: 0.9,
+      },
+    ]);
+    await recommendForBusiness(user, biz);
+    const stored = await user.listOpportunities(biz.id, weekOf());
+    const terms = await Promise.all(stored.map(async (o) => (await admin.getSignal(o.signal_id))!.term));
+    expect(terms).toEqual(["smoked brisket"]);
+  });
+
   it("stores nothing when every candidate holds", async () => {
     const { user, biz } = await seed({ fit: false, history: false });
     const result = await recommendForBusiness(user, biz);

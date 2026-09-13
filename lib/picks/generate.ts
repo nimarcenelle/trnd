@@ -279,11 +279,17 @@ export async function generateWeekPicks(
   opts: GenerateWeekPicksOptions = {},
 ): Promise<GenerateWeekPicksResult> {
   const week = opts.weekOf ?? currentWeek();
-  const opportunities = (await repo.listOpportunities(business.id, week))
+  const stored = (await repo.listOpportunities(business.id, week)).filter((o) => o.status !== "dismissed");
+  // Once the week has graded rows, an ungraded one is a leftover from a
+  // ranking before the model, and its legacy score says nothing about
+  // whether the model would hold it. Only a week with no grades at all
+  // still ranks on the legacy score.
+  const graded = stored.some((o) => o.grade);
+  const opportunities = stored
     // A Hold is "don't build a campaign yet". The ranking no longer stores
     // one, but a row written by hand or by an older ranking must still never
     // become a pick.
-    .filter((o) => o.status !== "dismissed" && o.grade !== "Hold")
+    .filter((o) => o.grade !== "Hold" && (!graded || o.grade))
     .sort((a, b) => rankScoreOf(b) - rankScoreOf(a))
     .slice(0, PICKS_PER_WEEK);
   // An empty ranking (held for a missing analysis, or nothing fits) leaves

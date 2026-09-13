@@ -421,6 +421,20 @@ export async function recommendForBusiness(
   }));
   const rows = await repo.upsertOpportunities(inputs);
 
+  // Rows that fell out of this ranking go, unless a campaign holds one.
+  // Left behind, yesterday's row keeps a seat in the week with yesterday's
+  // grade, or none at all, and a term the model now holds becomes a pick:
+  // the Hold gate only sees what is stored.
+  try {
+    const campaigns = await repo.listCampaigns(business.id);
+    await repo.deleteOpportunitiesForWeek(business.id, week, [
+      ...rows.map((r) => r.id),
+      ...campaigns.map((c) => c.opportunity_id),
+    ]);
+  } catch (err) {
+    console.warn("[recommend] stale opportunities not cleared (non-fatal):", (err as Error).message);
+  }
+
   return {
     businessId: business.id,
     created: inputs.length,

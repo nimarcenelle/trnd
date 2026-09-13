@@ -225,6 +225,19 @@ describe("the weekly pick job, keyless", () => {
     expect((await user.getPickDetail(hard.pick.id))!.evidence.some((e) => e.signal === "brand")).toBe(false);
   });
 
+  it("skips ungraded leftovers once the week has graded rows", async () => {
+    const { admin, biz } = await seed();
+    const rows = await admin.listOpportunities(biz.id, weekOf());
+    // The lowest legacy score gets the only grade; the four higher ones are
+    // leftovers from a ranking before the model.
+    const last = rows[rows.length - 1];
+    await admin.upsertOpportunities([
+      { ...last, grade: "B", grade_score: 66, signal_scores: {} } as unknown as (typeof rows)[number],
+    ]);
+    const result = await generateWeekPicks(admin, biz, { write: false, writer: async (input) => fallbackPickWrite(input) });
+    expect(result.bundles.map((b) => b.pick.opportunity_id)).toEqual([last.id]);
+  });
+
   it("leaves the week alone when there is nothing ranked", async () => {
     const { admin, biz } = await seed();
     const result = await generateWeekPicks(admin, biz, { weekOf: "2020-01-06" });

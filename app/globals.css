@@ -1650,6 +1650,8 @@ textarea.input {
 }
 .pickd__chip.is-up { color: var(--mint-text); border-color: var(--mint); }
 .pickd__chip.is-down { color: var(--red); }
+.pickd__demand-value.is-up { color: var(--mint-text); }
+.pickd__demand-value.is-down { color: var(--red); }
 .pickd__demand-explainer { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-faint); }
 
 /* the guardrail in the head */

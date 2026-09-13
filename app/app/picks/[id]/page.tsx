@@ -133,19 +133,31 @@ function Demand({ view }: { view: DetailView }) {
   const { metric } = view;
   const lead = view.demandDeltas[0];
   const tone = lead?.direction ?? "flat";
+  // An interest index has no level to print (a Trends "63" is relative to its
+  // own peak), so the lead change stands in the value slot and its window
+  // becomes the chip; a dash under a heading is a gap, not a number.
+  const arrowOf = (d: "up" | "down" | "flat") => (d === "up" ? "↑" : d === "down" ? "↓" : "→");
+  const leadAsValue = metric.value === null && lead !== undefined;
+  const value = metric.value ?? (lead ? `${arrowOf(lead.direction)}${Math.abs(lead.pct)}%` : null);
   return (
     <div className="pickd__card pickd__demand">
       <h2 className="pickd__h2">{metric.label}</h2>
       <div className="pickd__demand-row">
-        <p className="pickd__demand-value">{metric.value ?? "–"}</p>
+        {value !== null && <p className={`pickd__demand-value${leadAsValue ? ` is-${lead.direction}` : ""}`}>{value}</p>}
         <div className="pickd__chips">
           {view.demandDeltas.length > 0 ? (
-            view.demandDeltas.map((d) => (
-              <span key={d.window} className={`pickd__chip is-${d.direction}`}>
-                <span aria-hidden="true">{d.direction === "up" ? "↑" : d.direction === "down" ? "↓" : "→"}</span>
-                {Math.abs(d.pct)}% {d.window}
-              </span>
-            ))
+            view.demandDeltas.map((d, i) =>
+              leadAsValue && i === 0 ? (
+                <span key={d.window} className="pickd__chip">
+                  {d.window}
+                </span>
+              ) : (
+                <span key={d.window} className={`pickd__chip is-${d.direction}`}>
+                  <span aria-hidden="true">{arrowOf(d.direction)}</span>
+                  {Math.abs(d.pct)}% {d.window}
+                </span>
+              ),
+            )
           ) : (
             <span className="pickd__chip">{metric.window}</span>
           )}

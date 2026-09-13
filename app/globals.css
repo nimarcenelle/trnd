@@ -1708,3 +1708,24 @@ textarea.input {
 @media (max-width: 520px) {
   .sigread__components li { grid-template-columns: 84px 40px minmax(0, 1fr); }
 }
+
+/* -------------------------------------------------------- the first-week wait
+   One checklist from signup to the first pick. Rows are read from the
+   database, not a clock: a done row says what it found. */
+.wk-progress { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.wk-progress__row { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; }
+.wk-progress__mark { width: 12px; height: 12px; margin-top: 5px; border-radius: 50%; border: 1.5px solid var(--line-strong); background: transparent; }
+.wk-progress__row.is-done .wk-progress__mark { border-color: var(--mint-text); background: var(--mint-text); }
+.wk-progress__row.is-current .wk-progress__mark { border-color: var(--amber); background: var(--amber); animation: wk-pulse 1.4s ease-in-out infinite; }
+.wk-progress__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wk-progress__label { font-family: var(--mono); font-size: 13px; color: var(--ink-soft); }
+.wk-progress__row.is-current .wk-progress__label { color: var(--ink); font-weight: 600; }
+.wk-progress__row.is-todo .wk-progress__label { color: var(--ink-faint); }
+.wk-progress__detail { font-size: 13px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+@keyframes wk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.wk-ranked { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.wk-ranked .mono-label { margin: 0 0 8px; }
+.wk-ranked__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.wk-ranked__list li { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--ink); }
+.wk-ranked__term { text-transform: capitalize; }
+@media (prefers-reduced-motion: reduce) { .wk-progress__row.is-current .wk-progress__mark { animation: none; } }

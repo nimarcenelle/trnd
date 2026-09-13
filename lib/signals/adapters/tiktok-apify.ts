@@ -1,5 +1,7 @@
 import { env } from "@/lib/env";
 
+import { mapLimit } from "@/lib/util/concurrency";
+
 import { CircuitBreaker, fetchText } from "../http";
 import type { AdapterFetchInput, RawSeriesPoint, RawSignal, SignalAdapter } from "../types";
 import { coreTerm } from "./trends-iot";
@@ -37,6 +39,8 @@ const RESULTS_PER_TERM = 40;
 const THIN_RESULTS = 5;
 /** Every term is a paid run; the default is a floor, not a target. */
 const DEFAULT_TERM_CAP = 25;
+/** Actor runs in flight at once. */
+const TERM_CONCURRENCY = 4;
 
 /** The subset of the actor's output this reads. Everything is optional —
  * actor schemas drift, and a renamed field must degrade to a missing number,
@@ -296,70 +300,78 @@ export function createTiktokApifyAdapter(
       // Only a business's own terms are worth paying for; the stock category
       // terms are already covered free by the Creative Center board.
       const targets = watch.filter((w) => w.geo).slice(0, opts.termCap ?? DEFAULT_TERM_CAP);
-      for (const target of targets) {
-        if (breaker.isOpen) return out;
-        const termGeo = target.geo ?? geo ?? "US";
-        try {
-          let measuredTerm = target.term;
-          let posts = await runActor(target.term);
-          if (posts.length < THIN_RESULTS && (target.locality?.length ?? 0) > 0) {
-            const widened = coreTerm(target.term, target.locality);
-            if (widened !== target.term.toLowerCase()) {
-              const wider = await runActor(widened);
-              if (wider.length > posts.length) {
-                posts = wider;
-                measuredTerm = widened;
+      // Four terms in flight: each is one actor run of twenty to sixty
+      // seconds, and a brand's watchlist runs to twenty terms.
+      const reads = await mapLimit(
+        targets,
+        TERM_CONCURRENCY,
+        async (target): Promise<RawSignal | null> => {
+          const termGeo = target.geo ?? geo ?? "US";
+          try {
+            let measuredTerm = target.term;
+            let posts = await runActor(target.term);
+            if (posts.length < THIN_RESULTS && (target.locality?.length ?? 0) > 0) {
+              const widened = coreTerm(target.term, target.locality);
+              if (widened !== target.term.toLowerCase()) {
+                const wider = await runActor(widened);
+                if (wider.length > posts.length) {
+                  posts = wider;
+                  measuredTerm = widened;
+                }
               }
             }
+            if (posts.length === 0) return null;
+            const read = readTikTok(posts);
+            if (read.uploads === 0) return null;
+            seriesCache.push(...tiktokSeries(posts, target.term, termGeo));
+            return {
+              source: "tiktok",
+              term: target.term,
+              category: target.category,
+              geo: termGeo,
+              metric_type: "shortform_views",
+              value: read.views,
+              delta_pct: read.deltaPct,
+              window_days: Math.min(windowDays, CURRENT_DAYS),
+              raw: {
+                // This read was NOT taken in the business's state. The actor searches globally; there is no geo input.
+                // The signal keeps termGeo so series and dedupe stay keyed to
+                // the watch term, but the demand formula must weight it for
+                // where it was actually measured — otherwise a global count
+                // gets a local multiplier.
+                measuredGeo: "US",
+                platform: "tiktok",
+                uploads: read.uploads,
+                uploadsPrev: read.uploadsPrev,
+                views: read.views,
+                viewsPrev: read.viewsPrev,
+                engagementPct: read.engagementPct,
+                actionPct: read.actionPct,
+                medianDurationSec: read.medianDurationSec,
+                hashtags: read.hashtags,
+                top: read.top
+                  ? { id: read.top.id, title: read.top.caption, channel: read.top.author, views: read.top.views, url: read.top.url }
+                  : null,
+                breakout: read.breakout
+                  ? { id: read.breakout.id, title: read.breakout.caption, channel: read.breakout.author, views: read.breakout.views, url: read.breakout.url }
+                  : null,
+                corpus: read.corpus,
+                measuredTerm,
+                adjusted: measuredTerm !== target.term,
+                // This read is per-term and local, unlike the Creative Center
+                // board — the insight layer must not frame it as national.
+                perTerm: true,
+                sampled: posts.length,
+              },
+            };
+          } catch (err) {
+            console.warn(`[signals:tiktok_apify] "${target.term}" failed:`, (err as Error).message);
+            return null;
           }
-          if (posts.length === 0) continue;
-          const read = readTikTok(posts);
-          if (read.uploads === 0) continue;
-          seriesCache.push(...tiktokSeries(posts, target.term, termGeo));
-          out.push({
-            source: "tiktok",
-            term: target.term,
-            category: target.category,
-            geo: termGeo,
-            metric_type: "shortform_views",
-            value: read.views,
-            delta_pct: read.deltaPct,
-            window_days: Math.min(windowDays, CURRENT_DAYS),
-            raw: {
-              // This read was NOT taken in the business's state. The actor searches globally; there is no geo input.
-              // The signal keeps termGeo so series and dedupe stay keyed to
-              // the watch term, but the demand formula must weight it for
-              // where it was actually measured — otherwise a global count
-              // gets a local multiplier.
-              measuredGeo: "US",
-              platform: "tiktok",
-              uploads: read.uploads,
-              uploadsPrev: read.uploadsPrev,
-              views: read.views,
-              viewsPrev: read.viewsPrev,
-              engagementPct: read.engagementPct,
-              actionPct: read.actionPct,
-              medianDurationSec: read.medianDurationSec,
-              hashtags: read.hashtags,
-              top: read.top
-                ? { id: read.top.id, title: read.top.caption, channel: read.top.author, views: read.top.views, url: read.top.url }
-                : null,
-              breakout: read.breakout
-                ? { id: read.breakout.id, title: read.breakout.caption, channel: read.breakout.author, views: read.breakout.views, url: read.breakout.url }
-                : null,
-              corpus: read.corpus,
-              measuredTerm,
-              adjusted: measuredTerm !== target.term,
-              // This read is per-term and local, unlike the Creative Center
-              // board — the insight layer must not frame it as national.
-              perTerm: true,
-              sampled: posts.length,
-            },
-          });
-        } catch (err) {
-          console.warn(`[signals:tiktok_apify] "${target.term}" failed:`, (err as Error).message);
-        }
-      }
+        },
+        () => breaker.isOpen,
+      );
+      for (const r of reads) if (r) out.push(r);
       return out;
     },
     async fetchSeries(): Promise<RawSeriesPoint[]> {

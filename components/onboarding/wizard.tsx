@@ -516,16 +516,19 @@ export default function OnboardingWizard() {
 
   const locationFields = (
     <>
-      <div className="field-row">
-        <div className="field">
-          <label htmlFor="ob-city">{online ? "City (optional)" : "City"}</label>
-          <input id="ob-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Atlanta" />
+      {/* An online brand sells everywhere; it is never asked where it is. */}
+      {!online && (
+        <div className="field-row">
+          <div className="field">
+            <label htmlFor="ob-city">City</label>
+            <input id="ob-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Atlanta" />
+          </div>
+          <div className="field">
+            <label htmlFor="ob-region">State / region</label>
+            <input id="ob-region" type="text" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="GA" />
+          </div>
         </div>
-        <div className="field">
-          <label htmlFor="ob-region">{online ? "State / region (optional)" : "State / region"}</label>
-          <input id="ob-region" type="text" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="GA" />
-        </div>
-      </div>
+      )}
       {/* A brand shipping nationally has no radius; the default is stored. */}
       {!online && (
         <div className="field">

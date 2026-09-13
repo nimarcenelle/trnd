@@ -69,7 +69,10 @@ export async function readRivalSite(
     if (!home) return null;
     const deadline = Date.now() + READ_BUDGET_MS;
     const homeHtml = await within(fetchHtml(home), deadline - Date.now());
-    if (!homeHtml || looksBlocked(homeHtml)) return null;
+    if (!homeHtml || looksBlocked(homeHtml)) {
+      console.warn(`[intel] rival site unread: ${home} (${!homeHtml ? "no answer inside the budget" : "bot wall"})`);
+      return null;
+    }
     const pages = [{ url: home, html: homeHtml }];
 
     // A link whose path says "menu" beats "bar" or "catering": it's the one

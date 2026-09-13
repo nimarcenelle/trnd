@@ -29,9 +29,24 @@ export function isRefusal(err: unknown): boolean {
 export async function fetchViaReader(
   url: string,
   format: ReaderFormat,
-  opts: { fetchImpl?: typeof fetch } = {},
+  opts: { fetchImpl?: typeof fetch; attempts?: number } = {},
 ): Promise<string> {
-  const doFetch = opts.fetchImpl ?? fetch;
+  const attempts = Math.max(1, opts.attempts ?? 2);
+  let last: unknown;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await readOnce(url, format, opts.fetchImpl ?? fetch);
+    } catch (err) {
+      // The reader answers a burst with a refusal or an empty page; one more
+      // try a moment later is usually the read.
+      last = err;
+      if (i + 1 < attempts) await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+  throw last;
+}
+
+async function readOnce(url: string, format: ReaderFormat, doFetch: typeof fetch): Promise<string> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {

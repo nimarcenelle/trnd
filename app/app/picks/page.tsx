@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
-import AnalysisProgress from "@/components/app/analysis-progress";
 // The waiting states below have nothing on them to keep, and the whole page
 // changes when the picks land, so they poll the page itself.
 import AutoRefresh from "@/components/app/auto-refresh";
@@ -14,8 +13,8 @@ import { getUserRepo } from "@/lib/db";
 import type { Alert } from "@/lib/db/types";
 import { isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { markAlertsReadAction } from "@/lib/intel/actions";
-import { nextWeekStage } from "@/lib/picks/advance-week";
 import { kickWeekJob } from "@/lib/picks/kick";
+import { weekProgress } from "@/lib/picks/progress";
 import { dueForKick, weekRangeLabel } from "@/lib/picks/list";
 import { weekOf } from "@/lib/recommend/week";
 import { isOnlineBusiness } from "@/lib/signals/geo";
@@ -123,58 +122,59 @@ export default async function PicksPage() {
 
   const where = isOnlineBusiness(business) ? "across the US" : `around ${business.city}`;
 
-  // Brand-new business, analysis still being written. The picks are judged
-  // against it, so nothing is written before it lands. Onboarding writes
-  // it; if that died, the week job writes it again.
-  if (!brief && isGeminiConfigured) {
-    if (!briefLikelyInFlight(business.created_at)) await kickWeekJob(business.id, { now });
+  // One wait from signup to the first pick. Every step is read from the
+  // database, the finished ones say what they found, and the ranked terms
+  // show with their grades while the picks are still being written. The
+  // job is asked for whatever the week still needs. No alerts here: an
+  // owner with no picks yet has nothing to be alerted about.
+  const progress = await weekProgress(repo, business, { scanAllowed: isSupabaseConfigured });
+  if (progress.stage !== "done") {
+    const briefInFlight = !brief && briefLikelyInFlight(business.created_at);
+    if (!briefInFlight) await kickWeekJob(business.id, { now });
+    const current = progress.steps.find((s) => s.state === "current");
     return (
       <div className="page picks">
-        <AutoRefresh everyMs={8000} times={60} />
-        <AlertBar alerts={unreadAlerts} />
+        <AutoRefresh everyMs={6000} times={100} />
         <div className="page-head">
           <div>
             <span className="eyebrow m-0">This week · {weekRange}</span>
-            <h1>Reading your business</h1>
+            <h1>{current?.label ?? "Getting your first picks ready"}</h1>
             <p className="context">
-              Your analysis is being written. Your first picks follow it, usually within a few minutes. This page
-              refreshes itself.
+              Your first five picks land in a few minutes. Each step below fills in as it finishes; this page refreshes
+              itself.
             </p>
           </div>
         </div>
-        <div className="panel max-w-[620px]">
-          <AnalysisProgress startedAt={business.created_at} />
-          <Link className="btn btn-ghost btn-sm mt-[18px]" href="/app/snapshot">
-            View the analysis
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // What the week still needs, read from the database: nothing in memory
-  // decides whether an owner sees "writing" or "no picks". A stage left to
-  // run means the week is still being written, and the job is asked for it.
-  const stage = await nextWeekStage(repo, business, { scanAllowed: isSupabaseConfigured });
-  if (stage !== "done") {
-    await kickWeekJob(business.id, { now });
-    return (
-      <div className="page picks">
-        <AutoRefresh everyMs={8000} times={60} />
-        <AlertBar alerts={unreadAlerts} />
-        <div className="page-head">
-          <div>
-            <span className="eyebrow m-0">This week · {weekRange}</span>
-            <h1>Writing this week&apos;s picks</h1>
-            <p className="context">
-              Reading demand for <b>{business.category}</b> {where}, then writing picks against what you sell.
-            </p>
-          </div>
-        </div>
-        <div className="panel max-w-[620px]">
-          <p className="m-0 text-ink-soft leading-[1.65] text-[14.5px]">
-            This takes a few minutes. The page refreshes itself.
-          </p>
+        <div className="panel max-w-[680px]">
+          <ol className="wk-progress" aria-label="Progress">
+            {progress.steps.map((step) => (
+              <li key={step.key} className={`wk-progress__row is-${step.state}`}>
+                <span className="wk-progress__mark" aria-hidden="true" />
+                <span className="wk-progress__text">
+                  <span className="wk-progress__label">{step.label}</span>
+                  {step.detail && <span className="wk-progress__detail">{step.detail}</span>}
+                </span>
+              </li>
+            ))}
+          </ol>
+          {progress.ranked.length > 0 && (
+            <div className="wk-ranked">
+              <p className="mono-label">This week&apos;s opportunities, being written up</p>
+              <ul className="wk-ranked__list">
+                {progress.ranked.map((r) => (
+                  <li key={r.term}>
+                    <span className="wk-ranked__term">{r.term}</span>
+                    {r.grade && <span className="picks-grade is-amber">{r.grade}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {brief && (
+            <Link className="btn btn-ghost btn-sm mt-[18px]" href="/app/snapshot">
+              View the analysis
+            </Link>
+          )}
         </div>
       </div>
     );

@@ -160,21 +160,18 @@ export async function runSignalIngestForBusiness(
     createMetaAdsAdapter(),
     createTrendsIotAdapter(),
   ];
+  // Every source at once: they are independent reads of different services,
+  // and one after another they ran past any function's limit. Each gets the
+  // whole remaining budget; one that outlives it is picked up next hop.
   let written = 0;
   let exhausted = false;
-  for (const adapter of adapters) {
-    // Checked before an adapter starts, never mid-adapter: a source's read
-    // is one call, and cutting it short wastes what it already paid for.
-    if (remaining() <= 0) {
-      exhausted = true;
-      break;
-    }
+  const runOne = async (adapter: SignalAdapter): Promise<void> => {
     try {
-      if (!(await adapter.isAvailable())) continue;
+      if (!(await adapter.isAvailable())) return;
       const source = PAID_SOURCES[adapter.name];
       const done = source ? readToday.get(source) : undefined;
       const todo = done ? watch.filter((w) => !done.has(w.term)) : watch;
-      if (todo.length === 0) continue;
+      if (todo.length === 0) return;
       const raw = await withTimeout(adapter.fetch({ terms: [], watch: todo, geo: "US", windowDays: 7 }), remaining());
       written += await repo.upsertSignals(toSignalRows(raw));
       if (adapter.fetchSeries) {
@@ -195,7 +192,8 @@ export async function runSignalIngestForBusiness(
       if (message === "timed out") exhausted = true;
       console.warn(`[ingest:business] adapter ${adapter.name} failed:`, message);
     }
-  }
+  };
+  await Promise.all(adapters.map(runOne));
   return { written, exhausted };
 }
 

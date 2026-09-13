@@ -5,6 +5,7 @@ import { fetchAdvertiserAds, isAdLibraryApifyAvailable, readAdvertiser } from "@
 import { fetchGoogleAds, readGoogleAds } from "@/lib/signals/google-ads-transparency";
 import { fetchAccountPosts, isSocialReadAvailable } from "@/lib/social";
 import { classifyPost, readAccount, rivalMoves } from "@/lib/social/read";
+import { mapLimit } from "@/lib/util/concurrency";
 
 /**
  * The brand and competitive half of the daily intel run: the business's own
@@ -128,6 +129,10 @@ function cadence(perWeek: number, prev: number): string {
   return `${base}, ${n > p ? "up" : "down"} from ${p}`;
 }
 
+/** Account reads in flight at once: each is one paid scrape of twenty to
+ * forty seconds, and a brand with five rivals has up to eighteen of them. */
+const READ_CONCURRENCY = 4;
+
 export async function ingestSocialAccounts(
   repo: Repo,
   business: Business,
@@ -137,37 +142,42 @@ export async function ingestSocialAccounts(
   const summary: SocialIngestSummary = { ownPosts: 0, rivalPosts: 0, rivalReads: 0, exhausted: false };
   const now = Date.now();
   const deadline = opts.deadline ?? Infinity;
-  // Checked before each paid read, never mid-read.
+  // Checked before each paid read starts, never mid-read.
   const outOfTime = () => Date.now() > deadline;
 
+  // Every account to read: the brand's own first, then its rivals'.
+  const accounts: { competitorId: string | null; name: string; platform: SocialPlatform; handle: string }[] = [];
   for (const platform of PLATFORMS) {
     const handle = business.social_handles?.[platform];
-    if (!handle) continue;
-    if (outOfTime()) {
-      summary.exhausted = true;
-      return summary;
-    }
-    try {
-      summary.ownPosts += await readAccountInto(repo, business, null, platform, handle, now);
-    } catch (err) {
-      console.warn(`[intel:social] own ${platform} read failed:`, (err as Error).message);
-    }
+    if (handle) accounts.push({ competitorId: null, name: "own", platform, handle });
   }
-
-  for (const c of watched(competitors)) {
+  const rivals = watched(competitors);
+  for (const c of rivals) {
     for (const platform of PLATFORMS) {
       const handle = c.social_handles?.[platform];
-      if (!handle) continue;
-      if (outOfTime()) {
-        summary.exhausted = true;
-        return summary;
-      }
-      try {
-        summary.rivalPosts += await readAccountInto(repo, business, c.id, platform, handle, now);
-      } catch (err) {
-        console.warn(`[intel:social] ${c.name} ${platform} read failed:`, (err as Error).message);
-      }
+      if (handle) accounts.push({ competitorId: c.id, name: c.name, platform, handle });
     }
+  }
+  const results = await mapLimit(
+    accounts,
+    READ_CONCURRENCY,
+    async (a) => {
+      try {
+        return await readAccountInto(repo, business, a.competitorId, a.platform, a.handle, now);
+      } catch (err) {
+        console.warn(`[intel:social] ${a.name} ${a.platform} read failed:`, (err as Error).message);
+        return 0;
+      }
+    },
+    outOfTime,
+  );
+  results.forEach((n, i) => {
+    if (n === undefined) summary.exhausted = true;
+    else if (accounts[i].competitorId === null) summary.ownPosts += n;
+    else summary.rivalPosts += n;
+  });
+
+  for (const c of rivals) {
     try {
       const posts = await repo.listSocialPosts(business.id, { competitorId: c.id, sinceDays: 56 });
       if (posts.length === 0) continue;
@@ -225,10 +235,23 @@ export async function ingestRivalAds(
   competitors: Competitor[],
   opts: { deadline?: number } = {},
 ): Promise<{ written: number; exhausted: boolean }> {
-  let written = 0;
   const deadline = opts.deadline ?? Infinity;
-  for (const c of watched(competitors)) {
-    if (Date.now() > deadline) return { written, exhausted: true };
+  const results = await mapLimit(
+    watched(competitors),
+    READ_CONCURRENCY,
+    (c) => readRivalAds(repo, business, c),
+    () => Date.now() > deadline,
+  );
+  return {
+    written: results.reduce<number>((s, n) => s + (n ?? 0), 0),
+    exhausted: results.some((n) => n === undefined),
+  };
+}
+
+/** One rival's Meta and Google ads. Never throws: a failed read is logged and skipped. */
+async function readRivalAds(repo: Repo, business: Business, c: Competitor): Promise<number> {
+  let written = 0;
+  {
     if (isAdLibraryApifyAvailable()) {
       try {
         const ads = (await fetchAdvertiserAds(c.name)).filter((a) => sameAdvertiser(c.name, a.advertiser));
@@ -269,10 +292,10 @@ export async function ingestRivalAds(
       }
     }
     const domain = domainOf(c.website);
-    if (!domain) continue;
+    if (!domain) return written;
     try {
       const google = await fetchGoogleAds(domain);
-      if (google.length === 0) continue;
+      if (google.length === 0) return written;
       const read = readGoogleAds(google);
       const formats = Object.entries(read.formats)
         .filter(([f, n]) => n > 0 && f !== "unknown")
@@ -296,5 +319,5 @@ export async function ingestRivalAds(
       console.warn(`[intel:ads] Google read for ${c.name} failed:`, (err as Error).message);
     }
   }
-  return { written, exhausted: false };
+  return written;
 }

@@ -211,6 +211,10 @@ export async function completeOnboardingAction(
     ]
       .filter(Boolean)
       .join("\n\n") || undefined;
+  // Read here, while the request is still in hand: the kick below runs
+  // after the response, when the request headers are gone.
+  const { requestOrigin } = await import("@/lib/picks/kick");
+  const origin = await requestOrigin();
   after(async () => {
     // The analysis reads the site text and menus the import just fetched,
     // so it is written here. Everything after it (the market scan, the read
@@ -225,7 +229,7 @@ export async function completeOnboardingAction(
       console.warn("[onboarding] brief generation failed (non-fatal):", (err as Error).message);
     }
     const { kickWeekJob } = await import("@/lib/picks/kick");
-    kickWeekJob(business.id);
+    await kickWeekJob(business.id, { origin });
   });
 
   redirect("/app/picks");

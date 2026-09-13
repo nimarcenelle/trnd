@@ -150,3 +150,11 @@ describe("running a stage", () => {
     expect(next).toBe("done");
   });
 });
+
+describe("where the job is asked for", () => {
+  it("builds the job url on the origin it is given, with the hop", async () => {
+    const { jobUrl } = await import("../lib/picks/kick");
+    expect(jobUrl("abc", 0, "https://www.usetrnd.com").toString()).toBe("https://www.usetrnd.com/api/jobs/week?business=abc");
+    expect(jobUrl("abc", 2, "https://www.usetrnd.com").searchParams.get("hop")).toBe("2");
+  });
+});

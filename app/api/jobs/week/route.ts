@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   let handedOff = false;
   if (next !== "done" && hop + 1 < MAX_HOPS) {
     handedOff = true;
-    requestWeekJob(businessId, hop + 1);
+    requestWeekJob(businessId, hop + 1, request.nextUrl.origin);
   }
   return NextResponse.json({ businessId, ran: stage, next, hop, handedOff });
 }

@@ -127,7 +127,7 @@ export default async function PicksPage() {
   // against it, so nothing is written before it lands. Onboarding writes
   // it; if that died, the week job writes it again.
   if (!brief && isGeminiConfigured) {
-    if (!briefLikelyInFlight(business.created_at)) kickWeekJob(business.id, { now });
+    if (!briefLikelyInFlight(business.created_at)) await kickWeekJob(business.id, { now });
     return (
       <div className="page picks">
         <AutoRefresh everyMs={8000} times={60} />
@@ -157,7 +157,7 @@ export default async function PicksPage() {
   // run means the week is still being written, and the job is asked for it.
   const stage = await nextWeekStage(repo, business, { scanAllowed: isSupabaseConfigured });
   if (stage !== "done") {
-    kickWeekJob(business.id, { now });
+    await kickWeekJob(business.id, { now });
     return (
       <div className="page picks">
         <AutoRefresh everyMs={8000} times={60} />

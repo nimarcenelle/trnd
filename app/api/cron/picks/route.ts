@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
   if (result.remaining > 0 && result.written.length > 0) {
     handedOff = true;
     try {
-      await fetch(new URL("/api/cron/picks", env.appUrl), {
+      // The host that served this request: the configured url may redirect
+      // to another host, and a redirect drops the authorization header.
+      await fetch(new URL("/api/cron/picks", request.nextUrl.origin), {
         method: "POST",
         headers: { authorization: `Bearer ${env.cronSecret}` },
         signal: AbortSignal.timeout(5_000),

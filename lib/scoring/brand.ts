@@ -105,7 +105,7 @@ export function scoreBrand(input: BrandInput): SignalScore {
   if (input.organic.onTermPosts > 0 && input.organic.engagementRatio !== null) {
     organic = engagementScore(input.organic.engagementRatio);
     const n = input.organic.onTermPosts;
-    organicDetail = `${n} of your ${n === 1 ? "post" : "posts"} on this got ${timesPhrase(input.organic.engagementRatio).replace("your usual", "your usual engagement")}`;
+    organicDetail = `${n} of your posts ${n === 1 ? "is" : "are"} on this and got ${timesPhrase(input.organic.engagementRatio).replace("your usual", "your usual engagement")}`;
   }
 
   const components: SignalComponent[] = [

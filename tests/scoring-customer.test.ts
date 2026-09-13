@@ -96,12 +96,12 @@ describe("customer mappings", () => {
     expect(comp(scoreCustomer(full({ personaMatch: null })), "volume").score).toBe(95);
   });
 
-  it("reads velocity from the series and needs 21 points", () => {
+  it("reads velocity from the series and needs two weeks of points", () => {
     expect(comp(scoreCustomer(full()), "velocity").score).toBe(50);
     const rising = scoreCustomer(full({ series: series([...Array(23).fill(10), ...Array(7).fill(20)]) }));
     expect(comp(rising, "velocity").score).toBeGreaterThan(75);
     expect(comp(rising, "velocity").detail).toMatch(/above the past month/);
-    expect(comp(scoreCustomer(full({ series: series(Array(20).fill(10)) })), "velocity").score).toBeNull();
+    expect(comp(scoreCustomer(full({ series: series(Array(13).fill(10)) })), "velocity").score).toBeNull();
   });
 
   it("classifies activity when kind is absent", () => {
@@ -113,7 +113,7 @@ describe("customer mappings", () => {
 });
 
 describe("scoreCustomer confidence and weights", () => {
-  it("is high with a persona, a full baseline, 5+ activity and 21+ days", () => {
+  it("is high with a persona, a full baseline, 5+ activity and two weeks of days", () => {
     const s = scoreCustomer(full());
     expect(s.confidence).toBe("high");
     expect(s.score).toBe(Math.round(((40 * 95 + 35 * 65 + 25 * 50) / 100) * 10) / 10);
@@ -146,8 +146,15 @@ describe("scoreCustomer confidence and weights", () => {
     expect(s.cta).toBeNull();
   });
 
-  it("is low when two of three components are missing", () => {
+  it("stands on a volume reading alone, at medium, when intent and velocity are unread", () => {
     const s = scoreCustomer(full({ activity: [], series: series(Array(10).fill(5)) }));
+    expect(s.confidence).toBe("medium");
+    expect(s.score).toBe(comp(s, "volume").score);
+    expect(s.note).toBeNull();
+  });
+
+  it("is low with nothing read at all", () => {
+    const s = scoreCustomer(full({ level: null, activity: [], series: [] }));
     expect(s.confidence).toBe("low");
     expect(s.score).toBe(NEUTRAL_PLACEHOLDER);
     expect(s.note).toBe(CUSTOMER_LOW_NOTE);

@@ -26,7 +26,8 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const mean = (xs: number[]) => (xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : 0);
 
 export const CUSTOMER_LOW_NOTE = "Not enough of your customers' activity on this yet";
-export const VELOCITY_MIN_POINTS = 21;
+/** Two weeks of daily history: the last seven days against the seven before. */
+export const VELOCITY_MIN_POINTS = 14;
 /** Fewer customer posts than this and a share-of-intent is one person's mood. */
 export const MIN_ACTIVITY = 3;
 /** Posts read before the intent read is trusted enough for high confidence. */
@@ -163,9 +164,12 @@ export function scoreCustomer(input: CustomerInput): SignalScore {
     { key: "velocity", label: "Velocity", weight: w.velocity, score: velocity, detail: velocityDetail },
   ];
 
+  // A volume reading is a reading: a term with 27,888 posts this week and
+  // too little history for velocity is thin, not unknown. Low is for no
+  // persona and no level, or nothing at all.
   const nulls = components.filter((c) => c.score === null).length;
   let confidence: Confidence = "medium";
-  if ((input.personaMatch === null && input.level === null) || nulls >= 2) confidence = "low";
+  if ((input.personaMatch === null && input.level === null) || nulls === components.length) confidence = "low";
   else if (
     input.personaMatch !== null &&
     pct !== null &&

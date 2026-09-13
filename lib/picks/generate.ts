@@ -340,11 +340,14 @@ export async function generateWeekPicks(
       }
     }),
   );
-  // Ranks are contiguous over what was built: a skipped row must not leave
-  // the list starting at #2.
-  const bundles = built
-    .filter((b): b is NewPickBundle => b !== null)
-    .map((b, i) => ({ ...b, pick: { ...b.pick, rank: i + 1 } }));
+  // Ranks are contiguous over what the list shows: a skipped row must not
+  // leave the list starting at #2, and a draft (hidden until it is fixed)
+  // must not leave it reading 1, 4, 5. Ready picks take the first ranks in
+  // grade order; drafts follow.
+  const kept = built.filter((b): b is NewPickBundle => b !== null);
+  const bundles = [...kept.filter((b) => b.pick.status === "ready"), ...kept.filter((b) => b.pick.status !== "ready")].map(
+    (b, i) => ({ ...b, pick: { ...b.pick, rank: i + 1 } }),
+  );
   if (bundles.length === 0) return { ready: 0, draft: 0, pickIds: [], bundles };
 
   const ready = bundles.filter((b) => b.pick.status === "ready").length;

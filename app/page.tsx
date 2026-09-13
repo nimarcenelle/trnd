@@ -106,7 +106,7 @@ export default function Home() {
         <div className="wrap hero__inner">
           <div className="eyebrow">For growth teams at DTC brands</div>
           <h1>
-            Know what ad <em>to run next.</em>
+            Know what to advertise <em>before your competitors do.</em>
           </h1>
           <p className="hero__sub">
             TRND is an AI creative strategist for brands where paid social drives growth. Every

@@ -7,7 +7,7 @@ import { ImageResponse } from "next/og";
  * this renders outside CSS.
  */
 
-export const alt = "TRND: Know what ad to run next";
+export const alt = "TRND: Know what to advertise, before your competitors do";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -39,10 +39,10 @@ export default function Image() {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ fontSize: 74, fontWeight: 700, color: INK, lineHeight: 1.15, display: "flex" }}>
-            Know what ad
+            Know what to advertise
           </div>
           <div style={{ fontSize: 74, fontWeight: 700, color: GOLD, lineHeight: 1.15, display: "flex" }}>
-            to run next.
+            before your competitors do.
           </div>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

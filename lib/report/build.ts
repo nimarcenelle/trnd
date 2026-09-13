@@ -257,7 +257,10 @@ export async function buildIntelReport(repo: Repo, business: Business): Promise<
         ? (serviceById.get(o.matched_service_id)?.name ?? null)
         : null,
       snapshotReason: o.rationale?.match(/Snapshot read: (.+)$/)?.[1] ?? null,
-      competitorGap: o.competitor_gap,
+      // Only a measured read is worth a sentence on the report. "Scored as
+      // unknown" under six picks in a row reads like a scraper's caveat; the
+      // pick page's Signal read already says what was not factored in.
+      competitorGap: o.competitor_gap && !/scored as unknown/.test(o.competitor_gap) ? o.competitor_gap : null,
       hasCampaign: campaignOppIds.has(o.id),
       status: o.status,
       sourceUrl: sourceUrl(signal),

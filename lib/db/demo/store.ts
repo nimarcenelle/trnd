@@ -9,6 +9,7 @@ import type {
   PickFeedback,
   PickRun,
   PickScript,
+  SignalReading,
   Business,
   BusinessBrief,
   Campaign,
@@ -76,6 +77,7 @@ export interface DemoStore {
   pick_scripts?: PickScript[];
   pick_feedback?: PickFeedback[];
   pick_runs?: PickRun[];
+  signal_readings?: SignalReading[];
 }
 
 function emptyStore(): DemoStore {

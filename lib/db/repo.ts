@@ -22,6 +22,8 @@ import type {
   PickFeedback,
   PickRun,
   PickRunStatus,
+  SignalReading,
+  NewSignalReading,
   NewAlert,
   NewBusiness,
   NewBusinessBrief,
@@ -214,9 +216,22 @@ export interface Repo {
   getPickDetail(pickId: string): Promise<PickDetail | null>;
   createPickFeedback(input: NewPickFeedback): Promise<PickFeedback>;
   createPickRun(input: NewPickRun): Promise<PickRun>;
-  updatePickRun(id: string, patch: Partial<Pick<PickRun, "status" | "ended_at" | "spend_usd" | "result_note">> & { status?: PickRunStatus }): Promise<PickRun>;
+  updatePickRun(
+    id: string,
+    patch: Partial<Pick<PickRun, "status" | "ended_at" | "spend_usd" | "result_note" | "impressions" | "clicks" | "conversions" | "revenue_usd">> & {
+      status?: PickRunStatus;
+    },
+  ): Promise<PickRun>;
   /** Every run for a business, newest first, with its pick. */
   listPickRuns(businessId: string): Promise<{ run: PickRun; pick: BrandPick }[]>;
+
+  /* signal readings — the rolling baselines the four signals rank against */
+  /** One reading per (business, day, signal, term); a same-day rerun replaces it. */
+  upsertSignalReadings(rows: NewSignalReading[]): Promise<number>;
+  listSignalReadings(
+    businessId: string,
+    opts?: { signal?: SignalReading["signal"]; term?: string; sinceDays?: number },
+  ): Promise<SignalReading[]>;
 
   /* alerts — proactive nudges, deduped by key */
   /** No-ops on an existing dedupe_key. Returns the alert when newly created. */

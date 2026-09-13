@@ -10,6 +10,8 @@ import type {
   NewPickRun,
   PickFeedback,
   PickRun,
+  NewSignalReading,
+  SignalReading,
   Business,
   BusinessBrief,
   Campaign,
@@ -280,6 +282,9 @@ export function createDemoRepo(actor: DemoActor): Repo {
           existing.matched_service_id = i.matched_service_id;
           existing.competitor_gap = i.competitor_gap;
           existing.relevance = i.relevance;
+          existing.grade = i.grade ?? null;
+          existing.grade_score = i.grade_score ?? null;
+          existing.signal_scores = i.signal_scores ?? null;
           out.push(existing);
           continue;
         }
@@ -958,6 +963,37 @@ export function createDemoRepo(actor: DemoActor): Repo {
         .filter((r) => r.business_id === businessId && picks.has(r.pick_id))
         .sort((a, b) => b.started_at.localeCompare(a.started_at))
         .map((run) => ({ run, pick: picks.get(run.pick_id)! }));
+    },
+
+    /* ---------------------------- signal readings ------------------------- */
+    async upsertSignalReadings(rows: NewSignalReading[]) {
+      store.signal_readings ??= [];
+      let written = 0;
+      for (const r of rows) {
+        assertOwnsBusiness(r.business_id);
+        const day = r.captured_on ?? nowIso().slice(0, 10);
+        const existing = store.signal_readings.find(
+          (x) => x.business_id === r.business_id && x.captured_on === day && x.signal === r.signal && x.term === r.term,
+        );
+        if (existing) existing.reading = r.reading;
+        else store.signal_readings.push({ ...r, captured_on: day, id: randomUUID() });
+        written += 1;
+      }
+      if (written) saveStore();
+      return written;
+    },
+    async listSignalReadings(businessId, opts) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      const since = new Date(Date.now() - (opts?.sinceDays ?? 90) * 86400_000).toISOString().slice(0, 10);
+      return (store.signal_readings ?? [])
+        .filter(
+          (r) =>
+            r.business_id === businessId &&
+            r.captured_on >= since &&
+            (!opts?.signal || r.signal === opts.signal) &&
+            (!opts?.term || r.term === opts.term),
+        )
+        .sort((a, b) => a.captured_on.localeCompare(b.captured_on));
     },
 
     /* -------------------------------- alerts ------------------------------ */

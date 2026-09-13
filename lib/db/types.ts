@@ -135,6 +135,11 @@ export interface Opportunity {
   /** The relevance judge's 0–1 fit, when this ranking was judged. Lets
    * screens re-derive the same gated components the stored score used. */
   relevance: number | null;
+  /** The Opportunity Grade (lib/scoring/model.ts); null on rows ranked
+   * before the four-signal model or before migration 0024. */
+  grade?: string | null;
+  grade_score?: number | null;
+  signal_scores?: Record<string, unknown> | null;
   status: OpportunityStatus;
   created_at: string;
 }
@@ -497,6 +502,10 @@ export interface BrandPick {
   bet_duration_days: number;
   bet_kill_rule: string;
   guardrail: string | null;
+  /** The Opportunity Grade when the pick was written; see lib/scoring/model.ts. */
+  grade?: string | null;
+  grade_score?: number | null;
+  signal_scores?: Record<string, unknown> | null;
   status: PickStatus;
   created_at: string;
 }
@@ -542,6 +551,11 @@ export interface PickRun {
   started_at: string;
   ended_at: string | null;
   spend_usd: number | null;
+  /** Real results, entered or synced; they feed the brand's own baseline. */
+  impressions?: number | null;
+  clicks?: number | null;
+  conversions?: number | null;
+  revenue_usd?: number | null;
   result_note: string | null;
   /** Reserved for the ad-account integration. */
   meta_campaign_id: string | null;
@@ -562,6 +576,17 @@ export interface PickDetail {
   run: PickRun | null;
   dismissed: boolean;
 }
+
+/** One raw signal reading, kept 90 days as the baseline percentiles rank against. */
+export interface SignalReading {
+  id: string;
+  business_id: string;
+  captured_on: string; // yyyy-mm-dd
+  signal: "customer" | "culture" | "competitive" | "brand";
+  term: string;
+  reading: Record<string, number | null>;
+}
+export type NewSignalReading = Omit<SignalReading, "id" | "captured_on"> & { captured_on?: string };
 
 export type NewPickFeedback = Omit<PickFeedback, "id" | "created_at">;
 export type NewPickRun = Omit<PickRun, "id" | "started_at" | "ended_at" | "spend_usd" | "result_note" | "meta_campaign_id"> &

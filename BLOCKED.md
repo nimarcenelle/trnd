@@ -197,3 +197,12 @@ What the customer, competitive, cultural and brand signals need that code cannot
   SQL editor before deploying the picks pages; it is idempotent. Until it runs, the list reads
   as empty (the repo treats missing tables as no rows) and the weekly job's write fails and is
   logged, so no picks appear.
+
+## Four-signal scoring (2026-09-13)
+
+- **Migration 0024** (`supabase/migrations/0024_signal_scoring.sql`, run after 0023): the grade
+  columns on `opportunities`, the `signal_readings` table the rolling 90-day baselines are built
+  from, and result fields on `pick_runs` for the learning loop. 0023 was also amended with the
+  grade columns on `picks`, so paste the current 0023 first. Until 0024 runs, ranking writes
+  without grades and baselines stay empty, so every percentile falls back to its absolute curve
+  and no signal can reach high confidence.

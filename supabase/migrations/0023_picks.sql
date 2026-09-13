@@ -27,9 +27,18 @@ create table if not exists public.picks (
   bet_duration_days  integer not null,
   bet_kill_rule      text not null,
   guardrail          text,
+  -- The Opportunity Grade at generation time, kept on the pick so the page
+  -- and the later weight regression both read what the brand was shown.
+  grade              text check (grade in ('A+','A','B+','B','C','Hold')),
+  grade_score        numeric,
+  signal_scores      jsonb not null default '{}'::jsonb,
   status             text not null default 'draft' check (status in ('draft','ready','published')),
   created_at         timestamptz not null default now()
 );
+alter table public.picks
+  add column if not exists grade text,
+  add column if not exists grade_score numeric,
+  add column if not exists signal_scores jsonb not null default '{}'::jsonb;
 alter table public.picks enable row level security;
 create index if not exists picks_business_week_idx on public.picks (business_id, week_of, rank);
 drop policy if exists "picks: via business" on public.picks;
@@ -142,7 +151,8 @@ begin
     insert into public.picks (
       business_id, opportunity_id, week_of, rank, geo, term, finding,
       metric_label, metric_value, metric_delta_pct, metric_window, sparkline,
-      bet_what, bet_budget_usd, bet_duration_days, bet_kill_rule, guardrail, status
+      bet_what, bet_budget_usd, bet_duration_days, bet_kill_rule, guardrail,
+      grade, grade_score, signal_scores, status
     ) values (
       p_business_id,
       nullif(item->'pick'->>'opportunity_id', '')::uuid,
@@ -161,6 +171,9 @@ begin
       (item->'pick'->>'bet_duration_days')::integer,
       item->'pick'->>'bet_kill_rule',
       nullif(item->'pick'->>'guardrail', ''),
+      nullif(item->'pick'->>'grade', ''),
+      nullif(item->'pick'->>'grade_score', '')::numeric,
+      coalesce(item->'pick'->'signal_scores', '{}'::jsonb),
       wanted
     ) returning id into new_id;
 

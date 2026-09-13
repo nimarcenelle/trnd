@@ -7,6 +7,7 @@ import type {
   PickRun,
   PickScript,
   PickFeedback,
+  SignalReading,
   AdHistory,
   Business,
   BusinessBrief,
@@ -284,13 +285,13 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
 
     async upsertOpportunities(inputs) {
       if (inputs.length === 0) return [];
-      const { data, error } = await sb
-        .from("opportunities")
-        .upsert(
-          inputs.map((i) => ({ ...i, status: i.status ?? "new" })),
-          { onConflict: "business_id,signal_id,week_of" },
-        )
-        .select();
+      // grade, grade_score and signal_scores arrive with migration 0024; until
+      // it is pasted the ranking keeps writing without them.
+      const { data, error } = await writeTolerant(
+        inputs.map((i) => ({ ...i, status: i.status ?? "new" })),
+        (rows) => sb.from("opportunities").upsert(rows, { onConflict: "business_id,signal_id,week_of" }).select(),
+        "upsertOpportunities",
+      );
       throwIf(error, "upsertOpportunities");
       return (data ?? []) as Opportunity[];
     },
@@ -858,6 +859,29 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwUnlessMissing(picks.error, "listPickRuns:picks");
       const byId = new Map(((picks.data ?? []) as BrandPick[]).map((p) => [p.id, p]));
       return runs.filter((r) => byId.has(r.pick_id)).map((run) => ({ run, pick: byId.get(run.pick_id)! }));
+    },
+
+    async upsertSignalReadings(rows) {
+      if (rows.length === 0) return 0;
+      const { count, error } = await sb.from("signal_readings").upsert(
+        rows.map((r) => ({ ...r, captured_on: r.captured_on ?? new Date().toISOString().slice(0, 10) })),
+        { onConflict: "business_id,captured_on,signal,term", count: "exact" },
+      );
+      if (isMissingTable(error)) {
+        console.warn("[supabase:upsertSignalReadings] signal_readings missing — run migration 0024. Baselines not kept.");
+        return 0;
+      }
+      throwIf(error, "upsertSignalReadings");
+      return count ?? 0;
+    },
+    async listSignalReadings(businessId, opts) {
+      const since = new Date(Date.now() - (opts?.sinceDays ?? 90) * 86400_000).toISOString().slice(0, 10);
+      let q = sb.from("signal_readings").select("*").eq("business_id", businessId).gte("captured_on", since);
+      if (opts?.signal) q = q.eq("signal", opts.signal);
+      if (opts?.term) q = q.eq("term", opts.term);
+      const { data, error } = await q.order("captured_on", { ascending: true });
+      throwUnlessMissing(error, "listSignalReadings");
+      return (data ?? []) as SignalReading[];
     },
 
     async createAlert(input) {

@@ -5,6 +5,7 @@ import type {
   BrandPick,
   PickEvidence,
   PickRun,
+  WeekSkip,
   PickScript,
   PickFeedback,
   SignalReading,
@@ -63,6 +64,14 @@ function isMissingTable(error: { code?: string; message: string } | null): boole
     error.code === "PGRST205" ||
     error.code === "42P01" ||
     /could not find the table|relation .* does not exist/i.test(error.message)
+  );
+}
+/** Memory and fit come first (they are the owner's own history), then holds
+ * by how close they came. */
+function sortSkips(rows: WeekSkip[]): WeekSkip[] {
+  const order: Record<WeekSkip["kind"], number> = { memory: 0, fit: 1, hold: 2 };
+  return [...rows].sort(
+    (a, b) => order[a.kind] - order[b.kind] || Number(b.grade_score ?? 0) - Number(a.grade_score ?? 0) || a.term.localeCompare(b.term),
   );
 }
 function throwUnlessMissing(error: { code?: string; message: string } | null, ctx: string): void {
@@ -859,7 +868,9 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       return data as PickRun;
     },
     async updatePickRun(id, patch) {
-      const { data, error } = await sb.from("pick_runs").update(patch).eq("id", id).select().single();
+      // The verdict column lands with migration 0026; until it is pasted the
+      // run still closes, without the owner's call.
+      const { data, error } = await writeTolerant(patch, (row) => sb.from("pick_runs").update(row).eq("id", id).select().single(), "updatePickRun");
       throwIf(error, "updatePickRun");
       return data as PickRun;
     },
@@ -876,6 +887,41 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwUnlessMissing(picks.error, "listPickRuns:picks");
       const byId = new Map(((picks.data ?? []) as BrandPick[]).map((p) => [p.id, p]));
       return runs.filter((r) => byId.has(r.pick_id)).map((run) => ({ run, pick: byId.get(run.pick_id)! }));
+    },
+    async listPickFeedback(businessId) {
+      const { data, error } = await sb
+        .from("pick_feedback")
+        .select("*")
+        .eq("business_id", businessId)
+        .order("created_at", { ascending: false });
+      throwUnlessMissing(error, "listPickFeedback");
+      const rows = (data ?? []) as PickFeedback[];
+      if (rows.length === 0) return [];
+      const picks = await sb.from("picks").select("*").in("id", [...new Set(rows.map((r) => r.pick_id))]);
+      throwUnlessMissing(picks.error, "listPickFeedback:picks");
+      const byId = new Map(((picks.data ?? []) as BrandPick[]).map((p) => [p.id, p]));
+      return rows.filter((r) => byId.has(r.pick_id)).map((feedback) => ({ feedback, pick: byId.get(feedback.pick_id)! }));
+    },
+
+    async replaceWeekSkips(businessId, weekOf, rows) {
+      const del = await sb.from("week_skips").delete().eq("business_id", businessId).eq("week_of", weekOf);
+      if (isMissingTable(del.error)) {
+        console.warn("[supabase:replaceWeekSkips] week_skips missing — run migration 0026. Skips not kept.");
+        return 0;
+      }
+      throwIf(del.error, "replaceWeekSkips:delete");
+      if (rows.length === 0) return 0;
+      const { count, error } = await sb.from("week_skips").upsert(
+        rows.map((r) => ({ ...r, business_id: businessId, week_of: weekOf })),
+        { onConflict: "business_id,week_of,normalized_term", count: "exact" },
+      );
+      throwIf(error, "replaceWeekSkips");
+      return count ?? rows.length;
+    },
+    async listWeekSkips(businessId, weekOf) {
+      const { data, error } = await sb.from("week_skips").select("*").eq("business_id", businessId).eq("week_of", weekOf);
+      throwUnlessMissing(error, "listWeekSkips");
+      return sortSkips((data ?? []) as WeekSkip[]);
     },
 
     async upsertSignalReadings(rows) {

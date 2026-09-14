@@ -10,6 +10,7 @@ import type {
   PickRun,
   PickScript,
   SignalReading,
+  WeekSkip,
   Business,
   BusinessBrief,
   Campaign,
@@ -78,6 +79,7 @@ export interface DemoStore {
   pick_feedback?: PickFeedback[];
   pick_runs?: PickRun[];
   signal_readings?: SignalReading[];
+  week_skips?: WeekSkip[];
 }
 
 function emptyStore(): DemoStore {

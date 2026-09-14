@@ -469,6 +469,8 @@ export type PickSignal = "customer" | "culture" | "competitive" | "brand";
 export type PickMetricWindow = "week" | "30d";
 export type PickDismissReason = "wrong_customer" | "already_tried" | "off_brand" | "cant_shoot" | "other";
 export type PickRunStatus = "running" | "completed" | "killed";
+/** The owner's own call on a finished run. Null when only the numbers speak. */
+export type RunVerdict = "won" | "lost";
 
 /** One beat of a script: what the camera sees, what is on screen, what is said. */
 export interface PickBeat {
@@ -574,9 +576,29 @@ export interface PickRun {
   conversions?: number | null;
   revenue_usd?: number | null;
   result_note: string | null;
+  /** The owner's verdict on the run, when they gave one (migration 0026). */
+  verdict?: RunVerdict | null;
   /** Reserved for the ad-account integration. */
   meta_campaign_id: string | null;
 }
+
+/** Why a week held a term instead of picking it (migration 0026). */
+export type WeekSkipKind = "hold" | "memory" | "fit";
+
+export interface WeekSkip {
+  id: string;
+  business_id: string;
+  week_of: string; // yyyy-mm-dd (Monday)
+  term: string;
+  normalized_term: string;
+  kind: WeekSkipKind;
+  /** One owner-readable line: "You ran this and killed it on Sep 2". */
+  reason: string;
+  grade: string | null;
+  grade_score: number | null;
+  created_at: string;
+}
+export type NewWeekSkip = Omit<WeekSkip, "id" | "business_id" | "week_of" | "created_at">;
 
 /** What the weekly job hands the database for one pick. */
 export interface NewPickBundle {

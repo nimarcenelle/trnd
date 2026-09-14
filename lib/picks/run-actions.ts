@@ -7,7 +7,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import type { Repo } from "@/lib/db/repo";
 import type { PickRun, PickRunStatus } from "@/lib/db/types";
-import { parseRunResults, runAdHistoryRow } from "@/lib/picks/list";
+import { parseRunResults, parseVerdict, runAdHistoryRow } from "@/lib/picks/list";
 
 /**
  * Ending a run from Campaigns. The run id arrives from a form, so it is
@@ -42,6 +42,7 @@ function revalidateRunScreens() {
   revalidatePath("/app/campaigns");
   revalidatePath("/app/picks");
   revalidatePath("/app/picks/[id]", "page");
+  revalidatePath("/app/record");
 }
 
 /**
@@ -62,6 +63,7 @@ export async function completePickRunAction(_prev: CompleteRunState, formData: F
   await repo.updatePickRun(run.id, {
     status: "completed",
     ended_at: endedAt.toISOString(),
+    verdict: parseVerdict(formData),
     spend_usd: results.spend_usd,
     impressions: results.impressions,
     clicks: results.clicks,

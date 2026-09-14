@@ -4,7 +4,9 @@ import type { Business } from "@/lib/db/types";
 import { competitiveSet } from "@/lib/recommend/four-signals";
 import { weekOf } from "@/lib/recommend/week";
 
-import { nextWeekStage, type WeekStage } from "./advance-week";
+import { sentenceCase } from "@/lib/text";
+
+import { intelOwed, nextWeekStage, type WeekStage } from "./advance-week";
 import { eligibleWeekOpportunities } from "./generate";
 
 /**
@@ -42,7 +44,40 @@ export interface WeekProgress {
   remainingSec: number;
 }
 
-const ORDER: WeekStage[] = ["brief", "scan", "intel", "rank", "picks"];
+/** The wait screen's steps: what stands between a signup and its first
+ * pick. The deepening pass comes after the picks and is not a wait. */
+const ORDER: WeekStage[] = ["brief", "scan", "rank", "picks"];
+
+/**
+ * Whether the deep read (the brand's own accounts, its rivals, the scraped
+ * short-form) is still running behind a fresh signup's first picks. The
+ * picks are ranked and written again when it lands.
+ */
+export async function weekDeepening(repo: Repo, business: Business): Promise<boolean> {
+  if (!businessJustOnboarded(business.created_at)) return false;
+  return intelOwed(repo, business);
+}
+
+/**
+ * The wait screen's headline: the first specific thing TRND can say about
+ * this brand, the moment it can say it. A job label is the fallback, never
+ * the lead.
+ */
+export function waitHeadline(progress: Pick<WeekProgress, "stage" | "analysis" | "found" | "ranked">, businessName: string): string {
+  const name = sentenceCase(businessName);
+  if (progress.stage === "brief" || !progress.analysis) return `Reading ${name}`;
+  const top = progress.ranked[0];
+  if (progress.stage === "picks" && top) return `Writing your first pick: ${sentenceCase(top.term)}${top.grade ? `, graded ${top.grade}` : ""}`;
+  if (progress.stage === "rank") {
+    return progress.found.terms.length > 0
+      ? `Grading ${n(progress.found.terms.length, "rising term")} for ${name}`
+      : `Grading this week for ${name}`;
+  }
+  const rising = progress.found.terms[0];
+  if (rising) return `"${sentenceCase(rising.term)}" is up ${rising.deltaPct}% for your customers right now`;
+  const who = progress.analysis.who;
+  return who ? `We read ${name}. Now reading what ${who.replace(/\.$/, "")} search for` : `We read ${name}. Now reading your market`;
+}
 
 /**
  * How many picks a fresh signup's week still owes: the first pick is written
@@ -66,6 +101,7 @@ const LABELS: Record<WeekStage, string> = {
   intel: "Reading your accounts and your competitors",
   rank: "Grading this week's opportunities",
   picks: "Writing your picks",
+  deepen: "Reading your rivals' ads and what's winning on short-form",
   done: "Done",
 };
 
@@ -73,10 +109,11 @@ const LABELS: Record<WeekStage, string> = {
  * fresh signup, so intel's own figure is the extra it adds past the scan. */
 export const TYPICAL_SEC: Record<WeekStage, number> = {
   brief: 40,
-  scan: 100,
+  scan: 60,
   intel: 20,
   rank: 45,
   picks: 30,
+  deepen: 200,
   done: 0,
 };
 
@@ -89,7 +126,7 @@ const n = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" :
 export async function weekProgress(repo: Repo, business: Business, opts: { scanAllowed?: boolean } = {}): Promise<WeekProgress> {
   const week = weekOf();
   const stage = await nextWeekStage(repo, business, opts);
-  const at = stage === "done" ? ORDER.length : ORDER.indexOf(stage);
+  const at = stage === "done" || !ORDER.includes(stage) ? ORDER.length : ORDER.indexOf(stage);
 
   const [brief, signals, own, competitors, rivalPosts, opportunities, reads] = await Promise.all([
     repo.getBusinessBrief(business.id),
@@ -118,6 +155,7 @@ export async function weekProgress(repo: Repo, business: Business, opts: { scanA
         : null,
     rank: opportunities.length > 0 ? `${opportunities.length} graded` : null,
     picks: null,
+    deepen: null,
     done: null,
   };
 

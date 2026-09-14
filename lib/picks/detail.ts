@@ -1,4 +1,4 @@
-import type { BrandPick, PickDetail, PickDismissReason, PickScript, PickSignal } from "@/lib/db/types";
+import type { BrandPick, PickDetail, PickDismissReason, PickEvidence, PickScript, PickSignal } from "@/lib/db/types";
 import { formatMetric, formatUsd, pickToText, scriptToText, type FormattedMetric } from "@/lib/picks/format";
 import { gradeLabel, readGrade, type GradeSignalView, type GradeView } from "@/lib/picks/grade-view";
 
@@ -131,10 +131,27 @@ export interface SignalReadView {
   signals: SignalReadSignal[];
 }
 
+/** One proof under the call: a claim the brand can check, with its source. */
+export interface CallProof {
+  id: string;
+  signal: PickSignal;
+  claim: string;
+  href: string | null;
+  sourceLabel: string | null;
+}
+
+/** The call, first: one sentence saying what to run, and the proofs. */
+export interface CallView {
+  sentence: string;
+  proofs: CallProof[];
+}
+
 export interface DetailView {
   sections: DetailSection[];
   /** The term, the page's title. */
   term: string;
+  /** The one-sentence call and up to three proofs, shown before anything else. */
+  call: CallView;
   /** 1..5 within the week. */
   rank: number;
   finding: string;
@@ -314,6 +331,39 @@ export function buildSignalRead(grade: GradeView | null): SignalReadView | null 
   };
 }
 
+/** The order proofs are shown in: the rival's live ad, then the customer's
+ * words and searches, then the brand's own record, then culture. */
+const PROOF_ORDER: PickSignal[] = ["competitive", "customer", "brand", "culture"];
+export const CALL_PROOFS_MAX = 3;
+
+/**
+ * "Run the vitamin C serum to women 25 to 40 on TikTok and Reels this week."
+ * The bet line already says what to run, who to reach and where; the call
+ * puts a verb in front of it and a week behind it, and the proofs under it
+ * are the strongest checkable claim per signal, rival first.
+ */
+export function buildCall(pick: Pick<BrandPick, "bet_what" | "term">, evidence: PickEvidence[]): CallView {
+  // The bet line sometimes arrives with its own verb ("Run Instagram Reels
+  // pitching..."); one verb, ours, so it never reads "Run run".
+  const what = pick.bet_what
+    .trim()
+    .replace(/[.\s]+$/, "")
+    .replace(/^(run|test|launch|try|push|ship|put up|go with)\s+/i, "");
+  // Only an article or a determiner drops its capital; a platform or a
+  // product name keeps it.
+  const lower = /^(the|a|an|your|its|one|two|three|this|that)\b/i.test(what);
+  const lead = what ? (lower ? `${what.charAt(0).toLowerCase()}${what.slice(1)}` : what) : `an ad on "${pick.term}"`;
+  const sentence = /\bthis week\b/i.test(lead) ? `Run ${lead}.` : `Run ${lead} this week.`;
+  const proofs: CallProof[] = [];
+  for (const signal of PROOF_ORDER) {
+    const best = [...evidence].filter((e) => e.signal === signal).sort((a, b) => a.position - b.position)[0];
+    if (!best) continue;
+    proofs.push({ id: best.id, signal, claim: best.claim, href: safeHref(best.source_url), sourceLabel: best.source_label });
+    if (proofs.length >= CALL_PROOFS_MAX) break;
+  }
+  return { sentence, proofs };
+}
+
 export function buildDetailView(detail: PickDetail): DetailView {
   const { pick } = detail;
   const guardrail = pick.guardrail?.trim() || null;
@@ -334,6 +384,7 @@ export function buildDetailView(detail: PickDetail): DetailView {
   return {
     sections,
     term: pick.term,
+    call: buildCall(pick, detail.evidence),
     rank: pick.rank,
     finding: pick.finding,
     demandExplainer: demandExplainer(pick.metric_label),

@@ -27,6 +27,9 @@ export interface PickPromptCtx {
   evidence: { signal: PickSignal; claim: string }[];
   /** Script length in seconds. */
   durationSec: number;
+  /** What the brand already ran or passed on for this term, as plain lines
+   * (lib/record/memory.ts memoryLines). Empty when nothing. */
+  memory?: string[];
 }
 
 const THEME_WORDS: Record<string, string> = {
@@ -94,8 +97,12 @@ function rivalBlock({ signals }: PickPromptCtx): string {
     .join("\n");
 }
 
-function brandBlock({ signals, brief }: PickPromptCtx): string {
+function brandBlock({ signals, brief, memory }: PickPromptCtx): string {
   const out: string[] = [];
+  if (memory && memory.length > 0) {
+    out.push("WHAT THIS BRAND ALREADY DID ON THIS TERM (its own record; a repeat of a winner is a new angle on it, never the same ad):");
+    for (const line of memory) out.push(`- ${line}`);
+  }
   const best = signals.ownBestTheme;
   if (best && best.vsAccount >= 1.1) {
     out.push(

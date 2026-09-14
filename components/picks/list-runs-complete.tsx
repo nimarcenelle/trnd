@@ -10,6 +10,14 @@ import { completePickRunAction, type CompleteRunState } from "@/lib/picks/run-ac
  * optional: an owner who only knows the spend can still close the run, and
  * one who has the whole Ads Manager row teaches the Brand signal with it.
  */
+/** The owner's own verdict. The numbers decide when they exist; this decides
+ * when they don't, and it is what the track record counts. */
+const VERDICTS = [
+  { value: "won", label: "It won" },
+  { value: "lost", label: "It didn't" },
+  { value: "", label: "Let the numbers say" },
+] as const;
+
 export default function ListRunsComplete({ runId }: { runId: string }) {
   const [state, formAction, pending] = useActionState<CompleteRunState, FormData>(completePickRunAction, {});
   const errorId = `run-${runId}-error`;
@@ -19,6 +27,15 @@ export default function ListRunsComplete({ runId }: { runId: string }) {
       <form action={formAction} className="picks-run__results" aria-describedby={state.error ? errorId : undefined}>
         <input type="hidden" name="run_id" value={runId} />
         <p className="picks-run__results-hint">What did it do? Leave blank what you don&apos;t know.</p>
+        <fieldset className="picks-run__verdict">
+          <legend className="picks-run__verdict-legend">Your call</legend>
+          {VERDICTS.map((v) => (
+            <label key={v.value} className="picks-run__verdict-option">
+              <input type="radio" name="verdict" value={v.value} defaultChecked={v.value === ""} />
+              <span>{v.label}</span>
+            </label>
+          ))}
+        </fieldset>
         <div className="picks-run__fields">
           {RUN_RESULT_FIELDS.map((f) => (
             <label key={f.name} className="picks-run__field">

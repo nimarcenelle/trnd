@@ -4,10 +4,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import ListRuns from "@/components/picks/list-runs";
+import { readAdHistory } from "@/lib/ads/history-read";
 import { getSessionUser } from "@/lib/auth/session";
 import { GROUP_LABEL, STATUS_ORDER, statusChip } from "@/lib/campaigns/view";
 import { getUserRepo } from "@/lib/db";
 import { shortDate } from "@/lib/picks/list";
+import { benchmarkFor } from "@/lib/results/benchmarks";
 import { sentenceCase } from "@/lib/text";
 
 export const metadata = { title: "Campaigns — TRND" };
@@ -24,11 +26,14 @@ export default async function CampaignsPage() {
   const business = await repo.getBusinessByOwner(user.id);
   if (!business) redirect("/onboarding");
 
-  const [campaigns, pickRuns] = await Promise.all([
+  const [campaigns, pickRuns, history] = await Promise.all([
     repo.listCampaigns(business.id),
     // A pick someone said they are running belongs here beside the campaigns.
     repo.listPickRuns(business.id),
+    // Its outcome is judged against the brand's own account first.
+    repo.listAdHistory(business.id).catch(() => []),
   ]);
+  const outcomes = { accountCtr: readAdHistory(history).accountCtr, benchmarkCtr: benchmarkFor(business.category) };
   const signalTermByCampaign = new Map<string, string | null>(
     await Promise.all(
       campaigns.map(async (c) => {
@@ -59,7 +64,7 @@ export default async function CampaignsPage() {
         )}
       </div>
 
-      <ListRuns runs={pickRuns} />
+      <ListRuns runs={pickRuns} outcomes={outcomes} />
 
       {campaigns.length === 0 && pickRuns.length === 0 && (
         <div className="panel camps__empty">

@@ -1,4 +1,4 @@
-import type { BrandPick, NewAdHistory, PickRun, PickRunStatus, PickScript } from "@/lib/db/types";
+import type { BrandPick, NewAdHistory, PickRun, PickRunStatus, PickScript, RunVerdict } from "@/lib/db/types";
 import type { GradeLetter } from "@/lib/scoring/model";
 
 import type { MetricDirection } from "./format";
@@ -158,6 +158,13 @@ export interface FormLike {
  * read as numbers; a negative, a non-number, or a fractional count is an
  * error naming the field, and clicks can't exceed impressions.
  */
+/** The verdict radio on the results form: "won", "lost", or nothing (the
+ * numbers decide). Anything else is nothing. */
+export function parseVerdict(formData: FormData): RunVerdict | null {
+  const v = formData.get("verdict");
+  return v === "won" || v === "lost" ? v : null;
+}
+
 export function parseRunResults(form: FormLike): { ok: true; results: RunResults } | { ok: false; error: string } {
   const results: RunResults = { spend_usd: null, impressions: null, clicks: null, conversions: null, revenue_usd: null };
   for (const field of RUN_RESULT_FIELDS) {

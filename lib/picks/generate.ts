@@ -5,6 +5,7 @@ import type { Business, BusinessBrief, NewPickBundle, Opportunity, Service, Sign
 import { indexSeries } from "@/lib/demand/series";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { campaignSignalBrief, loadSignalContext, type SignalContext } from "@/lib/recommend/four-signals";
+import { loadBrandMemory, memoryLines, type BrandMemory } from "@/lib/record/memory";
 import { weekOf as currentWeek } from "@/lib/recommend/week";
 import { isCulturalSource } from "@/lib/scoring";
 import { rankScoreOf } from "@/lib/scoring/grade-opportunity";
@@ -179,11 +180,13 @@ interface WeekInputs {
   brief: BusinessBrief | null;
   pool: Signal[];
   ctx: SignalContext;
+  /** What the brand already ran and passed on, by normalized term. */
+  memory: BrandMemory;
   writer: PickWriter;
 }
 
 async function buildBundle(repo: Repo, input: WeekInputs, opportunity: Opportunity): Promise<NewPickBundle | null> {
-  const { business, services, brief, pool, ctx, writer } = input;
+  const { business, services, brief, pool, ctx, writer, memory } = input;
   const signal = await repo.getSignal(opportunity.signal_id);
   if (!signal) return null;
   const [explained, rawSeries] = await Promise.all([
@@ -232,6 +235,7 @@ async function buildBundle(repo: Repo, input: WeekInputs, opportunity: Opportuni
     signals,
     evidence: evidence.map((e) => ({ signal: e.signal, claim: e.claim })),
     durationSec: scriptSeconds(signals.medianDurationSec),
+    memory: memoryLines(memory.get(signal.normalized_term)),
     deltaPct: metric?.metric_delta_pct ?? null,
   };
 
@@ -317,13 +321,14 @@ export async function generateWeekPicks(
     // The same two-week pool the ranking and explainOpportunity read.
     repo.listSignalsForCategory(business.category, { sinceDays: 14 }),
   ]);
-  const ctx = await loadSignalContext(repo, business, brief, pool);
+  const [ctx, memory] = await Promise.all([loadSignalContext(repo, business, brief, pool), loadBrandMemory(repo, business)]);
   const inputs: WeekInputs = {
     business,
     services,
     brief,
     pool,
     ctx,
+    memory,
     writer: opts.writer ?? defaultPickWriter(opts.models),
   };
 

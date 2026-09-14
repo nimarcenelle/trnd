@@ -14,8 +14,8 @@ import { requestWeekJob } from "@/lib/picks/kick";
  */
 export const maxDuration = 300;
 
-/** Brief, scan and intel resuming a few times each, rank, picks, a check: more hops is a loop. */
-const MAX_HOPS = 12;
+/** Brief, scan, rank, picks, deepen resuming a few times, rank and picks again, a check: more hops is a loop. */
+const MAX_HOPS = 16;
 
 export async function POST(request: NextRequest) {
   if (!env.cronSecret || request.headers.get("authorization") !== `Bearer ${env.cronSecret}`) {

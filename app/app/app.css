@@ -166,6 +166,13 @@
 .badge--faint {
   border-style: dashed;
 }
+.badge--red {
+  color: var(--red);
+  border-color: var(--red);
+}
+.badge--red i {
+  background: var(--red);
+}
 .delta-chip {
   font-family: var(--mono);
   font-size: 11.5px;

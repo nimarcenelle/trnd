@@ -4,7 +4,8 @@ import { indexSeries } from "@/lib/demand/series";
 import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity, tokens, type ScoredOpportunity } from "@/lib/scoring";
 import { dedupeReadings, loadGradeContext } from "@/lib/scoring/gather";
-import { gradeOpportunity, storedSignalScores } from "@/lib/scoring/grade-opportunity";
+import { DOESNT_FIT_NOTE, gradeOpportunity, holdForReason, storedSignalScores } from "@/lib/scoring/grade-opportunity";
+import { loadBrandMemory, memoryHold } from "@/lib/record/memory";
 import { businessStateGeo, localityFor, localityRegion, placeWords } from "@/lib/signals/geo";
 import { normalizeTerm } from "@/lib/signals/normalize";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
@@ -371,15 +372,23 @@ export async function recommendForBusiness(
   // (lib/scoring/model.ts). The legacy total above built and trimmed the
   // judged pool; it no longer ranks. The judged fit rides along so the
   // grade's catalog gate uses the same read the pool was filtered on.
-  const gradeCtx = await loadGradeContext(repo, business, { brief, services, pool: signals, signals: signalCtx });
+  const [gradeCtx, memory] = await Promise.all([
+    loadGradeContext(repo, business, { brief, services, pool: signals, signals: signalCtx }),
+    loadBrandMemory(repo, business),
+  ]);
   const readings: NewSignalReading[] = [];
   const graded = await Promise.all(
     scored.map(async (entry) => {
-      const { grade, readings: taken } = await gradeOpportunity(repo, business, entry.signal, gradeCtx, {
+      const { grade: measured, readings: taken } = await gradeOpportunity(repo, business, entry.signal, gradeCtx, {
         fit: entry.result.components.serviceMatch,
       });
       readings.push(...taken);
-      return { ...entry, grade };
+      // What the brand already did with this term outranks what the week
+      // says about it: a term it is running, killed, or passed on is held
+      // with that reason, however loud the signals are.
+      const remembered = memoryHold(memory.get(entry.signal.normalized_term), gradeCtx.now);
+      const grade = remembered ? holdForReason(measured, remembered.reason) : measured;
+      return { ...entry, grade, remembered };
     }),
   );
   // Every graded term's readings are kept, not just the five stored: the
@@ -400,11 +409,33 @@ export async function recommendForBusiness(
     .sort((a, b) => b.grade.score - a.grade.score || b.result.score - a.result.score)
     .slice(0, TOP_N);
 
+  // What the week held, and why, is the other half of the call: the pick
+  // page says "not this week" from these rows.
+  const week = weekOf();
+  try {
+    await repo.replaceWeekSkips(
+      business.id,
+      week,
+      graded
+        .filter((e) => e.grade.hold)
+        .sort((a, b) => b.grade.score - a.grade.score)
+        .map((e) => ({
+          term: e.signal.term,
+          normalized_term: e.signal.normalized_term,
+          kind: e.remembered ? "memory" : e.grade.notes[0] === DOESNT_FIT_NOTE ? "fit" : "hold",
+          reason: e.grade.notes[0] ?? "Held this week: not enough behind it",
+          grade: e.grade.grade,
+          grade_score: e.grade.score,
+        })),
+    );
+  } catch (err) {
+    console.warn("[recommend] week skips not stored (non-fatal):", (err as Error).message);
+  }
+
   if (top.length === 0) {
     return { businessId: business.id, created: 0, topScore: null, opportunityIds: [], allHeld: graded.length > 0 };
   }
 
-  const week = weekOf();
   const inputs: NewOpportunity[] = top.map(({ signal, result, relevance, grade }) => ({
     business_id: business.id,
     signal_id: signal.id,

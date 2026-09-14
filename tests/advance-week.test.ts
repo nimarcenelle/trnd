@@ -84,9 +84,29 @@ describe("what a week still needs", () => {
     expect(await nextWeekStage(user, biz, { scanAllowed: false })).not.toBe("scan");
   });
 
-  it("reads the brand's own accounts and rivals before ranking a fresh signup", async () => {
+  it("ranks a fresh signup on the fast reads first; the accounts and rivals come after its picks", async () => {
     const { user, biz } = await seed({ posts: false });
-    expect(await nextWeekStage(user, biz)).toBe("intel");
+    expect(await nextWeekStage(user, biz)).toBe("rank");
+  });
+
+  it("deepens a fresh signup's week once its picks are written, then is done", async () => {
+    const { admin, user, biz } = await seed({ opportunity: true, posts: false });
+    await admin.replaceWeekPicks(biz.id, weekOf(), [
+      {
+        pick: { opportunity_id: null, rank: 1, geo: "US", term: "hard water", finding: "f", metric_label: "m", metric_value: null, metric_delta_pct: null, metric_window: "30d", sparkline: [], bet_what: "b", bet_budget_usd: 1000, bet_duration_days: 5, bet_kill_rule: "k", guardrail: null, status: "draft" },
+        evidence: [],
+        scripts: [],
+      },
+    ]);
+    expect(await nextWeekStage(user, biz)).toBe("deepen");
+    // Nothing paid to read with: straight on.
+    expect(await nextWeekStage(user, biz, { scanAllowed: false })).toBe("done");
+    // The intel read writes a competitor read even when a platform refuses.
+    const rival = await user.createCompetitor({ business_id: biz.id, name: "Canopy", website: null, place_id: null, social_handles: {}, directness: 0.7, directness_reason: "r" });
+    await admin.upsertCompetitorReads([
+      { business_id: biz.id, competitor_id: rival.id, kind: "ads", value: 3, rating: null, detail: null, captured_at: new Date().toISOString() },
+    ] as never);
+    expect(await nextWeekStage(user, biz)).toBe("done");
   });
 
   it("ranks when the market is read and nothing is ranked, then writes picks, then is done", async () => {
@@ -136,7 +156,8 @@ describe("running a stage", () => {
     expect(await runWeekStage(admin, biz, "intel", deps)).toBe("rank");
     // Nothing ranked by the fake: the week is done, not looping on rank.
     expect(await runWeekStage(admin, biz, "rank", deps)).toBe("done");
-    expect(await runWeekStage(admin, biz, "picks", deps)).toBe("done");
+    // Picks written with nothing of the brand's own read yet: the deep read comes next.
+    expect(await runWeekStage(admin, biz, "picks", deps)).toBe("deepen");
     expect(ran).toEqual(["intel", "rank", "picks"]);
   });
 
@@ -176,28 +197,28 @@ describe("a read the budget cut short", () => {
 describe("a fresh signup's first hop", () => {
   beforeEach(() => resetStore());
 
-  it("scans the market and reads the accounts in the same hop, then ranks", async () => {
+  it("scans the fast reads alone, then ranks; the intel read waits for the picks", async () => {
     const { admin, biz } = await seed({ signalToday: false, posts: false });
     const ran: string[] = [];
     const next = await runWeekStage(admin, biz, "scan", {
       scan: async () => {
         ran.push("scan");
+        await admin.upsertSignals([
+          { source: "seed", term: "hard water", normalized_term: "hard_water", category: biz.category, geo: "US", metric_type: "search_volume", value: 100, delta_pct: 10, window_days: 7, raw: null },
+        ] as never);
       },
       intel: async () => {
         ran.push("intel");
       },
     });
-    expect(ran.sort()).toEqual(["intel", "scan"]);
+    expect(ran).toEqual(["scan"]);
     expect(next).toBe("rank");
   });
 
-  it("comes back for the intel read alone when only that ran out of budget", async () => {
-    const { admin, biz } = await seed({ signalToday: false, posts: false });
-    const next = await runWeekStage(admin, biz, "scan", {
-      scan: async () => undefined,
-      intel: async () => ({ exhausted: true }),
-    });
-    expect(next).toBe("intel");
+  it("ranks and writes the week again after the deep read, and comes back while it is cut short", async () => {
+    const { admin, biz } = await seed({ posts: false });
+    expect(await runWeekStage(admin, biz, "deepen", { deepen: async () => ({ exhausted: true }) })).toBe("deepen");
+    expect(await runWeekStage(admin, biz, "deepen", { deepen: async () => undefined })).toBe("rank");
   });
 
   it("ranks a week again when its rows carry no grade", async () => {

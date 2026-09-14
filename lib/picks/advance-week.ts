@@ -25,7 +25,7 @@ import { eligibleWeekOpportunities, generateWeekPicks } from "./generate";
  * The page and onboarding only ask for the next stage; they never run it.
  */
 
-export type WeekStage = "brief" | "scan" | "intel" | "rank" | "picks" | "done";
+export type WeekStage = "brief" | "scan" | "intel" | "rank" | "picks" | "deepen" | "done";
 
 /** A stage says when its budget ran out with work left, so it runs again. */
 export type StageOutcome = void | { exhausted?: boolean };
@@ -36,6 +36,7 @@ export interface StageDeps {
   intel?: (repo: Repo, business: Business) => Promise<StageOutcome>;
   rank?: (repo: Repo, business: Business) => Promise<StageOutcome>;
   picks?: (repo: Repo, business: Business) => Promise<StageOutcome>;
+  deepen?: (repo: Repo, business: Business) => Promise<StageOutcome>;
 }
 
 /** What the week still needs, read from the database alone. */
@@ -55,17 +56,6 @@ export async function nextWeekStage(
     (await repo.listSignalsForCategory(business.category, { sinceDays: 1 })).length === 0
   ) {
     return "scan";
-  }
-  // The brand's own accounts and its rivals are read before the ranking,
-  // so Brand and Competitive have something to grade on day one. Once a
-  // day: an intel run writes competitor reads even when a platform refuses
-  // the social read, so a refused read is not retried on every visit.
-  if (opts.scanAllowed !== false && businessJustOnboarded(business.created_at)) {
-    const [own, reads] = await Promise.all([
-      repo.listSocialPosts(business.id, { competitorId: null, sinceDays: 120 }).catch(() => []),
-      repo.listCompetitorReads(business.id, { sinceDays: 1 }).catch(() => []),
-    ]);
-    if (own.length === 0 && reads.length === 0) return "intel";
   }
   const opportunities = await repo.listOpportunities(business.id, week);
   // A week ranked before the four-signal grade existed carries rows with no
@@ -94,11 +84,18 @@ export async function nextWeekStage(
   if (ready.length > 0 && ready.every((r) => r.pick.grade == null) && opportunities.some((o) => o.grade != null)) {
     return "picks";
   }
+  // The first picks came from the fast, free reads. The brand's own
+  // accounts, its rivals' ads and posts, and the scraped short-form reads
+  // come after them, and the week is ranked and written again on top. Once
+  // a day: an intel run writes competitor reads even when a platform refuses
+  // the social read, so a refused read is not retried on every visit.
+  if (opts.scanAllowed !== false && (await intelOwed(repo, business))) return "deepen";
   return "done";
 }
 
-/** Whether the intel read (own accounts and rivals) is still owed today. */
-async function intelOwed(repo: Repo, business: Business): Promise<boolean> {
+/** Whether the intel read (own accounts and rivals) is still owed today:
+ * the deepening pass a fresh signup gets after its first picks. */
+export async function intelOwed(repo: Repo, business: Business): Promise<boolean> {
   if (!businessJustOnboarded(business.created_at)) return false;
   const [own, reads] = await Promise.all([
     repo.listSocialPosts(business.id, { competitorId: null, sinceDays: 120 }).catch(() => []),
@@ -111,9 +108,26 @@ async function defaultBrief(repo: Repo, business: Business): Promise<void> {
   await repo.upsertBusinessBrief(await generateBusinessBrief(business, await repo.listServices(business.id)));
 }
 
+/** The first read is the fast tier alone: a first pick in minutes beats a
+ * complete one in a quarter of an hour. The slow reads follow in deepen. */
 async function defaultScan(repo: Repo, business: Business): Promise<StageOutcome> {
+  const { runSignalIngestForBusiness, FAST_SCAN_BUDGET_MS } = await import("@/lib/signals/ingest");
+  return runSignalIngestForBusiness(repo, business, { tier: "fast", budgetMs: FAST_SCAN_BUDGET_MS });
+}
+
+/** The slow reads (scraped short-form and rival ads) and the intel read,
+ * together: each is minutes of I/O on different services. */
+async function defaultDeepen(repo: Repo, business: Business): Promise<StageOutcome> {
   const { runSignalIngestForBusiness } = await import("@/lib/signals/ingest");
-  return runSignalIngestForBusiness(repo, business);
+  const [scan, intel] = await Promise.all([
+    runSignalIngestForBusiness(repo, business, { tier: "slow" }).catch((err: Error) => {
+      console.warn(`[week] deepen scan failed for ${business.id} (non-fatal):`, err.message);
+      return undefined;
+    }),
+    defaultIntel(repo, business),
+  ]);
+  const exhausted = Boolean(scan && scan.exhausted) || Boolean(intel && typeof intel === "object" && intel.exhausted);
+  return exhausted ? { exhausted } : undefined;
 }
 
 async function defaultIntel(repo: Repo, business: Business): Promise<StageOutcome> {
@@ -186,27 +200,11 @@ export async function runWeekStage(
     intel: deps.intel ?? defaultIntel,
     rank: deps.rank ?? defaultRank,
     picks: deps.picks ?? defaultPicks,
+    deepen: deps.deepen ?? defaultDeepen,
   }[stage];
   let outcome: StageOutcome;
-  // The market scan and the intel read are independent and each is minutes
-  // of I/O, so a fresh signup's scan hop runs both at once instead of one
-  // hop after the other: the first pick lands minutes sooner.
-  let intelOutcome: StageOutcome = undefined;
-  let ranIntel = false;
   try {
-    if (stage === "scan" && (await intelOwed(repo, business))) {
-      ranIntel = true;
-      const intel = deps.intel ?? defaultIntel;
-      [outcome, intelOutcome] = await Promise.all([
-        run(repo, business),
-        intel(repo, business).catch((err: Error) => {
-          console.warn(`[week] stage intel failed for ${business.id} (non-fatal):`, err.message);
-          return undefined;
-        }),
-      ]);
-    } else {
-      outcome = await run(repo, business);
-    }
+    outcome = await run(repo, business);
   } catch (err) {
     console.warn(`[week] stage ${stage} failed for ${business.id} (non-fatal):`, (err as Error).message);
     return "done";
@@ -214,18 +212,23 @@ export async function runWeekStage(
   // A read the budget cut short runs again: the next hop resumes where
   // this one stopped (terms and accounts read today are skipped).
   const exhausted = Boolean(outcome && typeof outcome === "object" && outcome.exhausted);
-  const intelExhausted = Boolean(intelOutcome && typeof intelOutcome === "object" && intelOutcome.exhausted);
   switch (stage) {
     case "brief":
       return nextWeekStage(repo, business);
     case "scan":
-      if (exhausted) return "scan";
-      if (intelExhausted) return "intel";
-      return ranIntel ? "rank" : nextWeekStage(repo, business);
+      return exhausted ? "scan" : nextWeekStage(repo, business);
     case "intel":
       return exhausted ? "intel" : "rank";
+    case "deepen":
+      // The week is ranked and written again on top of what the deep read
+      // found: the rivals' ads, the brand's own posts, the short-form reads.
+      return exhausted ? "deepen" : "rank";
     case "rank":
       return (await repo.listOpportunities(business.id, weekOf())).length > 0 ? "picks" : "done";
+    case "picks":
+      // Only ever forward from here: the deep read, or done. Never back to a
+      // ranking, whatever the fake or the failure left behind.
+      return (await intelOwed(repo, business)) ? "deepen" : "done";
     default:
       return "done";
   }

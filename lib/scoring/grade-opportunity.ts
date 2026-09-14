@@ -49,6 +49,12 @@ export async function gradeOpportunity(
 
 /** The fit gate: Hold, with the reason first so it is the note an owner reads. */
 export function holdForFit(grade: OpportunityGrade): OpportunityGrade {
+  return holdForReason(grade, DOESNT_FIT_NOTE);
+}
+
+/** Hold a graded term for a stated reason: the reason leads the notes, the
+ * score is capped under every graded row, the signals stay readable. */
+export function holdForReason(grade: OpportunityGrade, reason: string): OpportunityGrade {
   const hold = gradeForScore(0);
   return {
     ...grade,
@@ -56,7 +62,7 @@ export function holdForFit(grade: OpportunityGrade): OpportunityGrade {
     grade: hold.letter,
     meaning: hold.meaning,
     hold: true,
-    notes: [DOESNT_FIT_NOTE, ...grade.notes.filter((n) => n !== DOESNT_FIT_NOTE)],
+    notes: [reason, ...grade.notes.filter((n) => n !== reason)],
   };
 }
 

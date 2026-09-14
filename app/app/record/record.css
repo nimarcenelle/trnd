@@ -1,0 +1,159 @@
+/* Track record: the hit rate as a hero number and a line, then what each
+   grade did, then every run. Tokens only; dark mode falls out of them. */
+@layer components {
+.rec__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 0 0 18px;
+}
+.rec__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 18px 14px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elev-1);
+}
+.rec__stat--hero {
+  border-color: var(--mint);
+  background: var(--mint-soft);
+}
+.rec__num {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.rec__stat--hero .rec__num {
+  color: var(--mint-text);
+}
+.rec__label {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+.rec__read {
+  margin: 0 0 22px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 68ch;
+}
+.rec__section {
+  margin-bottom: 28px;
+}
+.rec__section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+}
+.rec__count {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.rec__chart-card {
+  padding: 14px 16px 10px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.rec-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  color: var(--mint-text);
+}
+.rec-chart__grid { stroke: var(--line); stroke-width: 1; }
+.rec-chart__line { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rec-chart__dot { fill: currentColor; stroke: var(--bg-1); stroke-width: 2; }
+.rec-chart__tick { font-family: var(--mono); font-size: 10.5px; fill: var(--ink-faint); }
+.rec-chart__label { font-family: var(--mono); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.rec__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+}
+.rec__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.rec__table th,
+.rec__table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.rec__table th {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.rec__table tr:last-child td { border-bottom: 0; }
+.rec__table .num {
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.rec__table td a {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.rec__table td a:hover { text-decoration: underline; }
+.rec__reason {
+  color: var(--ink-soft);
+}
+.rec__grade {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+.rec__bar {
+  display: inline-block;
+  width: 72px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-2, var(--line));
+  vertical-align: middle;
+  margin-left: 8px;
+  overflow: hidden;
+}
+.rec__bar span {
+  display: block;
+  height: 100%;
+  background: var(--mint-text);
+}
+.rec__empty p { margin: 0 0 12px; }
+.rec__skips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.rec__skip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 14px;
+  padding: 12px 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.rec__skip-term { margin: 0; font-weight: 600; color: var(--ink); }
+.rec__skip-line { grid-column: 1 / -1; margin: 0; font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+}

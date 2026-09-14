@@ -12,6 +12,8 @@ import type {
   PickRun,
   NewSignalReading,
   SignalReading,
+  NewWeekSkip,
+  WeekSkip,
   Business,
   BusinessBrief,
   Campaign,
@@ -968,6 +970,38 @@ export function createDemoRepo(actor: DemoActor): Repo {
         .filter((r) => r.business_id === businessId && picks.has(r.pick_id))
         .sort((a, b) => b.started_at.localeCompare(a.started_at))
         .map((run) => ({ run, pick: picks.get(run.pick_id)! }));
+    },
+    async listPickFeedback(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      const picks = new Map((store.picks ?? []).map((p) => [p.id, p]));
+      return (store.pick_feedback ?? [])
+        .filter((f) => f.business_id === businessId && picks.has(f.pick_id))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .map((feedback) => ({ feedback, pick: picks.get(feedback.pick_id)! }));
+    },
+
+    /* ------------------------------ week skips ---------------------------- */
+    async replaceWeekSkips(businessId, weekOf, rows: NewWeekSkip[]) {
+      assertOwnsBusiness(businessId);
+      store.week_skips = (store.week_skips ?? []).filter((s) => !(s.business_id === businessId && s.week_of === weekOf));
+      const seen = new Set<string>();
+      for (const r of rows) {
+        if (seen.has(r.normalized_term)) continue;
+        seen.add(r.normalized_term);
+        store.week_skips.push({ ...r, id: randomUUID(), business_id: businessId, week_of: weekOf, created_at: nowIso() });
+      }
+      saveStore();
+      return seen.size;
+    },
+    async listWeekSkips(businessId, weekOf) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      const order: Record<WeekSkip["kind"], number> = { memory: 0, fit: 1, hold: 2 };
+      return (store.week_skips ?? [])
+        .filter((s) => s.business_id === businessId && s.week_of === weekOf)
+        .sort(
+          (a, b) =>
+            order[a.kind] - order[b.kind] || Number(b.grade_score ?? 0) - Number(a.grade_score ?? 0) || a.term.localeCompare(b.term),
+        );
     },
 
     /* ---------------------------- signal readings ------------------------- */

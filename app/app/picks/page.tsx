@@ -11,7 +11,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { isEmailConfigured, isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { kickWeekJob } from "@/lib/picks/kick";
-import { weekProgress } from "@/lib/picks/progress";
+import { waitHeadline, weekProgress } from "@/lib/picks/progress";
 import { dueForKick, weekRangeLabel } from "@/lib/picks/list";
 import { weekOf } from "@/lib/recommend/week";
 import { isOnlineBusiness } from "@/lib/signals/geo";
@@ -89,7 +89,6 @@ export default async function PicksPage() {
   if (progress.stage !== "done") {
     const briefInFlight = !brief && briefLikelyInFlight(business.created_at);
     if (!briefInFlight) await kickWeekJob(business.id, { now });
-    const current = progress.steps.find((s) => s.state === "current");
     const { analysis, found } = progress;
     const firstPickMin = Math.max(1, Math.ceil(progress.remainingSec / 60));
     return (
@@ -98,7 +97,7 @@ export default async function PicksPage() {
         <div className="page-head">
           <div>
             <span className="eyebrow m-0">This week · {weekRange}</span>
-            <h1>{current?.label ?? "Getting your first picks ready"}</h1>
+            <h1>{waitHeadline(progress, business.name)}</h1>
             <p className="context">
               Your first pick lands in about {firstPickMin} minute{firstPickMin === 1 ? "" : "s"}, the rest of the week
               a minute after. TRND reads your customers, your category and your competitors before it grades anything,

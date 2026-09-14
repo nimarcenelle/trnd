@@ -6,6 +6,7 @@ import ListRunsComplete from "@/components/picks/list-runs-complete";
 import { formatBet, formatUsd } from "@/lib/picks/format";
 import { runChip, runRatesLine, shortDate, truncateFinding } from "@/lib/picks/list";
 import { killPickRunAction } from "@/lib/picks/run-actions";
+import { OUTCOME_LABEL, OUTCOME_TONE, runOutcome, type OutcomeContext } from "@/lib/record/outcome";
 
 /**
  * The picks an owner said they are running, newest first, at the top of
@@ -13,7 +14,7 @@ import { killPickRunAction } from "@/lib/picks/run-actions";
  * pick, with whatever results the owner has; an ended one says how it ended,
  * when, and what it did (CTR, CVR and ROAS where the numbers allow).
  */
-export default function ListRuns({ runs }: { runs: { run: PickRun; pick: BrandPick }[] }) {
+export default function ListRuns({ runs, outcomes = {} }: { runs: { run: PickRun; pick: BrandPick }[]; outcomes?: OutcomeContext }) {
   if (runs.length === 0) return null;
   return (
     <section className="picks-section" aria-labelledby="picks-runs-title">
@@ -25,8 +26,15 @@ export default function ListRuns({ runs }: { runs: { run: PickRun; pick: BrandPi
       </div>
       <ul className="picks-runs">
         {runs.map(({ run, pick }) => {
-          const chip = runChip(run.status);
+          // An ended run wears its outcome, not its status: "Won" says more
+          // than "Completed", and "Lost" more than "Killed".
+          const read = runOutcome(run, outcomes);
+          const chip =
+            read.outcome === "won" || read.outcome === "lost"
+              ? { label: OUTCOME_LABEL[read.outcome], tone: OUTCOME_TONE[read.outcome] }
+              : runChip(run.status);
           const results = run.status === "completed" ? resultsLine(run) : null;
+          const verdictLine = run.status !== "running" && read.basis !== "none" ? read.reason : null;
           return (
             <li key={run.id} className="picks-run">
               <div className="picks-run__main">
@@ -38,6 +46,7 @@ export default function ListRuns({ runs }: { runs: { run: PickRun; pick: BrandPi
                   {run.ended_at ? ` · Ended ${shortDate(run.ended_at)}` : ""}
                 </p>
                 {results && <p className="picks-run__stats">{results}</p>}
+                {verdictLine && !results?.includes(verdictLine) && <p className="picks-run__stats">{verdictLine}</p>}
               </div>
               {chip && (
                 <span className={`badge badge--${chip.tone}`}>

@@ -18,10 +18,12 @@ import type {
   NewPickBundle,
   NewPickFeedback,
   NewPickRun,
+  NewWeekSkip,
   PickDetail,
   PickFeedback,
   PickRun,
   PickRunStatus,
+  WeekSkip,
   SignalReading,
   NewSignalReading,
   NewAlert,
@@ -227,12 +229,23 @@ export interface Repo {
   createPickRun(input: NewPickRun): Promise<PickRun>;
   updatePickRun(
     id: string,
-    patch: Partial<Pick<PickRun, "status" | "ended_at" | "spend_usd" | "result_note" | "impressions" | "clicks" | "conversions" | "revenue_usd">> & {
+    patch: Partial<
+      Pick<PickRun, "status" | "ended_at" | "spend_usd" | "result_note" | "impressions" | "clicks" | "conversions" | "revenue_usd" | "verdict">
+    > & {
       status?: PickRunStatus;
     },
   ): Promise<PickRun>;
   /** Every run for a business, newest first, with its pick. */
   listPickRuns(businessId: string): Promise<{ run: PickRun; pick: BrandPick }[]>;
+  /** Every dismissal and "running" mark for a business, newest first, with
+   * the term it was on. The brand's memory of what it passed on. */
+  listPickFeedback(businessId: string): Promise<{ feedback: PickFeedback; pick: BrandPick }[]>;
+
+  /* week skips — what the ranking held this week, and why */
+  /** Replaces the week's skips. Reads as a no-op before migration 0026. */
+  replaceWeekSkips(businessId: string, weekOf: string, rows: NewWeekSkip[]): Promise<number>;
+  /** The week's skips, strongest reason first (memory, fit, then hold by score). */
+  listWeekSkips(businessId: string, weekOf: string): Promise<WeekSkip[]>;
 
   /* signal readings — the rolling baselines the four signals rank against */
   /** One reading per (business, day, signal, term); a same-day rerun replaces it. */

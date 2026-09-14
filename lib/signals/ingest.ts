@@ -105,11 +105,24 @@ const PAID_SOURCES: Record<string, string> = { tiktok_apify: "tiktok", youtube: 
 /** A first read fits one job hop; what is left continues on the next. */
 export const BUSINESS_INGEST_BUDGET_MS = 200_000;
 
+/**
+ * Which readers a per-business scan runs. The fast tier is the free and
+ * quick set (search volume, the Trends line, Google News, TikTok's public
+ * board, YouTube's API): enough for an honest first pick in a couple of
+ * minutes. The slow tier is the scraped short-form and ad reads that take
+ * minutes each; a fresh signup gets them after its first pick, not before.
+ */
+export type ScanTier = "fast" | "slow" | "all";
+export const SLOW_ADAPTERS = new Set(["tiktok_apify", "instagram", "x", "meta_ads"]);
+/** A fast first read fits well inside one hop. */
+export const FAST_SCAN_BUDGET_MS = 75_000;
+
 export async function runSignalIngestForBusiness(
   repo: Repo,
   business: Business,
-  opts: { budgetMs?: number } = {},
+  opts: { budgetMs?: number; tier?: ScanTier } = {},
 ): Promise<BusinessIngestResult> {
+  const tier: ScanTier = opts.tier ?? "all";
   const startedAt = Date.now();
   const budgetMs = opts.budgetMs ?? BUSINESS_INGEST_BUDGET_MS;
   const remaining = () => budgetMs - (Date.now() - startedAt);
@@ -159,7 +172,7 @@ export async function runSignalIngestForBusiness(
     createGoogleNewsAdapter(),
     createMetaAdsAdapter(),
     createTrendsIotAdapter(),
-  ];
+  ].filter((a) => tier === "all" || (tier === "slow") === SLOW_ADAPTERS.has(a.name));
   // Every source at once: they are independent reads of different services,
   // and one after another they ran past any function's limit. Each gets the
   // whole remaining budget; one that outlives it is picked up next hop.

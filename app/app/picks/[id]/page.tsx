@@ -1,3 +1,5 @@
+import "./pick-record.css";
+
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -13,8 +15,13 @@ import { getUserRepo } from "@/lib/db";
 import { buildDetailView, isPickId, viewableDetail, type DetailSection, type DetailView } from "@/lib/picks/detail";
 import { gradeTone, type GradeView } from "@/lib/picks/grade-view";
 import { weekRangeLabel } from "@/lib/picks/list";
-import { weekStillWriting } from "@/lib/picks/progress";
+import { weekDeepening, weekStillWriting } from "@/lib/picks/progress";
+import { readAdHistory } from "@/lib/ads/history-read";
+import { notThisWeek, type DontCall } from "@/lib/record/calls";
+import { buildTrackRecord, calibrationLine, gradeLetterOf } from "@/lib/record/track";
 import { weekOf } from "@/lib/recommend/week";
+import { benchmarkFor } from "@/lib/results/benchmarks";
+import { normalizeTerm } from "@/lib/signals/normalize";
 import { sentenceCase } from "@/lib/text";
 
 export const metadata = { title: "Pick — TRND" };
@@ -39,17 +46,40 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
   if (!detail) redirect("/app/picks");
 
   const week = weekOf();
-  const [siblings, unreadAlerts, writing] = await Promise.all([
+  const safe = async <T,>(p: Promise<T>, fallback: T): Promise<T> => {
+    try {
+      return await p;
+    } catch (err) {
+      console.warn("[pick] record read failed (non-fatal):", (err as Error).message);
+      return fallback;
+    }
+  };
+  const [siblings, unreadAlerts, writing, deepening, runs, skips, history] = await Promise.all([
     repo.listReadyPicks(business.id, week),
     repo.listAlerts(business.id, { unreadOnly: true, limit: 5 }),
     weekStillWriting(repo, business),
+    weekDeepening(repo, business).catch(() => false),
+    safe(repo.listPickRuns(business.id), []),
+    safe(repo.listWeekSkips(business.id, week), []),
+    safe(repo.listAdHistory(business.id), []),
   ]);
+  // The brand's own record decides how the grade is read: what this letter
+  // has actually done here, and what not to run alongside this pick.
+  const record = buildTrackRecord(runs, { accountCtr: readAdHistory(history).accountCtr, benchmarkCtr: benchmarkFor(business.category) });
+  // Day one says nothing about the record: a line about runs that never
+  // happened reads as a gap, not as honesty. It starts with the first run.
+  const calibration = { line: record.runs > 0 ? calibrationLine(record, gradeLetterOf(detail.pick)) : null, proven: record.scored > 0 };
+  const dont = notThisWeek({ runs, skips: skips.filter((s) => s.normalized_term !== normalizeTerm(detail.pick.term)) });
   const items = siblings.map((s) => ({ href: `/app/picks/${s.pick.id}`, term: sentenceCase(s.pick.term) }));
   const index = Math.max(0, siblings.findIndex((s) => s.pick.id === id));
-  const head = { items, index, weekRange: weekRangeLabel(week), writing };
+  const head = { items, index, weekRange: weekRangeLabel(week), writing, deepening, calibration };
 
   const view = buildDetailView(detail);
-  const render: Record<DetailSection, () => React.ReactNode> = {
+  // The "don't" half of the call sits between the work and the reasons.
+  const sections: (DetailSection | "dont")[] = view.sections.flatMap((s) => (s === "why" || s === "actions" ? [] : [s]));
+  if (dont.length > 0) sections.push("dont");
+  for (const s of view.sections) if (s === "why" || s === "actions") sections.push(s);
+  const render: Record<DetailSection | "dont", () => React.ReactNode> = {
     finding: () => <Head key="finding" view={view} head={head} />,
     bet: () => <Bet key="bet" view={view} />,
     scripts: () => (
@@ -60,6 +90,7 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
     // Rendered inside the head, under the finding.
     guardrail: () => null,
     why: () => <Why key="why" view={view} />,
+    dont: () => <NotThisWeek key="dont" calls={dont} />,
     actions: () => (
       <DetailActions
         key="actions"
@@ -74,7 +105,7 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
   return (
     <div className="page pickd">
       <AlertBar alerts={unreadAlerts} />
-      {view.sections.map((s) => render[s]())}
+      {sections.map((s) => render[s]())}
     </div>
   );
 }
@@ -84,6 +115,11 @@ interface HeadContext {
   index: number;
   weekRange: string;
   writing: number;
+  /** The deep read (rivals' ads, own accounts, short-form) is still running
+   * behind a fresh signup's first picks; they are written again when it lands. */
+  deepening: boolean;
+  /** What this grade has done for this brand, and whether any run is scored. */
+  calibration: { line: string | null; proven: boolean };
 }
 
 function Head({ view, head }: { view: DetailView; head: HeadContext }) {
@@ -105,6 +141,15 @@ function Head({ view, head }: { view: DetailView; head: HeadContext }) {
           <AutoRefresh everyMs={6000} times={30} />
         </p>
       )}
+      {head.writing === 0 && head.deepening && (
+        <p className="wk-more" role="status">
+          <span className="wk-progress__mark is-live" aria-hidden="true" />
+          This pick is from the fast reads. Your rivals&apos; ads, your own accounts and what&apos;s winning on short-form are
+          being read now; the week is graded again when they land, in a few minutes.
+          <AutoRefresh everyMs={20000} times={30} />
+        </p>
+      )}
+      <Call view={view} />
       <div className="pickd__top">
         <div className="pickd__col">
           {view.signalRead && <SignalRead read={view.signalRead} />}
@@ -112,10 +157,38 @@ function Head({ view, head }: { view: DetailView; head: HeadContext }) {
           {view.guardrail && <Guardrail text={view.guardrail} />}
         </div>
         <div className="pickd__col pickd__col--side">
-          {view.grade && <GradeCard grade={view.grade} />}
+          {view.grade && <GradeCard grade={view.grade} calibration={head.calibration} />}
           <Demand view={view} />
         </div>
       </div>
+    </section>
+  );
+}
+
+function Call({ view }: { view: DetailView }) {
+  const { call } = view;
+  return (
+    <section className="pickd__call" aria-labelledby="pickd-call">
+      <h2 id="pickd-call" className="sr-only">
+        The call
+      </h2>
+      <p className="pickd__call-sentence">{call.sentence}</p>
+      {call.proofs.length > 0 && (
+        <ul className="pickd__proofs">
+          {call.proofs.map((p) => (
+            <li key={p.id} className="pickd__proof">
+              <span className="pickd__proof-claim">{p.claim}</span>
+              {p.href && p.sourceLabel ? (
+                <a className="pickd__proof-src" href={p.href} target="_blank" rel="noopener noreferrer">
+                  {p.sourceLabel}
+                </a>
+              ) : (
+                p.sourceLabel && <span className="pickd__proof-src">{p.sourceLabel}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -129,7 +202,7 @@ function Finding({ view }: { view: DetailView }) {
   );
 }
 
-function GradeCard({ grade }: { grade: GradeView & { label: string } }) {
+function GradeCard({ grade, calibration }: { grade: GradeView & { label: string }; calibration: HeadContext["calibration"] }) {
   return (
     <div className={`pickd__card pickd__grade-card is-${gradeTone(grade.letter)}`}>
       <h2 className="pickd__h2">Opportunity grade</h2>
@@ -155,7 +228,46 @@ function GradeCard({ grade }: { grade: GradeView & { label: string } }) {
           ))}
         </ul>
       )}
+      {calibration.line && (
+        <p className="pickd__calibration">
+          {calibration.line}
+          {calibration.proven && (
+            <>
+              {" "}
+              <Link href="/app/record">Track record</Link>
+            </>
+          )}
+        </p>
+      )}
     </div>
+  );
+}
+
+function NotThisWeek({ calls }: { calls: DontCall[] }) {
+  if (calls.length === 0) return null;
+  return (
+    <section className="pickd__dont" aria-labelledby="pickd-dont">
+      <h2 id="pickd-dont" className="pickd__h2">
+        Not this week
+      </h2>
+      <ul className="pickd__dont-list">
+        {calls.map((c) => (
+          <li key={c.key} className={`pickd__dont-row${c.kind === "run_due" ? " is-due" : ""}`}>
+            <p className="pickd__dont-term">{sentenceCase(c.term)}</p>
+            {c.grade && <span className="pickd__dont-grade">{c.kind === "run_due" ? "Running" : c.grade}</span>}
+            <p className="pickd__dont-line">
+              {c.line}
+              {c.href && (
+                <>
+                  {" "}
+                  <Link href={c.href}>{c.kind === "run_due" ? "Open the run" : "See why"}</Link>
+                </>
+              )}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

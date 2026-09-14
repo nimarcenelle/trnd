@@ -1552,6 +1552,36 @@ textarea.input {
   font-size: 13px;
   color: var(--ink-soft);
 }
+.picks-run__verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.picks-run__verdict-legend {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 0;
+  margin-right: 4px;
+}
+.picks-run__verdict-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.picks-run__verdict-option input {
+  accent-color: var(--amber);
+  margin: 0;
+}
 .picks-run__fields {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

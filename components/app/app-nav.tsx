@@ -15,6 +15,8 @@ const LINKS = [
   // the tab stays lit while an owner reads one.
   { href: "/app/picks", label: "This week" },
   { href: "/app/campaigns", label: "Campaigns" },
+  // The number the product is judged on: how the picks that ran turned out.
+  { href: "/app/record", label: "Track record" },
   // The founding analysis is one of the four things the product IS, and it
   // was reachable only by a link buried on the pick screen and in Settings.
   { href: "/app/snapshot", label: "Snapshot" },

@@ -66,7 +66,21 @@ describe("culture mappings", () => {
   it("ranks growth against the category's own baseline", () => {
     const s = scoreCulture(full());
     expect(comp(s, "growth").score).toBe(85);
-    expect(comp(s, "growth").detail).toBe("Coffee up 12%, faster than almost any recent stretch");
+    expect(comp(s, "growth").detail).toBe("Coffee up 12% this week, faster than almost any recent stretch");
+  });
+
+  it("reads a year of category volume as the growth, and names the term's own year beside it", () => {
+    const s = scoreCulture(full({ categoryGrowthPct: 22, categoryGrowthBasis: "year", categoryGrowthBaseline: [], yearOverYearPct: 34 }));
+    // Half the category's year, half the term's own: 22% is 66.4 and 34% is 80.8 on the absolute curve.
+    expect(comp(s, "growth").score).toBe(73.6);
+    expect(comp(s, "growth").detail).toBe("Searches across coffee up 22% on a year ago; searches for this term up 34% on a year ago");
+  });
+
+  it("stands on the term's own year when the category has no growth reading", () => {
+    const s = scoreCulture(full({ categoryGrowthPct: null, categoryGrowthBaseline: [], yearOverYearPct: -20 }));
+    expect(comp(s, "growth").score).toBe(24);
+    expect(comp(s, "growth").detail).toBe("Searches for this term down 20% on a year ago");
+    expect(s.confidence).toBe("medium");
   });
 
   it("maps seasonal fit", () => {

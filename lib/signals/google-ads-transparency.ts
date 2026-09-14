@@ -13,14 +13,23 @@ import { CircuitBreaker, fetchText } from "./http";
  * this survived on their money" evidence the Meta read leans on, plus the
  * format mix — a rival who has moved to video is telling you something.
  *
- * Two paths, in order: a paid Apify actor when APIFY_GOOGLE_ADS_ACTOR is
- * configured (the serverless-safe one), else the same Playwright renderer
- * the free Meta read uses. Neither present → [] with a warn, never a throw.
+ * Two paths, in order: a paid Apify actor whenever APIFY_TOKEN is set (the
+ * store's default below, or APIFY_GOOGLE_ADS_ACTOR), else the same
+ * Playwright renderer the free Meta read uses. Neither present → [] with a
+ * warn, never a throw.
  */
 
 const RUN_URL = "https://api.apify.com/v2/acts";
 const REGION = "US";
 const MAX_ADS = 30;
+/**
+ * The store's most-run Transparency Center actor (verified 2026-09-14: it
+ * answers a domain with advertiserName, creativeId, adFormat, firstShown,
+ * lastShown and adUrl, which is exactly what the mapper below reads, at
+ * $0.0015 an item). Overridable via APIFY_GOOGLE_ADS_ACTOR; before this
+ * default existed the read never ran in production at all.
+ */
+const DEFAULT_ACTOR = "solidcode/ads-transparency-scraper";
 const SNIPPET_MAX = 280;
 
 export interface GoogleAd {
@@ -321,15 +330,18 @@ export async function fetchGoogleAds(
   const host = cleanDomain(domain);
   if (!host) return [];
 
-  if (env.apifyToken && env.apifyGoogleAdsActor) {
+  if (env.apifyToken) {
     const doFetchText = opts.fetchText ?? fetchText;
+    const actor = (env.apifyGoogleAdsActor || DEFAULT_ACTOR).trim().replace("/", "~");
     try {
       const text = await doFetchText(
-        `${RUN_URL}/${encodeURIComponent(env.apifyGoogleAdsActor)}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`,
+        `${RUN_URL}/${encodeURIComponent(actor)}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ domains: [host], region: REGION }),
+          // Both spellings the store's actors take: the default reads
+          // searchQuery, others read domains. Unknown keys are ignored.
+          body: JSON.stringify({ searchQuery: host, domains: [host], region: REGION, maxResults: MAX_ADS }),
           breaker,
         },
       );

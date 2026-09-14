@@ -28,6 +28,28 @@ export function deltaFromMonthly(rows: DfsResultRow["monthly_searches"]): number
   return Math.round(((last - prev) / prev) * 100);
 }
 
+/**
+ * Year on year: the three most recent months against the same three a year
+ * earlier. Twelve months of history is exactly one such pair short of a
+ * full comparison, so the API's usual payload answers it; null when either
+ * window is incomplete. This is the move the Culture signal's category
+ * growth is read from, and it rides on every row as raw.yoyPct.
+ */
+export function yoyFromMonthly(rows: DfsResultRow["monthly_searches"]): number | null {
+  const months = [...(rows ?? [])].sort((a, b) => a.year * 100 + a.month - (b.year * 100 + b.month));
+  if (months.length < 15) return null;
+  const key = (m: { year: number; month: number }) => m.year * 12 + (m.month - 1);
+  const byKey = new Map(months.map((m) => [key(m), m.search_volume]));
+  const latest = key(months[months.length - 1]);
+  const recent = [0, 1, 2].map((n) => byKey.get(latest - n));
+  const prior = [12, 13, 14].map((n) => byKey.get(latest - n));
+  if (recent.some((v) => typeof v !== "number") || prior.some((v) => typeof v !== "number")) return null;
+  const a = (recent as number[]).reduce((s, v) => s + v, 0);
+  const b = (prior as number[]).reduce((s, v) => s + v, 0);
+  if (b <= 0) return null;
+  return Math.round(((a - b) / b) * 100);
+}
+
 /** Pure mapper: one API result row → signal + series points. Unit-tested. */
 export function mapDfsRow(
   row: DfsResultRow,
@@ -53,7 +75,7 @@ export function mapDfsRow(
       value: row.search_volume,
       delta_pct: deltaFromMonthly(row.monthly_searches),
       window_days: windowDays,
-      raw: { months: series.length },
+      raw: { months: series.length, yoyPct: yoyFromMonthly(row.monthly_searches) },
     },
     series,
   };

@@ -32,6 +32,8 @@ export function absoluteGrowthScore(pct: number): number {
   return round1(clamp(40 + (pct / 50) * 60));
 }
 
+const sentenceStart = (s: string) => `${s.charAt(0).toUpperCase()}${s.slice(1)}`;
+
 function growthPhrase(score: number): string {
   if (score >= 80) return "faster than almost any recent stretch";
   if (score >= 60) return "faster than most recent stretches";
@@ -72,15 +74,27 @@ function lifecycleDetail(read: LifecycleRead | null): string {
 export function scoreCulture(input: CultureInput): SignalScore {
   const w = SUB_WEIGHTS.culture;
 
-  // Category-wide growth.
+  // Category-wide growth, and the term's own year when it has one. A year
+  // of search volume is the read an owner can check; this week's moves are
+  // the fallback until the category has that year on record.
   let growth: number | null = null;
   let growthDetail = `No growth reading for ${input.category || "the category"} yet`;
   const g = input.categoryGrowthPct;
+  const yoy = typeof input.yearOverYearPct === "number" && Number.isFinite(input.yearOverYearPct) ? input.yearOverYearPct : null;
   const pct = g === null ? null : percentileRank(g, input.categoryGrowthBaseline);
   if (g !== null) {
-    growth = pct ?? absoluteGrowthScore(g);
-    const move = `${input.category || "Category"} ${g >= 0 ? "up" : "down"} ${Math.abs(Math.round(g))}%`;
-    growthDetail = pct === null ? `${move}, with too little history to compare against` : `${move}, ${growthPhrase(pct)}`;
+    const category = pct ?? absoluteGrowthScore(g);
+    growth = yoy === null ? category : round1(0.5 * category + 0.5 * absoluteGrowthScore(yoy));
+    const name = input.category || "the category";
+    const move =
+      input.categoryGrowthBasis === "year"
+        ? `Searches across ${name.charAt(0).toLowerCase()}${name.slice(1)} ${g >= 0 ? "up" : "down"} ${Math.abs(Math.round(g))}% on a year ago`
+        : `${sentenceStart(name)} ${g >= 0 ? "up" : "down"} ${Math.abs(Math.round(g))}% this week`;
+    growthDetail = pct === null ? move : `${move}, ${growthPhrase(pct)}`;
+    if (yoy !== null) growthDetail += `; searches for this term ${yoy >= 0 ? "up" : "down"} ${Math.abs(yoy)}% on a year ago`;
+  } else if (yoy !== null) {
+    growth = absoluteGrowthScore(yoy);
+    growthDetail = `Searches for this term ${yoy >= 0 ? "up" : "down"} ${Math.abs(yoy)}% on a year ago`;
   }
 
   // Seasonal fit.
@@ -118,7 +132,7 @@ export function scoreCulture(input: CultureInput): SignalScore {
 
   const seriesPoints = input.series.filter((p) => Number.isFinite(p.value)).length;
   let confidence: Confidence = "medium";
-  if (g === null && seriesPoints < LIFECYCLE_MIN_POINTS) confidence = "low";
+  if (growth === null && seriesPoints < LIFECYCLE_MIN_POINTS) confidence = "low";
   // High needs a full baseline, so the absolute fallback never gets past medium.
   else if (pct !== null && s !== null && read !== null) confidence = "high";
 

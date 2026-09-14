@@ -237,6 +237,12 @@ export interface CultureInput {
   category: string;
   /** Category-wide volume growth this period, percent; null when unread. */
   categoryGrowthPct: number | null;
+  /** What the category growth was read from: a year of search volume across
+   * the category's terms, or this week's moves. Defaults to "week". */
+  categoryGrowthBasis?: "year" | "week";
+  /** The term's own searches, the last three complete months against the
+   * same three a year earlier, percent; null under a year of history. */
+  yearOverYearPct?: number | null;
   /** Trailing 90 days of this category's growth readings. */
   categoryGrowthBaseline: number[];
   /** Is this historically the active window for the term or its category.

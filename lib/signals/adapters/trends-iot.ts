@@ -1,6 +1,7 @@
 import { normalizeTerm } from "../normalize";
 import { CircuitBreaker, fetchText } from "../http";
 import type { AdapterFetchInput, RawSeriesPoint, RawSignal, SignalAdapter } from "../types";
+import { fetchTrendsExplore, isTrendsDfsAvailable } from "./trends-dfs";
 
 /**
  * Google Trends interest-over-time — real search-interest levels and deltas
@@ -172,6 +173,61 @@ export function createTrendsIotAdapter(): SignalAdapter {
         watch.length > 0 ? watch : terms.map((t) => ({ term: t, category: "" }));
       if (targets.length === 0) return out;
 
+      // The paid API first, for every national term: it answers every time,
+      // and the widget below is only asked for what it did not cover (and
+      // for the metro-scoped terms the API is not asked for).
+      const answered = new Set<string>();
+      if (isTrendsDfsAvailable()) {
+        const national = targets.filter((t) => !t.geo || t.geo === "US");
+        const read = await fetchTrendsExplore(
+          national.map((t) => t.term),
+          "US",
+        );
+        for (const t of national) {
+          const points = read.series.get(t.term) ?? read.series.get(t.term.toLowerCase()) ?? [];
+          const range = rangeFromSeries(points);
+          if (points.length === 0 || !range) continue;
+          answered.add(t.term);
+          seriesCache.push(...points.map((p) => ({ ...p, term: t.term, geo: "US" })));
+          out.push({
+            source: "google_trends",
+            term: t.term,
+            category: t.category,
+            geo: "US",
+            metric_type: "search_interest",
+            value: range.level,
+            delta_pct: range.sparse ? null : deltaFromSeries(points),
+            window_days: 7,
+            raw: {
+              points: points.length,
+              min: range.min,
+              max: range.max,
+              sparse: range.sparse,
+              adjusted: false,
+              measuredTerm: t.term,
+              measuredGeo: "US",
+              window: WINDOW,
+              via: "dataforseo",
+            },
+          });
+          for (const rq of read.rising.get(t.term) ?? []) {
+            out.push({
+              source: "google_trends",
+              term: rq.query,
+              category: t.category,
+              geo: "US",
+              metric_type: "search_interest",
+              value: null,
+              delta_pct: rq.delta,
+              window_days: 30,
+              raw: { discovered_from: t.term, formatted: rq.formatted, rising: true, via: "dataforseo" },
+            });
+          }
+        }
+      }
+      const remaining = targets.filter((t) => !answered.has(t.term));
+      if (remaining.length === 0) return out;
+
       const cookie = await primeTrendsCookie();
       // Boxed so the closure assignment survives TS control-flow narrowing.
       const rctx: { r: import("@/lib/import/render").Renderer | null; tried: boolean } = { r: null, tried: false };
@@ -204,7 +260,7 @@ export function createTrendsIotAdapter(): SignalAdapter {
       };
 
       try {
-        for (const { term, category, geo: termGeo, locality } of targets) {
+        for (const { term, category, geo: termGeo, locality } of remaining) {
           const g = termGeo ?? geo ?? "US";
 
           // No-fail ladder: the exact local read is best, but a hyper-local

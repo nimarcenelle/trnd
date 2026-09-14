@@ -266,11 +266,26 @@ function personaFor(
 /* --------------------------------- culture -------------------------------- */
 
 /**
- * Category growth this week: the median move of this category's short-form,
- * Google Trends and trend-board reads. Reddit and X are left out: an upvote
+ * Category growth. The honest read is a year of search volume across the
+ * category's terms: every DataForSEO row carries its own year-on-year move
+ * (raw.yoyPct, from twelve months of history), and the category's growth is
+ * those moves weighted by volume. With fewer than three such terms it falls
+ * back to this week's median move across short-form, Google Trends and
+ * trend-board reads. Reddit and X are left out either way: an upvote
  * velocity is not a growth rate.
  */
-function categoryGrowth(reads: Signal[], now: Date): number | null {
+export function categoryGrowth(reads: Signal[], now: Date): { pct: number; basis: "year" | "week" } | null {
+  const yearly = reads
+    .map((s) => {
+      const raw = (s.raw ?? {}) as { yoyPct?: unknown };
+      return { yoy: isNum(raw.yoyPct) ? raw.yoyPct : null, volume: isNum(s.value) ? s.value : 0 };
+    })
+    .filter((r): r is { yoy: number; volume: number } => r.yoy !== null && r.volume > 0);
+  if (yearly.length >= MIN_GROWTH_READS) {
+    const weight = yearly.reduce((a, r) => a + r.volume, 0);
+    const pct = yearly.reduce((a, r) => a + r.yoy * r.volume, 0) / weight;
+    return { pct: Math.round(pct * 10) / 10, basis: "year" };
+  }
   const floor = now.getTime() - 7 * DAY_MS;
   const moves = reads
     .filter(
@@ -282,7 +297,91 @@ function categoryGrowth(reads: Signal[], now: Date): number | null {
           (s.metric_type === "conversation" && s.source === "tiktok")),
     )
     .map((s) => s.delta_pct as number);
-  return moves.length >= MIN_GROWTH_READS ? Math.round(median(moves) * 10) / 10 : null;
+  return moves.length >= MIN_GROWTH_READS ? { pct: Math.round(median(moves) * 10) / 10, basis: "week" } : null;
+}
+
+/* ------------------------------ monthly history ----------------------------- */
+
+/** How many complete months a seasonal or year-on-year read needs. */
+const MONTHLY_MIN_MONTHS = 8;
+const MONTHLY_MIN_SPAN_DAYS = 300;
+
+/**
+ * The term's monthly search volumes, one per complete month, from the
+ * series table. DataForSEO stores twelve months as points on the first of
+ * each month; daily index and view points share the table, so a monthly
+ * point is one dated the first with a value above any index (100). The
+ * current month is dropped: it is partial, and it is the one month a daily
+ * short-form point can also land on the first of.
+ */
+export function monthlyVolumes(points: DailyPoint[], now: Date): { month: string; value: number }[] {
+  const thisMonth = dayOf(now).slice(0, 7);
+  const byMonth = new Map<string, number>();
+  for (const p of points) {
+    if (!Number.isFinite(p.value) || p.value <= 100 || !/^\d{4}-\d{2}-01$/.test(p.day)) continue;
+    const month = p.day.slice(0, 7);
+    if (month >= thisMonth) continue;
+    byMonth.set(month, Math.max(byMonth.get(month) ?? 0, p.value));
+  }
+  return [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, value]) => ({ month, value }));
+}
+
+function monthKey(d: Date): string {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function shiftMonths(month: string, by: number): string {
+  const [y, m] = month.split("-").map(Number);
+  return monthKey(new Date(Date.UTC(y, m - 1 + by, 1)));
+}
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/**
+ * Is this the term's usual active window, from its monthly search volumes:
+ * this month and next, a year ago, against that year's monthly norm. An ad
+ * runs for weeks, so the coming month counts as much as the current one.
+ * Null under eight complete months spanning most of a year.
+ */
+export function seasonalFromMonthly(points: DailyPoint[], now: Date): CultureInput["seasonal"] {
+  const months = monthlyVolumes(points, now);
+  if (months.length < MONTHLY_MIN_MONTHS) return null;
+  const first = Date.parse(`${months[0].month}-01`);
+  const last = Date.parse(`${months[months.length - 1].month}-01`);
+  if (last - first < MONTHLY_MIN_SPAN_DAYS * DAY_MS) return null;
+  const byMonth = new Map(months.map((m) => [m.month, m.value]));
+  const thisMonth = monthKey(now);
+  const window = [shiftMonths(thisMonth, -12), shiftMonths(thisMonth, -11)]
+    .map((m) => byMonth.get(m))
+    .filter((v): v is number => typeof v === "number");
+  if (window.length === 0) return null;
+  const norm = median(months.slice(-12).map((m) => m.value));
+  if (norm <= 0) return null;
+  const ratio = window.reduce((a, v) => a + v, 0) / window.length / norm;
+  const fit = ratio <= 1 ? Math.max(10, 50 - ((1 - ratio) / 0.4) * 40) : Math.min(95, 50 + ((ratio - 1) / 0.5) * 45);
+  const diff = Math.round(Math.abs(ratio - 1) * 100);
+  const name = MONTH_NAMES[now.getUTCMonth()];
+  const label =
+    diff < 8
+      ? `Last ${name} ran about at the term's yearly norm`
+      : `Last ${name} ran ${diff}% ${ratio > 1 ? "above" : "below"} the term's yearly norm`;
+  return { inWindow: ratio >= 1.15, daysOut: null, label, fit: Math.round(fit * 10) / 10 };
+}
+
+/**
+ * The term's searches, the last three complete months against the same
+ * three a year earlier. Null unless both windows are fully present.
+ */
+export function yearOverYearFromMonthly(points: DailyPoint[], now: Date): number | null {
+  const byMonth = new Map(monthlyVolumes(points, now).map((m) => [m.month, m.value]));
+  const thisMonth = monthKey(now);
+  const recent = [1, 2, 3].map((n) => byMonth.get(shiftMonths(thisMonth, -n)));
+  const prior = [13, 14, 15].map((n) => byMonth.get(shiftMonths(thisMonth, -n)));
+  if (recent.some((v) => v === undefined) || prior.some((v) => v === undefined)) return null;
+  const a = (recent as number[]).reduce((s, v) => s + v, 0);
+  const b = (prior as number[]).reduce((s, v) => s + v, 0);
+  if (b <= 0) return null;
+  return Math.round(((a - b) / b) * 100);
 }
 
 /**
@@ -568,13 +667,23 @@ export async function gatherSignalInputs(
   };
 
   const growth = categoryGrowth(reads, ctx.now);
+  // Every point the term has, monthly volumes included: the index filter
+  // above keeps the daily shape for lifecycle and velocity, and the monthly
+  // volumes are what a year's season and year-on-year move are read from.
+  const allPoints: DailyPoint[] = rawSeries.map((p) => ({ day: p.day, value: p.value }));
   const culture: CultureInput = {
     term: signal.term,
     category: business.category,
-    categoryGrowthPct: growth,
+    categoryGrowthPct: growth?.pct ?? null,
+    categoryGrowthBasis: growth?.basis,
+    yearOverYearPct: yearOverYearFromMonthly(allPoints, ctx.now),
     categoryGrowthBaseline: baselineOf(ctx.baselines.culture, "growthPct", today),
-    // The term's own year beats the category calendar when it is readable.
-    seasonal: seasonalFromSeries(yearSeries, ctx.now) ?? seasonalFor(signal.term, business.category, ctx.now),
+    // The term's own year beats the category calendar when it is readable:
+    // a year of daily points first, twelve months of search volume next.
+    seasonal:
+      seasonalFromSeries(yearSeries, ctx.now) ??
+      seasonalFromMonthly(allPoints, ctx.now) ??
+      seasonalFor(signal.term, business.category, ctx.now),
     series,
   };
 
@@ -618,7 +727,7 @@ export async function gatherSignalInputs(
     });
   }
   if (growth !== null) {
-    readings.push({ business_id: business.id, captured_on: today, signal: "culture", term: CATEGORY_TERM, reading: { growthPct: growth } });
+    readings.push({ business_id: business.id, captured_on: today, signal: "culture", term: CATEGORY_TERM, reading: { growthPct: growth.pct } });
   }
   if (similar.lift !== null) {
     readings.push({ business_id: business.id, captured_on: today, signal: "brand", term: signal.normalized_term, reading: { lift: similar.lift } });

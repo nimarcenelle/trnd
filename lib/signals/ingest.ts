@@ -5,6 +5,7 @@ import { targetCustomerOf } from "@/lib/ai/brief";
 import { weekOf } from "@/lib/recommend/recommend";
 
 import { createDataForSeoAdapter } from "./adapters/dataforseo";
+import { createDataForSeoRelatedAdapter } from "./adapters/dataforseo-related";
 import { createGoogleNewsAdapter } from "./adapters/google-news";
 import { createGoogleTrendsRssAdapter } from "./adapters/google-trends-rss";
 import { createRedditAdapter } from "./adapters/reddit";
@@ -104,6 +105,14 @@ export interface BusinessIngestResult {
 const PAID_SOURCES: Record<string, string> = { tiktok_apify: "tiktok", youtube: "youtube", x: "x", instagram: "instagram" };
 /** A first read fits one job hop; what is left continues on the next. */
 export const BUSINESS_INGEST_BUDGET_MS = 200_000;
+/**
+ * YouTube's free quota is 10,000 units a day for the whole account, and a
+ * deep term read is about 200 of them. The daily cron used to be allowed
+ * 9,000, so a brand that signed up after 09:00 UTC got one term or none.
+ * The cron keeps half; each signup gets a dozen deep reads of its own.
+ */
+export const CRON_YOUTUBE_UNITS = 5_000;
+export const SIGNUP_YOUTUBE_UNITS = 2_500;
 
 /**
  * Which readers a per-business scan runs. The fast tier is the free and
@@ -158,13 +167,28 @@ export async function runSignalIngestForBusiness(
   } catch {
     /* an unreadable pool only costs a repeated read */
   }
+  // Whether the category's related phrases were already read today: that
+  // read is one paid task per category, and a hop that resumes a cut-short
+  // scan must not buy it twice.
+  let relatedReadToday = false;
+  try {
+    relatedReadToday = (await repo.listSignalsForCategory(business.category, { sinceDays: 1 })).some(
+      (row) => row.source === "dataforseo" && Boolean((row.raw as { related?: unknown } | null)?.related),
+    );
+  } catch {
+    /* an unreadable pool only costs a repeated read */
+  }
   const adapters: SignalAdapter[] = [
     // Search volume first, for the same reason as the daily run: it anchors
     // the Trends index, so without it the demand score has a shape and no
-    // size on day one. Short-form follows — what a shop can act on this
-    // week is what people are watching.
+    // size on day one. The category around the brand's terms comes with it,
+    // then short-form: what a shop can act on this week is what people are
+    // watching. Autocomplete is the cheapest customer language there is and
+    // used to wait for the daily cron.
     createDataForSeoAdapter(),
-    createYoutubeAdapter(),
+    ...(relatedReadToday ? [] : [createDataForSeoRelatedAdapter()]),
+    createSuggestAdapter(),
+    createYoutubeAdapter({ unitBudget: SIGNUP_YOUTUBE_UNITS }),
     createTiktokApifyAdapter(),
     createTiktokCcAdapter(),
     createInstagramAdapter(),
@@ -248,10 +272,11 @@ export function defaultAdapters(): SignalAdapter[] {
   // logged — it was simply never reached.
   return [
     createDataForSeoAdapter(),
+    createDataForSeoRelatedAdapter(),
     // Short-form next: the basis of the ranking, and the reads an owner
     // acts on. YouTube per business term, then per-term TikTok when it is
     // paid for, then the free national board.
-    createYoutubeAdapter(),
+    createYoutubeAdapter({ unitBudget: CRON_YOUTUBE_UNITS }),
     createTiktokApifyAdapter(),
     createTiktokCcAdapter(),
     // Reels is where local operators actually post, X is the written half

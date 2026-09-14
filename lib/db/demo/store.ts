@@ -33,6 +33,8 @@ import type {
   Signal,
   SignalSeriesPoint,
   SocialPost,
+  SocialComment,
+  AiUsage,
   Subscription,
 } from "../types";
 
@@ -80,6 +82,8 @@ export interface DemoStore {
   pick_runs?: PickRun[];
   signal_readings?: SignalReading[];
   week_skips?: WeekSkip[];
+  social_comments?: SocialComment[];
+  ai_usage?: AiUsage[];
 }
 
 function emptyStore(): DemoStore {

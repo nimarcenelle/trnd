@@ -135,11 +135,20 @@ export function scoreCustomer(input: CustomerInput): SignalScore {
   else if (texts !== null) intent = texts;
   else if (action !== null) intent = action;
   if (texts !== null) {
-    const strong = input.activity.filter((a) => {
+    const isStrong = (a: CustomerInput["activity"][number]) => {
       const k = a.kind ?? classifyIntent(a.text);
       return k === "purchase_intent" || k === "pain_point" || k === "complaint";
-    }).length;
-    intentDetail = `${strong} of ${input.activity.length} customer posts show a real problem or a wish to buy`;
+    };
+    const strong = input.activity.filter(isStrong).length;
+    // Comments under the brand's own posts are the customer talking to the
+    // brand; say so when there are enough of them to be the read.
+    const ownComments = input.activity.filter((a) => a.from === "comment" && a.own);
+    const comments = input.activity.filter((a) => a.from === "comment");
+    if (ownComments.length >= MIN_ACTIVITY) {
+      intentDetail = `${ownComments.filter(isStrong).length} of ${ownComments.length} comments on your posts show a real problem or a wish to buy`;
+    } else if (comments.length >= MIN_ACTIVITY) {
+      intentDetail = `${comments.filter(isStrong).length} of ${comments.length} comments under posts on this show a real problem or a wish to buy`;
+    } else intentDetail = `${strong} of ${input.activity.length} customer posts show a real problem or a wish to buy`;
     if (action !== null) intentDetail += `, and ${actionPhrase(input.actionPct as number)}`;
   } else if (action !== null) {
     const phrase = actionPhrase(input.actionPct as number);

@@ -3,6 +3,7 @@ import type { Repo } from "@/lib/db/repo";
 import type { Business, CompetitorRead, Opportunity } from "@/lib/db/types";
 import { env, isEmailConfigured, isGeminiConfigured, isPlacesConfigured } from "@/lib/env";
 import { weekOf } from "@/lib/recommend/week";
+import { withAiContext } from "@/lib/ai/usage";
 import { NO_COMPETITORS_NOTE, NOTHING_READ_NOTE } from "@/lib/scoring/competitive";
 
 import { eligibleWeekOpportunities, generateWeekPicks } from "./generate";
@@ -312,7 +313,7 @@ export async function runWeekStage(
   }[stage];
   let outcome: StageOutcome;
   try {
-    outcome = await run(repo, business);
+    outcome = await withAiContext({ businessId: business.id, purpose: `week:${stage}` }, () => run(repo, business));
   } catch (err) {
     console.warn(`[week] stage ${stage} failed for ${business.id} (non-fatal):`, (err as Error).message);
     return "done";

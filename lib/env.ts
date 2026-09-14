@@ -15,6 +15,11 @@ export const env = {
   geminiApiKey: process.env.GEMINI_API_KEY ?? "",
   youtubeApiKey: process.env.YOUTUBE_API_KEY ?? "",
   redditUserAgent: process.env.REDDIT_USER_AGENT || "trnd-signal/0.1 (by /u/trnd)",
+  /** Reddit's official API (free, 100 requests a minute) — a script app's
+   * client id and secret. The public JSON endpoints answer 403 from cloud
+   * IPs, so without these the adapter reads nothing in production. */
+  redditClientId: process.env.REDDIT_CLIENT_ID ?? "",
+  redditClientSecret: process.env.REDDIT_CLIENT_SECRET ?? "",
   cronSecret: process.env.CRON_SECRET ?? "",
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   /** Public origin for OAuth redirects and email links — falls back to siteUrl. */
@@ -87,6 +92,7 @@ export const isXConfigured = Boolean(env.xBearerToken);
 export const isInstagramConfigured = Boolean(env.instagramToken && env.instagramUserId);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isDataForSeoConfigured = Boolean(env.dataForSeoLogin && env.dataForSeoPassword);
+export const isRedditConfigured = Boolean(env.redditClientId && env.redditClientSecret);
 
 let warned = false;
 /** One loud console note per process, so demo mode is never silent. */

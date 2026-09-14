@@ -98,6 +98,8 @@ export interface Service {
   description: string | null;
   price_cents: number | null;
   is_active: boolean;
+  /** From the store's public catalog, refreshed daily. Null means never read. */
+  in_stock?: boolean | null;
 }
 
 export interface Signal {
@@ -353,8 +355,38 @@ export interface Review {
   rating: number;
   text: string;
   published_at: string | null;
-  source: "google" | "seed";
+  /** google: Places (local). trustpilot: an online brand or rival's Trustpilot
+   * page. site: reviews a rival publishes as structured data on its own pages. */
+  source: "google" | "seed" | "trustpilot" | "site";
   captured_at: string;
+}
+
+/** A comment under a post the brand (competitor_id null) or a rival published:
+ * what customers write, in their own words, under the thing they were shown. */
+export interface SocialComment {
+  id: string;
+  business_id: string;
+  competitor_id: string | null;
+  platform: SocialPlatform;
+  /** The post's external id as social_posts stores it. */
+  post_external_id: string;
+  external_id: string;
+  author: string;
+  text: string;
+  likes: number;
+  posted_at: string | null;
+  captured_at: string;
+}
+
+/** One model call's tokens, by brand and by the job that made it. */
+export interface AiUsage {
+  id: string;
+  business_id: string | null;
+  purpose: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  created_at: string;
 }
 
 export type SocialPostKind = "promo" | "new_item" | "event" | "behind_scenes" | "proof" | "other";
@@ -764,6 +796,8 @@ export type NewCompetitor = Omit<
 export type NewCompetitorRead = Omit<CompetitorRead, "id" | "captured_at"> & { captured_at?: string };
 export type NewReview = Omit<Review, "id" | "captured_at">;
 export type NewSocialPost = Omit<SocialPost, "id" | "captured_at">;
+export type NewSocialComment = Omit<SocialComment, "id" | "captured_at">;
+export type NewAiUsage = Omit<AiUsage, "id" | "created_at">;
 export type NewAdHistory = Omit<AdHistory, "id" | "created_at">;
 export type NewReviewDigest = Omit<ReviewDigest, "id" | "created_at">;
 export type NewAlert = Omit<Alert, "id" | "created_at" | "read_at">;

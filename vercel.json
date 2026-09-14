@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/recommend",
-      "schedule": "0 10 * * 1"
+      "schedule": "0 10 * * *"
     },
     {
       "path": "/api/cron/picks",

@@ -33,6 +33,8 @@ import type {
   Signal,
   SignalSeriesPoint,
   SocialPost,
+  SocialComment,
+  AiUsage,
   Subscription,
 } from "../types";
 
@@ -761,6 +763,43 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         const { error } = await sb.from("social_posts").update({ kind: k.kind }).eq("id", k.id);
         throwIf(error, "setSocialPostKinds");
       }
+    },
+
+    async upsertSocialComments(inputs) {
+      if (inputs.length === 0) return 0;
+      const { count, error } = await sb.from("social_comments").upsert(
+        inputs.map((i) => ({ ...i, captured_at: new Date().toISOString() })),
+        { onConflict: "business_id,platform,external_id", ignoreDuplicates: true, count: "exact" },
+      );
+      if (isMissingTable(error)) {
+        console.warn("[supabase:upsertSocialComments] social_comments missing — run migration 0027. Comments not kept.");
+        return 0;
+      }
+      throwIf(error, "upsertSocialComments");
+      return count ?? 0;
+    },
+    async listSocialComments(businessId, opts) {
+      const since = new Date(Date.now() - (opts?.sinceDays ?? 90) * 86400_000).toISOString();
+      let q = sb.from("social_comments").select("*").eq("business_id", businessId).gte("captured_at", since);
+      if (opts?.competitorId === null) q = q.is("competitor_id", null);
+      else if (opts?.competitorId) q = q.eq("competitor_id", opts.competitorId);
+      const { data, error } = await q.order("posted_at", { ascending: false, nullsFirst: false });
+      throwUnlessMissing(error, "listSocialComments");
+      return (data ?? []) as SocialComment[];
+    },
+
+    async recordAiUsage(input) {
+      const { error } = await sb.from("ai_usage").insert(input);
+      if (isMissingTable(error)) return;
+      throwIf(error, "recordAiUsage");
+    },
+    async listAiUsage(opts) {
+      const since = new Date(Date.now() - (opts?.sinceHours ?? 24) * 3_600_000).toISOString();
+      let q = sb.from("ai_usage").select("*").gte("created_at", since);
+      if (opts?.businessId) q = q.eq("business_id", opts.businessId);
+      const { data, error } = await q.order("created_at", { ascending: false }).limit(5000);
+      throwUnlessMissing(error, "listAiUsage");
+      return (data ?? []) as AiUsage[];
     },
 
     async upsertAdHistory(inputs) {

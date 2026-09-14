@@ -167,6 +167,17 @@ export async function completeOnboardingAction(
     }),
   );
 
+  // An Ads Manager or Google Ads export uploaded with the menus is the
+  // brand's own ad history: the Brand signal's "what has worked for you",
+  // which nobody had imported because it lived on a Settings tab.
+  try {
+    const { importAdExportsFromDocuments } = await import("@/lib/ads/from-documents");
+    const imported = await importAdExportsFromDocuments(repo, business.id, documents);
+    if (imported > 0) console.log(`[onboarding] ${imported} past ads imported from the uploads for ${business.id}`);
+  } catch (err) {
+    console.warn("[onboarding] ad export read failed (non-fatal):", (err as Error).message);
+  }
+
   for (const document of documents) {
     try {
       await repo.createDocument({

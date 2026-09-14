@@ -7,9 +7,10 @@
  * autocomplete are what customers say, that a rival's pulled ad lives in an
  * older competitor read, and that a baseline is the signal_readings table.
  *
- * Nothing here invents a number. Stock and margin have no data source yet, so
- * they are null; a baseline with nothing in it is an empty array, and the
- * scorer decides what that does to its confidence.
+ * Nothing here invents a number. Stock comes from the store's catalog when
+ * it was read and is null otherwise; margin has no data source yet; a
+ * baseline with nothing in it is an empty array, and the scorer decides
+ * what that does to its confidence.
  */
 
 import { historyOnTerm, MIN_AD_IMPRESSIONS, readAdHistory } from "@/lib/ads/history-read";
@@ -21,15 +22,18 @@ import type {
   BusinessBrief,
   CompetitorRead,
   NewSignalReading,
+  Review,
   Service,
   Signal,
   SignalReading,
+  SocialComment,
   SocialPost,
 } from "@/lib/db/types";
 import { indexSeries } from "@/lib/demand/series";
 import { loadSignalContext, type SignalContext } from "@/lib/recommend/four-signals";
 import { upcomingMoments } from "@/lib/recommend/seasonal";
 import { audienceMatch, matchService, tokens } from "@/lib/scoring";
+import { normalizeTerm } from "@/lib/signals/normalize";
 import { engagementOf, postsOnTerm } from "@/lib/social/read";
 
 import type { BrandInput, CompetitiveInput, CultureInput, CustomerInput, DailyPoint, LevelKind, SignalName } from "./model";
@@ -61,6 +65,12 @@ const MIN_ACTION_VIEWS = 2000;
 const MIN_GROWTH_READS = 3;
 /** Culture growth is read once per category, not per term. */
 export const CATEGORY_TERM = "_category";
+/** Comments this old still say what the customer wants to know. */
+const COMMENT_DAYS = 60;
+/** Rival reviews mentioning the term before their complaint rate means anything. */
+export const MIN_REVIEWS_ON_TERM = 3;
+/** One or two stars: a complaint, whatever the words. */
+const LOW_STAR = 2;
 
 /** Everything the gatherer reads once per ranking, then per term. */
 export interface GradeContext {
@@ -72,6 +82,10 @@ export interface GradeContext {
   /** Every direct rival's ad reads in the window, oldest first. The latest
    * read alone cannot show an ad that was pulled. */
   adReads: CompetitorRead[];
+  /** What customers wrote under the brand's and its rivals' posts. */
+  comments: SocialComment[];
+  /** The brand's and its rivals' reviews (Places, Trustpilot, their sites). */
+  reviews: Review[];
   baselines: Record<SignalName, SignalReading[]>;
   now: Date;
 }
@@ -130,9 +144,11 @@ export async function loadGradeContext(
     given.brief !== undefined ? given.brief : repo.getBusinessBrief(business.id),
     given.pool ?? repo.listSignalsForCategory(business.category, { sinceDays: 14 }),
   ]);
-  const [signals, reads, customer, culture, competitive, brand] = await Promise.all([
+  const [signals, reads, comments, reviews, customer, culture, competitive, brand] = await Promise.all([
     given.signals ?? loadSignalContext(repo, business, brief, pool),
     safe(repo.listCompetitorReads(business.id, { sinceDays: PRIOR_DAYS }), [] as CompetitorRead[]),
+    safe(repo.listSocialComments(business.id, { sinceDays: COMMENT_DAYS }), [] as SocialComment[]),
+    safe(repo.listReviews(business.id), [] as Review[]),
     ...(["customer", "culture", "competitive", "brand"] as const).map((signal) =>
       safe(repo.listSignalReadings(business.id, { signal, sinceDays: BASELINE_DAYS }), [] as SignalReading[]),
     ),
@@ -148,6 +164,8 @@ export async function loadGradeContext(
     adReads: reads
       .filter((r) => (r.kind === "ads" || r.kind === "google_ads") && direct.has(r.competitor_id))
       .sort((a, b) => a.captured_at.localeCompare(b.captured_at)),
+    comments: comments.filter((c) => c.competitor_id === null || direct.has(c.competitor_id)),
+    reviews: reviews.filter((r) => r.competitor_id === null || direct.has(r.competitor_id)),
     baselines: { customer, culture, competitive, brand },
     now: given.now ?? new Date(),
   };
@@ -195,16 +213,38 @@ function textsOf(value: unknown, field: string): string[] {
  * Reddit and X posts, short-form captions, and the owner's and rivals' own
  * captions. Never the owner's ad copy; that is what they said, not the customer.
  */
-function activityFor(signal: Signal, reads: Signal[], ctx: SignalContext): { text: string }[] {
+function activityFor(signal: Signal, reads: Signal[], ctx: SignalContext, comments: SocialComment[] = []): CustomerInput["activity"] {
   const out: string[] = [];
+  // Comments first: the customer's own words under the brand's (or a
+  // rival's) post on this, or anywhere they name the term. These are the
+  // only texts in the read that a specific brand's specific customers wrote.
+  const ownOn = new Set(postsOnTerm(ctx.ownPosts, signal.term).map((p) => p.external_id));
+  const rivalOn = new Set(postsOnTerm(ctx.rivalPosts, signal.term).map((p) => p.external_id));
+  const tagged: CustomerInput["activity"] = [];
+  const seenComment = new Set<string>();
+  for (const c of comments) {
+    const own = c.competitor_id === null;
+    const underOn = own ? ownOn.has(c.post_external_id) : rivalOn.has(c.post_external_id);
+    if (!underOn && postsOnTerm([{ caption: c.text }], signal.term).length === 0) continue;
+    const text = c.text.replace(/\s+/g, " ").trim().slice(0, 200);
+    const key = text.toLowerCase();
+    if (!text || seenComment.has(key)) continue;
+    seenComment.add(key);
+    tagged.push({ text, from: "comment", own });
+    if (tagged.length >= MAX_ACTIVITY) break;
+  }
   for (const s of reads) {
     const raw = (s.raw ?? {}) as Record<string, unknown>;
     if (s.source === "google_suggest" && matchesTerm(s, signal)) {
       if (Array.isArray(raw.suggestions)) out.push(...raw.suggestions.filter((x): x is string => typeof x === "string"));
     } else if (s.source === "reddit") {
       // A Reddit row's term IS the post title; it belongs to this term when it
-      // talks about it.
-      if (postsOnTerm([{ caption: s.term }], signal.term).length > 0) out.push(s.term);
+      // talks about it, or when it came back from a search for it (the body
+      // is where the question actually gets asked).
+      const searched = typeof raw.searched_for === "string" && normalizeTerm(raw.searched_for) === signal.normalized_term;
+      if (searched || postsOnTerm([{ caption: s.term }], signal.term).length > 0) {
+        out.push(typeof raw.body === "string" && raw.body ? `${s.term}. ${raw.body}` : s.term);
+      }
     } else if (s.source === "x" && matchesTerm(s, signal)) {
       const top = raw.top as { text?: unknown } | null | undefined;
       if (typeof top?.text === "string") out.push(top.text);
@@ -218,8 +258,8 @@ function activityFor(signal: Signal, reads: Signal[], ctx: SignalContext): { tex
   }
   out.push(...postsOnTerm(ctx.ownPosts, signal.term).map((p) => p.caption));
   out.push(...postsOnTerm(ctx.rivalPosts, signal.term).map((p) => p.caption));
-  const seen = new Set<string>();
-  const items: { text: string }[] = [];
+  const seen = new Set<string>(seenComment);
+  const items: CustomerInput["activity"] = [...tagged];
   for (const raw of out) {
     const text = raw.replace(/\s+/g, " ").trim().slice(0, 200);
     const key = text.toLowerCase();
@@ -229,6 +269,27 @@ function activityFor(signal: Signal, reads: Signal[], ctx: SignalContext): { tex
     if (items.length >= MAX_ACTIVITY) break;
   }
   return items;
+}
+
+/**
+ * What customers say in reviews about this angle: the rivals' reviews that
+ * mention the term and how many of those are one or two stars, against the
+ * brand's own. Absent when no rival review mentions it.
+ */
+export function reviewsOnAngle(term: string, reviews: Review[], directIds: Set<string>): CompetitiveInput["reviews"] | undefined {
+  const asPost = (r: Review) => ({ caption: r.text, review: r });
+  const rival = reviews.filter((r) => r.competitor_id !== null && directIds.has(r.competitor_id));
+  if (rival.length === 0) return undefined;
+  const rivalOn = postsOnTerm(rival.map(asPost), term).map((p) => p.review);
+  const own = reviews.filter((r) => r.competitor_id === null);
+  const ownOn = postsOnTerm(own.map(asPost), term).map((p) => p.review);
+  return {
+    rivalsRead: new Set(rival.map((r) => r.competitor_id)).size,
+    onTerm: rivalOn.length,
+    lowOnTerm: rivalOn.filter((r) => r.rating <= LOW_STAR).length,
+    ownOnTerm: own.length === 0 ? null : ownOn.length,
+    ownLowOnTerm: own.length === 0 ? null : ownOn.filter((r) => r.rating <= LOW_STAR).length,
+  };
 }
 
 /** Own posts on this term against the account's own median; null without a usual to beat. */
@@ -572,6 +633,7 @@ function competitiveFor(term: string, ctx: GradeContext): CompetitiveInput {
     rivalsOnAnglePrior: read.length === 0 ? null : onPrior,
     rivalAdsOnAngle: onAngle,
     weakRivalAds: weak,
+    reviews: reviewsOnAngle(term, ctx.reviews, new Set(direct.map((c) => c.id))),
     settingsHref: SETTINGS_HREF,
   };
 }
@@ -613,6 +675,12 @@ function priceBandMatch(signal: Signal, services: Service[]): boolean | null {
   if (!matched || !isNum(matched.price_cents) || matched.price_cents <= 0 || prices.length < 2) return null;
   const mid = median(prices);
   return matched.price_cents >= mid / 2.5 && matched.price_cents <= mid * 2.5;
+}
+
+/** The matched item's stock as the catalog last said; null when unmatched or unread. */
+function stockOf(signal: Signal, services: Service[]): boolean | null {
+  const matched = matchService(signal, services).service;
+  return matched && typeof matched.in_stock === "boolean" ? matched.in_stock : null;
 }
 
 /* --------------------------------- gather --------------------------------- */
@@ -662,7 +730,7 @@ export async function gatherSignalInputs(
     levelKind,
     actionPct: actionPctFor(signal, reads),
     levelBaseline: baselineOf(ctx.baselines.customer, levelKey, today),
-    activity: activityFor(signal, reads, ctx.signals),
+    activity: activityFor(signal, reads, ctx.signals, ctx.comments),
     series,
   };
 
@@ -704,8 +772,9 @@ export async function gatherSignalInputs(
     economics: {
       fit,
       priceBandMatch: priceBandMatch(signal, ctx.services),
-      // No inventory or cost feed yet: unknown, never assumed.
-      inStock: null,
+      // Stock from the store's public catalog, refreshed daily
+      // (lib/intel/deep-reads.ts); null until read. Cost has no feed yet.
+      inStock: stockOf(signal, ctx.services),
       marginOk: null,
     },
     organic: {

@@ -8,6 +8,7 @@ import {
   isStripeConfigured,
   isSupabaseConfigured,
 } from "@/lib/env";
+import { summarizeUsage } from "@/lib/ai/usage";
 
 /**
  * Ops probe for uptime monitors and deploy checks. No auth, no secrets —
@@ -58,6 +59,16 @@ export async function GET(): Promise<Response> {
       apifyUsage = null;
     }
   }
+  // Model spend, last 24 hours, by the job that made the calls.
+  let aiUsage24h: ReturnType<typeof summarizeUsage> | null = null;
+  if (isSupabaseConfigured && isGeminiConfigured) {
+    try {
+      const { getAdminRepo } = await import("@/lib/db/admin");
+      aiUsage24h = summarizeUsage(await getAdminRepo().listAiUsage({ sinceHours: 24 }));
+    } catch {
+      aiUsage24h = null;
+    }
+  }
   const warnings: string[] = [];
   if (apifyUsage && apifyUsage.share >= 0.9) {
     warnings.push(`Apify at $${apifyUsage.usd} of its $${apifyUsage.capUsd} monthly cap: social, TikTok and rival-ad reads stop at the cap.`);
@@ -68,6 +79,7 @@ export async function GET(): Promise<Response> {
     time: new Date().toISOString(),
     warnings,
     apifyUsage,
+    aiUsage24h,
     mode: {
       database,
       generation: isGeminiConfigured ? "gemini" : "template",

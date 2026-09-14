@@ -22,6 +22,8 @@ export const NO_COMPETITORS_NOTE = "No competitors connected yet";
 export const NOTHING_READ_NOTE = "Competitors added, but their ads haven't been read yet";
 /** Posts and ads seen across the rivals before the read is high confidence. */
 export const HIGH_EVIDENCE_ITEMS = 12;
+/** Reviews mentioning the angle before their complaint rate counts. */
+export const MIN_REVIEWS_FOR_WEAKNESS = 3;
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
@@ -72,12 +74,39 @@ export function scoreCompetitive(input: CompetitiveInput): SignalScore {
     }
   }
 
+  // Weakness: their ads on this angle that got pulled, and what their own
+  // customers say about it in reviews. A rival whose reviews on the angle
+  // run one or two stars is a rival the brand can beat on it; a rival
+  // whose reviewers praise it is not.
   let weakness: number | null = null;
-  let weaknessDetail = "No competitor ads on this angle to judge";
+  let weaknessDetail = "No competitor ads or reviews on this angle to judge";
+  const parts: { score: number; detail: string }[] = [];
   if (input.rivalAdsOnAngle > 0) {
     const weak = clamp(Math.max(0, input.weakRivalAds), 0, input.rivalAdsOnAngle);
-    weakness = round1((weak / input.rivalAdsOnAngle) * 100);
-    weaknessDetail = `${weak} of ${input.rivalAdsOnAngle} competitor ${plural(input.rivalAdsOnAngle, "ad", "ads")} on this angle ${weak === 1 ? "looks" : "look"} weak`;
+    parts.push({
+      score: round1((weak / input.rivalAdsOnAngle) * 100),
+      detail: `${weak} of ${input.rivalAdsOnAngle} competitor ${plural(input.rivalAdsOnAngle, "ad", "ads")} on this angle ${weak === 1 ? "looks" : "look"} weak`,
+    });
+  }
+  const rv = input.reviews;
+  if (rv && rv.onTerm >= MIN_REVIEWS_FOR_WEAKNESS) {
+    const share = rv.lowOnTerm / rv.onTerm;
+    // Half of the reviews mentioning it are complaints: full marks.
+    const score = round1(clamp((share / 0.5) * 100));
+    let detail = `${rv.lowOnTerm} of ${rv.onTerm} competitor reviews mentioning this ${rv.lowOnTerm === 1 ? "is" : "are"} one or two stars`;
+    if (rv.ownOnTerm !== null && rv.ownLowOnTerm !== null && rv.ownOnTerm >= MIN_REVIEWS_FOR_WEAKNESS) {
+      const ownShare = rv.ownLowOnTerm / rv.ownOnTerm;
+      if (ownShare === 0 && share > 0) detail += `, and none of your ${rv.ownOnTerm} are`;
+      else if (ownShare > 0) {
+        const times = share / ownShare;
+        detail += times >= 1.5 ? `, ${times.toFixed(times >= 3 ? 0 : 1)} times as often as yours` : `, about as often as yours`;
+      }
+    }
+    parts.push({ score, detail });
+  }
+  if (parts.length > 0) {
+    weakness = round1(parts.reduce((s, p) => s + p.score, 0) / parts.length);
+    weaknessDetail = parts.map((p) => p.detail).join("; ");
   }
 
   const components: SignalComponent[] = [

@@ -14,6 +14,7 @@ import { verticalKey } from "@/lib/signals/vertical";
 import { ensureWeekCampaign } from "@/lib/campaigns/auto";
 
 import { targetCustomerOf } from "@/lib/ai/brief";
+import { withAiContext } from "@/lib/ai/usage";
 
 import { extrasFor, loadSignalContext } from "./four-signals";
 import { writeTopPickReads } from "./read";
@@ -486,7 +487,7 @@ export async function runRecommend(repo: Repo): Promise<RecommendBusinessResult[
   const results: RecommendBusinessResult[] = [];
   for (const b of businesses) {
     try {
-      const result = await recommendForBusiness(repo, b);
+      const result = await withAiContext({ businessId: b.id, purpose: "cron:rank" }, () => recommendForBusiness(repo, b));
       results.push(result);
       // The week's picks are written by their own budgeted job
       // (app/api/cron/picks, twenty minutes after this one): a brand's five

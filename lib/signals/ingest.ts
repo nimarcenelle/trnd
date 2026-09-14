@@ -155,6 +155,13 @@ export async function runSignalIngestForBusiness(
     geo: stateGeo,
     locality,
   }));
+  // The customer's own communities, for the Reddit read: the analysis names
+  // them and the persona names more. The stock boards are the daily cron's.
+  const subreddits: WatchSubreddit[] = [];
+  for (const name of [...(brief?.subreddits ?? []).slice(0, 6), ...customerSubreddits(brief).slice(0, 4)]) {
+    const key = name.replace(/^r\//i, "").trim();
+    if (key && !subreddits.some((s) => s.name.toLowerCase() === key.toLowerCase())) subreddits.push({ name: key, category: business.category });
+  }
   // What today already holds, so a hop that resumes a cut-short read pays
   // only for the terms it did not reach.
   const readToday = new Map<string, Set<string>>();
@@ -188,6 +195,7 @@ export async function runSignalIngestForBusiness(
     createDataForSeoAdapter(),
     ...(relatedReadToday ? [] : [createDataForSeoRelatedAdapter()]),
     createSuggestAdapter(),
+    createRedditAdapter(),
     createYoutubeAdapter({ unitBudget: SIGNUP_YOUTUBE_UNITS }),
     createTiktokApifyAdapter(),
     createTiktokCcAdapter(),
@@ -209,10 +217,10 @@ export async function runSignalIngestForBusiness(
       const done = source ? readToday.get(source) : undefined;
       const todo = done ? watch.filter((w) => !done.has(w.term)) : watch;
       if (todo.length === 0) return;
-      const raw = await withTimeout(adapter.fetch({ terms: [], watch: todo, geo: "US", windowDays: 7 }), remaining());
+      const raw = await withTimeout(adapter.fetch({ terms: [], watch: todo, subreddits, geo: "US", windowDays: 7 }), remaining());
       written += await repo.upsertSignals(toSignalRows(raw));
       if (adapter.fetchSeries) {
-        const series = await adapter.fetchSeries({ terms: [], watch: todo, geo: "US", windowDays: 7 });
+        const series = await adapter.fetchSeries({ terms: [], watch: todo, subreddits, geo: "US", windowDays: 7 });
         await repo.upsertSeriesPoints(
           series.map((p) => ({
             normalized_term: normalizeTerm(p.term),

@@ -31,6 +31,9 @@ export interface CatalogProduct {
   /** The lowest variant price — what "from" means on the product page. */
   price: string;
   variants: CatalogVariant[];
+  /** Any variant purchasable, when the catalog says (Shopify's `available`);
+   * null when it does not. */
+  inStock?: boolean | null;
 }
 
 export interface CatalogMatchOptions {
@@ -95,7 +98,7 @@ export function shopifyCatalog(raw: unknown): CatalogProduct[] {
   const out: CatalogProduct[] = [];
   const seen = new Set<string>();
   for (const item of products) {
-    const p = item as { title?: unknown; handle?: unknown; variants?: { title?: unknown; price?: unknown }[] };
+    const p = item as { title?: unknown; handle?: unknown; variants?: { title?: unknown; price?: unknown; available?: unknown }[] };
     const name = typeof p.title === "string" ? p.title.replace(/\s+/g, " ").trim().slice(0, 80) : "";
     if (name.length < 3 || NOT_A_PRODUCT.test(name)) continue;
     const variants: CatalogVariant[] = [];
@@ -115,11 +118,15 @@ export function shopifyCatalog(raw: unknown): CatalogProduct[] {
     if (seen.has(key)) continue;
     seen.add(key);
     const lowest = Math.min(...variants.map((v) => parseFloat(v.price)));
+    const availability = (Array.isArray(p.variants) ? p.variants : [])
+      .map((v) => v?.available)
+      .filter((a): a is boolean => typeof a === "boolean");
     out.push({
       name,
       handle: typeof p.handle === "string" ? p.handle : null,
       price: money(lowest) ?? variants[0].price,
       variants,
+      inStock: availability.length === 0 ? null : availability.some(Boolean),
     });
   }
   return out;

@@ -225,7 +225,7 @@ export interface CustomerInput {
   /** Social activity from the persona group on this term: mentions, comments,
    * autocomplete phrasings, community post titles. `kind` when already
    * classified. */
-  activity: { text: string; kind?: IntentKind }[];
+  activity: { text: string; kind?: IntentKind; from?: "comment" | "post" | "search"; own?: boolean }[];
   /** Daily series for the term, up to 90 days, oldest first. */
   series: DailyPoint[];
 }
@@ -269,6 +269,17 @@ export interface CompetitiveInput {
    * week, or engagement well under the rival's own median. */
   rivalAdsOnAngle: number;
   weakRivalAds: number;
+  /** What customers say about the rivals on this angle, from their reviews,
+   * against what they say about the brand. Absent when no reviews are read. */
+  reviews?: {
+    rivalsRead: number;
+    /** Rival reviews that mention this term, and how many of those are one or two stars. */
+    onTerm: number;
+    lowOnTerm: number;
+    /** The same for the brand's own reviews; null when the brand has none read. */
+    ownOnTerm: number | null;
+    ownLowOnTerm: number | null;
+  };
   /** Where the owner connects competitors. */
   settingsHref: string;
 }

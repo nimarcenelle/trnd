@@ -27,6 +27,8 @@ import type {
   NewAlert,
   NewBusiness,
   NewSocialPost,
+  NewSocialComment,
+  NewAiUsage,
   SocialPostKind,
   NewCampaign,
   NewBusinessBrief,
@@ -822,6 +824,48 @@ export function createDemoRepo(actor: DemoActor): Repo {
         if (kind) p.kind = kind;
       }
       if (kinds.length) saveStore();
+    },
+
+    /* ---------------------------- social comments --------------------------- */
+    async upsertSocialComments(inputs: NewSocialComment[]) {
+      store.social_comments ??= [];
+      let written = 0;
+      for (const i of inputs) {
+        assertOwnsBusiness(i.business_id);
+        const exists = store.social_comments.some(
+          (c) => c.business_id === i.business_id && c.platform === i.platform && c.external_id === i.external_id,
+        );
+        if (exists) continue;
+        store.social_comments.push({ ...i, id: randomUUID(), captured_at: nowIso() });
+        written += 1;
+      }
+      if (written) saveStore();
+      return written;
+    },
+    async listSocialComments(businessId, opts) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      const cutoff = Date.now() - (opts?.sinceDays ?? 90) * 86400_000;
+      return (store.social_comments ?? [])
+        .filter(
+          (c) =>
+            c.business_id === businessId &&
+            (opts?.competitorId === undefined || (c.competitor_id ?? null) === opts.competitorId) &&
+            new Date(c.captured_at).getTime() >= cutoff,
+        )
+        .sort((a, b) => (b.posted_at ?? b.captured_at).localeCompare(a.posted_at ?? a.captured_at));
+    },
+
+    /* -------------------------------- ai usage ------------------------------ */
+    async recordAiUsage(input: NewAiUsage) {
+      store.ai_usage ??= [];
+      store.ai_usage.push({ ...input, id: randomUUID(), created_at: nowIso() });
+      saveStore();
+    },
+    async listAiUsage(opts) {
+      const cutoff = Date.now() - (opts?.sinceHours ?? 24) * 3_600_000;
+      return (store.ai_usage ?? []).filter(
+        (u) => new Date(u.created_at).getTime() >= cutoff && (!opts?.businessId || u.business_id === opts.businessId),
+      );
     },
 
     /* ------------------------------ ad history ---------------------------- */

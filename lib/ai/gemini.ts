@@ -30,6 +30,7 @@ import {
   type PromptCtx,
 } from "./prompts/generate-campaign";
 import { systemInstruction } from "./prompts/system";
+import { recordAiUsage } from "./usage";
 import {
   AngleSlateSchema,
   AngleVerdictSchema,
@@ -194,6 +195,7 @@ export async function structuredCall<T>(
         temperature: attempt === 0 ? (opts.temperature ?? 0.8) : Math.min(opts.temperature ?? 0.4, 0.4),
       },
     });
+    recordAiUsage(model, res.usageMetadata);
     try {
       return validate(JSON.parse(res.text ?? ""));
     } catch (err) {
@@ -224,6 +226,7 @@ async function structuredCallParts<T>(
         temperature: attempt === 0 ? 0.4 : 0.2,
       },
     });
+    recordAiUsage(model, res.usageMetadata);
     try {
       return validate(JSON.parse(res.text ?? ""));
     } catch (err) {

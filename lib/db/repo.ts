@@ -62,6 +62,10 @@ import type {
   SocialPost,
   NewSocialPost,
   SocialPostKind,
+  SocialComment,
+  NewSocialComment,
+  AiUsage,
+  NewAiUsage,
   Subscription,
 } from "./types";
 
@@ -204,6 +208,19 @@ export interface Repo {
     opts?: { competitorId?: string | null; sinceDays?: number; platform?: SocialPost["platform"] },
   ): Promise<SocialPost[]>;
   setSocialPostKinds(kinds: { id: string; kind: SocialPostKind }[]): Promise<void>;
+
+  /* social comments — what customers write under the brand's and its rivals' posts */
+  /** Dedupes on (business, platform, external_id). Returns rows written. */
+  upsertSocialComments(inputs: NewSocialComment[]): Promise<number>;
+  /** competitorId null = under the business's own posts; undefined = everyone's. */
+  listSocialComments(
+    businessId: string,
+    opts?: { competitorId?: string | null; sinceDays?: number },
+  ): Promise<SocialComment[]>;
+
+  /* ai usage — every model call's tokens */
+  recordAiUsage(input: NewAiUsage): Promise<void>;
+  listAiUsage(opts?: { sinceHours?: number; businessId?: string }): Promise<AiUsage[]>;
 
   /* ad history — the owner's own past ads and how they did */
   /** Dedupes on (business, platform, campaign, ad, start). Returns rows written. */

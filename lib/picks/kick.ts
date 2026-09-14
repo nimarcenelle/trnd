@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { getAdminRepo } from "@/lib/db/admin";
 import { env, isSupabaseConfigured } from "@/lib/env";
 
-import { nextWeekStage, runWeekStage } from "./advance-week";
+import { nextWeekStage, runWeekStage, type WeekStage } from "./advance-week";
 
 /**
  * Ask for a brand's week to be advanced. In production that is one short
@@ -43,17 +43,19 @@ export async function requestOrigin(): Promise<string> {
   }
 }
 
-export function jobUrl(businessId: string, hop = 0, origin: string = env.appUrl): URL {
+export function jobUrl(businessId: string, hop = 0, origin: string = env.appUrl, stage?: WeekStage | null): URL {
   const url = new URL("/api/jobs/week", origin);
   url.searchParams.set("business", businessId);
   if (hop > 0) url.searchParams.set("hop", String(hop));
+  // The stage the last hop said comes next; the route honors it (see there).
+  if (stage && stage !== "done") url.searchParams.set("stage", stage);
   return url;
 }
 
 /** Fire the job route and do not wait for it. Errors are swallowed: the
  * next visit asks again. */
-export function requestWeekJob(businessId: string, hop = 0, origin?: string): void {
-  fetch(jobUrl(businessId, hop, origin), {
+export function requestWeekJob(businessId: string, hop = 0, origin?: string, stage?: WeekStage | null): void {
+  fetch(jobUrl(businessId, hop, origin, stage), {
     method: "POST",
     headers: { authorization: `Bearer ${env.cronSecret}` },
     signal: AbortSignal.timeout(5_000),

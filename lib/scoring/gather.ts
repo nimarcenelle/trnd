@@ -397,41 +397,46 @@ const adCaption = (a: StoredAd) =>
   [a.headline, a.snippet].filter((x): x is string => typeof x === "string" && x.trim().length > 0).join(" ");
 
 function competitiveFor(term: string, ctx: GradeContext): CompetitiveInput {
-  const { direct, rivalPosts } = ctx.signals;
+  const { direct } = ctx.signals;
   const now = ctx.now.getTime();
   const ageDays = (iso: string | null) => (iso ? (now - Date.parse(iso)) / DAY_MS : Infinity);
 
-  const postsBy = new Map<string, SocialPost[]>();
-  for (const p of rivalPosts) if (p.competitor_id) postsBy.set(p.competitor_id, [...(postsBy.get(p.competitor_id) ?? []), p]);
   const readsBy = new Map<string, CompetitorRead[]>();
   for (const r of ctx.adReads) readsBy.set(r.competitor_id, [...(readsBy.get(r.competitor_id) ?? []), r]);
 
-  // A rival is read when something of theirs was actually seen: a post, or
-  // an ad. An ad read that came back empty (no ads, or a read that failed
-  // upstream and stored nothing) is not a read, or every quiet week would
-  // score as open whitespace at high confidence.
-  const read = direct.filter(
-    (c) => (postsBy.get(c.id)?.length ?? 0) > 0 || (readsBy.get(c.id) ?? []).some((r) => adsOf(r).length > 0),
-  );
+  // A rival is read when at least one of their ADS was actually seen. The
+  // Competitive signal is "what your competitors are running": their
+  // organic posts used to count as a read too, and a brand whose rivals'
+  // ads were never fetched scored whitespace 100 at high confidence off
+  // their Instagram captions. Posts still feed the evidence lines and the
+  // campaign brief; they do not grade the signal. An ad read that came back
+  // empty (no ads, or a read that failed upstream and stored nothing) is not
+  // a read either, or every quiet week would score as open whitespace.
+  const read = direct.filter((c) => (readsBy.get(c.id) ?? []).some((r) => adsOf(r).length > 0));
   let evidence = 0;
   let onNow = 0;
   let onPrior = 0;
   let onAngle = 0;
   let weak = 0;
   for (const c of read) {
-    const posts = postsBy.get(c.id) ?? [];
-    const postsOn = postsOnTerm(posts, term);
-    const usual = median(posts.map(engagementOf));
-
     // One entry per distinct ad across every read in the window, with where
     // it was last seen, so an ad missing from the latest read shows as pulled.
     const reads = readsBy.get(c.id) ?? [];
     const latestAt = reads.length > 0 ? reads[reads.length - 1].captured_at : null;
     const ads = new Map<string, { lastSeen: string; firstSeen: string; runningDays: number | null }>();
+    const seen = new Set<string>();
+    let unreadable = 0;
     for (const r of reads) {
       for (const a of adsOf(r)) {
         const caption = adCaption(a);
-        if (!caption || postsOnTerm([{ caption }], term).length === 0) continue;
+        // An image-only ad is still an ad they are running: it counts as
+        // evidence of what was read, never as a match on the angle.
+        if (!caption) {
+          unreadable += 1;
+          continue;
+        }
+        seen.add(caption.toLowerCase().slice(0, 200));
+        if (postsOnTerm([{ caption }], term).length === 0) continue;
         const key = caption.toLowerCase().slice(0, 200);
         const days = isNum(a.runningDays) ? a.runningDays : null;
         const prev = ads.get(key);
@@ -443,26 +448,21 @@ function competitiveFor(term: string, ctx: GradeContext): CompetitiveInput {
       }
     }
     const adsOn = [...ads.values()];
-    evidence += posts.length + [...new Set(reads.flatMap((r) => adsOf(r).map(adCaption)))].length;
+    evidence += seen.size + unreadable;
 
-    const isNow =
-      postsOn.some((p) => ageDays(p.posted_at ?? p.captured_at) <= NOW_DAYS) ||
-      adsOn.some((a) => a.lastSeen === latestAt && ageDays(latestAt) <= NOW_DAYS);
-    // Prior: posted 15-45 days ago, or an ad seen then, or an ad that has
-    // been running since before the current two weeks began.
-    const isPrior =
-      postsOn.some((p) => ageDays(p.posted_at ?? p.captured_at) > NOW_DAYS) ||
-      adsOn.some(
-        (a) =>
-          ageDays(a.firstSeen) > NOW_DAYS ||
-          (a.runningDays !== null && a.runningDays + ageDays(a.lastSeen) > NOW_DAYS),
-      );
+    const isNow = adsOn.some((a) => a.lastSeen === latestAt && ageDays(latestAt) <= NOW_DAYS);
+    // Prior: an ad seen 15-45 days ago, or one that has been running since
+    // before the current two weeks began.
+    const isPrior = adsOn.some(
+      (a) => ageDays(a.firstSeen) > NOW_DAYS || (a.runningDays !== null && a.runningDays + ageDays(a.lastSeen) > NOW_DAYS),
+    );
     if (isNow) onNow += 1;
     if (isPrior) onPrior += 1;
 
-    onAngle += postsOn.length + adsOn.length;
+    onAngle += adsOn.length;
+    // Weak: pulled inside a week of starting. The only performance read the
+    // Ad Library allows for a commercial advertiser.
     weak += adsOn.filter((a) => a.lastSeen !== latestAt && a.runningDays !== null && a.runningDays < WEAK_AD_DAYS).length;
-    if (usual > 0) weak += postsOn.filter((p) => engagementOf(p) < usual / 2).length;
   }
 
   return {

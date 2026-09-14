@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { absoluteLiftScore, BRAND_LOW_NOTE, BRAND_THIN_NOTE, engagementScore } from "../lib/scoring/brand";
+import { absoluteLiftScore, BRAND_FIT_ONLY_NOTE, BRAND_LOW_NOTE, BRAND_THIN_NOTE, engagementScore } from "../lib/scoring/brand";
 import { scoreBrand, type BrandInput } from "../lib/scoring/index";
 
 const liftBaseline = [0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.4, 1.6, 1.8];
@@ -106,12 +106,21 @@ describe("scoreBrand confidence", () => {
     expect(s.score).toBe(Math.round(((30 * 80 + 30 * 75) / 60) * 10) / 10);
   });
 
-  it("stands on a judged catalog fit alone for a brand-new brand, at medium", () => {
+  it("does not stand on a judged catalog fit alone: a brand with nothing of its own read is low, and says so", () => {
+    // Every term past the fit gate fits the catalog; counted alone it put a
+    // Brand of 100 at a quarter of every fresh signup's grade.
     const s = scoreBrand(brandNew());
     expect(comp(s, "economics").score).toBe(90);
+    expect(s.confidence).toBe("low");
+    expect(s.note).toBe(BRAND_FIT_ONLY_NOTE);
+    expect(s.cta?.label).toBe("Import past ads");
+  });
+
+  it("counts once the brand's own posts are read, even with none on the term", () => {
+    const s = scoreBrand({ ...brandNew(), organic: { posts: 12, onTermPosts: 0, engagementRatio: null } });
     expect(s.confidence).toBe("medium");
-    expect(s.score).toBe(90);
-    expect(s.note).toBeNull();
+    expect(comp(s, "organic").score).toBe(30);
+    expect(s.score).toBe(60);
   });
 
   it("is low with nothing at all", () => {

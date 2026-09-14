@@ -37,10 +37,37 @@ export async function GET(): Promise<Response> {
       dbRttMs = null;
     }
   }
+  // The paid reader's meter. Apify stops every run at its plan's monthly
+  // cap, and the readers treat a refused run as "nothing to show", so a
+  // spent cap is a silent outage: the Starter plan's $25 was reached on
+  // day two of a cycle with two signups a day. Presence and share only.
+  let apifyUsage: { usd: number; capUsd: number; share: number } | null = null;
+  if (isApifyConfigured) {
+    try {
+      const res = await fetch(`https://api.apify.com/v2/users/me/limits?token=${encodeURIComponent(env.apifyToken)}`, {
+        signal: AbortSignal.timeout(4_000),
+        cache: "no-store",
+      });
+      const data = (await res.json()) as { data?: { limits?: { maxMonthlyUsageUsd?: number }; current?: { monthlyUsageUsd?: number } } };
+      const usd = data.data?.current?.monthlyUsageUsd;
+      const capUsd = data.data?.limits?.maxMonthlyUsageUsd;
+      if (typeof usd === "number" && typeof capUsd === "number" && capUsd > 0) {
+        apifyUsage = { usd: Math.round(usd * 100) / 100, capUsd, share: Math.round((usd / capUsd) * 100) / 100 };
+      }
+    } catch {
+      apifyUsage = null;
+    }
+  }
+  const warnings: string[] = [];
+  if (apifyUsage && apifyUsage.share >= 0.9) {
+    warnings.push(`Apify at $${apifyUsage.usd} of its $${apifyUsage.capUsd} monthly cap: social, TikTok and rival-ad reads stop at the cap.`);
+  }
   const body = {
     ok: database !== "error",
     dbRttMs,
     time: new Date().toISOString(),
+    warnings,
+    apifyUsage,
     mode: {
       database,
       generation: isGeminiConfigured ? "gemini" : "template",

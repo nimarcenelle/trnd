@@ -1,8 +1,9 @@
 import { generateBusinessBrief, businessJustOnboarded } from "@/lib/ai/brief";
 import type { Repo } from "@/lib/db/repo";
-import type { Business } from "@/lib/db/types";
-import { env, isEmailConfigured } from "@/lib/env";
+import type { Business, CompetitorRead, Opportunity } from "@/lib/db/types";
+import { env, isEmailConfigured, isGeminiConfigured, isPlacesConfigured } from "@/lib/env";
 import { weekOf } from "@/lib/recommend/week";
+import { NO_COMPETITORS_NOTE, NOTHING_READ_NOTE } from "@/lib/scoring/competitive";
 
 import { eligibleWeekOpportunities, generateWeekPicks } from "./generate";
 
@@ -25,7 +26,8 @@ import { eligibleWeekOpportunities, generateWeekPicks } from "./generate";
  * The page and onboarding only ask for the next stage; they never run it.
  */
 
-export type WeekStage = "brief" | "scan" | "intel" | "rank" | "picks" | "deepen" | "done";
+export type WeekStage = "brief" | "scan" | "rivals" | "intel" | "rank" | "picks" | "deepen" | "done";
+export const WEEK_STAGES: WeekStage[] = ["brief", "scan", "rivals", "intel", "rank", "picks", "deepen", "done"];
 
 /** A stage says when its budget ran out with work left, so it runs again. */
 export type StageOutcome = void | { exhausted?: boolean };
@@ -33,10 +35,73 @@ export type StageOutcome = void | { exhausted?: boolean };
 export interface StageDeps {
   brief?: (repo: Repo, business: Business) => Promise<StageOutcome>;
   scan?: (repo: Repo, business: Business) => Promise<StageOutcome>;
+  rivals?: (repo: Repo, business: Business) => Promise<StageOutcome>;
   intel?: (repo: Repo, business: Business) => Promise<StageOutcome>;
   rank?: (repo: Repo, business: Business) => Promise<StageOutcome>;
   picks?: (repo: Repo, business: Business) => Promise<StageOutcome>;
   deepen?: (repo: Repo, business: Business) => Promise<StageOutcome>;
+}
+
+/* ------------------------- graded before the rivals ------------------------- */
+
+/** How the Competitive signal stood when a row was graded: never graded,
+ * graded with no rivals on record, graded with rivals but none of their ads
+ * read, or graded on real ad reads. */
+type CompetitiveGap = "no-rivals" | "no-ads" | "scored" | null;
+
+function competitiveGapOf(row: { signal_scores?: Record<string, unknown> | null }): CompetitiveGap {
+  const s = row.signal_scores?.competitive as { confidence?: unknown; note?: unknown } | undefined;
+  if (!s || typeof s !== "object") return null;
+  if (s.confidence !== "low") return "scored";
+  const note = typeof s.note === "string" ? s.note.trim().toLowerCase() : "";
+  if (note.startsWith(NO_COMPETITORS_NOTE.toLowerCase())) return "no-rivals";
+  if (note.startsWith(NOTHING_READ_NOTE.toLowerCase())) return "no-ads";
+  return "scored";
+}
+
+function adsSeen(read: CompetitorRead): boolean {
+  if (read.kind !== "ads" && read.kind !== "google_ads") return false;
+  const raw = read.raw as { ads?: unknown; sample?: unknown } | null;
+  return (Array.isArray(raw?.ads) && raw.ads.length > 0) || (Array.isArray(raw?.sample) && raw.sample.length > 0);
+}
+
+/**
+ * Whether the week was graded before its rivals could count. Rinse was
+ * ranked 78 seconds after signup with "no competitors connected yet", its
+ * seven rivals landed two minutes later, and nothing ever graded it again:
+ * the job route re-derived every stage from the database, and nothing in
+ * the database said "the rivals are newer than the grade". This does. It
+ * cannot loop: a re-ranking with rivals on record changes the note, and a
+ * re-ranking with their ads read scores the signal.
+ */
+export async function gradedBeforeRivals(repo: Repo, business: Business, opportunities: Opportunity[]): Promise<boolean> {
+  const gaps = opportunities.map(competitiveGapOf);
+  if (gaps.some((g) => g === "no-rivals")) {
+    const competitors = await repo.listCompetitors(business.id).catch(() => []);
+    if (competitors.length > 0) return true;
+  }
+  if (gaps.some((g) => g === "no-ads")) {
+    const reads = await repo.listCompetitorReads(business.id, { sinceDays: 2 }).catch(() => []);
+    if (reads.some(adsSeen)) return true;
+  }
+  return false;
+}
+
+/** Picks written from a grade the ranking has since replaced: the picks
+ * still say "no competitors connected yet" while the ranked rows do not. */
+function picksBehindGrade(
+  picks: { signal_scores?: Record<string, unknown> | null }[],
+  opportunities: Opportunity[],
+): boolean {
+  const stale = (g: CompetitiveGap) => g === "no-rivals" || g === "no-ads";
+  if (picks.length === 0 || !picks.some((p) => stale(competitiveGapOf(p)))) return false;
+  return opportunities.some((o) => competitiveGapOf(o) === "scored");
+}
+
+/** Whether rival discovery can run for this brand at all: brands are named
+ * by the model and verified on the web; places come from Places. */
+export function rivalDiscoveryConfigured(business: Business): boolean {
+  return business.market === "online" ? isGeminiConfigured : isPlacesConfigured;
 }
 
 /** What the week still needs, read from the database alone. */
@@ -61,6 +126,10 @@ export async function nextWeekStage(
   // A week ranked before the four-signal grade existed carries rows with no
   // grade; it is ranked again so its picks can carry one.
   if (opportunities.length > 0 && opportunities.every((o) => o.grade == null)) return "rank";
+  // A fresh signup graded before its rivals (or their ads) were on record
+  // is graded again now that they are. See gradedBeforeRivals.
+  const fresh = businessJustOnboarded(business.created_at);
+  if (fresh && opportunities.length > 0 && (await gradedBeforeRivals(repo, business, opportunities))) return "rank";
   if (opportunities.length === 0) {
     // A ranking writes a reading for every term it graded. Readings today
     // and no opportunities is a ranking that held everything: an honest
@@ -84,6 +153,9 @@ export async function nextWeekStage(
   if (ready.length > 0 && ready.every((r) => r.pick.grade == null) && opportunities.some((o) => o.grade != null)) {
     return "picks";
   }
+  // Picks that still carry the grade from before the rivals were read are
+  // written again from the re-graded rows.
+  if (fresh && picksBehindGrade(ready.map((r) => r.pick), opportunities)) return "picks";
   // The first picks came from the fast, free reads. The brand's own
   // accounts, its rivals' ads and posts, and the scraped short-form reads
   // come after them, and the week is ranked and written again on top. Once
@@ -113,6 +185,41 @@ async function defaultBrief(repo: Repo, business: Business): Promise<void> {
 async function defaultScan(repo: Repo, business: Business): Promise<StageOutcome> {
   const { runSignalIngestForBusiness, FAST_SCAN_BUDGET_MS } = await import("@/lib/signals/ingest");
   return runSignalIngestForBusiness(repo, business, { tier: "fast", budgetMs: FAST_SCAN_BUDGET_MS });
+}
+
+/** Seeding plus one ad read per rival fits well inside a hop: the model
+ * names the brands in about ten seconds, twelve sites and their Ad Library
+ * checks take thirty, and the ads themselves are seconds per rival. */
+export const RIVALS_BUDGET_MS = 150_000;
+
+/**
+ * The rivals and their ads, before the first grade. A grade that excludes
+ * Competitive on a brand with seven direct rivals in Settings is the first
+ * thing a paid social manager distrusts, and it is what every fresh signup
+ * used to see for its first ten minutes (or, when the hand-off died, for
+ * the week). The account reads and the scraped short-form still wait for
+ * the picks; this is only what the Competitive signal needs to count.
+ */
+async function defaultRivals(repo: Repo, business: Business): Promise<StageOutcome> {
+  const deadline = Date.now() + RIVALS_BUDGET_MS;
+  if ((await repo.listCompetitors(business.id)).length === 0) {
+    const { seedCompetitors } = await import("@/lib/intel/seed-competitors");
+    const seeded = await seedCompetitors(repo, business);
+    if (seeded.note) console.log(`[week] rivals for ${business.id}: ${seeded.note}`);
+  }
+  const competitors = await repo.listCompetitors(business.id);
+  if (competitors.length === 0) return;
+  const { ingestRivalAds } = await import("@/lib/intel/social-ingest");
+  const ads = await ingestRivalAds(repo, business, competitors, { deadline });
+  console.log(`[week] rival ads for ${business.id}: ${ads.written} reads${ads.exhausted ? ", cut short" : ""}`);
+  return ads.exhausted ? { exhausted: true } : undefined;
+}
+
+/** A fresh signup with no rivals on record reads them before its first grade. */
+async function rivalsOwed(repo: Repo, business: Business, deps: StageDeps): Promise<boolean> {
+  if (!businessJustOnboarded(business.created_at)) return false;
+  if (!deps.rivals && !rivalDiscoveryConfigured(business)) return false;
+  return (await repo.listCompetitors(business.id).catch(() => [])).length === 0;
 }
 
 /** The slow reads (scraped short-form and rival ads) and the intel read,
@@ -197,6 +304,7 @@ export async function runWeekStage(
   const run = {
     brief: deps.brief ?? defaultBrief,
     scan: deps.scan ?? defaultScan,
+    rivals: deps.rivals ?? defaultRivals,
     intel: deps.intel ?? defaultIntel,
     rank: deps.rank ?? defaultRank,
     picks: deps.picks ?? defaultPicks,
@@ -216,7 +324,12 @@ export async function runWeekStage(
     case "brief":
       return nextWeekStage(repo, business);
     case "scan":
-      return exhausted ? "scan" : nextWeekStage(repo, business);
+      if (exhausted) return "scan";
+      // The rivals and their ads go before the first grade, never after it.
+      if (await rivalsOwed(repo, business, deps)) return "rivals";
+      return nextWeekStage(repo, business);
+    case "rivals":
+      return exhausted ? "rivals" : "rank";
     case "intel":
       return exhausted ? "intel" : "rank";
     case "deepen":

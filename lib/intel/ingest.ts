@@ -209,14 +209,18 @@ export async function runIntelIngestForBusiness(
     // A rival scored under the bar is re-read weekly, so a mis-score (or a
     // rival that changed its range) does not leave it unwatched for good.
     const competitors = await rescoreRivals(repo, business, await repo.listCompetitors(business.id));
-    const social = await ingestSocialAccounts(repo, business, competitors, { deadline });
-    summary.socialPosts = social.ownPosts + social.rivalPosts;
-    summary.competitorReads += social.rivalReads;
-    summary.exhausted = social.exhausted;
+    // Ads first. They are what the Competitive signal is graded on, and they
+    // are seconds per rival; the account reads are minutes and used to run
+    // ahead of them, so a budget that ran out left a brand with every
+    // rival's Instagram grid and none of their ads.
     const ads = await ingestRivalAds(repo, business, competitors, { deadline });
     summary.rivalAdReads = ads.written;
     summary.competitorReads += ads.written;
-    summary.exhausted = summary.exhausted || ads.exhausted;
+    summary.exhausted = ads.exhausted;
+    const social = await ingestSocialAccounts(repo, business, competitors, { deadline });
+    summary.socialPosts = social.ownPosts + social.rivalPosts;
+    summary.competitorReads += social.rivalReads;
+    summary.exhausted = summary.exhausted || social.exhausted;
   } catch (err) {
     console.warn(`[intel] social and rival ads failed for ${business.id}:`, (err as Error).message);
   }

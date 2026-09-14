@@ -93,7 +93,9 @@ function levelPhrase(level: number, kind: LevelKind): string {
         ? `Search interest at ${(level / 100).toFixed(1)}× its usual level this week`
         : `Search interest at ${n} of 100 this week`;
     default:
-      return `${n} searches this week`;
+      // Search volume arrives from DataForSEO as a monthly total. It was
+      // printed as "this week" and read four times too small on the page.
+      return `${n} searches a month`;
   }
 }
 

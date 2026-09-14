@@ -269,7 +269,7 @@ export function groupHeader(signal: GradeSignalView | undefined): GroupHeader {
   };
 }
 
-/** "Volume · 74 · 40,500 searches this week"; a component with no data says so. */
+/** "Volume · 74 · 40,500 searches a month"; a component with no data says so. */
 export function componentLines(signal: GradeSignalView | undefined): { key: string; text: string }[] {
   if (!signal || signal.confidence === "low") return [];
   return signal.components.map((c) => ({

@@ -41,7 +41,7 @@ describe("the first-week progress", () => {
     const biz = await user.createBusiness(input);
     const p = await weekProgress(user, biz);
     expect(p.stage).toBe("brief");
-    expect(p.steps.map((s) => s.state)).toEqual(["current", "todo", "todo", "todo"]);
+    expect(p.steps.map((s) => s.state)).toEqual(["current", "todo", "todo", "todo", "todo"]);
     expect(waitHeadline(p, biz.name)).toBe("Reading Rinse");
     expect(p.ranked).toEqual([]);
   });
@@ -64,10 +64,11 @@ describe("the first-week progress", () => {
     ]);
     const p = await weekProgress(user, biz);
     expect(p.stage).toBe("picks");
-    expect(p.steps.map((s) => s.state)).toEqual(["done", "done", "done", "current"]);
+    expect(p.steps.map((s) => s.state)).toEqual(["done", "done", "done", "done", "current"]);
     expect(p.steps[0].detail).toBe("2 terms to watch");
     expect(p.steps[1].detail).toBe("1 term read across 1 source");
-    expect(p.steps[2].detail).toBe("1 graded");
+    expect(p.steps[2].detail).toBe("1 competitor: Canopy");
+    expect(p.steps[3].detail).toBe("1 graded");
     expect(rival.name).toBe("Canopy");
     expect(waitHeadline(p, biz.name)).toBe("Writing your first pick: Hard water, graded B");
     expect(p.ranked).toEqual([{ term: "hard water", grade: "B" }]);

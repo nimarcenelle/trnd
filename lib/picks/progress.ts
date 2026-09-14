@@ -6,7 +6,7 @@ import { weekOf } from "@/lib/recommend/week";
 
 import { sentenceCase } from "@/lib/text";
 
-import { intelOwed, nextWeekStage, type WeekStage } from "./advance-week";
+import { intelOwed, nextWeekStage, rivalDiscoveryConfigured, type WeekStage } from "./advance-week";
 import { eligibleWeekOpportunities } from "./generate";
 
 /**
@@ -46,7 +46,7 @@ export interface WeekProgress {
 
 /** The wait screen's steps: what stands between a signup and its first
  * pick. The deepening pass comes after the picks and is not a wait. */
-const ORDER: WeekStage[] = ["brief", "scan", "rank", "picks"];
+const ORDER: WeekStage[] = ["brief", "scan", "rivals", "rank", "picks"];
 
 /**
  * Whether the deep read (the brand's own accounts, its rivals, the scraped
@@ -98,6 +98,7 @@ export async function weekStillWriting(repo: Repo, business: Business): Promise<
 const LABELS: Record<WeekStage, string> = {
   brief: "Reading your business",
   scan: "Reading demand for your terms",
+  rivals: "Finding your competitors and reading their ads",
   intel: "Reading your accounts and your competitors",
   rank: "Grading this week's opportunities",
   picks: "Writing your picks",
@@ -110,6 +111,7 @@ const LABELS: Record<WeekStage, string> = {
 export const TYPICAL_SEC: Record<WeekStage, number> = {
   brief: 40,
   scan: 60,
+  rivals: 60,
   intel: 20,
   rank: 45,
   picks: 30,
@@ -125,9 +127,7 @@ const n = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" :
 
 export async function weekProgress(repo: Repo, business: Business, opts: { scanAllowed?: boolean } = {}): Promise<WeekProgress> {
   const week = weekOf();
-  const stage = await nextWeekStage(repo, business, opts);
-  const at = stage === "done" || !ORDER.includes(stage) ? ORDER.length : ORDER.indexOf(stage);
-
+  const derived = await nextWeekStage(repo, business, opts);
   const [brief, signals, own, competitors, rivalPosts, opportunities, reads] = await Promise.all([
     repo.getBusinessBrief(business.id),
     repo.listSignalsForCategory(business.category, { sinceDays: 1 }).catch(() => []),
@@ -139,10 +139,29 @@ export async function weekProgress(repo: Repo, business: Business, opts: { scanA
   ]);
   const terms = new Set(signals.map((s) => s.term));
   const rivals = competitiveSet(competitors);
+  // The rivals step is a hand-off between the scan and the ranking, not a
+  // state the database names: while it runs, the week reads as "rank" with
+  // no rivals on record. Shown as the step it is.
+  const stage: WeekStage =
+    derived === "rank" &&
+    opts.scanAllowed !== false &&
+    businessJustOnboarded(business.created_at) &&
+    competitors.length === 0 &&
+    rivalDiscoveryConfigured(business)
+      ? "rivals"
+      : derived;
+  const at = stage === "done" || !ORDER.includes(stage) ? ORDER.length : ORDER.indexOf(stage);
+  const adsByRival = new Map<string, number>();
+  for (const r of reads) if (r.kind === "ads" && finite(r.value)) adsByRival.set(r.competitor_id, r.value);
+  const adsRead = rivals.filter((c) => adsByRival.has(c.id)).length;
 
   const details: Record<WeekStage, string | null> = {
     brief: brief ? `${n(brief.watch_terms?.length ?? 0, "term")} to watch` : null,
     scan: terms.size > 0 ? `${n(terms.size, "term")} read across ${n(new Set(signals.map((s) => s.source)).size, "source")}` : null,
+    rivals:
+      rivals.length > 0
+        ? `${n(rivals.length, "competitor")}: ${list(rivals.map((c) => c.name))}${adsRead > 0 ? ` · ads read for ${adsRead}` : ""}`
+        : null,
     intel:
       rivals.length > 0 || own.length > 0
         ? [
@@ -171,9 +190,6 @@ export async function weekProgress(repo: Repo, business: Business, opts: { scanA
   for (const s of [...signals].sort((a, b) => (finite(b.delta_pct) ? b.delta_pct : -1) - (finite(a.delta_pct) ? a.delta_pct : -1))) {
     if (!byTerm.has(s.term)) byTerm.set(s.term, { term: s.term, deltaPct: finite(s.delta_pct) ? Math.round(s.delta_pct) : null, source: s.source });
   }
-  const adsByRival = new Map<string, number>();
-  for (const r of reads) if (r.kind === "ads" && finite(r.value)) adsByRival.set(r.competitor_id, r.value);
-
   const who = targetCustomerOf(brief)?.who ?? null;
   const steps: ProgressStep[] = ORDER.map((key, i) => ({
     key,

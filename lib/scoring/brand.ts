@@ -22,6 +22,8 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 
 export const BRAND_LOW_NOTE = "Your ads and posts haven't been read yet";
 export const BRAND_THIN_NOTE = "Too little of your own history on this to lean on yet";
+/** A judged catalog fit with nothing of the brand's own read behind it. */
+export const BRAND_FIT_ONLY_NOTE = "Only your catalog fit has been read so far";
 export const BRAND_HIGH_MIN_ADS = 10;
 /** Posts read before "you never posted on this" is a reading rather than a gap. */
 export const ORGANIC_READ_MIN = 5;
@@ -117,14 +119,22 @@ export function scoreBrand(input: BrandInput): SignalScore {
   const present = components.filter((c) => c.score !== null).length;
   let confidence: Confidence = "low";
   // High needs a ranked lift, so the absolute fallback never gets past medium.
-  // A judged catalog fit alone is a reading the grade can stand on: it is
-  // the same judgment the fit gate rests on, and every brand has a catalog.
-  // Low is for a brand with nothing read at all.
+  // A judged catalog fit on its own is NOT enough: it is the same judgment
+  // the fit gate already rests on, so every term that reaches the grade
+  // carries it, and counted alone it put a Brand of 100 at a quarter of the
+  // grade on brands whose ads and posts had never been read. Brand counts
+  // once something of the brand's own is behind it: its posts (even when
+  // none are on the term) or its past ads.
   if (input.adHistoryAds >= BRAND_HIGH_MIN_ADS && present === 3 && pct !== null) confidence = "high";
-  else if (present >= 2 || (economics !== null && e.fit !== null)) confidence = "medium";
+  else if (present >= 2) confidence = "medium";
 
   if (confidence !== "low") return signalScore("brand", components, confidence);
   const cta = { label: "Import past ads", href: input.settingsHref };
-  const note = similarity === null && organic === null ? BRAND_LOW_NOTE : BRAND_THIN_NOTE;
+  const note =
+    similarity === null && organic === null
+      ? economics !== null && e.fit !== null
+        ? BRAND_FIT_ONLY_NOTE
+        : BRAND_LOW_NOTE
+      : BRAND_THIN_NOTE;
   return signalScore("brand", components, "low", { note, cta });
 }

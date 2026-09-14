@@ -6,8 +6,11 @@
  * (is that count rising or falling), competitor weakness 25% (how many of
  * their ads on it look weak).
  *
- * Guardrail: with no competitors connected, or none of theirs read, nothing
- * is computed. A made-up whitespace score would read as real.
+ * Guardrail: with no competitors connected, or none of their ADS read, nothing
+ * is computed. A made-up whitespace score would read as real, and so did a
+ * real one measured on the rivals' organic captions: "none of the 5
+ * competitors run this angle" was true of their Instagram grid while their
+ * ads had never been fetched. "Read" here means ads seen (lib/scoring/gather.ts).
  */
 
 import { SUB_WEIGHTS, signalScore, type CompetitiveInput, type SignalComponent, type SignalScore } from "./model";
@@ -16,7 +19,7 @@ const clamp = (n: number, lo = 0, hi = 100) => Math.min(hi, Math.max(lo, n));
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 export const NO_COMPETITORS_NOTE = "No competitors connected yet";
-export const NOTHING_READ_NOTE = "Competitors added, but nothing of theirs has been read yet";
+export const NOTHING_READ_NOTE = "Competitors added, but their ads haven't been read yet";
 /** Posts and ads seen across the rivals before the read is high confidence. */
 export const HIGH_EVIDENCE_ITEMS = 12;
 

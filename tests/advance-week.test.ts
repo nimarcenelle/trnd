@@ -261,3 +261,100 @@ describe("the first pick before the rest", () => {
     expect(await nextWeekStage(user, biz)).toBe("done");
   });
 });
+
+describe("the rivals before the first grade", () => {
+  beforeEach(() => resetStore());
+
+  const graded = (competitive: { confidence: string; note: string | null }): Record<string, unknown> => ({ competitive });
+
+  it("reads the rivals and their ads after the scan and before the ranking, when discovery can run", async () => {
+    const { admin, biz } = await seed({ signalToday: false, posts: false });
+    const ran: string[] = [];
+    const deps = {
+      scan: async () => {
+        ran.push("scan");
+        await admin.upsertSignals([
+          { source: "seed", term: "hard water", normalized_term: "hard_water", category: biz.category, geo: "US", metric_type: "search_volume", value: 100, delta_pct: 10, window_days: 7, raw: null },
+        ] as never);
+      },
+      rivals: async () => {
+        ran.push("rivals");
+      },
+    };
+    expect(await runWeekStage(admin, biz, "scan", deps)).toBe("rivals");
+    expect(await runWeekStage(admin, biz, "rivals", deps)).toBe("rank");
+    expect(ran).toEqual(["scan", "rivals"]);
+    // A read the budget cut short runs again.
+    expect(await runWeekStage(admin, biz, "rivals", { rivals: async () => ({ exhausted: true }) })).toBe("rivals");
+  });
+
+  it("does not read rivals again for a brand that already has them", async () => {
+    const { admin, user, biz } = await seed({ signalToday: false, posts: false });
+    await user.createCompetitor({ business_id: biz.id, name: "Canopy", website: null, place_id: null, social_handles: {}, directness: 0.7, directness_reason: "r" });
+    const next = await runWeekStage(admin, biz, "scan", {
+      scan: async () => {
+        await admin.upsertSignals([
+          { source: "seed", term: "hard water", normalized_term: "hard_water", category: biz.category, geo: "US", metric_type: "search_volume", value: 100, delta_pct: 10, window_days: 7, raw: null },
+        ] as never);
+      },
+      rivals: async () => {
+        throw new Error("must not run");
+      },
+    });
+    expect(next).toBe("rank");
+  });
+
+  it("grades a week again when it was graded with no rivals on record and rivals have since landed", async () => {
+    const { admin, user, biz } = await seed();
+    const sig = (await admin.listSignalsForCategory(biz.category, { sinceDays: 1 }))[0];
+    const row = (scores: Record<string, unknown>) => ({
+      business_id: biz.id, signal_id: sig.id, week_of: weekOf(), score: 7, rationale: "r", matched_service_id: null, competitor_gap: null, relevance: null, grade: "A", grade_score: 80, signal_scores: scores,
+    });
+    await admin.upsertOpportunities([row(graded({ confidence: "low", note: "No competitors connected yet" }))]);
+    // Graded with no rivals, still no rivals: nothing new to grade on.
+    expect(await nextWeekStage(user, biz)).toBe("picks");
+    const rival = await user.createCompetitor({ business_id: biz.id, name: "Canopy", website: null, place_id: null, social_handles: {}, directness: 0.7, directness_reason: "r" });
+    expect(await nextWeekStage(user, biz)).toBe("rank");
+    // Graded with rivals but none of their ads read: waits for an ad read with ads in it.
+    await admin.upsertOpportunities([row(graded({ confidence: "low", note: "Competitors added, but their ads haven't been read yet" }))]);
+    expect(await nextWeekStage(user, biz)).toBe("picks");
+    await admin.upsertCompetitorReads([
+      { business_id: biz.id, competitor_id: rival.id, kind: "ads", value: 0, rating: null, summary: "no active Meta ads", raw: { ads: [] } },
+    ] as never);
+    expect(await nextWeekStage(user, biz)).toBe("picks");
+    await admin.upsertCompetitorReads([
+      { business_id: biz.id, competitor_id: rival.id, kind: "google_ads", value: 2, rating: null, summary: "2 Google ads live", raw: { sample: [{ snippet: "hard water fix" }] } },
+    ] as never);
+    expect(await nextWeekStage(user, biz)).toBe("rank");
+    // Graded on real ad reads: settled.
+    await admin.upsertOpportunities([row(graded({ confidence: "medium", note: null }))]);
+    expect(await nextWeekStage(user, biz)).toBe("picks");
+  });
+
+  it("writes the picks again when they still carry the grade from before the rivals", async () => {
+    const { admin, user, biz } = await seed();
+    const sig = (await admin.listSignalsForCategory(biz.category, { sinceDays: 1 }))[0];
+    await admin.upsertOpportunities([
+      { business_id: biz.id, signal_id: sig.id, week_of: weekOf(), score: 7, rationale: "r", matched_service_id: null, competitor_gap: null, relevance: null, grade: "B", grade_score: 66, signal_scores: graded({ confidence: "high", note: null }) },
+    ]);
+    const pick = (scores: Record<string, unknown>) => ({
+      pick: { opportunity_id: null, rank: 1, geo: "US", term: "hard water", finding: "f", metric_label: "m", metric_value: null, metric_delta_pct: null, metric_window: "30d", sparkline: [], bet_what: "b", bet_budget_usd: 1000, bet_duration_days: 5, bet_kill_rule: "k", guardrail: null, status: "ready", grade: "A", grade_score: 80, signal_scores: scores },
+      // Three scripts and one evidence line: what "ready" needs.
+      evidence: [{ signal: "customer", claim: "c", source_url: null, source_label: null }],
+      scripts: [1, 2, 3].map((i) => ({ variant_label: `v${i}`, thesis: `t${i}`, hook: `h${i}`, beats: [], cta: "Shop", duration_seconds: 20, direction: null })),
+    });
+    await admin.replaceWeekPicks(biz.id, weekOf(), [pick(graded({ confidence: "low", note: "No competitors connected yet" })) as never]);
+    expect(await nextWeekStage(user, biz)).toBe("picks");
+    await admin.replaceWeekPicks(biz.id, weekOf(), [pick(graded({ confidence: "high", note: null })) as never]);
+    expect(await nextWeekStage(user, biz)).toBe("done");
+  });
+});
+
+describe("the hand-off names the next stage", () => {
+  it("carries the stage the last hop said comes next, and never a finished one", async () => {
+    const { jobUrl } = await import("../lib/picks/kick");
+    expect(jobUrl("abc", 3, "https://www.usetrnd.com", "rank").searchParams.get("stage")).toBe("rank");
+    expect(jobUrl("abc", 3, "https://www.usetrnd.com", "done").searchParams.get("stage")).toBeNull();
+    expect(jobUrl("abc", 3, "https://www.usetrnd.com").searchParams.get("stage")).toBeNull();
+  });
+});

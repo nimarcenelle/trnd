@@ -46,14 +46,17 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
     if (typeof s.delta_pct !== "number" || s.delta_pct < SPIKE_DELTA) continue;
     if (s.metric_type === "news_coverage" || s.metric_type === "ad_saturation") continue;
     if (![...tokens(s.term)].some((t) => anchors.has(t))) continue;
+    // Search volume is a monthly total, so its delta is month over month;
+    // calling that "this week" claims a spike the source page contradicts.
+    const window = s.source === "dataforseo" ? "over the last month" : "this week";
     await add({
       kind: "demand_spike",
       // Deltas clamp at 100 — "up 100%" really means doubled-or-more, and a
       // feed full of identical percentages reads as broken.
       title:
         s.delta_pct >= 100
-          ? `"${sentenceCase(s.term)}" doubled or more this week`
-          : `"${sentenceCase(s.term)}" is up ${Math.round(s.delta_pct)}% this week`,
+          ? `"${sentenceCase(s.term)}" doubled or more ${window}`
+          : `"${sentenceCase(s.term)}" is up ${Math.round(s.delta_pct)}% ${window}`,
       body: `It matches what you sell and is in this week's ranking.`,
       href: "/app/picks",
       dedupe_key: `spike:${s.normalized_term}:${week}`,

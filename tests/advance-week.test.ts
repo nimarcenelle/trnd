@@ -374,3 +374,36 @@ describe("picks that no longer match their rows", () => {
     expect(picksBehindGrade([{ opportunity_id: "gone", grade: "B+", grade_score: 78 }], [row])).toBe(false);
   });
 });
+
+describe("a rejected draft gets one retry, told why", () => {
+  beforeEach(() => resetStore());
+
+  it("writes the pick once the writer fixes the named line", async () => {
+    const { admin, biz } = await seed({ opportunity: true });
+    const { generateWeekPicks } = await import("../lib/picks/generate");
+    const seen: string[] = [];
+    const script = (hook: string, i: number) => ({
+      variant_label: `Route ${i}`,
+      thesis: `Thesis ${i}, long enough to pass the base schema on its own`,
+      hook,
+      beats: [],
+      cta: "Shop the filter",
+      duration_seconds: 20,
+      direction: { show: "The filter going onto a shower arm in a real bathroom", say: "Talk about what hard water does to hair over a month", prove: "Show the cartridge after a week" },
+    });
+    const writer = async (input: { feedback?: string | null }) => {
+      seen.push(input.feedback ?? "(first)");
+      const priceLed = !input.feedback;
+      return {
+        finding: 'Your customers are searching "hard water." Your product page says "The Filter."',
+        bet_what: "Run the filter on Reels for renters",
+        guardrail: null,
+        scripts: [script(priceLed ? "Forty nine dollars to fix hard water" : "Hard water is why your hair feels like straw", 1), script("The first shower in a new apartment", 2), script("Renters can install this without a landlord", 3)],
+      };
+    };
+    const written = await generateWeekPicks(admin, biz, { writer: writer as never });
+    expect(seen).toHaveLength(2);
+    expect(seen[1]).toContain("leads with the price");
+    expect(written.ready).toBe(1);
+  });
+});

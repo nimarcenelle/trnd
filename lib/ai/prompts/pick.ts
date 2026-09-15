@@ -27,6 +27,9 @@ export interface PickPromptCtx {
   evidence: { signal: PickSignal; claim: string }[];
   /** Script length in seconds. */
   durationSec: number;
+  /** What the last draft was rejected for, when this is the retry. The
+   * writer fixes exactly that and keeps the rest. */
+  feedback?: string | null;
   /** What the brand already ran or passed on for this term, as plain lines
    * (lib/record/memory.ts memoryLines). Empty when nothing. */
   memory?: string[];
@@ -193,6 +196,13 @@ export function buildPickPrompt(ctx: PickPromptCtx): string {
     "- No em dashes, no arrows, no exclamation marks, no emoji, no hashtags.",
     "- No hype words: revolutionize, unlock, elevate, game-changer, must-have, obsessed, viral, next level, transform, ultimate, seamless, curated.",
     "- No invented results, reviews, awards, discounts, shipping offers or guarantees.",
+    ...(ctx.feedback
+      ? [
+          "",
+          "Your previous draft was rejected. Fix exactly these problems and keep everything else as it was:",
+          `- ${ctx.feedback.replace(/;\s*/g, "\n- ")}`,
+        ]
+      : []),
   ]
     .filter((l, i, all) => l !== "" || (i > 0 && all[i - 1] !== ""))
     .join("\n")

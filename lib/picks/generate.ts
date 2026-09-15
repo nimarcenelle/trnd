@@ -241,13 +241,17 @@ async function buildBundle(repo: Repo, input: WeekInputs, opportunity: Opportuni
 
   let written: PickWrite | null = null;
   try {
-    const checked = validatePickWrite(await writer(writerInput), {
-      term: signal.term,
-      deltaPct: writerInput.deltaPct,
-      priceCents: matched?.price_cents ?? null,
-    });
+    const rules = { term: signal.term, deltaPct: writerInput.deltaPct, priceCents: matched?.price_cents ?? null };
+    let checked = validatePickWrite(await writer(writerInput), rules);
+    // One retry, told exactly what was wrong. A single price-led hook used
+    // to draft the whole pick, best pick of the week included, on the
+    // first miss; the model fixes a named line far more often than not.
+    if (!checked.ok) {
+      console.warn(`[picks] "${signal.term}" rejected once (${checked.error}); asking for a fix`);
+      checked = validatePickWrite(await writer({ ...writerInput, feedback: checked.error }), rules);
+    }
     if (checked.ok) written = checked.value;
-    else console.warn(`[picks] "${signal.term}" failed validation, stored as draft: ${checked.error}`);
+    else console.warn(`[picks] "${signal.term}" failed validation twice, stored as draft: ${checked.error}`);
   } catch (err) {
     console.warn(`[picks] "${signal.term}" writer failed, stored as draft:`, (err as Error).message);
   }

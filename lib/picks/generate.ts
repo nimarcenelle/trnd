@@ -241,7 +241,11 @@ async function buildBundle(repo: Repo, input: WeekInputs, opportunity: Opportuni
 
   let written: PickWrite | null = null;
   try {
-    const checked = validatePickWrite(await writer(writerInput), { term: signal.term, deltaPct: writerInput.deltaPct });
+    const checked = validatePickWrite(await writer(writerInput), {
+      term: signal.term,
+      deltaPct: writerInput.deltaPct,
+      priceCents: matched?.price_cents ?? null,
+    });
     if (checked.ok) written = checked.value;
     else console.warn(`[picks] "${signal.term}" failed validation, stored as draft: ${checked.error}`);
   } catch (err) {

@@ -6,6 +6,13 @@ import { proofName, sourceName, sourceUrl } from "@/lib/signals/source-url";
 import { measuredTerm, stripDelta } from "./metric";
 import { plainText } from "./schema";
 
+/** A caption that is an ad, not a video someone made: a discount, a sale, a
+ * storefront, a link. Nothing a brand should be told to watch. */
+export function looksLikeSalePost(title: string, channel = ""): boolean {
+  const t = `${title} ${channel}`.toLowerCase();
+  return /\b\d{1,2}\s?%\s?off\b|flash sale|\bsale\b.*\boff\b|shop now|link in bio|discount code|promo code|free shipping|https?:\/\/|\bwww\.|\.(com|shop|store|co)\b|【|】/i.test(t);
+}
+
 /**
  * The evidence rows under a pick, one fact per row, grouped by the four
  * signals. Built from facts the weekly job already loaded, never written by
@@ -171,6 +178,7 @@ function cultureRows(f: EvidenceFacts): NewEvidence[] {
   if (!s) return [];
   const raw = (s.raw ?? {}) as {
     top?: { title?: unknown; channel?: unknown } | null;
+    breakout?: { title?: unknown; channel?: unknown } | null;
     hashtagName?: unknown;
     medianDurationSec?: unknown;
   };
@@ -178,8 +186,19 @@ function cultureRows(f: EvidenceFacts): NewEvidence[] {
   const url = sourceUrl({ source: s.source, term: s.term, geo: s.geo, raw: s.raw });
   const label = proofName(s.source) ?? sourceName(s.source);
   const rows: NewEvidence[] = [];
-  const title = typeof raw.top?.title === "string" ? raw.top.title.trim() : "";
-  const channel = typeof raw.top?.channel === "string" ? raw.top.channel.trim() : "";
+  // The most-viewed video on a term is often a dropshipper's sale post
+  // ("FLASH SALE 50% off, say goodbye to itchy scalp" from angelgode.com):
+  // quoted as "the video pulling the most views" it reads as a
+  // recommendation. A sale post is skipped for the breakout, then for the
+  // plain line.
+  const clean = (card: { title?: unknown; channel?: unknown } | null | undefined) => {
+    const t = typeof card?.title === "string" ? card.title.trim() : "";
+    const c = typeof card?.channel === "string" ? card.channel.trim() : "";
+    return t && !looksLikeSalePost(t, c) ? { title: t, channel: c } : null;
+  };
+  const card = clean(raw.top) ?? clean(raw.breakout);
+  const title = card?.title ?? "";
+  const channel = card?.channel ?? "";
   const tag = typeof raw.hashtagName === "string" ? raw.hashtagName.replace(/^#/, "").trim() : "";
   if (title) {
     rows.push(

@@ -348,7 +348,9 @@ export function buildCall(pick: Pick<BrandPick, "bet_what" | "term">, evidence: 
   const what = pick.bet_what
     .trim()
     .replace(/[.\s]+$/, "")
-    .replace(/^(run|test|launch|try|push|ship|put up|go with)\s+/i, "");
+    // "Pitch The Dry Shampoo at $28..." read "Run Pitch The Dry Shampoo" on
+    // the page: every verb the writer opens with is ours to drop.
+    .replace(/^(run|test|launch|try|push|ship|put up|go with|pitch|sell|promote|advertise|market|feature|offer|lead with|open on|open with)\s+/i, "");
   // Only an article or a determiner drops its capital; a platform or a
   // product name keeps it.
   const lower = /^(the|a|an|your|its|one|two|three|this|that)\b/i.test(what);

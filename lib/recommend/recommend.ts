@@ -54,11 +54,19 @@ export function dedupeByTerm<T extends { normalized_term: string; delta_pct: num
 ): T[] {
   const tokens = (t: string) => new Set(t.split("_").filter((x) => x.length > 2).map(stemToken));
   const contains = (a: Set<string>, b: Set<string>) => [...b].every((x) => a.has(x));
+  // Three of four words shared is the same idea in another order:
+  // "microfiber towel for drying hair" and "microfiber hair towel for long
+  // hair" were picks four and five, both for the same towel.
+  const overlaps = (a: Set<string>, b: Set<string>) => {
+    if (a.size < 3 || b.size < 3) return false;
+    const shared = [...a].filter((x) => b.has(x)).length;
+    return shared / Math.min(a.size, b.size) >= 0.75;
+  };
   const kept: { sig: T; toks: Set<string> }[] = [];
   for (const sig of [...signals].sort((a, b) => (b.delta_pct ?? 0) - (a.delta_pct ?? 0))) {
     const toks = tokens(sig.normalized_term);
     if (toks.size === 0) continue;
-    if (kept.some((k) => contains(k.toks, toks) || contains(toks, k.toks))) continue;
+    if (kept.some((k) => contains(k.toks, toks) || contains(toks, k.toks) || overlaps(k.toks, toks))) continue;
     kept.push({ sig, toks });
   }
   return kept.map((k) => k.sig);

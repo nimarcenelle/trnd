@@ -350,3 +350,16 @@ describe("one idea, however the search phrased it", () => {
     expect(dedupeByTerm(rows).map((r) => r.normalized_term)).toEqual(["air_dry", "frizz_halo"]);
   });
 });
+
+describe("the same idea in another order", () => {
+  it("keeps one of two phrases that share three of four words", async () => {
+    const { dedupeByTerm } = await import("../lib/recommend/recommend");
+    const rows = [
+      { normalized_term: "microfiber_towel_for_drying_hair", delta_pct: 20 },
+      { normalized_term: "microfiber_hair_towel_for_long_hair", delta_pct: 10 },
+      { normalized_term: "hair_shampoo_routine", delta_pct: 5 },
+      { normalized_term: "hair_shampoo_products", delta_pct: 4 },
+    ];
+    expect(dedupeByTerm(rows).map((r) => r.normalized_term)).toEqual(["microfiber_towel_for_drying_hair", "hair_shampoo_routine", "hair_shampoo_products"]);
+  });
+});

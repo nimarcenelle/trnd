@@ -84,6 +84,10 @@ export interface PickWriteContext {
   term: string;
   /** The pick's metric delta: the finding may not print it. */
   deltaPct: number | null;
+  /** The matched item's price. A script that quotes another price is
+   * selling another product: "This fifty nine dollar towel" opened a
+   * script for the $38 cream. Null when the item has no price. */
+  priceCents?: number | null;
   /** Hold the model to a real gap: the finding names the item the bet runs,
    * and never quotes the brand using the customer's own words back. Off for
    * the keyless template, which has no page copy to find a gap in. */
@@ -107,9 +111,60 @@ function cleanGuardrail(g: string | null | undefined): string | null {
   return t;
 }
 
+const ONES: Record<string, number> = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+
+/** "thirty eight", "thirty-eight", "one hundred forty nine" as a number. */
+function wordsToNumber(words: string): number | null {
+  let total = 0;
+  let current = 0;
+  let any = false;
+  for (const w of words.toLowerCase().split(/[\s-]+/).filter(Boolean)) {
+    if (w in ONES) {
+      current += ONES[w];
+      any = true;
+    } else if (w in TENS) {
+      current += TENS[w];
+      any = true;
+    } else if (w === "hundred") {
+      current = (current || 1) * 100;
+      any = true;
+    } else if (w === "and") continue;
+    else return null;
+  }
+  total += current;
+  return any ? total : null;
+}
+
+/** Every dollar amount a text names: "$38", "38 dollars", "thirty eight dollar". */
+export function pricesMentioned(text: string): number[] {
+  const out: number[] = [];
+  for (const m of text.matchAll(/\$\s?(\d{1,4}(?:\.\d{2})?)/g)) out.push(Number(m[1]));
+  for (const m of text.matchAll(/\b(\d{1,4}(?:\.\d{2})?)\s?(?:dollars?|bucks)\b/gi)) out.push(Number(m[1]));
+  const number = "(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|and|[\\s-])+";
+  for (const m of text.matchAll(new RegExp(`\\b(${number})\\s?dollars?\\b`, "gi"))) {
+    const n = wordsToNumber(m[1]);
+    if (n !== null && n > 0) out.push(n);
+  }
+  return out.filter((n) => Number.isFinite(n) && n > 0);
+}
+
 export function pickWriteSchemaFor(ctx: PickWriteContext) {
   const term = ctx.term.trim().toLowerCase();
   return PickWriteBase.superRefine((v, issue) => {
+    // A script sells the pick's item at the pick's price, or it sells
+    // something else.
+    if (typeof ctx.priceCents === "number" && ctx.priceCents > 0) {
+      const price = ctx.priceCents / 100;
+      v.scripts.forEach((s, i) => {
+        const d = (s as { direction?: { show?: string; say?: string; prove?: string } | null }).direction;
+        const text = [s.hook, s.cta, d?.show, d?.say, d?.prove].filter(Boolean).join(" ");
+        const other = pricesMentioned(text).find((n) => Math.abs(n - price) > 0.5);
+        if (other !== undefined) {
+          issue.addIssue({ code: "custom", path: ["scripts", i], message: `names a price of $${other} while the item is $${price}` });
+        }
+      });
+    }
     const finding = normalizeQuotes(v.finding).toLowerCase();
     // The finding's subject is the customer's words, so it has to quote them.
     if (!finding.includes(`"${term}`)) {

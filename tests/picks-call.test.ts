@@ -39,3 +39,11 @@ describe("the call", () => {
     expect(buildCall({ term: "x", bet_what: "Test the filter to renters on Reels" }, []).sentence).toBe("Run the filter to renters on Reels this week.");
   });
 });
+
+describe("one verb on the call", () => {
+  it("drops the writer's own opening verb, whatever it is", async () => {
+    const { buildCall } = await import("../lib/picks/detail");
+    const call = buildCall({ bet_what: "Pitch The Dry Shampoo at $28 on TikTok as the powder that extends wash day without the itch.", term: "dry shampoo itchy scalp" } as never, []);
+    expect(call.sentence).toBe("Run the Dry Shampoo at $28 on TikTok as the powder that extends wash day without the itch this week.");
+  });
+});

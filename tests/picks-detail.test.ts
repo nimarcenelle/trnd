@@ -348,3 +348,11 @@ describe("the head of the detail page", () => {
     expect(view.demandExplainer).not.toMatch(/[—–→]/);
   });
 });
+
+describe("the most-viewed video is never a sale post", () => {
+  it("knows an ad when it sees one", async () => {
+    const { looksLikeSalePost } = await import("../lib/picks/evidence");
+    expect(looksLikeSalePost("【FLASH SALE-50% off】 Say goodbye to greasy hair&itchy scalp!", "angelgode.com")).toBe(true);
+    expect(looksLikeSalePost("Do you suffer from frizzy hair?? These are the products for you!!", "livedinhairbyjen")).toBe(false);
+  });
+});

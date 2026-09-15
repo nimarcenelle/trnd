@@ -75,3 +75,36 @@ describe("a finding the model writes", () => {
     expect(messages(r)).toEqual([]);
   });
 });
+
+describe("a script sells the pick's price", () => {
+  it("reads every way a price is written", async () => {
+    const { pricesMentioned } = await import("../lib/picks/schema");
+    expect(pricesMentioned("This fifty nine dollar towel is all that touches my wet hair")).toEqual([59]);
+    expect(pricesMentioned("Get The Dry Shampoo for $28. Twenty-eight dollars well spent, or 30 bucks with shipping")).toEqual([28, 30, 28]);
+    expect(pricesMentioned("One hundred forty nine dollars for a showerhead")).toEqual([149]);
+    expect(pricesMentioned("No prices here")).toEqual([]);
+  });
+
+  it("rejects a script that quotes another item's price", async () => {
+    const { validatePickWrite } = await import("../lib/picks/schema");
+    const script = (hook: string, i: number) => ({
+      variant_label: `Variant ${i}`,
+      thesis: `Thesis number ${i}, long enough to pass the base schema on its own`,
+      hook,
+      beats: [],
+      cta: "Shop the cream for $38",
+      duration_seconds: 20,
+      direction: { show: "A woman working the cream through damp hair at her bathroom sink", say: "Talk about skipping the forty minute heat routine on wash day", prove: "Show the hair drying soft" },
+    });
+    const write = {
+      finding: 'Your customers are searching "frizz halo." Your product page says "The Smoothing Air Dry Cream."',
+      bet_what: "Sell The Smoothing Air Dry Cream on TikTok for $38",
+      guardrail: null,
+      scripts: [script("How to fix a frizz halo", 1), script("This fifty nine dollar towel is all that touches my wet hair", 2), script("Throwing damp hair in a claw clip", 3)],
+    };
+    const wrong = validatePickWrite(write, { term: "frizz halo", deltaPct: null, priceCents: 3800 });
+    expect(wrong.ok).toBe(false);
+    if (!wrong.ok) expect(wrong.error).toContain("scripts.1: names a price of $59 while the item is $38");
+    expect(validatePickWrite(write, { term: "frizz halo", deltaPct: null, priceCents: null }).ok).toBe(true);
+  });
+});

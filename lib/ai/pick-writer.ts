@@ -72,12 +72,34 @@ export async function writePickWithGemini(
   const { creativeCall, resolveModels } = await import("./gemini");
   const m = models ?? (await resolveModels());
   const schema = pickWriteSchemaFor({ term: input.term, deltaPct: input.deltaPct, gap: true });
+  const validate = (d: unknown) => schema.parse(d);
   // Pro first: this is the creative call the whole page rests on, with one
   // lower-temperature retry. Then Flash, under the same validation. A Pro
   // outage (or a retired Pro id) used to turn every pick of the week into a
   // draft, which is an empty list; a Flash pick that passes the same checks
   // is better than no week at all.
-  return creativeCall(m, buildPickPrompt(input), PICK_RESPONSE_SCHEMA, (d) => schema.parse(d));
+  try {
+    return await creativeCall(m, buildPickPrompt(input), PICK_RESPONSE_SCHEMA, validate);
+  } catch (err) {
+    // Four blind attempts kept writing the same rejected line ("Fifty nine
+    // dollars for a hair towel sounds insane", four times, for a rule that
+    // says the price never opens an ad). Told what was wrong, the model
+    // fixes that line. One more round, with the complaints in the prompt.
+    const feedback = validationFeedback(err);
+    if (!feedback) throw err;
+    console.warn(`[picks] "${input.term}" rejected (${feedback}); asking for a fix`);
+    return await creativeCall(m, buildPickPrompt({ ...input, feedback }), PICK_RESPONSE_SCHEMA, validate);
+  }
+}
+
+/** The validator's complaints, one line each, or null when the failure was not validation. */
+export function validationFeedback(err: unknown): string | null {
+  const issues = (err as { issues?: { path?: (string | number)[]; message?: string }[] } | null)?.issues;
+  if (!Array.isArray(issues) || issues.length === 0) return null;
+  const lines = issues
+    .map((i) => `${(i.path ?? []).join(".") || "(root)"}: ${i.message ?? "invalid"}`)
+    .filter((l, idx, all) => all.indexOf(l) === idx);
+  return lines.join("; ");
 }
 
 /* ------------------------------ keyless path ------------------------------ */

@@ -159,3 +159,11 @@ describe("the price of an item the draft itself sells", () => {
     expect(validatePickWrite(write, { term: "microfiber towel for drying hair", deltaPct: null, priceCents: 9200 }).ok).toBe(false);
   });
 });
+
+describe("the validator's complaints, as feedback", () => {
+  it("names each rejected line once, and nothing for a non-validation failure", async () => {
+    const { validationFeedback } = await import("../lib/ai/pick-writer");
+    expect(validationFeedback({ issues: [{ path: ["scripts", 0], message: "leads with the price" }, { path: ["scripts", 0], message: "leads with the price" }, { path: ["finding"], message: "must quote the term" }] })).toBe("scripts.0: leads with the price; finding: must quote the term");
+    expect(validationFeedback(new Error("model down"))).toBeNull();
+  });
+});

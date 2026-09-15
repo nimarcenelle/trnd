@@ -94,12 +94,21 @@ export function metricLevel(signal: Pick<Signal, "source" | "metric_type" | "val
 
 /** The last 30 daily points, oldest first. Nothing is padded or smoothed: a
  * short series draws a short line. */
-export function sparklineOf(series: { day: string; value: number }[] | undefined): PickMetric["sparkline"] {
-  return [...(series ?? [])]
-    .filter((p) => finite(p.value))
-    .sort((a, b) => a.day.localeCompare(b.day))
-    .slice(-SPARKLINE_DAYS)
-    .map((p) => ({ d: p.day, v: p.value }));
+/**
+ * The last 30 finished days, oldest first. Today is never drawn: Google
+ * Trends reports the current day as near zero until it closes, so a line
+ * that ended on it crashed to the floor under a chip that said "up 9%"
+ * (the week's mean, which was true). A trailing zero after live days is
+ * the same artifact a day late and is dropped too. Nothing is padded or
+ * smoothed: a short series draws a short line.
+ */
+export function sparklineOf(series: { day: string; value: number }[] | undefined, now = new Date()): PickMetric["sparkline"] {
+  const today = now.toISOString().slice(0, 10);
+  const points = [...(series ?? [])]
+    .filter((p) => finite(p.value) && p.day < today)
+    .sort((a, b) => a.day.localeCompare(b.day));
+  while (points.length >= 4 && points[points.length - 1].value === 0 && points.slice(-4, -1).every((p) => p.value > 0)) points.pop();
+  return points.slice(-SPARKLINE_DAYS).map((p) => ({ d: p.day, v: p.value }));
 }
 
 export function pickMetric(input: MetricInput): PickMetric | null {

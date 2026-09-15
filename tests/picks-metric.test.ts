@@ -202,3 +202,19 @@ describe("evidence", () => {
     expect(rows[1].source_url).toContain("facebook.com/ads/library");
   });
 });
+
+describe("the line never draws an unfinished day", () => {
+  it("drops today and a trailing partial-day zero, so the chip and the line agree", () => {
+    const now = new Date("2026-09-15T04:00:00Z");
+    const series = Array.from({ length: 12 }, (_, i) => ({ day: new Date(Date.UTC(2026, 8, 4 + i)).toISOString().slice(0, 10), value: 30 + i }));
+    // Today (Sep 15) is 0 in Trends until it closes.
+    const line = sparklineOf([...series, { day: "2026-09-15", value: 0 }], now);
+    expect(line.at(-1)).toEqual({ d: "2026-09-14", v: 40 });
+    // Yesterday captured as a partial zero is the same artifact.
+    const partial = sparklineOf([...series.slice(0, -1), { day: "2026-09-14", value: 0 }], now);
+    expect(partial.at(-1)).toEqual({ d: "2026-09-13", v: 39 });
+    // A real zero inside a quiet stretch stays.
+    const quiet = sparklineOf([{ day: "2026-09-10", value: 0 }, { day: "2026-09-11", value: 0 }, { day: "2026-09-12", value: 0 }, { day: "2026-09-13", value: 0 }], now);
+    expect(quiet).toHaveLength(4);
+  });
+});

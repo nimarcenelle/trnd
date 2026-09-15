@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { buildConceptView, conceptExportFilename } from "@/lib/picks/concept-view";
 import { exportFilename, isPickId, viewableDetail } from "@/lib/picks/detail";
 import { pickToText } from "@/lib/picks/format";
 
@@ -17,11 +18,16 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const detail = viewableDetail(await repo.getPickDetail(id), business.id);
   if (!detail) return new NextResponse("Not found", { status: 404 });
 
+  // A creative test exports as the brief a creator gets; an older keyword
+  // pick exports as it always did.
+  const concept = buildConceptView(detail);
   const scripts = [...detail.scripts].sort((a, b) => a.position - b.position);
-  return new NextResponse(pickToText({ pick: detail.pick, scripts }), {
+  const body = concept ? concept.copyAll : pickToText({ pick: detail.pick, scripts });
+  const filename = concept ? conceptExportFilename(concept.title) : exportFilename(detail.pick.term);
+  return new NextResponse(body, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${exportFilename(detail.pick.term)}"`,
+      "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "private, no-store",
     },
   });

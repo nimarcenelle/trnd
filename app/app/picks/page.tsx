@@ -10,9 +10,10 @@ import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, genera
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { isEmailConfigured, isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
+import { conceptRow, STATUS_LABEL } from "@/lib/picks/concept-view";
 import { kickWeekJob } from "@/lib/picks/kick";
 import { waitHeadline, weekProgress } from "@/lib/picks/progress";
-import { dueForKick, weekRangeLabel } from "@/lib/picks/list";
+import { dueForKick, truncateFinding, weekRangeLabel } from "@/lib/picks/list";
 import { weekOf } from "@/lib/recommend/week";
 import { isOnlineBusiness } from "@/lib/signals/geo";
 import { sentenceCase } from "@/lib/text";
@@ -74,9 +75,80 @@ export default async function PicksPage() {
     });
   }
 
-  // The week opens on its first pick; the pick page carries the pager for
-  // the rest. There is no list to read between the wait and the work.
-  if (rows.length > 0) redirect(`/app/picks/${rows[0].pick.id}`);
+  // The week is a short list: what to make next, and why, one line each.
+  // Opening a row is the whole brief. Fewer than three means the week did
+  // not have three ideas worth a test, and says so.
+  if (rows.length > 0) {
+    const concepts = rows.map(({ pick, run }) => ({ pick, run, row: conceptRow(pick, run) }));
+    const chosen = concepts.filter((c) => c.row?.status === "chosen" || c.row?.status === "launched").length;
+    return (
+      <div className="page picks">
+        <div className="page-head">
+          <div>
+            <span className="eyebrow m-0">This week · {weekRange}</span>
+            <h1>What to make next</h1>
+            <p className="context">
+              {rows.length === 1 ? "One creative test" : `${rows.length} creative tests`} worth running this week, in priority
+              order. Each is a hypothesis with the evidence behind it and a brief you can hand to a creator.
+              {chosen > 0 ? ` ${chosen} chosen so far.` : ""}
+            </p>
+          </div>
+          <Link href="/app/campaigns" className="btn btn-ghost btn-sm">
+            Tests in progress
+          </Link>
+        </div>
+        <ol className="cbl" aria-label="This week's creative tests">
+          {concepts.map(({ pick, run, row }) => {
+            if (!row) {
+              // A pick written before briefs existed: the term and its finding.
+              return (
+                <li key={pick.id}>
+                  <Link href={`/app/picks/${pick.id}`} className="cbl__row">
+                    <span className="cbl__rank">{pick.rank}</span>
+                    <span className="cbl__body">
+                      <span className="cbl__title">{sentenceCase(pick.term)}</span>
+                      <span className="cbl__hyp">{truncateFinding(pick.finding)}</span>
+                    </span>
+                    <span className="cbl__meta">{run ? <span className="badge"><i />{run.status}</span> : null}</span>
+                  </Link>
+                </li>
+              );
+            }
+            const status = STATUS_LABEL[row.status];
+            return (
+              <li key={pick.id}>
+                <Link href={row.href} className="cbl__row">
+                  <span className="cbl__rank">{row.rank}</span>
+                  <span className="cbl__body">
+                    <span className="cbl__title">{row.title}</span>
+                    <span className="cbl__hyp">{truncateFinding(row.hypothesis, 180)}</span>
+                    <span className="cbl__tags">
+                      <span className="cbl__tag">{row.format}</span>
+                      <span className="cbl__tag">{row.basis.label}</span>
+                    </span>
+                  </span>
+                  <span className="cbl__meta">
+                    {row.status !== "proposed" && (
+                      <span className={`badge${status.tone ? ` badge--${status.tone}` : ""}`} title={status.meaning}>
+                        <i />
+                        {status.label}
+                      </span>
+                    )}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
+        {rows.length < 3 && (
+          <p className="cbl__fewer">
+            {rows.length === 1 ? "Only one concept" : "Only two concepts"} cleared the bar this week. TRND shows fewer rather
+            than fill the list with repeats or weak ideas.
+          </p>
+        )}
+      </div>
+    );
+  }
 
   const where = isOnlineBusiness(business) ? "across the US" : `around ${business.city}`;
 

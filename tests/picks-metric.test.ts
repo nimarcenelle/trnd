@@ -189,7 +189,7 @@ describe("evidence", () => {
     expect(culture[0].source_url).toBe("https://www.tiktok.com/@a/video/1");
     expect(culture[1].claim).toBe("The TikTok videos winning on this run about 22 seconds.");
     expect(rows.find((r) => r.signal === "competitive")?.claim).toBe(
-      'Jolie has had a Meta ad on this running 5 weeks: "Filtered shower, softer hair".',
+      'Jolie had a Meta ad on this that had been running 5 weeks when read: "Filtered shower, softer hair".',
     );
     for (const r of rows) expect(r.claim).not.toMatch(/(?<!\d)49\s?%/);
     // A different figure is a different fact and stays.
@@ -198,7 +198,7 @@ describe("evidence", () => {
 
   it("uses the keyword ad read only when no named rival said anything", () => {
     const rows = buildEvidence(facts({ adLibrary: { source: "meta_ads", term: "hard water", advertisers: [], count: 0 } }));
-    expect(rows[1]).toMatchObject({ signal: "competitive", claim: 'No active Meta ads mention "hard water" right now.' });
+    expect(rows[1]).toMatchObject({ signal: "competitive", claim: 'No active Meta ads mentioning "hard water" were found when read.' });
     expect(rows[1].source_url).toContain("facebook.com/ads/library");
   });
 });

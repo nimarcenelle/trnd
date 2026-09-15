@@ -6,6 +6,11 @@
  */
 
 /** Sentence case: capitalize the first letter character, leave the rest. */
+/** "The Calming Scalp Serum" after "your" is "your Calming Scalp Serum". */
+export function withoutArticle(name: string): string {
+  return name.trim().replace(/^(the|a|an)\s+/i, "");
+}
+
 export function sentenceCase(input: string): string {
   const i = input.search(/[a-zA-Z]/);
   if (i === -1) return input;

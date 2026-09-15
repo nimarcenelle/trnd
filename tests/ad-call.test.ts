@@ -48,7 +48,7 @@ describe("the ad call", () => {
     expect(call.verdict).toBe("run");
     expect(call.headline).toBe("Run this ad.");
     expect(call.promote).toBe(
-      "Promote your Gold Rush Latte ($6.75) to remote workers near Glenwood, 24-38, on Instagram Reels.",
+      "Promote your Gold Rush Latte ($6.75) on Instagram Reels to remote workers near Glenwood, 24-38.",
     );
     expect(call.angle).toBe("A table, an outlet, and a $6.75 Gold Rush latte until 6");
   });
@@ -84,13 +84,13 @@ describe("the ad call", () => {
   });
 
   it("rides the platform that measured the term", () => {
-    expect(buildAdCall(base({ culturalPlatform: "tiktok" })).promote).toMatch(/on TikTok and Instagram Reels\.$/);
+    expect(buildAdCall(base({ culturalPlatform: "tiktok" })).promote).toMatch(/ on TikTok and Instagram Reels to /);
   });
 
   it("recommends where the brand already buys ads", () => {
-    expect(buildAdCall(base({ culturalPlatform: "tiktok", adPlatforms: ["meta"] })).promote).toMatch(/on Instagram Reels and Facebook\.$/);
-    expect(buildAdCall(base({ culturalPlatform: "tiktok", adPlatforms: ["meta", "tiktok"] })).promote).toMatch(/on TikTok and Instagram Reels\.$/);
-    expect(buildAdCall(base({ culturalPlatform: null, adPlatforms: ["tiktok"] })).promote).toMatch(/on TikTok\.$/);
+    expect(buildAdCall(base({ culturalPlatform: "tiktok", adPlatforms: ["meta"] })).promote).toMatch(/ on Instagram Reels and Facebook to /);
+    expect(buildAdCall(base({ culturalPlatform: "tiktok", adPlatforms: ["meta", "tiktok"] })).promote).toMatch(/ on TikTok and Instagram Reels to /);
+    expect(buildAdCall(base({ culturalPlatform: null, adPlatforms: ["tiktok"] })).promote).toMatch(/ on TikTok to /);
   });
 
   it("promotes what the campaign actually sells when it leads with a truer item than the match", () => {
@@ -111,7 +111,7 @@ describe("the ad call", () => {
       }),
     );
     expect(call.promote).toBe(
-      "Promote the $15 Sprotini and $6 fries at Riverside until 10 to someone who leaves the office at five and isn't ready to go home, 25-45, on Instagram Reels.",
+      "Promote the $15 Sprotini and $6 fries at Riverside until 10 on Instagram Reels to someone who leaves the office at five and isn't ready to go home, 25-45.",
     );
     expect(call.why).toContain("It's already on your menu");
     expect(call.why.join(" ")).not.toMatch(/\$3\.50/);
@@ -128,7 +128,7 @@ describe("the ad call", () => {
         },
       }),
     );
-    expect(call.promote).toMatch(/ to a burned-out professional who wants a quiet table on /);
+    expect(call.promote).toMatch(/ to a burned-out professional who wants a quiet table\.$/);
   });
 
   it("never promotes to a bare persona label", () => {
@@ -139,9 +139,9 @@ describe("the ad call", () => {
       audience: { who: "The 5 PM Transitioner", age_range: "25-45", angle_type: "offer" },
     };
     // Falls back to the brief's target customer.
-    expect(buildAdCall(base({ campaign })).promote).toMatch(/ to remote workers near Glenwood who need a table and outlets for two hours, 25-45, on /);
+    expect(buildAdCall(base({ campaign })).promote).toMatch(/ to remote workers near Glenwood who need a table and outlets for two hours, 25-45\.$/);
     // With no target customer either, only the ages are said.
-    expect(buildAdCall(base({ campaign, targetCustomer: null })).promote).toMatch(/ to people 25-45 on /);
+    expect(buildAdCall(base({ campaign, targetCustomer: null })).promote).toMatch(/ to people 25-45\.$/);
   });
 
   it("leaves out a clause with nothing real behind it", () => {

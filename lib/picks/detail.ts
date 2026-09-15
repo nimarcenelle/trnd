@@ -220,7 +220,8 @@ export function demandDeltas(
       out.push({ pct, direction: pct > 2 ? "up" : pct < -2 ? "down" : "flat", window });
     }
   }
-  return out;
+  // A chip that reads 0% says nothing; the line under it already shows flat.
+  return out.filter((d) => d.pct !== 0);
 }
 
 /** "40,500" — the metric's raw value, or null when there isn't one. */

@@ -1,3 +1,4 @@
+import { withoutArticle } from "@/lib/text";
 import type { TargetCustomer } from "@/lib/db/types";
 import type { RivalTermRead, SignalReasons, SignalScores } from "@/lib/scoring";
 
@@ -145,14 +146,28 @@ function whoFor(input: AdCallInput): string | null {
   const raw = describe(input.campaign?.audience.who ?? "") ?? describe(input.targetCustomer?.who ?? "") ?? "";
   // Cut at the first clause that describes their situation rather than who
   // they are: ", and…", ", because…", ", comparing you against…".
-  const first = raw.split(/(?<=[.;])\s|,\s(?:who|and|because|triggered|[a-z]+ing)\b/)[0].trim().replace(/[.;,]+$/, "");
+  // ", and…", ", because…", " but is exhausted by…": the situation, not the person.
+  const first = raw
+    .split(/(?<=[.;])\s|,\s(?:who|and|because|triggered|[a-z]+ing)\b|\s(?:but|and)\s(?:is|are|who|was|were)\b/)[0]
+    .trim()
+    .replace(/[.;,]+$/, "");
   if (!first) return null;
-  const short = first.length > 90 ? `${first.slice(0, first.lastIndexOf(" ", 90)).trim()}` : first;
+  const short = (first.length > 90 ? first.slice(0, first.lastIndexOf(" ", 90)) : first)
+    .trim()
+    // Never end on a word that needs the next one: "exhausted by", "looking for".
+    .replace(/\s+(?:by|to|with|for|and|but|or|of|in|on|at|from|who|that|which|is|are|the|a|an)$/i, "");
   return short.charAt(0).toLowerCase() + short.slice(1);
 }
 
-function pct(n: number): string {
-  return `${Math.abs(Math.round(n))}%`;
+/** "up 40%"; a delta at the 100 clamp is "doubled or more", never "up 100%". */
+function move(n: number): string {
+  if (n >= 100) return "doubled or more";
+  return `${n >= 0 ? "up" : "down"} ${Math.abs(Math.round(n))}%`;
+}
+
+function where(geoLabel: string): string {
+  if (!geoLabel) return "";
+  return geoLabel === "United States" ? " across the US" : ` in ${geoLabel}`;
 }
 
 export function buildAdCall(input: AdCallInput): AdCall {
@@ -172,16 +187,19 @@ export function buildAdCall(input: AdCallInput): AdCall {
     !leadsWithService && offer
       ? `${/^[$\d]/.test(offer) ? "the " : ""}${offer}`
       : input.service
-        ? `your ${input.service.name}${price ? ` (${price})` : ""}`
+        ? `your ${withoutArticle(input.service.name)}${price ? ` (${price})` : ""}`
         : offer
           ? `${/^[$\d]/.test(offer) ? "the " : ""}${offer}`
           : `"${input.term}"`;
   const who = whoFor(input);
   const ageRange = input.campaign?.audience.age_range?.trim() || "";
-  const ages = ageRange ? `, ${ageRange},` : "";
+  // Sentence-final now that the platform comes first: no trailing comma.
+  const ages = ageRange ? `, ${ageRange}` : "";
   const platform = platformFor(input);
   const audience = who ? ` to ${who}${ages}` : ageRange ? ` to people ${ageRange}` : "";
-  const promote = `Promote ${thing}${audience} on ${platform}.`;
+  // The platform before the audience: a long "who" clause used to strand
+  // "on TikTok" at the end of a sentence about someone's exhaustion.
+  const promote = `Promote ${thing} on ${platform}${audience}.`;
 
   const angleType = input.campaign?.audience.angle_type ?? "offer";
   const seconds =
@@ -194,12 +212,12 @@ export function buildAdCall(input: AdCallInput): AdCall {
   // Customer: what they're searching, in their own words.
   if (typeof input.weekPct === "number" && Math.abs(input.weekPct) >= 5) {
     why.push(
-      `Searches ${input.weekPct >= 0 ? "up" : "down"} ${pct(input.weekPct)} this week${input.geoLabel ? ` in ${input.geoLabel}` : ""}${
+      `Searches ${move(input.weekPct)} this week${where(input.geoLabel)}${
         input.audiencePhrase ? `, in your customer's own words ("${input.audiencePhrase}")` : ""
       }`,
     );
   } else if (typeof input.monthPct === "number" && Math.abs(input.monthPct) >= 10) {
-    why.push(`Searches ${input.monthPct >= 0 ? "up" : "down"} ${pct(input.monthPct)} over 30 days${input.geoLabel ? ` in ${input.geoLabel}` : ""}`);
+    why.push(`Searches ${move(input.monthPct)} over 30 days${where(input.geoLabel)}`);
   } else if (input.audiencePhrase) {
     why.push(`Steady demand, in your customer's own words ("${input.audiencePhrase}")`);
   }

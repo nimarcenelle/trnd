@@ -509,7 +509,7 @@ export function culturalSignal(read: CulturalRead | null | undefined): { score: 
   const score = round3(clamp01(0.6 * moving + 0.4 * engaged + acted));
   const reason =
     read.deltaPct === null
-      ? `${platform} is posting about it`
+      ? `${platform} creators are posting about it this week`
       : `${platform} views on it ${read.deltaPct >= 0 ? "up" : "down"} ${Math.abs(Math.round(read.deltaPct))}%${
           read.engagementPct !== null && read.engagementPct >= 4 ? ", and people are reacting" : ""
         }`;

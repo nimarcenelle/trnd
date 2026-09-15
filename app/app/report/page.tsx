@@ -24,7 +24,7 @@ import {
 import { weekOf } from "@/lib/recommend/week";
 import { isOnlineBusiness } from "@/lib/signals/geo";
 import { proofName } from "@/lib/signals/source-url";
-import { sentenceCase } from "@/lib/text";
+import { sentenceCase, withoutArticle } from "@/lib/text";
 
 export const metadata = { title: "Weekly report — TRND" };
 
@@ -233,13 +233,16 @@ export default async function ReportPage() {
         </section>
       )}
 
-      <p className="rpt-foot">Generated {generated} · every number links to its source</p>
+      <p className="rpt-foot">Generated {generated} · every number names its source</p>
     </div>
   );
 }
 
 /** "↑22% vs last week" in mono; the arrow carries the direction's color. */
 function Delta({ delta }: { delta: number }) {
+  // A flat read is not a number worth a chip: "→ 0% vs last week" beside a
+  // pick says the ranking has nothing to say about it.
+  if (Math.round(delta) === 0) return null;
   const dir = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
   const arrow = dir === "up" ? "↑" : dir === "down" ? "↓" : "→";
   return (
@@ -257,7 +260,7 @@ function Delta({ delta }: { delta: number }) {
  * it when it was not measured, and the pick page says what was factored in. */
 function RankedPick({ row: r }: { row: RankedRow }) {
   const line = truncateFinding(
-    `${r.matchedServiceName ? `Matches your ${r.matchedServiceName}. ` : ""}${r.snapshotReason ?? ""}`,
+    `${r.matchedServiceName ? `Matches your ${withoutArticle(r.matchedServiceName)}. ` : ""}${r.snapshotReason ?? ""}`,
   );
   return (
     <div className="rpt-row">

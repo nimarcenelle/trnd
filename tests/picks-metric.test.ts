@@ -161,7 +161,9 @@ describe("evidence", () => {
       claim: 'Searches for "hard water" are rising across the US.',
       source_label: "Google Trends",
     });
-    expect(rows[0].source_url).toContain("trends.google.com");
+    // A search claim names its source and links nowhere: the Trends page
+    // never shows the window or scale that was measured.
+    expect(rows[0].source_url).toBeNull();
   });
 
   it("writes nothing for an unmeasured watch term", () => {

@@ -118,32 +118,16 @@ export function sourceUrl(ref: SourceRef): string | null {
   // Trends accepts "US" or "US-NC"; anything else falls back to US-wide.
   const geo = ref.geo && /^[A-Z]{2}(-[A-Z0-9]{1,3})?$/.test(ref.geo) ? ref.geo : "US";
   switch (ref.source) {
-    case "google_trends": {
-      // A widened read was measured on the core term, nationally — link to
-      // that page, not to a local one Google will say has no data for.
-      const raw = ref.raw as { adjusted?: boolean; measuredTerm?: string; measuredGeo?: string } | null | undefined;
-      const mTerm = raw?.adjusted && raw.measuredTerm ? encodeURIComponent(raw.measuredTerm) : q;
-      const mGeo = raw?.adjusted && raw.measuredGeo ? raw.measuredGeo : geo;
-      return `https://trends.google.com/trends/explore?date=today%201-m&geo=${mGeo}&q=${mTerm}`;
-    }
-    case "dataforseo": {
-      // Search volume is Google Ads keyword data (via DataForSEO), which has
-      // no page anyone can open. A results page proves nothing — it's the
-      // same ten blue links whether demand doubled or died. Trends plots the
-      // same demand over a year, free, so the climb we're claiming is on
-      // screen within a second of the click.
-      //
-      // Nationally, though: the volume was measured for the whole country,
-      // and a state-level Trends page for a long-tail term answers "not
-      // enough data" — a link that argues against the number it's proving.
-      const country = geo.slice(0, 2);
-      return `https://trends.google.com/trends/explore?date=today%2012-m&geo=${country}&q=${q}`;
-    }
+    // Search reads do not link. Search volume is Google Ads keyword data
+    // with no page anyone can open; the Trends page a claim used to link to
+    // shows a different window and scale from the number beside it, and an
+    // owner who clicked through and saw "not enough data" stopped trusting
+    // every other number on the page. The source is named; nothing is
+    // linked that does not show exactly what was measured.
+    case "google_trends":
+    case "dataforseo":
     case "google_suggest":
-      // Autocomplete means people are typing it. The proof of that is the
-      // curve, not a search page — and, like the volume read, autocomplete is
-      // pulled nationally (gl=us), so the link shows the country it measured.
-      return `https://trends.google.com/trends/explore?date=today%203-m&geo=${geo.slice(0, 2)}&q=${q}`;
+      return null;
     case "reddit":
       return `https://www.reddit.com/search/?q=${q}&sort=new`;
     case "youtube": {

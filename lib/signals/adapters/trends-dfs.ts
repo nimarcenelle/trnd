@@ -121,32 +121,46 @@ export async function fetchTrendsExplore(
   const doFetch = opts.fetch ?? fetch;
   const auth = Buffer.from(`${env.dataForSeoLogin}:${env.dataForSeoPassword}`).toString("base64");
   const unique = [...new Set(terms.map((t) => t.trim()).filter(Boolean))];
-  for (let i = 0; i < unique.length; i += TERMS_PER_TASK) {
-    const batch = unique.slice(i, i + TERMS_PER_TASK);
-    try {
-      const res = await doFetch(ENDPOINT, {
-        method: "POST",
-        headers: { authorization: `Basic ${auth}`, "content-type": "application/json" },
-        body: JSON.stringify([
-          {
-            keywords: batch,
-            location_code: 2840,
-            language_code: "en",
-            time_range: TIME_RANGE,
-            item_types: ["google_trends_graph", "google_trends_queries_list"],
-          },
-        ]),
-        signal: AbortSignal.timeout(30_000),
-      });
-      if (!res.ok) throw new Error(`dataforseo trends ${res.status}`);
-      const data = (await res.json()) as { tasks?: { result?: unknown; status_message?: string }[] };
-      const task = data.tasks?.[0];
-      const mapped = mapTrendsExplore(task?.result, geo);
-      for (const [k, v] of mapped.series) read.series.set(k, v);
-      for (const [k, v] of mapped.rising) read.rising.set(k, v);
-    } catch (err) {
-      console.warn(`[signals:trends_dfs] ${batch.join(", ")} failed:`, (err as Error).message);
-    }
+  const batches: string[][] = [];
+  for (let i = 0; i < unique.length; i += TERMS_PER_TASK) batches.push(unique.slice(i, i + TERMS_PER_TASK));
+  // Every task at once. Each is a live Google Trends read on DataForSEO's
+  // side (six to twenty seconds); five of them in a row outlived a signup's
+  // scan budget and the whole adapter was cut off with nothing written.
+  const results = await Promise.all(
+    batches.map(async (batch) => {
+      try {
+        const res = await doFetch(ENDPOINT, {
+          method: "POST",
+          headers: { authorization: `Basic ${auth}`, "content-type": "application/json" },
+          body: JSON.stringify([
+            {
+              keywords: batch,
+              location_code: 2840,
+              language_code: "en",
+              time_range: TIME_RANGE,
+              item_types: ["google_trends_graph", "google_trends_queries_list"],
+            },
+          ]),
+          signal: AbortSignal.timeout(40_000),
+        });
+        if (!res.ok) throw new Error(`dataforseo trends ${res.status}`);
+        const data = (await res.json()) as { tasks?: { result?: unknown; status_code?: number; status_message?: string }[] };
+        const task = data.tasks?.[0];
+        // A task-level refusal arrives inside a 200: say what it said.
+        if (task && task.status_code !== undefined && task.status_code !== 20000) {
+          throw new Error(`task ${task.status_code}: ${task.status_message ?? "unknown"}`);
+        }
+        return mapTrendsExplore(task?.result, geo);
+      } catch (err) {
+        console.warn(`[signals:trends_dfs] ${batch.join(", ")} failed:`, (err as Error).message);
+        return null;
+      }
+    }),
+  );
+  for (const mapped of results) {
+    if (!mapped) continue;
+    for (const [k, v] of mapped.series) read.series.set(k, v);
+    for (const [k, v] of mapped.rising) read.rising.set(k, v);
   }
   return read;
 }

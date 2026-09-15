@@ -12,6 +12,18 @@ import type { AdapterFetchInput, RawSeriesPoint, RawSignal, SignalAdapter } from
 
 const ENDPOINT = "https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live";
 
+/**
+ * The first day of the month sixteen months back. The API's default is
+ * twelve months, which is one quarter short of a year-on-year comparison
+ * (the last three months against the same three a year earlier), so the
+ * Culture signal's yearly growth never had the history to fire. Sixteen
+ * costs nothing extra.
+ */
+export function historyFrom(now = new Date()): string {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 16, 1));
+  return d.toISOString().slice(0, 10);
+}
+
 export interface DfsResultRow {
   keyword: string;
   search_volume: number | null;
@@ -97,7 +109,7 @@ export function createDataForSeoAdapter(): SignalAdapter {
         method: "POST",
         headers: { authorization: `Basic ${auth}`, "content-type": "application/json" },
         body: JSON.stringify([
-          { keywords: targets.map((t) => t.term), location_code: 2840 /* United States */, language_code: "en" },
+          { keywords: targets.map((t) => t.term), location_code: 2840 /* United States */, language_code: "en", date_from: historyFrom() },
         ]),
       });
       if (!res.ok) throw new Error(`dataforseo ${res.status}`);

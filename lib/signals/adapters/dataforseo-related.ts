@@ -2,7 +2,7 @@ import { env, isDataForSeoConfigured } from "@/lib/env";
 
 import { normalizeTerm } from "../normalize";
 import type { AdapterFetchInput, RawSeriesPoint, RawSignal, SignalAdapter } from "../types";
-import { type DfsResultRow, mapDfsRow } from "./dataforseo";
+import { type DfsResultRow, historyFrom, mapDfsRow } from "./dataforseo";
 
 /**
  * The category around a brand's own terms: what else its customer searches
@@ -29,17 +29,37 @@ export const MAX_RELATED = 40;
 export const MIN_RELATED_VOLUME = 500;
 const MAX_TERM_CHARS = 60;
 
+/** Words too common to tie a phrase to a category. */
+const STOP = new Set(["the", "and", "for", "with", "how", "what", "best", "near", "me", "you", "your", "top", "new", "vs", "of", "to", "in", "on", "a", "an", "is", "it", "my", "can", "do", "does"]);
+
+/** The words a phrase must share one of to count as the brand's category. */
+export function categoryVocabulary(seeds: Iterable<string>, extra: Iterable<string> = []): Set<string> {
+  const out = new Set<string>();
+  for (const text of [...seeds, ...extra]) {
+    for (const w of text.toLowerCase().split(/[^a-z0-9]+/)) if (w.length > 2 && !STOP.has(w)) out.add(w);
+  }
+  return out;
+}
+
+const sharesWord = (keyword: string, vocabulary: Set<string>): boolean =>
+  vocabulary.size === 0 || keyword.toLowerCase().split(/[^a-z0-9]+/).some((w) => vocabulary.has(w) || (w.endsWith("s") && vocabulary.has(w.slice(0, -1))) || vocabulary.has(`${w}s`));
+
 /** Pure: the API's rows into the category's related phrases, most searched
- * first, the brand's own terms left out. */
+ * first, the brand's own terms left out. A phrase that shares no word with
+ * the seeds (or the vocabulary given) is not the category: Google Ads'
+ * related list handed a haircare brand "weighed down", 1,000 searches a
+ * month of nobody talking about hair, and it became a pick. */
 export function relatedSignals(
   rows: DfsResultRow[],
-  opts: { category: string; geo: string; windowDays: number; exclude: Iterable<string> },
+  opts: { category: string; geo: string; windowDays: number; exclude: Iterable<string>; vocabulary?: Set<string> },
 ): { signals: RawSignal[]; series: RawSeriesPoint[] } {
   const exclude = new Set([...opts.exclude].map(normalizeTerm));
+  const vocabulary = opts.vocabulary ?? categoryVocabulary(opts.exclude, [opts.category]);
   const seen = new Set<string>();
   const kept = rows
     .filter((r) => typeof r.keyword === "string" && r.keyword.trim().length > 2 && r.keyword.length <= MAX_TERM_CHARS)
     .filter((r) => typeof r.search_volume === "number" && r.search_volume >= MIN_RELATED_VOLUME)
+    .filter((r) => sharesWord(r.keyword, vocabulary))
     .filter((r) => {
       const key = normalizeTerm(r.keyword);
       if (exclude.has(key) || seen.has(key)) return false;
@@ -86,7 +106,7 @@ export function createDataForSeoRelatedAdapter(opts: { fetch?: typeof fetch } = 
             method: "POST",
             headers: { authorization: `Basic ${auth}`, "content-type": "application/json" },
             body: JSON.stringify([
-              { keywords: seeds, location_code: 2840, language_code: "en", sort_by: "search_volume", include_adult_keywords: false },
+              { keywords: seeds, location_code: 2840, language_code: "en", sort_by: "search_volume", include_adult_keywords: false, date_from: historyFrom() },
             ]),
             signal: AbortSignal.timeout(40_000),
           });

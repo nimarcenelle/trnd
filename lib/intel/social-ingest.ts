@@ -1,7 +1,7 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, Competitor, SocialPlatform } from "@/lib/db/types";
 import { competitiveSet } from "@/lib/recommend/four-signals";
-import { fetchAdvertiserAds, isAdLibraryApifyAvailable, readAdvertiser } from "@/lib/signals/adlibrary-apify";
+import { fetchAdvertiserAds, isAdLibraryApifyAvailable, isRivalAd, readAdvertiser } from "@/lib/signals/adlibrary-apify";
 import { fetchGoogleAds, readGoogleAds } from "@/lib/signals/google-ads-transparency";
 import { fetchAccountPosts, isSocialReadAvailable } from "@/lib/social";
 import { classifyPost, readAccount, rivalMoves } from "@/lib/social/read";
@@ -254,7 +254,7 @@ async function readRivalAds(repo: Repo, business: Business, c: Competitor): Prom
   {
     if (isAdLibraryApifyAvailable()) {
       try {
-        const ads = (await fetchAdvertiserAds(c.name)).filter((a) => sameAdvertiser(c.name, a.advertiser));
+        const ads = (await fetchAdvertiserAds(c.name)).filter((a) => isRivalAd({ name: c.name, facebook: c.social_handles?.facebook }, a));
         const read = readAdvertiser(ads);
         const weeks = read.longestRunningDays !== null ? Math.floor(read.longestRunningDays / 7) : 0;
         written += await repo.upsertCompetitorReads([

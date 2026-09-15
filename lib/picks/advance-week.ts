@@ -124,6 +124,21 @@ export async function nextWeekStage(
     return "scan";
   }
   const opportunities = await repo.listOpportunities(business.id, week);
+  // A fresh signup's rivals and their ads come before its first grade. Said
+  // here, from the database, and not only as a hand-off between stages:
+  // the wait screen kicks the job too, and its kick derived "rank" while
+  // the job's own chain was still on its scan, so the first grade raced
+  // ahead of the rivals (Crown Affair, 2026-09-15, 80 seconds after signup
+  // with "no competitors connected yet"). Bounded: only inside the first
+  // minutes, only with nothing ranked, and a rivals stage that finds
+  // nothing hands off to the ranking, which ends the condition.
+  if (
+    opts.scanAllowed !== false &&
+    opportunities.length === 0 &&
+    (await rivalsOwed(repo, business, {}))
+  ) {
+    return "rivals";
+  }
   // A week ranked before the four-signal grade existed carries rows with no
   // grade; it is ranked again so its picks can carry one.
   if (opportunities.length > 0 && opportunities.every((o) => o.grade == null)) return "rank";
@@ -174,7 +189,12 @@ export async function intelOwed(repo: Repo, business: Business): Promise<boolean
     repo.listSocialPosts(business.id, { competitorId: null, sinceDays: 120 }).catch(() => []),
     repo.listCompetitorReads(business.id, { sinceDays: 1 }).catch(() => []),
   ]);
-  return own.length === 0 && reads.length === 0;
+  // The rivals stage writes their ad reads before the first grade; those
+  // are not the account reads the deepen owes. Crown Affair's deepen never
+  // ran because five Google ad reads counted as "intel done": no TikTok,
+  // no own posts, no comments, no reviews for the whole week.
+  const accountsRead = reads.some((r) => r.kind === "social" || r.kind === "reviews");
+  return own.length === 0 && !accountsRead;
 }
 
 async function defaultBrief(repo: Repo, business: Business): Promise<void> {
@@ -209,17 +229,26 @@ async function defaultRivals(repo: Repo, business: Business): Promise<StageOutco
     if (seeded.note) console.log(`[week] rivals for ${business.id}: ${seeded.note}`);
   }
   const competitors = await repo.listCompetitors(business.id);
-  if (competitors.length === 0) return;
+  if (competitors.length === 0) {
+    rivalsTried.add(business.id);
+    return;
+  }
   const { ingestRivalAds } = await import("@/lib/intel/social-ingest");
   const ads = await ingestRivalAds(repo, business, competitors, { deadline });
   console.log(`[week] rival ads for ${business.id}: ${ads.written} reads${ads.exhausted ? ", cut short" : ""}`);
   return ads.exhausted ? { exhausted: true } : undefined;
 }
 
+/** The first minutes of a signup, when the rivals are read before the grade. */
+export const RIVALS_WINDOW_MS = 30 * 60_000;
+/** Brands whose discovery this process already ran and found nothing: not asked again. */
+const rivalsTried = new Set<string>();
+
 /** A fresh signup with no rivals on record reads them before its first grade. */
 async function rivalsOwed(repo: Repo, business: Business, deps: StageDeps): Promise<boolean> {
-  if (!businessJustOnboarded(business.created_at)) return false;
+  if (Date.now() - new Date(business.created_at).getTime() > RIVALS_WINDOW_MS) return false;
   if (!deps.rivals && !rivalDiscoveryConfigured(business)) return false;
+  if (rivalsTried.has(business.id)) return false;
   return (await repo.listCompetitors(business.id).catch(() => [])).length === 0;
 }
 

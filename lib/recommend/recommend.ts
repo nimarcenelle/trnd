@@ -38,10 +38,21 @@ const ANCHOR_EXTRA = 8;
  * phrased twice (hashtag humanization varies day to day). Collapse terms
  * whose token sets contain one another, keeping the stronger delta.
  */
+/** "drying" is "dry", "creams" is "cream", "remedies" is "remedy": one
+ * idea, however the search phrased it. "air dry" and "air drying" were
+ * picks one and five of the same week, same product, same volume. */
+export function stemToken(t: string): string {
+  if (t.length > 5 && t.endsWith("ies")) return `${t.slice(0, -3)}y`;
+  if (t.length > 5 && t.endsWith("ing")) return t.slice(0, -3);
+  if (t.length > 4 && t.endsWith("es") && !t.endsWith("ses")) return t.slice(0, -1);
+  if (t.length > 3 && t.endsWith("s") && !t.endsWith("ss")) return t.slice(0, -1);
+  return t;
+}
+
 export function dedupeByTerm<T extends { normalized_term: string; delta_pct: number | null }>(
   signals: T[],
 ): T[] {
-  const tokens = (t: string) => new Set(t.split("_").filter((x) => x.length > 2));
+  const tokens = (t: string) => new Set(t.split("_").filter((x) => x.length > 2).map(stemToken));
   const contains = (a: Set<string>, b: Set<string>) => [...b].every((x) => a.has(x));
   const kept: { sig: T; toks: Set<string> }[] = [];
   for (const sig of [...signals].sort((a, b) => (b.delta_pct ?? 0) - (a.delta_pct ?? 0))) {

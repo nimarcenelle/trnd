@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 
+import { ACTOR_ATTEMPTS, ACTOR_TIMEOUT_MS } from "@/lib/social/apify";
 import { mapLimit } from "@/lib/util/concurrency";
 
 import { CircuitBreaker, fetchText } from "../http";
@@ -283,7 +284,7 @@ export function createTiktokApifyAdapter(
     });
     const text = await doFetchText(
       `${RUN_URL}/${encodeURIComponent(actor)}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`,
-      { method: "POST", headers: { "content-type": "application/json" }, body, breaker },
+      { method: "POST", headers: { "content-type": "application/json" }, body, breaker, timeoutMs: ACTOR_TIMEOUT_MS, attempts: ACTOR_ATTEMPTS },
     );
     const parsed = JSON.parse(text) as unknown;
     return Array.isArray(parsed) ? toPosts(parsed as ApifyTikTokItem[]) : [];

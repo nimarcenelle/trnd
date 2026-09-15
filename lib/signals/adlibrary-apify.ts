@@ -1,5 +1,7 @@
 import { env } from "@/lib/env";
 
+import { ACTOR_ATTEMPTS, ACTOR_TIMEOUT_MS } from "@/lib/social/apify";
+
 import { CircuitBreaker, fetchText } from "./http";
 
 /**
@@ -69,6 +71,24 @@ export interface AdvertiserAd {
   variants: number;
   active: boolean;
   url: string;
+  /** The advertising Page's profile URL, when the actor carries it. */
+  pageUrl?: string | null;
+}
+
+/**
+ * Is this ad the rival's? By Page name (the loose match both readers used)
+ * or by the Page's handle against the rival's Facebook handle from its own
+ * site. A Page-name search for "Dae Hair" answers with Sephora's ads for
+ * the product first; only the handle says which Page is actually theirs.
+ */
+export function isRivalAd(rival: { name: string; facebook?: string | null }, ad: Pick<AdvertiserAd, "advertiser" | "pageUrl">): boolean {
+  const a = ad.advertiser.toLowerCase().trim();
+  const r = rival.name.toLowerCase().trim();
+  if (a && r && (a.includes(r) || r.includes(a))) return true;
+  const handle = (rival.facebook ?? "").toLowerCase().replace(/^@/, "").replace(/\/+$/, "");
+  if (!handle || !ad.pageUrl) return false;
+  const path = ad.pageUrl.toLowerCase().replace(/^https?:\/\/(www\.)?facebook\.com\//, "").replace(/\/+$/, "").split(/[?#]/)[0];
+  return path === handle || path === `pages/${handle}`;
 }
 
 export type AdTheme = "education" | "offer" | "scarcity" | "social_proof" | "speed" | "novelty";
@@ -210,6 +230,7 @@ export function toAdvertiserAds(items: unknown[], now = new Date()): AdvertiserA
       url:
         str(pick(item, "ad_snapshot_url", "adSnapshotUrl", "url")) ??
         `https://www.facebook.com/ads/library/?id=${encodeURIComponent(id)}`,
+      pageUrl: str(pick(snapshot, "page_profile_uri", "pageProfileUri")) ?? str(pick(item, "page_profile_uri", "pageUrl")),
     });
   }
   return out;
@@ -334,6 +355,8 @@ export async function fetchAdvertiserAds(
         headers: { "content-type": "application/json" },
         body: JSON.stringify(adLibraryActorInput(name)),
         breaker,
+        timeoutMs: ACTOR_TIMEOUT_MS,
+        attempts: ACTOR_ATTEMPTS,
       },
     );
     const parsed = JSON.parse(text) as unknown;

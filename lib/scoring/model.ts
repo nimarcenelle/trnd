@@ -280,6 +280,10 @@ export interface CompetitiveInput {
     ownOnTerm: number | null;
     ownLowOnTerm: number | null;
   };
+  /** Rivals whose ads were seen but carry no readable copy (image and video
+   * creatives from Google's Transparency Center): advertising, on an angle
+   * nobody can name. */
+  rivalsWithWordlessAds?: number;
   /** Where the owner connects competitors. */
   settingsHref: string;
 }

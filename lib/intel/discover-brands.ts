@@ -3,7 +3,7 @@ import type { Repo } from "@/lib/db/repo";
 import type { Business, Competitor, SocialHandles } from "@/lib/db/types";
 import { cleanSocialHandles } from "@/lib/import/social-links";
 import { readRivalSite, scoreDirectness, type RivalSiteRead } from "@/lib/intel/direct";
-import { fetchAdvertiserAds, isAdLibraryApifyAvailable, type AdvertiserAd } from "@/lib/signals/adlibrary-apify";
+import { fetchAdvertiserAds, isAdLibraryApifyAvailable, isRivalAd, type AdvertiserAd } from "@/lib/signals/adlibrary-apify";
 import { normalizeHandle } from "@/lib/social";
 
 /**
@@ -171,7 +171,7 @@ export async function discoverCompetingBrands(
     const activeAds = adsOn
       ? await settle(
           async () =>
-            (await fetchAds(c.brand.name)).filter((a) => a.active && sameAdvertiser(c.brand.name, a.advertiser)).length,
+            (await fetchAds(c.brand.name)).filter((a) => a.active && isRivalAd({ name: c.brand.name, facebook: site.handles.facebook }, a)).length,
           null,
           `ads for ${c.brand.name}`,
         )

@@ -177,3 +177,15 @@ describe("category growth", () => {
     expect(categoryGrowth(reads, now)).toEqual({ pct: 20, basis: "week" });
   });
 });
+
+describe("a related phrase must be about the category", () => {
+  it("drops a phrase that shares no word with the brand's terms", () => {
+    const rows: DfsResultRow[] = [
+      { keyword: "air drying cream", search_volume: 2000, monthly_searches: null },
+      { keyword: "weighed down", search_volume: 1000, monthly_searches: null },
+      { keyword: "hair creams", search_volume: 900, monthly_searches: null },
+    ];
+    const { signals } = relatedSignals(rows, { category: "clean haircare and styling brand", geo: "US", windowDays: 7, exclude: ["air dry cream", "frizz halo"] });
+    expect(signals.map((s) => s.term)).toEqual(["air drying cream", "hair creams"]);
+  });
+});

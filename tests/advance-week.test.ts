@@ -101,10 +101,15 @@ describe("what a week still needs", () => {
     expect(await nextWeekStage(user, biz)).toBe("deepen");
     // Nothing paid to read with: straight on.
     expect(await nextWeekStage(user, biz, { scanAllowed: false })).toBe("done");
-    // The intel read writes a competitor read even when a platform refuses.
+    // A rival's AD read (the rivals stage, before the grade) does not settle
+    // the deep read; a read of their ACCOUNTS does.
     const rival = await user.createCompetitor({ business_id: biz.id, name: "Canopy", website: null, place_id: null, social_handles: {}, directness: 0.7, directness_reason: "r" });
     await admin.upsertCompetitorReads([
       { business_id: biz.id, competitor_id: rival.id, kind: "ads", value: 3, rating: null, detail: null, captured_at: new Date().toISOString() },
+    ] as never);
+    expect(await nextWeekStage(user, biz)).toBe("deepen");
+    await admin.upsertCompetitorReads([
+      { business_id: biz.id, competitor_id: rival.id, kind: "social", value: 3, rating: null, detail: null, captured_at: new Date().toISOString() },
     ] as never);
     expect(await nextWeekStage(user, biz)).toBe("done");
   });

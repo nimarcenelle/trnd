@@ -20,6 +20,7 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 
 export const NO_COMPETITORS_NOTE = "No competitors connected yet";
 export const NOTHING_READ_NOTE = "Competitors added, but their ads haven't been read yet";
+export const WORDLESS_ADS_NOTE = "Competitors' ads were seen, but none carry copy that says what they lead with";
 /** Posts and ads seen across the rivals before the read is high confidence. */
 export const HIGH_EVIDENCE_ITEMS = 12;
 /** Reviews mentioning the angle before their complaint rate counts. */
@@ -44,7 +45,8 @@ export function scoreCompetitive(input: CompetitiveInput): SignalScore {
     });
   }
   if (input.competitorsRead <= 0) {
-    return signalScore("competitive", emptyComponents(NOTHING_READ_NOTE), "low", { note: NOTHING_READ_NOTE });
+    const note = (input.rivalsWithWordlessAds ?? 0) > 0 ? WORDLESS_ADS_NOTE : NOTHING_READ_NOTE;
+    return signalScore("competitive", emptyComponents(note), "low", { note });
   }
 
   const w = SUB_WEIGHTS.competitive;

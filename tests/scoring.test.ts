@@ -337,3 +337,16 @@ describe("national conversation cannot outrank local demand", () => {
     expect(localTalk.score).toBeGreaterThan(national().score);
   });
 });
+
+describe("one idea, however the search phrased it", () => {
+  it("collapses a phrase and its gerund or plural", async () => {
+    const { dedupeByTerm, stemToken } = await import("../lib/recommend/recommend");
+    expect(["drying", "creams", "remedies", "dry", "glass"].map(stemToken)).toEqual(["dry", "cream", "remedy", "dry", "glass"]);
+    const rows = [
+      { normalized_term: "air_dry", delta_pct: 49 },
+      { normalized_term: "air_drying", delta_pct: 49 },
+      { normalized_term: "frizz_halo", delta_pct: 10 },
+    ];
+    expect(dedupeByTerm(rows).map((r) => r.normalized_term)).toEqual(["air_dry", "frizz_halo"]);
+  });
+});

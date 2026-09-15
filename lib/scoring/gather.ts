@@ -564,15 +564,20 @@ function competitiveFor(term: string, ctx: GradeContext): CompetitiveInput {
   const readsBy = new Map<string, CompetitorRead[]>();
   for (const r of ctx.adReads) readsBy.set(r.competitor_id, [...(readsBy.get(r.competitor_id) ?? []), r]);
 
-  // A rival is read when at least one of their ADS was actually seen. The
-  // Competitive signal is "what your competitors are running": their
-  // organic posts used to count as a read too, and a brand whose rivals'
-  // ads were never fetched scored whitespace 100 at high confidence off
-  // their Instagram captions. Posts still feed the evidence lines and the
-  // campaign brief; they do not grade the signal. An ad read that came back
-  // empty (no ads, or a read that failed upstream and stored nothing) is not
-  // a read either, or every quiet week would score as open whitespace.
-  const read = direct.filter((c) => (readsBy.get(c.id) ?? []).some((r) => adsOf(r).length > 0));
+  // A rival is read when at least one of their ADS was actually seen WITH
+  // WORDS. The Competitive signal is "what your competitors are running":
+  // their organic posts used to count as a read too, and a brand whose
+  // rivals' ads were never fetched scored whitespace 100 at high confidence
+  // off their Instagram captions. Then Google's Transparency Center came
+  // back with five rivals' image and video ads and no text at all, and the
+  // same "none of the 5 competitors run this angle" printed at high
+  // confidence off ads nobody could read (Crown Affair, 2026-09-15). An ad
+  // with no copy proves the rival advertises; it cannot say on what. Posts
+  // still feed the evidence lines and the campaign brief; they do not grade
+  // the signal. An ad read that came back empty (no ads, or a read that
+  // failed upstream and stored nothing) is not a read either, or every
+  // quiet week would score as open whitespace.
+  const read = direct.filter((c) => (readsBy.get(c.id) ?? []).some((r) => adsOf(r).some((a) => adCaption(a).length > 0)));
   let evidence = 0;
   let onNow = 0;
   let onPrior = 0;
@@ -585,16 +590,13 @@ function competitiveFor(term: string, ctx: GradeContext): CompetitiveInput {
     const latestAt = reads.length > 0 ? reads[reads.length - 1].captured_at : null;
     const ads = new Map<string, { lastSeen: string; firstSeen: string; runningDays: number | null }>();
     const seen = new Set<string>();
-    let unreadable = 0;
     for (const r of reads) {
       for (const a of adsOf(r)) {
         const caption = adCaption(a);
-        // An image-only ad is still an ad they are running: it counts as
-        // evidence of what was read, never as a match on the angle.
-        if (!caption) {
-          unreadable += 1;
-          continue;
-        }
+        // An image-only ad is still an ad they are running, but not one the
+        // whitespace call can rest on: it neither counts as evidence read
+        // nor matches the angle.
+        if (!caption) continue;
         seen.add(caption.toLowerCase().slice(0, 200));
         if (postsOnTerm([{ caption }], term).length === 0) continue;
         const key = caption.toLowerCase().slice(0, 200);
@@ -608,7 +610,7 @@ function competitiveFor(term: string, ctx: GradeContext): CompetitiveInput {
       }
     }
     const adsOn = [...ads.values()];
-    evidence += seen.size + unreadable;
+    evidence += seen.size;
 
     const isNow = adsOn.some((a) => a.lastSeen === latestAt && ageDays(latestAt) <= NOW_DAYS);
     // Prior: an ad seen 15-45 days ago, or one that has been running since
@@ -634,6 +636,11 @@ function competitiveFor(term: string, ctx: GradeContext): CompetitiveInput {
     rivalAdsOnAngle: onAngle,
     weakRivalAds: weak,
     reviews: reviewsOnAngle(term, ctx.reviews, new Set(direct.map((c) => c.id))),
+    // Rivals whose ads were seen but carry no words: said on the note, so
+    // "their ads haven't been read" is never printed over five image ads.
+    rivalsWithWordlessAds: direct.filter(
+      (c) => !read.includes(c) && (readsBy.get(c.id) ?? []).some((r) => adsOf(r).length > 0),
+    ).length,
     settingsHref: SETTINGS_HREF,
   };
 }

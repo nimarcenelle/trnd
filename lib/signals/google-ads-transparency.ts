@@ -1,5 +1,7 @@
 import { env } from "@/lib/env";
 
+import { ACTOR_ATTEMPTS, ACTOR_TIMEOUT_MS } from "@/lib/social/apify";
+
 import { CircuitBreaker, fetchText } from "./http";
 
 /**
@@ -343,6 +345,8 @@ export async function fetchGoogleAds(
           // searchQuery, others read domains. Unknown keys are ignored.
           body: JSON.stringify({ searchQuery: host, domains: [host], region: REGION, maxResults: MAX_ADS }),
           breaker,
+          timeoutMs: ACTOR_TIMEOUT_MS,
+          attempts: ACTOR_ATTEMPTS,
         },
       );
       const parsed = JSON.parse(text) as unknown;

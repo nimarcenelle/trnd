@@ -54,6 +54,19 @@ export interface FetchTextOptions {
   retryOn4xx?: boolean;
   method?: "GET" | "POST";
   body?: string;
+  /**
+   * The 10-second default is for an API that answers at once. A call that
+   * STARTS work on the other side (an Apify run that scrapes for twenty to
+   * sixty seconds and answers when done) needs the run's whole length, and
+   * must not be retried: every retry started another paid run of the same
+   * scrape while the first was still going. That is how a signup's twenty
+   * account reads became ninety runs, and how every read over ten seconds
+   * (Facebook Pages, most TikTok reads, every Ad Library read) was abandoned
+   * after paying for it, and stored nothing.
+   */
+  timeoutMs?: number;
+  /** Attempts in total; the default retries twice with backoff. */
+  attempts?: number;
 }
 
 export async function fetchText(url: string, opts: FetchTextOptions = {}): Promise<string> {
@@ -61,13 +74,14 @@ export async function fetchText(url: string, opts: FetchTextOptions = {}): Promi
     throw new Error(`circuit open for ${opts.breaker.name}`);
   }
   let lastError: unknown;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  const maxAttempts = Math.max(1, opts.attempts ?? MAX_ATTEMPTS);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const res = await fetch(url, {
         method: opts.method ?? "GET",
         headers: opts.headers,
         body: opts.body,
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? TIMEOUT_MS),
         cache: "no-store",
       });
       if (!res.ok) {
@@ -86,7 +100,7 @@ export async function fetchText(url: string, opts: FetchTextOptions = {}): Promi
         break; // no retry on 4xx
       }
       opts.breaker?.recordFailure();
-      if (opts.breaker?.isOpen || attempt === MAX_ATTEMPTS) break;
+      if (opts.breaker?.isOpen || attempt === maxAttempts) break;
       await sleep(2 ** attempt * 500); // 1s, 2s
     }
   }

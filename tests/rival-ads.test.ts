@@ -249,3 +249,14 @@ describe("readGoogleAds", () => {
     expect(readGoogleAds([], NOW)).toEqual({ active: 0, formats: { text: 0, image: 0, video: 0, unknown: 0 }, sample: [] });
   });
 });
+
+describe("whose ad it is", () => {
+  it("matches a rival by Page name or by its Facebook handle, never a retailer selling its product", async () => {
+    const { isRivalAd } = await import("../lib/signals/adlibrary-apify");
+    const rival = { name: "Dae Hair", facebook: "daehair" };
+    expect(isRivalAd(rival, { advertiser: "Sephora", pageUrl: "https://www.facebook.com/sephora/" })).toBe(false);
+    expect(isRivalAd(rival, { advertiser: "dae", pageUrl: "https://www.facebook.com/daehair/" })).toBe(true);
+    expect(isRivalAd(rival, { advertiser: "Dae Hair Official", pageUrl: null })).toBe(true);
+    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "Rozalia Beauty", pageUrl: null })).toBe(true);
+  });
+});

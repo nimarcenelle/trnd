@@ -16,6 +16,11 @@ import { CircuitBreaker, fetchText } from "@/lib/signals/http";
  */
 
 const RUN_URL = "https://api.apify.com/v2/acts";
+/** An actor run's whole length. Apify's run-sync endpoint itself gives up
+ * at five minutes; a scrape that long is a scrape that failed. */
+export const ACTOR_TIMEOUT_MS = 180_000;
+/** Never retried: a retry starts a second paid run of the same scrape. */
+export const ACTOR_ATTEMPTS = 1;
 
 export interface RunActorOptions {
   breaker?: CircuitBreaker;
@@ -45,6 +50,8 @@ export async function runActorSync<T>(
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input),
       breaker: opts.breaker,
+      timeoutMs: ACTOR_TIMEOUT_MS,
+      attempts: ACTOR_ATTEMPTS,
     },
   );
   let parsed: unknown;

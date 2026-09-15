@@ -1,7 +1,12 @@
 import { bestTheme, historyOnTerm } from "@/lib/ads/history-read";
-import { defaultPickWriter, fallbackPickWrite, type PickWriter, type PickWriterInput } from "@/lib/ai/pick-writer";
+import {
+  defaultConceptWriter,
+  fallbackConceptWrite,
+  type ConceptWriter,
+  type ConceptWriterInput,
+} from "@/lib/ai/concept-writer";
 import type { Repo } from "@/lib/db/repo";
-import type { Business, BusinessBrief, NewPickBundle, Opportunity, Service, Signal } from "@/lib/db/types";
+import type { Business, BusinessBrief, NewPickBundle, Opportunity, Review, Service, Signal, SocialComment } from "@/lib/db/types";
 import { indexSeries } from "@/lib/demand/series";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { campaignSignalBrief, loadSignalContext, type SignalContext } from "@/lib/recommend/four-signals";
@@ -14,25 +19,29 @@ import { isOnlineBusiness, placeWords } from "@/lib/signals/geo";
 import { engagementOf, postsOnTerm } from "@/lib/social/read";
 
 import { pickBet } from "./bet";
-import { buildEvidence, type EvidenceFacts } from "./evidence";
-import { formatMetric } from "./format";
+import { assembleBrief, conceptsOverlap, CONCEPT_VERSION, validateConceptWrite, type ConceptRules, type ConceptWrite } from "./concept";
+import { buildEvaluationPlan, conceptBasis, structuralUnknowns } from "./evaluation";
+import { buildEvidence, observedDay, type EvidenceFacts } from "./evidence";
 import { metricLabelFor, metricLevel, pickMetric, sparklineOf } from "./metric";
-import { validatePickWrite, type PickWrite } from "./schema";
 
 /**
- * The weekly job that writes a brand's picks: one run per brand per week,
- * all five at once, from the opportunities the ranking already scored.
+ * The weekly job that writes a brand's creative tests: up to three distinct
+ * concepts, from the opportunities the ranking already scored.
  *
- * Numbers come from code (metric.ts, bet.ts), evidence from facts
- * (evidence.ts), words from the writer (lib/ai/pick-writer.ts). Nothing is
- * re-ranked or re-scored here: the ranking decided what is worth an ad, and
- * this decides what the ad is.
+ * Numbers come from code (metric.ts, evaluation.ts), evidence from facts
+ * (evidence.ts), judgment from the writer (lib/ai/concept-writer.ts), and
+ * the writer's facts are checked against what is on file before anything
+ * is stored (concept.ts). Concepts are written one after another so each
+ * knows what the week already holds; a concept too close to an earlier one
+ * is dropped and the week shows fewer.
  *
  * Runs in the cron, after a rerank, and at the end of onboarding. Never in a
- * page request: the model calls take a minute.
+ * page request: the model calls take a minute each.
  */
 
-export const PICKS_PER_WEEK = 5;
+export const PICKS_PER_WEEK = 3;
+/** How many ranked rows are tried to fill the week: a near-duplicate costs a slot. */
+export const CANDIDATES_PER_WEEK = 5;
 export const DEFAULT_SCRIPT_SECONDS = 20;
 
 export interface GenerateWeekPicksOptions {
@@ -43,7 +52,7 @@ export interface GenerateWeekPicksOptions {
   /** Pre-resolved Gemini models, so a batch run lists models once. */
   models?: { flash: string; pro: string };
   /** Replaces the default writer (Gemini, or the keyless template). */
-  writer?: PickWriter;
+  writer?: ConceptWriter;
   /** Write only the top N of the week: the first pick lands before the rest. */
   limit?: number;
   /** Bundles already built this week, keyed by opportunity id, reused as-is
@@ -54,6 +63,8 @@ export interface GenerateWeekPicksOptions {
 export interface GenerateWeekPicksResult {
   ready: number;
   draft: number;
+  /** Concepts dropped for saying what an earlier one said. */
+  duplicates: number;
   /** Stored ids in rank order; empty when `write` is false. */
   pickIds: string[];
   bundles: NewPickBundle[];
@@ -67,24 +78,14 @@ function median(xs: number[]): number {
 }
 
 /** The winning short-form length when one was read, inside what a paid
- * placement will actually hold. Organic TikToks on a term can run 80 seconds
- * and a trend clip can run 7; a Reels or TikTok ad that works runs 15 to 45. */
+ * placement will actually hold. */
 function scriptSeconds(medianSec: number | null): number {
-  return typeof medianSec === "number" && medianSec > 0
-    ? Math.min(45, Math.max(15, Math.round(medianSec)))
-    : DEFAULT_SCRIPT_SECONDS;
+  return typeof medianSec === "number" && medianSec > 0 ? Math.min(45, Math.max(15, Math.round(medianSec))) : DEFAULT_SCRIPT_SECONDS;
 }
 
-/** Below this, a short-form view count is too small to carry a percentage:
- * "+200% week over week" on 688 views is a rounding error dressed as news. */
+/** Below this, a short-form view count is too small to carry a percentage. */
 const MIN_SHORTFORM_VIEWS = 5_000;
 
-/**
- * The signal the pick's one metric is read from. Normally the pick's own. A
- * short-form read on a tiny base hands over to a search read on the same term
- * when one exists; with none, there is no honest metric and the pick stays a
- * draft ("better to show four picks than one broken one").
- */
 function metricSource(signal: Signal, pool: Signal[]): Signal | null {
   if (!isCulturalSource(signal)) return signal;
   const level = Number(signal.value);
@@ -110,9 +111,10 @@ interface StoredAd {
   runningDays?: unknown;
 }
 
-function rivalFacts(term: string, ctx: SignalContext): Pick<EvidenceFacts, "rivalAds" | "rivalPosts"> {
+function rivalFacts(term: string, ctx: SignalContext): Pick<EvidenceFacts, "rivalAds" | "rivalPosts" | "rivalAdsObservedOn"> {
   const names = new Map(ctx.direct.map((c) => [c.id, c.name]));
   const rivalAds: EvidenceFacts["rivalAds"] = [];
+  let observed: string | null = null;
   for (const read of ctx.adReads) {
     const rival = names.get(read.competitor_id);
     if (!rival) continue;
@@ -122,26 +124,27 @@ function rivalFacts(term: string, ctx: SignalContext): Pick<EvidenceFacts, "riva
       url: typeof a.url === "string" && a.url.startsWith("https://") ? a.url : null,
       runningDays: typeof a.runningDays === "number" ? a.runningDays : null,
     }));
-    // One ad per rival: two lines from the same brand read as a crowd.
+    // One ad per rival: two lines from the same brand read as a crowd. An ad
+    // with no copy proves the rival advertises, never what it leads with.
     const onTerm = postsOnTerm(ads, term).find((a) => a.caption);
-    if (onTerm) rivalAds.push({ rival, text: onTerm.caption, url: onTerm.url, runningDays: onTerm.runningDays });
+    if (onTerm) {
+      rivalAds.push({ rival, text: onTerm.caption, url: onTerm.url, runningDays: onTerm.runningDays });
+      observed = observed ?? observedDay((read as { captured_at?: string }).captured_at);
+    }
   }
-  // The longest-running ad first: it is the one that is working.
   rivalAds.sort((a, b) => (b.runningDays ?? 0) - (a.runningDays ?? 0));
   const rivalPosts = postsOnTerm(ctx.rivalPosts, term)
     .filter((p) => p.competitor_id && names.has(p.competitor_id) && p.caption.trim())
     .sort((a, b) => engagementOf(b) - engagementOf(a))
     .slice(0, 2)
     .map((p) => ({ rival: names.get(p.competitor_id as string) as string, caption: p.caption, url: p.url || null, platform: p.platform }));
-  return { rivalAds, rivalPosts };
+  return { rivalAds, rivalPosts, rivalAdsObservedOn: observed };
 }
 
 function adLibraryFact(business: Business, signal: Signal, pool: Signal[]): EvidenceFacts["adLibrary"] {
   const read = pool.find((s) => s.metric_type === "ad_saturation" && typeof s.value === "number" && matchesTerm(s, signal));
   if (!read) return null;
   const sample = (read.raw as { ads?: { advertiser: string; snippet: string }[] } | null)?.ads;
-  // The same relevance gate the ranking used: a keyword sample that is
-  // mostly other industries says nothing about this field.
   const assessed = assessAdRead(sample, read.term, placeWords(business), read.value as number);
   if (assessed.count === null) return null;
   const own = business.name.trim().toLowerCase();
@@ -156,7 +159,6 @@ function adLibraryFact(business: Business, signal: Signal, pool: Signal[]): Evid
 }
 
 function ownPostFact(term: string, ctx: SignalContext): EvidenceFacts["ownPost"] {
-  // Under a handful of posts, "did well" has no usual to beat.
   if (ctx.ownPosts.length < 3) return null;
   const top = postsOnTerm(ctx.ownPosts, term)
     .filter((p) => p.caption.trim())
@@ -170,8 +172,35 @@ function ownPostFact(term: string, ctx: SignalContext): EvidenceFacts["ownPost"]
 function ownHistoryFact(term: string, ctx: SignalContext): string | null {
   if (ctx.history.length === 0) return null;
   const h = historyOnTerm(ctx.history, term);
-  // "ran too few impressions to call" is a non-read; only a comparison counts.
   return h.ads > 0 && /above|below|about even/.test(h.reason) ? h.reason : null;
+}
+
+/** Real comments that name the term, as written. */
+function commentFacts(term: string, comments: SocialComment[]): EvidenceFacts["comments"] {
+  if (comments.length === 0) return undefined;
+  const onTerm = postsOnTerm(
+    comments.map((c) => ({ caption: c.text, c })),
+    term,
+  )
+    .filter(({ c }) => c.text.trim().length >= 12)
+    .sort((a, b) => b.c.likes - a.c.likes)
+    .slice(0, 3)
+    .map(({ c }) => ({ text: c.text.trim(), postedAt: c.posted_at, where: (c.competitor_id ? "rival" : "yours") as "yours" | "rival" }));
+  return { total: comments.length, onTerm };
+}
+
+/** Real reviews of the brand that name the term, as written. */
+function reviewFacts(term: string, reviews: Review[]): EvidenceFacts["reviews"] {
+  const own = reviews.filter((r) => !r.competitor_id && r.source !== "seed");
+  if (own.length === 0) return undefined;
+  const onTerm = postsOnTerm(
+    own.map((r) => ({ caption: r.text, r })),
+    term,
+  )
+    .filter(({ r }) => r.text.trim().length >= 12)
+    .slice(0, 3)
+    .map(({ r }) => ({ text: r.text.trim(), rating: r.rating, publishedAt: r.published_at }));
+  return { total: own.length, onTerm };
 }
 
 interface WeekInputs {
@@ -180,12 +209,51 @@ interface WeekInputs {
   brief: BusinessBrief | null;
   pool: Signal[];
   ctx: SignalContext;
-  /** What the brand already ran and passed on, by normalized term. */
+  comments: SocialComment[];
+  reviews: Review[];
+  /** Citable facts from the owner's uploaded documents. */
+  documentFacts: string[];
   memory: BrandMemory;
-  writer: PickWriter;
+  writer: ConceptWriter;
 }
 
-async function buildBundle(repo: Repo, input: WeekInputs, opportunity: Opportunity): Promise<NewPickBundle | null> {
+/** Everything a fact in the brief may trace to. */
+export function factCorpus(input: Pick<WeekInputs, "business" | "services" | "brief" | "documentFacts">, evidenceClaims: string[]): string[] {
+  const { business, services, brief } = input;
+  // The brand's own name and category are facts, even with an empty catalog.
+  const out: string[] = [business.name, business.category];
+  for (const s of services) {
+    if (s.is_active === false) continue;
+    out.push(s.name);
+    if (s.description) out.push(s.description);
+    if (typeof s.price_cents === "number" && s.price_cents > 0) out.push(`${s.name} $${(s.price_cents / 100).toFixed(2)}`);
+  }
+  if (business.claims_notes) out.push(business.claims_notes);
+  if (business.brand_voice_notes) out.push(business.brand_voice_notes);
+  if (business.recent_creative_notes) out.push(business.recent_creative_notes);
+  // Briefs written by hand or by older prompts can miss a list.
+  if (brief) out.push(...(brief.does_well ?? []), ...(brief.advantages ?? []), brief.moat ?? "");
+  out.push(...input.documentFacts);
+  out.push(...evidenceClaims);
+  return out.filter((s) => typeof s === "string" && s.trim().length > 0);
+}
+
+/** Phrases the owner said never to use, from the claims notes ("never say cure"). */
+export function forbiddenPhrases(claimsNotes: string | null | undefined): string[] {
+  if (!claimsNotes) return [];
+  const out: string[] = [];
+  for (const m of claimsNotes.matchAll(/(?:never|don't|do not|can't|cannot|avoid)\s+(?:say|claim|use|mention|promise|call it|write)\s+"?([^".;\n]{3,60})"?/gi)) {
+    out.push(m[1].trim());
+  }
+  return out;
+}
+
+interface BuiltConcept {
+  bundle: NewPickBundle;
+  concept: ConceptWrite | null;
+}
+
+async function buildConcept(repo: Repo, input: WeekInputs, opportunity: Opportunity, others: ConceptWrite[]): Promise<BuiltConcept | null> {
   const { business, services, brief, pool, ctx, writer, memory } = input;
   const signal = await repo.getSignal(opportunity.signal_id);
   if (!signal) return null;
@@ -208,6 +276,9 @@ async function buildBundle(repo: Repo, input: WeekInputs, opportunity: Opportuni
           });
   const matched = services.find((s) => s.id === opportunity.matched_service_id) ?? explained.matchedService ?? null;
   const shortform = isCulturalSource(signal) ? signal : (ctx.shortform.find((s) => matchesTerm(s, signal)) ?? null);
+  const rivals = rivalFacts(signal.term, ctx);
+  const comments = commentFacts(signal.term, input.comments);
+  const reviews = reviewFacts(signal.term, input.reviews);
 
   const evidence = buildEvidence({
     term: signal.term,
@@ -216,134 +287,177 @@ async function buildBundle(repo: Repo, input: WeekInputs, opportunity: Opportuni
     online: isOnlineBusiness(business),
     audiencePhrase: explained.audiencePhrase ?? null,
     shortform,
-    ...rivalFacts(signal.term, ctx),
+    ...rivals,
     adLibrary: adLibraryFact(business, signal, pool),
     ownBestTheme: bestTheme(ctx.history),
     ownHistoryOnTerm: ownHistoryFact(signal.term, ctx),
     ownPost: ownPostFact(signal.term, ctx),
+    ownPostsRead: ctx.ownPosts.length,
+    comments,
+    reviews,
   });
 
   const signals = campaignSignalBrief(signal, ctx);
-  const formatted = metric ? formatMetric(metric) : null;
-  const writerInput: PickWriterInput = {
+  const termMemory = memory.get(signal.normalized_term);
+  const quotes = [...(comments?.onTerm ?? []).map((c) => c.text), ...(reviews?.onTerm ?? []).map((r) => r.text)].slice(0, 6);
+  const durationSec = scriptSeconds(signals.medianDurationSec);
+  const writerInput: ConceptWriterInput = {
     business,
     term: signal.term,
-    movement: formatted ? { label: formatted.label, direction: formatted.direction, window: formatted.window } : null,
     matchedService: matched,
     services,
     brief,
     signals,
-    evidence: evidence.map((e) => ({ signal: e.signal, claim: e.claim })),
-    durationSec: scriptSeconds(signals.medianDurationSec),
-    memory: memoryLines(memory.get(signal.normalized_term)),
-    deltaPct: metric?.metric_delta_pct ?? null,
+    evidence: evidence.map((e) => ({ signal: e.signal, claim: e.claim, kind: e.kind })),
+    quotes,
+    memory: memoryLines(termMemory),
+    otherConcepts: others.map((c) => ({ title: c.title, hypothesis: c.hypothesis })),
+    durationSec,
+  };
+  const rules: ConceptRules = {
+    term: signal.term,
+    corpus: factCorpus(input, evidence.map((e) => e.claim)),
+    allowedPriceCents: services.filter((s) => s.is_active !== false && typeof s.price_cents === "number").map((s) => s.price_cents as number),
+    forbiddenPhrases: forbiddenPhrases(business.claims_notes),
   };
 
-  let written: PickWrite | null = null;
+  let concept: ConceptWrite | null = null;
   try {
-    const rules = { term: signal.term, deltaPct: writerInput.deltaPct, priceCents: matched?.price_cents ?? null, allowedPriceCents: [] as number[] };
-    // The items the draft itself names (in the bet or the finding) may be
-    // sold at their own listed price: the matcher paired the towel search
-    // with the bundle that holds the towel, and the bet sold the towel.
-    const rulesFor = (draft: unknown) => {
-      const text = `${(draft as { bet_what?: unknown })?.bet_what ?? ""} ${(draft as { finding?: unknown })?.finding ?? ""}`.toLowerCase();
-      const named = services
-        .filter((s) => s.is_active && typeof s.price_cents === "number" && s.price_cents > 0)
-        .filter((s) => {
-          const name = s.name.replace(/\([^)]*\)/g, " ").replace(/^(the|a|an)\s+/i, "").trim().toLowerCase();
-          return name.length >= 4 && text.includes(name);
-        })
-        .map((s) => s.price_cents as number);
-      return { ...rules, allowedPriceCents: named };
-    };
-    let draft: unknown = await writer(writerInput);
-    let checked = validatePickWrite(draft, rulesFor(draft));
-    // One retry, told exactly what was wrong. A single price-led hook used
-    // to draft the whole pick, best pick of the week included, on the
-    // first miss; the model fixes a named line far more often than not.
+    let draft: unknown = await writer(writerInput, rules);
+    let checked = validateConceptWrite(draft, rules);
     if (!checked.ok) {
       console.warn(`[picks] "${signal.term}" rejected once (${checked.error}); asking for a fix`);
-      draft = await writer({ ...writerInput, feedback: checked.error });
-      checked = validatePickWrite(draft, rulesFor(draft));
+      draft = await writer({ ...writerInput, feedback: checked.error }, rules);
+      checked = validateConceptWrite(draft, rules);
     }
-    if (checked.ok) written = checked.value;
+    if (checked.ok) concept = checked.value;
     else console.warn(`[picks] "${signal.term}" failed validation twice, stored as draft: ${checked.error}`);
   } catch (err) {
     console.warn(`[picks] "${signal.term}" writer failed, stored as draft:`, (err as Error).message);
   }
-  // A draft still needs a finding and a line for the columns; the template
-  // supplies them, and the draft never reaches the list.
-  const words = written ?? fallbackPickWrite(writerInput);
-  const ready = written !== null && metric !== null && written.scripts.length === 3 && evidence.length > 0;
+
+  // A draft still needs words for its columns; the template supplies them,
+  // and the draft never reaches the list.
+  const words = concept ?? fallbackConceptWrite(writerInput);
+  const evaluation = buildEvaluationPlan({ business, history: ctx.history, format: words.format });
+  const basis = conceptBasis({
+    memory: termMemory,
+    historyOnTerm: ctx.history.length > 0 ? historyOnTerm(ctx.history, signal.term).ads : 0,
+    ownBestTheme: Boolean(signals.ownBestTheme && signals.ownBestTheme.vsAccount >= 1.1),
+  });
+  const creative = assembleBrief(words, {
+    evaluation,
+    structuralUnknowns: structuralUnknowns({
+      history: ctx.history,
+      hasRecentCreative: Boolean(business.recent_creative_notes),
+      hasClaimsNotes: Boolean(business.claims_notes),
+      rivalAdsRead: rivals.rivalAds.length,
+      commentsRead: comments?.total ?? 0,
+    }),
+    differsFallback: business.recent_creative_notes
+      ? "The brief did not say how this differs from what you shot recently; compare before you brief the creator."
+      : "No recent creative on file to compare against. Add what you shot last in Settings and the next brief will say how it differs.",
+  });
+  const ready = concept !== null && evidence.length > 0;
   const bet = pickBet(business, ctx.history);
 
-  return {
+  const bundle: NewPickBundle = {
     pick: {
       opportunity_id: opportunity.id,
       rank: 0,
       geo: signal.geo,
       term: signal.term,
-      finding: words.finding,
+      // The keyword columns keep reading sensibly for anything that still
+      // reads them (the runs list, the email): the finding is the hypothesis.
+      finding: words.hypothesis,
       metric_label: metric?.metric_label ?? metricLabelFor(signal),
       metric_value: metric?.metric_value ?? metricLevel(signal),
       metric_delta_pct: metric?.metric_delta_pct ?? null,
       metric_window: metric?.metric_window ?? "30d",
       sparkline: metric?.sparkline ?? sparklineOf(series),
       ...bet,
-      bet_what: words.bet_what,
-      guardrail: written?.guardrail ?? null,
-      // The grade the week was ranked on travels with the pick, so the pick
-      // page shows the same verdict and signal breakdown as the ranking.
+      bet_what: `${words.title}: ${words.format}`,
+      bet_kill_rule: evaluation.watch[0] ?? evaluation.comparison,
+      guardrail: words.guardrail,
       grade: opportunity.grade ?? null,
       grade_score: opportunity.grade_score == null ? null : Number(opportunity.grade_score),
       signal_scores: opportunity.signal_scores ?? {},
+      concept_title: words.title,
+      brief: creative,
+      brief_version: CONCEPT_VERSION,
+      basis: basis.basis,
+      priority_reason: `${words.priority_reason} ${basis.reason}`.trim(),
       status: ready ? "ready" : "draft",
     },
     evidence,
-    // Only validated scripts are stored. A draft with none can never be
-    // promoted to ready by the database's own check.
-    scripts: written ? written.scripts : [],
+    // One script, the concept's own, so anything that reads scripts (the
+    // runs list, the ad-history row a run becomes) still has one.
+    scripts: [
+      {
+        variant_label: "Primary",
+        thesis: words.hypothesis.slice(0, 200),
+        hook: words.hooks.primary,
+        beats: [],
+        direction: words.script.direction,
+        cta: words.script.cta,
+        duration_seconds: words.script.duration_seconds,
+      },
+    ],
+  };
+  return { bundle, concept };
+}
+
+/** The week's rows that can become picks, best first, at most a week's candidates. */
+export function eligibleWeekOpportunities(stored: Opportunity[]): Opportunity[] {
+  const live = stored.filter((o) => o.status !== "dismissed");
+  const graded = live.some((o) => o.grade);
+  return live
+    .filter((o) => o.grade !== "Hold" && (!graded || o.grade))
+    .sort((a, b) => rankScoreOf(b) - rankScoreOf(a))
+    .slice(0, CANDIDATES_PER_WEEK);
+}
+
+function conceptOf(bundle: NewPickBundle): ConceptWrite | null {
+  const b = bundle.pick.brief;
+  if (!b || !bundle.pick.concept_title) return null;
+  return {
+    title: bundle.pick.concept_title,
+    situation: b.situation,
+    hypothesis: b.hypothesis,
+    unknowns: b.unknowns,
+    differs_from: b.differs_from,
+    format: b.format,
+    hooks: b.hooks,
+    script: b.script,
+    shot_list: b.shot_list,
+    approved_facts: b.approved_facts,
+    outcomes: b.outcomes,
+    priority_reason: bundle.pick.priority_reason ?? "",
+    guardrail: bundle.pick.guardrail ?? null,
   };
 }
 
-/** The week's rows that can become picks, best first, at most a week's worth. */
-export function eligibleWeekOpportunities(stored: Opportunity[]): Opportunity[] {
-  const live = stored.filter((o) => o.status !== "dismissed");
-  // Once the week has graded rows, an ungraded one is a leftover from a
-  // ranking before the model, and its legacy score says nothing about
-  // whether the model would hold it. Only a week with no grades at all
-  // still ranks on the legacy score.
-  const graded = live.some((o) => o.grade);
-  return (
-    live
-      // A Hold is "don't build a campaign yet". The ranking no longer stores
-      // one, but a row written by hand or by an older ranking must still never
-      // become a pick.
-      .filter((o) => o.grade !== "Hold" && (!graded || o.grade))
-      .sort((a, b) => rankScoreOf(b) - rankScoreOf(a))
-      .slice(0, PICKS_PER_WEEK)
-  );
-}
-
-export async function generateWeekPicks(
-  repo: Repo,
-  business: Business,
-  opts: GenerateWeekPicksOptions = {},
-): Promise<GenerateWeekPicksResult> {
+export async function generateWeekPicks(repo: Repo, business: Business, opts: GenerateWeekPicksOptions = {}): Promise<GenerateWeekPicksResult> {
   const week = opts.weekOf ?? currentWeek();
-  const opportunities = eligibleWeekOpportunities(await repo.listOpportunities(business.id, week)).slice(
-    0,
-    opts.limit ?? PICKS_PER_WEEK,
-  );
-  // An empty ranking (held for a missing analysis, or nothing fits) leaves
-  // last run's picks alone rather than wiping the week.
-  if (opportunities.length === 0) return { ready: 0, draft: 0, pickIds: [], bundles: [] };
+  const want = Math.min(opts.limit ?? PICKS_PER_WEEK, PICKS_PER_WEEK);
+  const opportunities = eligibleWeekOpportunities(await repo.listOpportunities(business.id, week));
+  if (opportunities.length === 0) return { ready: 0, draft: 0, duplicates: 0, pickIds: [], bundles: [] };
 
-  const [services, brief, pool] = await Promise.all([
+  const safe = async <T>(p: Promise<T>, fallback: T): Promise<T> => {
+    try {
+      return await p;
+    } catch (err) {
+      console.warn("[picks] read failed (non-fatal):", (err as Error).message);
+      return fallback;
+    }
+  };
+  const [services, brief, pool, comments, reviews, documents] = await Promise.all([
     repo.listServices(business.id),
     repo.getBusinessBrief(business.id),
-    // The same two-week pool the ranking and explainOpportunity read.
     repo.listSignalsForCategory(business.category, { sinceDays: 14 }),
+    safe(repo.listSocialComments(business.id, { sinceDays: 90 }), [] as SocialComment[]),
+    safe(repo.listReviews(business.id, { competitorId: null }), [] as Review[]),
+    safe(repo.listDocuments(business.id), []),
   ]);
   const [ctx, memory] = await Promise.all([loadSignalContext(repo, business, brief, pool), loadBrandMemory(repo, business)]);
   const inputs: WeekInputs = {
@@ -352,34 +466,47 @@ export async function generateWeekPicks(
     brief,
     pool,
     ctx,
+    comments,
+    reviews,
+    documentFacts: documents.flatMap((d) => d.digest?.facts ?? []),
     memory,
-    writer: opts.writer ?? defaultPickWriter(opts.models),
+    writer: opts.writer ?? defaultConceptWriter(opts.models),
   };
 
   const reuse = new Map((opts.built ?? []).map((b) => [b.pick.opportunity_id, b]));
-  const built = await Promise.all(
-    opportunities.map(async (o) => {
-      const had = reuse.get(o.id);
-      if (had) return had;
+  const kept: NewPickBundle[] = [];
+  const keptConcepts: ConceptWrite[] = [];
+  let duplicates = 0;
+  for (const o of opportunities) {
+    if (kept.filter((b) => b.pick.status === "ready").length >= want) break;
+    const had = reuse.get(o.id);
+    let built: BuiltConcept | null;
+    if (had) built = { bundle: had, concept: conceptOf(had) };
+    else {
       try {
-        return await buildBundle(repo, inputs, o);
+        built = await buildConcept(repo, inputs, o, keptConcepts);
       } catch (err) {
         console.warn(`[picks] opportunity ${o.id} failed (non-fatal):`, (err as Error).message);
-        return null;
+        built = null;
       }
-    }),
-  );
-  // Ranks are contiguous over what the list shows: a skipped row must not
-  // leave the list starting at #2, and a draft (hidden until it is fixed)
-  // must not leave it reading 1, 4, 5. Ready picks take the first ranks in
-  // grade order; drafts follow.
-  const kept = built.filter((b): b is NewPickBundle => b !== null);
-  const bundles = [...kept.filter((b) => b.pick.status === "ready"), ...kept.filter((b) => b.pick.status !== "ready")].map(
-    (b, i) => ({ ...b, pick: { ...b.pick, rank: i + 1 } }),
-  );
-  if (bundles.length === 0) return { ready: 0, draft: 0, pickIds: [], bundles };
+    }
+    if (!built) continue;
+    if (built.concept && keptConcepts.some((k) => conceptsOverlap(k, built.concept as ConceptWrite))) {
+      duplicates += 1;
+      console.log(`[picks] "${built.concept.title}" says what an earlier concept says; dropped`);
+      continue;
+    }
+    kept.push(built.bundle);
+    if (built.concept) keptConcepts.push(built.concept);
+  }
+  // Ready concepts take the first ranks in grade order; drafts follow.
+  const bundles = [...kept.filter((b) => b.pick.status === "ready"), ...kept.filter((b) => b.pick.status !== "ready")].map((b, i) => ({
+    ...b,
+    pick: { ...b.pick, rank: i + 1 },
+  }));
+  if (bundles.length === 0) return { ready: 0, draft: 0, duplicates, pickIds: [], bundles };
 
   const ready = bundles.filter((b) => b.pick.status === "ready").length;
   const pickIds = opts.write === false ? [] : await repo.replaceWeekPicks(business.id, week, bundles);
-  return { ready, draft: bundles.length - ready, pickIds, bundles };
+  return { ready, draft: bundles.length - ready, duplicates, pickIds, bundles };
 }

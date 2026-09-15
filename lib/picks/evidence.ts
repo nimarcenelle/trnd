@@ -28,7 +28,37 @@ export function looksLikeSalePost(title: string, channel = ""): boolean {
 
 export type NewEvidence = NewPickBundle["evidence"][number];
 
-type SignalRef = Pick<Signal, "source" | "term" | "geo" | "raw" | "metric_type">;
+type SignalRef = Pick<Signal, "source" | "term" | "geo" | "raw" | "metric_type"> & { captured_at?: string | null };
+
+/** yyyy-mm-dd from a timestamp, or null. */
+export function observedDay(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+/**
+ * What each kind of row cannot say. These are the evidence boundaries the
+ * page prints under every claim; the writer never sees or edits them.
+ */
+export const LIMITS = {
+  search: "Search demand is context. It does not show how a paid-social ad on this will perform.",
+  suggest: "Autocomplete shows people type this. It says nothing about how many, or what they buy.",
+  reddit: "A few posts are a small sample, not a survey of your customers.",
+  news: "Coverage counts say what outlets wrote about, not what customers want.",
+  weather: "A forecast-derived rule of thumb, not a measurement of demand.",
+  seed: "Sample data. Not a real read.",
+  shortform: "One video's views show what an audience watched, not what your customers buy.",
+  board: "A national board for the industry, not your customers.",
+  rivalAd: "Observed running. Running does not mean it works, and its claims may not fit your customer.",
+  rivalPost: "One post from a rival is what they chose to say, not what worked.",
+  adCount: "A count of ads that mention the phrase, not a read of what they say.",
+  ownPost: "Engagement on one post against your usual. Not purchase data.",
+  ownHistory: "Click-through on past ads against your account average. Not purchase data unless your export carried results.",
+  profile: "From the customer profile TRND wrote from your site, not from a survey.",
+  comments: "Real comments, quoted as written. A handful of people, not the audience.",
+  reviews: "Real reviews, quoted as written. Self-selected, not a sample of buyers.",
+} as const;
 
 export interface EvidenceFacts {
   term: string;
@@ -53,6 +83,14 @@ export interface EvidenceFacts {
   ownHistoryOnTerm: string | null;
   /** The brand's own post on the term that beat its usual. */
   ownPost: { caption: string; url: string | null; platform: SocialPlatform; engagement: number } | null;
+  /** How many of the brand's own posts were read, for the sample size. */
+  ownPostsRead?: number;
+  /** Real customer comments that mention the term, as written. */
+  comments?: { total: number; onTerm: { text: string; postedAt: string | null; where: "yours" | "rival" }[] };
+  /** Real reviews of the brand that mention the term, as written. */
+  reviews?: { total: number; onTerm: { text: string; rating: number; publishedAt: string | null }[] };
+  /** When the rival ad reads were captured. */
+  rivalAdsObservedOn?: string | null;
 }
 
 const PER_SIGNAL_MAX = 3;
@@ -101,8 +139,18 @@ function row(
   claim: string,
   source_url: string | null,
   source_label: string | null,
+  prov: { kind?: NewEvidence["kind"]; observed_on?: string | null; sample_size?: number | null; limitation?: string | null } = {},
 ): NewEvidence {
-  return { signal, claim, source_url, source_label };
+  return {
+    signal,
+    claim,
+    source_url,
+    source_label,
+    kind: prov.kind ?? "observation",
+    observed_on: prov.observed_on ?? null,
+    sample_size: prov.sample_size ?? null,
+    limitation: prov.limitation ?? null,
+  };
 }
 
 /* -------------------------------- customer -------------------------------- */
@@ -125,6 +173,8 @@ function customerRows(f: EvidenceFacts): NewEvidence[] {
     const url = sourceUrl({ source: linkSource, term: s.term, geo: s.geo, raw: s.raw });
     const label = proofName(linkSource) ?? sourceName(linkSource);
     let claim: string | null = null;
+    let limitation: string = LIMITS.search;
+    let kind: NewEvidence["kind"] = "measurement";
     switch (s.source) {
       case "google_trends":
       case "dataforseo":
@@ -137,23 +187,70 @@ function customerRows(f: EvidenceFacts): NewEvidence[] {
         break;
       case "google_suggest":
         claim = `"${f.term}" shows up in Google autocomplete, so people are typing it.`;
+        limitation = LIMITS.suggest;
+        kind = "observation";
         break;
       case "reddit":
         claim = `People on Reddit are posting about "${f.term}".`;
+        limitation = LIMITS.reddit;
+        kind = "observation";
         break;
       case "news":
         claim = `News outlets are covering "${f.term}" right now.`;
+        limitation = LIMITS.news;
+        kind = "observation";
         break;
       case "weather": {
         const detail = (s.raw as { detail?: unknown } | null)?.detail;
         claim = typeof detail === "string" && detail.trim() ? detail.trim() : null;
+        limitation = LIMITS.weather;
+        kind = "context";
         break;
       }
       case "seed":
         claim = `Sample data shows interest in "${f.term}" ${moving ?? "holding steady"}.`;
+        limitation = LIMITS.seed;
+        kind = "context";
         break;
     }
-    if (claim) rows.push(row("customer", claim, url, s.source === "seed" ? "Sample data" : label));
+    if (claim) {
+      rows.push(
+        row("customer", claim, url, s.source === "seed" ? "Sample data" : label, {
+          kind,
+          observed_on: observedDay(s.captured_at),
+          limitation,
+        }),
+      );
+    }
+  }
+  // Real words first: a comment or a review that names the term is the one
+  // customer row a writer can quote without inventing anything.
+  const comments = f.comments;
+  if (comments && comments.onTerm.length > 0) {
+    const first = comments.onTerm[0];
+    const n = comments.onTerm.length;
+    rows.push(
+      row(
+        "customer",
+        `${n} of ${comments.total} comments read under ${first.where === "yours" ? "your" : "your rivals'"} posts mention this. One, as written: "${quote(first.text, 140)}".`,
+        null,
+        "Comments",
+        { kind: "quote", observed_on: observedDay(first.postedAt), sample_size: comments.total, limitation: LIMITS.comments },
+      ),
+    );
+  }
+  const reviews = f.reviews;
+  if (reviews && reviews.onTerm.length > 0) {
+    const first = reviews.onTerm[0];
+    rows.push(
+      row(
+        "customer",
+        `${reviews.onTerm.length} of ${reviews.total} reviews of you mention this. One, ${first.rating} stars, as written: "${quote(first.text, 140)}".`,
+        null,
+        "Your reviews",
+        { kind: "quote", observed_on: observedDay(first.publishedAt), sample_size: reviews.total, limitation: LIMITS.reviews },
+      ),
+    );
   }
   if (f.audiencePhrase) {
     const same = f.audiencePhrase.trim().toLowerCase() === f.term.trim().toLowerCase();
@@ -165,6 +262,7 @@ function customerRows(f: EvidenceFacts): NewEvidence[] {
           : `Your target customer says it as "${quote(f.audiencePhrase, 60)}".`,
         null,
         "Your customer profile",
+        { kind: "context", limitation: LIMITS.profile },
       ),
     );
   }
@@ -200,6 +298,7 @@ function cultureRows(f: EvidenceFacts): NewEvidence[] {
   const title = card?.title ?? "";
   const channel = card?.channel ?? "";
   const tag = typeof raw.hashtagName === "string" ? raw.hashtagName.replace(/^#/, "").trim() : "";
+  const prov = { observed_on: observedDay(s.captured_at) };
   if (title) {
     rows.push(
       row(
@@ -207,16 +306,21 @@ function cultureRows(f: EvidenceFacts): NewEvidence[] {
         `The ${platform} video pulling the most views on "${f.term}" is "${quote(title, 90)}"${channel ? ` from ${channel}` : ""}.`,
         url,
         label,
+        { ...prov, kind: "observation", limitation: LIMITS.shortform },
       ),
     );
   } else if (tag && s.metric_type !== "shortform_views") {
-    rows.push(row("culture", `#${tag} is on TikTok's trending board for your industry.`, url, label));
+    rows.push(row("culture", `#${tag} is on TikTok's trending board for your industry.`, url, label, { ...prov, kind: "context", limitation: LIMITS.board }));
   } else {
-    rows.push(row("culture", `${platform} creators are posting about "${f.term}" this week.`, url, label));
+    rows.push(row("culture", `${platform} creators are posting about "${f.term}" this week.`, url, label, { ...prov, kind: "observation", limitation: LIMITS.shortform }));
   }
   if (typeof raw.medianDurationSec === "number" && raw.medianDurationSec > 0) {
     rows.push(
-      row("culture", `The ${platform} videos winning on this run about ${Math.round(raw.medianDurationSec)} seconds.`, url, label),
+      row("culture", `The ${platform} videos winning on this run about ${Math.round(raw.medianDurationSec)} seconds.`, url, label, {
+        ...prov,
+        kind: "measurement",
+        limitation: "The length of videos people watched on this, not the length your ad needs.",
+      }),
     );
   }
   return rows;
@@ -235,16 +339,22 @@ function competitiveRows(f: EvidenceFacts): NewEvidence[] {
       row(
         "competitive",
         weeks > 0
-          ? `${ad.rival} has had a Meta ad on this running ${weeks} weeks: "${quote(ad.text)}".`
-          : `${ad.rival} is running a Meta ad on this: "${quote(ad.text)}".`,
+          ? `${ad.rival} had a Meta ad on this that had been running ${weeks} weeks when read: "${quote(ad.text)}".`
+          : `${ad.rival} had a Meta ad on this running when read: "${quote(ad.text)}".`,
         ad.url ?? adLibraryPageSearch(ad.rival),
         "Meta Ad Library",
+        { kind: "quote", observed_on: f.rivalAdsObservedOn ?? null, limitation: LIMITS.rivalAd },
       ),
     );
   }
   for (const post of f.rivalPosts.slice(0, Math.max(0, PER_SIGNAL_MAX - rows.length)).slice(0, 1)) {
     const platform = SOCIAL_NAMES[post.platform];
-    rows.push(row("competitive", `${post.rival} posted about this on ${platform}: "${quote(post.caption)}".`, post.url, platform));
+    rows.push(
+      row("competitive", `${post.rival} posted about this on ${platform}: "${quote(post.caption)}".`, post.url, platform, {
+        kind: "quote",
+        limitation: LIMITS.rivalPost,
+      }),
+    );
   }
   // The keyword read stands in only when no named rival said anything: it is
   // the whole market, and the named rivals are the sharper fact.
@@ -254,9 +364,21 @@ function competitiveRows(f: EvidenceFacts): NewEvidence[] {
     const names = f.adLibrary.advertisers.slice(0, 2);
     if (names.length > 0) {
       const who = names.length === 2 ? `${names[0]} and ${names[1]}` : names[0];
-      rows.push(row("competitive", `${who} already run${names.length === 1 ? "s" : ""} Meta ads that mention "${f.term}".`, url, label));
+      rows.push(
+        row("competitive", `${who} already run${names.length === 1 ? "s" : ""} Meta ads that mention "${f.term}".`, url, label, {
+          kind: "observation",
+          sample_size: f.adLibrary.count,
+          limitation: LIMITS.adCount,
+        }),
+      );
     } else if (f.adLibrary.count === 0) {
-      rows.push(row("competitive", `No active Meta ads mention "${f.term}" right now.`, url, label));
+      rows.push(
+        row("competitive", `No active Meta ads mentioning "${f.term}" were found when read.`, url, label, {
+          kind: "observation",
+          sample_size: 0,
+          limitation: "A keyword search of the Ad Library. Ads that say it differently would not show.",
+        }),
+      );
     }
   }
   return rows;
@@ -274,10 +396,11 @@ function brandRows(f: EvidenceFacts): NewEvidence[] {
         `Your ${platform} post on this got ${f.ownPost.engagement.toLocaleString("en-US")} likes, comments and shares: "${quote(f.ownPost.caption)}".`,
         f.ownPost.url,
         platform,
+        { kind: "measurement", sample_size: f.ownPostsRead ?? null, limitation: LIMITS.ownPost },
       ),
     );
   }
-  if (f.ownHistoryOnTerm) rows.push(row("brand", `${cap(f.ownHistoryOnTerm)}.`, null, "Your ad account"));
+  if (f.ownHistoryOnTerm) rows.push(row("brand", `${cap(f.ownHistoryOnTerm)}.`, null, "Your ad account", { kind: "measurement", limitation: LIMITS.ownHistory }));
   const best = f.ownBestTheme;
   if (best && best.vsAccount >= 1.1) {
     rows.push(
@@ -286,6 +409,7 @@ function brandRows(f: EvidenceFacts): NewEvidence[] {
         `Your ads built on ${THEME_WORDS[best.theme] ?? best.theme.replace(/_/g, " ")} ran ${Math.round((best.vsAccount - 1) * 100)}% above your account average across ${best.ads} ads.`,
         null,
         "Your ad account",
+        { kind: "measurement", sample_size: best.ads, limitation: LIMITS.ownHistory },
       ),
     );
   }

@@ -35,6 +35,8 @@ import type {
   SocialPost,
   SocialComment,
   AiUsage,
+  PilotApplication,
+  ProviderUsage,
   Subscription,
 } from "../types";
 
@@ -802,6 +804,21 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       return (data ?? []) as AiUsage[];
     },
 
+    async recordProviderUsage(input) {
+      const { error } = await sb.from("provider_usage").insert(input);
+      // Until 0028 is pasted the call still runs; only the meter is missing.
+      if (isMissingTable(error)) return;
+      throwIf(error, "recordProviderUsage");
+    },
+    async listProviderUsage(opts) {
+      const since = new Date(Date.now() - (opts?.sinceHours ?? 24) * 3_600_000).toISOString();
+      let q = sb.from("provider_usage").select("*").gte("created_at", since);
+      if (opts?.businessId) q = q.eq("business_id", opts.businessId);
+      const { data, error } = await q.order("created_at", { ascending: false }).limit(5000);
+      throwUnlessMissing(error, "listProviderUsage");
+      return (data ?? []) as ProviderUsage[];
+    },
+
     async upsertAdHistory(inputs) {
       if (inputs.length === 0) return 0;
       const { count, error } = await sb.from("ad_history").upsert(inputs, {
@@ -1034,6 +1051,14 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       }
       throwIf(error, "insertDemoRequest");
       return data as DemoRequest;
+    },
+    async insertPilotApplication(input) {
+      // The insert policy allows the write; the select policy does not
+      // return the row to an anonymous caller, so the id comes back only
+      // for the service role. Callers treat a missing row as success.
+      const { data, error } = await sb.from("pilot_applications").insert(input).select().maybeSingle();
+      throwIf(error, "insertPilotApplication");
+      return (data as PilotApplication | null) ?? { ...input, id: "", status: "new", created_at: new Date().toISOString() };
     },
   };
 }

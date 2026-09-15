@@ -83,8 +83,23 @@ export interface Business {
   monthly_ad_spend: string | null;
   /** Where they run ads: meta, tiktok, google, youtube, pinterest, snapchat. */
   ad_platforms: AdPlatform[];
+  /** What the brand's campaigns optimize for. Null when never asked (pre-0028). */
+  campaign_objective?: CampaignObjective | null;
+  /** What the brand can actually produce: talking head, UGC, demo, static... */
+  production_formats?: ProductionFormat[];
+  /** Claims the brand may and may not make, in the owner's words. */
+  claims_notes?: string | null;
+  /** What the brand shot recently, so a brief can say how it differs. */
+  recent_creative_notes?: string | null;
+  /** The product or offer the brand wants briefs to lead with. */
+  priority_service_id?: string | null;
   created_at: string;
 }
+
+export type CampaignObjective = "purchases" | "leads" | "traffic" | "awareness";
+export const CAMPAIGN_OBJECTIVES: readonly CampaignObjective[] = ["purchases", "leads", "traffic", "awareness"];
+export type ProductionFormat = "talking_head" | "ugc" | "demo" | "static" | "editor" | "studio";
+export const PRODUCTION_FORMATS: readonly ProductionFormat[] = ["talking_head", "ugc", "demo", "static", "editor", "studio"];
 
 export type BusinessMarket = "online" | "local";
 export type AdPlatform = "meta" | "tiktok" | "google" | "youtube" | "pinterest" | "snapchat";
@@ -499,8 +514,67 @@ export interface DemoRequest {
 export type PickStatus = "draft" | "ready" | "published";
 export type PickSignal = "customer" | "culture" | "competitive" | "brand";
 export type PickMetricWindow = "week" | "30d";
-export type PickDismissReason = "wrong_customer" | "already_tried" | "off_brand" | "cant_shoot" | "other";
-export type PickRunStatus = "running" | "completed" | "killed";
+export type PickDismissReason = "wrong_customer" | "already_tried" | "off_brand" | "cant_shoot" | "not_now" | "other";
+/** planned: chosen for production, nothing live. running: launched. */
+export type PickRunStatus = "planned" | "running" | "completed" | "killed";
+/** running: launched from the pick. dismissed: passed on. chosen: picked
+ * for production. refined: rewritten on the owner's direction. */
+export type PickFeedbackAction = "running" | "dismissed" | "chosen" | "refined";
+export type PickEvidenceKind = "observation" | "quote" | "measurement" | "context";
+export type PickBasis = "builds_on" | "explores";
+
+/**
+ * A creative test: the concept a brand hands to a creator, stored whole on
+ * the pick (migration 0028). The search term the concept was found through
+ * stays on the pick as the research input. Everything here that is a
+ * judgment is written by the model and labeled a hypothesis on the page;
+ * everything that is a fact is checked against the catalog and the
+ * evidence rows before it is stored.
+ */
+export interface CreativeBrief {
+  version: string;
+  /** The customer situation, problem or objection the concept speaks to. */
+  situation: string;
+  /** What we believe may improve response, and why. A hypothesis. */
+  hypothesis: string;
+  /** What is uncertain or missing. Code adds the structural gaps. */
+  unknowns: string[];
+  /** How this differs from the brand's recent creative, or what we could not compare against. */
+  differs_from: string;
+  /** The format the script is written for: "20-second talking head". */
+  format: string;
+  hooks: { primary: string; alternatives: string[] };
+  script: { direction: PickDirection; cta: string; duration_seconds: number };
+  /** Shots, demonstrations and assets the creator needs. */
+  shot_list: string[];
+  /** The product facts and claims the brief uses. Each is checked against the catalog. */
+  approved_facts: string[];
+  /** The qualified plan for judging the test. Computed by code from the brand's context. */
+  evaluation: EvaluationPlan;
+  /** What each outcome would teach. */
+  outcomes: { if_better: string; if_same: string; if_worse: string };
+  /** The previous brief when this one is a refinement, so nothing is lost. */
+  refined_from?: { at: string; ask: string; brief: Omit<CreativeBrief, "refined_from"> } | null;
+}
+
+/**
+ * How to judge the test: never a universal threshold. Built from the
+ * campaign objective, the account's own baseline when one is on file,
+ * the spend band and how many conversions the window can hold.
+ */
+export interface EvaluationPlan {
+  objective: CampaignObjective | null;
+  /** What to compare against: the brand's current best on the same objective. */
+  comparison: string;
+  /** Suggested test budget and window, from the spend band. */
+  budget: string;
+  /** What to watch, in order. */
+  watch: string[];
+  /** Why the numbers may mislead here. */
+  caveats: string[];
+  /** What TRND needs before it can say more. */
+  missing: string[];
+}
 /** The owner's own call on a finished run. Null when only the numbers speak. */
 export type RunVerdict = "won" | "lost";
 
@@ -540,6 +614,14 @@ export interface BrandPick {
   grade?: string | null;
   grade_score?: number | null;
   signal_scores?: Record<string, unknown> | null;
+  /** The concept's title, when the pick is a creative test (0028). Null on keyword picks. */
+  concept_title?: string | null;
+  brief?: CreativeBrief | null;
+  brief_version?: string | null;
+  /** Whether the concept builds on something the brand already ran, or explores new ground. */
+  basis?: PickBasis | null;
+  /** Why this concept sits where it does this week. */
+  priority_reason?: string | null;
   status: PickStatus;
   created_at: string;
 }
@@ -552,6 +634,14 @@ export interface PickEvidence {
   source_url: string | null;
   source_label: string | null;
   position: number;
+  /** What kind of row this is; "observation" on rows written before 0028. */
+  kind?: PickEvidenceKind | null;
+  /** yyyy-mm-dd the observation was made, when known. */
+  observed_on?: string | null;
+  /** How many things the row counts, when it counts something. */
+  sample_size?: number | null;
+  /** What the row cannot say. */
+  limitation?: string | null;
 }
 
 /**
@@ -588,7 +678,7 @@ export interface PickFeedback {
   pick_id: string;
   business_id: string;
   user_id: string | null;
-  action: "running" | "dismissed";
+  action: PickFeedbackAction;
   reason: PickDismissReason | null;
   note: string | null;
   created_at: string;
@@ -610,6 +700,10 @@ export interface PickRun {
   result_note: string | null;
   /** The owner's verdict on the run, when they gave one (migration 0026). */
   verdict?: RunVerdict | null;
+  /** When the test went live; null while only planned (0028). */
+  launched_at?: string | null;
+  /** What the test taught, in the owner's words, apart from the numbers (0028). */
+  learned?: string | null;
   /** Reserved for the ad-account integration. */
   meta_campaign_id: string | null;
 }
@@ -798,6 +892,41 @@ export type NewReview = Omit<Review, "id" | "captured_at">;
 export type NewSocialPost = Omit<SocialPost, "id" | "captured_at">;
 export type NewSocialComment = Omit<SocialComment, "id" | "captured_at">;
 export type NewAiUsage = Omit<AiUsage, "id" | "created_at">;
+
+/** One paid call to a provider outside the model (migration 0028). */
+export interface ProviderUsage {
+  id: string;
+  business_id: string | null;
+  provider: "apify" | "dataforseo" | "youtube" | "places" | "reddit" | "other";
+  operation: string;
+  units: number;
+  unit_label: string;
+  /** Estimated from a public rate unless basis says billed. Null when no rate is known. */
+  est_cost_cents: number | null;
+  basis: "estimate" | "billed";
+  purpose: string;
+  ok: boolean;
+  note: string | null;
+  created_at: string;
+}
+export type NewProviderUsage = Omit<ProviderUsage, "id" | "created_at">;
+
+/** An application to the founder-assisted pilot (migration 0028). */
+export interface PilotApplication {
+  id: string;
+  full_name: string;
+  email: string;
+  brand_name: string;
+  website: string | null;
+  monthly_spend: string | null;
+  objective: string | null;
+  runs_meta_ads: boolean | null;
+  production: string | null;
+  what_next: string | null;
+  status: "new" | "contacted" | "accepted" | "declined";
+  created_at: string;
+}
+export type NewPilotApplication = Omit<PilotApplication, "id" | "created_at" | "status">;
 export type NewAdHistory = Omit<AdHistory, "id" | "created_at">;
 export type NewReviewDigest = Omit<ReviewDigest, "id" | "created_at">;
 export type NewAlert = Omit<Alert, "id" | "created_at" | "read_at">;

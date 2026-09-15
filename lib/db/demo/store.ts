@@ -35,6 +35,8 @@ import type {
   SocialPost,
   SocialComment,
   AiUsage,
+  PilotApplication,
+  ProviderUsage,
   Subscription,
 } from "../types";
 
@@ -84,6 +86,8 @@ export interface DemoStore {
   week_skips?: WeekSkip[];
   social_comments?: SocialComment[];
   ai_usage?: AiUsage[];
+  provider_usage?: ProviderUsage[];
+  pilot_applications?: PilotApplication[];
 }
 
 function emptyStore(): DemoStore {

@@ -66,6 +66,10 @@ import type {
   NewSocialComment,
   AiUsage,
   NewAiUsage,
+  NewPilotApplication,
+  NewProviderUsage,
+  PilotApplication,
+  ProviderUsage,
   Subscription,
 } from "./types";
 
@@ -221,6 +225,13 @@ export interface Repo {
   /* ai usage — every model call's tokens */
   recordAiUsage(input: NewAiUsage): Promise<void>;
   listAiUsage(opts?: { sinceHours?: number; businessId?: string }): Promise<AiUsage[]>;
+
+  /* provider usage — every paid call outside the model (0028) */
+  recordProviderUsage(input: NewProviderUsage): Promise<void>;
+  listProviderUsage(opts?: { sinceHours?: number; businessId?: string }): Promise<ProviderUsage[]>;
+
+  /* pilot applications — the founder-assisted pilot's front door (0028) */
+  insertPilotApplication(input: NewPilotApplication): Promise<PilotApplication>;
 
   /* ad history — the owner's own past ads and how they did */
   /** Dedupes on (business, platform, campaign, ad, start). Returns rows written. */

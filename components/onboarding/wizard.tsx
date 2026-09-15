@@ -3,15 +3,16 @@
 import { useActionState, useMemo, useRef, useState } from "react";
 
 import { completeOnboardingAction, type OnboardingState } from "@/lib/onboarding/actions";
-import { AD_SPEND_BANDS, CATEGORIES, type AdPlatform, type BusinessMarket, type SocialHandles } from "@/lib/db/types";
+import { AD_SPEND_BANDS, CATEGORIES, type AdPlatform, type BusinessMarket, type CampaignObjective, type ProductionFormat, type SocialHandles } from "@/lib/db/types";
+import { FORMAT_OPTIONS, NOTES_MAX, OBJECTIVE_OPTIONS } from "@/lib/onboarding/context";
 import { ACCEPT_ATTR, mimeFor } from "@/lib/documents/parse";
 import type { ImportEvent, SiteImport } from "@/lib/import/website";
 import { AD_PLATFORM_OPTIONS, ONLINE_CATEGORIES, SPEND_BAND_LABELS } from "@/lib/onboarding/market";
 import { MAX_ONBOARDING_DOCS, mergeServices, type OnboardingDocument, type ServiceRow } from "@/lib/onboarding/menu-doc";
 
-const STEPS = ["Website", "Category", "Location", "Services", "Voice"] as const;
+const STEPS = ["Website", "Category", "Location", "Services", "Context", "Voice"] as const;
 // An online brand has no location to give; that step asks about its ads.
-const ONLINE_STEPS = ["Website", "Category", "Ads", "Products", "Voice"] as const;
+const ONLINE_STEPS = ["Website", "Category", "Ads", "Products", "Context", "Voice"] as const;
 
 /** Rows shown before "show all" — a read menu can run to forty items. */
 const ROWS_SHOWN = 8;
@@ -84,6 +85,17 @@ export default function OnboardingWizard() {
   const [platforms, setPlatforms] = useState<AdPlatform[]>(["meta"]);
   const online = market === "online";
   const steps: readonly string[] = online ? ONLINE_STEPS : STEPS;
+  // The context a brief needs that the site cannot say. All optional; the
+  // first week says what is missing.
+  const [objective, setObjective] = useState<CampaignObjective | "">("");
+  const [formats, setFormats] = useState<ProductionFormat[]>([]);
+  const [priorityService, setPriorityService] = useState("");
+  const [recentCreative, setRecentCreative] = useState("");
+  const [claimsNotes, setClaimsNotes] = useState("");
+  // Ads Manager or Google Ads exports, read like menus and imported as ad
+  // history at the finish. Kept apart from the menus so a CSV of results
+  // never fills the product rows.
+  const [exportFiles, setExportFiles] = useState<MenuFile[]>([]);
 
   // The menu, handed over directly: for sites whose prices live on an
   // ordering platform (Toast, Square) the crawl can't read, or that never
@@ -101,7 +113,7 @@ export default function OnboardingWizard() {
   const [docError, setDocError] = useState<string | null>(null);
   const [pasteText, setPasteText] = useState("");
   const [showAllRows, setShowAllRows] = useState(false);
-  const docs = menuFiles.flatMap((f) => (f.doc ? [f.doc] : []));
+  const docs = [...menuFiles, ...exportFiles].flatMap((f) => (f.doc ? [f.doc] : []));
   const docBusy = menuFiles.some((f) => f.status === "reading");
 
   // Website import: owner-initiated read of their own site, streamed as
@@ -287,6 +299,33 @@ export default function OnboardingWizard() {
       patch = { status: "failed", error: "Lost the connection — try it again" };
     }
     setMenuFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  }
+
+  /** Read one ad export into its own row: the text is kept for the finish,
+   * where it becomes ad history; nothing is merged into the product rows. */
+  async function readOneExport(id: string, file: File) {
+    const data = new FormData();
+    data.set("file", file);
+    data.set("business_name", name);
+    data.set("category", category);
+    let patch: Partial<MenuFile>;
+    try {
+      const res = await fetch("/api/import/document", { method: "POST", body: data });
+      const body = (await res.json().catch(() => ({}))) as Partial<OnboardingDocument> & { error?: string };
+      if (res.ok && body.digest) patch = { status: "done", doc: body as OnboardingDocument };
+      else patch = { status: "failed", error: body.error ?? "Couldn't read this one" };
+    } catch {
+      patch = { status: "failed", error: "Lost the connection — try it again" };
+    }
+    setExportFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  }
+
+  function addExportFiles(picked: File[]) {
+    const accepted = picked.filter((f) => /\.(csv|tsv|txt|xlsx|xls)$/i.test(f.name)).slice(0, 2);
+    if (accepted.length === 0) return;
+    const batch = accepted.map((file) => ({ file, id: `ex-${++fileSeq.current}` }));
+    setExportFiles((prev) => [...prev, ...batch.map(({ file, id }): MenuFile => ({ id, name: file.name, source: "upload", status: "reading" }))]);
+    for (const { file, id } of batch) void readOneExport(id, file);
   }
 
   function addMenuFiles(picked: File[]) {
@@ -574,6 +613,109 @@ export default function OnboardingWizard() {
 
   // Asked of online brands only: spend sizes the read, platforms say where
   // the creative has to run.
+  const namedServices = services.map((r) => r.name.trim()).filter(Boolean);
+  const contextFields = (
+    <>
+      <div className="field">
+        <label htmlFor="ob-objective">What your campaigns optimize for</label>
+        <select id="ob-objective" value={objective} onChange={(e) => setObjective(e.target.value as CampaignObjective | "")}>
+          <option value="">Pick one</option>
+          {OBJECTIVE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        {objective && <p className="text-[12px] text-ink-faint mx-0 mt-[6px] mb-0">{OBJECTIVE_OPTIONS.find((o) => o.value === objective)?.hint}</p>}
+      </div>
+      {namedServices.length > 1 && (
+        <div className="field">
+          <label htmlFor="ob-priority">{online ? "Product" : "Service"} to lead with (optional)</label>
+          <select id="ob-priority" value={priorityService} onChange={(e) => setPriorityService(e.target.value)}>
+            <option value="">Let each brief choose</option>
+            {namedServices.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      <div className="field">
+        <label>What you can produce</label>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="What you can produce">
+          {FORMAT_OPTIONS.map((f) => {
+            const on = formats.includes(f.value);
+            return (
+              <button
+                key={f.value}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                onClick={() => setFormats((prev) => (on ? prev.filter((x) => x !== f.value) : [...prev, f.value]))}
+                className="pill"
+                style={pillStyle(on)}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[12px] text-ink-faint mx-0 mt-[6px] mb-0">Briefs are written for what you can actually make.</p>
+      </div>
+      <div className="field">
+        <label htmlFor="ob-recent">What you shot recently (optional)</label>
+        <textarea id="ob-recent" rows={2} maxLength={NOTES_MAX} value={recentCreative} onChange={(e) => setRecentCreative(e.target.value)} placeholder="e.g. Three founder talking-heads on the serum, one unboxing. Links are fine." />
+        <p className="text-[12px] text-ink-faint mx-0 mt-[6px] mb-0">So each brief can say how it differs from what you ran last.</p>
+      </div>
+      <div className="field">
+        <label htmlFor="ob-claims">What you may and may not claim (optional)</label>
+        <textarea id="ob-claims" rows={2} maxLength={NOTES_MAX} value={claimsNotes} onChange={(e) => setClaimsNotes(e.target.value)} placeholder='e.g. Never say "cures". No before-and-after photos.' />
+      </div>
+      <div className="field">
+        <label>Your recent ad results (optional)</label>
+        <label className="menu-drop" style={{ padding: "16px 18px" }}>
+          <input
+            type="file"
+            multiple
+            accept=".csv,.tsv,.txt,.xlsx,.xls"
+            aria-label="Ads Manager export"
+            className="sr-only"
+            onChange={(e) => {
+              addExportFiles(Array.from(e.currentTarget.files ?? []));
+              e.currentTarget.value = "";
+            }}
+          />
+          <span className="menu-drop__title">{exportFiles.length > 0 ? "Add another export" : "Upload an Ads Manager or Google Ads export"}</span>
+          <span className="menu-drop__hint">
+            CSV or Excel, at the ad level. It stops TRND repeating ideas that already failed and lets each brief compare against your
+            real baseline. A results export carries numbers and ad names, not the creative itself; the brief reads what is there.
+          </span>
+        </label>
+        {exportFiles.length > 0 && (
+          <ul className="menu-files" aria-live="polite">
+            {exportFiles.map((f) => (
+              <li key={f.id} className="menu-file" data-status={f.status}>
+                <span className="menu-file__mark" aria-hidden="true">
+                  {f.status === "done" ? "✓" : f.status === "failed" ? "!" : ""}
+                </span>
+                <span className="menu-file__body">
+                  <span className="menu-file__name">{f.name}</span>
+                  <span className="menu-file__meta">{f.status === "reading" ? "Reading…" : f.status === "failed" ? (f.error ?? "Couldn't read this one") : "Read. Imported as your ad history at the finish."}</span>
+                </span>
+                {f.status !== "reading" && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setExportFiles((prev) => prev.filter((x) => x.id !== f.id))}>
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
+  );
+
   const adFields = (
     <>
       <div className="field">
@@ -660,6 +802,13 @@ export default function OnboardingWizard() {
         {online && <input type="hidden" name="monthly_ad_spend" value={spend} />}
         {online && platforms.map((p) => <input key={p} type="hidden" name="ad_platforms" value={p} />)}
         <input type="hidden" name="documents" value={docs.length > 0 ? JSON.stringify(docs) : ""} />
+        <input type="hidden" name="campaign_objective" value={objective} />
+        {formats.map((f) => (
+          <input key={f} type="hidden" name="production_formats" value={f} />
+        ))}
+        <input type="hidden" name="priority_service" value={priorityService} />
+        <input type="hidden" name="recent_creative_notes" value={recentCreative} />
+        <input type="hidden" name="claims_notes" value={claimsNotes} />
 
         {mode === "steps" && step === 0 && (
           <section>
@@ -745,6 +894,10 @@ export default function OnboardingWizard() {
             </div>
             {serviceRows}
             {!online && menuPanel}
+            <div className="mt-[22px] pt-[18px] border-t border-line">
+              <p className="mono-label mb-3">What a brief needs that your site cannot say</p>
+              {contextFields}
+            </div>
             <div className="field mt-[18px]">
               <label htmlFor="ob-voice-r">Brand voice notes (optional)</label>
               <textarea id="ob-voice-r" rows={3} value={voice} onChange={(e) => setVoice(e.target.value)} placeholder='e.g. "Warm but direct. We never discount, we add value. No exclamation marks."' />
@@ -790,6 +943,17 @@ export default function OnboardingWizard() {
         )}
 
         {mode === "steps" && step === 4 && (
+          <section>
+            <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">What should a brief know?</h2>
+            <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">
+              What the campaign buys, what you can make, and what you have run. Everything here is optional; the first week says what
+              is missing.
+            </p>
+            {contextFields}
+          </section>
+        )}
+
+        {mode === "steps" && step === 5 && (
           <section>
             <h2 className="h-disp text-[22px] mx-0 mt-0 mb-[6px]">How do you sound?</h2>
             <p className="text-[14px] text-ink-soft mx-0 mt-0 mb-[22px]">

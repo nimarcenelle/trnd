@@ -152,7 +152,7 @@ describe("the ranking remembers what the brand already did", () => {
     const skips = await user.listWeekSkips(biz.id, weekOf());
     expect(skips).toHaveLength(1);
     expect(skips[0]).toMatchObject({ term: "smoked brisket", kind: "memory", grade: "Hold" });
-    expect(skips[0].reason).toMatch(/^You ran this and killed it on /);
+    expect(skips[0].reason).toMatch(/^You stopped this on /);
   });
 
   it("does not hold a term the brand ran and won", async () => {

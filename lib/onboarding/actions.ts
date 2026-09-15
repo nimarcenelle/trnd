@@ -8,6 +8,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { fallbackDigest } from "@/lib/documents/parse";
 import { cleanSocialHandles } from "@/lib/import/social-links";
+import { parseCreativeContext } from "@/lib/onboarding/context";
 import { parseMarketProfile } from "@/lib/onboarding/market";
 import { MAX_ONBOARDING_DOC_TEXT, MAX_ONBOARDING_DOCS, type OnboardingDocument } from "@/lib/onboarding/menu-doc";
 
@@ -144,6 +145,9 @@ export async function completeOnboardingAction(
     market: marketProfile.market,
     monthly_ad_spend: marketProfile.monthly_ad_spend,
     ad_platforms: marketProfile.ad_platforms,
+    // The context a brief needs that the site cannot say. Every field is
+    // optional; the brief says what is missing.
+    ...parseCreativeContext(formData),
   });
 
   // Start the 14-day trial clock the moment the business exists.
@@ -166,6 +170,18 @@ export async function completeOnboardingAction(
       };
     }),
   );
+
+  // The product the owner wants briefs to lead with, matched by the name the
+  // wizard posted; a name that matches nothing leaves the choice to each brief.
+  const priorityName = String(formData.get("priority_service") ?? "").trim().toLowerCase();
+  const priority = priorityName ? createdServices.find((s) => s.name.trim().toLowerCase() === priorityName) : undefined;
+  if (priority) {
+    try {
+      await repo.updateBusiness(business.id, { priority_service_id: priority.id });
+    } catch (err) {
+      console.warn("[onboarding] priority product not saved (non-fatal):", (err as Error).message);
+    }
+  }
 
   // An Ads Manager or Google Ads export uploaded with the menus is the
   // brand's own ad history: the Brand signal's "what has worked for you",

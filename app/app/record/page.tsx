@@ -60,13 +60,13 @@ export default async function TrackRecordPage() {
         <div>
           <span className="eyebrow m-0">Track record</span>
           <h1>Track record</h1>
-          <p className="context">How the picks you ran turned out. This is the number TRND is judged on.</p>
+          <p className="context">How the tests you ran turned out, judged only by what you recorded.</p>
         </div>
       </div>
 
       {record.runs === 0 ? (
         <div className="panel rec__empty">
-          <p>No picks have run yet. Say &ldquo;We&apos;re running this&rdquo; on a pick; the record starts with the first one that finishes.</p>
+          <p>No tests have run yet. Choose a concept, mark it launched, and the record starts with the first one that ends with results.</p>
           <Link href="/app/picks" className="btn btn-primary btn-sm">
             This week&apos;s picks
           </Link>
@@ -163,7 +163,7 @@ export default async function TrackRecordPage() {
             <table className="rec__table">
               <thead>
                 <tr>
-                  <th>Pick</th>
+                  <th>Test</th>
                   <th>Grade</th>
                   <th>Started</th>
                   <th>Ended</th>

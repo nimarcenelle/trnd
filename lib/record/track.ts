@@ -74,7 +74,8 @@ export function buildTrackRecord(runs: { run: PickRun; pick: BrandPick }[], ctx:
       return {
         runId: run.id,
         pickId: pick.id,
-        term: pick.term,
+        // The concept's own name where it has one; the research term on older picks.
+        term: pick.concept_title ?? pick.term,
         grade: gradeLetterOf(pick),
         startedAt: run.started_at,
         endedAt: run.ended_at,
@@ -126,7 +127,7 @@ export function buildTrackRecord(runs: { run: PickRun; pick: BrandPick }[], ctx:
 /** "3 of 5 picks you ran won." Null until a run is scored. */
 export function hitRateLine(record: TrackRecord): string | null {
   if (record.scored === 0) return null;
-  return `${record.won} of ${record.scored} ${record.scored === 1 ? "pick" : "picks"} you ran won.`;
+  return `${record.won} of ${record.scored} ${record.scored === 1 ? "test" : "tests"} you ran did better than its reference.`;
 }
 
 /**

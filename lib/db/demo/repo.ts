@@ -994,6 +994,14 @@ export function createDemoRepo(actor: DemoActor): Repo {
         dismissed: (store.pick_feedback ?? []).some((f) => f.pick_id === pickId && f.action === "dismissed"),
       };
     },
+    async updatePickConcept(pickId, patch) {
+      const row = (store.picks ?? []).find((p) => p.id === pickId);
+      if (!row) throw new Error(`[demo] no pick ${pickId}`);
+      assertOwnsBusiness(row.business_id);
+      Object.assign(row, patch);
+      saveStore();
+      return row;
+    },
     async createPickFeedback(input: NewPickFeedback) {
       assertOwnsBusiness(input.business_id);
       store.pick_feedback ??= [];

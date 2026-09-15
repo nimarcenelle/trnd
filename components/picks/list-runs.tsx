@@ -3,16 +3,16 @@ import Link from "next/link";
 import SubmitButton from "@/components/app/submit-button";
 import type { BrandPick, PickRun } from "@/lib/db/types";
 import ListRunsComplete from "@/components/picks/list-runs-complete";
-import { formatBet, formatUsd } from "@/lib/picks/format";
+import { formatUsd } from "@/lib/picks/format";
 import { runChip, runRatesLine, shortDate, truncateFinding } from "@/lib/picks/list";
-import { killPickRunAction } from "@/lib/picks/run-actions";
-import { OUTCOME_LABEL, OUTCOME_TONE, runOutcome, type OutcomeContext } from "@/lib/record/outcome";
+import { killPickRunAction, launchRunAction } from "@/lib/picks/run-actions";
+import { OUTCOME_LABEL, OUTCOME_TONE, runOutcome, STATUS_MEANING, type OutcomeContext } from "@/lib/record/outcome";
 
 /**
- * The picks an owner said they are running, newest first, at the top of
- * Campaigns. A running one can be closed out from here without opening the
- * pick, with whatever results the owner has; an ended one says how it ended,
- * when, and what it did (CTR, CVR and ROAS where the numbers allow).
+ * The tests an owner chose, newest first, at the top of Campaigns. A
+ * planned one can be marked launched; a launched one can be closed with
+ * whatever results the owner has, or stopped; an ended one says how it
+ * ended, what it did, and what the owner said it taught.
  */
 export default function ListRuns({ runs, outcomes = {} }: { runs: { run: PickRun; pick: BrandPick }[]; outcomes?: OutcomeContext }) {
   if (runs.length === 0) return null;
@@ -20,33 +20,36 @@ export default function ListRuns({ runs, outcomes = {} }: { runs: { run: PickRun
     <section className="picks-section" aria-labelledby="picks-runs-title">
       <div className="panel__head mb-3">
         <h2 id="picks-runs-title" className="panel__title m-0">
-          Running from picks
+          Your tests
         </h2>
         <span className="panel__meta">{runs.length}</span>
       </div>
       <ul className="picks-runs">
         {runs.map(({ run, pick }) => {
           // An ended run wears its outcome, not its status: "Won" says more
-          // than "Completed", and "Lost" more than "Killed".
+          // than "Completed". A run that has not ended wears where it is.
           const read = runOutcome(run, outcomes);
           const chip =
             read.outcome === "won" || read.outcome === "lost"
               ? { label: OUTCOME_LABEL[read.outcome], tone: OUTCOME_TONE[read.outcome] }
               : runChip(run.status);
           const results = run.status === "completed" ? resultsLine(run) : null;
-          const verdictLine = run.status !== "running" && read.basis !== "none" ? read.reason : null;
+          const verdictLine = run.status !== "running" && run.status !== "planned" && read.basis !== "none" ? read.reason : null;
+          const title = pick.concept_title ?? truncateFinding(pick.finding);
           return (
             <li key={run.id} className="picks-run">
               <div className="picks-run__main">
-                <Link href={`/app/picks/${pick.id}`} className="picks-run__finding" title={pick.finding}>
-                  {truncateFinding(pick.finding)}
+                <Link href={`/app/picks/${pick.id}`} className="picks-run__finding" title={title}>
+                  {title}
                 </Link>
                 <p className="picks-run__meta">
-                  {formatBet(pick)} · Started {shortDate(run.started_at)}
+                  {run.status === "planned" ? `Chosen ${shortDate(run.started_at)}` : `Launched ${shortDate(run.launched_at ?? run.started_at)}`}
                   {run.ended_at ? ` · Ended ${shortDate(run.ended_at)}` : ""}
+                  {` · ${STATUS_MEANING[run.status]}`}
                 </p>
                 {results && <p className="picks-run__stats">{results}</p>}
                 {verdictLine && !results?.includes(verdictLine) && <p className="picks-run__stats">{verdictLine}</p>}
+                {run.learned && <p className="picks-run__stats">Learned: {run.learned}</p>}
               </div>
               {chip && (
                 <span className={`badge badge--${chip.tone}`}>
@@ -54,13 +57,23 @@ export default function ListRuns({ runs, outcomes = {} }: { runs: { run: PickRun
                   {chip.label}
                 </span>
               )}
+              {run.status === "planned" && (
+                <div className="picks-run__actions">
+                  <form action={launchRunAction}>
+                    <input type="hidden" name="run_id" value={run.id} />
+                    <SubmitButton className="btn btn-primary btn-sm" pendingLabel="Saving…">
+                      Mark launched
+                    </SubmitButton>
+                  </form>
+                </div>
+              )}
               {run.status === "running" && (
                 <div className="picks-run__actions">
                   <ListRunsComplete runId={run.id} />
                   <form action={killPickRunAction}>
                     <input type="hidden" name="run_id" value={run.id} />
                     <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Saving…">
-                      Kill it
+                      Stop it
                     </SubmitButton>
                   </form>
                 </div>

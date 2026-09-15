@@ -253,6 +253,11 @@ export interface Repo {
   countWeekPicks(businessId: string, weekOf: string): Promise<number>;
   /** One pick with its evidence, scripts, latest run and dismissal state. */
   getPickDetail(pickId: string): Promise<PickDetail | null>;
+  /** A refinement rewrites the concept in place; the id, the runs and the evidence stay. */
+  updatePickConcept(
+    pickId: string,
+    patch: Partial<Pick<BrandPick, "concept_title" | "brief" | "brief_version" | "guardrail" | "priority_reason" | "finding" | "bet_what">>,
+  ): Promise<BrandPick>;
   createPickFeedback(input: NewPickFeedback): Promise<PickFeedback>;
   createPickRun(input: NewPickRun): Promise<PickRun>;
   updatePickRun(

@@ -239,7 +239,7 @@ describe("the evaluation plan", () => {
 
 describe("builds on or explores", () => {
   it("builds on a past run, a loss included, without banning the topic", () => {
-    const lost = { term: "hard water", normalized: "hard_water", runs: [{ status: "completed" as const, outcome: "lost" as const, reason: "ROAS 0.8x", startedAt: "2026-08-01", endedAt: "2026-08-10" }], dismissals: [] };
+    const lost = { term: "hard water", normalized: "hard_water", runs: [{ status: "completed" as const, outcome: "lost" as const, reason: "ROAS 0.8x", startedAt: "2026-08-01", endedAt: "2026-08-10", title: "The crust", learned: null }], dismissals: [] };
     expect(conceptBasis({ memory: lost, historyOnTerm: 0, ownBestTheme: false })).toMatchObject({ basis: "builds_on" });
     expect(conceptBasis({ memory: lost, historyOnTerm: 0, ownBestTheme: false }).reason).toMatch(/angle changes; the topic stays/);
     expect(conceptBasis({ memory: undefined, historyOnTerm: 0, ownBestTheme: false })).toMatchObject({ basis: "explores" });

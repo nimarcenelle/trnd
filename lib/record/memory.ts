@@ -11,10 +11,17 @@ import { runOutcome, type OutcomeContext, type RunOutcome } from "./outcome";
  * writer reads it so a repeat of a winner is framed as a repeat.
  */
 
-/** A lost run keeps its term out of the ranking this long. */
-export const LOST_COOLOFF_DAYS = 56;
-/** A pass ("Not for us") keeps its term out this long. */
+/**
+ * How long a past decision holds a term out of the ranking. Short on
+ * purpose: a test that did not win says the execution did not work, not
+ * that the topic is dead, and a pass is a decision, not a result. The
+ * writer is told what happened either way, so a term that comes back
+ * comes back as a different concept.
+ */
+export const LOST_COOLOFF_DAYS = 21;
+export const KILLED_COOLOFF_DAYS = 14;
 export const DISMISSED_COOLOFF_DAYS = 28;
+export const NOT_NOW_COOLOFF_DAYS = 14;
 
 export interface MemoryRun {
   status: "planned" | "running" | "completed" | "killed";
@@ -22,6 +29,10 @@ export interface MemoryRun {
   reason: string;
   startedAt: string;
   endedAt: string | null;
+  /** The concept's title when the run was a creative test. */
+  title: string | null;
+  /** What the owner said the test taught. */
+  learned: string | null;
 }
 
 export interface MemoryDismissal {
@@ -61,7 +72,10 @@ export async function loadBrandMemory(repo: Repo, business: Business, ctx: Outco
 
 export function buildBrandMemory(
   input: {
-    runs: { run: Parameters<typeof runOutcome>[0] & { started_at: string; ended_at: string | null }; pick: { term: string } }[];
+    runs: {
+      run: Parameters<typeof runOutcome>[0] & { started_at: string; ended_at: string | null; learned?: string | null };
+      pick: { term: string; concept_title?: string | null };
+    }[];
     feedback: { feedback: { action: PickFeedbackAction; reason: PickDismissReason | null; created_at: string }; pick: { term: string } }[];
   },
   ctx: OutcomeContext = {},
@@ -81,6 +95,8 @@ export function buildBrandMemory(
       reason: read.reason,
       startedAt: run.started_at,
       endedAt: run.ended_at,
+      title: pick.concept_title ?? null,
+      learned: run.learned ?? null,
     });
   }
   for (const { feedback, pick } of input.feedback) {
@@ -124,17 +140,26 @@ export function memoryHold(mem: TermMemory | undefined, now = new Date()): Memor
       reason: live.status === "planned" ? `You chose this for production (${day(live.startedAt)})` : `You're running this now (since ${day(live.startedAt)})`,
     };
   }
-  const lost = mem.runs.find(
-    (r) => r.outcome === "lost" && r.endedAt && now.getTime() - new Date(r.endedAt).getTime() < LOST_COOLOFF_DAYS * DAY_MS,
-  );
+  const lost = mem.runs.find((r) => {
+    if (r.outcome !== "lost" || !r.endedAt) return false;
+    const days = r.status === "killed" ? KILLED_COOLOFF_DAYS : LOST_COOLOFF_DAYS;
+    return now.getTime() - new Date(r.endedAt).getTime() < days * DAY_MS;
+  });
   if (lost) {
     const when = day(lost.endedAt as string);
+    const what = lost.title ? `"${lost.title}"` : "this";
     return {
       kind: "memory",
-      reason: lost.status === "killed" ? `You ran this and killed it on ${when}` : `You ran this and it lost (${lost.reason.toLowerCase()}, ended ${when})`,
+      reason:
+        lost.status === "killed"
+          ? `You stopped ${what} on ${when}; the topic comes back with a different concept`
+          : `You ran ${what} and it did not win (${lost.reason.toLowerCase()}, ended ${when}); the topic comes back with a different concept`,
     };
   }
-  const passed = mem.dismissals.find((d) => now.getTime() - new Date(d.at).getTime() < DISMISSED_COOLOFF_DAYS * DAY_MS);
+  const passed = mem.dismissals.find((d) => {
+    const days = d.reason === "not_now" ? NOT_NOW_COOLOFF_DAYS : DISMISSED_COOLOFF_DAYS;
+    return now.getTime() - new Date(d.at).getTime() < days * DAY_MS;
+  });
   if (passed) return { kind: "memory", reason: DISMISS_LINE[passed.reason ?? "none"](day(passed.at)) };
   return null;
 }
@@ -156,7 +181,8 @@ export function memoryLines(mem: TermMemory | undefined): string[] {
           : r.outcome === "open"
             ? "still running"
             : "no result recorded";
-    out.push(`The brand ran an ad on "${mem.term}" ${span}: ${how}.`);
+    const what = r.title ? `the concept "${r.title}" (from "${mem.term}")` : `an ad on "${mem.term}"`;
+    out.push(`The brand ran ${what} ${span}: ${how}.${r.learned ? ` What they learned: ${r.learned}` : ""}`);
   }
   for (const d of mem.dismissals.slice(0, 2)) out.push(`${DISMISS_LINE[d.reason ?? "none"](day(d.at))}.`);
   return out;

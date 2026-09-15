@@ -29,8 +29,10 @@ describe("brand memory", () => {
       ],
     });
     expect(memoryHold(memory.get("hard_water"), now)?.reason).toBe("You're running this now (since Sep 12)");
-    expect(memoryHold(memory.get("glass_skin"), now)?.reason).toBe("You ran this and killed it on Sep 2");
-    expect(memoryHold(memory.get("brassy_hair"), now)?.reason).toBe("You ran this and it lost (you called it a loss, ended Sep 5)");
+    expect(memoryHold(memory.get("glass_skin"), now)?.reason).toBe("You stopped this on Sep 2; the topic comes back with a different concept");
+    expect(memoryHold(memory.get("brassy_hair"), now)?.reason).toBe(
+      "You ran this and it did not win (you called it a loss, ended Sep 5); the topic comes back with a different concept",
+    );
     expect(memoryHold(memory.get("everything_shower"), now)?.reason).toBe("You said this is off-brand (Sep 8)");
     expect(memoryHold(memory.get("never_seen"), now)).toBeNull();
   });

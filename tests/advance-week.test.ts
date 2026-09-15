@@ -363,3 +363,14 @@ describe("the hand-off names the next stage", () => {
     expect(jobUrl("abc", 3, "https://www.usetrnd.com").searchParams.get("stage")).toBeNull();
   });
 });
+
+describe("picks that no longer match their rows", () => {
+  it("are written again inside the first days when the ranking re-graded the row", async () => {
+    const { picksBehindGrade } = await import("../lib/picks/advance-week");
+    const row = { id: "o1", grade: "B", grade_score: 62, signal_scores: { competitive: { confidence: "medium", note: null } } } as never;
+    expect(picksBehindGrade([{ opportunity_id: "o1", grade: "B+", grade_score: 78, signal_scores: { competitive: { confidence: "high", note: null } } }], [row])).toBe(true);
+    expect(picksBehindGrade([{ opportunity_id: "o1", grade: "B", grade_score: 62, signal_scores: { competitive: { confidence: "medium", note: null } } }], [row])).toBe(false);
+    // A pick whose row is gone, or was never graded, is not stale by this rule.
+    expect(picksBehindGrade([{ opportunity_id: "gone", grade: "B+", grade_score: 78 }], [row])).toBe(false);
+  });
+});

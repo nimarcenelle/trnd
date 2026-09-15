@@ -88,15 +88,30 @@ export async function gradedBeforeRivals(repo: Repo, business: Business, opportu
   return false;
 }
 
-/** Picks written from a grade the ranking has since replaced: the picks
- * still say "no competitors connected yet" while the ranked rows do not. */
-function picksBehindGrade(
-  picks: { signal_scores?: Record<string, unknown> | null }[],
+/**
+ * Picks written from a grade the ranking has since replaced. Two tells: the
+ * picks still say "no competitors connected yet" while the ranked rows do
+ * not, or a pick's grade no longer matches the row it was written from
+ * (the deep read re-graded Crown Affair's week from B+ high to B medium
+ * and the picks kept the old letters when the hand-off to the picks stage
+ * was lost). Only inside a signup's first days: after that the weekly
+ * picks job owns the rewrite, and a daily re-rank must not churn scripts.
+ */
+export function picksBehindGrade(
+  picks: { opportunity_id?: string | null; grade?: string | null; grade_score?: number | string | null; signal_scores?: Record<string, unknown> | null }[],
   opportunities: Opportunity[],
 ): boolean {
+  if (picks.length === 0) return false;
   const stale = (g: CompetitiveGap) => g === "no-rivals" || g === "no-ads";
-  if (picks.length === 0 || !picks.some((p) => stale(competitiveGapOf(p)))) return false;
-  return opportunities.some((o) => competitiveGapOf(o) === "scored");
+  if (picks.some((p) => stale(competitiveGapOf(p))) && opportunities.some((o) => competitiveGapOf(o) === "scored")) return true;
+  const byId = new Map(opportunities.map((o) => [o.id, o]));
+  return picks.some((p) => {
+    const o = p.opportunity_id ? byId.get(p.opportunity_id) : undefined;
+    if (!o || o.grade == null) return false;
+    const pickScore = p.grade_score == null ? null : Number(p.grade_score);
+    const rowScore = o.grade_score == null ? null : Number(o.grade_score);
+    return (p.grade ?? null) !== o.grade || (pickScore !== null && rowScore !== null && Math.abs(pickScore - rowScore) >= 0.05);
+  });
 }
 
 /** Whether rival discovery can run for this brand at all: brands are named

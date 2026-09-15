@@ -19,7 +19,7 @@ export const maxDuration = 60;
 
 const MAX_BODY = 6000;
 
-async function dfs(path: string, body: unknown): Promise<{ status: number; body: string }> {
+async function dfs(path: string, body: unknown): Promise<{ status: number; body: string; full: string }> {
   const auth = Buffer.from(`${env.dataForSeoLogin}:${env.dataForSeoPassword}`).toString("base64");
   const res = await fetch(`https://api.dataforseo.com/v3/${path}`, {
     method: "POST",
@@ -27,7 +27,8 @@ async function dfs(path: string, body: unknown): Promise<{ status: number; body:
     body: JSON.stringify([body]),
     signal: AbortSignal.timeout(45_000),
   });
-  return { status: res.status, body: (await res.text()).slice(0, MAX_BODY) };
+  const full = await res.text();
+  return { status: res.status, body: full.slice(0, MAX_BODY), full };
 }
 
 export async function GET(request: NextRequest) {
@@ -50,14 +51,14 @@ export async function GET(request: NextRequest) {
       const { mapTrendsExplore } = await import("@/lib/signals/adapters/trends-dfs");
       let mapped: unknown = null;
       try {
-        const data = JSON.parse(raw.body) as { tasks?: { result?: unknown; status_message?: string; status_code?: number }[] };
+        const data = JSON.parse(raw.full) as { tasks?: { result?: unknown; status_message?: string; status_code?: number }[] };
         const t = data.tasks?.[0];
         const read = mapTrendsExplore(t?.result, "US");
         mapped = { taskStatus: t?.status_code, taskMessage: t?.status_message, seriesTerms: [...read.series.keys()], points: [...read.series.values()].map((p) => p.length), rising: Object.fromEntries(read.rising) };
       } catch (err) {
         mapped = { parseError: (err as Error).message };
       }
-      return NextResponse.json({ what, term, ms: Date.now() - started, ...raw, mapped });
+      return NextResponse.json({ what, term, ms: Date.now() - started, status: raw.status, body: raw.body, mapped });
     }
     if (what === "dfs-related") {
       if (!isDataForSeoConfigured) return NextResponse.json({ what, configured: false });
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
         sort_by: "search_volume",
         include_adult_keywords: false,
       });
-      return NextResponse.json({ what, term, ms: Date.now() - started, ...raw });
+      return NextResponse.json({ what, term, ms: Date.now() - started, status: raw.status, body: raw.body });
     }
     if (what === "reddit") {
       const { createRedditAdapter } = await import("@/lib/signals/adapters/reddit");

@@ -2,7 +2,8 @@
 
 import { useActionState, useState } from "react";
 
-import { refinePickAction, REFINEMENTS, type RefineState } from "@/lib/picks/refine";
+import { refinePickAction } from "@/lib/picks/refine";
+import { REFINEMENTS, type RefineState } from "@/lib/picks/refinements";
 
 /**
  * Targeted refinement: one of five asks, a note when the ask needs one.

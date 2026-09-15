@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CreativeBrief, PickRun } from "../lib/db/types";
 import { conceptStatus, STATUS_LABEL } from "../lib/picks/concept-view";
-import { rotateHook } from "../lib/picks/refine";
+import { rotateHook } from "../lib/picks/refinements";
 import { buildBrandMemory, KILLED_COOLOFF_DAYS, LOST_COOLOFF_DAYS, memoryHold, memoryLines, NOT_NOW_COOLOFF_DAYS } from "../lib/record/memory";
 import { runOutcome, STATUS_MEANING } from "../lib/record/outcome";
 
@@ -113,10 +113,10 @@ describe("refining by hand", () => {
     refined_from: null,
   };
 
-  it("rotates the openings and changes nothing else", async () => {
-    const next = await rotateHook(brief);
+  it("rotates the openings and changes nothing else", () => {
+    const next = rotateHook(brief);
     expect(next?.hooks).toEqual({ primary: "B", alternatives: ["C", "A"] });
     expect(next?.approved_facts).toEqual(["fact"]);
-    expect(await rotateHook({ ...brief, hooks: { primary: "A", alternatives: [] } })).toBeNull();
+    expect(rotateHook({ ...brief, hooks: { primary: "A", alternatives: [] } })).toBeNull();
   });
 });

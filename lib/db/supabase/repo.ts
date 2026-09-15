@@ -859,6 +859,72 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         String(v !== null && typeof v === "object" ? Object.values(v as Record<string, unknown>)[0] : v),
       );
     },
+    async insertWeekPicks(businessId, weekOf, picks) {
+      // Additive: see insert_week_picks() in 0029_by_product.sql. Before that
+      // migration the function is missing; the week then falls back to the
+      // replacing write rather than writing nothing.
+      const { data, error } = await sb.rpc("insert_week_picks", { p_business_id: businessId, p_week_of: weekOf, p_picks: picks });
+      if (isMissingTable(error) || /function .*insert_week_picks/i.test(error?.message ?? "")) {
+        console.warn("[supabase] insert_week_picks missing; run migration 0029. Falling back to replace_week_picks.");
+        return this.replaceWeekPicks(businessId, weekOf, picks);
+      }
+      throwIf(error, "insertWeekPicks");
+      return ((data ?? []) as unknown[]).map((v) =>
+        String(v !== null && typeof v === "object" ? Object.values(v as Record<string, unknown>)[0] : v),
+      );
+    },
+    async appendPickEvidence(pickId, rows) {
+      const { data, error } = await sb.from("pick_evidence").select("claim, position").eq("pick_id", pickId);
+      throwUnlessMissing(error, "appendPickEvidence");
+      const have = (data ?? []) as { claim: string; position: number }[];
+      const seen = new Set(have.map((e) => e.claim.trim().toLowerCase()));
+      let position = have.reduce((m, e) => Math.max(m, e.position + 1), 0);
+      const fresh = rows.filter((r) => {
+        const key = r.claim.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (fresh.length === 0) return 0;
+      const { error: insertError } = await writeTolerant(
+        fresh.map((r) => ({ ...r, pick_id: pickId, position: position++ })),
+        (batch) => sb.from("pick_evidence").insert(batch),
+        "appendPickEvidence",
+      );
+      throwIf(insertError, "appendPickEvidence");
+      return fresh.length;
+    },
+    async listOpenPicks(businessId, weekOf) {
+      // This week's timely picks and every evergreen one still in date.
+      const { data, error } = await sb
+        .from("picks")
+        .select("*")
+        .eq("business_id", businessId)
+        .eq("status", "ready")
+        .or(`week_of.eq.${weekOf},and(timing.eq.evergreen,or(expires_on.is.null,expires_on.gte.${weekOf}))`)
+        .order("week_of")
+        .order("rank");
+      throwUnlessMissing(error, "listOpenPicks");
+      const picks = ((data ?? []) as BrandPick[]).filter((p) => (p.timing ?? "timely") === "evergreen" || p.week_of === weekOf);
+      if (picks.length === 0) return [];
+      const ids = picks.map((p) => p.id);
+      const [feedback, runs] = await Promise.all([
+        sb.from("pick_feedback").select("pick_id").in("pick_id", ids).eq("action", "dismissed"),
+        sb.from("pick_runs").select("*").in("pick_id", ids).order("started_at", { ascending: false }),
+      ]);
+      throwUnlessMissing(feedback.error, "listOpenPicks:feedback");
+      throwUnlessMissing(runs.error, "listOpenPicks:runs");
+      const dismissed = new Set(((feedback.data ?? []) as { pick_id: string }[]).map((r) => r.pick_id));
+      const latest = new Map<string, PickRun>();
+      for (const r of (runs.data ?? []) as PickRun[]) if (!latest.has(r.pick_id)) latest.set(r.pick_id, r);
+      return picks
+        .filter((p) => {
+          if (dismissed.has(p.id)) return false;
+          const run = latest.get(p.id);
+          return !run || run.status === "planned" || run.status === "running";
+        })
+        .map((pick) => ({ pick, run: latest.get(pick.id) ?? null }));
+    },
     async listReadyPicks(businessId, weekOf) {
       const { data, error } = await sb
         .from("picks")

@@ -93,6 +93,8 @@ export interface Business {
   recent_creative_notes?: string | null;
   /** The product or offer the brand wants briefs to lead with. */
   priority_service_id?: string | null;
+  /** Products to brief for (0029). Empty means every active product, capped. */
+  brief_service_ids?: string[];
   created_at: string;
 }
 
@@ -522,6 +524,13 @@ export type PickRunStatus = "planned" | "running" | "completed" | "killed";
 export type PickFeedbackAction = "running" | "dismissed" | "chosen" | "refined";
 export type PickEvidenceKind = "observation" | "quote" | "measurement" | "context";
 export type PickBasis = "builds_on" | "explores";
+/** timely: evidence this week points at the concept; it expires with the
+ * week. evergreen: the ad TRND would make for the product anyway; it stays
+ * until the brand acts on it. */
+export type PickTiming = "timely" | "evergreen";
+/** The persuasion shape of a concept, so a product's options differ on purpose. */
+export type ConceptAngle = "problem_first" | "comparison" | "demo" | "objection" | "social_proof" | "education";
+export const CONCEPT_ANGLES: readonly ConceptAngle[] = ["problem_first", "comparison", "demo", "objection", "social_proof", "education"];
 
 /**
  * A creative test: the concept a brand hands to a creator, stored whole on
@@ -622,6 +631,12 @@ export interface BrandPick {
   basis?: PickBasis | null;
   /** Why this concept sits where it does this week. */
   priority_reason?: string | null;
+  /** The product the concept is for (0029). Null on older picks. */
+  service_id?: string | null;
+  timing?: PickTiming | null;
+  angle?: ConceptAngle | null;
+  /** yyyy-mm-dd a timely concept stops showing; null for evergreen. */
+  expires_on?: string | null;
   status: PickStatus;
   created_at: string;
 }

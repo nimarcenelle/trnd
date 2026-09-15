@@ -98,7 +98,12 @@ export async function updateCreativeContextAction(_prev: SettingsState, formData
   const wanted = String(formData.get("priority_service_id") ?? "").trim();
   const services = await repo.listServices(business.id);
   const priority = services.find((s) => s.id === wanted)?.id ?? null;
-  await repo.updateBusiness(business.id, { ...context, priority_service_id: priority });
+  // Products to brief for: only ids the brand owns; every product ticked
+  // (or none) stores as empty, which means all active ones.
+  const owned = new Set(services.filter((s) => s.is_active !== false).map((s) => s.id));
+  const ticked = formData.getAll("brief_service_ids").map(String).filter((id) => owned.has(id));
+  const briefFor = ticked.length === 0 || ticked.length === owned.size ? [] : ticked;
+  await repo.updateBusiness(business.id, { ...context, priority_service_id: priority, brief_service_ids: briefFor });
   revalidatePath("/app", "layout");
   return { ok: true };
 }

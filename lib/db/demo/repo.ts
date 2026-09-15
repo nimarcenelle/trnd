@@ -931,18 +931,28 @@ export function createDemoRepo(actor: DemoActor): Repo {
       store.pick_scripts ??= [];
       store.pick_feedback ??= [];
       store.pick_runs ??= [];
-      // Same rule as replace_week_picks(): a pick someone acted on stays.
+      // Same rule as replace_week_picks(): a pick someone acted on stays, and
+      // so does an evergreen concept; only the week's unacted timely ones go.
       const acted = new Set([...store.pick_runs.map((r) => r.pick_id), ...store.pick_feedback.map((f) => f.pick_id)]);
       const removed = new Set(
-        store.picks.filter((p) => p.business_id === businessId && p.week_of === weekOf && !acted.has(p.id)).map((p) => p.id),
+        store.picks
+          .filter((p) => p.business_id === businessId && p.week_of === weekOf && (p.timing ?? "timely") !== "evergreen" && !acted.has(p.id))
+          .map((p) => p.id),
       );
       store.picks = store.picks.filter((p) => !removed.has(p.id));
       store.pick_evidence = store.pick_evidence.filter((e) => !removed.has(e.pick_id));
       store.pick_scripts = store.pick_scripts.filter((sc) => !removed.has(sc.pick_id));
+      return this.insertWeekPicks(businessId, weekOf, bundles);
+    },
+    async insertWeekPicks(businessId: string, weekOf: string, bundles: NewPickBundle[]) {
+      assertOwnsBusiness(businessId);
+      store.picks ??= [];
+      store.pick_evidence ??= [];
+      store.pick_scripts ??= [];
       const ids: string[] = [];
       for (const bundle of bundles) {
         const id = randomUUID();
-        // Same rule as replace_week_picks(): a creative test needs one evidence
+        // Same rule as insert_week_picks(): a creative test needs one evidence
         // row; a keyword pick (no brief) still needs three scripts too.
         const hasBrief = bundle.pick.brief !== null && typeof bundle.pick.brief === "object";
         const ready = bundle.evidence.length >= 1 && (hasBrief || bundle.scripts.length >= 3);
@@ -961,6 +971,43 @@ export function createDemoRepo(actor: DemoActor): Repo {
       }
       saveStore();
       return ids;
+    },
+    async appendPickEvidence(pickId, rows) {
+      const pick = (store.picks ?? []).find((p) => p.id === pickId);
+      if (!pick) return 0;
+      assertOwnsBusiness(pick.business_id);
+      store.pick_evidence ??= [];
+      const have = store.pick_evidence.filter((e) => e.pick_id === pickId);
+      const seen = new Set(have.map((e) => e.claim.trim().toLowerCase()));
+      let position = have.length;
+      let added = 0;
+      for (const r of rows) {
+        const key = r.claim.trim().toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        store.pick_evidence.push({ ...r, id: randomUUID(), pick_id: pickId, position: position++ });
+        added += 1;
+      }
+      if (added > 0) saveStore();
+      return added;
+    },
+    async listOpenPicks(businessId, weekOf) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      const dismissed = new Set((store.pick_feedback ?? []).filter((f) => f.action === "dismissed").map((f) => f.pick_id));
+      const latestRun = (id: string) =>
+        [...(store.pick_runs ?? [])]
+          .filter((r) => r.pick_id === id)
+          .sort((a, b) => b.started_at.localeCompare(a.started_at))[0] ?? null;
+      return (store.picks ?? [])
+        .filter((p) => {
+          if (p.business_id !== businessId || p.status !== "ready" || dismissed.has(p.id)) return false;
+          const run = latestRun(p.id);
+          if (run && run.status !== "planned" && run.status !== "running") return false;
+          if ((p.timing ?? "timely") === "evergreen") return !p.expires_on || p.expires_on >= weekOf;
+          return p.week_of === weekOf;
+        })
+        .sort((a, b) => a.week_of.localeCompare(b.week_of) || a.rank - b.rank)
+        .map((pick) => ({ pick, run: latestRun(pick.id) }));
     },
     async listReadyPicks(businessId, weekOf) {
       if (!visibleBusinessIds().has(businessId)) return [];

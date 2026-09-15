@@ -29,7 +29,7 @@ Items 5 and 8 make it arrive on its own — which is the whole evergreen promise
 
 ## Running three paid pilots (2026-09-15)
 
-1. Paste migration 0028 into the Supabase SQL editor. Set `PILOT_INVITE_CODE` and
+1. Paste migrations 0028 and 0029 into the Supabase SQL editor, in order. Set `PILOT_INVITE_CODE` and
    `ADMIN_EMAILS`. Confirm `NOTIFY_WEBHOOK_URL` or Resend so applications reach you.
 2. Before inviting anyone, sign up a test brand yourself with a real Ads Manager export and
    read all three briefs. Fix what reads wrong; `scripts/probe-picks.ts` still dry-runs a week.

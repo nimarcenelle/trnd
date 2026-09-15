@@ -245,6 +245,14 @@ export interface Repo {
    * transaction. A pick without three scripts and one evidence row is stored
    * as a draft whatever status it asked for. Returns the new pick ids. */
   replaceWeekPicks(businessId: string, weekOf: string, picks: NewPickBundle[]): Promise<string[]>;
+  /** Adds picks to a week without deleting any: the additive write the
+   * job uses once a brand has read its first concepts (0029). */
+  insertWeekPicks(businessId: string, weekOf: string, picks: NewPickBundle[]): Promise<string[]>;
+  /** Appends evidence rows to a pick that already exists; claims already on it are skipped. Returns rows added. */
+  appendPickEvidence(pickId: string, rows: NewPickBundle["evidence"]): Promise<number>;
+  /** Every concept still open for the brand: ready, not passed, this week's
+   * timely ones plus evergreen ones that have not expired, with the latest run. */
+  listOpenPicks(businessId: string, weekOf: string): Promise<{ pick: BrandPick; run: PickRun | null }[]>;
   /** The week's ready picks by rank, dismissed ones left out, each with its
    * latest run. */
   listReadyPicks(businessId: string, weekOf: string): Promise<{ pick: BrandPick; run: PickRun | null }[]>;

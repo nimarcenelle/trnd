@@ -216,6 +216,12 @@ What the customer, competitive, cultural and brand signals need that code cannot
   all. Until it runs: the Supabase writes drop the missing columns (`writeTolerant`), so a
   week still lands but as keyword picks without a brief, planned runs fail the status check,
   applications fail to insert, and the meter records nothing. Paste it before deploying.
+- **Migration 0029** (`supabase/migrations/0029_by_product.sql`, run after 0028): `service_id`,
+  `timing`, `angle` and `expires_on` on `picks`, `brief_service_ids` on `businesses`, the
+  additive `insert_week_picks()`, and `replace_week_picks()` keeping evergreen and acted-on
+  picks. Until it runs: the Supabase repo falls back to `replace_week_picks` for inserts (so
+  a later pass replaces unacted picks again), the product and timing columns are dropped by
+  `writeTolerant`, and the list shows everything under "Earlier picks". Paste it with 0028.
 - **The writing model.** Refinement beyond the hook switch, and any brief that is not the
   keyless template, need `GEMINI_API_KEY`. Not verified live in this container.
 - **Creative in an export.** An Ads Manager export has no creative id, thumbnail or link, so

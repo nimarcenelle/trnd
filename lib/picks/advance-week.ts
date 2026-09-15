@@ -6,7 +6,7 @@ import { weekOf } from "@/lib/recommend/week";
 import { withAiContext } from "@/lib/ai/usage";
 import { NO_COMPETITORS_NOTE, NOTHING_READ_NOTE } from "@/lib/scoring/competitive";
 
-import { eligibleWeekOpportunities, generateWeekPicks } from "./generate";
+import { generateWeekPicks, productsToBrief } from "./generate";
 
 /**
  * A brand's week, advanced one stage at a time.
@@ -173,20 +173,14 @@ export async function nextWeekStage(
   }
   const count = await repo.countWeekPicks(business.id, week);
   if (count === 0) return "picks";
-  // A fresh signup's first pick is written alone so it lands sooner; the
-  // rest of the week is still owed while only that one exists.
-  if (count === 1 && businessJustOnboarded(business.created_at) && eligibleWeekOpportunities(opportunities).length > 1) {
-    return "picks";
+  // A fresh signup's first concept is written alone so it lands sooner; the
+  // rest of the products are still owed while only that one exists. Later
+  // passes only add: a concept the owner has read is never rewritten under
+  // it (see generateWeekPicks fill mode).
+  if (count === 1 && businessJustOnboarded(business.created_at)) {
+    const products = productsToBrief(business, await repo.listServices(business.id).catch(() => []));
+    if (products.length > 1) return "picks";
   }
-  // Picks written from an ungraded ranking are written again once the
-  // ranking has grades, so the page never shows a pick without its grade.
-  const ready = await repo.listReadyPicks(business.id, week).catch(() => []);
-  if (ready.length > 0 && ready.every((r) => r.pick.grade == null) && opportunities.some((o) => o.grade != null)) {
-    return "picks";
-  }
-  // Picks that still carry the grade from before the rivals were read are
-  // written again from the re-graded rows.
-  if (fresh && picksBehindGrade(ready.map((r) => r.pick), opportunities)) return "picks";
   // The first picks came from the fast, free reads. The brand's own
   // accounts, its rivals' ads and posts, and the scraped short-form reads
   // come after them, and the week is ranked and written again on top. Once
@@ -300,18 +294,15 @@ async function defaultRank(repo: Repo, business: Business): Promise<void> {
 async function defaultPicks(repo: Repo, business: Business): Promise<void> {
   const count = await repo.countWeekPicks(business.id, weekOf());
   const fresh = businessJustOnboarded(business.created_at);
-  // A fresh signup gets its first pick alone, in about a third of the time
-  // the five take, then the rest of the week with that one reused as built.
-  // Nobody sits on a wait screen for the last pick when the first is ready.
-  let built: Awaited<ReturnType<typeof generateWeekPicks>>["bundles"] = [];
+  // A fresh signup gets its first concept alone so it lands in minutes;
+  // the rest are added under it, and nothing written is ever replaced.
   if (fresh && count === 0) {
-    const first = await generateWeekPicks(repo, business, { limit: 1 });
-    built = first.bundles;
-    console.log(`[week] first pick for ${business.id}: ${first.ready} ready, ${first.draft} draft`);
+    const first = await generateWeekPicks(repo, business, { limit: 1, mode: "replace" });
+    console.log(`[week] first concept for ${business.id}: ${first.ready} ready, ${first.draft} draft`);
+    if (first.ready > 0) await emailFirstPicks(repo, business, first.ready);
   }
-  const written = await generateWeekPicks(repo, business, { built });
-  console.log(`[week] picks for ${business.id}: ${written.ready} ready, ${written.draft} draft`);
-  if (fresh && count === 0 && written.ready > 0) await emailFirstPicks(repo, business, written.ready);
+  const written = await generateWeekPicks(repo, business, { mode: count === 0 && !fresh ? "replace" : "fill" });
+  console.log(`[week] concepts for ${business.id}: ${written.ready} ready, ${written.draft} draft, ${written.evidenceAdded} evidence rows added`);
 }
 
 /**
@@ -378,8 +369,9 @@ export async function runWeekStage(
     case "intel":
       return exhausted ? "intel" : "rank";
     case "deepen":
-      // The week is ranked and written again on top of what the deep read
-      // found: the rivals' ads, the brand's own posts, the short-form reads.
+      // The week is ranked again on what the deep read found, and the picks
+      // pass then adds evidence and fills empty slots. Nothing already on
+      // the page is replaced.
       return exhausted ? "deepen" : "rank";
     case "rank":
       return (await repo.listOpportunities(business.id, weekOf())).length > 0 ? "picks" : "done";

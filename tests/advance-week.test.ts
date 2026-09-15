@@ -45,10 +45,13 @@ const brief = (biz: Business) => ({
   target_customer: null,
 });
 
-async function seed(opts: { brief?: boolean; signalToday?: boolean; opportunity?: boolean; posts?: boolean } = {}) {
+async function seed(opts: { brief?: boolean; signalToday?: boolean; opportunity?: boolean; posts?: boolean; products?: string[] } = {}) {
   const admin = createDemoRepo({ kind: "admin" });
   const user = createDemoRepo({ kind: "user", userId: "owner" });
   const biz = await user.createBusiness(input());
+  if (opts.products?.length) {
+    await user.createServices(opts.products.map((name, i) => ({ business_id: biz.id, name, description: null, price_cents: 9900 - i * 1000, is_active: true })));
+  }
   if (opts.brief !== false) await admin.upsertBusinessBrief(brief(biz) as never);
   if (opts.signalToday !== false) {
     await admin.upsertSignals([
@@ -239,26 +242,34 @@ describe("a fresh signup's first hop", () => {
 describe("the first pick before the rest", () => {
   beforeEach(() => resetStore());
 
-  it("still owes the week while a fresh signup has one pick and more graded rows", async () => {
-    const { admin, user, biz } = await seed({ opportunity: true });
-    const sig = (await admin.listSignalsForCategory(biz.category, { sinceDays: 1 }))[0];
-    await admin.upsertSignals([
-      { source: "seed", term: "brassy hair", normalized_term: "brassy_hair", category: biz.category, geo: "US", metric_type: "search_volume", value: 80, delta_pct: 5, window_days: 7, raw: null },
-    ] as never);
-    const sig2 = (await admin.listSignalsForCategory(biz.category, { sinceDays: 1 })).find((s) => s.id !== sig.id)!;
-    await admin.upsertOpportunities([
-      { business_id: biz.id, signal_id: sig2.id, week_of: weekOf(), score: 6, rationale: "r", matched_service_id: null, competitor_gap: null, relevance: null, grade: "B", grade_score: 60, signal_scores: {} },
-    ]);
+  it("still owes the week while a fresh signup has one concept and more products to brief for", async () => {
+    const { admin, user, biz } = await seed({ opportunity: true, products: ["Hard Water Showerhead", "Filter Cartridge"] });
     const { generateWeekPicks } = await import("../lib/picks/generate");
     const { fallbackConceptWrite } = await import("../lib/ai/concept-writer");
     const writer = async (input: Parameters<typeof fallbackConceptWrite>[0]) => fallbackConceptWrite(input);
     const first = await generateWeekPicks(admin, biz, { limit: 1, writer: writer as never });
     expect(first.bundles).toHaveLength(1);
+    expect(first.bundles[0].pick).toMatchObject({ term: "hard water", timing: "timely" });
     expect(await admin.countWeekPicks(biz.id, weekOf())).toBe(1);
     expect(await nextWeekStage(user, biz)).toBe("picks");
-    const rest = await generateWeekPicks(admin, biz, { built: first.bundles, writer: writer as never });
+    // The next pass adds under the first concept: the cartridge's first and
+    // the showerhead's second, and the first keeps its id.
+    const rest = await generateWeekPicks(admin, biz, { writer: writer as never });
     expect(rest.bundles).toHaveLength(2);
-    expect(await admin.countWeekPicks(biz.id, weekOf())).toBe(2);
+    expect(rest.pickIds).not.toContain(first.pickIds[0]);
+    expect(await admin.countWeekPicks(biz.id, weekOf())).toBe(3);
+    expect(await nextWeekStage(user, biz)).toBe("done");
+  });
+
+  it("does not owe a second pass to a fresh signup with one product and one concept", async () => {
+    const { admin, user, biz } = await seed({ opportunity: true, products: ["Hard Water Showerhead"] });
+    await admin.replaceWeekPicks(biz.id, weekOf(), [
+      {
+        pick: { opportunity_id: null, rank: 1, geo: "US", term: "hard water", finding: "f", metric_label: "m", metric_value: null, metric_delta_pct: null, metric_window: "30d", sparkline: [], bet_what: "b", bet_budget_usd: 1000, bet_duration_days: 5, bet_kill_rule: "k", guardrail: null, status: "draft" },
+        evidence: [],
+        scripts: [],
+      },
+    ]);
     expect(await nextWeekStage(user, biz)).toBe("done");
   });
 });
@@ -332,7 +343,7 @@ describe("the rivals before the first grade", () => {
     expect(await nextWeekStage(user, biz)).toBe("picks");
   });
 
-  it("writes the picks again when they still carry the grade from before the rivals", async () => {
+  it("never rewrites picks that carry the grade from before the rivals; the next pass adds evidence instead", async () => {
     const { admin, user, biz } = await seed();
     const sig = (await admin.listSignalsForCategory(biz.category, { sinceDays: 1 }))[0];
     await admin.upsertOpportunities([
@@ -340,14 +351,17 @@ describe("the rivals before the first grade", () => {
     ]);
     const pick = (scores: Record<string, unknown>) => ({
       pick: { opportunity_id: null, rank: 1, geo: "US", term: "hard water", finding: "f", metric_label: "m", metric_value: null, metric_delta_pct: null, metric_window: "30d", sparkline: [], bet_what: "b", bet_budget_usd: 1000, bet_duration_days: 5, bet_kill_rule: "k", guardrail: null, status: "ready", grade: "A", grade_score: 80, signal_scores: scores },
-      // Three scripts and one evidence line: what "ready" needs.
       evidence: [{ signal: "customer", claim: "c", source_url: null, source_label: null }],
       scripts: [1, 2, 3].map((i) => ({ variant_label: `v${i}`, thesis: `t${i}`, hook: `h${i}`, beats: [], cta: "Shop", duration_seconds: 20, direction: null })),
     });
-    await admin.replaceWeekPicks(biz.id, weekOf(), [pick(graded({ confidence: "low", note: "No competitors connected yet" })) as never]);
-    expect(await nextWeekStage(user, biz)).toBe("picks");
-    await admin.replaceWeekPicks(biz.id, weekOf(), [pick(graded({ confidence: "high", note: null })) as never]);
+    const [id] = await admin.replaceWeekPicks(biz.id, weekOf(), [pick(graded({ confidence: "low", note: "No competitors connected yet" })) as never]);
+    // The stale grade is visible to picksBehindGrade, and the week is still
+    // not rewritten: a concept the owner has read keeps its id.
+    const { picksBehindGrade } = await import("../lib/picks/advance-week");
+    const rows = await admin.listOpportunities(biz.id, weekOf());
+    expect(picksBehindGrade([(await admin.getPickDetail(id))!.pick], rows)).toBe(true);
     expect(await nextWeekStage(user, biz)).toBe("done");
+    expect((await admin.listReadyPicks(biz.id, weekOf())).map((p) => p.pick.id)).toEqual([id]);
   });
 });
 
@@ -375,7 +389,7 @@ describe("a rejected draft gets one retry, told why", () => {
   beforeEach(() => resetStore());
 
   it("writes the concept once the writer fixes the named line", async () => {
-    const { admin, biz } = await seed({ opportunity: true });
+    const { admin, biz } = await seed({ opportunity: true, products: ["Hard Water Showerhead"] });
     const { generateWeekPicks } = await import("../lib/picks/generate");
     const { fallbackConceptWrite } = await import("../lib/ai/concept-writer");
     const seen: string[] = [];

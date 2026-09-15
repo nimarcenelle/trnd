@@ -1,6 +1,6 @@
 import type { Schema } from "@google/genai";
 
-import type { Business, BusinessBrief, PickSignal, Service } from "@/lib/db/types";
+import type { Business, BusinessBrief, ConceptAngle, PickSignal, PickTiming, Service } from "@/lib/db/types";
 import { isGeminiConfigured } from "@/lib/env";
 import { conceptSchemaFor, type ConceptRules, type ConceptWrite } from "@/lib/picks/concept";
 import type { CampaignSignalBrief } from "@/lib/recommend/four-signals";
@@ -42,7 +42,21 @@ export interface ConceptWriterInput {
   feedback?: string | null;
   /** A refinement ask from the owner, when rewriting an existing brief. */
   refinement?: { ask: string; previous: ConceptWrite } | null;
+  /** The persuasion shape this concept must take, so a product's options differ. */
+  angle?: ConceptAngle;
+  /** timely: this week's evidence points at the product. evergreen: nothing
+   * is pushing it; write the ad to make for it anyway. */
+  timing?: PickTiming;
 }
+
+export const ANGLE_BRIEFS: Record<ConceptAngle, { label: string; instruction: string }> = {
+  problem_first: { label: "Problem first", instruction: "Open on the customer's problem or moment, in their words, before the product appears." },
+  comparison: { label: "The switch", instruction: "Put what the customer uses now beside the product and let one visible difference make the case. Never name a rival." },
+  demo: { label: "Demonstration", instruction: "Show the product doing the thing, start to finish, with as few cuts as the format allows. The demonstration is the argument." },
+  objection: { label: "The objection", instruction: "Open on the one doubt that stops this customer buying and answer it with a fact from the catalog or the evidence." },
+  social_proof: { label: "In their words", instruction: "Build the ad around what real customers said. Use the quotes given exactly, or, with none, the customer profile's own vocabulary; never invent a quote." },
+  education: { label: "What it actually does", instruction: "Teach one thing the customer does not know about the problem or the product, plainly, so the purchase follows from understanding." },
+};
 
 /** Returns unvalidated output; the weekly job validates whatever comes back. */
 export type ConceptWriter = (input: ConceptWriterInput, rules: ConceptRules) => Promise<unknown>;
@@ -190,6 +204,15 @@ export function buildConceptPrompt(input: ConceptWriterInput): string {
       ? ["CONCEPTS ALREADY WRITTEN THIS WEEK (this one must test something different):", ...otherConcepts.map((c) => `- ${c.title}: ${c.hypothesis}`)].join("\n")
       : "",
     "",
+    input.angle
+      ? `ANGLE (the shape this concept must take; the product's other concepts take other shapes): ${ANGLE_BRIEFS[input.angle].label}. ${ANGLE_BRIEFS[input.angle].instruction}`
+      : "",
+    input.timing === "evergreen"
+      ? `TIMING: nothing in this week's reads is pushing ${matchedService?.name ?? "this product"}. Write the ad the brand should make for it anyway, from the product's facts and the customer's objections. priority_reason must say plainly that no weekly signal drives this and why it is still worth making.`
+      : input.timing === "timely"
+        ? `TIMING: this week's evidence points at this product (see the observations). priority_reason says what is pointing at it now, without restating a figure.`
+        : "",
+    "",
     `FORMAT: the script runs about ${durationSec} seconds.`,
     "",
     "Return JSON:",
@@ -272,6 +295,10 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
   const online = isOnlineBusiness(business);
   const sensitive = SENSITIVE.test(`${business.category} ${product} ${term}`);
   const objection = input.signals.targetCustomer?.objections[0] ?? null;
+  // An evergreen concept's research input is the product itself: the
+  // template speaks of the problem the product is for, never of a phrase.
+  const onProduct = input.timing === "evergreen" || term.trim().toLowerCase() === product.trim().toLowerCase();
+  const topic = onProduct ? `the problem ${product} is for` : `"${term}"`;
   const page = online ? "product page" : "menu";
   const cta = online ? `Shop ${product}${price ? `, ${price}` : ""}` : `Get ${product}${price ? ` for ${price}` : ""} this week`;
   const guardrail = sensitive
@@ -280,12 +307,16 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
   // The one fact a template can state: the item and its listed price, or,
   // with no catalog, what the brand is.
   const approved_facts = [item ? `${product}${price ? ` is listed at ${price}` : " is on the product list"}.` : `${business.name} sells ${business.category}.`];
-  const which = input.otherConcepts.length % 3;
+  const byAngle: Record<string, number> = { problem_first: 0, objection: 3, comparison: 1, demo: 2, social_proof: 4, education: 5 };
+  const which = input.angle ? byAngle[input.angle] : input.otherConcepts.length % 3;
+  // Short, so the reason stays inside the limit the validator holds every
+  // writer to; the concept's timing carries the same fact.
+  const evergreenNote = input.timing === "evergreen" ? ` No weekly signal is pushing ${product.length > 40 ? "this product" : product}; worth making regardless.` : "";
 
   if (which === 1) {
     return {
       title: `What they use now, next to ${product}`,
-      situation: `Someone already owns a way to deal with "${term}" and half believes it works. ${objection ? `Their doubt about switching: ${objection}.` : "Switching feels like admitting the old thing failed."}`,
+      situation: `Someone already owns a way to deal with ${topic} and half believes it works. ${objection ? `Their doubt about switching: ${objection}.` : "Switching feels like admitting the old thing failed."}`,
       hypothesis: `Test whether a plain side-by-side of the thing they use now and ${product} is more persuasive than showing ${product} alone, because the doubt is not "does it work" but "is it different from what I have".`,
       unknowns: ["Whether the brand can show a generic alternative without naming a rival."],
       differs_from: null,
@@ -315,14 +346,14 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
         if_same: "The comparison did not move them; keep the concept and open on the alternative hook before changing it.",
         if_worse: "Seeing the old thing reminds them it is fine; the next test drops the comparison and opens on the customer's moment.",
       },
-      priority_reason: `Nothing on file shows an ad from you that puts ${product} beside what people use instead.`,
+      priority_reason: `Nothing on file shows an ad from you that puts ${product} beside what people use instead.${evergreenNote}`,
       guardrail,
     };
   }
   if (which === 2) {
     return {
       title: `One take, start to finish`,
-      situation: `Someone believes ${product} might help with "${term}" but expects it to be fiddly, slow or a chore. ${objection ? `In their words: ${objection}.` : "The effort is the objection, not the price."}`,
+      situation: `Someone believes ${product} might help${onProduct ? "" : ` with "${term}"`} but expects it to be fiddly, slow or a chore. ${objection ? `In their words: ${objection}.` : "The effort is the objection, not the price."}`,
       hypothesis: `Test whether one unbroken shot of ${product} used start to finish is more persuasive than an edited sequence, because the doubt is effort, and cuts hide effort while a single take cannot.`,
       unknowns: ["Whether the whole use fits in one take at this length."],
       differs_from: null,
@@ -352,24 +383,112 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
         if_same: "The single take neither helped nor hurt; test the second hook before changing the concept.",
         if_worse: "They wanted to see the problem, not the process; the next test opens on the customer's moment.",
       },
-      priority_reason: `The research input reads like a task people put off, and nothing on file shows an ad from you that makes the doing look short.`,
+      priority_reason: `${onProduct ? `Nothing on file shows an ad from you that makes using ${product} look short.` : "The research input reads like a task people put off, and nothing on file shows an ad from you that makes the doing look short."}${evergreenNote}`,
+      guardrail,
+    };
+  }
+  if (which === 3) {
+    return {
+      title: `The doubt about ${product}, answered`,
+      situation: `Someone wants what ${product} promises and has one reason not to buy. ${objection ? `In their words: ${objection}.` : "The doubt is whether it will work for them, not whether it works."}`,
+      hypothesis: `Test whether opening on the customer's one doubt and answering it with a plain fact is more persuasive than leading with the benefit, because the doubt is what stops the purchase, not a lack of interest.`,
+      unknowns: ["Which doubt matters most to this brand's buyers; the customer profile names the first one."],
+      differs_from: null,
+      format: `${durationSec}-second talking head`,
+      hooks: { primary: `The reason people don't buy this, and why I did`, alternatives: [`I had the same doubt about ${product}`, `Say the doubt out loud first`] },
+      script: {
+        direction: {
+          show: `One person to camera, ${product} in hand, saying the doubt before the product is explained; then the one fact that answers it, shown, not claimed.`,
+          say: `Name the doubt in the customer's own words, then answer it with one fact from the ${page}. No second argument.`,
+          prove: `The fact that answers the doubt, as the ${page} states it. Nothing invented.`,
+        },
+        cta,
+        duration_seconds: durationSec,
+      },
+      shot_list: [`The person naming the doubt, to camera, no product yet.`, `${product} brought into frame on the answer.`, `The fact shown on the product or its page, close.`, `A close shot of ${product} for the close, with the listed price on screen.`],
+      approved_facts,
+      outcomes: {
+        if_better: "The doubt was the block; the next test answers the second doubt the same way.",
+        if_same: "Answering it did not move them; test whether the doubt named was the right one.",
+        if_worse: "Raising the doubt planted it; the next test leads with the benefit and keeps the answer for the close.",
+      },
+      priority_reason: `The customer profile names a doubt that stops the purchase, and nothing on file shows an ad from you that answers it directly.${evergreenNote}`,
+      guardrail,
+    };
+  }
+  if (which === 4) {
+    const quote = input.quotes[0] ?? null;
+    return {
+      title: quote ? `In a customer's words` : `What customers say about ${product}`,
+      situation: `Someone is deciding whether ${product} is for people like them. ${quote ? "A customer already said the thing that would convince them." : "They trust a customer's words over the brand's."}`,
+      hypothesis: `Test whether an ad built on a customer's own words is more persuasive than the brand's description, because the doubt is about trust, and a stranger's sentence carries more of it than a claim.`,
+      unknowns: quote ? ["Whether the brand has permission to quote this customer on screen."] : ["No real customer quote is on file; the ad has to use the customer profile's vocabulary, not an invented quote."],
+      differs_from: null,
+      format: `${durationSec}-second creator-style UGC`,
+      hooks: { primary: quote ? `"${quote.replace(/\s+/g, " ").slice(0, 70)}"` : `Here is what people actually say about ${product}`, alternatives: [`I didn't believe it either`, `Read the reviews before you buy this`] },
+      script: {
+        direction: {
+          show: `${quote ? "The customer's sentence on screen, verbatim, then" : "The customer profile's own words on screen, then"} ${product} in use by one person, plainly.`,
+          say: `Read the words as written. Add nothing to them. Let the product in use be the only other argument.`,
+          prove: `The quote itself, verbatim, with its source. Never a paraphrase presented as a quote.`,
+        },
+        cta,
+        duration_seconds: durationSec,
+      },
+      shot_list: [`The words on screen, held three seconds.`, `${product} in use, hands in frame.`, `The same person reacting, no script.`, `A close shot of ${product} for the close, with the listed price on screen.`],
+      approved_facts,
+      outcomes: {
+        if_better: "Trust is the lever; the next test uses a second real quote on a different objection.",
+        if_same: "The words did not carry more than the brand's; test a demonstration next.",
+        if_worse: "The quote did not match what this audience doubts; find one that names their doubt.",
+      },
+      priority_reason: `${quote ? "A real customer sentence about this is on file" : "The customer profile carries the words buyers use"}, and nothing on file shows an ad from you built on them.${evergreenNote}`,
+      guardrail,
+    };
+  }
+  if (which === 5) {
+    return {
+      title: `What ${product} actually does`,
+      situation: `Someone half understands the problem ${product} addresses and has the wrong mental model of it. They buy the wrong fix, or none.`,
+      hypothesis: `Test whether teaching one thing about the problem is more persuasive than describing the product, because a buyer who understands the cause chooses the fix on their own.`,
+      unknowns: ["Whether the one fact to teach is on the product page; the brief may only teach what is on file."],
+      differs_from: null,
+      format: `${durationSec}-second talking head with one prop`,
+      hooks: { primary: `Nobody explains this part, so here it is`, alternatives: [onProduct ? `The thing I got wrong about ${product}` : `The thing I got wrong about "${term}"`, `One minute on how this actually works`] },
+      script: {
+        direction: {
+          show: `One person, one prop that makes the cause visible, then ${product} as the consequence of understanding it. No montage.`,
+          say: `Explain the one cause plainly, as a friend would. Do not sell until the last line, and then only name the product.`,
+          prove: `The fact taught must be on the ${page} or in the evidence. Teach nothing the brand cannot back.`,
+        },
+        cta,
+        duration_seconds: durationSec,
+      },
+      shot_list: [`The prop that shows the cause, close.`, `The person explaining, to camera.`, `${product} introduced only after the explanation lands.`, `A close shot of ${product} for the close, with the listed price on screen.`],
+      approved_facts,
+      outcomes: {
+        if_better: "Understanding sells this; the next test teaches the second thing buyers get wrong.",
+        if_same: "The lesson did not change the decision; test the demonstration next.",
+        if_worse: "They already knew, or did not want a lesson; the next test opens on the product in use.",
+      },
+      priority_reason: `${onProduct ? `Nothing on file shows an ad from you that explains what ${product} actually does.` : "The research input reads like a problem people misunderstand, and nothing on file shows an ad from you that explains it."}${evergreenNote}`,
       guardrail,
     };
   }
   return {
-    title: `The moment before "${term}"`,
-    situation: `Someone is in the middle of the problem people mean when they search "${term}". They have tried the obvious thing and it did not hold. ${objection ? `Their doubt: ${objection}.` : "They are not sure a product changes anything."}`,
+    title: onProduct ? `The moment before ${product}` : `The moment before "${term}"`,
+    situation: `Someone is in the middle of ${onProduct ? topic : `the problem people mean when they search "${term}"`}. They have tried the obvious thing and it did not hold. ${objection ? `Their doubt: ${objection}.` : "They are not sure a product changes anything."}`,
     hypothesis: `Test whether opening on the customer's own moment of frustration is more persuasive than opening on ${product} itself, because the search phrase suggests people describe the problem before they look for a product.`,
     unknowns: ["Whether the brand has footage of the problem itself, not only of the product."],
     differs_from: null,
     format: `${durationSec}-second talking head`,
     hooks: {
-      primary: `This is what people mean by "${term}"`,
-      alternatives: [`I kept trying to fix "${term}" the wrong way`, `The part of "${term}" nobody shows you`],
+      primary: onProduct ? `This is the moment ${product} is for` : `This is what people mean by "${term}"`,
+      alternatives: onProduct ? [`I kept trying to fix this the wrong way`, `The part nobody shows you`] : [`I kept trying to fix "${term}" the wrong way`, `The part of "${term}" nobody shows you`],
     },
     script: {
       direction: {
-        show: `The problem people mean by "${term}", in a real setting with the light as it is, then ${product} put to use by one person, then the same view after. No before-and-after framing, just the use.`,
+        show: `${onProduct ? `The problem ${product} is for` : `The problem people mean by "${term}"`}, in a real setting with the light as it is, then ${product} put to use by one person, then the same view after. No before-and-after framing, just the use.`,
         say: `Name the problem the way the customer does, then say plainly what ${product} does about it. No promise of a result, just what changes and why.`,
         prove: `One thing the viewer can check: what ${product} is, as the ${page} lists it. Nothing invented.`,
       },
@@ -388,7 +507,7 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
       if_same: "The opening did not decide it; test the same concept with the second hook before changing the concept.",
       if_worse: "This audience wants the product first; the next test opens on the item in use and keeps the customer's words for the close.",
     },
-    priority_reason: `The research input shows people describe this problem in their own words, and nothing on file shows an ad from you that opens on it.`,
+    priority_reason: `${onProduct ? `Nothing on file shows an ad from you that opens on the moment ${product} is for.` : "The research input shows people describe this problem in their own words, and nothing on file shows an ad from you that opens on it."}${evergreenNote}`,
     guardrail,
   };
 }

@@ -53,12 +53,22 @@ export default function ConceptDetail({ view, head, exportHref, refine }: { view
             <i />
             {status.label}
           </span>
+          {view.product && <span className="cb__product">{view.product}</span>}
+          {view.timing && (
+            <span className={`cb__timing is-${view.timing.kind}`} title={view.timing.meaning}>
+              {view.timing.label}
+            </span>
+          )}
+          {view.angle && <span className="cb__format">{view.angle}</span>}
           <span className="cb__basis" title={view.basis.kind === "builds_on" ? "Built on something you already ran." : "Nothing on file says you have tried this."}>
             {view.basis.label}
           </span>
           <span className="cb__format">{view.format}</span>
         </div>
-        <p className="cb__status-meaning">{status.meaning}</p>
+        <p className="cb__status-meaning">
+          {status.meaning}
+          {view.timing ? ` ${view.timing.meaning}` : ""}
+        </p>
         {head.writing > 0 && (
           <p className="wk-more" role="status">
             <span className="wk-progress__mark is-live" aria-hidden="true" />
@@ -69,9 +79,8 @@ export default function ConceptDetail({ view, head, exportHref, refine }: { view
         {head.writing === 0 && head.deepening && (
           <p className="wk-more" role="status">
             <span className="wk-progress__mark is-live" aria-hidden="true" />
-            This concept is from the fast reads. Your competitors&apos; ads and your own accounts are being read now, and the
-            week is written again when they land.
-            <AutoRefresh everyMs={20000} times={30} />
+            Your competitors&apos; ads and your own accounts are still being read. What they turn up is added to the evidence
+            below; this concept stays as it is.
           </p>
         )}
         {view.refinedFrom && (
@@ -259,7 +268,8 @@ export default function ConceptDetail({ view, head, exportHref, refine }: { view
 
       <details className="pickd__why cb__evidence" open>
         <summary>
-          The evidence, and what it cannot say · research input &ldquo;{view.researchTerm}&rdquo;
+          The evidence, and what it cannot say ·{" "}
+          {view.timing?.kind === "evergreen" ? "no weekly research input; built for the product" : <>research input &ldquo;{view.researchTerm}&rdquo;</>}
         </summary>
         <div className="pickd__groups">
           {view.evidence.map((g) => (

@@ -14,6 +14,8 @@ import { updateCreativeContextAction, type SettingsState } from "@/lib/settings/
 export default function CreativeContextForm({ business, services }: { business: Business; services: Service[] }) {
   const [state, formAction, pending] = useActionState<SettingsState, FormData>(updateCreativeContextAction, {});
   const formats = new Set(business.production_formats ?? []);
+  const briefFor = new Set(business.brief_service_ids ?? []);
+  const active = services.filter((s) => s.is_active !== false);
   return (
     <form action={formAction}>
       <div className="field-row">
@@ -42,6 +44,20 @@ export default function CreativeContextForm({ business, services }: { business: 
           </select>
         </div>
       </div>
+      {active.length > 1 && (
+        <div className="field">
+          <label>Products to brief for</label>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Products to brief for">
+            {active.map((s) => (
+              <label key={s.id} className={`cb__refine-opt${briefFor.size === 0 || briefFor.has(s.id) ? " is-on" : ""}`}>
+                <input type="checkbox" name="brief_service_ids" value={s.id} defaultChecked={briefFor.size === 0 || briefFor.has(s.id)} />
+                {s.name}
+              </label>
+            ))}
+          </div>
+          <p className="text-[12px] text-ink-faint mx-0 mt-[6px] mb-0">Every ticked product gets its own concepts, up to three each. Untick what you are not advertising.</p>
+        </div>
+      )}
       <div className="field">
         <label>What you can produce</label>
         <div className="flex flex-wrap gap-2" role="group" aria-label="What you can produce">

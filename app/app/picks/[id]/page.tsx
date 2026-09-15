@@ -59,7 +59,7 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
     }
   };
   const [siblings, unreadAlerts, writing, deepening, runs, skips, history] = await Promise.all([
-    repo.listReadyPicks(business.id, week),
+    safe(repo.listOpenPicks(business.id, week), []),
     repo.listAlerts(business.id, { unreadOnly: true, limit: 5 }),
     weekStillWriting(repo, business),
     weekDeepening(repo, business).catch(() => false),
@@ -80,7 +80,8 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
 
   // A pick that carries a brief is a creative test and renders as one. A
   // pick written before the brief existed keeps the page it was written for.
-  const concept = buildConceptView(detail);
+  const productName = detail.pick.service_id ? ((await repo.listServices(business.id)).find((s) => s.id === detail.pick.service_id)?.name ?? null) : null;
+  const concept = buildConceptView(detail, productName);
   if (concept) {
     return (
       <>

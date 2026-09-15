@@ -211,8 +211,14 @@ describe("the Opportunity Grade, gathered from the repo", () => {
       },
     ]);
     const picks = await generateWeekPicks(admin, biz, { write: false, writer: async (input) => fallbackConceptWrite(input) });
-    expect(picks.bundles.map((b) => b.pick.term)).toEqual(["smoked brisket"]);
-    expect(picks.bundles[0].pick).toMatchObject({ grade: top.grade, grade_score: Number(top.grade_score) });
+    // The brisket's concept is the one timely concept of the week; the other
+    // products get the ad to make for them anyway, and nothing is written
+    // on the cocktail.
+    const timely = picks.bundles.filter((b) => b.pick.timing === "timely");
+    expect(timely.map((b) => b.pick.term)).toEqual(["smoked brisket"]);
+    expect(timely[0].pick).toMatchObject({ grade: top.grade, grade_score: Number(top.grade_score) });
+    expect(picks.bundles.map((b) => b.pick.term)).not.toContain("espresso martini");
+    expect(picks.bundles.filter((b) => b.pick.timing === "evergreen").map((b) => b.pick.opportunity_id)).toEqual([null, null]);
   });
 
   it("clears rows that fell out of the ranking, so a stale term never keeps a seat", async () => {

@@ -11,7 +11,8 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { isEmailConfigured, isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { firstWeekMode } from "@/lib/onboarding/context";
-import { conceptRow, STATUS_LABEL } from "@/lib/picks/concept-view";
+import { groupWeek, STATUS_LABEL, type ConceptRow } from "@/lib/picks/concept-view";
+import { productsToBrief } from "@/lib/picks/generate";
 import { kickWeekJob } from "@/lib/picks/kick";
 import { waitHeadline, weekProgress } from "@/lib/picks/progress";
 import { dueForKick, truncateFinding, weekRangeLabel } from "@/lib/picks/list";
@@ -45,7 +46,11 @@ export default async function PicksPage() {
 
   const week = weekOf();
   const weekRange = weekRangeLabel(week);
-  const [rows, brief] = await Promise.all([repo.listReadyPicks(business.id, week), repo.getBusinessBrief(business.id)]);
+  const [rows, brief, services] = await Promise.all([
+    repo.listOpenPicks(business.id, week).catch(() => repo.listReadyPicks(business.id, week)),
+    repo.getBusinessBrief(business.id),
+    repo.listServices(business.id),
+  ]);
 
   // Re-evaluate alerts after the response. Idempotent (deduped keys), so the
   // week's page doubles as the alert heartbeat between crons.
@@ -80,11 +85,48 @@ export default async function PicksPage() {
   // Opening a row is the whole brief. Fewer than three means the week did
   // not have three ideas worth a test, and says so.
   if (rows.length > 0) {
-    const concepts = rows.map(({ pick, run }) => ({ pick, run, row: conceptRow(pick, run) }));
+    const products = productsToBrief(business, services);
+    const views = groupWeek(rows, products);
+    const legacy = rows.filter(({ pick }) => !pick.brief || !pick.concept_title);
+    const chosen = rows.filter(({ run }) => run && (run.status === "planned" || run.status === "running")).length;
     // What this week can and cannot say, from what the brand handed over.
     const history = await repo.listAdHistory(business.id).catch(() => []);
     const mode = firstWeekMode({ adHistoryRows: history.length, hasObjective: Boolean(business.campaign_objective) });
-    const chosen = concepts.filter((c) => c.row?.status === "chosen" || c.row?.status === "launched").length;
+    const row = (r: ConceptRow, showProduct: boolean) => {
+      const status = STATUS_LABEL[r.status];
+      return (
+        <li key={r.id}>
+          <Link href={r.href} className="cbl__row">
+            <span className={`cbl__rank${r.timing?.kind === "evergreen" ? " is-evergreen" : ""}`} aria-hidden="true">
+              {r.timing?.kind === "evergreen" ? "∞" : r.rank}
+            </span>
+            <span className="cbl__body">
+              <span className="cbl__title">{r.title}</span>
+              <span className="cbl__hyp">{truncateFinding(r.hypothesis, 180)}</span>
+              <span className="cbl__tags">
+                {showProduct && r.serviceId && <span className="cbl__tag cbl__tag--product">{products.find((p) => p.id === r.serviceId)?.name}</span>}
+                {r.timing && (
+                  <span className={`cbl__tag is-${r.timing.kind}`} title={r.timing.meaning}>
+                    {r.timing.label}
+                  </span>
+                )}
+                {r.angle && <span className="cbl__tag">{r.angle}</span>}
+                <span className="cbl__tag">{r.format}</span>
+                <span className="cbl__tag">{r.basis.label}</span>
+              </span>
+            </span>
+            <span className="cbl__meta">
+              {r.status !== "proposed" && (
+                <span className={`badge${status.tone ? ` badge--${status.tone}` : ""}`} title={status.meaning}>
+                  <i />
+                  {status.label}
+                </span>
+              )}
+            </span>
+          </Link>
+        </li>
+      );
+    };
     return (
       <div className="page picks">
         <div className="page-head">
@@ -92,9 +134,10 @@ export default async function PicksPage() {
             <span className="eyebrow m-0">This week · {weekRange}</span>
             <h1>What to make next</h1>
             <p className="context">
-              {rows.length === 1 ? "One creative test" : `${rows.length} creative tests`} worth running this week, in priority
-              order. Each is a hypothesis with the evidence behind it and a brief you can hand to a creator.
-              {chosen > 0 ? ` ${chosen} chosen so far.` : ""}
+              Creative tests by product. Each is a hypothesis with the evidence behind it and a brief you can hand to a
+              creator. A concept marked <b>This week</b> has something in this week&apos;s reads pointing at it; one marked{" "}
+              <b>Anytime</b> is the ad to make for that product regardless, and it stays until you act on it.
+              {chosen > 0 ? ` ${chosen} in production or launched.` : ""}
             </p>
           </div>
           <Link href="/app/campaigns" className="btn btn-ghost btn-sm">
@@ -107,11 +150,40 @@ export default async function PicksPage() {
             <Link href="/app/settings#ads">{mode.researchOnly ? "Add an export" : "Set the objective"}</Link>
           </p>
         )}
-        <ol className="cbl" aria-label="This week's creative tests">
-          {concepts.map(({ pick, run, row }) => {
-            if (!row) {
-              // A pick written before briefs existed: the term and its finding.
-              return (
+
+        <section className="cbl__section" aria-labelledby="cbl-week">
+          <h2 id="cbl-week" className="cbl__h2">
+            This week
+          </h2>
+          {views.thisWeek.length > 0 ? (
+            <ol className="cbl">{views.thisWeek.map((r) => row(r, true))}</ol>
+          ) : (
+            <p className="cbl__fewer">
+              Nothing in this week&apos;s reads is pushing one product over another. That is a finding, not a gap: the options
+              below are the ads to make anyway.
+            </p>
+          )}
+        </section>
+
+        {views.byProduct.map((g) => (
+          <section key={g.id ?? "other"} className="cbl__section" aria-labelledby={`cbl-${g.id ?? "other"}`}>
+            <h2 id={`cbl-${g.id ?? "other"}`} className="cbl__h2">
+              {g.name}
+              <span className="cbl__count">
+                {g.rows.length} {g.rows.length === 1 ? "concept" : "concepts"}
+              </span>
+            </h2>
+            <ol className="cbl">{g.rows.map((r) => row(r, false))}</ol>
+          </section>
+        ))}
+
+        {legacy.length > 0 && (
+          <section className="cbl__section" aria-labelledby="cbl-legacy">
+            <h2 id="cbl-legacy" className="cbl__h2">
+              Earlier picks
+            </h2>
+            <ol className="cbl">
+              {legacy.map(({ pick, run }) => (
                 <li key={pick.id}>
                   <Link href={`/app/picks/${pick.id}`} className="cbl__row">
                     <span className="cbl__rank">{pick.rank}</span>
@@ -122,38 +194,15 @@ export default async function PicksPage() {
                     <span className="cbl__meta">{run ? <span className="badge"><i />{run.status}</span> : null}</span>
                   </Link>
                 </li>
-              );
-            }
-            const status = STATUS_LABEL[row.status];
-            return (
-              <li key={pick.id}>
-                <Link href={row.href} className="cbl__row">
-                  <span className="cbl__rank">{row.rank}</span>
-                  <span className="cbl__body">
-                    <span className="cbl__title">{row.title}</span>
-                    <span className="cbl__hyp">{truncateFinding(row.hypothesis, 180)}</span>
-                    <span className="cbl__tags">
-                      <span className="cbl__tag">{row.format}</span>
-                      <span className="cbl__tag">{row.basis.label}</span>
-                    </span>
-                  </span>
-                  <span className="cbl__meta">
-                    {row.status !== "proposed" && (
-                      <span className={`badge${status.tone ? ` badge--${status.tone}` : ""}`} title={status.meaning}>
-                        <i />
-                        {status.label}
-                      </span>
-                    )}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ol>
-        {rows.length < 3 && (
+              ))}
+            </ol>
+          </section>
+        )}
+        {products.length > views.byProduct.filter((g) => g.id).length && (
           <p className="cbl__fewer">
-            {rows.length === 1 ? "Only one concept" : "Only two concepts"} cleared the bar this week. TRND shows fewer rather
-            than fill the list with repeats or weak ideas.
+            Concepts for the rest of your products are written over the next days, one per product per pass, so nothing here
+            is rewritten under you. Choose which products to brief for in{" "}
+            <Link href="/app/settings#context">Settings</Link>.
           </p>
         )}
       </div>

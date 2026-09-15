@@ -1,4 +1,4 @@
-import type { BrandPick, CreativeBrief, PickDetail, PickEvidence, PickRun, PickSignal } from "@/lib/db/types";
+import type { BrandPick, ConceptAngle, CreativeBrief, PickDetail, PickEvidence, PickRun, PickSignal, PickTiming } from "@/lib/db/types";
 
 import { safeHref, SIGNAL_LABELS, SIGNAL_ORDER } from "./detail";
 
@@ -59,6 +59,10 @@ export interface ConceptView {
   researchTerm: string;
   status: ConceptStatus;
   basis: { kind: "builds_on" | "explores"; label: string };
+  /** The product's name, when the pick belongs to one. */
+  product: string | null;
+  timing: { kind: PickTiming; label: string; meaning: string } | null;
+  angle: string | null;
   priorityReason: string | null;
   situation: string;
   hypothesis: string;
@@ -81,6 +85,24 @@ export interface ConceptView {
 }
 
 const BASIS_LABEL = { builds_on: "Builds on a result", explores: "Explores new ground" } as const;
+
+export const TIMING_LABEL: Record<PickTiming, { label: string; meaning: string }> = {
+  timely: { label: "This week", meaning: "Something in this week's reads points at this product. The concept expires with the week." },
+  evergreen: { label: "Anytime", meaning: "Nothing this week is pushing this product. This is the ad to make for it anyway, and it stays until you act on it." },
+};
+
+export const ANGLE_LABEL: Record<ConceptAngle, string> = {
+  problem_first: "Problem first",
+  comparison: "The switch",
+  demo: "Demonstration",
+  objection: "The objection",
+  social_proof: "In their words",
+  education: "What it does",
+};
+
+export function timingView(pick: Pick<BrandPick, "timing">): { kind: PickTiming; label: string; meaning: string } | null {
+  return pick.timing ? { kind: pick.timing, ...TIMING_LABEL[pick.timing] } : null;
+}
 
 function day(iso: string | null): string | null {
   if (!iso) return null;
@@ -179,7 +201,7 @@ export function conceptToText(view: Pick<ConceptView, "title" | "situation" | "h
   return lines.join("\n").trimEnd();
 }
 
-export function buildConceptView(detail: PickDetail): ConceptView | null {
+export function buildConceptView(detail: PickDetail, productName: string | null = null): ConceptView | null {
   const { pick } = detail;
   if (!isConceptPick(pick)) return null;
   const brief = pick.brief;
@@ -207,6 +229,9 @@ export function buildConceptView(detail: PickDetail): ConceptView | null {
     rank: pick.rank,
     status: conceptStatus(detail),
     basis: { kind: basisKind, label: BASIS_LABEL[basisKind] },
+    product: productName,
+    timing: timingView(pick),
+    angle: pick.angle ? ANGLE_LABEL[pick.angle] : null,
     priorityReason: pick.priority_reason?.trim() || null,
     limitedRows: detail.evidence.filter((e) => e.limitation).length,
     refinedFrom: brief.refined_from ? { at: brief.refined_from.at, ask: brief.refined_from.ask } : null,
@@ -231,6 +256,7 @@ export function conceptExportFilename(title: string): string {
 
 /** The compact row on the week's list. */
 export interface ConceptRow {
+  id: string;
   href: string;
   rank: number;
   title: string;
@@ -238,12 +264,16 @@ export interface ConceptRow {
   format: string;
   basis: { kind: "builds_on" | "explores"; label: string };
   status: ConceptStatus;
+  serviceId: string | null;
+  timing: { kind: PickTiming; label: string; meaning: string } | null;
+  angle: string | null;
 }
 
 export function conceptRow(pick: BrandPick, run: PickRun | null, dismissed = false): ConceptRow | null {
   if (!isConceptPick(pick)) return null;
   const basisKind = pick.basis ?? "explores";
   return {
+    id: pick.id,
     href: `/app/picks/${pick.id}`,
     rank: pick.rank,
     title: pick.concept_title,
@@ -251,5 +281,31 @@ export function conceptRow(pick: BrandPick, run: PickRun | null, dismissed = fal
     format: pick.brief.format,
     basis: { kind: basisKind, label: BASIS_LABEL[basisKind] },
     status: conceptStatus({ dismissed, run }),
+    serviceId: pick.service_id ?? null,
+    timing: timingView(pick),
+    angle: pick.angle ? ANGLE_LABEL[pick.angle] : null,
   };
+}
+
+/** The week's two views: what this week points at, and every product with its options. */
+export interface WeekViews {
+  thisWeek: ConceptRow[];
+  byProduct: { id: string | null; name: string; rows: ConceptRow[] }[];
+}
+
+export function groupWeek(
+  rows: { pick: BrandPick; run: PickRun | null }[],
+  products: { id: string; name: string }[],
+): WeekViews {
+  const concepts = rows.map(({ pick, run }) => conceptRow(pick, run)).filter((r): r is ConceptRow => r !== null);
+  const thisWeek = concepts.filter((r) => r.timing?.kind === "timely").sort((a, b) => a.rank - b.rank).slice(0, 3);
+  const byProduct: WeekViews["byProduct"] = [];
+  for (const p of products) {
+    const mine = concepts.filter((r) => r.serviceId === p.id).sort((a, b) => Number(b.timing?.kind === "timely") - Number(a.timing?.kind === "timely") || a.rank - b.rank);
+    if (mine.length > 0) byProduct.push({ id: p.id, name: p.name, rows: mine });
+  }
+  const placed = new Set(byProduct.flatMap((g) => g.rows.map((r) => r.id)));
+  const rest = concepts.filter((r) => !placed.has(r.id));
+  if (rest.length > 0) byProduct.push({ id: null, name: "Other concepts", rows: rest });
+  return { thisWeek, byProduct };
 }

@@ -1,9 +1,9 @@
 # TRND — What the product does
 
-**One line (September 2026):** TRND writes weekly creative test briefs for a small DTC
-marketing team: up to three concepts a week, each a hypothesis with the evidence behind it
-and what that evidence cannot say, in a brief a creator can shoot from. It does not predict
-winners.
+**One line (September 2026):** TRND writes creative test briefs for a small DTC marketing
+team, by product: up to three concepts per product, each a hypothesis with the evidence
+behind it and what that evidence cannot say, in a brief a creator can shoot from. It does not
+predict winners.
 
 ## The creative test (the current product)
 
@@ -14,8 +14,23 @@ was found through; it stays on the pick as provenance. Each ready pick carries a
 differs from the brand's recent creative; a primary hook and two or three alternatives
 (children of the concept, never new concepts); direction (show, say, prove) and a close; a
 shot list; the approved facts it relies on; an evaluation plan; and what each outcome would
-teach. Three a week at most, written one after another so each differs; a near-duplicate is
-dropped and the week shows fewer.
+teach. Written one after another so each differs; a near-duplicate is dropped and the
+product shows fewer.
+
+**By product, timely or evergreen (migration 0029).** Every product the brand briefs for
+(chosen in Settings, else every active product up to five, the lead product first) gets up
+to three concepts, each with a different angle (problem first, the switch, demonstration,
+the objection, in their words, what it actually does). A concept is **timely** when this
+week's reads point at the product (a ranked term that fits it, moved 15% or more or graded B
+or better); it carries that term as its research input and expires with the week. Otherwise
+it is **evergreen**: the ad to make for that product anyway, from its facts and the
+customer's objections, with a context row saying plainly that nothing this week is pushing
+it. Evergreen concepts stay until the owner acts on them. The list shows "This week" (the
+timely ones, or a note that nothing is pushing one product over another) and then one
+section per product. Writes are additive: the first pass writes one concept so it lands in
+minutes, later passes fill one slot per product and add evidence to existing concepts, and a
+concept the owner has read is never rewritten under them. Monday replaces only the week's
+unacted timely concepts.
 
 **Evidence is separate from judgment.** Evidence rows are built by code from what was read,
 each with its kind (observed, quoted, measured, context), the date, the sample size and a

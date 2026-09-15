@@ -142,6 +142,15 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
 - **No universal kill rule.** The evaluation plan is built from objective, baseline, spend
   and result volume, and says what is missing. Manufactured thresholds were the old default.
 - **Three a week, fewer when thin.** A concept too close to an earlier one is dropped.
+- **By product, and never rewritten under the owner (2026-09-15).** The list re-ranked and
+  rewrote picks under new ids while the deep read ran, so it "kept reloading". Now the unit
+  of the list is the product: up to three concepts each, with different angles, timely when
+  this week's reads point at it and evergreen otherwise, so a quiet week still has the ad
+  to make for each product and says why. Writes are additive (`insert_week_picks`,
+  `appendPickEvidence`): passes fill empty slots and add evidence; `replace_week_picks`
+  keeps evergreen and acted-on concepts and replaces only the week's unacted timely ones.
+  The grade-based rewrite triggers in the stage machine are gone; `picksBehindGrade`
+  remains as a read-only tell. One ranked row triggers one product per pass.
 - **Statuses never collapse.** Chosen is not launched, launched is not successful, no result
   is not a loss, passed is not a failure. Cool-offs shortened (killed 14d, lost 21d, not now
   14d) and always say the topic comes back with a different concept.

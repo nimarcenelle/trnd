@@ -258,12 +258,10 @@ export interface Repo {
   updatePickRun(
     id: string,
     patch: Partial<
-      Pick<PickRun, "status" | "ended_at" | "spend_usd" | "result_note" | "impressions" | "clicks" | "conversions" | "revenue_usd" | "verdict">
-    > & {
-      status?: PickRunStatus;
-    },
+      Pick<PickRun, "status" | "ended_at" | "spend_usd" | "result_note" | "impressions" | "clicks" | "conversions" | "revenue_usd" | "verdict" | "launched_at" | "learned">
+    > & { status?: PickRunStatus },
   ): Promise<PickRun>;
-  /** Every run for a business, newest first, with its pick. */
+  /** Newest first, every run this business ever opened, with its pick. */
   listPickRuns(businessId: string): Promise<{ run: PickRun; pick: BrandPick }[]>;
   /** Every dismissal and "running" mark for a business, newest first, with
    * the term it was on. The brand's memory of what it passed on. */

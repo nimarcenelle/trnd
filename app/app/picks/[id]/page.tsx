@@ -6,12 +6,14 @@ import { notFound, redirect } from "next/navigation";
 import AutoRefresh from "@/components/app/auto-refresh";
 import PickPager from "@/components/app/pick-pager";
 import AlertBar from "@/components/picks/alert-bar";
+import ConceptDetail from "@/components/picks/concept-detail";
 import DetailActions from "@/components/picks/detail-actions";
 import DetailCopyButton from "@/components/picks/detail-copy-button";
 import DemandChart from "@/components/picks/demand-chart";
 import SignalRead from "@/components/picks/signal-read";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { buildConceptView } from "@/lib/picks/concept-view";
 import { buildDetailView, isPickId, viewableDetail, type DetailSection, type DetailView } from "@/lib/picks/detail";
 import { gradeTone, type GradeView } from "@/lib/picks/grade-view";
 import { weekRangeLabel } from "@/lib/picks/list";
@@ -70,9 +72,21 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
   // happened reads as a gap, not as honesty. It starts with the first run.
   const calibration = { line: record.runs > 0 ? calibrationLine(record, gradeLetterOf(detail.pick)) : null, proven: record.scored > 0 };
   const dont = notThisWeek({ runs, skips: skips.filter((s) => s.normalized_term !== normalizeTerm(detail.pick.term)) });
-  const items = siblings.map((s) => ({ href: `/app/picks/${s.pick.id}`, term: sentenceCase(s.pick.term) }));
+  const items = siblings.map((s) => ({ href: `/app/picks/${s.pick.id}`, term: s.pick.concept_title ?? sentenceCase(s.pick.term) }));
   const index = Math.max(0, siblings.findIndex((s) => s.pick.id === id));
   const head = { items, index, weekRange: weekRangeLabel(week), writing, deepening, calibration };
+
+  // A pick that carries a brief is a creative test and renders as one. A
+  // pick written before the brief existed keeps the page it was written for.
+  const concept = buildConceptView(detail);
+  if (concept) {
+    return (
+      <>
+        <AlertBar alerts={unreadAlerts} />
+        <ConceptDetail view={concept} head={{ items, index, weekRange: weekRangeLabel(week), writing, deepening }} exportHref={`/app/picks/${detail.pick.id}/export`} />
+      </>
+    );
+  }
 
   const view = buildDetailView(detail);
   // The "don't" half of the call sits between the work and the reasons.

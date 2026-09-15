@@ -15,6 +15,7 @@ export const DISMISS_REASONS = [
   { value: "already_tried", label: "Already tried" },
   { value: "off_brand", label: "Off-brand" },
   { value: "cant_shoot", label: "Can't shoot it" },
+  { value: "not_now", label: "Not now" },
   { value: "other", label: "Other" },
 ] as const satisfies readonly { value: PickDismissReason; label: string }[];
 

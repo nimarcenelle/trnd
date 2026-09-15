@@ -12,7 +12,7 @@ import {
 
 const initial: AuthFormState = {};
 
-export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
+export default function AuthForm({ mode, invite = false }: { mode: "login" | "signup"; invite?: boolean }) {
   const [state, formAction, pending] = useActionState(
     mode === "login" ? signInAction : signUpAction,
     initial,
@@ -51,6 +51,12 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
             minLength={mode === "signup" ? 8 : undefined}
           />
         </div>
+        {mode === "signup" && invite && (
+          <div className="field">
+            <label htmlFor="invite_code">Invite code</label>
+            <input id="invite_code" name="invite_code" type="text" placeholder="From the email that accepted your application" autoComplete="off" required />
+          </div>
+        )}
         {state.error && <p className="form-error">{state.error}</p>}
         {state.notice && (
           <p className="font-mono text-[11.5px] text-mint leading-[1.5]">

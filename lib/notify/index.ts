@@ -30,7 +30,18 @@ export type FounderEvent =
       website: string | null;
       monthlySpend: string | null;
     }
-  | { kind: "signup"; email: string; businessName: string; category: string; city: string };
+  | { kind: "signup"; email: string; businessName: string; category: string; city: string }
+  | {
+      kind: "pilot_application";
+      fullName: string;
+      email: string;
+      brandName: string;
+      website: string | null;
+      monthlySpend: string | null;
+      objective: string | null;
+      production: string | null;
+      whatNext: string | null;
+    };
 
 /** One plain-text line per event — readable in Slack, a subject line, or a log. */
 export function formatFounderEvent(event: FounderEvent): { subject: string; body: string } {
@@ -46,6 +57,24 @@ export function formatFounderEvent(event: FounderEvent): { subject: string; body
         event.website
           ? `They were promised a live example built from their site before the call.`
           : `They were promised a live example for their kind of business before the call.`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    };
+  }
+  if (event.kind === "pilot_application") {
+    return {
+      subject: `TRND pilot application — ${event.brandName}`,
+      body: [
+        `New pilot application`,
+        `Brand: ${event.brandName}`,
+        `Contact: ${event.fullName} <${event.email}>`,
+        event.website ? `Website: ${event.website}` : null,
+        event.monthlySpend ? `Monthly Meta spend: ${event.monthlySpend}` : null,
+        event.objective ? `Optimizes for: ${event.objective}` : null,
+        event.production ? `Creative made by: ${event.production}` : null,
+        event.whatNext ? `Last made / stuck on: ${event.whatNext}` : null,
+        `They were told: we read every application and reply by email. Nothing has been scanned or charged.`,
       ]
         .filter(Boolean)
         .join("\n"),

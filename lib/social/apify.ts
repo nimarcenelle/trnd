@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { CircuitBreaker, fetchText } from "@/lib/signals/http";
+import { recordProviderUsage } from "@/lib/usage/providers";
 
 /**
  * The one Apify call every social read makes.
@@ -43,23 +44,35 @@ export async function runActorSync<T>(
   // an empty list as "nothing to show".
   if (!env.apifyToken) return [];
   const doFetchText = opts.fetchText ?? fetchText;
-  const text = await doFetchText(
-    `${RUN_URL}/${actorPath(actor)}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
-      breaker: opts.breaker,
-      timeoutMs: ACTOR_TIMEOUT_MS,
-      attempts: ACTOR_ATTEMPTS,
-    },
-  );
+  let text: string;
+  try {
+    text = await doFetchText(
+      `${RUN_URL}/${actorPath(actor)}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+        breaker: opts.breaker,
+        timeoutMs: ACTOR_TIMEOUT_MS,
+        attempts: ACTOR_ATTEMPTS,
+      },
+    );
+  } catch (err) {
+    // A failed run is still a run on the bill, and the meter says it failed.
+    recordProviderUsage({ provider: "apify", operation: actor, rateKey: "apify:run", units: 1, ok: false, note: (err as Error).message });
+    throw err;
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
     // An HTML error page or a truncated body is "no items", not a crash.
+    recordProviderUsage({ provider: "apify", operation: actor, rateKey: "apify:run", units: 1, ok: false, note: "answer was not JSON" });
     return [];
   }
-  return Array.isArray(parsed) ? (parsed as T[]) : [];
+  const items = Array.isArray(parsed) ? (parsed as T[]) : [];
+  // Actors bill per result: the meter counts what came back.
+  if (items.length > 0) recordProviderUsage({ provider: "apify", operation: actor, rateKey: "apify:result", units: items.length });
+  else recordProviderUsage({ provider: "apify", operation: actor, rateKey: "apify:run", units: 1 });
+  return items;
 }

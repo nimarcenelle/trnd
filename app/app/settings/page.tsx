@@ -595,7 +595,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             {plan.plan === "trial"
               ? plan.locked
                 ? "Everything you generated stays yours. Pick a plan to keep the weekly recommendations and campaign builds coming."
-                : "Full product, no card required. Pick a plan any time — founding businesses lock their price for life."
+                : "Full product, no card on file. Pick a plan any time; founding businesses lock their price."
               : "One ad a week, written before you open the app, your rivals read daily, and the Monday report in your inbox — recorded results sharpen the next one."}
           </p>
         </div>

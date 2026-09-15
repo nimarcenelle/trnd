@@ -116,12 +116,13 @@ describe("pricing", () => {
     // The pro id still exists for old subscriptions but never prints a
     // second price anywhere.
     expect(PLAN_PRICES.pro).toBe(PLAN_PRICES.baseline);
-    // The next ad with its scripts, the competitors read daily, the Monday
-    // brief and the ad-account learning all ride on the one plan.
-    expect(BASELINE_FEATURES.some((f) => /three scripts/.test(f))).toBe(true);
+    // The briefs, the evidence with its limits, the competitors read, the
+    // brand's own results and the founder review all ride on the one plan,
+    // and none of it promises a winner.
+    expect(BASELINE_FEATURES.some((f) => /creative test briefs/.test(f))).toBe(true);
     expect(BASELINE_FEATURES.some((f) => /competitors/.test(f))).toBe(true);
-    expect(BASELINE_FEATURES.some((f) => /Monday/.test(f))).toBe(true);
-    expect(BASELINE_FEATURES.some((f) => /Meta ad account/.test(f))).toBe(true);
-    for (const f of BASELINE_FEATURES) expect(f).not.toMatch(/—|→|near(est)? you|local/i);
+    expect(BASELINE_FEATURES.some((f) => /cannot say/.test(f))).toBe(true);
+    expect(BASELINE_FEATURES.some((f) => /founder reads/.test(f))).toBe(true);
+    for (const f of BASELINE_FEATURES) expect(f).not.toMatch(/—|→|near(est)? you|local|winner|guarantee|hit rate/i);
   });
 });

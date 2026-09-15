@@ -1331,3 +1331,7 @@ hr.rule {
     font-size: 24px;
   }
 }
+
+/* The example brief in the hero: evidence rows carry their limit under them. */
+.hpick__finding b { color: var(--ink); font-weight: 600; }
+.hpick__hooks li small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.4; color: var(--ink-faint); font-style: italic; }

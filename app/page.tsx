@@ -1,7 +1,7 @@
 import { BASELINE_FEATURES } from "@/lib/billing";
 import Link from "next/link";
 
-import DemoForm from "@/components/landing/demo-form";
+import PilotForm from "@/components/landing/pilot-form";
 import FloatingCta from "@/components/landing/floating-cta";
 import { IcoCheck, IcoX } from "@/components/landing/icons";
 import RevealObserver from "@/components/landing/reveal-observer";
@@ -10,119 +10,108 @@ import ThemeToggle from "@/components/theme-toggle";
 
 import "./landing.css";
 
-// The page speaks to one buyer: the growth team at a DTC brand that already
-// spends real money on paid social. Every block answers the question they
-// actually have ("what ad do we make next?"), and nothing on it is a number
-// or a customer TRND hasn't earned. The shared landing components that still
-// carry the old local-shop copy (Ticker, Steps, ProductFrame) are left out
-// rather than contradicting the page around them.
+// The page speaks to one buyer: a founder or growth marketer at a DTC brand
+// that already runs Meta ads, makes creative regularly, and is stuck on what
+// to make next. It promises briefs and evidence, never winners. Nothing on
+// it is a customer, a number or a result TRND has not earned; the example
+// brief is invented and says so.
 
 const OLD_WAY = [
   "Scroll TikTok and Instagram for an hour and call it research.",
   "Screenshot competitors' ads and guess which ones are working.",
   "Search Reddit for what customers complain about.",
-  "Brief the next batch on gut instinct and hope the hit rate holds.",
+  "Brief the next batch from memory and hope it is different from the last one.",
 ];
 const TRND_WAY = [
-  "One call each week on the ad to run next, with the reasons.",
-  "Competitors' ads and posts read daily, saturated angles flagged.",
-  "Your customers' own words pulled into the hook.",
-  "Your ad account's results fed into next week's call.",
+  "Up to three creative test briefs a week, each a hypothesis with its evidence.",
+  "Competitors' ads and posts read weekly and quoted as observed, not as proof.",
+  "Your customers' own words, quoted or not at all.",
+  "Your own results on file, so a brief never repeats what already failed.",
 ];
 
-const SIGNALS = [
+const INPUTS = [
   {
-    stat: "CUSTOMER",
-    name: "Who you're trying to reach, and what they're telling you",
-    cat: "Conversations, pain points, interests and sentiment from the places your customers post, search and review.",
+    stat: "YOUR RESULTS",
+    name: "What you already ran",
+    cat: "An Ads Manager export gives each brief a reference ad and your own baseline. No export, and the week says it is research only.",
   },
   {
-    stat: "CULTURE",
-    name: "What's changing around your category",
-    cat: "Rising searches, TikTok and Shorts formats that are climbing, and the dates your category moves on.",
+    stat: "YOUR CUSTOMERS",
+    name: "What they say, in their words",
+    cat: "Reviews, comments and the questions people search. Quoted as written, with the sample size beside them.",
   },
   {
-    stat: "COMPETITIVE",
-    name: "What your competitors are running",
-    cat: "Their Meta and TikTok ads and posts, what they keep saying, what's saturated, and where the whitespace is.",
+    stat: "COMPETITORS",
+    name: "What they are actually running",
+    cat: "Their ads and posts, read as observed on a date. Running says nothing about whether it works, and the brief says so.",
   },
   {
-    stat: "BRAND",
-    name: "What works for you specifically",
-    cat: "Learned from your ad history and creative performance, so the call gets sharper every week you run.",
+    stat: "SEARCH",
+    name: "Context, not prediction",
+    cat: "What people search for and when. Demand context for a concept, never a forecast of how a paid-social ad will do.",
   },
 ];
 
 const LOOP = [
-  { n: "01", h: "Signals", p: "Customer, culture, competition and your brand, rebuilt every day." },
-  { n: "02", h: "Opportunity", p: "The one opening worth an ad this week, graded, with every number linked to its source." },
-  { n: "03", h: "Decision", p: "What to advertise, who to reach, why now, and how to execute it." },
-  { n: "04", h: "Creative", p: "The angle, the format and three scripts your team or creators can shoot." },
-  { n: "05", h: "Performance", p: "Results read from your Meta ad account or your exports." },
-  { n: "06", h: "Learning", p: "What won feeds the next call, so your hit rate climbs instead of resetting." },
+  { n: "01", h: "Research", p: "Your results, your customers' words, your competitors' ads and search, read every week." },
+  { n: "02", h: "Concepts", p: "Up to three distinct creative tests, in priority order, with the reason each is worth a test now." },
+  { n: "03", h: "Brief", p: "The hook, the direction, the shot list and the facts a creator may use. Copy it or export it." },
+  { n: "04", h: "Decide", p: "Choose it, refine it, or pass with a reason. A pass is a decision, not a result." },
+  { n: "05", h: "Judge", p: "A plan for the test built from your objective and your own baseline, with the caveats the numbers carry." },
+  { n: "06", h: "Learn", p: "What you launched and what it taught shapes the next week. The topic is never banned by one execution." },
 ];
 
-/** The product, in the hero: one pick as the app shows it. The shape is
- * exactly what a week returns; the brand is invented and labeled as such
- * on the frame and in the footer. */
-function HeroPick() {
-  const points = [22, 24, 23, 26, 25, 28, 27, 31, 30, 34, 38, 37, 43, 47, 52, 58, 57, 66, 74, 81];
-  const w = 260;
-  const h = 64;
-  const max = Math.max(...points);
-  const d = points
-    .map((v, i) => `${i === 0 ? "M" : "L"}${((i / (points.length - 1)) * w).toFixed(1)},${(h - (v / max) * (h - 6) - 2).toFixed(1)}`)
-    .join(" ");
+/** An example brief in the shape the app writes. The brand and every
+ * figure are invented, and the frame says so. */
+function HeroBrief() {
   return (
-    <div className="pframe hero__pick" role="group" aria-label="An example pick, as the app shows it">
+    <div className="pframe hero__pick" role="group" aria-label="An example creative test brief, invented for this page">
       <div className="pframe__bar">
         <i />
         <i />
         <i />
-        <span>Example · this week</span>
+        <span>Example · an invented brand</span>
       </div>
       <div className="hpick">
         <div className="hpick__main">
           <div className="hpick__top">
-            <span className="pframe__eyebrow">#1 this week</span>
-            <span className="hpick__grade" title="Grade B+, 78 of 100">
-              B+
-            </span>
+            <span className="pframe__eyebrow">Test 1 of 3 · Explores new ground</span>
           </div>
-          <h2 className="hpick__title">Dark spots after acne</h2>
+          <h2 className="hpick__title">The towel that slips</h2>
           <p className="hpick__finding">
-            Your customers are searching &ldquo;dark spots after acne.&rdquo; Your catalog says vitamin C serum.
+            <b>Hypothesis.</b> Test whether showing the frustration of a wet bath towel slipping off is more persuasive than
+            leading with the hair towel&apos;s material, because customers describe the problem before they describe the fix.
           </p>
           <dl className="hpick__bet">
             <div>
-              <dt>What to run</dt>
-              <dd>The vitamin C serum to women 25 to 40, on TikTok and Reels</dd>
+              <dt>Hook</dt>
+              <dd>&ldquo;Third time it fell off while I did my skincare&rdquo;</dd>
             </div>
             <div>
-              <dt>Budget</dt>
-              <dd>$600 · 7 days</dd>
+              <dt>Format</dt>
+              <dd>20-second talking head, one phone, bathroom light</dd>
             </div>
             <div>
-              <dt>Kill rule</dt>
-              <dd>Kill if click-through is under 1.2% after day 3</dd>
+              <dt>Judge it</dt>
+              <dd>Beside your current best ad, same ad set, same budget. Read under 50 purchases as directional.</dd>
             </div>
           </dl>
         </div>
         <div className="hpick__side">
-          <span className="pframe__eyebrow">Searches for &ldquo;dark spots after acne&rdquo;</span>
-          <div className="hpick__demand">
-            <strong>↑47%</strong>
-            <span className="hpick__chip">vs last week</span>
-          </div>
-          <svg className="hpick__spark" viewBox={`0 0 ${w} ${h}`} width="100%" height={h} aria-hidden="true">
-            <path d={`${d} L${w},${h} L0,${h} Z`} fill="var(--mint)" opacity="0.18" />
-            <path d={d} fill="none" stroke="var(--mint-text)" strokeWidth="2" />
-          </svg>
-          <span className="pframe__eyebrow">Three hooks to test</span>
+          <span className="pframe__eyebrow">The evidence, and its limits</span>
           <ol className="hpick__hooks">
-            <li>&ldquo;Day one. Day 28. Same mark.&rdquo;</li>
-            <li>&ldquo;I tried four serums for this. Here&rsquo;s the one I finished.&rdquo;</li>
-            <li>&ldquo;The $12 version, the ingredient list, and what the difference does.&rdquo;</li>
+            <li>
+              Quoted · 4 of 31 comments under your posts mention the towel slipping.
+              <small>A handful of people, not the audience.</small>
+            </li>
+            <li>
+              Observed · A rival&apos;s ad on absorbency was running when read.
+              <small>Running does not mean it works.</small>
+            </li>
+            <li>
+              Missing · No ad results on file yet.
+              <small>Nothing here is checked against what worked for you.</small>
+            </li>
           </ol>
         </div>
       </div>
@@ -141,47 +130,46 @@ export default function Home() {
         </a>
         <div className="nav__links">
           <a href="#problem">Problem</a>
-          <a href="#signals">Signals</a>
+          <a href="#inputs">What it reads</a>
           <a href="#how">How it works</a>
-          <a href="#pricing">Pricing</a>
+          <a href="#pilot">The pilot</a>
         </div>
         <div className="nav__right">
           <Link className="font-body text-[14px] text-ink-soft" href="/login">
             Sign in
           </Link>
           <ThemeToggle />
-          <Link href="/signup" className="btn btn-primary btn-sm">
-            Start free
-          </Link>
+          <a href="#pilot" className="btn btn-primary btn-sm">
+            Apply for the pilot
+          </a>
         </div>
       </nav>
 
       <header className="hero" id="top">
         <div className="hero__texture" />
         <div className="wrap hero__inner">
-          <div className="eyebrow">For growth teams at DTC brands</div>
+          <div className="eyebrow">For small DTC marketing teams that already run Meta ads</div>
           <h1>
-            Know what ad <em>to run next.</em>
+            Know what <em>to make next.</em>
           </h1>
           <p className="hero__sub">
-            An AI creative strategist for DTC brands. Every week it reads your customers, your
-            category, your competitors and your own results, and calls the next ad: the product,
-            the audience, the angle, the format, and three scripts to test.
+            Weekly creative test briefs grounded in your customers, competitor ads, and your own results. Each one is a
+            hypothesis a creator can shoot from, with the evidence behind it and what that evidence cannot say.
           </p>
           <div className="hero__ctas">
-            <Link href="/signup" className="btn btn-primary">
-              Start free
-            </Link>
-            <a href="#demo" className="btn btn-ghost">
-              Request a demo
+            <a href="#pilot" className="btn btn-primary">
+              Apply for the pilot
+            </a>
+            <a href="#how" className="btn btn-ghost">
+              How it works
             </a>
           </div>
           <div className="hero__proof">
-            <span className="pill">Meta, TikTok and Instagram</span>
-            <span className="pill">A new call every week</span>
-            <span className="pill">One plan, $500 a month</span>
+            <span className="pill">Up to three briefs a week</span>
+            <span className="pill">Every fact checked against your catalog</span>
+            <span className="pill">Founder-assisted, one month, $500</span>
           </div>
-          <HeroPick />
+          <HeroBrief />
         </div>
       </header>
 
@@ -191,26 +179,26 @@ export default function Home() {
         <div className="wrap">
           <div className="head reveal">
             <span className="eyebrow">The problem</span>
-            <h2>You spend tens of thousands a month on ads. Picking the next one is still a guess.</h2>
+            <h2>You make new creative every week. Deciding what to make is still the slowest part.</h2>
             <p>
-              The answer is out there, in comment sections, ad libraries, Reddit threads and your own
-              account. What&apos;s missing is the layer that turns all of it into a decision. So the
-              next ad gets picked by scrolling, screenshots and gut instinct.
+              The research is out there, in comment sections, ad libraries, reviews and your own account. What is missing
+              is the hours to read it and the discipline to turn it into a brief with a reason. So the next batch gets
+              briefed from memory, and the creator fills the gaps.
             </p>
           </div>
           <div className="chipband reveal">
             <span>Beauty</span>
-            <span>Fashion</span>
+            <span>Personal care</span>
             <span>Wellness</span>
-            <span>Food &amp; beverage</span>
-            <span>Lifestyle</span>
+            <span>Home</span>
+            <span>Apparel</span>
           </div>
 
           <div className="h-[56px]" />
 
           <div className="split reveal">
             <div className="split__col">
-              <div className="split__title">How the next ad gets picked today</div>
+              <div className="split__title">How the next brief gets written today</div>
               {OLD_WAY.map((t) => (
                 <div className="split__row" key={t}>
                   <IcoX />
@@ -233,18 +221,18 @@ export default function Home() {
 
       <hr className="rule" />
 
-      <section className="block" id="signals">
+      <section className="block" id="inputs">
         <div className="wrap">
           <div className="head reveal">
-            <span className="eyebrow">Four signals</span>
-            <h2>Built every day, for your brand.</h2>
+            <span className="eyebrow">What it reads</span>
+            <h2>Evidence with its limits printed next to it.</h2>
             <p>
-              Customer, culture, competition and your own results. Each one is useful alone. The
-              decision comes from reading them together.
+              A brief separates what was observed from what we think may work. Facts trace to your catalog, your notes or a
+              source you can open. Judgments are labeled as hypotheses. Numbers are never invented.
             </p>
           </div>
           <div className="signals reveal">
-            {SIGNALS.map((c) => (
+            {INPUTS.map((c) => (
               <div className="sig-card" key={c.stat}>
                 <div className="sig-card__stat">{c.stat}</div>
                 <div className="sig-card__name">{c.name}</div>
@@ -253,8 +241,7 @@ export default function Home() {
             ))}
           </div>
           <p className="model-line reveal">
-            Customer <span>&times;</span> Culture <span>&times;</span> Competition{" "}
-            <span>&times;</span> Brand <span>=</span> <strong>Next Best Ad</strong>
+            Observed <span>+</span> Quoted <span>+</span> Your results <span>=</span> <strong>A hypothesis worth a test</strong>
           </p>
         </div>
       </section>
@@ -264,11 +251,11 @@ export default function Home() {
       <section className="block" id="how">
         <div className="wrap">
           <div className="head reveal">
-            <span className="eyebrow">The loop</span>
-            <h2>Not more information. The next decision.</h2>
+            <span className="eyebrow">The week</span>
+            <h2>Not more information. The next brief.</h2>
             <p>
-              Most tools stop at data and leave the marketer to figure it out. TRND carries it all
-              the way to the ad, then learns from how the ad did.
+              Most tools stop at data and leave the marketer to figure it out. TRND carries the research to a brief a
+              creator can shoot from, then keeps what you learned for the next one.
             </p>
           </div>
           <div className="fly__list loop reveal">
@@ -287,78 +274,78 @@ export default function Home() {
 
       <hr className="rule" />
 
-      <section className="block" id="pricing">
+      <section className="block" id="pilot">
         <div className="wrap">
           <div className="head reveal">
-            <span className="eyebrow">Pricing</span>
-            <h2>One plan. $500 a month.</h2>
+            <span className="eyebrow">The pilot</span>
+            <h2>One month. $500. A founder reads every brief.</h2>
             <p>
-              A brand spending $50,000 a month on paid social isn&apos;t worried about $500. It&apos;s
-              worried about putting $50,000 behind a mediocre ad. TRND helps you find winners faster,
-              raise your creative hit rate, spot openings before competitors do, and cut the hours
-              and media spend that go into ads that lose. One extra winning ad pays for it many
-              times over.
+              TRND is new, and the honest way to sell it is a pilot: four weeks of briefs, with the founder reviewing each
+              one before it reaches you and on a call with you each week. You bring your Ads Manager export and a creator
+              who can shoot. We bring the briefs. At the end you decide whether to keep going.
             </p>
           </div>
 
           <div className="tiers reveal">
             <div className="tier tier--featured">
-              <span className="tier__badge">TRND</span>
-              <h3 className="tier__name">TRND</h3>
+              <span className="tier__badge">Pilot</span>
+              <h3 className="tier__name">Four weeks of briefs</h3>
               <div className="tier__price">
-                $500<small>/ MO</small>
+                $500<small>/ MONTH</small>
               </div>
-              <p className="tier__promise">
-                Every week: the next ad to run, and why. Or $5,000 a year, two months free.
-              </p>
+              <p className="tier__promise">Billed once we have agreed it is a fit. No card on this page.</p>
               <div className="tier__list">
                 {BASELINE_FEATURES.map((f) => (
-                  <div key={f}><IcoCheck />{f}</div>
+                  <div key={f}>
+                    <IcoCheck />
+                    {f}
+                  </div>
                 ))}
               </div>
-              <Link href="/signup" className="btn btn-primary justify-center">
-                Start free
-              </Link>
-              <span className="tier__foot">14-day trial. No card required. Cancel anytime.</span>
+              <a href="#apply" className="btn btn-primary justify-center">
+                Apply for the pilot
+              </a>
+              <span className="tier__foot">What you supply: an Ads Manager export, your product facts, and someone who can shoot.</span>
             </div>
           </div>
 
           <p className="founding-note reveal">
-            Founding brands lock their price. The ads TRND wrote for you are yours.{" "}
-            <a href="#demo">Talk to us.</a>
+            Briefs are hypotheses, not winners. TRND does not promise results, return on ad spend, or a replacement for your
+            strategist. It promises less research, specific ideas, production instructions, a reason for each test, and
+            continuity between what you tested and what comes next.
           </p>
         </div>
       </section>
 
       <hr className="rule" />
 
-      <section className="block" id="demo">
+      <section className="block" id="apply">
         <div className="wrap">
           <div className="demo reveal">
             <div className="demo__copy">
-              <span className="eyebrow">Request a demo</span>
-              <h2>See the ad TRND would tell you to run next.</h2>
+              <span className="eyebrow">Apply</span>
+              <h2>Tell us what you make and what you are stuck on.</h2>
               <p>
-                Drop your website and we&apos;ll come to the call with a live example already built
-                from your products, your customers and the competitors you actually face. Not a deck
-                about brands like yours. A call for yours.
+                The pilot is for a brand that already runs Meta ads, makes creative regularly, has someone who can produce
+                it, and can share recent results. If that is you, apply. We read every application and reply by email.
               </p>
               <div className="demo__bullets">
                 <div>
                   <IcoCheck />
-                  20-minute call, no slide deck
-                </div>
-                <div>
-                  <IcoCheck />A real next-ad call for your brand
+                  What you get: up to three briefs a week, founder-reviewed
                 </div>
                 <div>
                   <IcoCheck />
-                  Straight answer on pricing, no follow-up chase
+                  What you supply: an export, your product facts, a creator
+                </div>
+                <div>
+                  <IcoCheck />
+                  What we will not claim: winners, guaranteed lift, or a finished strategy
                 </div>
               </div>
             </div>
             <div className="demo__form">
-              <DemoForm />
+              <PilotForm />
             </div>
           </div>
         </div>
@@ -371,19 +358,19 @@ export default function Home() {
               <div className="mb-3">
                 <Brand href={null} size={18} />
               </div>
-              <p className="tagline">The AI creative strategist for DTC brands. usetrnd.com</p>
+              <p className="tagline">Weekly creative test briefs for DTC brands. usetrnd.com</p>
             </div>
             <div className="foot-links">
               <div className="foot-col">
                 <h3>Product</h3>
                 <a href="#problem">Problem</a>
-                <a href="#signals">Four signals</a>
+                <a href="#inputs">What it reads</a>
                 <a href="#how">How it works</a>
               </div>
               <div className="foot-col">
                 <h3>Company</h3>
-                <a href="#pricing">Pricing</a>
-                <a href="#demo">Request a demo</a>
+                <a href="#pilot">The pilot</a>
+                <a href="#apply">Apply</a>
               </div>
               <div className="foot-col">
                 <h3>Legal</h3>
@@ -404,7 +391,7 @@ export default function Home() {
           </div>
           <div className="foot-bottom">
             <span>© 2026 TRND</span>
-            <span>Examples on this page are illustrative.</span>
+            <span>The example brief on this page is invented. No customer, result or figure on it is real.</span>
           </div>
         </div>
       </footer>

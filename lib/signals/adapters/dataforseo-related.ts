@@ -1,4 +1,5 @@
 import { env, isDataForSeoConfigured } from "@/lib/env";
+import { recordProviderUsage } from "@/lib/usage/providers";
 
 import { normalizeTerm } from "../normalize";
 import type { AdapterFetchInput, RawSeriesPoint, RawSignal, SignalAdapter } from "../types";
@@ -110,6 +111,7 @@ export function createDataForSeoRelatedAdapter(opts: { fetch?: typeof fetch } = 
             ]),
             signal: AbortSignal.timeout(40_000),
           });
+          recordProviderUsage({ provider: "dataforseo", operation: "keywords_for_keywords", rateKey: "dataforseo:related_task", units: 1, ok: res.ok, note: res.ok ? null : `HTTP ${res.status}` });
           if (!res.ok) throw new Error(`dataforseo related ${res.status}`);
           const data = (await res.json()) as { tasks?: { result?: DfsResultRow[] | null }[] };
           const rows = data.tasks?.[0]?.result ?? [];

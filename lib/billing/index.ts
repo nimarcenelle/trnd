@@ -46,14 +46,14 @@ export const PLAN_PRICES_ANNUAL: Record<Exclude<PlanId, "trial">, string> = {
   pro: "$5,000/yr",
 };
 
-/** What $500 buys — one list, printed everywhere the plan is described. */
+/** What the pilot delivers, one list, printed everywhere the plan is described. */
 export const BASELINE_FEATURES = [
-  "The next ad to run, every week: the product, the angle, the format, the audience, and three scripts to test",
-  "The four signals behind it, customer, culture, competition and your brand, with every number linked to its source",
-  "Your direct competitors' Meta and TikTok ads and posts, read daily, with what's saturated and what they left open",
-  "Learns from your Meta ad account and past exports, so the next call leans on what actually performed for you",
-  "The Monday brief in your inbox before your creative standup",
-  "Your founding analysis: positioning, target customer, what they search and say, and what never to run",
+  "Up to three creative test briefs a week: the concept, the hypothesis, the hook, the direction, the shot list and the facts you may use",
+  "The evidence behind each one, with its source, its date, its sample and what it cannot say",
+  "Your direct competitors' ads and posts read weekly, quoted as observed, never as proof",
+  "Your own results read from an Ads Manager export, so briefs build on what you ran and never repeat what failed",
+  "A founder reads every brief before it reaches you during the pilot",
+  "Continuity: what you chose, launched, learned and passed on shapes the next week",
 ] as const;
 
 export interface PlanState {

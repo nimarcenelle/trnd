@@ -1,4 +1,5 @@
 import { env, isDataForSeoConfigured } from "@/lib/env";
+import { recordProviderUsage } from "@/lib/usage/providers";
 
 import type { RawSeriesPoint } from "../types";
 import { DELTA_CAP, type RisingQuery } from "./trends-related";
@@ -143,6 +144,7 @@ export async function fetchTrendsExplore(
           ]),
           signal: AbortSignal.timeout(40_000),
         });
+        recordProviderUsage({ provider: "dataforseo", operation: "google_trends_explore", rateKey: "dataforseo:trends_task", units: 1, ok: res.ok, note: res.ok ? null : `HTTP ${res.status}` });
         if (!res.ok) throw new Error(`dataforseo trends ${res.status}`);
         const data = (await res.json()) as { tasks?: { result?: unknown; status_code?: number; status_message?: string }[] };
         const task = data.tasks?.[0];

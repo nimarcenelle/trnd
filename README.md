@@ -1,9 +1,11 @@
 # TRND
 
-**Know what to advertise — before your competitors do.**
+**Know what to make next.**
 
-TRND tells a small business what to advertise this week, why now, and hands them the
-finished campaign — then learns from what actually converted.
+TRND writes weekly creative test briefs for a small DTC marketing team: up to three concepts
+a week, each a hypothesis with the evidence behind it and what that evidence cannot say, in a
+brief a creator can shoot from. See `PRODUCT.md` for the current product and the older
+keyword-pick screens it still carries.
 
 The loop: **Detect → Match → Position → Launch → Learn.** Step 4 is a feature; any LLM
 writes ad copy. The moat is 2, 3, and 5 — the performance data that comes back from

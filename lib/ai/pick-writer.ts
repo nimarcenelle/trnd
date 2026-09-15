@@ -120,21 +120,8 @@ direction: {
     cta,
     duration_seconds: durationSec,
   };
-  const priceAnchor: PickWriteScript = price
-    ? {
-        variant_label: "Price anchor",
-        thesis: "Lead with the listed price so the decision feels small.",
-        hook: `${product}, ${price}. Here is what that gets you.`,
-        beats: [],
-    direction: {
-          show: `${product} on a plain surface with the price in view, then in use in one continuous shot, then the detail that earns the price.`,
-          say: `Say the price early and let the rest of the video explain what it buys. Talk about the item, not about the viewer.`,
-          prove: `The listed price, exactly as the page shows it, and one concrete detail of the item that is true on the page.`,
-        },
-        cta,
-        duration_seconds: durationSec,
-      }
-    : {
+  // Never a price-led script: the price closes an ad, it does not open one.
+  const priceAnchor: PickWriteScript = {
         variant_label: "Side by side",
         thesis: `Put what they use now next to ${product} and let the difference show.`,
         hook: `What you use now, next to ${product}`,

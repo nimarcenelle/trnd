@@ -211,7 +211,7 @@ describe("the line never draws an unfinished day", () => {
     const line = sparklineOf([...series, { day: "2026-09-15", value: 0 }], now);
     expect(line.at(-1)).toEqual({ d: "2026-09-14", v: 40 });
     // Yesterday captured as a partial zero is the same artifact.
-    const partial = sparklineOf([...series.slice(0, -1), { day: "2026-09-14", value: 0 }], now);
+    const partial = sparklineOf([...series.slice(0, -2), { day: "2026-09-14", value: 0 }], now);
     expect(partial.at(-1)).toEqual({ d: "2026-09-13", v: 39 });
     // A real zero inside a quiet stretch stays.
     const quiet = sparklineOf([{ day: "2026-09-10", value: 0 }, { day: "2026-09-11", value: 0 }, { day: "2026-09-12", value: 0 }, { day: "2026-09-13", value: 0 }], now);

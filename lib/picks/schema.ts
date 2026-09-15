@@ -152,6 +152,13 @@ export function pricesMentioned(text: string): number[] {
 export function pickWriteSchemaFor(ctx: PickWriteContext) {
   const term = ctx.term.trim().toLowerCase();
   return PickWriteBase.superRefine((v, issue) => {
+    // The price closes an ad; it never opens one. A hook that names a
+    // price, or a route named for one, is a price-led script.
+    v.scripts.forEach((s, i) => {
+      if (/price/i.test(s.variant_label) || pricesMentioned(s.hook).length > 0) {
+        issue.addIssue({ code: "custom", path: ["scripts", i], message: "leads with the price; the price belongs in the close" });
+      }
+    });
     // A script sells the pick's item at the pick's price, or it sells
     // something else.
     if (typeof ctx.priceCents === "number" && ctx.priceCents > 0) {

@@ -27,7 +27,7 @@ const write = (finding: string, bet_what: string) => ({
   scripts: [
     script("Problem first", "Opening on the crust makes the hard water problem visible before any claim."),
     script("The switch", "Showing a one-minute install answers the renter's fear of plumbing."),
-    script("Price anchor", "Setting the price against a salon color correction makes it an easy yes."),
+    script("Side by side", "Setting the price against a salon color correction makes it an easy yes."),
   ],
 });
 
@@ -105,6 +105,33 @@ describe("a script sells the pick's price", () => {
     const wrong = validatePickWrite(write, { term: "frizz halo", deltaPct: null, priceCents: 3800 });
     expect(wrong.ok).toBe(false);
     if (!wrong.ok) expect(wrong.error).toContain("scripts.1: names a price of $59 while the item is $38");
-    expect(validatePickWrite(write, { term: "frizz halo", deltaPct: null, priceCents: null }).ok).toBe(true);
+    // Without a known price the mismatch cannot be judged, but a hook that names a price is still price-led.
+    const noPrice = validatePickWrite(write, { term: "frizz halo", deltaPct: null, priceCents: null });
+    expect(noPrice.ok).toBe(false);
+    if (!noPrice.ok) expect(noPrice.error).toContain("leads with the price");
+  });
+});
+
+describe("no price-led scripts", () => {
+  it("rejects a hook that opens on the price, and a route named for one", async () => {
+    const { validatePickWrite } = await import("../lib/picks/schema");
+    const script = (label: string, hook: string) => ({
+      variant_label: label,
+      thesis: `Thesis for ${label}, long enough to pass the base schema on its own`,
+      hook,
+      beats: [],
+      cta: "Shop The Dry Shampoo for $28",
+      duration_seconds: 20,
+      direction: { show: "A woman patting the powder into her roots at her bathroom sink", say: "Talk about skipping wash day without the itch", prove: "Show the powder blend in" },
+    });
+    const write = {
+      finding: 'Your customers are searching "dry shampoo itchy scalp." Your product page says "The Dry Shampoo."',
+      bet_what: "Pitch The Dry Shampoo at $28 on TikTok as the powder that extends wash day",
+      guardrail: null,
+      scripts: [script("Problem first", "Day three hair should not hurt your scalp"), script("Price anchor", "Twenty eight dollars to skip wash day"), script("The ritual", "Brushing your dry shampoo in changes the morning")],
+    };
+    const r = validatePickWrite(write, { term: "dry shampoo itchy scalp", deltaPct: null, priceCents: 2800 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("scripts.1: leads with the price");
   });
 });

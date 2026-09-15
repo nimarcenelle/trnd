@@ -88,6 +88,11 @@ export interface PickWriteContext {
    * selling another product: "This fifty nine dollar towel" opened a
    * script for the $38 cream. Null when the item has no price. */
   priceCents?: number | null;
+  /** Other listed prices a script may name: the items the bet or the
+   * finding itself sells. The matcher pairs a towel search with the bundle
+   * that contains the towel, the bet names the towel, and the towel's own
+   * price is then the right one, not the bundle's. */
+  allowedPriceCents?: number[];
   /** Hold the model to a real gap: the finding names the item the bet runs,
    * and never quotes the brand using the customer's own words back. Off for
    * the keyless template, which has no page copy to find a gap in. */
@@ -163,10 +168,11 @@ export function pickWriteSchemaFor(ctx: PickWriteContext) {
     // something else.
     if (typeof ctx.priceCents === "number" && ctx.priceCents > 0) {
       const price = ctx.priceCents / 100;
+      const allowed = [price, ...(ctx.allowedPriceCents ?? []).filter((c) => c > 0).map((c) => c / 100)];
       v.scripts.forEach((s, i) => {
         const d = (s as { direction?: { show?: string; say?: string; prove?: string } | null }).direction;
         const text = [s.hook, s.cta, d?.show, d?.say, d?.prove].filter(Boolean).join(" ");
-        const other = pricesMentioned(text).find((n) => Math.abs(n - price) > 0.5);
+        const other = pricesMentioned(text).find((n) => !allowed.some((a) => Math.abs(n - a) <= 0.5));
         if (other !== undefined) {
           issue.addIssue({ code: "custom", path: ["scripts", i], message: `names a price of $${other} while the item is $${price}` });
         }

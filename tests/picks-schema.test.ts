@@ -135,3 +135,27 @@ describe("no price-led scripts", () => {
     if (!r.ok) expect(r.error).toContain("scripts.1: leads with the price");
   });
 });
+
+describe("the price of an item the draft itself sells", () => {
+  it("is allowed, while any other price is not", async () => {
+    const { validatePickWrite } = await import("../lib/picks/schema");
+    const script = (hook: string, i: number) => ({
+      variant_label: `Route ${i}`,
+      thesis: `Thesis ${i}, long enough to pass the base schema on its own`,
+      hook,
+      beats: [],
+      cta: "Shop The Towel for $59",
+      duration_seconds: 20,
+      direction: { show: "Wet hair wrapped in the towel at the bathroom mirror", say: "Talk about what a bath towel does to wet hair", prove: "Show the hair after ten minutes" },
+    });
+    const write = {
+      finding: 'Your customers are searching "microfiber towel for drying hair." Your product page says "The Wet Hair Duo."',
+      bet_what: "Pitch The Towel on TikTok as a heatless wash day ritual for $59",
+      guardrail: null,
+      scripts: [script("A bath towel pulls right at your roots", 1), script("Wet hair breaks when you twist it into a claw clip", 2), script("The towel that finally lets me air dry", 3)],
+    };
+    // The bundle is $92; the bet sells the $59 towel.
+    expect(validatePickWrite(write, { term: "microfiber towel for drying hair", deltaPct: null, priceCents: 9200, allowedPriceCents: [5900] }).ok).toBe(true);
+    expect(validatePickWrite(write, { term: "microfiber towel for drying hair", deltaPct: null, priceCents: 9200 }).ok).toBe(false);
+  });
+});

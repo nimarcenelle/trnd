@@ -241,14 +241,30 @@ async function buildBundle(repo: Repo, input: WeekInputs, opportunity: Opportuni
 
   let written: PickWrite | null = null;
   try {
-    const rules = { term: signal.term, deltaPct: writerInput.deltaPct, priceCents: matched?.price_cents ?? null };
-    let checked = validatePickWrite(await writer(writerInput), rules);
+    const rules = { term: signal.term, deltaPct: writerInput.deltaPct, priceCents: matched?.price_cents ?? null, allowedPriceCents: [] as number[] };
+    // The items the draft itself names (in the bet or the finding) may be
+    // sold at their own listed price: the matcher paired the towel search
+    // with the bundle that holds the towel, and the bet sold the towel.
+    const rulesFor = (draft: unknown) => {
+      const text = `${(draft as { bet_what?: unknown })?.bet_what ?? ""} ${(draft as { finding?: unknown })?.finding ?? ""}`.toLowerCase();
+      const named = services
+        .filter((s) => s.is_active && typeof s.price_cents === "number" && s.price_cents > 0)
+        .filter((s) => {
+          const name = s.name.replace(/\([^)]*\)/g, " ").replace(/^(the|a|an)\s+/i, "").trim().toLowerCase();
+          return name.length >= 4 && text.includes(name);
+        })
+        .map((s) => s.price_cents as number);
+      return { ...rules, allowedPriceCents: named };
+    };
+    let draft: unknown = await writer(writerInput);
+    let checked = validatePickWrite(draft, rulesFor(draft));
     // One retry, told exactly what was wrong. A single price-led hook used
     // to draft the whole pick, best pick of the week included, on the
     // first miss; the model fixes a named line far more often than not.
     if (!checked.ok) {
       console.warn(`[picks] "${signal.term}" rejected once (${checked.error}); asking for a fix`);
-      checked = validatePickWrite(await writer({ ...writerInput, feedback: checked.error }), rules);
+      draft = await writer({ ...writerInput, feedback: checked.error });
+      checked = validatePickWrite(draft, rulesFor(draft));
     }
     if (checked.ok) written = checked.value;
     else console.warn(`[picks] "${signal.term}" failed validation twice, stored as draft: ${checked.error}`);

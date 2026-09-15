@@ -13,8 +13,8 @@ import { completePickRunAction, type CompleteRunState } from "@/lib/picks/run-ac
 /** The owner's own verdict. The numbers decide when they exist; this decides
  * when they don't, and it is what the track record counts. */
 const VERDICTS = [
-  { value: "won", label: "It won" },
-  { value: "lost", label: "It didn't" },
+  { value: "won", label: "Did better than its reference" },
+  { value: "lost", label: "Did not" },
   { value: "", label: "Let the numbers say" },
 ] as const;
 
@@ -51,6 +51,10 @@ export default function ListRunsComplete({ runId }: { runId: string }) {
             </label>
           ))}
         </div>
+        <label className="picks-run__field picks-run__field--wide">
+          <span>What did it teach you? (optional)</span>
+          <textarea className="input" name="learned" rows={2} maxLength={600} placeholder="e.g. The hook held; the offer at the close did not." />
+        </label>
         {state.error && (
           <p id={errorId} className="picks-run__error" role="alert">
             {state.error}

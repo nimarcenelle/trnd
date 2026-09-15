@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import AccountPanel from "@/components/app/account-panel";
 import BusinessSettingsForm from "@/components/app/business-settings-form";
+import CreativeContextForm from "@/components/app/creative-context-form";
 import DocumentUpload from "@/components/app/document-upload";
 import { getSessionUser } from "@/lib/auth/session";
 import { clearAdHistoryAction, importAdExportAction } from "@/lib/ads/actions";
@@ -475,6 +476,18 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         {documents.length < MAX_DOCUMENTS && <DocumentUpload modelReady={isGeminiConfigured} />}
       </section>
 
+      <section className="panel mb-5" id="context">
+        <div className="panel__head">
+          <span className="panel__title">What a brief needs to know</span>
+          <span className="panel__meta">{business.campaign_objective ? "Set" : "Not set"}</span>
+        </div>
+        <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4 max-w-[640px] leading-[1.55]">
+          What your campaigns buy, what you can make, what you shot last and what you may claim. Every brief reads this, and the
+          evaluation plan names the right number only once the objective is set.
+        </p>
+        <CreativeContextForm business={business} services={services} />
+      </section>
+
       <section className="panel mb-5" id="ads">
         <div className="panel__head">
           <span className="panel__title">Your past ads</span>
@@ -483,7 +496,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           </span>
         </div>
         <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4 max-w-[640px] leading-[1.55]">
-          Export your results from Meta Ads Manager or Google Ads (CSV or Excel) and TRND learns which ads worked for you.
+          Export your results from Meta Ads Manager or Google Ads (CSV or Excel, at the ad level). It gives each brief a real
+          reference ad and your own baseline, and stops TRND repeating ideas that already failed. An export carries numbers, ad
+          names and, when the columns are there, headline and body text. It does not carry the creative itself, so what an ad
+          showed is read from its name and copy only.
         </p>
 
         {adNotice && (

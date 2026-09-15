@@ -913,6 +913,13 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
         dismissed: (feedback.data ?? []).length > 0,
       };
     },
+    async updatePickConcept(pickId, patch) {
+      // The concept columns land with 0028; until then the refinement keeps
+      // what it can (the finding, the guardrail) and drops the rest.
+      const { data, error } = await writeTolerant(patch, (row) => sb.from("picks").update(row).eq("id", pickId).select().single(), "updatePickConcept");
+      throwIf(error, "updatePickConcept");
+      return data as BrandPick;
+    },
     async createPickFeedback(input) {
       const { data, error } = await sb.from("pick_feedback").insert(input).select().single();
       throwIf(error, "createPickFeedback");

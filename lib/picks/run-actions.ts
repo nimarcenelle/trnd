@@ -21,8 +21,9 @@ export interface CompleteRunState {
   ok?: boolean;
 }
 
-async function ownedRunningRun(
+async function ownedRun(
   formData: FormData,
+  status: PickRunStatus,
 ): Promise<{ repo: Repo; run: PickRun; pickId: string } | null> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -33,8 +34,25 @@ async function ownedRunningRun(
   const runId = String(formData.get("run_id") ?? "").trim();
   if (!runId) return null;
   const owned = (await repo.listPickRuns(business.id)).find((r) => r.run.id === runId);
-  if (!owned || owned.run.status !== "running") return null;
+  if (!owned || owned.run.status !== status) return null;
   return { repo, run: owned.run, pickId: owned.pick.id };
+}
+
+const ownedRunningRun = (formData: FormData) => ownedRun(formData, "running");
+
+/** What the test taught, in the owner's words: trimmed, capped, empty is null. */
+export async function cleanLearned(raw: unknown): Promise<string | null> {
+  if (typeof raw !== "string") return null;
+  const t = raw.trim();
+  return t ? Array.from(t).slice(0, 600).join("") : null;
+}
+
+/** "Mark launched" from Campaigns: a planned test goes live. */
+export async function launchRunAction(formData: FormData): Promise<void> {
+  const owned = await ownedRun(formData, "planned");
+  if (!owned) return;
+  await owned.repo.updatePickRun(owned.run.id, { status: "running", launched_at: new Date().toISOString() });
+  revalidateRunScreens();
 }
 
 function revalidateRunScreens() {
@@ -64,6 +82,7 @@ export async function completePickRunAction(_prev: CompleteRunState, formData: F
     status: "completed",
     ended_at: endedAt.toISOString(),
     verdict: parseVerdict(formData),
+    learned: await cleanLearned(formData.get("learned")),
     spend_usd: results.spend_usd,
     impressions: results.impressions,
     clicks: results.clicks,
@@ -86,10 +105,10 @@ export async function completePickRunAction(_prev: CompleteRunState, formData: F
   return { ok: true };
 }
 
-async function endRun(formData: FormData, status: Exclude<PickRunStatus, "running">): Promise<void> {
+async function endRun(formData: FormData, status: Exclude<PickRunStatus, "running" | "planned">): Promise<void> {
   const owned = await ownedRunningRun(formData);
   if (!owned) return;
-  await owned.repo.updatePickRun(owned.run.id, { status, ended_at: new Date().toISOString() });
+  await owned.repo.updatePickRun(owned.run.id, { status, ended_at: new Date().toISOString(), learned: await cleanLearned(formData.get("learned")) });
   revalidateRunScreens();
 }
 

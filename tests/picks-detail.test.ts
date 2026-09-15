@@ -86,12 +86,13 @@ const detail = (over: Partial<PickDetail> = {}): PickDetail => ({
 });
 
 describe("dismiss reason and note", () => {
-  it("accepts exactly the five reasons", () => {
+  it("accepts exactly the six reasons", () => {
     expect(DISMISS_REASONS.map((r) => r.value)).toEqual([
       "wrong_customer",
       "already_tried",
       "off_brand",
       "cant_shoot",
+      "not_now",
       "other",
     ]);
     for (const r of DISMISS_REASONS) expect(parseDismissReason(r.value)).toBe(r.value);

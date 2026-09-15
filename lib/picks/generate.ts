@@ -417,7 +417,8 @@ export function eligibleWeekOpportunities(stored: Opportunity[]): Opportunity[] 
     .slice(0, CANDIDATES_PER_WEEK);
 }
 
-function conceptOf(bundle: NewPickBundle): ConceptWrite | null {
+/** The concept a stored bundle carries, as the writer would return it. */
+export function conceptOf(bundle: Pick<NewPickBundle, "pick">): ConceptWrite | null {
   const b = bundle.pick.brief;
   if (!b || !bundle.pick.concept_title) return null;
   return {

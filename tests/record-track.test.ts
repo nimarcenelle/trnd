@@ -44,7 +44,7 @@ describe("buildTrackRecord", () => {
       ["2026-09-12", 2, 3],
     ]);
     expect(record.rows[0].term).toBe("hard water");
-    expect(hitRateLine(record)).toBe("2 of 3 picks you ran won.");
+    expect(hitRateLine(record)).toBe("2 of 3 tests you ran did better than its reference.");
     expect(ratePct(record.hitRate)).toBe("67%");
   });
 

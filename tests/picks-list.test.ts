@@ -16,9 +16,10 @@ import {
 
 describe("runChip", () => {
   it("labels each run status", () => {
-    expect(runChip("running")).toEqual({ label: "Running", tone: "amber" });
+    expect(runChip("planned")).toEqual({ label: "In production", tone: "amber" });
+    expect(runChip("running")).toEqual({ label: "Launched", tone: "amber" });
     expect(runChip("completed")).toEqual({ label: "Completed", tone: "mint" });
-    expect(runChip("killed")).toEqual({ label: "Killed", tone: "faint" });
+    expect(runChip("killed")).toEqual({ label: "Stopped", tone: "faint" });
   });
 
   it("gives no chip to a pick nobody ran", () => {

@@ -10,6 +10,7 @@ import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, genera
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { isEmailConfigured, isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
+import { firstWeekMode } from "@/lib/onboarding/context";
 import { conceptRow, STATUS_LABEL } from "@/lib/picks/concept-view";
 import { kickWeekJob } from "@/lib/picks/kick";
 import { waitHeadline, weekProgress } from "@/lib/picks/progress";
@@ -80,6 +81,9 @@ export default async function PicksPage() {
   // not have three ideas worth a test, and says so.
   if (rows.length > 0) {
     const concepts = rows.map(({ pick, run }) => ({ pick, run, row: conceptRow(pick, run) }));
+    // What this week can and cannot say, from what the brand handed over.
+    const history = await repo.listAdHistory(business.id).catch(() => []);
+    const mode = firstWeekMode({ adHistoryRows: history.length, hasObjective: Boolean(business.campaign_objective) });
     const chosen = concepts.filter((c) => c.row?.status === "chosen" || c.row?.status === "launched").length;
     return (
       <div className="page picks">
@@ -97,6 +101,12 @@ export default async function PicksPage() {
             Tests in progress
           </Link>
         </div>
+        {mode.line && (
+          <p className={`cbl__mode${mode.researchOnly ? " is-research" : ""}`} role="status">
+            {mode.line}{" "}
+            <Link href="/app/settings#ads">{mode.researchOnly ? "Add an export" : "Set the objective"}</Link>
+          </p>
+        )}
         <ol className="cbl" aria-label="This week's creative tests">
           {concepts.map(({ pick, run, row }) => {
             if (!row) {

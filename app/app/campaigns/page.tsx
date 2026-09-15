@@ -53,9 +53,12 @@ export default async function CampaignsPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <span className="eyebrow m-0">Built from your picks</span>
+          <span className="eyebrow m-0">Tests in progress</span>
           <h1>Campaigns</h1>
-          <p className="context">Drafts are ready to launch; live ones are waiting on results.</p>
+          <p className="context">
+            Every test you chose, in the order it moved: chosen is not launched, launched is not successful, and no result
+            is not a loss.
+          </p>
         </div>
         {campaigns.length > 0 && (
           <Link href="/app/results" className="btn btn-ghost btn-sm">
@@ -68,7 +71,7 @@ export default async function CampaignsPage() {
 
       {campaigns.length === 0 && pickRuns.length === 0 && (
         <div className="panel camps__empty">
-          <p>Nothing running yet. A pick you run shows up here.</p>
+          <p>Nothing in production yet. A concept you choose shows up here.</p>
           <Link href="/app/picks" className="btn btn-primary btn-sm">
             This week&apos;s picks
           </Link>

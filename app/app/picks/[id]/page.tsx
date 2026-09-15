@@ -7,6 +7,7 @@ import AutoRefresh from "@/components/app/auto-refresh";
 import PickPager from "@/components/app/pick-pager";
 import AlertBar from "@/components/picks/alert-bar";
 import ConceptDetail from "@/components/picks/concept-detail";
+import RefineForm from "@/components/picks/refine-form";
 import DetailActions from "@/components/picks/detail-actions";
 import DetailCopyButton from "@/components/picks/detail-copy-button";
 import DemandChart from "@/components/picks/demand-chart";
@@ -23,6 +24,7 @@ import { notThisWeek, type DontCall } from "@/lib/record/calls";
 import { buildTrackRecord, calibrationLine, gradeLetterOf } from "@/lib/record/track";
 import { weekOf } from "@/lib/recommend/week";
 import { benchmarkFor } from "@/lib/results/benchmarks";
+import { isGeminiConfigured } from "@/lib/env";
 import { normalizeTerm } from "@/lib/signals/normalize";
 import { sentenceCase } from "@/lib/text";
 
@@ -83,7 +85,12 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
     return (
       <>
         <AlertBar alerts={unreadAlerts} />
-        <ConceptDetail view={concept} head={{ items, index, weekRange: weekRangeLabel(week), writing, deepening }} exportHref={`/app/picks/${detail.pick.id}/export`} />
+        <ConceptDetail
+          view={concept}
+          head={{ items, index, weekRange: weekRangeLabel(week), writing, deepening }}
+          exportHref={`/app/picks/${detail.pick.id}/export`}
+          refine={concept.status === "proposed" || concept.status === "chosen" ? <RefineForm pickId={detail.pick.id} modelReady={isGeminiConfigured} /> : undefined}
+        />
       </>
     );
   }

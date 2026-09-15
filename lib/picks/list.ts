@@ -17,12 +17,14 @@ export type RunChipTone = "amber" | "mint" | "faint";
  * list never labels a pick nobody acted on. */
 export function runChip(status: PickRunStatus | null | undefined): { label: string; tone: RunChipTone } | null {
   switch (status) {
+    case "planned":
+      return { label: "In production", tone: "amber" };
     case "running":
-      return { label: "Running", tone: "amber" };
+      return { label: "Launched", tone: "amber" };
     case "completed":
       return { label: "Completed", tone: "mint" };
     case "killed":
-      return { label: "Killed", tone: "faint" };
+      return { label: "Stopped", tone: "faint" };
     default:
       return null;
   }

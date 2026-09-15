@@ -11,6 +11,7 @@ import { getAdminRepo } from "@/lib/db/admin";
 import type { SocialHandles } from "@/lib/db/types";
 import { cleanSocialHandles, SOCIAL_PLATFORMS } from "@/lib/import/social-links";
 import { runIntelIngestForBusiness } from "@/lib/intel/ingest";
+import { parseCreativeContext } from "@/lib/onboarding/context";
 import { parseMarketProfile } from "@/lib/onboarding/market";
 import { normalizeHandle } from "@/lib/social";
 
@@ -82,6 +83,22 @@ export async function updateBusinessAction(
     radius_miles: Number.isFinite(radius) ? Math.min(100, Math.max(1, Math.round(radius))) : business.radius_miles,
   });
   refreshBriefAfterResponse(user.id);
+  revalidatePath("/app", "layout");
+  return { ok: true };
+}
+
+/** The creative context every brief reads: objective, formats, the lead product, recent creative, claims. */
+export async function updateCreativeContextAction(_prev: SettingsState, formData: FormData): Promise<SettingsState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const repo = await getUserRepo(user.id);
+  const business = await repo.getBusinessByOwner(user.id);
+  if (!business) redirect("/onboarding");
+  const context = parseCreativeContext(formData);
+  const wanted = String(formData.get("priority_service_id") ?? "").trim();
+  const services = await repo.listServices(business.id);
+  const priority = services.find((s) => s.id === wanted)?.id ?? null;
+  await repo.updateBusiness(business.id, { ...context, priority_service_id: priority });
   revalidatePath("/app", "layout");
   return { ok: true };
 }

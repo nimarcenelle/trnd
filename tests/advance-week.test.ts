@@ -250,12 +250,8 @@ describe("the first pick before the rest", () => {
       { business_id: biz.id, signal_id: sig2.id, week_of: weekOf(), score: 6, rationale: "r", matched_service_id: null, competitor_gap: null, relevance: null, grade: "B", grade_score: 60, signal_scores: {} },
     ]);
     const { generateWeekPicks } = await import("../lib/picks/generate");
-    const writer = async () => ({
-      finding: 'Your customers are searching "hard water" and your catalog answers it directly.',
-      bet_what: "The filter to renters on Reels",
-      guardrail: null,
-      scripts: [1, 2, 3].map((i) => ({ variant_label: `v${i}`, thesis: `thesis ${i} long enough to pass`, hook: `hook ${i} long enough`, beats: [], cta: "Shop", duration_seconds: 20 })),
-    });
+    const { fallbackConceptWrite } = await import("../lib/ai/concept-writer");
+    const writer = async (input: Parameters<typeof fallbackConceptWrite>[0]) => fallbackConceptWrite(input);
     const first = await generateWeekPicks(admin, biz, { limit: 1, writer: writer as never });
     expect(first.bundles).toHaveLength(1);
     expect(await admin.countWeekPicks(biz.id, weekOf())).toBe(1);
@@ -378,32 +374,20 @@ describe("picks that no longer match their rows", () => {
 describe("a rejected draft gets one retry, told why", () => {
   beforeEach(() => resetStore());
 
-  it("writes the pick once the writer fixes the named line", async () => {
+  it("writes the concept once the writer fixes the named line", async () => {
     const { admin, biz } = await seed({ opportunity: true });
     const { generateWeekPicks } = await import("../lib/picks/generate");
+    const { fallbackConceptWrite } = await import("../lib/ai/concept-writer");
     const seen: string[] = [];
-    const script = (hook: string, i: number) => ({
-      variant_label: `Route ${i}`,
-      thesis: `Thesis ${i}, long enough to pass the base schema on its own`,
-      hook,
-      beats: [],
-      cta: "Shop the filter",
-      duration_seconds: 20,
-      direction: { show: "The filter going onto a shower arm in a real bathroom", say: "Talk about what hard water does to hair over a month", prove: "Show the cartridge after a week" },
-    });
-    const writer = async (input: { feedback?: string | null }) => {
+    const writer = async (input: Parameters<typeof fallbackConceptWrite>[0]) => {
       seen.push(input.feedback ?? "(first)");
-      const priceLed = !input.feedback;
-      return {
-        finding: 'Your customers are searching "hard water." Your product page says "The Filter."',
-        bet_what: "Run the filter on Reels for renters",
-        guardrail: null,
-        scripts: [script(priceLed ? "Forty nine dollars to fix hard water" : "Hard water is why your hair feels like straw", 1), script("The first shower in a new apartment", 2), script("Renters can install this without a landlord", 3)],
-      };
+      const base = fallbackConceptWrite(input);
+      // The first draft opens on a price; the hook rule refuses it.
+      return input.feedback ? base : { ...base, hooks: { ...base.hooks, primary: "Forty nine dollars to fix hard water" } };
     };
     const written = await generateWeekPicks(admin, biz, { writer: writer as never });
     expect(seen).toHaveLength(2);
-    expect(seen[1]).toContain("leads with the price");
+    expect(seen[1]).toContain("a hook carries no price");
     expect(written.ready).toBe(1);
   });
 });

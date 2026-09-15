@@ -12,7 +12,8 @@ delete process.env.GEMINI_API_KEY;
 const { createDemoRepo } = await import("../lib/db/demo/repo");
 const { resetStore } = await import("../lib/db/demo/store");
 const { generateWeekPicks } = await import("../lib/picks/generate");
-const { fallbackPickWrite } = await import("../lib/ai/pick-writer");
+const { fallbackConceptWrite } = await import("../lib/ai/concept-writer");
+const { CONCEPT_VERSION } = await import("../lib/picks/concept");
 const { weekOf } = await import("../lib/recommend/week");
 
 const brand = (ownerId: string): NewBusiness => ({
@@ -137,43 +138,60 @@ async function seed(opts: { history?: boolean } = {}) {
 describe("the weekly pick job, keyless", () => {
   beforeEach(() => resetStore());
 
-  it("turns five ranked opportunities into five ready picks with three scripts each", async () => {
+  it("turns five ranked opportunities into three distinct ready creative tests", async () => {
     const { admin, user, biz } = await seed();
     const result = await generateWeekPicks(admin, biz);
-    expect(result).toMatchObject({ ready: 5, draft: 0 });
-    expect(result.pickIds).toHaveLength(5);
+    expect(result).toMatchObject({ ready: 3, draft: 0, duplicates: 0 });
+    expect(result.pickIds).toHaveLength(3);
 
     const listed = await user.listReadyPicks(biz.id, weekOf());
-    expect(listed.map((l) => l.pick.term)).toEqual(TERMS.map((t) => t.term));
-    expect(listed.map((l) => l.pick.rank)).toEqual([1, 2, 3, 4, 5]);
+    expect(listed.map((l) => l.pick.term)).toEqual(TERMS.slice(0, 3).map((t) => t.term));
+    expect(listed.map((l) => l.pick.rank)).toEqual([1, 2, 3]);
 
+    const titles = new Set<string>();
     for (const { pick } of listed) {
       const detail = (await user.getPickDetail(pick.id))!;
-      expect(detail.scripts).toHaveLength(3);
-      expect(new Set(detail.scripts.map((s) => s.thesis)).size).toBe(3);
+      // The concept is whole: a title, a brief, one script, evidence with limits.
+      expect(pick.concept_title).toBeTruthy();
+      titles.add(pick.concept_title as string);
+      expect(pick.brief_version).toBe(CONCEPT_VERSION);
+      const brief = pick.brief!;
+      expect(brief.hypothesis).toMatch(/^Test whether/);
+      expect(brief.hooks.alternatives.length).toBeGreaterThan(0);
+      expect(brief.shot_list.length).toBeGreaterThanOrEqual(2);
+      expect(brief.approved_facts.length).toBeGreaterThan(0);
+      expect(brief.unknowns.length).toBeGreaterThan(0);
+      // Nothing on file: the plan says what is missing instead of inventing a threshold.
+      expect(brief.evaluation.missing.join(" ")).toMatch(/objective/);
+      expect(brief.evaluation.missing.join(" ")).toMatch(/export/);
+      expect(brief.evaluation.watch.join(" ")).not.toMatch(/\d\s?%\s+after/);
+      expect(pick.basis).toBe("explores");
+      expect(detail.scripts).toHaveLength(1);
+      expect(detail.scripts[0].hook).toBe(brief.hooks.primary);
       expect(detail.evidence.length).toBeGreaterThan(0);
-      // The finding quotes the customer's words and not the number.
-      expect(pick.finding).toContain(`"${pick.term}`);
+      for (const e of detail.evidence) {
+        expect(e.kind).toBeTruthy();
+        expect(e.limitation).toBeTruthy();
+      }
+      // The finding column carries the hypothesis, never the metric figure.
+      expect(pick.finding).toBe(brief.hypothesis);
       expect(pick.finding).not.toMatch(/\d\s?%/);
       expect(pick.metric_window).toBe("week");
-      expect(pick.bet_budget_usd).toBe(1000);
-      expect(pick.bet_duration_days).toBe(5);
-      expect(pick.bet_kill_rule).toBe("Kill if click-through is under 1.5% after day 3");
       const figure = `${Math.abs(Math.round(pick.metric_delta_pct!))}%`;
       for (const e of detail.evidence) expect(e.claim).not.toContain(figure);
     }
+    // Three concepts, three ideas.
+    expect(titles.size).toBe(3);
 
     const hard = listed[0].pick;
     expect(hard.metric_label).toBe('Searches for "hard water"');
     expect(hard.metric_delta_pct).toBe(48.6);
     expect(hard.sparkline).toHaveLength(30);
-    expect(hard.finding).toBe('Your customers are searching "hard water." Your product page says "Wall Mount Filtered Showerhead."');
     // The winning short-form length sets the script length.
-    const hardDetail = (await user.getPickDetail(hard.id))!;
-    expect(hardDetail.scripts.every((s) => s.duration_seconds === 22)).toBe(true);
+    expect(hard.brief!.script.duration_seconds).toBe(22);
   });
 
-  it("writes evidence only for the signals that have facts", async () => {
+  it("writes evidence only for the signals that have facts, each with its kind and its limit", async () => {
     const { admin, user, biz } = await seed();
     await generateWeekPicks(admin, biz);
     const listed = await user.listReadyPicks(biz.id, weekOf());
@@ -181,7 +199,13 @@ describe("the weekly pick job, keyless", () => {
 
     const hard = await user.getPickDetail(listed[0].pick.id);
     expect([...(await bySignal(listed[0].pick.id))].sort()).toEqual(["culture", "customer"]);
-    expect(hard!.evidence.find((e) => e.signal === "culture")!.source_url).toBe("https://www.tiktok.com/@clean/video/1");
+    const culture = hard!.evidence.find((e) => e.signal === "culture")!;
+    expect(culture.source_url).toBe("https://www.tiktok.com/@clean/video/1");
+    expect(culture.kind).toBe("observation");
+    expect(culture.limitation).toMatch(/not what your customers buy/);
+    const search = hard!.evidence.find((e) => e.signal === "customer")!;
+    expect(search.kind).toBe("measurement");
+    expect(search.limitation).toMatch(/does not show how a paid-social ad/);
 
     for (const { pick } of listed.slice(1)) {
       expect([...(await bySignal(pick.id))]).toEqual(["customer"]);
@@ -191,36 +215,51 @@ describe("the weekly pick job, keyless", () => {
     }
   });
 
-  it("stores a pick whose writer output fails validation as a draft the list never shows", async () => {
+  it("drops a concept that says what an earlier one said, and shows fewer", async () => {
+    const { admin, user, biz } = await seed();
+    // Every draft is the same idea: the week keeps one, not five.
+    const result = await generateWeekPicks(admin, biz, {
+      writer: async (input) => fallbackConceptWrite({ ...input, otherConcepts: [] }),
+    });
+    expect(result.ready).toBe(1);
+    expect(result.duplicates).toBeGreaterThanOrEqual(2);
+    expect(await user.listReadyPicks(biz.id, weekOf())).toHaveLength(1);
+  });
+
+  it("stores a concept whose writer output fails validation as a draft the list never shows", async () => {
     const { admin, user, biz } = await seed();
     const result = await generateWeekPicks(admin, biz, {
       writer: async (input) =>
         input.term === "dry scalp"
-          ? { finding: "Up 15% this week.", bet_what: "Run something", guardrail: null, scripts: [] }
-          : fallbackPickWrite(input),
+          ? { title: "dry scalp", hypothesis: "Up 15% this week, guaranteed.", hooks: { primary: "x", alternatives: [] } }
+          : fallbackConceptWrite(input),
     });
-    expect(result).toMatchObject({ ready: 4, draft: 1 });
+    expect(result).toMatchObject({ ready: 3, draft: 1 });
 
     const listed = await user.listReadyPicks(biz.id, weekOf());
     expect(listed.map((l) => l.pick.term)).not.toContain("dry scalp");
-    expect(listed).toHaveLength(4);
+    expect(listed).toHaveLength(3);
 
     const draftId = result.pickIds[result.bundles.findIndex((b) => b.pick.term === "dry scalp")];
     const draft = (await user.getPickDetail(draftId))!;
     expect(draft.pick.status).toBe("draft");
-    expect(draft.scripts).toHaveLength(0);
   });
 
-  it("sets the kill rule from the account's own cost per purchase and brings in its ad history", async () => {
+  it("builds the evaluation plan from the account's own results and brings in its ad history", async () => {
     const { admin, user, biz } = await seed({ history: true });
     await generateWeekPicks(admin, biz);
     const listed = await user.listReadyPicks(biz.id, weekOf());
-    expect(listed[0].pick.bet_kill_rule).toBe(
-      "Kill if cost per purchase runs 30% over your account average ($40) by day 3",
-    );
+    const plan = listed[0].pick.brief!.evaluation;
+    expect(plan.watch[0]).toContain("$40");
+    expect(plan.watch[0]).toContain("Aug 1, 2026 to Aug 20, 2026");
+    expect(plan.comparison).toContain("Shower filter test");
+    expect(plan.missing.join(" ")).not.toMatch(/export/);
+    expect(plan.caveats.join(" ")).toMatch(/directional/);
     const filter = listed.find((l) => l.pick.term === "shower filter")!;
     const brandRows = (await user.getPickDetail(filter.pick.id))!.evidence.filter((e) => e.signal === "brand");
     expect(brandRows.map((e) => e.claim)).toEqual(["Your 3 past ads on this ran about even with your account average."]);
+    expect(brandRows[0].kind).toBe("measurement");
+    expect(filter.pick.basis).toBe("builds_on");
     const hard = listed.find((l) => l.pick.term === "hard water")!;
     expect((await user.getPickDetail(hard.pick.id))!.evidence.some((e) => e.signal === "brand")).toBe(false);
   });
@@ -228,19 +267,17 @@ describe("the weekly pick job, keyless", () => {
   it("skips ungraded leftovers once the week has graded rows", async () => {
     const { admin, biz } = await seed();
     const rows = await admin.listOpportunities(biz.id, weekOf());
-    // The lowest legacy score gets the only grade; the four higher ones are
-    // leftovers from a ranking before the model.
     const last = rows[rows.length - 1];
     await admin.upsertOpportunities([
       { ...last, grade: "B", grade_score: 66, signal_scores: {} } as unknown as (typeof rows)[number],
     ]);
-    const result = await generateWeekPicks(admin, biz, { write: false, writer: async (input) => fallbackPickWrite(input) });
+    const result = await generateWeekPicks(admin, biz, { write: false, writer: async (input) => fallbackConceptWrite(input) });
     expect(result.bundles.map((b) => b.pick.opportunity_id)).toEqual([last.id]);
   });
 
   it("leaves the week alone when there is nothing ranked", async () => {
     const { admin, biz } = await seed();
     const result = await generateWeekPicks(admin, biz, { weekOf: "2020-01-06" });
-    expect(result).toEqual({ ready: 0, draft: 0, pickIds: [], bundles: [] });
+    expect(result).toEqual({ ready: 0, draft: 0, duplicates: 0, pickIds: [], bundles: [] });
   });
 });

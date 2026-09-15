@@ -1,5 +1,5 @@
 import type { Repo } from "@/lib/db/repo";
-import type { Business, PickDismissReason } from "@/lib/db/types";
+import type { Business, PickDismissReason, PickFeedbackAction } from "@/lib/db/types";
 import { normalizeTerm } from "@/lib/signals/normalize";
 
 import { runOutcome, type OutcomeContext, type RunOutcome } from "./outcome";
@@ -17,7 +17,7 @@ export const LOST_COOLOFF_DAYS = 56;
 export const DISMISSED_COOLOFF_DAYS = 28;
 
 export interface MemoryRun {
-  status: "running" | "completed" | "killed";
+  status: "planned" | "running" | "completed" | "killed";
   outcome: RunOutcome;
   reason: string;
   startedAt: string;
@@ -62,7 +62,7 @@ export async function loadBrandMemory(repo: Repo, business: Business, ctx: Outco
 export function buildBrandMemory(
   input: {
     runs: { run: Parameters<typeof runOutcome>[0] & { started_at: string; ended_at: string | null }; pick: { term: string } }[];
-    feedback: { feedback: { action: "running" | "dismissed"; reason: PickDismissReason | null; created_at: string }; pick: { term: string } }[];
+    feedback: { feedback: { action: PickFeedbackAction; reason: PickDismissReason | null; created_at: string }; pick: { term: string } }[];
   },
   ctx: OutcomeContext = {},
 ): BrandMemory {
@@ -99,6 +99,7 @@ const DISMISS_LINE: Record<PickDismissReason | "none", (when: string) => string>
   off_brand: (when) => `You said this is off-brand (${when})`,
   wrong_customer: (when) => `You said this is the wrong customer (${when})`,
   cant_shoot: (when) => `You said you can't shoot this (${when})`,
+  not_now: (when) => `You said not now (${when})`,
   other: (when) => `You passed on this (${when})`,
   none: (when) => `You passed on this (${when})`,
 };
@@ -117,7 +118,12 @@ export interface MemoryHold {
 export function memoryHold(mem: TermMemory | undefined, now = new Date()): MemoryHold | null {
   if (!mem) return null;
   const live = mem.runs.find((r) => r.outcome === "open");
-  if (live) return { kind: "memory", reason: `You're running this now (since ${day(live.startedAt)})` };
+  if (live) {
+    return {
+      kind: "memory",
+      reason: live.status === "planned" ? `You chose this for production (${day(live.startedAt)})` : `You're running this now (since ${day(live.startedAt)})`,
+    };
+  }
   const lost = mem.runs.find(
     (r) => r.outcome === "lost" && r.endedAt && now.getTime() - new Date(r.endedAt).getTime() < LOST_COOLOFF_DAYS * DAY_MS,
   );

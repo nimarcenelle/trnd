@@ -41,6 +41,7 @@ export function runOutcome(
   run: Pick<PickRun, "status" | "spend_usd" | "impressions" | "clicks" | "conversions" | "revenue_usd"> & { verdict?: RunVerdict | null },
   ctx: OutcomeContext = {},
 ): OutcomeRead {
+  if (run.status === "planned") return { outcome: "open", reason: "Chosen, not launched yet", basis: "none" };
   if (run.status === "running") return { outcome: "open", reason: "Still running", basis: "none" };
   if (run.verdict === "won") return { outcome: "won", reason: "You called it a win", basis: "verdict" };
   if (run.verdict === "lost") return { outcome: "lost", reason: "You called it a loss", basis: "verdict" };
@@ -76,6 +77,18 @@ export const OUTCOME_LABEL: Record<RunOutcome, string> = {
   lost: "Lost",
   open: "Running",
   unscored: "Completed",
+};
+
+/**
+ * What a status means, said once. The brief's rule: passed on is not a
+ * performance failure, chosen is not launched, launched is not successful,
+ * and no results is not a loss.
+ */
+export const STATUS_MEANING: Record<PickRun["status"], string> = {
+  planned: "Chosen for production. Nothing is live yet.",
+  running: "Launched. No result has been recorded.",
+  completed: "Ended. Judged only by what was recorded.",
+  killed: "Stopped early by you. That is a decision, not a measured loss of the whole angle.",
 };
 
 export type OutcomeTone = "mint" | "red" | "amber" | "faint";

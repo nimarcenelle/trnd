@@ -29,6 +29,9 @@ import type {
   NewSocialPost,
   NewSocialComment,
   NewAiUsage,
+  NewPilotApplication,
+  NewProviderUsage,
+  PilotApplication,
   SocialPostKind,
   NewCampaign,
   NewBusinessBrief,
@@ -868,6 +871,19 @@ export function createDemoRepo(actor: DemoActor): Repo {
       );
     },
 
+    /* ---------------------------- provider usage --------------------------- */
+    async recordProviderUsage(input: NewProviderUsage) {
+      store.provider_usage ??= [];
+      store.provider_usage.push({ ...input, id: randomUUID(), created_at: nowIso() });
+      saveStore();
+    },
+    async listProviderUsage(opts) {
+      const cutoff = Date.now() - (opts?.sinceHours ?? 24) * 3_600_000;
+      return (store.provider_usage ?? []).filter(
+        (u) => new Date(u.created_at).getTime() >= cutoff && (!opts?.businessId || u.business_id === opts.businessId),
+      );
+    },
+
     /* ------------------------------ ad history ---------------------------- */
     async upsertAdHistory(inputs: NewAdHistory[]) {
       store.ad_history ??= [];
@@ -926,7 +942,10 @@ export function createDemoRepo(actor: DemoActor): Repo {
       const ids: string[] = [];
       for (const bundle of bundles) {
         const id = randomUUID();
-        const ready = bundle.scripts.length >= 3 && bundle.evidence.length >= 1;
+        // Same rule as replace_week_picks(): a creative test needs one evidence
+        // row; a keyword pick (no brief) still needs three scripts too.
+        const hasBrief = bundle.pick.brief !== null && typeof bundle.pick.brief === "object";
+        const ready = bundle.evidence.length >= 1 && (hasBrief || bundle.scripts.length >= 3);
         const row: BrandPick = {
           ...bundle.pick,
           id,
@@ -1122,6 +1141,13 @@ export function createDemoRepo(actor: DemoActor): Repo {
     async insertDemoRequest(input: NewDemoRequest) {
       const row = { ...input, id: randomUUID(), created_at: nowIso() };
       store.demo_requests.push(row);
+      saveStore();
+      return row;
+    },
+    async insertPilotApplication(input: NewPilotApplication) {
+      store.pilot_applications ??= [];
+      const row: PilotApplication = { ...input, id: randomUUID(), status: "new", created_at: nowIso() };
+      store.pilot_applications.push(row);
       saveStore();
       return row;
     },

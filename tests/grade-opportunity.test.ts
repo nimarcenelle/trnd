@@ -13,7 +13,7 @@ const { createDemoRepo } = await import("../lib/db/demo/repo");
 const { resetStore } = await import("../lib/db/demo/store");
 const { recommendForBusiness, weekOf } = await import("../lib/recommend/recommend");
 const { generateWeekPicks } = await import("../lib/picks/generate");
-const { fallbackPickWrite } = await import("../lib/ai/pick-writer");
+const { fallbackConceptWrite } = await import("../lib/ai/concept-writer");
 const { gatherSignalInputs, loadGradeContext } = await import("../lib/scoring/gather");
 const { DOESNT_FIT_NOTE, gradeOpportunity } = await import("../lib/scoring/grade-opportunity");
 const { NOTHING_READ_NOTE } = await import("../lib/scoring/competitive");
@@ -210,7 +210,7 @@ describe("the Opportunity Grade, gathered from the repo", () => {
         signal_scores: {},
       },
     ]);
-    const picks = await generateWeekPicks(admin, biz, { write: false, writer: async (input) => fallbackPickWrite(input) });
+    const picks = await generateWeekPicks(admin, biz, { write: false, writer: async (input) => fallbackConceptWrite(input) });
     expect(picks.bundles.map((b) => b.pick.term)).toEqual(["smoked brisket"]);
     expect(picks.bundles[0].pick).toMatchObject({ grade: top.grade, grade_score: Number(top.grade_score) });
   });

@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { isSupabaseConfigured } from "@/lib/env";
+import { env, isPilotGated, isSupabaseConfigured } from "@/lib/env";
 import { createServerSupabase } from "@/lib/db/supabase/clients";
 
 import { createSessionToken, DEMO_SESSION_COOKIE, demoSignIn, demoSignUp } from "./demo";
@@ -35,6 +35,14 @@ export async function signUpAction(
   const { email, password, fullName } = fields(formData);
   if (!email || !/.+@.+\..+/.test(email)) return { error: "Enter a valid email." };
   if (!fullName) return { error: "Enter your name." };
+  // During the pilot an account is by invitation: a signup starts a paid
+  // scan, and that is spent only on a brand the founder has talked to.
+  if (isPilotGated) {
+    const code = String(formData.get("invite_code") ?? "").trim();
+    if (!code || code !== env.pilotInviteCode) {
+      return { error: "TRND is in a founder-assisted pilot. The invite code is in the email that accepted your application." };
+    }
+  }
 
   if (isSupabaseConfigured) {
     const sb = await createServerSupabase();

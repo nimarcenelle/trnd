@@ -1,6 +1,66 @@
 # TRND — What the product does
 
-**One line:** TRND tells a small business what to advertise this week, why now, and hands
+**One line (September 2026):** TRND writes weekly creative test briefs for a small DTC
+marketing team: up to three concepts a week, each a hypothesis with the evidence behind it
+and what that evidence cannot say, in a brief a creator can shoot from. It does not predict
+winners.
+
+## The creative test (the current product)
+
+The unit is a **concept**, not a search term. A search term is the research input a concept
+was found through; it stays on the pick as provenance. Each ready pick carries a brief
+(`picks.brief`, migration 0028) with: the customer situation; the hypothesis, written as one
+("Test whether X is more persuasive than Y, because Z"); what is uncertain or missing; how it
+differs from the brand's recent creative; a primary hook and two or three alternatives
+(children of the concept, never new concepts); direction (show, say, prove) and a close; a
+shot list; the approved facts it relies on; an evaluation plan; and what each outcome would
+teach. Three a week at most, written one after another so each differs; a near-duplicate is
+dropped and the week shows fewer.
+
+**Evidence is separate from judgment.** Evidence rows are built by code from what was read,
+each with its kind (observed, quoted, measured, context), the date, the sample size and a
+limitation line ("Running does not mean it works"). The writer's judgments are stored as
+written and labeled hypotheses. Its facts are checked before storage: every figure, price and
+approved fact must trace to the catalog, the owner's notes, uploaded documents or the evidence
+rows; invented percentages, unlisted prices, result promises, certainty language and phrases
+the owner forbade fail the draft, and the retry is told which line (`lib/picks/concept.ts`).
+
+**No grades on the page.** The rank and the reason under it are the priority. The internal
+four-signal score still orders the candidates; it is not shown as a probability of success.
+
+**No universal kill rule.** The evaluation plan is built from the campaign objective, the
+account's own baseline and dates when an export is on file, the spend band and how many
+results a week can hold, and it names what is missing rather than inventing a threshold
+(`lib/picks/evaluation.ts`). A higher click-through alone is never a win for a purchase
+campaign.
+
+**Statuses mean one thing each.** Proposed, chosen (in production, nothing live), launched
+(live, no result), ended (judged only by what was recorded), passed (a decision, not a
+result). A stopped or lost concept holds its term for two or three weeks and comes back as a
+different concept; the topic is never banned. What the owner recorded as learned is carried
+to the next week's writer.
+
+**Refinement in place.** Adapt to footage on hand, change the hook, address another objection,
+explain the priority, simplify production. The concept, the approved facts and the evidence
+stay; the rewrite passes the same fact check and the previous brief is kept under it.
+
+**The context a brief needs** is asked at onboarding and editable in Settings: campaign
+objective, production formats, the product to lead with, recent creative, claims notes, and an
+Ads Manager export read at the finish. An export carries numbers, ad names and copy columns,
+never the creative itself, and the product says so. With no export the week is labeled
+research-only.
+
+**The pilot.** The landing page sells a founder-assisted one-month pilot at $500: up to three
+briefs a week with the founder reviewing each. Applications land in `pilot_applications` and
+alert the founder; nothing is scanned or charged until the founder accepts. When
+`PILOT_INVITE_CODE` is set, signup needs the code. Billing mechanics are unchanged.
+
+The sections below describe the older keyword-pick and campaign screens, which still exist
+for picks written before the brief and for local businesses.
+
+---
+
+**Older one line:** TRND tells a small business what to advertise this week, why now, and hands
 them the finished campaign — then learns from what actually converted.
 
 Everything hangs off five steps: **Detect → Match → Position → Launch → Learn.** The app

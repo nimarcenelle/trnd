@@ -26,11 +26,14 @@ export default function TermsPage() {
 
       <h2>Plans, trials, and billing</h2>
       <p>
-        Every new business starts a 14-day free trial — full product, no card required. Paid
-        plans are billed monthly through Stripe and you can cancel anytime from the billing
-        portal; cancellation stops future charges and your plan runs to the end of the paid
-        period. Founding-business pricing stays locked while your subscription is continuous.
-        The campaigns you generated are yours — export them any time, on any plan or none.
+        During the founder-assisted pilot, access is by invitation and the pilot is a one-month
+        engagement at the price stated when you were accepted. An account created with an invite
+        starts with a 14-day trial period and no card on file; nothing is charged through the app
+        unless you choose a paid plan. Paid plans are billed monthly through Stripe and you can
+        cancel anytime from the billing portal; cancellation stops future charges and your plan
+        runs to the end of the paid period. Founding-business pricing stays locked while your
+        subscription is continuous. The briefs and campaigns TRND wrote for you are yours; export
+        them any time, on any plan or none.
       </p>
 
       <h2>Connected ad accounts</h2>

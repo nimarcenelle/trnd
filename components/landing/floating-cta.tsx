@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-/** Persistent signup CTA that appears once the hero's own buttons scroll away. */
+/** Persistent application CTA that appears once the hero's own buttons scroll away. */
 export default function FloatingCta() {
   const [show, setShow] = useState(false);
 
@@ -14,8 +14,8 @@ export default function FloatingCta() {
   }, []);
 
   return (
-    <a href="/signup" className={`float-cta${show ? " float-cta--on" : ""}`} aria-hidden={!show} tabIndex={show ? 0 : -1}>
-      Start free
+    <a href="#pilot" className={`float-cta${show ? " float-cta--on" : ""}`} aria-hidden={!show} tabIndex={show ? 0 : -1}>
+      Apply for the pilot
     </a>
   );
 }

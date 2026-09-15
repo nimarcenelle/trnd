@@ -127,3 +127,31 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
 - **Word and Excel uploads read on the server, keyless.** `mammoth` unpacks .docx to text;
   SheetJS turns every sheet of an .xlsx/.xls into CSV (the first sheet is the table the
   deterministic digest reads). Neither needs the model; PDFs still do.
+- **The unit is a creative test, not a keyword (2026-09-15, advisor brief).** Search terms
+  are research inputs; the pick carries a brief a creator can shoot from. Stored on the
+  existing `picks` row (`brief` jsonb plus a few columns) rather than a new table, so the
+  week job, runs, feedback and both repos keep working and older picks keep rendering as
+  keyword picks. Nothing historical is relabeled.
+- **Facts are checked, judgments are labeled.** "Every clause traces to a number" was too
+  strict for creative reasoning and let a rival's ad read as proof. Now: factual claims
+  must trace to the catalog, the owner's notes, documents or evidence rows; hypotheses are
+  stored as written and labeled; unknowns stay unknown; numbers are never invented; an
+  observation is never causal proof. Limit lines are code, never the model's.
+- **Grades and scores off the page.** No calibration supports "A · Customer 84" as a
+  probability. The internal score orders candidates; the page shows rank and reason.
+- **No universal kill rule.** The evaluation plan is built from objective, baseline, spend
+  and result volume, and says what is missing. Manufactured thresholds were the old default.
+- **Three a week, fewer when thin.** A concept too close to an earlier one is dropped.
+- **Statuses never collapse.** Chosen is not launched, launched is not successful, no result
+  is not a loss, passed is not a failure. Cool-offs shortened (killed 14d, lost 21d, not now
+  14d) and always say the topic comes back with a different concept.
+- **Founder-assisted pilot replaces the self-serve trial as the funnel.** $500 for one month
+  is a price hypothesis, not validated by ad spend. Landing CTAs go to the application; the
+  trial and Stripe mechanics are untouched; `PILOT_INVITE_CODE` gates signup when set so a
+  paid scan runs only for a brand the founder let in.
+- **Admin fails closed in production.** With a real database and no `ADMIN_EMAILS`, nobody is
+  an admin. The prospector is a legacy local-business tool: no schedule, sends on click only,
+  and its page says it is outside the pilot funnel.
+- **Provider spend is estimated and labeled.** `provider_usage` records every Apify and
+  DataForSEO call with units and an estimate from a public rate (basis stated); no billed
+  figure exists. Draft failures are recorded as failed rows without the draft.

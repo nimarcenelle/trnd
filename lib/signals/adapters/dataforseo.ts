@@ -1,4 +1,5 @@
 import { env, isDataForSeoConfigured } from "@/lib/env";
+import { recordProviderUsage } from "@/lib/usage/providers";
 import { normalizeTerm } from "../normalize";
 import type { AdapterFetchInput, RawSeriesPoint, RawSignal, SignalAdapter } from "../types";
 
@@ -112,7 +113,11 @@ export function createDataForSeoAdapter(): SignalAdapter {
           { keywords: targets.map((t) => t.term), location_code: 2840 /* United States */, language_code: "en", date_from: historyFrom() },
         ]),
       });
-      if (!res.ok) throw new Error(`dataforseo ${res.status}`);
+      if (!res.ok) {
+        recordProviderUsage({ provider: "dataforseo", operation: "search_volume", rateKey: "dataforseo:keyword", units: targets.length, ok: false, note: `HTTP ${res.status}` });
+        throw new Error(`dataforseo ${res.status}`);
+      }
+      recordProviderUsage({ provider: "dataforseo", operation: "search_volume", rateKey: "dataforseo:keyword", units: targets.length });
       const data = (await res.json()) as {
         tasks?: { result?: DfsResultRow[] | null; status_message?: string }[];
       };

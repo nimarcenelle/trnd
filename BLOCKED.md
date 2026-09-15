@@ -206,3 +206,22 @@ What the customer, competitive, cultural and brand signals need that code cannot
   grade columns on `picks`, so paste the current 0023 first. Until 0024 runs, ranking writes
   without grades and baselines stay empty, so every percentile falls back to its absolute curve
   and no signal can reach high confidence.
+
+## Creative tests and the pilot (2026-09-15)
+
+- **Migration 0028** (`supabase/migrations/0028_creative_tests.sql`, run after 0027): the
+  concept columns on `picks`, provenance on `pick_evidence`, planned runs and chosen/refined
+  feedback, `learned` and `launched_at` on runs, the context columns on `businesses`,
+  `provider_usage`, `pilot_applications`, and `replace_week_picks()` rewritten to carry it
+  all. Until it runs: the Supabase writes drop the missing columns (`writeTolerant`), so a
+  week still lands but as keyword picks without a brief, planned runs fail the status check,
+  applications fail to insert, and the meter records nothing. Paste it before deploying.
+- **The writing model.** Refinement beyond the hook switch, and any brief that is not the
+  keyless template, need `GEMINI_API_KEY`. Not verified live in this container.
+- **Creative in an export.** An Ads Manager export has no creative id, thumbnail or link, so
+  "what you ran" is read from ad names and copy columns only; the product says so. Matching
+  a performance row to the actual creative needs the Meta sync (App Review) or a manual link.
+- **Pilot invite.** Set `PILOT_INVITE_CODE` in production to gate signup; unset, signup is
+  open as before.
+- **Cost figures.** `provider_usage` estimates use the rates in `lib/usage/providers.ts`;
+  no provider invoice has been reconciled against them.

@@ -26,3 +26,20 @@ Items 5 and 8 make it arrive on its own — which is the whole evergreen promise
 - The owner's standing questions are re-answered every Monday with what moved since the
   last answer, in the app and in the mail (`lib/intel/standing.ts`).
 - The week's ad is written before anyone opens the app (`lib/campaigns/auto.ts`).
+
+## Running three paid pilots (2026-09-15)
+
+1. Paste migration 0028 into the Supabase SQL editor. Set `PILOT_INVITE_CODE` and
+   `ADMIN_EMAILS`. Confirm `NOTIFY_WEBHOOK_URL` or Resend so applications reach you.
+2. Before inviting anyone, sign up a test brand yourself with a real Ads Manager export and
+   read all three briefs. Fix what reads wrong; `scripts/probe-picks.ts` still dry-runs a week.
+3. Accept three applicants who run Meta ads, make creative regularly, have a creator, and
+   will share an export. Send the invite code with what to have ready: the export, product
+   facts and claims notes, what they shot last.
+4. Week one: read each brief before the brand does (the pilot promises this), refine in the
+   app where it is wrong, and note what you changed by hand; that list is the next fix.
+5. Ask each brand to choose, mark launched, and record results and what they learned on
+   Campaigns. Read `/api/admin/probe?what=usage&business=<id>` weekly for what each brand's
+   week cost in model tokens and estimated provider spend.
+6. At the end of the month ask the only question that matters: will you pay for month two?
+   Three yeses, three noes and the reasons decide what to build next.

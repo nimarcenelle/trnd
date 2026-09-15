@@ -39,6 +39,31 @@ export async function GET(request: NextRequest) {
   const term = (request.nextUrl.searchParams.get("term") ?? "hard water").slice(0, 80);
   const started = Date.now();
   try {
+    // What one brand's week cost, or the whole account's: model tokens and
+    // paid provider calls, estimated from public rates and labeled so.
+    if (what === "usage") {
+      const business = request.nextUrl.searchParams.get("business") ?? undefined;
+      const days = Math.min(30, Math.max(1, Number(request.nextUrl.searchParams.get("days") ?? "7") || 7));
+      const { getAdminRepo } = await import("@/lib/db/admin");
+      const { summarizeUsage } = await import("@/lib/ai/usage");
+      const { summarizeProviderUsage } = await import("@/lib/usage/providers");
+      const repo = getAdminRepo();
+      const [ai, providers] = await Promise.all([
+        repo.listAiUsage({ sinceHours: days * 24, businessId: business }),
+        repo.listProviderUsage({ sinceHours: days * 24, businessId: business }),
+      ]);
+      const failures = providers.filter((r) => !r.ok).slice(0, 25).map((r) => ({ at: r.created_at, provider: r.provider, operation: r.operation, purpose: r.purpose, note: r.note }));
+      return NextResponse.json({
+        what,
+        business: business ?? "all",
+        days,
+        model: summarizeUsage(ai),
+        providers: summarizeProviderUsage(providers),
+        failures,
+        note: "Provider costs are estimates from public rates (lib/usage/providers.ts RATES); model usage is tokens, not dollars. No billed figure is on file.",
+        ms: Date.now() - started,
+      });
+    }
     if (what === "dfs-trends") {
       if (!isDataForSeoConfigured) return NextResponse.json({ what, configured: false });
       const raw = await dfs("keywords_data/google_trends/explore/live", {

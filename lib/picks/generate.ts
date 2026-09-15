@@ -17,6 +17,7 @@ import { rankScoreOf } from "@/lib/scoring/grade-opportunity";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { isOnlineBusiness, placeWords } from "@/lib/signals/geo";
 import { engagementOf, postsOnTerm } from "@/lib/social/read";
+import { recordProviderUsage } from "@/lib/usage/providers";
 
 import { pickBet } from "./bet";
 import { assembleBrief, conceptsOverlap, CONCEPT_VERSION, validateConceptWrite, type ConceptRules, type ConceptWrite } from "./concept";
@@ -331,9 +332,15 @@ async function buildConcept(repo: Repo, input: WeekInputs, opportunity: Opportun
       checked = validateConceptWrite(draft, rules);
     }
     if (checked.ok) concept = checked.value;
-    else console.warn(`[picks] "${signal.term}" failed validation twice, stored as draft: ${checked.error}`);
+    else {
+      console.warn(`[picks] "${signal.term}" failed validation twice, stored as draft: ${checked.error}`);
+      // A draft that never reached the page is a cost with nothing to show;
+      // the meter keeps why, without the draft itself.
+      recordProviderUsage({ provider: "other", operation: "concept:validation", units: 1, ok: false, note: `"${signal.term}": ${checked.error}` });
+    }
   } catch (err) {
     console.warn(`[picks] "${signal.term}" writer failed, stored as draft:`, (err as Error).message);
+    recordProviderUsage({ provider: "other", operation: "concept:writer", units: 1, ok: false, note: `"${signal.term}": ${(err as Error).message}` });
   }
 
   // A draft still needs words for its columns; the template supplies them,

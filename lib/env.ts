@@ -72,6 +72,9 @@ export const env = {
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean),
+  /** When set, self-serve signup needs this code: the pilot's front door is
+   * the application, and a paid scan runs only for a brand the founder let in. */
+  pilotInviteCode: process.env.PILOT_INVITE_CODE ?? "",
   /** Prospector outreach sender — falls back to the report sender. */
   outreachFrom: process.env.OUTREACH_FROM || process.env.EMAIL_FROM || "TRND <reports@usetrnd.com>",
 };
@@ -93,6 +96,8 @@ export const isInstagramConfigured = Boolean(env.instagramToken && env.instagram
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isDataForSeoConfigured = Boolean(env.dataForSeoLogin && env.dataForSeoPassword);
 export const isRedditConfigured = Boolean(env.redditClientId && env.redditClientSecret);
+/** Signup asks for an invite code; the landing page sends everyone else to the application. */
+export const isPilotGated = Boolean(env.pilotInviteCode);
 
 let warned = false;
 /** One loud console note per process, so demo mode is never silent. */

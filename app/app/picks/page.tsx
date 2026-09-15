@@ -5,7 +5,7 @@ import { after } from "next/server";
 // The waiting states below have nothing on them to keep, and the whole page
 // changes when the picks land, so they poll the page itself.
 import AutoRefresh from "@/components/app/auto-refresh";
-import WeekClock from "@/components/app/week-clock";
+import WeekLoading from "@/components/app/week-loading";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
@@ -171,8 +171,10 @@ export default async function PicksPage() {
   if (progress.stage !== "done") {
     const briefInFlight = !brief && briefLikelyInFlight(business.created_at);
     if (!briefInFlight) await kickWeekJob(business.id, { now });
-    const { analysis, found } = progress;
     const firstPickMin = Math.max(1, Math.ceil(progress.remainingSec / 60));
+    // One picture while the reads run. What they find lands on the briefs
+    // and the analysis, not on this screen, so nothing here fills in piece
+    // by piece.
     return (
       <div className="page picks">
         <AutoRefresh everyMs={6000} times={100} />
@@ -181,113 +183,17 @@ export default async function PicksPage() {
             <span className="eyebrow m-0">This week · {weekRange}</span>
             <h1>{waitHeadline(progress, business.name)}</h1>
             <p className="context">
-              Your first pick lands in about {firstPickMin} minute{firstPickMin === 1 ? "" : "s"}, the rest of the week
-              a minute after. TRND reads your customers, your category and your competitors before it grades anything,
-              and what it finds shows up here as it lands
-              {isEmailConfigured ? ". You get one email when the picks are written" : ""}.
+              Your first brief lands in about {firstPickMin} minute{firstPickMin === 1 ? "" : "s"}, the rest of the week a
+              minute after. TRND reads your customers, your category and your competitors before it writes anything
+              {isEmailConfigured ? ", and you get one email when the briefs are written" : ""}.
             </p>
           </div>
         </div>
-        <div className="wk">
-          <section className="panel wk-main" aria-label="What TRND has found so far">
-            {analysis ? (
-              <div className="wk-analysis">
-                <p className="mono-label">Your analysis</p>
-                <p className="wk-analysis__positioning">{analysis.positioning}</p>
-                {analysis.who && (
-                  <p className="wk-analysis__who">
-                    <b>Who buys:</b> {analysis.who}
-                  </p>
-                )}
-                {analysis.watchTerms.length > 0 && (
-                  <ul className="wk-chips" aria-label="Terms being watched">
-                    {analysis.watchTerms.map((t) => (
-                      <li key={t}>{sentenceCase(t)}</li>
-                    ))}
-                  </ul>
-                )}
-                {brief && (
-                  <Link className="wk-analysis__link" href="/app/snapshot">
-                    Read the full analysis
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <div className="wk-analysis is-pending" aria-busy="true">
-                <p className="mono-label">Your analysis</p>
-                <div className="skeleton h-[14px] w-[90%]" />
-                <div className="skeleton h-[14px] w-[76%]" />
-                <div className="skeleton h-[14px] w-[58%]" />
-              </div>
-            )}
-
-            {found.terms.length > 0 && (
-              <div className="wk-found">
-                <p className="mono-label">Rising right now</p>
-                <ul className="wk-found__list">
-                  {found.terms.map((t) => (
-                    <li key={t.term}>
-                      <span className="wk-found__term">{sentenceCase(t.term)}</span>
-                      <span className="wk-found__delta">↑{t.deltaPct}%</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {found.rivals.length > 0 && (
-              <div className="wk-found">
-                <p className="mono-label">Competitors being read</p>
-                <ul className="wk-found__list">
-                  {found.rivals.map((r) => (
-                    <li key={r.name}>
-                      <span className="wk-found__term">{sentenceCase(r.name)}</span>
-                      {r.ads !== null && (
-                        <span className="wk-found__meta">
-                          {r.ads} active ad{r.ads === 1 ? "" : "s"}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {progress.ranked.length > 0 && (
-              <div className="wk-ranked">
-                <p className="mono-label">This week&apos;s opportunities, being written up</p>
-                <ul className="wk-ranked__list">
-                  {progress.ranked.map((r) => (
-                    <li key={r.term}>
-                      <span className="wk-ranked__term">{sentenceCase(r.term)}</span>
-                      {r.grade && <span className="picks-grade is-amber">{r.grade}</span>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </section>
-
-          <aside className="panel wk-side" aria-label="Progress">
-            <WeekClock startedAt={business.created_at} remainingSec={progress.remainingSec} />
-            <ol className="wk-progress">
-              {progress.steps.map((step) => (
-                <li key={step.key} className={`wk-progress__row is-${step.state}`}>
-                  <span className="wk-progress__mark" aria-hidden="true" />
-                  <span className="wk-progress__text">
-                    <span className="wk-progress__label">
-                      {step.label}
-                      {step.state === "current" && (
-                        <span className="wk-progress__typical"> · usually about {step.typicalSec}s</span>
-                      )}
-                    </span>
-                    {step.detail && <span className="wk-progress__detail">{step.detail}</span>}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </aside>
-        </div>
+        <WeekLoading
+          startedAt={business.created_at}
+          remainingSec={progress.remainingSec}
+          steps={progress.steps.map((s) => ({ key: s.key, label: s.label, state: s.state, typicalSec: s.typicalSec }))}
+        />
       </div>
     );
   }

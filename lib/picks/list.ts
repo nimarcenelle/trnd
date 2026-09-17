@@ -1,4 +1,4 @@
-import type { BrandPick, NewAdHistory, PickRun, PickRunStatus, PickScript, RunVerdict } from "@/lib/db/types";
+import type { AdHistorySource, BrandPick, NewAdHistory, PickRun, PickRunStatus, PickScript, RunVerdict } from "@/lib/db/types";
 import type { GradeLetter } from "@/lib/scoring/model";
 
 import type { MetricDirection } from "./format";
@@ -230,18 +230,27 @@ function isoDay(d: Date | string): string {
   return (typeof d === "string" ? new Date(d) : d).toISOString().slice(0, 10);
 }
 
+/** The campaign name a run's ad-history row carries, so its own row can be
+ * told apart from the rest of the account when the run is judged. */
+export function runCampaignName(pick: Pick<BrandPick, "term">): string {
+  return `TRND pick: ${pick.term.trim()}`;
+}
+
 /**
  * The ad-history row a completed run becomes, or null when the owner gave no
  * delivery numbers (impressions or clicks): a row with neither teaches the
  * Brand baseline nothing. Its identity is the pick and the run's start day,
- * so a repeat submit upserts the same row.
+ * so a repeat submit upserts the same row. A run the daily sync closed is
+ * written as "meta_api", the source the account history sync replaces, so
+ * the same ad never counts twice once the account's own row arrives.
  */
 export function runAdHistoryRow(input: {
   pick: Pick<BrandPick, "business_id" | "term" | "bet_what">;
   scripts: Pick<PickScript, "position" | "variant_label" | "hook">[];
   run: Pick<PickRun, "started_at">;
   results: RunResults;
-  endedAt: Date;
+  endedAt: Date | null;
+  source?: Extract<AdHistorySource, "manual" | "meta_api">;
 }): NewAdHistory | null {
   const { pick, run, results } = input;
   if (results.impressions === null && results.clicks === null) return null;
@@ -252,7 +261,7 @@ export function runAdHistoryRow(input: {
   return {
     business_id: pick.business_id,
     platform: "meta",
-    campaign_name: `TRND pick: ${term}`,
+    campaign_name: runCampaignName(pick),
     ad_name: first?.variant_label?.trim() || term,
     copy: copy || null,
     impressions: results.impressions,
@@ -261,7 +270,7 @@ export function runAdHistoryRow(input: {
     results: results.conversions,
     ctr: ratio(results.clicks, results.impressions),
     started_on: Number.isNaN(started.getTime()) ? null : isoDay(started),
-    ended_on: isoDay(input.endedAt),
-    source: "manual",
+    ended_on: input.endedAt ? isoDay(input.endedAt) : null,
+    source: input.source ?? "manual",
   };
 }

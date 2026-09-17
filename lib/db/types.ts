@@ -553,8 +553,30 @@ export interface CreativeBrief {
   evaluation: EvaluationPlan;
   /** What each outcome would teach. */
   outcomes: { if_better: string; if_same: string; if_worse: string };
+  /** How the brand's own past ads of this shape did, computed by code from
+   * its ad history. Null when there is no history to read. */
+  lineage?: ConceptLineage | null;
   /** The previous brief when this one is a refinement, so nothing is lost. */
   refined_from?: { at: string; ask: string; brief: Omit<CreativeBrief, "refined_from"> } | null;
+}
+
+/**
+ * The concept graded against the brand's own record: its last few ads built
+ * the same way (lib/ads/history-read.ts classifies the shape), and how many
+ * of them beat the account's click-through. The line the page prints is
+ * written by code from these numbers, never by the model.
+ */
+export interface ConceptLineage {
+  /** The ad theme the concept was classified as (education, offer, ...). */
+  theme: string;
+  /** How many past ads of that shape were compared, at most three. */
+  ads: number;
+  /** How many of them beat the account click-through. */
+  beat: number;
+  /** "2 of your last 3 ads built on explaining something beat your account click-through." */
+  line: string;
+  /** yyyy-mm-dd the most recent of them started, when known. */
+  latest: string | null;
 }
 
 /**
@@ -704,7 +726,13 @@ export interface PickRun {
   launched_at?: string | null;
   /** What the test taught, in the owner's words, apart from the numbers (0028). */
   learned?: string | null;
-  /** Reserved for the ad-account integration. */
+  /** The account's click-through the run was judged against when it ended,
+   * frozen so the comparison never drifts (0029). */
+  baseline_ctr?: number | null;
+  /** The run's click-through over baseline_ctr: 1.3 means 30% above (0029). */
+  lift?: number | null;
+  /** The platform campaign id when the run was launched through a connected
+   * account; the daily sync writes its numbers back by it. */
   meta_campaign_id: string | null;
 }
 

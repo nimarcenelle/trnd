@@ -1,6 +1,6 @@
 import { env } from "@/lib/env";
 
-import { ACTOR_ATTEMPTS, ACTOR_TIMEOUT_MS } from "@/lib/social/apify";
+import { runActorSync } from "@/lib/social/apify";
 import { mapLimit } from "@/lib/util/concurrency";
 
 import { CircuitBreaker, fetchText } from "../http";
@@ -30,7 +30,6 @@ import { coreTerm } from "./trends-iot";
  * explicit term cap rather than a quota: every term read is money.
  */
 
-const RUN_URL = "https://api.apify.com/v2/acts";
 /** Overridable because actors get renamed and deprecated out from under you. */
 const DEFAULT_ACTOR = "clockworks~tiktok-scraper";
 const LOOKBACK_DAYS = 28;
@@ -117,6 +116,79 @@ const SMALL_ACCOUNT_FOLLOWERS = 10_000;
 /** Cards kept per read: this week's winners, then the month behind them. */
 const CORPUS_RECENT = 12;
 const CORPUS_OLDER = 18;
+
+/**
+ * The fields the read depends on, by the name the actor documented in
+ * September 2026. Actor schemas drift, and a renamed field degrades to a
+ * zero rather than a crash — which is the quiet failure: a night of reads
+ * where every video has zero views and zero saves looks like a dead term,
+ * not a renamed key. This is the check the first live run is judged by.
+ */
+export const EXPECTED_FIELDS = [
+  "id",
+  "text",
+  "createTimeISO",
+  "playCount",
+  "diggCount",
+  "commentCount",
+  "shareCount",
+  "collectCount",
+  "webVideoUrl",
+  "videoMeta.duration",
+  "authorMeta.name",
+  "authorMeta.fans",
+  "hashtags",
+] as const;
+
+/** Fields a read cannot do without. Missing on every item means the actor
+ * changed under us and the numbers stored tonight would be zeros. */
+const REQUIRED_FIELDS: readonly (typeof EXPECTED_FIELDS)[number][] = ["createTimeISO", "playCount"];
+
+export interface FieldCoverage {
+  items: number;
+  /** How many items carried each expected field with a non-null value. */
+  present: Record<string, number>;
+  /** Expected fields no item carried. */
+  missing: string[];
+  /** Top-level keys the items carry that the read never asked for: where
+   * a renamed field usually went. */
+  unexpected: string[];
+  /** False when a required field is missing on every item. */
+  ok: boolean;
+}
+
+function readPath(item: unknown, path: string): unknown {
+  let cur: unknown = item;
+  for (const key of path.split(".")) {
+    if (cur === null || typeof cur !== "object") return undefined;
+    cur = (cur as Record<string, unknown>)[key];
+  }
+  return cur;
+}
+
+/** Pure: which of the documented fields a live payload actually carries. */
+export function fieldCoverage(items: unknown[]): FieldCoverage {
+  const present: Record<string, number> = {};
+  for (const f of EXPECTED_FIELDS) present[f] = 0;
+  const seenKeys = new Set<string>();
+  const known = new Set(EXPECTED_FIELDS.map((f) => f.split(".")[0]));
+  for (const item of items) {
+    if (item === null || typeof item !== "object") continue;
+    for (const f of EXPECTED_FIELDS) {
+      const v = readPath(item, f);
+      if (v !== undefined && v !== null && v !== "") present[f] += 1;
+    }
+    for (const k of Object.keys(item as object)) if (!known.has(k)) seenKeys.add(k);
+  }
+  const missing = EXPECTED_FIELDS.filter((f) => present[f] === 0);
+  return {
+    items: items.length,
+    present,
+    missing,
+    unexpected: [...seenKeys].sort(),
+    ok: items.length === 0 || REQUIRED_FIELDS.every((f) => present[f] > 0),
+  };
+}
 
 export function toPosts(items: ApifyTikTokItem[]): TikTokPost[] {
   const out: TikTokPost[] = [];
@@ -268,26 +340,36 @@ export function createTiktokApifyAdapter(
   const breaker = new CircuitBreaker("tiktok_apify");
   const seriesCache: RawSeriesPoint[] = [];
 
+  // Said once per process: a drifted actor is one warning, not one per term.
+  let driftWarned = false;
+
   const runActor = async (term: string): Promise<TikTokPost[]> => {
     const actor = env.apifyTiktokActor || DEFAULT_ACTOR;
-    // run-sync-get-dataset-items blocks until the run finishes and hands back
-    // the items directly — no polling, and no dataset left behind to clean up.
-    const body = JSON.stringify({
-      searchQueries: [term],
-      resultsPerPage: RESULTS_PER_TERM,
-      oldestPostDateUnified: new Date(Date.now() - LOOKBACK_DAYS * 86400_000)
-        .toISOString()
-        .slice(0, 10),
-      shouldDownloadVideos: false,
-      shouldDownloadCovers: false,
-      shouldDownloadSubtitles: false,
-    });
-    const text = await doFetchText(
-      `${RUN_URL}/${encodeURIComponent(actor)}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`,
-      { method: "POST", headers: { "content-type": "application/json" }, body, breaker, timeoutMs: ACTOR_TIMEOUT_MS, attempts: ACTOR_ATTEMPTS },
+    // The shared call meters the run (this path billed unmetered before)
+    // and hands back the items directly — no polling, no dataset left over.
+    const items = await runActorSync<ApifyTikTokItem>(
+      actor,
+      {
+        searchQueries: [term],
+        resultsPerPage: RESULTS_PER_TERM,
+        oldestPostDateUnified: new Date(Date.now() - LOOKBACK_DAYS * 86400_000)
+          .toISOString()
+          .slice(0, 10),
+        shouldDownloadVideos: false,
+        shouldDownloadCovers: false,
+        shouldDownloadSubtitles: false,
+      },
+      { breaker, fetchText: doFetchText },
     );
-    const parsed = JSON.parse(text) as unknown;
-    return Array.isArray(parsed) ? toPosts(parsed as ApifyTikTokItem[]) : [];
+    const coverage = fieldCoverage(items);
+    if (!coverage.ok && !driftWarned) {
+      driftWarned = true;
+      console.warn(
+        `[signals:tiktok_apify] actor "${actor}" answered ${coverage.items} items without ${coverage.missing.join(", ")}; ` +
+          `it carries ${coverage.unexpected.slice(0, 12).join(", ") || "no other keys"}. The read is stored as zeros until the mapper is updated.`,
+      );
+    }
+    return toPosts(items);
   };
 
   return {

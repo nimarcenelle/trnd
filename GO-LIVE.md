@@ -1,5 +1,22 @@
 # Go-live: what makes the signal thick
 
+## Close the loop first (2026-09-17)
+
+The four things that turn a research tool into the learning system the positioning
+promises, in order. Three cost nothing but a review cycle and some config; the code for
+every one of them is in place and tested.
+
+| # | Do this | Cost | What it switches on |
+|---|---|---|---|
+| 1 | **Meta App Review for `ads_read`** (the app and the scope are already wired; review is what lets accounts outside the app's testers grant it) | Free; days to weeks | 180 days of ad-level results with creative copy, no upload (`lib/ads/history-sync.ts`), and the daily sync writing every launched campaign's numbers onto the creative test it came from: the run goes live when the platform delivers, closes when the platform says it ended, lands in the brand's ad history, and logs its lift over the account (`lib/ads/run-sync.ts`). Brand stops being the dark 25% lane. |
+| 2 | **Require an export at pilot onboarding** (process, not code: the upload step is on the Context screen and in Settings) | Free | Week one starts from a real baseline: every brief is graded against the brand's own ads of that shape ("2 of your last 3 ads built on explaining something beat your account click-through"), and the evaluation plan names the account's own cost per result. |
+| 3 | **Set `YOUTUBE_API_KEY`** (Google Cloud console, free tier, no card) | Free, 10,000 units a day | The Shorts read per watch term. Currently unset, so the short-form half of the demand read runs on the TikTok board alone. Settings names only the reads that run, so this shows up the day it is set. |
+| 4 | **Create the Reddit script app** and set `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` | Free | The adapter is already on OAuth; without the app it reads nothing from a cloud IP. |
+| 5 | **Verify the per-term TikTok actor on one live run**: `APIFY_TOKEN=... pnpm tsx scripts/probe-tiktok-apify.ts "shower filter"` | One paid run, a few cents | The probe prints which documented fields arrived and exits non-zero if a required one did not. The adapter now warns once per night when the actor drifts, and every run is metered. ~$4 per 25-term read. |
+| 6 | **Paste migration 0029** (`supabase/migrations/0029_calibration.sql`) | Free | The calibration log: baseline click-through and lift on every finished run, read back as Predicted against actual on the Track record. Until it runs, writes drop the two columns and everything else still lands. |
+
+## Keys and accounts
+
 Everything below is a seam that already exists in code (see `BLOCKED.md` for the
 mechanics). Nothing here needs a code change — it needs an account, a key, or a review.
 In the order it changes what an owner sees:
@@ -11,7 +28,7 @@ In the order it changes what an owner sees:
 | 3 | Enable **Places API (New)** on a Google Cloud project | Free tier covers SMB volume | Own-review mining (customer voice in the copy) and daily rival ratings; "Find my nearest rivals" appears. | `GOOGLE_PLACES_API_KEY` |
 | 4 | Set the **Gemini** key in production | Cents per business per week | The read on every pick, the written-for-you ad, the founding analysis, Ask, standing questions, the Monday note. Without it every one of these is a template. | `GEMINI_API_KEY` |
 | 5 | Verify a sending domain on **Resend** | Free tier | The Monday email actually leaves the building. | `RESEND_API_KEY`, `EMAIL_FROM` |
-| 6 | Register a **Reddit script app** and move the adapter to OAuth | Free | Category-subreddit conversation reads; anonymous JSON now returns HTML from datacenter IPs. Small code change once the token exists. | (new) `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` |
+| 6 | Register a **Reddit script app** | Free | Category-subreddit and per-term conversation reads; anonymous JSON returns HTML from datacenter IPs. The adapter is already on OAuth; only the two env vars are missing. | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` |
 | 7 | Create a **Meta app** with Marketing API access and pass App Review | Free; days to weeks of review | One-click launch, paused campaigns landing in the owner's ad account, results syncing daily. Until then launch is paste-into-Ads-Manager, which is where owners drop. Works immediately for admins/testers of the app, which is enough for a five-business pilot. | `META_APP_ID`, `META_APP_SECRET`, `NEXT_PUBLIC_APP_URL` |
 | 8 | Set `CRON_SECRET` and confirm the Vercel crons fire | Free | Daily ingest, the Monday ranking, the auto-built ad, standing-question answers, the email. Nothing is evergreen if the crons don't run. | `CRON_SECRET` |
 
@@ -34,8 +51,12 @@ Items 5 and 8 make it arrive on its own — which is the whole evergreen promise
 2. Before inviting anyone, sign up a test brand yourself with a real Ads Manager export and
    read all three briefs. Fix what reads wrong; `scripts/probe-picks.ts` still dry-runs a week.
 3. Accept three applicants who run Meta ads, make creative regularly, have a creator, and
-   will share an export. Send the invite code with what to have ready: the export, product
-   facts and claims notes, what they shot last.
+   will share an export. **The export is a condition of the invite, not a request**: send
+   the invite code only once the ad-level Ads Manager export (last 90 to 180 days) is in
+   hand, with product facts and claims notes and what they shot last. A pilot week without
+   it is research only, and the brief's own-history lineage, baseline and evaluation plan
+   all read as missing. If the brand connects Meta and `ads_read` is approved, the export is
+   pulled instead of uploaded.
 4. Week one: read each brief before the brand does (the pilot promises this), refine in the
    app where it is wrong, and note what you changed by hand; that list is the next fix.
 5. Ask each brand to choose, mark launched, and record results and what they learned on

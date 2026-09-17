@@ -155,3 +155,16 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
 - **Provider spend is estimated and labeled.** `provider_usage` records every Apify and
   DataForSEO call with units and an estimate from a public rate (basis stated); no billed
   figure exists. Draft failures are recorded as failed rows without the draft.
+- **The loop closes in code, not in copy (2026-09-17, advisor review).** The synced numbers
+  go all the way to the run: live when the platform delivers, closed when the platform says
+  ended, never a verdict and never a stopped run reopened. Lift is logged on the run when it
+  ends, against the account with the run's own row left out, so the stamp is checked against
+  results per grade instead of asserted. The concept is graded against the brand's last three
+  ads of the same shape, and the line is written by code from the counts.
+- **One Apify call, one meter.** The three paths that built their own actor URL now go
+  through the shared call; three billing paths with no row was why the in-app cost read low.
+- **Say only what ran.** Settings names the sources whose keys are set; a source that could
+  run is not a source that did. The TikTok per-term read stays off the claim until one live
+  run confirms the actor's fields.
+- **No new sources.** Every change here is depth per brand: its own results, its own history,
+  its own record. Not one new adapter.

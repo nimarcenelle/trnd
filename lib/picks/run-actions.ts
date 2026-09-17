@@ -7,7 +7,8 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import type { Repo } from "@/lib/db/repo";
 import type { PickRun, PickRunStatus } from "@/lib/db/types";
-import { parseRunResults, parseVerdict, runAdHistoryRow } from "@/lib/picks/list";
+import { parseRunResults, parseVerdict, runAdHistoryRow, runCampaignName } from "@/lib/picks/list";
+import { runLift } from "@/lib/record/calibration";
 
 /**
  * Ending a run from Campaigns. The run id arrives from a form, so it is
@@ -67,7 +68,9 @@ function revalidateRunScreens() {
  * Closes a run with whatever results the owner has. Every number is
  * optional; a bad one returns an error and writes nothing. Delivery numbers
  * also become a row in the brand's own ad history, so the Brand signal's
- * baseline learns from the run directly.
+ * baseline learns from the run directly, and the run keeps the account
+ * click-through it was judged against and its lift over it: the actual
+ * beside the pick's predicted grade, for the calibration log.
  */
 export async function completePickRunAction(_prev: CompleteRunState, formData: FormData): Promise<CompleteRunState> {
   const parsed = parseRunResults(formData);
@@ -77,6 +80,17 @@ export async function completePickRunAction(_prev: CompleteRunState, formData: F
   const { repo, run, pickId } = owned;
   const { results } = parsed;
   const endedAt = new Date();
+
+  // The baseline is read before this run's own row lands in the history.
+  let detail: Awaited<ReturnType<Repo["getPickDetail"]>> = null;
+  let cal = { baselineCtr: null as number | null, lift: null as number | null };
+  try {
+    detail = await repo.getPickDetail(pickId);
+    const history = await repo.listAdHistory(run.business_id);
+    cal = runLift(results, history, detail ? runCampaignName(detail.pick) : undefined);
+  } catch (err) {
+    console.warn("[picks] baseline for the run not read (non-fatal):", (err as Error).message);
+  }
 
   await repo.updatePickRun(run.id, {
     status: "completed",
@@ -88,11 +102,12 @@ export async function completePickRunAction(_prev: CompleteRunState, formData: F
     clicks: results.clicks,
     conversions: results.conversions,
     revenue_usd: results.revenue_usd,
+    baseline_ctr: cal.baselineCtr,
+    lift: cal.lift,
   });
 
   if (results.impressions !== null || results.clicks !== null) {
     try {
-      const detail = await repo.getPickDetail(pickId);
       const row = detail ? runAdHistoryRow({ pick: detail.pick, scripts: detail.scripts, run, results, endedAt }) : null;
       if (row) await repo.upsertAdHistory([row]);
     } catch (err) {

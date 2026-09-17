@@ -71,6 +71,8 @@ export interface ConceptView {
   approvedFacts: string[];
   evaluation: CreativeBrief["evaluation"];
   outcomes: CreativeBrief["outcomes"];
+  /** The brand's own past ads of this shape against its account; null without history. */
+  lineage: CreativeBrief["lineage"] | null;
   guardrail: string | null;
   evidence: ConceptEvidenceGroup[];
   /** How many evidence rows carry a limitation, for the "read the limits" line. */
@@ -119,7 +121,7 @@ export function buildConceptEvidence(evidence: PickEvidence[]): ConceptEvidenceG
 /** The brief as plain text, for the clipboard and the export: what a
  * creator needs, in the order they need it, with the evidence and its
  * limits at the end. */
-export function conceptToText(view: Pick<ConceptView, "title" | "situation" | "hypothesis" | "format" | "hooks" | "script" | "shotList" | "approvedFacts" | "guardrail" | "unknowns" | "differsFrom" | "evaluation" | "outcomes" | "evidence" | "researchTerm">): string {
+export function conceptToText(view: Pick<ConceptView, "title" | "situation" | "hypothesis" | "format" | "hooks" | "script" | "shotList" | "approvedFacts" | "guardrail" | "unknowns" | "differsFrom" | "evaluation" | "outcomes" | "evidence" | "researchTerm"> & { lineage?: CreativeBrief["lineage"] | null }): string {
   const lines: string[] = [
     view.title.toUpperCase(),
     `Format: ${view.format}`,
@@ -130,6 +132,7 @@ export function conceptToText(view: Pick<ConceptView, "title" | "situation" | "h
     "THE HYPOTHESIS (what we think may work, and why)",
     view.hypothesis,
     "",
+    ...(view.lineage ? ["YOUR OWN RECORD ON THIS SHAPE", view.lineage.line, "Click-through only, from your ad history. Not purchase data.", ""] : []),
     "HOOK",
     view.hooks.primary,
     ...(view.hooks.alternatives.length ? ["Alternatives:", ...view.hooks.alternatives.map((h) => `- ${h}`)] : []),
@@ -199,6 +202,7 @@ export function buildConceptView(detail: PickDetail): ConceptView | null {
     differsFrom: brief.differs_from,
     evaluation: brief.evaluation,
     outcomes: brief.outcomes,
+    lineage: brief.lineage ?? null,
     evidence,
     researchTerm: pick.term,
   };

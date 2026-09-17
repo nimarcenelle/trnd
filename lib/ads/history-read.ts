@@ -215,6 +215,45 @@ export function historyByTheme(rows: AdHistory[], theme: AdTheme): HistoryMatch 
   return compare(rows, matched, `built on ${THEME_WORDS[theme]}`, `you haven't run ads built on ${THEME_WORDS[theme]} before`);
 }
 
+/** How many of the brand's most recent ads of a shape the lineage compares. */
+export const LINEAGE_ADS = 3;
+
+export interface Lineage {
+  theme: AdTheme;
+  ads: number;
+  beat: number;
+  line: string;
+  latest: string | null;
+}
+
+/**
+ * The concept graded against the brand's own record: its last few ads
+ * built the same way, and how many beat the account's click-through. The
+ * concept's shape is read from its own words with the same classifier the
+ * history is grouped by, so "problem-first" copy and "did you know" copy
+ * land in the same bucket whichever way the writer phrased it. Null without
+ * an account average or without a delivered ad of that shape; a line about
+ * ads that never ran would be a mood, not a lineage.
+ */
+export function historyLineage(rows: AdHistory[], conceptText: string): Lineage | null {
+  const account = weightedCtr(rows).ctr;
+  if (!account || !conceptText.trim()) return null;
+  const theme = classifyAdCopy(conceptText);
+  const eligible = rows
+    .filter((r) => classifyAdCopy(adText(r)) === theme && (r.impressions ?? 0) >= MIN_AD_IMPRESSIONS && rowCtr(r) !== null)
+    .sort((a, b) => (b.started_on ?? "").localeCompare(a.started_on ?? ""))
+    .slice(0, LINEAGE_ADS);
+  if (eligible.length === 0) return null;
+  const beat = eligible.filter((r) => (rowCtr(r) as number) > account).length;
+  const n = eligible.length;
+  const shape = THEME_WORDS[theme];
+  const line =
+    n === 1
+      ? `Your last ad built on ${shape} ${beat === 1 ? "beat" : "ran under"} your account click-through.`
+      : `${beat} of your last ${n} ads built on ${shape} beat your account click-through.`;
+  return { theme, ads: n, beat, line, latest: eligible[0].started_on ?? null };
+}
+
 /** The angle that has worked best for this owner, when there is enough of
  * it to trust: two ads, so it is not one lucky creative, and enough
  * impressions that the CTR is not a rounding error. */

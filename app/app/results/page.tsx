@@ -9,6 +9,7 @@ import { getUserRepo } from "@/lib/db";
 import { shortDate } from "@/lib/picks/list";
 import { buildResultsTakeaway } from "@/lib/recommend/insights";
 import { CTR_BENCHMARKS } from "@/lib/results/benchmarks";
+import { rollupCountLabel, rollupResults } from "@/lib/results/rollup";
 import { sentenceCase } from "@/lib/text";
 
 export const metadata = { title: "Results — TRND" };
@@ -29,30 +30,30 @@ export default async function ResultsPage() {
   const business = await repo.getBusinessByOwner(user.id);
   if (!business) redirect("/onboarding");
 
-  const [campaigns, results, allLearnings] = await Promise.all([
+  const [campaigns, results, allLearnings, pickRuns] = await Promise.all([
     repo.listCampaigns(business.id),
     repo.listResultsForBusiness(business.id),
     repo.listLearnings(business.category),
+    // The creative tests that ended with numbers, entered or synced.
+    repo.listPickRuns(business.id).catch(() => []),
   ]);
   const liveOnes = campaigns.filter((c) => c.status === "live");
   const campaignById = new Map(campaigns.map((c) => [c.id, c]));
   const learnings = allLearnings.filter((l) => l.source === "measured");
 
-  // Roll-ups for the stat row.
-  const sum = (f: (r: (typeof results)[number]) => number | null) =>
-    results.reduce((acc, r) => acc + (f(r) ?? 0), 0);
-  const totalSpend = sum((r) => r.spend_cents);
-  const totalRevenue = sum((r) => r.revenue_cents);
-  const totalBookings = sum((r) => r.bookings);
-  const roas = totalSpend > 0 ? totalRevenue / totalSpend : null;
-  const ctrs = results.map((r) => (r.ctr === null ? null : Number(r.ctr))).filter((v): v is number => v !== null);
-  const avgCtr = ctrs.length ? ctrs.reduce((a, b) => a + b, 0) / ctrs.length : null;
+  // Roll-ups for the stat row: campaign results and completed tests together.
+  const rollup = rollupResults(
+    results,
+    pickRuns.map(({ run }) => run),
+  );
+  const { roas, avgCtr } = rollup;
   const benchmark = CTR_BENCHMARKS[business.category] ?? 0.015;
   const takeaway = buildResultsTakeaway({ avgCtr, benchmark, roas });
+  const anything = results.length > 0 || rollup.tests > 0;
 
   const stats = [
-    { label: `Spend · ${results.length} ${results.length === 1 ? "flight" : "flights"}`, value: fmtMoney(totalSpend) },
-    { label: `Revenue · ${totalBookings} ${totalBookings === 1 ? "booking" : "bookings"}`, value: fmtMoney(totalRevenue) },
+    { label: `Spend · ${rollupCountLabel(rollup)}`, value: fmtMoney(rollup.spendCents) },
+    { label: `Revenue · ${rollup.bookings} ${rollup.bookings === 1 ? "result" : "results"}`, value: fmtMoney(rollup.revenueCents) },
     { label: "Return on ad spend", value: roas === null ? "—" : `${roas.toFixed(1)}×`, up: roas !== null && roas >= 2 },
     {
       label: `CTR · ${(benchmark * 100).toFixed(1)}% is typical`,
@@ -71,7 +72,7 @@ export default async function ResultsPage() {
         </div>
       </div>
 
-      {results.length > 0 && (
+      {anything && (
         <div className="res__stats">
           {stats.map((s) => (
             <div key={s.label} className="res__stat">
@@ -83,10 +84,17 @@ export default async function ResultsPage() {
       )}
 
       {takeaway && <p className="res__read">{takeaway}</p>}
+      {rollup.tests > 0 && (
+        <p className="res__read">
+          {rollup.tests === 1 ? "One creative test" : `${rollup.tests} creative tests`} ended with numbers and{" "}
+          {rollup.tests === 1 ? "is" : "are"} counted above.{" "}
+          <Link href="/app/campaigns">Every test</Link> · <Link href="/app/record">Track record</Link>
+        </p>
+      )}
 
-      {liveOnes.length === 0 && results.length === 0 && (
+      {liveOnes.length === 0 && !anything && (
         <div className="panel res__empty">
-          <p>Nothing recorded yet. Results land here once a campaign is launched.</p>
+          <p>Nothing recorded yet. Results land here once a campaign is launched or a test ends with numbers.</p>
           <Link href="/app/picks" className="btn btn-primary btn-sm">
             This week&apos;s picks
           </Link>

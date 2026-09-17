@@ -19,6 +19,8 @@ export type Provider = ProviderUsage["provider"];
  * providers' price pages in September 2026. Change here, nowhere else. */
 export const RATES: Record<string, { centsPerUnit: number; unit: string; basis: string }> = {
   "apify:result": { centsPerUnit: 0.4, unit: "results", basis: "Apify pay-per-result actors bill $2 to $5 per 1,000 results; $4 per 1,000 assumed" },
+  /** The Transparency Center actor's own price page (verified 2026-09-14). */
+  "apify:result:google_ads": { centsPerUnit: 0.15, unit: "results", basis: "Apify ads-transparency-scraper bills $1.50 per 1,000 results" },
   "apify:run": { centsPerUnit: 2, unit: "runs", basis: "Apify compute for a run that returned nothing, about $0.02 assumed" },
   "dataforseo:keyword": { centsPerUnit: 0.005, unit: "keywords", basis: "DataForSEO search volume, about $0.05 per 1,000 keywords" },
   "dataforseo:related_task": { centsPerUnit: 1, unit: "tasks", basis: "DataForSEO keywords-for-keywords, about $0.01 per task" },

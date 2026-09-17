@@ -313,7 +313,13 @@ export function distinctConcepts<T extends Pick<ConceptWrite, "title" | "hypothe
 /** The stored brief from a validated write plus what code adds. */
 export function assembleBrief(
   write: ConceptWrite,
-  computed: { evaluation: CreativeBrief["evaluation"]; structuralUnknowns: string[]; differsFallback: string },
+  computed: {
+    evaluation: CreativeBrief["evaluation"];
+    structuralUnknowns: string[];
+    differsFallback: string;
+    /** The brand's own past ads of this shape against its account (lib/ads/history-read.ts). */
+    lineage?: CreativeBrief["lineage"];
+  },
 ): CreativeBrief {
   const unknowns = [...write.unknowns];
   for (const u of computed.structuralUnknowns) if (!unknowns.some((x) => wordOverlap(x, u) >= 0.6)) unknowns.push(u);
@@ -330,6 +336,7 @@ export function assembleBrief(
     approved_facts: write.approved_facts,
     evaluation: computed.evaluation,
     outcomes: write.outcomes,
+    lineage: computed.lineage ?? null,
     refined_from: null,
   };
 }

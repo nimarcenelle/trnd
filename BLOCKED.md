@@ -225,3 +225,28 @@ What the customer, competitive, cultural and brand signals need that code cannot
   open as before.
 - **Cost figures.** `provider_usage` estimates use the rates in `lib/usage/providers.ts`;
   no provider invoice has been reconciled against them.
+
+## Closing the loop (2026-09-17)
+
+What the results loop, the demand index and the verdict now do in code, and the one
+thing each still needs from outside it. See `GO-LIVE.md`, "Close the loop first".
+
+- **Migration 0029** (`supabase/migrations/0029_calibration.sql`, run after 0028):
+  `baseline_ctr` and `lift` on `pick_runs`, the calibration log. Until it runs the two
+  columns are dropped on write (`writeTolerant`) and the run still closes; the Track
+  record's Predicted-against-actual table shows a dash in the lift column.
+- **Meta sync into runs** (`lib/ads/run-sync.ts`): the daily results cron now carries a
+  launched campaign's numbers onto the creative test it came from, matched by the platform
+  id the run was launched with or by the opportunity both were built from. Needs the same
+  `ads_read` grant the history sync needs; nothing else. Verified against the demo store,
+  not against a live account (no Meta app credentials in this container).
+- **Per-term TikTok** (`lib/signals/adapters/tiktok-apify.ts`): now metered through the
+  shared actor call, and checks every live payload against the documented field names
+  (`fieldCoverage`), warning once when a required field is gone. Still **unverified live**:
+  `scripts/probe-tiktok-apify.ts` is the one-run check, and apify.com is blocked from this
+  container so the documented schema could not be re-read here.
+- **Rival Meta ads by Page and Google Transparency**: metered through the same shared call;
+  the Transparency actor at its own $1.50 per 1,000. A non-JSON answer from the Ad Library
+  actor now throws instead of reading as "no active ads".
+- **Settings, Market reads** names only the sources whose keys are set
+  (`lib/signals/live-sources.ts`). With no YouTube key it says so.

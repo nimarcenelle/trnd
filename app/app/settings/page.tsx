@@ -22,13 +22,19 @@ import SubmitButton from "@/components/app/submit-button";
 import { getUserRepo } from "@/lib/db";
 import { sentenceCase } from "@/lib/text";
 import {
+  isApifyConfigured,
   isDataForSeoConfigured,
   isEmailConfigured,
   isGeminiConfigured,
+  isInstagramConfigured,
   isMetaAdsConfigured,
   isPlacesConfigured,
+  isRedditConfigured,
   isStripeConfigured,
+  isXConfigured,
+  isYoutubeConfigured,
 } from "@/lib/env";
+import { liveSources, liveSourcesLine, liveSourcesNote } from "@/lib/signals/live-sources";
 import {
   addCompetitorAction,
   deleteCompetitorAction,
@@ -234,17 +240,25 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       note: isEmailConfigured ? "The Monday report lands in your inbox." : "The report is always available here every week.",
       action: null,
     },
-    {
-      name: "Market reads",
-      detail: isDataForSeoConfigured
-        ? "Search volume by metro, Google Trends, weather, autocomplete, news, Meta ads, TikTok, YouTube"
-        : "Google Trends, weather, autocomplete, news, Meta ads, TikTok, YouTube",
-      ok: true,
-      note: isDataForSeoConfigured
-        ? "Refreshed daily. Search volume is measured in your metro."
-        : "Refreshed daily. Search reads are national until metro volume is available for your workspace.",
-      action: null,
-    },
+    // Only the reads that actually run with the keys as set: a source named
+    // here is one that has written rows, never one that could.
+    (() => {
+      const sources = liveSources({
+        dataForSeo: isDataForSeoConfigured,
+        youtube: isYoutubeConfigured,
+        apify: isApifyConfigured,
+        reddit: isRedditConfigured,
+        x: isXConfigured,
+        instagram: isInstagramConfigured,
+      });
+      return {
+        name: "Market reads",
+        detail: liveSourcesLine(sources),
+        ok: true,
+        note: liveSourcesNote(sources, isDataForSeoConfigured),
+        action: null,
+      };
+    })(),
   ];
 
   return (

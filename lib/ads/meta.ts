@@ -1,14 +1,13 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import type { Business, Campaign } from "@/lib/db/types";
 import { env } from "@/lib/env";
 
-import { isOnlineBusiness } from "@/lib/signals/geo";
 /**
- * Meta Marketing API — connect (OAuth), read (insights), act (launch as
- * PAUSED so the owner always pulls the final trigger in Ads Manager).
- * Request shapes are pure builders (unit-tested); network is plain fetch
- * against the Graph API. Everything is gated on META_APP_ID/SECRET.
+ * Meta Marketing API — connect (OAuth) and read (the account's own ad
+ * history). TRND never launches an ad: the brief is handed to a creator and
+ * the ad runs in the brand's own Ads Manager, and the results come back by
+ * the ad's name (lib/ads/run-sync.ts). Network is plain fetch against the
+ * Graph API. Everything is gated on META_APP_ID/SECRET.
  */
 
 const GRAPH = "https://graph.facebook.com/v21.0";
@@ -111,61 +110,6 @@ export async function listAdAccounts(
     { fields: "id,name,account_status", access_token: token },
   );
   return (data.data ?? []).filter((a) => a.account_status === 1).map(({ id, name }) => ({ id, name }));
-}
-
-/* -------------------------------- insights ------------------------------- */
-
-export interface MetaInsightsRow {
-  impressions: number | null;
-  clicks: number | null;
-  spend_cents: number | null;
-  bookings: number | null;
-  revenue_cents: number | null;
-}
-
-/** Pure parser over a Graph insights row — unit-tested. */
-export function parseInsights(row: {
-  impressions?: string;
-  clicks?: string;
-  spend?: string;
-  actions?: { action_type: string; value: string }[];
-  action_values?: { action_type: string; value: string }[];
-}): MetaInsightsRow {
-  const num = (v: string | undefined) => (v === undefined || v === "" ? null : Number(v));
-  const conversions = (row.actions ?? [])
-    .filter((a) => /purchase|lead|schedule|complete_registration|onsite_conversion/.test(a.action_type))
-    .reduce((s, a) => s + Number(a.value || 0), 0);
-  const revenue = (row.action_values ?? [])
-    .filter((a) => /purchase/.test(a.action_type))
-    .reduce((s, a) => s + Number(a.value || 0), 0);
-  return {
-    impressions: num(row.impressions),
-    clicks: num(row.clicks),
-    spend_cents: row.spend !== undefined ? Math.round(Number(row.spend) * 100) : null,
-    bookings: conversions > 0 ? conversions : null,
-    revenue_cents: revenue > 0 ? Math.round(revenue * 100) : null,
-  };
-}
-
-/** Lifetime-to-date insights for one platform campaign. */
-export async function fetchCampaignInsights(
-  token: string,
-  externalCampaignId: string,
-): Promise<{ row: MetaInsightsRow; status: string } | null> {
-  const [insights, campaign] = await Promise.all([
-    graphGet<{ data?: Record<string, never>[] }>(`/${externalCampaignId}/insights`, {
-      fields: "impressions,clicks,spend,actions,action_values",
-      date_preset: "maximum",
-      access_token: token,
-    }),
-    graphGet<{ effective_status?: string }>(`/${externalCampaignId}`, {
-      fields: "effective_status",
-      access_token: token,
-    }),
-  ]);
-  const first = insights.data?.[0];
-  if (!first) return null;
-  return { row: parseInsights(first), status: campaign.effective_status ?? "UNKNOWN" };
 }
 
 /* ------------------------------ account history --------------------------- */
@@ -313,85 +257,3 @@ export async function fetchAdCreativeCopy(token: string, adIds: string[]): Promi
   return out;
 }
 
-/* --------------------------------- launch -------------------------------- */
-
-/** Pure payload builders — the shapes the Graph API receives, unit-tested. */
-export function buildCampaignPayload(campaign: Campaign): Record<string, string> {
-  return {
-    name: `TRND · ${campaign.hook.slice(0, 60)}`,
-    objective: "OUTCOME_TRAFFIC",
-    status: "PAUSED",
-    special_ad_categories: "[]",
-    // Budget lives on the ad set; the API requires this stated explicitly.
-    is_adset_budget_sharing_enabled: "false",
-  };
-}
-
-export function buildAdSetPayload(
-  business: Business,
-  campaign: Campaign,
-  externalCampaignId: string,
-  dailyBudgetCents: number,
-): Record<string, string> {
-  const radius = Math.min(50, Math.max(1, campaign.audience.radius_miles || business.radius_miles));
-  // An online DTC brand sells nationally: its location is not a targeting input.
-  const targeting =
-    !isOnlineBusiness(business) && business.lat !== null && business.lng !== null
-      ? {
-          geo_locations: {
-            custom_locations: [
-              { latitude: business.lat, longitude: business.lng, radius, distance_unit: "mile" },
-            ],
-          },
-        }
-      : { geo_locations: { countries: ["US"] } };
-  return {
-    name: `TRND · ${campaign.audience.who.slice(0, 60)}`,
-    campaign_id: externalCampaignId,
-    daily_budget: String(dailyBudgetCents),
-    billing_event: "IMPRESSIONS",
-    optimization_goal: "LINK_CLICKS",
-    bid_strategy: "LOWEST_COST_WITHOUT_CAP",
-    status: "PAUSED",
-    targeting: JSON.stringify(targeting),
-  };
-}
-
-async function graphPost<T>(path: string, token: string, body: Record<string, string>): Promise<T> {
-  const res = await fetch(`${GRAPH}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ ...body, access_token: token }),
-  });
-  const data = (await res.json()) as T & { error?: GraphError };
-  if (!res.ok || data.error) {
-    throw new Error(`meta graph POST ${path}: ${graphErrorText(data.error, res.status)}`);
-  }
-  return data;
-}
-
-/**
- * Create the campaign + ad set in the connected account, both PAUSED. The
- * creative (needs a Facebook Page selection) stays a copy-paste step in Ads
- * Manager; TRND owns structure, budget, and targeting so nothing spends
- * until the owner flips it on.
- */
-export async function launchPausedCampaign(
-  token: string,
-  adAccountId: string,
-  business: Business,
-  campaign: Campaign,
-  dailyBudgetCents: number,
-): Promise<{ externalId: string }> {
-  const created = await graphPost<{ id: string }>(
-    `/${adAccountId}/campaigns`,
-    token,
-    buildCampaignPayload(campaign),
-  );
-  await graphPost<{ id: string }>(
-    `/${adAccountId}/adsets`,
-    token,
-    buildAdSetPayload(business, campaign, created.id, dailyBudgetCents),
-  );
-  return { externalId: created.id };
-}

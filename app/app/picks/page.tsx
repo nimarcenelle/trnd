@@ -14,7 +14,7 @@ import { firstWeekMode } from "@/lib/onboarding/context";
 import { conceptRow, STATUS_LABEL } from "@/lib/picks/concept-view";
 import { kickWeekJob } from "@/lib/picks/kick";
 import { waitHeadline, weekProgress } from "@/lib/picks/progress";
-import { dueForKick, truncateFinding, weekRangeLabel } from "@/lib/picks/list";
+import { dueForKick, emptyWeekLine, truncateFinding, weekRangeLabel } from "@/lib/picks/list";
 import { weekOf } from "@/lib/recommend/week";
 import { isOnlineBusiness } from "@/lib/signals/geo";
 import { sentenceCase } from "@/lib/text";
@@ -292,26 +292,42 @@ export default async function PicksPage() {
     );
   }
 
+  // An empty week says why: every candidate held, and which signals had
+  // nothing to read. "Nothing worth spending on" was printed over weeks
+  // where the grade had only the market to rest on.
+  const [skips, history, competitors] = await Promise.all([
+    repo.listWeekSkips(business.id, week).catch(() => []),
+    repo.listAdHistory(business.id).catch(() => []),
+    repo.listCompetitors(business.id).catch(() => []),
+  ]);
+  const empty = emptyWeekLine({ held: skips.length, adHistoryRows: history.length, competitors: competitors.length, where, category: sentenceCase(business.category) });
+
   return (
     <div className="page picks">
       <div className="page-head">
         <div>
           <span className="eyebrow m-0">This week · {weekRange}</span>
-          <h1>No picks this week</h1>
-          <p className="context">
-            This week&apos;s reads for <b>{sentenceCase(business.category)}</b> {where} did not turn up a pick worth
-            spending on.
-          </p>
+          <h1>No tests this week</h1>
+          <p className="context">{empty.line}</p>
         </div>
       </div>
       <div className="panel max-w-[620px]">
-        <p className="m-0 text-ink-soft leading-[1.65] text-[14.5px]">
-          The daily read keeps going. New picks land on Monday.
-        </p>
+        {empty.missing.length > 0 ? (
+          <p className="m-0 text-ink-soft leading-[1.65] text-[14.5px]">
+            What the grade could not read is what to add. Each brief is then checked against your own ads and your rivals&apos;
+            instead of the market alone.
+          </p>
+        ) : (
+          <p className="m-0 text-ink-soft leading-[1.65] text-[14.5px]">
+            TRND shows nothing rather than a weak idea dressed up as a test.
+          </p>
+        )}
         <div className="flex gap-3 flex-wrap mt-[18px]">
-          <Link className="btn btn-ghost btn-sm" href="/app/report">
-            Weekly report
-          </Link>
+          {empty.missing.map((m) => (
+            <Link key={m.href} className="btn btn-primary btn-sm" href={m.href}>
+              {m.label}
+            </Link>
+          ))}
           <Link className="btn btn-ghost btn-sm" href="/app/snapshot">
             Your analysis
           </Link>

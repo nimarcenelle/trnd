@@ -872,3 +872,22 @@ weight redistributed with a visible note, never averaged in as a credible-lookin
   compared week to week. It now also reads 60+ days against the first month, and a jump inside
   the last six weeks that is holding reads as growing. eskiin grades on Customer and Culture only
   (no competitors connected, no ad history), so Culture's lifecycle weighs 36% for it.
+
+## P30 — Close the loop, then narrow to what is sold (2026-09-17)
+Advisor review as a task list, then the user's direction: ship the version that can be sold,
+narrower and deeper, without trading working functionality for ambition.
+
+- **The loop closes in code.** Every finished test logs its baseline click-through and lift
+  (migration 0029); the Track record reads predicted against actual per grade. Each concept is
+  graded against the brand's last three ads of the same shape and says so on the brief. Tests
+  get their results by name from the brand's own ad history, synced or uploaded
+  (`lib/ads/run-sync.ts`); the brief prints the name to use.
+- **Say only what ran.** Settings names the sources whose keys are set; the per-term TikTok
+  actor gets a one-run probe and a field-coverage check; the three unmetered Apify paths go
+  through the shared metered call.
+- **The cut.** Opportunities, the weekly report, Ask, standing questions, the campaign builder
+  and its Meta launch, the results roll-up, the pick reads, the styleguide and the dead landing
+  sections are gone (about 9,000 lines). The Monday email now delivers the week's briefs. Terms,
+  privacy and Settings copy say what the product does now: it reads, it never launches.
+- **Verified**: unit suite green, lint and typecheck clean, production build, and the Playwright
+  path from signup to the track record on the demo store.

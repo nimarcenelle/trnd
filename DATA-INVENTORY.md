@@ -74,8 +74,8 @@ in an Arizona July is not news and doesn't fire).
 |---|---|---|
 | Website import | One owner-initiated crawl at onboarding | business name, category, city/state, **menu/services with prices**, brand-voice hints, up to 6 real photos, page text (feeds the founding analysis) |
 | Watchlist | Generated founding analysis | 5–8 search phrases this business's real customers use — these drive rows 1, 2, 4 above, per business, in its metro |
-| Recorded results | Manual entry (Meta API sync is the roadmap item) | impressions, clicks, spend, bookings, revenue per campaign → CTR, cost/result, ROAS, and a lift score per persuasion angle |
-| Learnings | Derived | category × geo × angle lift with sample sizes — the shared intelligence layer, always de-identified |
+| Own ad history | Ads Manager or Google Ads export (deterministic parser), or the connected Meta account's ad-level insights with creative copy, 180 days, synced daily | impressions, clicks, spend, results, CTR, copy, dates per ad → account click-through, best and worst ads, themes, and the last three ads of each shape a concept is graded against |
+| Test results | The owner's own entry on Campaigns, or the ad history rows named `TRND: <concept title>` | spend, impressions, clicks, purchases, revenue per test → outcome, lift over the account, the track record and predicted-against-actual per grade |
 
 ---
 

@@ -4,17 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
-import { launchPausedCampaign } from "@/lib/ads/meta";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { getAdminRepo } from "@/lib/db/admin";
 import type { SocialHandles } from "@/lib/db/types";
-import { isMetaAdsConfigured } from "@/lib/env";
 import { cleanSocialHandles, SOCIAL_PLATFORMS } from "@/lib/import/social-links";
 import { normalizeHandle } from "@/lib/social";
 import { enrichCompetitor } from "@/lib/intel/direct";
 import { runIntelIngestForBusiness } from "@/lib/intel/ingest";
-import { budgetFor, creativeTestDailyCents } from "@/lib/recommend/insights";
 
 /** Add a named competitor and read it in the background right away. */
 export async function addCompetitorAction(formData: FormData): Promise<void> {
@@ -39,7 +36,6 @@ export async function addCompetitorAction(formData: FormData): Promise<void> {
     }
   });
   revalidatePath("/app/settings");
-  revalidatePath("/app/report");
 }
 
 /** Find the nearest same-category rivals and start watching them. */
@@ -66,7 +62,6 @@ export async function seedCompetitorsAction(): Promise<void> {
     });
   }
   revalidatePath("/app/settings");
-  revalidatePath("/app/report");
   revalidatePath("/app", "layout");
 }
 
@@ -76,7 +71,6 @@ export async function deleteCompetitorAction(formData: FormData): Promise<void> 
   const repo = await getUserRepo(user.id);
   await repo.deleteCompetitor(String(formData.get("competitor_id") ?? ""));
   revalidatePath("/app/settings");
-  revalidatePath("/app/report");
 }
 
 /** The three handle inputs, as pasted (URL or @handle), cut to what we
@@ -109,7 +103,6 @@ export async function updateCompetitorHandlesAction(formData: FormData): Promise
     }
   });
   revalidatePath("/app/settings");
-  revalidatePath("/app/report");
   revalidatePath("/app", "layout");
 }
 
@@ -131,56 +124,4 @@ export async function disconnectMetaAction(): Promise<void> {
   if (!business) return;
   await repo.deleteConnection(business.id, "meta");
   revalidatePath("/app/settings");
-}
-
-export interface LaunchState {
-  error?: string;
-  ok?: boolean;
-}
-
-/**
- * Push a built campaign into the connected Meta account — campaign + ad set,
- * both PAUSED, budget from the price band. Nothing spends until the owner
- * flips it on in Ads Manager; from then on the daily sync pulls its results.
- */
-export async function launchToMetaAction(
-  _prev: LaunchState,
-  formData: FormData,
-): Promise<LaunchState> {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-  const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
-  if (!business) redirect("/onboarding");
-  if (!isMetaAdsConfigured) return { error: "Meta app credentials aren't configured yet." };
-
-  const campaign = await repo.getCampaign(String(formData.get("campaign_id") ?? ""));
-  if (!campaign || campaign.business_id !== business.id) return { error: "Campaign not found." };
-  if (campaign.external_id) return { ok: true };
-
-  const connection = await repo.getConnection(business.id, "meta");
-  if (!connection || connection.status !== "connected" || !connection.account_id) {
-    return { error: "Connect your Meta ad account in Settings first." };
-  }
-
-  // Daily budget, in cents. An online brand tests with a share of what it
-  // already spends; a local business with the low end of its price-band guidance.
-  const onlineDailyCents = business.market === "online" ? creativeTestDailyCents(business.monthly_ad_spend) : null;
-  const daily = budgetFor(business.price_band).daily.match(/\d+/)?.[0] ?? "25";
-  try {
-    const { externalId } = await launchPausedCampaign(
-      connection.access_token,
-      connection.account_id,
-      business,
-      campaign,
-      onlineDailyCents ?? Number(daily) * 100,
-    );
-    await repo.setCampaignExternal(campaign.id, externalId, "PAUSED");
-    await repo.setCampaignStatus(campaign.id, "exported");
-  } catch (err) {
-    console.warn("[ads] launch failed:", (err as Error).message);
-    return { error: "Meta rejected the launch — check the ad account's permissions and try again." };
-  }
-  revalidatePath(`/app/campaigns/${campaign.id}`);
-  return { ok: true };
 }

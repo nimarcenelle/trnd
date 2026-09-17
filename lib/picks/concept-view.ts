@@ -1,6 +1,7 @@
 import type { BrandPick, CreativeBrief, PickDetail, PickEvidence, PickRun, PickSignal } from "@/lib/db/types";
 
 import { safeHref, SIGNAL_LABELS, SIGNAL_ORDER } from "./detail";
+import { runTrackingName } from "./list";
 
 /**
  * The creative test page as data. Pure, so the rules that decide what a
@@ -73,6 +74,8 @@ export interface ConceptView {
   outcomes: CreativeBrief["outcomes"];
   /** The brand's own past ads of this shape against its account; null without history. */
   lineage: CreativeBrief["lineage"] | null;
+  /** What to name the ad in Ads Manager so its results find this test. */
+  trackingName: string;
   guardrail: string | null;
   evidence: ConceptEvidenceGroup[];
   /** How many evidence rows carry a limitation, for the "read the limits" line. */
@@ -121,7 +124,7 @@ export function buildConceptEvidence(evidence: PickEvidence[]): ConceptEvidenceG
 /** The brief as plain text, for the clipboard and the export: what a
  * creator needs, in the order they need it, with the evidence and its
  * limits at the end. */
-export function conceptToText(view: Pick<ConceptView, "title" | "situation" | "hypothesis" | "format" | "hooks" | "script" | "shotList" | "approvedFacts" | "guardrail" | "unknowns" | "differsFrom" | "evaluation" | "outcomes" | "evidence" | "researchTerm"> & { lineage?: CreativeBrief["lineage"] | null }): string {
+export function conceptToText(view: Pick<ConceptView, "title" | "situation" | "hypothesis" | "format" | "hooks" | "script" | "shotList" | "approvedFacts" | "guardrail" | "unknowns" | "differsFrom" | "evaluation" | "outcomes" | "evidence" | "researchTerm"> & { lineage?: CreativeBrief["lineage"] | null; trackingName?: string }): string {
   const lines: string[] = [
     view.title.toUpperCase(),
     `Format: ${view.format}`,
@@ -160,6 +163,7 @@ export function conceptToText(view: Pick<ConceptView, "title" | "situation" | "h
     "HOW TO JUDGE THE TEST",
     view.evaluation.comparison,
     `Budget: ${view.evaluation.budget}`,
+    ...(view.trackingName ? [`Name the ad: ${view.trackingName} (its results find this test by that name)`] : []),
     "Watch:",
     ...view.evaluation.watch.map((w) => `- ${w}`),
     ...(view.evaluation.caveats.length ? ["Caveats:", ...view.evaluation.caveats.map((c) => `- ${c}`)] : []),
@@ -203,6 +207,7 @@ export function buildConceptView(detail: PickDetail): ConceptView | null {
     evaluation: brief.evaluation,
     outcomes: brief.outcomes,
     lineage: brief.lineage ?? null,
+    trackingName: runTrackingName(pick),
     evidence,
     researchTerm: pick.term,
   };

@@ -427,30 +427,3 @@ export function buildNextAction(opts: {
 }
 
 /** One-line takeaway for the results screen. Never a paragraph. */
-export function buildResultsTakeaway(opts: {
-  avgCtr: number | null;
-  benchmark: number;
-  roas: number | null;
-}): string | null {
-  const { avgCtr, benchmark, roas } = opts;
-  if (avgCtr === null && roas === null) return null;
-  const parts: string[] = [];
-  if (avgCtr !== null) {
-    const rel = avgCtr / benchmark;
-    if (rel >= 1.2) {
-      parts.push(`Your CTR runs ${Math.round((rel - 1) * 100)}% above category typical — the angle is landing`);
-    } else if (rel >= 0.85) {
-      parts.push("Your CTR sits around category typical — a hook test could buy you the next jump");
-    } else {
-      parts.push("Your CTR trails category typical — swap in the next headline variant before adding spend");
-    }
-  }
-  if (roas !== null) {
-    parts.push(
-      roas >= 2
-        ? `${roas.toFixed(1)}× return says scale the winner`
-        : `${roas.toFixed(1)}× return — hold spend until the ratio clears 2×`,
-    );
-  }
-  return parts.join("; ") + ".";
-}

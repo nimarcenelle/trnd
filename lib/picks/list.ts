@@ -111,6 +111,42 @@ export function dueForKick(lastAt: number | undefined, now: number, windowMs: nu
   return lastAt === undefined || now - lastAt >= windowMs;
 }
 
+/* -------------------------------- empty week -------------------------------- */
+
+/**
+ * What an empty week says. "Nothing worth spending on" is only true when the
+ * signals were read and every candidate still held; when half of them had
+ * nothing to read (no ad results on file, no competitors named) the honest
+ * line is which half, and where to fix it. Pure, so the wording is tested.
+ */
+export function emptyWeekLine(input: {
+  held: number;
+  adHistoryRows: number;
+  competitors: number;
+  where: string;
+  category: string;
+}): { line: string; missing: { label: string; href: string }[] } {
+  const missing: { label: string; href: string }[] = [];
+  if (input.adHistoryRows === 0) missing.push({ label: "Add an Ads Manager export", href: "/app/settings#ads" });
+  if (input.competitors === 0) missing.push({ label: "Name your competitors", href: "/app/settings" });
+  if (input.held > 0 && missing.length > 0) {
+    const what =
+      missing.length === 2
+        ? "no ad results are on file and no competitors are named, so the Brand and Competitive signals had nothing to read and the grade rested on the market alone"
+        : input.adHistoryRows === 0
+          ? "no ad results are on file, so the Brand signal had nothing to read"
+          : "no competitors are named, so the Competitive signal had nothing to read";
+    return {
+      line: `${input.held} ${input.held === 1 ? "candidate was" : "candidates were"} graded and every one held: ${what}. The week is graded again on the next daily read once that lands.`,
+      missing,
+    };
+  }
+  if (input.held > 0) {
+    return { line: `${input.held} ${input.held === 1 ? "candidate was" : "candidates were"} graded and every one held. The daily read keeps going; new tests land on Monday.`, missing };
+  }
+  return { line: `This week's reads for ${input.category} ${input.where} did not turn up a candidate. The daily read keeps going; new tests land on Monday.`, missing };
+}
+
 /* ---------------------------------- grade ---------------------------------- */
 
 /** The row's grade chip: the letter shows, the meaning is its description.
@@ -234,6 +270,39 @@ function isoDay(d: Date | string): string {
  * told apart from the rest of the account when the run is judged. */
 export function runCampaignName(pick: Pick<BrandPick, "term">): string {
   return `TRND pick: ${pick.term.trim()}`;
+}
+
+/**
+ * What the brand names the ad in Ads Manager so its results find their way
+ * back to this test: the account history sync and an uploaded export are
+ * matched on it (lib/ads/run-sync.ts). The concept's title, because that
+ * is what the creative team calls the idea; the research term on a pick
+ * written before titles existed.
+ */
+export function runTrackingName(pick: Pick<BrandPick, "term"> & { concept_title?: string | null }): string {
+  const name = (pick.concept_title ?? pick.term).replace(/\s+/g, " ").trim().slice(0, 80);
+  return `TRND: ${name}`;
+}
+
+const numeric = (v: unknown): number | null => {
+  const n = typeof v === "string" ? Number(v) : v;
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+};
+
+/**
+ * The results form leaves blank what the owner does not know. A run the
+ * account sync already filled must not lose those numbers to a blank: the
+ * owner's figure wins where they gave one, the synced figure stays where
+ * they did not.
+ */
+export function withSyncedNumbers(results: RunResults, run: Partial<RunResults>): RunResults {
+  return {
+    spend_usd: results.spend_usd ?? numeric(run.spend_usd),
+    impressions: results.impressions ?? numeric(run.impressions),
+    clicks: results.clicks ?? numeric(run.clicks),
+    conversions: results.conversions ?? numeric(run.conversions),
+    revenue_usd: results.revenue_usd ?? numeric(run.revenue_usd),
+  };
 }
 
 /**

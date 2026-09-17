@@ -215,6 +215,13 @@ export default function ConceptDetail({ view, head, exportHref, refine }: { view
               <dd>{view.evaluation.budget}</dd>
             </div>
             <div>
+              <dt>Name it</dt>
+              <dd>
+                Name the ad <code className="cb__code">{view.trackingName}</code> in Ads Manager. With your Meta account connected, or an export
+                uploaded later, its results land on this test by that name.
+              </dd>
+            </div>
+            <div>
               <dt>Watch</dt>
               <dd>
                 <ol className="cb__list cb__list--tight">

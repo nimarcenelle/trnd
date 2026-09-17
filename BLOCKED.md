@@ -7,8 +7,8 @@ Each is implemented behind its interface and registered unavailable at runtime.
 - The brief points at the GRWM repo for the key. The repo was cloned, but this session's
   permission classifier denies grepping repositories for API-key material (twice).
 - **Seam**: put the key in `.env.local` as `GEMINI_API_KEY=` — nothing else changes.
-  `lib/ai/gemini.ts` detects it at startup; without it the deterministic template
-  generator in `lib/ai/fallback.ts` produces campaign JSON so every downstream screen works.
+  `lib/ai/gemini.ts` detects it at startup; without it the template concept writer in
+  `lib/ai/concept-writer.ts` produces a whole brief so every downstream screen works.
 
 ## Supabase (database + auth)
 - No `NEXT_PUBLIC_SUPABASE_URL`/keys in the environment; `supabase start` impossible —
@@ -32,23 +32,23 @@ Each is implemented behind its interface and registered unavailable at runtime.
   longer sold), fill `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
   `STRIPE_PRICE_BASELINE`, and point a webhook at `/api/stripe/webhook` with
   `checkout.session.completed` + `customer.subscription.updated/deleted`. Settings →
-  Billing goes live and trial expiry starts gating new campaign builds.
+  Billing goes live and trial expiry starts gating new weeks of briefs.
 
 ## Vercel deploy
 - No Vercel credentials; config is present (`vercel.json` with cron schedules) but no
   deploy was attempted, per the brief.
 
-## Meta ad-account connect / launch / results sync
+## Meta ad-account connect / ad history sync
 - Needs a Meta developer app with Marketing API access. Until its keys exist, Settings
-  shows the connect card as "awaiting platform credentials", launch stays copy-paste,
-  and results stay manual entry.
+  shows the connect card as "not available yet" and results come from the export.
 - **Seam**: create an app at developers.facebook.com (type Business), add the Marketing
-  API product, request `ads_read` + `ads_management` in App Review (business
-  verification required for public use; app works immediately for admins/testers of the
-  app). Set `META_APP_ID`, `META_APP_SECRET`, and `NEXT_PUBLIC_APP_URL` (the OAuth
-  redirect is `<APP_URL>/api/connect/meta/callback` — add it to the app's Valid OAuth
-  Redirect URIs). Everything else — connect button, paused launch, daily sync cron —
-  activates on its own.
+  API product, request `ads_read` in App Review (business verification required for
+  public use; the app works immediately for its admins/testers). Set `META_APP_ID`,
+  `META_APP_SECRET`, and `NEXT_PUBLIC_APP_URL` (the OAuth redirect is
+  `<APP_URL>/api/connect/meta/callback` — add it to the app's Valid OAuth Redirect URIs).
+  The connect button and the daily history sync activate on their own. TRND only reads;
+  the `ads_management` scope is still requested for accounts that already granted it but
+  nothing in the product uses it.
 
 ## Google Places (reviews & competitor ratings)
 - **Seam**: a Google Cloud project with "Places API (New)" enabled; set
@@ -235,11 +235,12 @@ thing each still needs from outside it. See `GO-LIVE.md`, "Close the loop first"
   `baseline_ctr` and `lift` on `pick_runs`, the calibration log. Until it runs the two
   columns are dropped on write (`writeTolerant`) and the run still closes; the Track
   record's Predicted-against-actual table shows a dash in the lift column.
-- **Meta sync into runs** (`lib/ads/run-sync.ts`): the daily results cron now carries a
-  launched campaign's numbers onto the creative test it came from, matched by the platform
-  id the run was launched with or by the opportunity both were built from. Needs the same
-  `ads_read` grant the history sync needs; nothing else. Verified against the demo store,
-  not against a live account (no Meta app credentials in this container).
+- **Results by name** (`lib/ads/run-sync.ts`): every open test is filled from the brand's
+  ad history rows that carry its tracking name (`TRND: <concept title>`, printed on the
+  brief), whether they came from the connected account's daily sync or an uploaded export.
+  Needs the same `ads_read` grant the history sync needs for the synced path; the export
+  path needs nothing. Verified against the demo store, not against a live account (no Meta
+  app credentials in this container).
 - **Per-term TikTok** (`lib/signals/adapters/tiktok-apify.ts`): now metered through the
   shared actor call, and checks every live payload against the documented field names
   (`fieldCoverage`), warning once when a required field is gone. Still **unverified live**:

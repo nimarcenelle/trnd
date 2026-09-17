@@ -168,3 +168,16 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
   run confirms the actor's fields.
 - **No new sources.** Every change here is depth per brand: its own results, its own history,
   its own record. Not one new adapter.
+- **Narrower and deeper: only the sold product is a route (2026-09-17, user direction).** The
+  older keyword-pick and campaign-builder product came out whole: Opportunities, the weekly
+  report, Ask, standing questions, the campaign builder and its Meta launch, the results
+  roll-up, the pick reads, the styleguide and the dead landing sections. Their tables stay
+  in the schema, unused. What is left is the pilot loop: invite, onboarding with an export,
+  three briefs, choose, launch, record, the track record, and a Monday email that delivers
+  the briefs instead of a ranked keyword report. The Monday cron no longer spends model
+  calls on a note nobody was sold.
+- **TRND never launches an ad.** The brief is handed to a creator and the ad runs in the
+  brand's own Ads Manager. Results come back by name: the brief says what to call the ad
+  (`TRND: <concept title>`), and every ad-history row that carries it, synced or uploaded,
+  is summed onto the test. The sync never closes a run; the owner's "mark completed" does,
+  with the synced numbers already filled in and never erased by a blank.

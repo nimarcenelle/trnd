@@ -54,7 +54,7 @@ export default function AccountPanel({ email }: { email: string }) {
 
       <div className="mt-[26px] pt-[18px] border-t border-dashed border-line">
         <p className="text-[12.5px] text-ink-faint mx-0 mt-0 mb-3 leading-[1.55] max-w-[560px]">
-          Deleting your account removes your business, services, campaigns, and recorded results
+          Deleting your account removes your business, services, briefs, and recorded results
           permanently. Shared market signal is not affected.
         </p>
         {!confirmOpen ? (

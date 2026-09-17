@@ -208,12 +208,6 @@ export async function ingestSocialAccounts(
   return summary;
 }
 
-const sameAdvertiser = (rival: string, advertiser: string) => {
-  const a = advertiser.toLowerCase().trim();
-  const r = rival.toLowerCase().trim();
-  return Boolean(a) && (a.includes(r) || r.includes(a));
-};
-
 const domainOf = (url: string | null): string | null => {
   if (!url) return null;
   try {

@@ -17,8 +17,8 @@ export default function PrivacyPage() {
       </p>
       <p>
         <strong>Your business:</strong> name, category, location, services, prices, brand-voice
-        notes, website, the competitors you name, results you type in, and the campaigns and
-        reports generated for you. If you give us your website during setup, we read its public
+        notes, website, the competitors you name, results you type in, and the briefs written
+        for you. If you give us your website during setup, we read its public
         pages and the menu or price files they link to so we can fill in your profile. We never
         read anything behind a login.
       </p>
@@ -34,14 +34,13 @@ export default function PrivacyPage() {
 
       <h2>Connected ad accounts</h2>
       <p>
-        You can connect an ad account, such as Meta (Facebook and Instagram) or Google Ads, so
-        TRND can read how your campaigns are doing and, when you ask it to, create campaigns for
-        you. When you connect, the platform shows you exactly what access TRND is asking for. We
-        store the access token it gives us, your ad account ID and name, and the campaign numbers
-        we sync (spend, impressions, clicks, conversions). We use that access only to show your
-        results, sharpen your recommendations, and take ad actions you start yourself. We never
-        change your budgets or campaigns without you, and we don&apos;t read personal messages,
-        friends lists, or customer lists.
+        You can connect an ad account, such as Meta (Facebook and Instagram), so TRND can read
+        how your own ads have done. When you connect, the platform shows you exactly what access
+        TRND is asking for. We store the access token it gives us, your ad account ID and name,
+        and the ad-level numbers we sync (spend, impressions, clicks, conversions, and the text of
+        each ad). We use that access only to grade briefs against your own history and to put
+        results on the tests you ran. TRND never creates or changes a campaign, never touches a
+        budget, and doesn&apos;t read personal messages, friends lists, or customer lists.
       </p>
       <p>
         You can disconnect any time in Settings, which deletes the stored token. You can also
@@ -113,19 +112,19 @@ export default function PrivacyPage() {
 
       <h2>What we do with it</h2>
       <p>
-        We use your data to run TRND: match what&apos;s trending to what you sell, write your
-        campaigns, send your weekly report, and track results. We may also use combined,
-        anonymous patterns (for example, &quot;how-to angles do well for restaurants in this
-        region&quot;) to improve recommendations for similar businesses. Those patterns never
-        identify you, your business, or your numbers.
+        We use your data to run TRND: read what your customers say and search, what your
+        competitors run and what your own ads did, write your weekly creative test briefs, send
+        the Monday email, and track results. We may also use combined, anonymous patterns (for
+        example, &quot;problem-first openings do well in this category&quot;) to improve briefs
+        for similar brands. Those patterns never identify you, your business, or your numbers.
       </p>
 
       <h2>Who else handles it</h2>
       <p>
         Only companies that help us run TRND, under contract: Vercel (hosting), Supabase
         (database and sign-in), Stripe (payments), Resend (email), and Google Gemini, which
-        receives your business profile and uploaded text to write your campaigns. Our paid data
-        providers get search terms and places, never your account details. We do not sell
+        receives your business profile and uploaded text to write your briefs. Our paid data
+        providers get search terms, brand names and places, never your account details. We do not sell
         personal data, and we don&apos;t use your data to target you with ads anywhere else.
       </p>
 
@@ -155,9 +154,9 @@ export default function PrivacyPage() {
 
       <h2>Your controls</h2>
       <p>
-        Edit your business profile and documents any time in Settings. Export campaigns from any
-        campaign page. Deleting your account in Settings permanently removes your account,
-        business, services, documents, connected accounts, campaigns, and results. For access,
+        Edit your business profile and documents any time in Settings. Export any brief from its
+        page. Deleting your account in Settings permanently removes your account, business,
+        services, documents, connected accounts, briefs, and results. For access,
         correction, or deletion requests, contact us below and we&apos;ll respond within 30
         days.
       </p>

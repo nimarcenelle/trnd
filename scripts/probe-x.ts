@@ -12,6 +12,8 @@ async function main() {
   });
   if (signals.length === 0) return console.log("no signals returned");
   for (const s of signals) {
+    // The payload is whatever the adapter kept; a diagnostic prints it as is.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r = s.raw as Record<string, any>;
     console.log(`posts=${s.value} (prev half ${r.postsPrev})  Δ=${s.delta_pct}%  reactions=${r.reactions}`);
     if (r.adjusted) console.log(`measured as "${r.measuredTerm}"`);

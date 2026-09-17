@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { Business, IntelNote } from "../lib/db/types";
+import type { Business } from "../lib/db/types";
 import { firstPicksSubject, renderFirstPicksEmail } from "../lib/email/first-picks";
 import { renderEmail } from "../lib/email/layout";
-import { renderWeeklyReportEmail, weeklyReportSubject } from "../lib/email/weekly-report";
-import type { IntelReport } from "../lib/report/build";
-import { gradeFor } from "../lib/recommend/grade";
+import { renderWeeklyBriefsEmail, weeklyBriefsSubject, type BriefLine } from "../lib/email/weekly-briefs";
 
 describe("email layout", () => {
   const html = renderEmail({
@@ -13,7 +11,7 @@ describe("email layout", () => {
     title: "Run it <script>alert(1)</script>",
     intro: "One sentence of context.",
     body: "<p>body</p>",
-    cta: { label: "Open it", url: "https://usetrnd.com/app/report?week=2026-09-14" },
+    cta: { label: "Open it", url: "https://usetrnd.com/app/picks?week=2026-09-14" },
     footnote: "A quiet line.",
   });
 
@@ -25,7 +23,7 @@ describe("email layout", () => {
   it("carries the wordmark, the CTA url and the preheader", () => {
     expect(html).toContain(">TRND</span>");
     expect(html).toContain("#1ea7ae");
-    expect(html).toContain('href="https://usetrnd.com/app/report?week=2026-09-14"');
+    expect(html).toContain('href="https://usetrnd.com/app/picks?week=2026-09-14"');
     expect(html).toContain("Open it");
     expect(html).toContain("The hidden preview line");
     expect(html).toContain("You get this because you have a TRND account.");
@@ -38,40 +36,41 @@ describe("email layout", () => {
   });
 });
 
-describe("weekly report email", () => {
+describe("the Monday briefs email", () => {
   const business = { id: "b", owner_id: "o", name: "glow room", city: "Atlanta", region: "GA", market: "online" } as unknown as Business;
-  const note: IntelNote = {
-    id: "n",
-    business_id: "b",
-    week_of: "2026-09-14",
-    headline: "korean glass skin is the ad to run.",
-    narrative: ["Because the read is up across three sources."],
-    actions: ["Shoot the before-and-after on Tuesday."],
-    model_used: "t",
-    prompt_version: "t",
-    created_at: "",
-  };
-  const report = {
-    week: "2026-09-14",
-    ranked: [
-      { rank: 1, term: "korean glass skin facial", grade: gradeFor(8.4), score: 8.4, deltaPct: 47 },
-      { rank: 2, term: "lymphatic drainage", grade: gradeFor(6.1), score: 6.1, deltaPct: null },
-    ],
-  } as unknown as IntelReport;
+  const briefs: BriefLine[] = [
+    { rank: 1, title: "The towel that slips", hypothesis: "Test whether the slipping towel is more persuasive than the material, because customers describe the problem first.", format: "20-second talking head", basis: "Explores new ground", href: "https://usetrnd.com/app/picks/p1", status: "proposed" },
+    { rank: 2, title: "One take, start to finish <b>", hypothesis: "Test whether one unbroken shot is more persuasive than cuts.", format: "20-second single-take demo", basis: "Builds on a result", href: "https://usetrnd.com/app/picks/p2", status: "chosen" },
+  ];
 
-  it("contains the top pick's term in sentence case with its grade and delta", () => {
-    const html = renderWeeklyReportEmail({ business, note, report, alerts: [] });
-    expect(html).toContain("Korean glass skin facial");
-    expect(html).not.toContain(">korean glass skin facial<");
-    expect(html).toContain("Lymphatic drainage");
-    expect(html).toContain("↑ 47%");
-    expect(html).toContain("Open this week&#39;s report");
-    expect(html).toContain("/app/report");
-    expect(html).toContain("Korean glass skin is the ad to run.");
+  it("lists each test with its hypothesis, format and status, says when fewer than three cleared the bar, and links the week", () => {
+    const html = renderWeeklyBriefsEmail({
+      business,
+      weekRange: "Sep 14 – Sep 20",
+      briefs,
+      openTests: [{ title: "The crust on the showerhead", status: "running", since: "Sep 9" }],
+      researchOnly: true,
+      url: "https://usetrnd.com/app/picks",
+      resultsUrl: "https://usetrnd.com/app/campaigns",
+    });
+    expect(html).toContain("The towel that slips");
+    expect(html).toContain("One take, start to finish &lt;b&gt;");
+    expect(html).toContain("20-second talking head");
+    expect(html).toContain("In production");
+    expect(html).toContain("Only two concepts cleared the bar this week.");
+    expect(html).toContain("The crust on the showerhead");
+    expect(html).toContain("launched Sep 9, no result recorded yet");
+    expect(html).toContain("No ad results are on file");
+    expect(html).toContain('href="https://usetrnd.com/app/picks"');
+    expect(html).toContain("Open this week&#39;s briefs");
+    expect(html).toContain("Briefs are hypotheses, not winners.");
+    // Never a grade or a score.
+    expect(html).not.toMatch(/\bgrade\b/i);
   });
 
-  it("keeps the subject", () => {
-    expect(weeklyReportSubject(business, note)).toBe("glow room — this week: korean glass skin is the ad to run");
+  it("keeps the subject in the brand's name", () => {
+    expect(weeklyBriefsSubject(business, 3)).toBe("Glow room: 3 creative tests for this week");
+    expect(weeklyBriefsSubject(business, 1)).toBe("Glow room: one creative test for this week");
   });
 });
 

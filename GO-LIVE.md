@@ -8,7 +8,7 @@ every one of them is in place and tested.
 
 | # | Do this | Cost | What it switches on |
 |---|---|---|---|
-| 1 | **Meta App Review for `ads_read`** (the app and the scope are already wired; review is what lets accounts outside the app's testers grant it) | Free; days to weeks | 180 days of ad-level results with creative copy, no upload (`lib/ads/history-sync.ts`), and the daily sync writing every launched campaign's numbers onto the creative test it came from: the run goes live when the platform delivers, closes when the platform says it ended, lands in the brand's ad history, and logs its lift over the account (`lib/ads/run-sync.ts`). Brand stops being the dark 25% lane. |
+| 1 | **Meta App Review for `ads_read`** (the app and the scope are already wired; review is what lets accounts outside the app's testers grant it) | Free; days to weeks | 180 days of ad-level results with creative copy, no upload (`lib/ads/history-sync.ts`), and every test named the way its brief says (`TRND: <concept title>`) gets its numbers from that history daily and goes live on first delivery (`lib/ads/run-sync.ts`). Brand stops being the dark 25% lane. |
 | 2 | **Require an export at pilot onboarding** (process, not code: the upload step is on the Context screen and in Settings) | Free | Week one starts from a real baseline: every brief is graded against the brand's own ads of that shape ("2 of your last 3 ads built on explaining something beat your account click-through"), and the evaluation plan names the account's own cost per result. |
 | 3 | **Set `YOUTUBE_API_KEY`** (Google Cloud console, free tier, no card) | Free, 10,000 units a day | The Shorts read per watch term. Currently unset, so the short-form half of the demand read runs on the TikTok board alone. Settings names only the reads that run, so this shows up the day it is set. |
 | 4 | **Create the Reddit script app** and set `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` | Free | The adapter is already on OAuth; without the app it reads nothing from a cloud IP. |
@@ -29,20 +29,19 @@ In the order it changes what an owner sees:
 | 4 | Set the **Gemini** key in production | Cents per business per week | The read on every pick, the written-for-you ad, the founding analysis, Ask, standing questions, the Monday note. Without it every one of these is a template. | `GEMINI_API_KEY` |
 | 5 | Verify a sending domain on **Resend** | Free tier | The Monday email actually leaves the building. | `RESEND_API_KEY`, `EMAIL_FROM` |
 | 6 | Register a **Reddit script app** | Free | Category-subreddit and per-term conversation reads; anonymous JSON returns HTML from datacenter IPs. The adapter is already on OAuth; only the two env vars are missing. | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` |
-| 7 | Create a **Meta app** with Marketing API access and pass App Review | Free; days to weeks of review | One-click launch, paused campaigns landing in the owner's ad account, results syncing daily. Until then launch is paste-into-Ads-Manager, which is where owners drop. Works immediately for admins/testers of the app, which is enough for a five-business pilot. | `META_APP_ID`, `META_APP_SECRET`, `NEXT_PUBLIC_APP_URL` |
-| 8 | Set `CRON_SECRET` and confirm the Vercel crons fire | Free | Daily ingest, the Monday ranking, the auto-built ad, standing-question answers, the email. Nothing is evergreen if the crons don't run. | `CRON_SECRET` |
+| 7 | Create a **Meta app** with Marketing API access and pass App Review for `ads_read` | Free; days to weeks of review | The connected account's own ad history syncs daily and tests get their results by name. TRND never launches an ad. Works immediately for admins/testers of the app, which is enough for a three-brand pilot. | `META_APP_ID`, `META_APP_SECRET`, `NEXT_PUBLIC_APP_URL` |
+| 8 | Set `CRON_SECRET` and confirm the Vercel crons fire | Free | Daily ingest, intel and ranking, the Monday picks and email, the daily results sync. Nothing is weekly if the crons don't run. | `CRON_SECRET` |
 
-Items 1–4 make the product stop being thin. Item 7 is what makes the ad get launched.
-Items 5 and 8 make it arrive on its own — which is the whole evergreen promise.
+Items 1–4 make the product stop being thin. Item 7 closes the loop without an upload.
+Items 5 and 8 make it arrive on its own — which is the whole weekly promise.
 
 ## What the code already does once those land
 
 - Every watch term gets a measured week (1) and a short-form read (2) in its own metro.
-- Every pick carries what TRND remembers about it — weeks ranked, passes, the last ad's
-  results — into its read, its Ask box, and the Monday note (`lib/recommend/history.ts`).
-- The owner's standing questions are re-answered every Monday with what moved since the
-  last answer, in the app and in the mail (`lib/intel/standing.ts`).
-- The week's ad is written before anyone opens the app (`lib/campaigns/auto.ts`).
+- Every brief is graded against the brand's last ads of the same shape, and every finished
+  test logs its lift over the account for the Track record (`lib/record/calibration.ts`).
+- The Monday email carries the week's tests and the tests still waiting on results
+  (`lib/email/weekly-briefs.ts`).
 
 ## Running three paid pilots (2026-09-15)
 

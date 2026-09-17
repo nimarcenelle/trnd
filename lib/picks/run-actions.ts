@@ -7,7 +7,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import type { Repo } from "@/lib/db/repo";
 import type { PickRun, PickRunStatus } from "@/lib/db/types";
-import { parseRunResults, parseVerdict, runAdHistoryRow, runCampaignName } from "@/lib/picks/list";
+import { parseRunResults, parseVerdict, runAdHistoryRow, runCampaignName, withSyncedNumbers } from "@/lib/picks/list";
 import { runLift } from "@/lib/record/calibration";
 
 /**
@@ -78,7 +78,9 @@ export async function completePickRunAction(_prev: CompleteRunState, formData: F
   const owned = await ownedRunningRun(formData);
   if (!owned) return {};
   const { repo, run, pickId } = owned;
-  const { results } = parsed;
+  // A blank on the form never erases a number the account sync already put
+  // on the run; the owner's figure wins wherever they gave one.
+  const results = withSyncedNumbers(parsed.results, run);
   const endedAt = new Date();
 
   // The baseline is read before this run's own row lands in the history.

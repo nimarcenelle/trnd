@@ -4,8 +4,9 @@ import path from "node:path";
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { BrandPick, Campaign, NewBusiness, NewPickBundle, PickRun } from "../lib/db/types";
-import { matchRun, resultsFromInsights, syncPickRunFromCampaign } from "../lib/ads/run-sync";
+import type { AdHistory, NewBusiness, NewPickBundle } from "../lib/db/types";
+import { historyRowsForRun, resultsFromRows, syncRunsFromHistory } from "../lib/ads/run-sync";
+import { runTrackingName, withSyncedNumbers } from "../lib/picks/list";
 
 process.env.TRND_DEMO_DIR = mkdtempSync(path.join(tmpdir(), "trnd-run-sync-"));
 
@@ -13,11 +14,11 @@ const { createDemoRepo } = await import("../lib/db/demo/repo");
 const { resetStore } = await import("../lib/db/demo/store");
 
 /**
- * The connected account's numbers land on the creative test they belong
- * to: the run goes live when the platform delivers, closes when the
- * platform says the campaign ended, and on closing becomes the brand's own
- * ad-history row with its lift over the account logged. Never a verdict,
- * never a stopped run, never a reopened one.
+ * The brand's own ad history, written onto the creative tests it belongs to
+ * by name: the brief says what to call the ad, and every history row that
+ * carries the name, synced from the account or uploaded as an export, is
+ * summed onto the run. Live on first delivery, never closed by the sync,
+ * never a verdict.
  */
 
 const bizInput = (ownerId: string): NewBusiness => ({
@@ -39,9 +40,9 @@ const bizInput = (ownerId: string): NewBusiness => ({
   ad_platforms: ["meta"],
 });
 
-const bundle = (opportunityId: string | null = null): NewPickBundle => ({
+const bundle = (): NewPickBundle => ({
   pick: {
-    opportunity_id: opportunityId,
+    opportunity_id: null,
     rank: 1,
     geo: "US",
     term: "hard water",
@@ -51,11 +52,12 @@ const bundle = (opportunityId: string | null = null): NewPickBundle => ({
     metric_delta_pct: 20,
     metric_window: "week",
     sparkline: [],
-    bet_what: "Problem-first video on Reels",
+    bet_what: "The crust on the showerhead: 20-second talking head",
     bet_budget_usd: 2500,
     bet_duration_days: 5,
-    bet_kill_rule: "Kill if cost per purchase runs 30% over your account average by day 3",
+    bet_kill_rule: "Cost per purchase against your account's",
     guardrail: null,
+    concept_title: "The crust on the showerhead",
     status: "ready",
   },
   evidence: [],
@@ -74,127 +76,113 @@ const bundle = (opportunityId: string | null = null): NewPickBundle => ({
   })),
 });
 
-const campaignOf = (businessId: string, over: Partial<Campaign> = {}): Campaign => ({
-  id: "camp-1",
-  opportunity_id: "opp-1",
-  business_id: businessId,
-  angle: "Problem first",
-  hook: "Your shower is why your hair feels like straw",
-  offer: "Shop the filter",
-  audience: { who: "women 25 to 40", age_range: "25-40", radius_miles: 0, interests: [], why: "" },
-  channel: "meta",
-  status: "live",
-  external_id: "120000000001",
-  external_status: "ACTIVE",
-  model_used: "test",
-  prompt_version: "1",
-  created_at: "2026-09-14T09:00:00Z",
-  ...over,
-});
+let n = 0;
+const row = (over: Partial<AdHistory>): AdHistory =>
+  ({
+    id: `h${++n}`,
+    business_id: "b",
+    platform: "meta",
+    campaign_name: "Prospecting",
+    ad_name: null,
+    copy: null,
+    impressions: null,
+    clicks: null,
+    spend_cents: null,
+    results: null,
+    ctr: null,
+    started_on: null,
+    ended_on: null,
+    source: "meta_api",
+    created_at: "",
+    ...over,
+  }) as AdHistory;
 
-const insights = (over: Partial<ReturnType<typeof resultsFromInsights>> & { spend_cents?: number | null; revenue_cents?: number | null; bookings?: number | null } = {}) => ({
-  impressions: over.impressions ?? 9000,
-  clicks: over.clicks ?? 180,
-  spend_cents: over.spend_cents ?? 40012,
-  bookings: over.bookings ?? 6,
-  revenue_cents: over.revenue_cents ?? 96000,
-});
-
-describe("resultsFromInsights", () => {
-  it("turns Graph cents into the run's dollars and keeps nulls null", () => {
-    expect(resultsFromInsights(insights())).toEqual({ spend_usd: 400.12, impressions: 9000, clicks: 180, conversions: 6, revenue_usd: 960 });
-    expect(resultsFromInsights({ impressions: null, clicks: null, spend_cents: null, bookings: null, revenue_cents: null })).toEqual({
-      spend_usd: null,
-      impressions: null,
-      clicks: null,
-      conversions: null,
-      revenue_usd: null,
-    });
+describe("the tracking name", () => {
+  it("is the concept's title, the research term on an older pick, and never runs long", () => {
+    expect(runTrackingName({ term: "hard water", concept_title: "The crust on the showerhead" })).toBe("TRND: The crust on the showerhead");
+    expect(runTrackingName({ term: "hard water", concept_title: null })).toBe("TRND: hard water");
+    expect(runTrackingName({ term: "x".repeat(200) }).length).toBe(86);
   });
-});
 
-describe("matchRun", () => {
-  const pick = (id: string, opportunity_id: string | null): BrandPick => ({ id, opportunity_id, term: "x" }) as unknown as BrandPick;
-  const run = (id: string, over: Partial<PickRun>): PickRun =>
-    ({ id, status: "running", meta_campaign_id: null, started_at: "2026-09-14T00:00:00Z", ...over }) as PickRun;
-
-  it("prefers the platform id, then the opportunity, and never a stopped run", () => {
-    const runs = [
-      { run: run("killed", { status: "killed", meta_campaign_id: "1" }), pick: pick("p1", "opp-1") },
-      { run: run("byOpp", {}), pick: pick("p2", "opp-1") },
-      { run: run("byId", { meta_campaign_id: "1" }), pick: pick("p3", "opp-9") },
+  it("finds the rows that carry it in the ad or the campaign name, whatever the case and spacing", () => {
+    const pick = { term: "hard water", concept_title: "The crust on the showerhead" };
+    const rows = [
+      row({ ad_name: "trnd:  the crust on the showerhead / v1", impressions: 100 }),
+      row({ campaign_name: "Q3 tests · TRND: The crust on the showerhead", impressions: 200 }),
+      row({ campaign_name: "TRND pick: hard water", impressions: 300, source: "manual" }),
+      row({ ad_name: "Founder story", impressions: 400 }),
+      row({ ad_name: "TRND: The towel that slips", impressions: 500 }),
     ];
-    expect(matchRun(runs, { external_id: "1", opportunity_id: "opp-1" })?.run.id).toBe("byId");
-    expect(matchRun(runs, { external_id: "2", opportunity_id: "opp-1" })?.run.id).toBe("byOpp");
-    expect(matchRun(runs, { external_id: "2", opportunity_id: "opp-none" })).toBeNull();
+    expect(historyRowsForRun(rows, pick).map((r) => r.impressions)).toEqual([100, 200, 300]);
   });
 
-  it("still matches an ended run by platform id, so late purchases land, but not by opportunity", () => {
-    const runs = [{ run: run("done", { status: "completed", meta_campaign_id: "1" }), pick: pick("p1", "opp-1") }];
-    expect(matchRun(runs, { external_id: "1", opportunity_id: "opp-1" })?.run.id).toBe("done");
-    expect(matchRun(runs, { external_id: null, opportunity_id: "opp-1" })).toBeNull();
+  it("sums the matched rows into the run's numbers and leaves revenue to the owner", () => {
+    expect(
+      resultsFromRows([
+        row({ impressions: 9000, clicks: 180, spend_cents: 40012, results: 6 }),
+        row({ impressions: 1000, clicks: 20, spend_cents: null, results: 2 }),
+      ]),
+    ).toEqual({ spend_usd: 400.12, impressions: 10000, clicks: 200, conversions: 8, revenue_usd: null });
+    expect(resultsFromRows([])).toEqual({ spend_usd: null, impressions: null, clicks: null, conversions: null, revenue_usd: null });
   });
 });
 
-describe("syncing a campaign's numbers onto its run", () => {
+describe("withSyncedNumbers", () => {
+  it("keeps a synced figure where the form was blank and takes the owner's where it was not", () => {
+    const form = { spend_usd: null, impressions: null, clicks: 200, conversions: null, revenue_usd: 1200 };
+    const run = { spend_usd: "400.12" as unknown as number, impressions: 9000, clicks: 180, conversions: 6, revenue_usd: null };
+    expect(withSyncedNumbers(form, run)).toEqual({ spend_usd: 400.12, impressions: 9000, clicks: 200, conversions: 6, revenue_usd: 1200 });
+  });
+});
+
+describe("syncing runs from the brand's ad history", () => {
   beforeEach(() => resetStore());
 
-  async function setup(opportunityId: string | null, runInput: { status: "planned" | "running"; meta_campaign_id?: string | null }) {
+  async function setup(status: "planned" | "running") {
     const repo = createDemoRepo({ kind: "user", userId: "owner" });
     const biz = await repo.createBusiness(bizInput("owner"));
-    const [pickId] = await repo.replaceWeekPicks(biz.id, "2026-09-14", [bundle(opportunityId)]);
-    const run = await repo.createPickRun({ pick_id: pickId, business_id: biz.id, status: runInput.status, meta_campaign_id: runInput.meta_campaign_id ?? null });
+    const [pickId] = await repo.replaceWeekPicks(biz.id, "2026-09-14", [bundle()]);
+    const run = await repo.createPickRun({ pick_id: pickId, business_id: biz.id, status });
     return { repo, biz, pickId, run };
   }
 
-  it("marks a chosen test launched when the platform delivers, and fills its numbers without closing it", async () => {
-    const { repo, biz, run } = await setup("opp-1", { status: "planned" });
-    const now = new Date("2026-09-16T08:00:00Z");
-    const out = await syncPickRunFromCampaign(repo, campaignOf(biz.id), { row: insights(), status: "ACTIVE" }, now);
-    expect(out).toEqual({ runId: run.id, status: "running", closed: false });
-    const [{ run: saved }] = await repo.listPickRuns(biz.id);
-    expect(saved).toMatchObject({ status: "running", launched_at: now.toISOString(), impressions: 9000, clicks: 180, spend_usd: 400.12, conversions: 6, revenue_usd: 960, meta_campaign_id: "120000000001" });
-    expect(saved.ended_at).toBeNull();
-    expect(saved.lift ?? null).toBeNull();
-    // The history row waits for the end: the table is write-once per ad.
-    expect(await repo.listAdHistory(biz.id)).toEqual([]);
-  });
-
-  it("closes the run when the platform says the campaign ended, logs its lift against the account, and lands it in ad history as the sync's own row", async () => {
-    const { repo, biz, pickId, run } = await setup(null, { status: "running", meta_campaign_id: "120000000001" });
-    // The account's record before this test: an export with a 1% click-through.
+  it("marks a chosen test launched on the day its ad started and fills its numbers, without closing it", async () => {
+    const { repo, biz, run } = await setup("planned");
     await repo.upsertAdHistory([
-      { business_id: biz.id, platform: "meta", campaign_name: "Prospecting", ad_name: "Old UGC", copy: null, impressions: 100000, clicks: 1000, spend_cents: null, results: null, ctr: null, started_on: "2026-06-01", ended_on: null, source: "meta_export" },
+      { ...row({ ad_name: "TRND: The crust on the showerhead", impressions: 9000, clicks: 180, spend_cents: 40012, results: 6, started_on: "2026-09-16" }), business_id: biz.id },
+      { ...row({ ad_name: "Founder story", impressions: 50000, clicks: 500, started_on: "2026-06-01" }), business_id: biz.id },
     ]);
-    const now = new Date("2026-09-20T08:00:00Z");
-    const out = await syncPickRunFromCampaign(repo, campaignOf(biz.id, { opportunity_id: "opp-other" }), { row: insights(), status: "COMPLETED" }, now);
-    expect(out).toEqual({ runId: run.id, status: "completed", closed: true });
-
+    const out = await syncRunsFromHistory(repo, biz.id, new Date("2026-09-18T08:00:00Z"));
+    expect(out).toEqual([{ runId: run.id, status: "running", matched: 1 }]);
     const [{ run: saved }] = await repo.listPickRuns(biz.id);
-    expect(saved).toMatchObject({ status: "completed", ended_at: now.toISOString(), impressions: 9000, clicks: 180, baseline_ctr: 0.01, lift: 2 });
-    expect(saved.verdict ?? null).toBeNull();
-
-    const history = await repo.listAdHistory(biz.id);
-    const own = history.find((r) => r.campaign_name === "TRND pick: hard water");
-    expect(own).toMatchObject({ source: "meta_api", ad_name: "A", impressions: 9000, clicks: 180, spend_cents: 40012, results: 6, ended_on: "2026-09-20" });
-    expect(own?.started_on).toBe(run.started_at.slice(0, 10));
-    expect((await repo.getPickDetail(pickId))?.run?.status).toBe("completed");
+    expect(saved).toMatchObject({ status: "running", launched_at: "2026-09-16T12:00:00.000Z", impressions: 9000, clicks: 180, spend_usd: 400.12, conversions: 6, revenue_usd: null });
+    expect(saved.ended_at).toBeNull();
   });
 
-  it("leaves a paused campaign's run open, and a stopped run alone", async () => {
-    const { repo, biz } = await setup("opp-1", { status: "running" });
-    const paused = await syncPickRunFromCampaign(repo, campaignOf(biz.id), { row: insights(), status: "PAUSED" });
-    expect(paused?.status).toBe("running");
-    const [{ run }] = await repo.listPickRuns(biz.id);
+  it("refreshes a launched test's numbers on every pass, keeps the owner's revenue, and leaves the rest alone", async () => {
+    const { repo, biz, run } = await setup("running");
+    await repo.updatePickRun(run.id, { revenue_usd: 960 });
+    await repo.upsertAdHistory([{ ...row({ ad_name: "TRND: The crust on the showerhead", impressions: 2000, clicks: 40, started_on: "2026-09-16" }), business_id: biz.id }]);
+    expect(await syncRunsFromHistory(repo, biz.id)).toHaveLength(1);
+    let [{ run: saved }] = await repo.listPickRuns(biz.id);
+    expect(saved).toMatchObject({ status: "running", impressions: 2000, clicks: 40, revenue_usd: 960 });
+
+    // Tomorrow's sync replaces the account's rows with bigger numbers.
+    await repo.deleteAdHistory(biz.id, { source: "meta_api" });
+    await repo.upsertAdHistory([{ ...row({ ad_name: "TRND: The crust on the showerhead", impressions: 9000, clicks: 180, started_on: "2026-09-16" }), business_id: biz.id }]);
+    await syncRunsFromHistory(repo, biz.id);
+    [{ run: saved }] = await repo.listPickRuns(biz.id);
+    expect(saved).toMatchObject({ impressions: 9000, clicks: 180, revenue_usd: 960 });
+
     await repo.updatePickRun(run.id, { status: "killed", ended_at: new Date().toISOString() });
-    expect(await syncPickRunFromCampaign(repo, campaignOf(biz.id), { row: insights(), status: "COMPLETED" })).toBeNull();
-    const [{ run: after }] = await repo.listPickRuns(biz.id);
-    expect(after.status).toBe("killed");
+    expect(await syncRunsFromHistory(repo, biz.id)).toEqual([]);
   });
 
-  it("does nothing for a campaign no test was chosen for", async () => {
-    const { repo, biz } = await setup("opp-1", { status: "planned" });
-    expect(await syncPickRunFromCampaign(repo, campaignOf(biz.id, { opportunity_id: "opp-9", external_id: "x" }), { row: insights(), status: "ACTIVE" })).toBeNull();
+  it("does nothing for a test nothing was named for, or a brand with no history", async () => {
+    const { repo, biz } = await setup("planned");
+    expect(await syncRunsFromHistory(repo, biz.id)).toEqual([]);
+    await repo.upsertAdHistory([{ ...row({ ad_name: "Founder story", impressions: 500 }), business_id: biz.id }]);
+    expect(await syncRunsFromHistory(repo, biz.id)).toEqual([]);
     const [{ run }] = await repo.listPickRuns(biz.id);
     expect(run.status).toBe("planned");
   });

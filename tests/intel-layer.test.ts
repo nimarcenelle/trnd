@@ -9,10 +9,10 @@ process.env.META_APP_SECRET = "test-secret";
 process.env.META_APP_ID = "test-app";
 
 import { evaluateAlerts } from "../lib/alerts/engine";
-import { parseInsights, signOauthState, verifyOauthState, buildAdSetPayload } from "../lib/ads/meta";
+import { signOauthState, verifyOauthState } from "../lib/ads/meta";
 import { createDemoRepo } from "../lib/db/demo/repo";
 import { resetStore } from "../lib/db/demo/store";
-import type { Business, Campaign, NewBusiness } from "../lib/db/types";
+import type { Business, NewBusiness } from "../lib/db/types";
 import { buildFallbackReviewDigest } from "../lib/reviews/digest";
 import { deltaFromMonthly, mapDfsRow } from "../lib/signals/adapters/dataforseo";
 
@@ -42,42 +42,6 @@ describe("meta ads pure helpers", () => {
     expect(verifyOauthState(state)).toBe("biz-123");
     expect(verifyOauthState(`biz-456.${state.split(".")[1]}`)).toBeNull();
     expect(verifyOauthState(null)).toBeNull();
-  });
-
-  it("parses insights rows including conversions and revenue", () => {
-    const row = parseInsights({
-      impressions: "12000",
-      clicks: "240",
-      spend: "85.50",
-      actions: [
-        { action_type: "purchase", value: "6" },
-        { action_type: "lead", value: "3" },
-        { action_type: "post_engagement", value: "99" },
-      ],
-      action_values: [{ action_type: "purchase", value: "420.00" }],
-    });
-    expect(row).toEqual({
-      impressions: 12000,
-      clicks: 240,
-      spend_cents: 8550,
-      bookings: 9,
-      revenue_cents: 42000,
-    });
-  });
-
-  it("targets a radius around the business when coordinates exist", () => {
-    const business = { lat: 35.9, lng: -79.0, radius_miles: 20 } as unknown as Business;
-    const campaign = {
-      hook: "Recover in private",
-      audience: { who: "Athletes", radius_miles: 15 },
-    } as unknown as Campaign;
-    const payload = buildAdSetPayload(business, campaign, "123", 2500);
-    const targeting = JSON.parse(payload.targeting) as {
-      geo_locations: { custom_locations: { radius: number }[] };
-    };
-    expect(targeting.geo_locations.custom_locations[0].radius).toBe(15);
-    expect(payload.status).toBe("PAUSED");
-    expect(payload.daily_budget).toBe("2500");
   });
 });
 
@@ -195,12 +159,13 @@ describe("alerts engine", () => {
     return { user, biz };
   }
 
-  it("raises spike and competitor alerts, and never duplicates on re-run", async () => {
+  it("raises spike and competitor alerts that land on live screens, and never duplicates on re-run", async () => {
     const { user, biz } = await seed();
     const first = await evaluateAlerts(user, biz);
     const kinds = first.map((a) => a.kind);
     expect(kinds).toContain("demand_spike");
     expect(kinds).toContain("competitor_ads");
+    expect(first.map((a) => a.href).every((h) => h === "/app/picks" || h === "/app/settings")).toBe(true);
 
     const second = await evaluateAlerts(user, biz);
     expect(second).toHaveLength(0);

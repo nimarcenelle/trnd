@@ -115,8 +115,6 @@ export function sourceUrl(ref: SourceRef): string | null {
   const term = ref.term.trim();
   if (!term) return null;
   const q = encodeURIComponent(term);
-  // Trends accepts "US" or "US-NC"; anything else falls back to US-wide.
-  const geo = ref.geo && /^[A-Z]{2}(-[A-Z0-9]{1,3})?$/.test(ref.geo) ? ref.geo : "US";
   switch (ref.source) {
     // Search reads do not link. Search volume is Google Ads keyword data
     // with no page anyone can open; the Trends page a claim used to link to

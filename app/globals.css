@@ -1926,6 +1926,7 @@ textarea.input {
 .cb__missing dt { color: var(--amber-text); }
 .cb__link { display: inline-block; margin-top: 8px; font-size: 13.5px; color: var(--amber-text); font-weight: 600; text-decoration: none; }
 .cb__link:hover { text-decoration: underline; }
+.cb__code { font-family: var(--mono); font-size: 12.5px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg-2); white-space: nowrap; }
 .cb__outcomes { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); margin-top: 14px; }
 @media (min-width: 800px) { .cb__outcomes { grid-template-columns: repeat(3, 1fr); } }
 .cb__h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink-soft); }

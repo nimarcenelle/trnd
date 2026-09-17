@@ -1,5 +1,5 @@
 import type { Repo } from "@/lib/db/repo";
-import type { Business, NewOpportunity, NewSignal, NewSignalReading, Opportunity, Signal } from "@/lib/db/types";
+import type { Business, NewOpportunity, NewSignal, NewSignalReading, Signal } from "@/lib/db/types";
 import { indexSeries } from "@/lib/demand/series";
 import { isGeminiConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity, tokens, type ScoredOpportunity } from "@/lib/scoring";
@@ -11,13 +11,10 @@ import { normalizeTerm } from "@/lib/signals/normalize";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { verticalKey } from "@/lib/signals/vertical";
 
-import { ensureWeekCampaign } from "@/lib/campaigns/auto";
-
 import { targetCustomerOf } from "@/lib/ai/brief";
 import { withAiContext } from "@/lib/ai/usage";
 
 import { extrasFor, loadSignalContext } from "./four-signals";
-import { writeTopPickReads } from "./read";
 import { buildBusinessFitContext, judgeTermRelevance } from "./relevance";
 
 import { isExpiredMoment } from "./freshness";
@@ -472,16 +469,17 @@ export async function recommendForBusiness(
   }));
   const rows = await repo.upsertOpportunities(inputs);
 
-  // Rows that fell out of this ranking go, unless a campaign holds one.
-  // Left behind, yesterday's row keeps a seat in the week with yesterday's
-  // grade, or none at all, and a term the model now holds becomes a pick:
-  // the Hold gate only sees what is stored.
+  // Rows that fell out of this ranking go. Left behind, yesterday's row
+  // keeps a seat in the week with yesterday's grade, or none at all, and a
+  // term the model now holds becomes a pick: the Hold gate only sees what
+  // is stored. (A pick already chosen or run keeps its row through the
+  // picks table, which replace_week_picks never deletes.)
   try {
-    const campaigns = await repo.listCampaigns(business.id);
-    await repo.deleteOpportunitiesForWeek(business.id, week, [
-      ...rows.map((r) => r.id),
-      ...campaigns.map((c) => c.opportunity_id),
-    ]);
+    await repo.deleteOpportunitiesForWeek(
+      business.id,
+      week,
+      rows.map((r) => r.id),
+    );
   } catch (err) {
     console.warn("[recommend] stale opportunities not cleared (non-fatal):", (err as Error).message);
   }
@@ -494,44 +492,17 @@ export async function recommendForBusiness(
   };
 }
 
-/** The week's picks for a business, best first, from the ids a ranking returned. */
-export async function rankedPicks(repo: Repo, business: Business, ids: string[]): Promise<Opportunity[]> {
-  if (ids.length === 0) return [];
-  const want = new Set(ids);
-  return (await repo.listOpportunities(business.id, weekOf())).filter((o) => want.has(o.id) && o.status !== "dismissed");
-}
-
 export async function runRecommend(repo: Repo): Promise<RecommendBusinessResult[]> {
   const businesses = await repo.listAllBusinesses();
   const results: RecommendBusinessResult[] = [];
   for (const b of businesses) {
     try {
-      const result = await withAiContext({ businessId: b.id, purpose: "cron:rank" }, () => recommendForBusiness(repo, b));
-      results.push(result);
       // The week's picks are written by their own budgeted job
-      // (app/api/cron/picks, twenty minutes after this one): a brand's five
+      // (app/api/cron/picks, twenty minutes after this one): a brand's
       // picks take one to two and a half minutes, and inside this loop they
       // would spend this run's 300 seconds on the first two brands.
-      // The read on the top picks is written from the facts just ranked, so
-      // Monday's first look already has it. Never blocks the ranking: the
-      // dashboard self-heals a missing read after its own response.
-      const picks = await rankedPicks(repo, b, result.opportunityIds);
-      // EVERY pick, not the first three. The pager offers five and the
-      // owner clicks through them in seconds; picks four and five had no
-      // read written for them at all and picks two through five had no ad,
-      // so paging landed on "TRND is writing…" skeletons on a screen whose
-      // whole job is to be swept. What the weekly job does not write here,
-      // the owner waits for there.
-      await writeTopPickReads(repo, b, picks, picks.length);
-      // The #1 pick first and awaited, so Monday's email and first look
-      // never wait behind the rest; the others fill in after it.
-      for (const pick of picks) {
-        try {
-          await ensureWeekCampaign(repo, b, pick);
-        } catch (err) {
-          console.warn(`[recommend] campaign for ${pick.id} failed (non-fatal):`, (err as Error).message);
-        }
-      }
+      const result = await withAiContext({ businessId: b.id, purpose: "cron:rank" }, () => recommendForBusiness(repo, b));
+      results.push(result);
     } catch (err) {
       console.warn(`[recommend] business ${b.id} failed:`, (err as Error).message);
       results.push({ businessId: b.id, created: 0, topScore: null, opportunityIds: [] });

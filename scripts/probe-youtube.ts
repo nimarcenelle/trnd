@@ -14,6 +14,8 @@ async function main() {
     windowDays: 7,
   });
   for (const s of signals) {
+    // The payload is whatever the adapter kept; a diagnostic prints it as is.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r = s.raw as Record<string, any>;
     console.log(`term        ${s.term}${r.adjusted ? `  (measured as "${r.measuredTerm}")` : ""}`);
     console.log(`sampled     ${r.sampled} videos, deep=${r.deep}`);

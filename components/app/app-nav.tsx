@@ -7,9 +7,9 @@ import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
 import { sentenceCase } from "@/lib/text";
 
-// Three tabs for a one-decision product. Report, Opportunities, Snapshot and
-// Ask still exist as routes — This week links into each where it earns it —
-// and Results now live on each campaign.
+// Five tabs for a one-decision product: the week's tests, the tests in
+// progress, the record they built, the analysis they are written against,
+// and the settings that feed them. Nothing else is a route.
 const LINKS = [
   // The week is the ranked list now; each pick's own page sits under it, so
   // the tab stays lit while an owner reads one.

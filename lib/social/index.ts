@@ -1,5 +1,5 @@
 import type { SocialPlatform } from "@/lib/db/types";
-import { env } from "@/lib/env";
+import { env, isInstagramConfigured } from "@/lib/env";
 
 import { fetchFacebookPosts } from "./facebook";
 import { fetchInstagramPosts } from "./instagram";
@@ -9,10 +9,11 @@ import { fetchTiktokPosts } from "./tiktok";
 export type { AccountPost, AccountRead, SocialDraft, SocialMove } from "./read";
 export { classifyPost, engagementOf, postsOnTerm, readAccount, rivalMoves } from "./read";
 
-/** The whole social read is paid; without the key there is nothing to
- * show and nothing to apologise for — the surfaces stay hidden. */
+/** Instagram reads free through Business Discovery when our own account is
+ * configured; every other read is paid. Without either key there is
+ * nothing to show and nothing to apologise for — the surfaces stay hidden. */
 export function isSocialReadAvailable(): boolean {
-  return Boolean(env.apifyToken);
+  return Boolean(env.apifyToken) || isInstagramConfigured;
 }
 
 /** One platform's recent posts for one handle; [] when the platform is

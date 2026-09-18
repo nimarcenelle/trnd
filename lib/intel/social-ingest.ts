@@ -2,7 +2,6 @@ import type { Repo } from "@/lib/db/repo";
 import type { Business, Competitor, SocialPlatform } from "@/lib/db/types";
 import { competitiveSet } from "@/lib/recommend/four-signals";
 import { fetchAdvertiserAds, isAdLibraryApifyAvailable, isRivalAd, readAdvertiser } from "@/lib/signals/adlibrary-apify";
-import { fetchGoogleAds, readGoogleAds } from "@/lib/signals/google-ads-transparency";
 import { fetchAccountPosts, isSocialReadAvailable } from "@/lib/social";
 import { classifyPost, readAccount, rivalMoves } from "@/lib/social/read";
 import { mapLimit } from "@/lib/util/concurrency";
@@ -19,7 +18,10 @@ import { mapLimit } from "@/lib/util/concurrency";
  * week of scraping.
  */
 
-const PLATFORMS: SocialPlatform[] = ["instagram", "tiktok", "facebook"];
+/** Instagram and TikTok only. Facebook Pages repeat the Instagram grid for
+ * a DTC brand, and the Page actor was the least stable and most-failed
+ * read on the bill (6 of 87 runs landed in the week of 2026-09-17). */
+const PLATFORMS: SocialPlatform[] = ["instagram", "tiktok"];
 const REFRESH_HOURS = 48;
 
 export interface SocialIngestSummary {
@@ -129,9 +131,12 @@ function cadence(perWeek: number, prev: number): string {
   return `${base}, ${n > p ? "up" : "down"} from ${p}`;
 }
 
-/** Account reads in flight at once: each is one paid scrape of twenty to
- * forty seconds, and a brand with five rivals has up to eighteen of them. */
-const READ_CONCURRENCY = 4;
+/** Account reads in flight at once. Apify's Starter plan allows 4 GB of
+ * actor memory at once across the whole account; at four reads per brand,
+ * two brands and the daily cron together tripped that limit and every run
+ * past it was refused with a 402 and paid for again on the next hop. Two
+ * per brand keeps two brands inside it. */
+const READ_CONCURRENCY = 2;
 
 export async function ingestSocialAccounts(
   repo: Repo,
@@ -208,20 +213,14 @@ export async function ingestSocialAccounts(
   return summary;
 }
 
-const domainOf = (url: string | null): string | null => {
-  if (!url) return null;
-  try {
-    return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(/^www\./, "");
-  } catch {
-    return null;
-  }
-};
-
 /**
- * What each direct rival is paying to show. Meta through the Ad Library
- * (Apify), Google through the Ads Transparency Center. Neither reports spend
- * for a US commercial advertiser, so "working" is read the only honest way
- * available: an ad still running after three weeks is one they kept paying for.
+ * What each direct rival is paying to show on Meta, through the Ad Library
+ * (Apify). It reports no spend for a US commercial advertiser, so "working"
+ * is read the only honest way available: an ad still running after three
+ * weeks is one they kept paying for. The Google Ads Transparency read
+ * (lib/signals/google-ads-transparency.ts) is off: for image and video ads
+ * it returns no text, its actor failed as often as it landed, and the
+ * briefs are for Meta first.
  */
 export async function ingestRivalAds(
   repo: Repo,
@@ -242,7 +241,7 @@ export async function ingestRivalAds(
   };
 }
 
-/** One rival's Meta and Google ads. Never throws: a failed read is logged and skipped. */
+/** One rival's Meta ads. Never throws: a failed read is logged and skipped. */
 async function readRivalAds(repo: Repo, business: Business, c: Competitor): Promise<number> {
   let written = 0;
   {
@@ -284,33 +283,6 @@ async function readRivalAds(repo: Repo, business: Business, c: Competitor): Prom
       } catch (err) {
         console.warn(`[intel:ads] Meta read for ${c.name} failed:`, (err as Error).message);
       }
-    }
-    const domain = domainOf(c.website);
-    if (!domain) return written;
-    try {
-      const google = await fetchGoogleAds(domain);
-      if (google.length === 0) return written;
-      const read = readGoogleAds(google);
-      const formats = Object.entries(read.formats)
-        .filter(([f, n]) => n > 0 && f !== "unknown")
-        .map(([f, n]) => `${n} ${f}`)
-        .join(", ");
-      written += await repo.upsertCompetitorReads([
-        {
-          competitor_id: c.id,
-          business_id: business.id,
-          kind: "google_ads",
-          value: read.active,
-          rating: null,
-          summary:
-            read.active === 0
-              ? "no Google ads shown in the last two weeks"
-              : `${read.active} Google ad${read.active === 1 ? "" : "s"} live${formats ? ` (${formats})` : ""}`,
-          raw: { sample: read.sample, formats: read.formats },
-        },
-      ]);
-    } catch (err) {
-      console.warn(`[intel:ads] Google read for ${c.name} failed:`, (err as Error).message);
     }
   }
   return written;

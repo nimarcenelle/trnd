@@ -11,7 +11,6 @@ import { createGoogleTrendsRssAdapter } from "./adapters/google-trends-rss";
 import { createRedditAdapter } from "./adapters/reddit";
 import { createSuggestAdapter } from "./adapters/suggest";
 import { createInstagramAdapter } from "./adapters/instagram";
-import { createTiktokApifyAdapter } from "./adapters/tiktok-apify";
 import { createTiktokCcAdapter } from "./adapters/tiktok-cc";
 import { createTrendsIotAdapter } from "./adapters/trends-iot";
 import { createTrendsRelatedAdapter } from "./adapters/trends-related";
@@ -197,7 +196,6 @@ export async function runSignalIngestForBusiness(
     createSuggestAdapter(),
     createRedditAdapter(),
     createYoutubeAdapter({ unitBudget: SIGNUP_YOUTUBE_UNITS }),
-    createTiktokApifyAdapter(),
     createTiktokCcAdapter(),
     createInstagramAdapter(),
     createXAdapter(),
@@ -282,10 +280,11 @@ export function defaultAdapters(): SignalAdapter[] {
     createDataForSeoAdapter(),
     createDataForSeoRelatedAdapter(),
     // Short-form next: the basis of the ranking, and the reads an owner
-    // acts on. YouTube per business term, then per-term TikTok when it is
-    // paid for, then the free national board.
+    // acts on. YouTube per business term, then the free national TikTok
+    // board. The per-term TikTok read (adapters/tiktok-apify.ts) is off:
+    // at about $0.15 a term it was the single largest line on a signup's
+    // Apify bill, and TikTok is read by profile (own and rivals) instead.
     createYoutubeAdapter({ unitBudget: CRON_YOUTUBE_UNITS }),
-    createTiktokApifyAdapter(),
     createTiktokCcAdapter(),
     // Reels is where local operators actually post, X is the written half
     // of the conversation. Both key-gated; both skip cleanly when unset.

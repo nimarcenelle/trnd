@@ -33,11 +33,11 @@ export function liveSources(f: SourceFlags): LiveSources {
   on.push("Google Trends", "Autocomplete", "News", "Weather");
   add(f.youtube, "YouTube Shorts", "a YouTube Data API key (free)");
   on.push("TikTok trending board");
-  add(f.apify, "TikTok per term", "an Apify token");
+  add(f.apify, "TikTok profiles", "an Apify token");
   add(f.reddit, "Reddit", "a Reddit script app (free)");
-  add(f.instagram, "Instagram Reels", "Meta App Review");
+  add(f.instagram, "Instagram posts", "our own Instagram professional account");
   add(f.x, "X", "a paid X tier");
-  add(f.apify, "Rival Meta and Google ads", "an Apify token");
+  add(f.apify, "Rival Meta ads", "an Apify token");
   return { on, off };
 }
 

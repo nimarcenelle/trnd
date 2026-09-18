@@ -25,8 +25,7 @@ export interface IntelIngestSummary {
   /** Own + rival posts written, and rival ad reads (Meta via Apify, Google). */
   socialPosts?: number;
   rivalAdReads?: number;
-  /** Comments written under own and rival posts, and services whose stock changed. */
-  comments?: number;
+  /** Services whose stock changed. */
   stockUpdated?: number;
   /** True when the budget ran out with accounts or rivals still unread. */
   exhausted?: boolean;
@@ -224,15 +223,13 @@ export async function runIntelIngestForBusiness(
     summary.socialPosts = social.ownPosts + social.rivalPosts;
     summary.competitorReads += social.rivalReads;
     summary.exhausted = summary.exhausted || social.exhausted;
-    // Then what customers say: under the posts just read, and about the
-    // rivals in reviews. And whether what a pick would sell is on the shelf.
-    const { ingestComments, ingestTrustpilot, refreshStock } = await import("@/lib/intel/deep-reads");
-    const comments = await ingestComments(repo, business, competitors, { deadline });
-    summary.comments = comments.written;
-    summary.exhausted = summary.exhausted || comments.exhausted;
-    const reviews = await ingestTrustpilot(repo, business, competitors, { deadline });
-    summary.reviewsWritten += reviews.written;
-    summary.exhausted = summary.exhausted || reviews.exhausted;
+    // Whether what a pick would sell is on the shelf: a free read of the
+    // store's own catalog. The comment and Trustpilot reads
+    // (lib/intel/deep-reads.ts) are off: they were the bulk of a signup's
+    // Apify bill (about $9 of comments on one brand on 2026-09-17), the
+    // Trustpilot actor failed 118 of 118 runs that week, and neither has a
+    // table in production yet.
+    const { refreshStock } = await import("@/lib/intel/deep-reads");
     summary.stockUpdated = await refreshStock(repo, business);
   } catch (err) {
     console.warn(`[intel] social and rival ads failed for ${business.id}:`, (err as Error).message);

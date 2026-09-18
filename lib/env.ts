@@ -60,8 +60,12 @@ export const env = {
   /** X recent search — the written half of the conversation read. No
    * keyless path exists; read access is a paid tier. */
   xBearerToken: process.env.X_BEARER_TOKEN ?? "",
-  /** Instagram Graph — Reels volume per hashtag. Needs the Meta app, an
-   * Instagram Business account linked to a Page, and App Review. */
+  /** Instagram Graph, as OUR OWN professional account. Reads any public
+   * professional account's posts free through Business Discovery
+   * (lib/social/instagram.ts) with no App Review: the reader is an account
+   * with a role on the app. The hashtag Reels adapter uses the same pair
+   * and does need App Review. A token from Instagram Login ("IG…") or
+   * Facebook Login ("EAA…") both work; the id is the professional account's. */
   instagramToken: process.env.INSTAGRAM_ACCESS_TOKEN ?? "",
   instagramUserId: process.env.INSTAGRAM_BUSINESS_ID ?? "",
   /** DataForSEO — the sturdy search-volume backbone for watch terms. */
@@ -93,7 +97,7 @@ export const isApifyConfigured = Boolean(env.apifyToken);
 /** The Shorts read; free, and the single highest-value key in the file. */
 export const isYoutubeConfigured = Boolean(env.youtubeApiKey);
 export const isXConfigured = Boolean(env.xBearerToken);
-/** Reels needs both halves: a token and the business account it reads as. */
+/** Instagram reads need both halves: a token and the professional account it reads as. */
 export const isInstagramConfigured = Boolean(env.instagramToken && env.instagramUserId);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isDataForSeoConfigured = Boolean(env.dataForSeoLogin && env.dataForSeoPassword);

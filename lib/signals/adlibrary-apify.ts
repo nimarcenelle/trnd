@@ -36,7 +36,10 @@ const RESULTS_PER_PAGE = 30;
 /** Survived ≥3 weeks on the rival's budget — the "still running" proxy. */
 export const PROVEN_DAYS = 21;
 const WEEK_DAYS = 7;
-const MAX_SAMPLE = 5;
+/** Every ad the read found, up to a ceiling that keeps a rival with a
+ * catalog of hundreds of dynamic ads from filling the row. Five used to be
+ * the cap, sized for a card; the research dossier reads the whole list. */
+const MAX_SAMPLE = 40;
 const SNIPPET_MAX = 280;
 
 /**
@@ -74,20 +77,46 @@ export interface AdvertiserAd {
   pageUrl?: string | null;
 }
 
+/** Words that say what kind of company it is, not which one: stripped from
+ * both names before they are compared. */
+const GENERIC_NAME_WORDS = new Set([
+  "the", "a", "an", "my", "and", "official", "inc", "llc", "ltd", "co", "company", "corp",
+  "hair", "haircare", "skin", "skincare", "beauty", "home", "shop", "store", "brand", "brands", "usa", "us", "uk", "nyc", "la",
+]);
+
+/** "Dae Hair" → ["dae"]; "My Filterbaby" → ["filterbaby"]; "Roz Strategies" → ["roz", "strategies"]. */
+export function nameCore(name: string): string[] {
+  return name
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((w) => w && !GENERIC_NAME_WORDS.has(w));
+}
+
 /**
- * Is this ad the rival's? By Page name (the loose match both readers used)
- * or by the Page's handle against the rival's Facebook handle from its own
- * site. A Page-name search for "Dae Hair" answers with Sephora's ads for
- * the product first; only the handle says which Page is actually theirs.
+ * Is this ad the rival's? By the Page's handle against the rival's
+ * Facebook handle from its own site, or by name. The name match is strict:
+ * the two names must be the same company once the generic words are gone
+ * ("Dae" is "Dae Hair", "My Filterbaby" is "Filterbaby", "ActandAcre" is
+ * "Act+Acre"), never a substring. A substring match filed "Roz
+ * Strategies", "Dr. Roz MD" and "German Roz" under a haircare brand called
+ * Roz, and "Crane & Canopy" under a shower-filter brand called Canopy, and
+ * their IRS-penalty guides became that brand's competitive read.
  */
 export function isRivalAd(rival: { name: string; facebook?: string | null }, ad: Pick<AdvertiserAd, "advertiser" | "pageUrl">): boolean {
-  const a = ad.advertiser.toLowerCase().trim();
-  const r = rival.name.toLowerCase().trim();
-  if (a && r && (a.includes(r) || r.includes(a))) return true;
   const handle = (rival.facebook ?? "").toLowerCase().replace(/^@/, "").replace(/\/+$/, "");
-  if (!handle || !ad.pageUrl) return false;
-  const path = ad.pageUrl.toLowerCase().replace(/^https?:\/\/(www\.)?facebook\.com\//, "").replace(/\/+$/, "").split(/[?#]/)[0];
-  return path === handle || path === `pages/${handle}`;
+  if (handle && ad.pageUrl) {
+    const path = ad.pageUrl.toLowerCase().replace(/^https?:\/\/(www\.)?facebook\.com\//, "").replace(/\/+$/, "").split(/[?#]/)[0];
+    if (path === handle || path === `pages/${handle}`) return true;
+  }
+  const a = nameCore(ad.advertiser);
+  const r = nameCore(rival.name);
+  if (a.length === 0 || r.length === 0) return false;
+  if (a.length === r.length && a.every((w, i) => w === r[i])) return true;
+  // One word each side once squashed: "actandacre" vs "act acre" → "actacre".
+  const squash = (ws: string[]) => ws.join("").replace(/and/g, "");
+  return squash(a) === squash(r);
 }
 
 export type AdTheme = "education" | "offer" | "scarcity" | "social_proof" | "speed" | "novelty";

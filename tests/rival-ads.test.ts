@@ -257,6 +257,18 @@ describe("whose ad it is", () => {
     expect(isRivalAd(rival, { advertiser: "Sephora", pageUrl: "https://www.facebook.com/sephora/" })).toBe(false);
     expect(isRivalAd(rival, { advertiser: "dae", pageUrl: "https://www.facebook.com/daehair/" })).toBe(true);
     expect(isRivalAd(rival, { advertiser: "Dae Hair Official", pageUrl: null })).toBe(true);
-    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "Rozalia Beauty", pageUrl: null })).toBe(true);
+    // A name is the same company or it is not: no substrings. These are the
+    // advertisers prod filed under haircare and shower-filter brands.
+    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "Rozalia Beauty", pageUrl: null })).toBe(false);
+    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "Roz Strategies", pageUrl: null })).toBe(false);
+    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "Dr. Roz MD", pageUrl: null })).toBe(false);
+    expect(isRivalAd({ name: "Canopy", facebook: null }, { advertiser: "Crane & Canopy", pageUrl: null })).toBe(false);
+    expect(isRivalAd({ name: "Vitaclean", facebook: null }, { advertiser: "VitaClean Nutrition", pageUrl: null })).toBe(false);
+    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "RŌZ Hair", pageUrl: null })).toBe(false);
+    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "Roz", pageUrl: null })).toBe(true);
+    expect(isRivalAd({ name: "Filterbaby", facebook: null }, { advertiser: "My Filterbaby", pageUrl: null })).toBe(true);
+    expect(isRivalAd({ name: "Act+Acre", facebook: null }, { advertiser: "ActandAcre", pageUrl: null })).toBe(true);
+    expect(isRivalAd({ name: "JVN Hair", facebook: null }, { advertiser: "JVN Hair", pageUrl: null })).toBe(true);
+    expect(isRivalAd({ name: "Hello Klean", facebook: null }, { advertiser: "Hello Klean", pageUrl: null })).toBe(true);
   });
 });

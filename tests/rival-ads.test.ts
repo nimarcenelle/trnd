@@ -170,6 +170,15 @@ describe("classifyAdCopy", () => {
   it("is deterministic when copy carries two themes", () => {
     expect(classifyAdCopy("Half off lattes, this weekend only")).toBe("scarcity");
   });
+
+  it("says when nothing in the text names a theme, so a concept is not defaulted into one", async () => {
+    const { matchedAdTheme } = await import("../lib/signals/adlibrary-apify");
+    expect(matchedAdTheme("Call today to book your first visit")).toBeNull();
+    expect(matchedAdTheme("")).toBeNull();
+    expect(matchedAdTheme("Why your furnace makes that banging noise")).toBe("education");
+    // The default still stands for ad copy: an ad with no tell is an offer.
+    expect(classifyAdCopy("Call today to book your first visit")).toBe("offer");
+  });
 });
 
 // APPROXIMATE: reconstructed from the Transparency Center's layout, not

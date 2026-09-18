@@ -66,6 +66,19 @@ describe("historyLineage", () => {
     // No speed ads on file: a same-day concept has no lineage to read.
     expect(historyLineage(rows, "Same day delivery, open now")).toBeNull();
   });
+
+  it("is null for a concept whose shape no tell names, rather than graded against the offer ads", () => {
+    // A problem-first opening: no price, no deadline, no "why". The
+    // classifier's default for ad copy is "offer"; a concept must not
+    // inherit it, or the brief compares this to "20% off this weekend".
+    const problemFirst = historyLineage(
+      rows,
+      'The moment before "facial balancing". This is what people mean by it. Test whether opening on the customer\'s own moment of frustration is more persuasive than opening on the service itself.',
+    );
+    expect(problemFirst).toBeNull();
+    // The same rows still grade a concept with a shape.
+    expect(historyLineage(rows, "20% off, this weekend only")?.theme).toBe("scarcity");
+  });
 });
 
 const write: ConceptWrite = {

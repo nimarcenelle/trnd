@@ -286,15 +286,25 @@ const EDUCATION = /(\bdid you know\b|\bhow to\b|\bwhy\b|\btips?\b|\bthe truth\b|
  * what most local ads are.
  */
 export function classifyAdCopy(text: string): AdTheme {
+  return matchedAdTheme(text) ?? (text.includes("?") ? "education" : "offer");
+}
+
+/**
+ * The theme a tell in the text names, or null when nothing in it does.
+ * Ad copy with no tell is still an ad and gets classifyAdCopy's default;
+ * a concept with no tell has no shape to be compared on, and the honest
+ * answer is no comparison rather than "a deal or a price".
+ */
+export function matchedAdTheme(text: string): AdTheme | null {
   const t = text.replace(/\s+/g, " ").trim();
-  if (!t) return "offer";
+  if (!t) return null;
   if (SCARCITY.test(t)) return "scarcity";
   if (OFFER.test(t)) return "offer";
   if (SOCIAL_PROOF.test(t)) return "social_proof";
   if (SPEED.test(t)) return "speed";
   if (EDUCATION.test(t)) return "education";
   if (NOVELTY.test(t)) return "novelty";
-  return t.includes("?") ? "education" : "offer";
+  return null;
 }
 
 function adText(ad: AdvertiserAd): string {

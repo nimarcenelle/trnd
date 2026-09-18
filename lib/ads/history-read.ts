@@ -1,6 +1,6 @@
 import type { AdHistory } from "@/lib/db/types";
 import { tokens } from "@/lib/scoring";
-import { classifyAdCopy, type AdTheme } from "@/lib/signals/adlibrary-apify";
+import { classifyAdCopy, matchedAdTheme, type AdTheme } from "@/lib/signals/adlibrary-apify";
 
 /**
  * What the owner's own past ads say, read against their own account.
@@ -238,7 +238,11 @@ export interface Lineage {
 export function historyLineage(rows: AdHistory[], conceptText: string): Lineage | null {
   const account = weightedCtr(rows).ctr;
   if (!account || !conceptText.trim()) return null;
-  const theme = classifyAdCopy(conceptText);
+  // A concept the classifier cannot place ("the moment before the search",
+  // a problem-first opening) must not be graded against the default
+  // bucket's ads. No recognized shape, no lineage: the section is left out.
+  const theme = matchedAdTheme(conceptText);
+  if (!theme) return null;
   const eligible = rows
     .filter((r) => classifyAdCopy(adText(r)) === theme && (r.impressions ?? 0) >= MIN_AD_IMPRESSIONS && rowCtr(r) !== null)
     .sort((a, b) => (b.started_on ?? "").localeCompare(a.started_on ?? ""))

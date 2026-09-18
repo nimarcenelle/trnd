@@ -197,8 +197,8 @@ const historyRow = (i: number, over: Partial<AdHistory> = {}): AdHistory => ({
 
 describe("the evaluation plan", () => {
   it("names what is missing instead of inventing a threshold", () => {
-    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: null, campaign_objective: null, category: "Skincare" }, history: [], format: "talking head" });
-    expect(plan.objective).toBeNull();
+    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: null, campaign_objectives: [], category: "Skincare" }, history: [], format: "talking head" });
+    expect(plan.objectives).toEqual([]);
     expect(plan.missing).toHaveLength(3);
     expect(plan.missing.join(" ")).toMatch(/objective/);
     expect(plan.missing.join(" ")).toMatch(/export/);
@@ -210,7 +210,7 @@ describe("the evaluation plan", () => {
 
   it("uses the account's own baseline and dates when an export is on file", () => {
     const history = [1, 2, 3].map((i) => historyRow(i));
-    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: "20-50k", campaign_objective: "purchases", category: "Skincare" }, history, format: "talking head" });
+    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: "20-50k", campaign_objectives: ["purchases"], category: "Skincare" }, history, format: "talking head" });
     expect(plan.watch[0]).toBe("Cost per purchase against your account's $40 (from your export, Aug 1, 2026 to Aug 20, 2026).");
     expect(plan.comparison).toContain('"Ad 1"');
     expect(plan.budget).toMatch(/\$1,000 to \$2,000 over one week/);
@@ -219,20 +219,42 @@ describe("the evaluation plan", () => {
   });
 
   it("does not let click-through alone call a purchase test, and says so", () => {
-    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: "20-50k", campaign_objective: "purchases", category: "Skincare" }, history: [], format: "static" });
+    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: "20-50k", campaign_objectives: ["purchases"], category: "Skincare" }, history: [], format: "static" });
     expect(plan.watch.find((w) => /click-through/i.test(w))).toMatch(/not a win for a purchase campaign/);
     expect(plan.caveats.join(" ")).toMatch(/report late/);
   });
 
   it("reads awareness on attention and warns off purchase numbers", () => {
-    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: "20-50k", campaign_objective: "awareness", category: "Skincare" }, history: [], format: "static" });
+    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: "20-50k", campaign_objectives: ["awareness"], category: "Skincare" }, history: [], format: "static" });
     expect(plan.watch[0]).toMatch(/hook rate/i);
     expect(plan.caveats.join(" ")).toMatch(/not purchases/);
   });
 
+  it("names one metric per objective when the brand runs more than one campaign type", () => {
+    const history = [1, 2, 3].map((i) => historyRow(i));
+    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: "20-50k", campaign_objectives: ["purchases", "leads", "awareness"], category: "Skincare" }, history, format: "static" });
+    expect(plan.objectives).toEqual(["purchases", "leads", "awareness"]);
+    expect(plan.watch[0]).toMatch(/^Cost per purchase, against the reference ad in the same window, in the purchase campaign\./);
+    expect(plan.watch[1]).toMatch(/^Cost per lead, against the reference ad in the same window, in the lead campaign\./);
+    expect(plan.watch[2]).toMatch(/hook rate.*in the impression campaign/);
+    // The export's one cost per result cannot own two result types.
+    expect(plan.watch.join(" ")).not.toMatch(/\$40/);
+    expect(plan.caveats.join(" ")).toMatch(/mixes purchase and lead campaigns/);
+    expect(plan.caveats.join(" ")).toMatch(/reach campaign .* not purchases/);
+    expect(plan.missing).toEqual([]);
+  });
+
+  it("keeps the account baseline when only one conversion objective can own it", () => {
+    const history = [1, 2, 3].map((i) => historyRow(i));
+    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: "20-50k", campaign_objectives: ["purchases", "traffic"], category: "Skincare" }, history, format: "static" });
+    expect(plan.watch[0]).toBe("Cost per purchase against your account's $40 (from your export, Aug 1, 2026 to Aug 20, 2026).");
+    expect(plan.watch[1]).toMatch(/^Cost per link click, against the reference ad/);
+    expect(plan.caveats.join(" ")).not.toMatch(/mixes/);
+  });
+
   it("says when an export carries no results column", () => {
     const history = [1, 2].map((i) => historyRow(i, { results: null }));
-    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: "20-50k", campaign_objective: "purchases", category: "Skincare" }, history, format: "static" });
+    const plan = buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: "20-50k", campaign_objectives: ["purchases"], category: "Skincare" }, history, format: "static" });
     expect(plan.caveats.join(" ")).toMatch(/no results column/);
   });
 });
@@ -250,7 +272,7 @@ describe("builds on or explores", () => {
     expect(gaps).toHaveLength(5);
     const brief = assembleBrief(
       { ...good(), unknowns: ["No ad results on file, so nothing is checked against what worked for you."], differs_from: null },
-      { evaluation: buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: null, campaign_objective: null, category: "x" }, history: [], format: "x" }), structuralUnknowns: gaps, differsFallback: "No recent creative on file." },
+      { evaluation: buildEvaluationPlan({ business: { market: "online", monthly_ad_spend: null, campaign_objectives: [], category: "x" }, history: [], format: "x" }), structuralUnknowns: gaps, differsFallback: "No recent creative on file." },
     );
     expect(brief.unknowns.filter((u) => /ad results on file/.test(u))).toHaveLength(1);
     expect(brief.differs_from).toBe("No recent creative on file.");

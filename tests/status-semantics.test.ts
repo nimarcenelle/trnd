@@ -108,7 +108,7 @@ describe("refining by hand", () => {
     script: { direction: { show: "", say: "", prove: "" }, cta: "", duration_seconds: 20 },
     shot_list: [],
     approved_facts: ["fact"],
-    evaluation: { objective: null, comparison: "", budget: "", watch: [], caveats: [], missing: [] },
+    evaluation: { objectives: [], comparison: "", budget: "", watch: [], caveats: [], missing: [] },
     outcomes: { if_better: "", if_same: "", if_worse: "" },
     refined_from: null,
   };

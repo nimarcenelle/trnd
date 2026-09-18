@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCandidatePool, evergreenSignalInputs } from "../lib/recommend/recommend";
+import { buildCandidatePool, evergreenSignalInputs, spreadTopTerms } from "../lib/recommend/recommend";
 import { buildInsights } from "../lib/recommend/insights";
 import { applyRelevance, type ScoredOpportunity } from "../lib/scoring";
 import type { Business, Signal } from "../lib/db/types";
@@ -178,5 +178,38 @@ describe("buildInsights on a judged-thin week", () => {
     };
     const insights = buildInsights(signal, plausible, { learnings: [] });
     expect(insights.some((i) => i.headline === "New offer opportunity")).toBe(true);
+  });
+});
+
+describe("spreadTopTerms", () => {
+  const t = (normalized_term: string) => ({ signal: { normalized_term } });
+
+  it("keeps a fifth phrasing of one product from taking a seat while other themes wait", () => {
+    const sorted = [
+      t("hard_water_softener"),
+      t("filter_with_shower_head"),
+      t("shower_purifier_filter"),
+      t("shower_water_filter"),
+      t("filtered_showerhead"),
+      t("sudden_adult_acne"),
+      t("my_hair_feels_like_straw"),
+    ];
+    expect(spreadTopTerms(sorted, 5).map((e) => e.signal.normalized_term)).toEqual([
+      "hard_water_softener",
+      "filter_with_shower_head",
+      "sudden_adult_acne",
+      "my_hair_feels_like_straw",
+      "shower_purifier_filter",
+    ]);
+  });
+
+  it("fills the seats from the deferred terms when nothing else is left", () => {
+    const sorted = [t("shower_filter"), t("shower_head_filter"), t("filtered_shower_head"), t("best_shower_filter")];
+    expect(spreadTopTerms(sorted, 3).map((e) => e.signal.normalized_term)).toEqual(["shower_filter", "shower_head_filter", "filtered_shower_head"]);
+  });
+
+  it("is a plain best-first cut when the themes already differ", () => {
+    const sorted = [t("girl_math"), t("eczema_flare_up"), t("hard_water")];
+    expect(spreadTopTerms(sorted, 2).map((e) => e.signal.normalized_term)).toEqual(["girl_math", "eczema_flare_up"]);
   });
 });

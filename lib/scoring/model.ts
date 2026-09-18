@@ -187,8 +187,33 @@ export function combineSignals(
   }
   const score = round1(clamp(included.reduce((s, name) => s + weights[name] * signals[name].score, 0) / total));
   const g = gradeForScore(score);
+  // A grade read on fewer than three signals is provisional. A low score
+  // then says more about what has not been read (a fresh signup's rivals
+  // and brand read land after its first grade) than about the term, so it
+  // is a C, not a Hold: it takes a seat only when nothing better is graded,
+  // and the note says why the letter may move. Jolile's first week held 14
+  // of 19 terms on customer and culture alone and wrote one concept.
+  if (g.hold && included.length < PROVISIONAL_BELOW) {
+    const c = gradeForScore(PROVISIONAL_FLOOR);
+    const read = included.map((name) => SIGNAL_LABELS[name]).join(" and ");
+    return {
+      score,
+      grade: c.letter,
+      meaning: c.meaning,
+      hold: false,
+      signals,
+      weightsUsed,
+      excluded,
+      notes: [`Provisional: graded on ${read} only. The grade may move once the rest is read.`, ...notes],
+    };
+  }
   return { score, grade: g.letter, meaning: g.meaning, hold: g.hold, signals, weightsUsed, excluded, notes };
 }
+
+/** A grade on fewer signals than this is provisional: never a Hold. */
+export const PROVISIONAL_BELOW = 3;
+/** The floor of a provisional grade: the C band's lowest score. */
+const PROVISIONAL_FLOOR = 50;
 
 /* ------------------------------ signal inputs ------------------------------ */
 // What each scorer receives. Gathering them from the database is the ranking

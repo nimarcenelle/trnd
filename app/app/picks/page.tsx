@@ -11,7 +11,9 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { isEmailConfigured, isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { firstWeekMode } from "@/lib/onboarding/context";
+import { nextWeekStage } from "@/lib/picks/advance-week";
 import { conceptRow, STATUS_LABEL } from "@/lib/picks/concept-view";
+import { PICKS_PER_WEEK } from "@/lib/picks/generate";
 import { kickWeekJob } from "@/lib/picks/kick";
 import { waitHeadline, weekProgress } from "@/lib/picks/progress";
 import { dueForKick, emptyWeekLine, truncateFinding, weekRangeLabel } from "@/lib/picks/list";
@@ -83,10 +85,18 @@ export default async function PicksPage() {
     const concepts = rows.map(({ pick, run }) => ({ pick, run, row: conceptRow(pick, run) }));
     // What this week can and cannot say, from what the brand handed over.
     const history = await repo.listAdHistory(business.id).catch(() => []);
-    const mode = firstWeekMode({ adHistoryRows: history.length, hasObjective: Boolean(business.campaign_objective) });
+    const mode = firstWeekMode({ adHistoryRows: history.length, objectives: (business.campaign_objectives ?? []).length });
     const chosen = concepts.filter((c) => c.row?.status === "chosen" || c.row?.status === "launched").length;
+    // A fresh signup's first concept lands alone and the rest follow a
+    // minute or two later. While they are still being written the list is
+    // short because it is unfinished, not because the week was thin, and it
+    // says so and keeps asking for the next stage.
+    const stillWriting =
+      rows.length < PICKS_PER_WEEK && (await nextWeekStage(repo, business, { scanAllowed: isSupabaseConfigured })) === "picks";
+    if (stillWriting) await kickWeekJob(business.id, { now });
     return (
       <div className="page picks">
+        {stillWriting && <AutoRefresh everyMs={6000} times={40} />}
         <div className="page-head">
           <div>
             <span className="eyebrow m-0">This week · {weekRange}</span>
@@ -104,7 +114,9 @@ export default async function PicksPage() {
         {mode.line && (
           <p className={`cbl__mode${mode.researchOnly ? " is-research" : ""}`} role="status">
             {mode.line}{" "}
-            <Link href="/app/settings#ads">{mode.researchOnly ? "Add an export" : "Set the objective"}</Link>
+            <Link href={mode.researchOnly ? "/app/settings#integrations" : "/app/settings#context"}>
+              {mode.researchOnly ? "Connect Meta or add an export" : "Set the objectives"}
+            </Link>
           </p>
         )}
         <ol className="cbl" aria-label="This week's creative tests">
@@ -150,11 +162,17 @@ export default async function PicksPage() {
             );
           })}
         </ol>
-        {rows.length < 3 && (
-          <p className="cbl__fewer">
-            {rows.length === 1 ? "Only one concept" : "Only two concepts"} cleared the bar this week. TRND shows fewer rather
-            than fill the list with repeats or weak ideas.
+        {stillWriting ? (
+          <p className="cbl__fewer" role="status">
+            The rest of the week is being written and lands here in a minute or two.
           </p>
+        ) : (
+          rows.length < PICKS_PER_WEEK && (
+            <p className="cbl__fewer">
+              {rows.length === 1 ? "Only one concept" : "Only two concepts"} cleared the bar this week. TRND shows fewer rather
+              than fill the list with repeats or weak ideas.
+            </p>
+          )
         )}
       </div>
     );

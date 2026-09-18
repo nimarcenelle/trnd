@@ -121,6 +121,7 @@ export function createDemoRepo(actor: DemoActor): Repo {
         market: input.market ?? "local",
         monthly_ad_spend: input.monthly_ad_spend ?? null,
         ad_platforms: input.ad_platforms ?? [],
+        campaign_objectives: input.campaign_objectives ?? [],
         id: randomUUID(),
         created_at: nowIso(),
       };

@@ -493,11 +493,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       <section className="panel mb-5" id="context">
         <div className="panel__head">
           <span className="panel__title">What a brief needs to know</span>
-          <span className="panel__meta">{business.campaign_objective ? "Set" : "Not set"}</span>
+          <span className="panel__meta">{(business.campaign_objectives ?? []).length > 0 ? "Set" : "Not set"}</span>
         </div>
         <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4 max-w-[640px] leading-[1.55]">
           What your campaigns buy, what you can make, what you shot last and what you may claim. Every brief reads this, and the
-          evaluation plan names the right number only once the objective is set.
+          evaluation plan names the right numbers only once the objectives are set.
         </p>
         <CreativeContextForm business={business} services={services} />
       </section>
@@ -510,8 +510,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           </span>
         </div>
         <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4 max-w-[640px] leading-[1.55]">
-          Export your results from Meta Ads Manager or Google Ads (CSV or Excel, at the ad level). It gives each brief a real
-          reference ad and your own baseline, and stops TRND repeating ideas that already failed. An export carries numbers, ad
+          {isMetaAdsConfigured && !metaConnected ? (
+            <>
+              <Link href="#integrations">Connect Meta</Link> and TRND reads your last 180 days of ads from the account itself, no
+              export needed. Or export your results from Meta Ads Manager or Google Ads (CSV or Excel, at the ad level).
+            </>
+          ) : (
+            "Export your results from Meta Ads Manager or Google Ads (CSV or Excel, at the ad level)."
+          )}{" "}
+          It gives each brief a real reference ad and your own baseline, and stops TRND repeating ideas that already failed. An export carries numbers, ad
           names and, when the columns are there, headline and body text. It does not carry the creative itself, so what an ad
           showed is read from its name and copy only.
         </p>
@@ -736,7 +743,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         </form>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="integrations">
         <div className="panel__head">
           <span className="panel__title">Integrations</span>
           <span className="panel__meta">What powers your briefs</span>

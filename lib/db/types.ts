@@ -83,8 +83,9 @@ export interface Business {
   monthly_ad_spend: string | null;
   /** Where they run ads: meta, tiktok, google, youtube, pinterest, snapchat. */
   ad_platforms: AdPlatform[];
-  /** What the brand's campaigns optimize for. Null when never asked (pre-0028). */
-  campaign_objective?: CampaignObjective | null;
+  /** What the brand's campaigns optimize for. A brand may run more than one
+   * campaign type at once (purchases and leads, say). Empty when never asked. */
+  campaign_objectives?: CampaignObjective[];
   /** What the brand can actually produce: talking head, UGC, demo, static... */
   production_formats?: ProductionFormat[];
   /** Claims the brand may and may not make, in the owner's words. */
@@ -585,7 +586,8 @@ export interface ConceptLineage {
  * the spend band and how many conversions the window can hold.
  */
 export interface EvaluationPlan {
-  objective: CampaignObjective | null;
+  /** Every objective the brand's campaigns buy; empty when not set. */
+  objectives: CampaignObjective[];
   /** What to compare against: the brand's current best on the same objective. */
   comparison: string;
   /** Suggested test budget and window, from the spend band. */

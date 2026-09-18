@@ -89,6 +89,33 @@ describe("the Opportunity Grade", () => {
     expect(g.notes).toEqual(["Competitive wasn't factored in: no competitors connected yet."]);
   });
 
+  it("grades a term read on two signals as provisional, never a Hold", () => {
+    const g = combineSignals({
+      customer: sig("customer", 48),
+      culture: sig("culture", 40, "medium"),
+      brand: sig("brand", NEUTRAL_PLACEHOLDER, "low", "Only your catalog fit has been read so far"),
+      competitive: sig("competitive", NEUTRAL_PLACEHOLDER, "low", "Competitors added, but their ads haven't been read yet"),
+    });
+    expect(g.hold).toBe(false);
+    expect(g.grade).toBe("C");
+    // The score is what was read; only the letter is floored.
+    expect(g.score).toBeCloseTo((35 * 48 + 20 * 40) / 55, 1);
+    expect(g.notes[0]).toBe("Provisional: graded on Customer and Culture only. The grade may move once the rest is read.");
+    expect(g.notes).toHaveLength(3);
+  });
+
+  it("still holds a low score once three signals have been read", () => {
+    const g = combineSignals({
+      customer: sig("customer", 40),
+      culture: sig("culture", 40, "medium"),
+      brand: sig("brand", 40),
+      competitive: sig("competitive", NEUTRAL_PLACEHOLDER, "low", "No competitors connected yet"),
+    });
+    expect(g.hold).toBe(true);
+    expect(g.grade).toBe("Hold");
+    expect(g.notes[0]).toMatch(/^Competitive wasn't factored in/);
+  });
+
   it("holds when nothing has enough data to grade", () => {
     const low = (s: SignalName) => sig(s, NEUTRAL_PLACEHOLDER, "low");
     const g = combineSignals({ customer: low("customer"), brand: low("brand"), culture: low("culture"), competitive: low("competitive") });

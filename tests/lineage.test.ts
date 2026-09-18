@@ -83,7 +83,7 @@ const write: ConceptWrite = {
   priority_reason: "The search is rising and nobody runs the angle.",
   guardrail: null,
 };
-const evaluation: CreativeBrief["evaluation"] = { objective: null, comparison: "Beside your best.", budget: "$500", watch: [], caveats: [], missing: [] };
+const evaluation: CreativeBrief["evaluation"] = { objectives: [], comparison: "Beside your best.", budget: "$500", watch: [], caveats: [], missing: [] };
 
 describe("the lineage on the brief", () => {
   it("is stored on the brief, shown on the page and in the copied text, and absent without history", () => {

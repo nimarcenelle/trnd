@@ -4,6 +4,7 @@ import { after } from "next/server";
 
 import { getAnonRepo } from "@/lib/db";
 import { notifyFounder } from "@/lib/notify";
+import { objectiveList, parseObjectives } from "@/lib/onboarding/context";
 
 export interface PilotApplicationState {
   ok?: boolean;
@@ -21,7 +22,8 @@ export async function submitPilotApplicationAction(_prev: PilotApplicationState,
   const brandName = String(formData.get("brand_name") ?? "").trim().slice(0, 120);
   const website = String(formData.get("website") ?? "").trim().slice(0, 200);
   const monthlySpend = String(formData.get("monthly_spend") ?? "").trim().slice(0, 60);
-  const objective = String(formData.get("objective") ?? "").trim().slice(0, 40);
+  // Every campaign type ticked, kept as one readable line in the application.
+  const objective = objectiveList(parseObjectives(formData.getAll("objective"))).slice(0, 80);
   const production = String(formData.get("production") ?? "").trim().slice(0, 200);
   const whatNext = String(formData.get("what_next") ?? "").trim().slice(0, 800);
 

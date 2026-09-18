@@ -87,7 +87,7 @@ export default function OnboardingWizard() {
   const steps: readonly string[] = online ? ONLINE_STEPS : STEPS;
   // The context a brief needs that the site cannot say. All optional; the
   // first week says what is missing.
-  const [objective, setObjective] = useState<CampaignObjective | "">("");
+  const [objectives, setObjectives] = useState<CampaignObjective[]>([]);
   const [formats, setFormats] = useState<ProductionFormat[]>([]);
   const [priorityService, setPriorityService] = useState("");
   const [recentCreative, setRecentCreative] = useState("");
@@ -617,16 +617,30 @@ export default function OnboardingWizard() {
   const contextFields = (
     <>
       <div className="field">
-        <label htmlFor="ob-objective">What your campaigns optimize for</label>
-        <select id="ob-objective" value={objective} onChange={(e) => setObjective(e.target.value as CampaignObjective | "")}>
-          <option value="">Pick one</option>
-          {OBJECTIVE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        {objective && <p className="text-[12px] text-ink-faint mx-0 mt-[6px] mb-0">{OBJECTIVE_OPTIONS.find((o) => o.value === objective)?.hint}</p>}
+        <label>What your campaigns optimize for</label>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="What your campaigns optimize for">
+          {OBJECTIVE_OPTIONS.map((o) => {
+            const on = objectives.includes(o.value);
+            return (
+              <button
+                key={o.value}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                onClick={() => setObjectives((prev) => (on ? prev.filter((x) => x !== o.value) : [...prev, o.value]))}
+                className="pill"
+                style={pillStyle(on)}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[12px] text-ink-faint mx-0 mt-[6px] mb-0">
+          {objectives.length > 0
+            ? OBJECTIVE_OPTIONS.filter((o) => objectives.includes(o.value)).map((o) => o.hint).join(" ")
+            : "Tick every campaign type you run."}
+        </p>
       </div>
       {namedServices.length > 1 && (
         <div className="field">
@@ -804,7 +818,9 @@ export default function OnboardingWizard() {
         {online && <input type="hidden" name="monthly_ad_spend" value={spend} />}
         {online && platforms.map((p) => <input key={p} type="hidden" name="ad_platforms" value={p} />)}
         <input type="hidden" name="documents" value={docs.length > 0 ? JSON.stringify(docs) : ""} />
-        <input type="hidden" name="campaign_objective" value={objective} />
+        {objectives.map((o) => (
+          <input key={o} type="hidden" name="campaign_objectives" value={o} />
+        ))}
         {formats.map((f) => (
           <input key={f} type="hidden" name="production_formats" value={f} />
         ))}

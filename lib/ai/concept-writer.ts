@@ -4,6 +4,7 @@ import type { Business, BusinessBrief, PickSignal, Service } from "@/lib/db/type
 import { isGeminiConfigured } from "@/lib/env";
 import { conceptSchemaFor, type ConceptRules, type ConceptWrite } from "@/lib/picks/concept";
 import type { CampaignSignalBrief } from "@/lib/recommend/four-signals";
+import { objectiveList } from "@/lib/onboarding/context";
 import { isOnlineBusiness } from "@/lib/signals/geo";
 
 import { formatPrice } from "./prompts/pick";
@@ -161,7 +162,13 @@ export function buildConceptPrompt(input: ConceptWriterInput): string {
   const { business, term, matchedService, evidence, durationSec, otherConcepts, refinement } = input;
   const online = isOnlineBusiness(business);
   const price = formatPrice(matchedService?.price_cents);
-  const objective = business.campaign_objective ? `The campaign buys ${business.campaign_objective}.` : "";
+  const objectives = business.campaign_objectives ?? [];
+  const objective =
+    objectives.length > 1
+      ? `The brand runs campaigns that buy ${objectiveList(objectives)}. The concept must serve one of them; say which.`
+      : objectives.length === 1
+        ? `The campaign buys ${objectiveList(objectives)}.`
+        : "";
 
   return [
     online

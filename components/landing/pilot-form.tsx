@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { submitPilotApplicationAction, type PilotApplicationState } from "@/lib/marketing/actions";
+import { OBJECTIVE_OPTIONS } from "@/lib/onboarding/context";
 
 /**
  * The pilot's front door. It asks for what the pilot needs to be useful:
@@ -59,16 +60,18 @@ export default function PilotForm() {
             <option>$100,000+</option>
           </select>
         </div>
-        <div className="field">
-          <label htmlFor="pObjective">What your campaigns optimize for</label>
-          <select id="pObjective" name="objective" defaultValue="">
-            <option value="">Select one</option>
-            <option value="purchases">Purchases</option>
-            <option value="leads">Leads or sign-ups</option>
-            <option value="traffic">Traffic</option>
-            <option value="awareness">Reach</option>
-          </select>
+      </div>
+      <div className="field">
+        <label>What your campaigns optimize for</label>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="What your campaigns optimize for">
+          {OBJECTIVE_OPTIONS.map((o) => (
+            <label key={o.value} className="cb__refine-opt has-[:checked]:border-(--amber) has-[:checked]:bg-(--amber-softer) has-[:checked]:font-semibold">
+              <input type="checkbox" name="objective" value={o.value} />
+              {o.label}
+            </label>
+          ))}
         </div>
+        <p className="text-[12px] text-ink-faint mx-0 mt-[6px] mb-0">Tick every campaign type you run.</p>
       </div>
       <div className="field">
         <label htmlFor="pProduction">Who makes your creative?</label>

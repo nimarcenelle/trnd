@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
-import type { Business, Service } from "@/lib/db/types";
+import type { Business, CampaignObjective, Service } from "@/lib/db/types";
 import { FORMAT_OPTIONS, NOTES_MAX, OBJECTIVE_OPTIONS } from "@/lib/onboarding/context";
 import { updateCreativeContextAction, type SettingsState } from "@/lib/settings/actions";
 
@@ -14,20 +14,32 @@ import { updateCreativeContextAction, type SettingsState } from "@/lib/settings/
 export default function CreativeContextForm({ business, services }: { business: Business; services: Service[] }) {
   const [state, formAction, pending] = useActionState<SettingsState, FormData>(updateCreativeContextAction, {});
   const formats = new Set(business.production_formats ?? []);
+  // A brand may run more than one campaign type at once, so every objective
+  // that applies is ticked, and each one's hint is shown under the row.
+  const [objectives, setObjectives] = useState<CampaignObjective[]>(business.campaign_objectives ?? []);
+  const toggleObjective = (value: CampaignObjective) =>
+    setObjectives((prev) => (prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]));
+  const hints = OBJECTIVE_OPTIONS.filter((o) => objectives.includes(o.value)).map((o) => o.hint);
   return (
     <form action={formAction}>
-      <div className="field-row">
-        <div className="field">
-          <label htmlFor="cc-objective">What your campaigns optimize for</label>
-          <select id="cc-objective" name="campaign_objective" defaultValue={business.campaign_objective ?? ""}>
-            <option value="">Not set</option>
-            {OBJECTIVE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
+      <div className="field">
+        <label>What your campaigns optimize for</label>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="What your campaigns optimize for">
+          {OBJECTIVE_OPTIONS.map((o) => {
+            const on = objectives.includes(o.value);
+            return (
+              <label key={o.value} className={`cb__refine-opt${on ? " is-on" : ""}`}>
+                <input type="checkbox" name="campaign_objectives" value={o.value} checked={on} onChange={() => toggleObjective(o.value)} />
                 {o.label}
-              </option>
-            ))}
-          </select>
+              </label>
+            );
+          })}
         </div>
+        <p className="text-[12px] text-ink-faint mx-0 mt-[6px] mb-0">
+          {hints.length > 0 ? hints.join(" ") : "Tick every campaign type you run. Each brief's evaluation plan names the number for each."}
+        </p>
+      </div>
+      <div className="field-row">
         <div className="field">
           <label htmlFor="cc-priority">Product or offer to lead with</label>
           <select id="cc-priority" name="priority_service_id" defaultValue={business.priority_service_id ?? ""}>

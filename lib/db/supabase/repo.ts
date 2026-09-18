@@ -49,6 +49,7 @@ function withBusinessDefaults(b: Business): Business {
     market: b.market ?? "local",
     monthly_ad_spend: b.monthly_ad_spend ?? null,
     ad_platforms: b.ad_platforms ?? [],
+    campaign_objectives: b.campaign_objectives ?? [],
   };
 }
 

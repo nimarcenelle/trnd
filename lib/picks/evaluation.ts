@@ -38,15 +38,19 @@ function dateRange(rows: AdHistory[]): string | null {
 }
 
 export interface EvaluationInput {
-  business: Pick<Business, "market" | "monthly_ad_spend" | "campaign_objective" | "category">;
+  business: Pick<Business, "market" | "monthly_ad_spend" | "campaign_objectives" | "category">;
   history: AdHistory[];
   /** The concept's format, so the comparison names a like-for-like reference. */
   format: string;
 }
 
+function capital(s: string): string {
+  return `${s[0].toUpperCase()}${s.slice(1)}`;
+}
+
 export function buildEvaluationPlan(input: EvaluationInput): EvaluationPlan {
   const { business, history } = input;
-  const objective = business.campaign_objective ?? null;
+  const objectives = business.campaign_objectives ?? [];
   const read = history.length > 0 ? readAdHistory(history) : null;
   const perResult = accountCostPerResultCents(history);
   const resultsOnFile = history.reduce((n, r) => n + (r.results ?? 0), 0);
@@ -56,9 +60,10 @@ export function buildEvaluationPlan(input: EvaluationInput): EvaluationPlan {
   const caveats: string[] = [];
   const missing: string[] = [];
 
-  const metric = objective ? OBJECTIVE_METRIC[objective] : null;
-  if (!objective) {
-    missing.push("The campaign objective. Say whether these ads buy purchases, leads, traffic or reach, and the plan can name the number that matters.");
+  const conversionObjectives = objectives.filter((o) => o === "purchases" || o === "leads");
+  const buysConversions = conversionObjectives.length > 0 || objectives.length === 0;
+  if (objectives.length === 0) {
+    missing.push("The campaign objective. Say whether these ads buy purchases, leads, traffic or reach (any that apply), and the plan can name the number that matters.");
   }
 
   // The comparison: the brand's own current best in the same format.
@@ -78,17 +83,24 @@ export function buildEvaluationPlan(input: EvaluationInput): EvaluationPlan {
     : "5 to 10% of your monthly spend over one week, split evenly with the reference ad.";
   if (!business.monthly_ad_spend) missing.push("Your monthly ad spend band, so the test budget is sized to you.");
 
-  // What to watch, in order, built from what is on file.
-  if (metric) {
-    if (perResult !== null && (objective === "purchases" || objective === "leads")) {
-      watch.push(`${metric.metric[0].toUpperCase()}${metric.metric.slice(1)} against your account's ${money(perResult)} (from your export${range ? `, ${range}` : ""}).`);
+  // What to watch, in order, built from what is on file: one line per
+  // objective. The export's cost per result is one figure for the whole
+  // account, so it stands as a baseline only when one result type can own it.
+  const baselineOwner = conversionObjectives.length === 1 ? conversionObjectives[0] : null;
+  for (const objective of objectives) {
+    const metric = OBJECTIVE_METRIC[objective];
+    if (perResult !== null && objective === baselineOwner) {
+      watch.push(`${capital(metric.metric)} against your account's ${money(perResult)} (from your export${range ? `, ${range}` : ""}).`);
     } else {
-      watch.push(`${metric.metric[0].toUpperCase()}${metric.metric.slice(1)}, against the reference ad in the same window.`);
+      watch.push(`${capital(metric.metric)}, against the reference ad in the same window${objectives.length > 1 ? `, in the ${metric.unit} campaign` : ""}.`);
     }
-  } else if (perResult !== null) {
-    watch.push(`Cost per result against your account's ${money(perResult)} (from your export${range ? `, ${range}` : ""}). Say what the campaign optimizes for and this names the right result.`);
-  } else {
-    watch.push("Cost per result for whatever the campaign optimizes for, against the reference ad in the same window.");
+  }
+  if (objectives.length === 0) {
+    watch.push(
+      perResult !== null
+        ? `Cost per result against your account's ${money(perResult)} (from your export${range ? `, ${range}` : ""}). Say what the campaign optimizes for and this names the right result.`
+        : "Cost per result for whatever the campaign optimizes for, against the reference ad in the same window.",
+    );
   }
   watch.push("Hook rate (3-second views over impressions) and hold rate, to learn whether the opening worked even when the whole ad did not.");
   if (read?.accountCtr) {
@@ -98,7 +110,10 @@ export function buildEvaluationPlan(input: EvaluationInput): EvaluationPlan {
   }
 
   // Caveats the numbers carry.
-  if (objective === "purchases" || objective === "leads" || objective === null) {
+  if (conversionObjectives.length > 1 && perResult !== null) {
+    caveats.push("Your export's cost per result mixes purchase and lead campaigns, so it is not a baseline for either. Read each campaign against its own reference ad.");
+  }
+  if (buysConversions) {
     caveats.push(
       resultsOnFile > 0 && resultsOnFile < DIRECTIONAL_RESULTS * 4
         ? `Your export shows ${resultsOnFile} results in total, so a one-week test will hold fewer than ${DIRECTIONAL_RESULTS}. Read the result as directional, not final.`
@@ -106,13 +121,19 @@ export function buildEvaluationPlan(input: EvaluationInput): EvaluationPlan {
     );
     caveats.push("Purchases report late. Wait for the attribution window to close before calling it.");
   }
-  if (objective === "awareness") caveats.push("Reach campaigns are judged on attention, not purchases. Do not read a purchase number into this test.");
+  if (objectives.includes("awareness")) {
+    caveats.push(
+      objectives.length > 1
+        ? "In the reach campaign the test is judged on attention, not purchases. Do not read a purchase number into that leg."
+        : "Reach campaigns are judged on attention, not purchases. Do not read a purchase number into this test.",
+    );
+  }
   caveats.push("The test is only comparable when the reference ad runs in the same ad set at the same time. A new ad against an old ad's history is not a comparison.");
   if (history.length > 0 && history.every((r) => r.results === null)) {
     caveats.push("Your export carries no results column, so the baseline is click-through only.");
   }
 
-  return { objective, comparison, budget, watch, caveats, missing };
+  return { objectives, comparison, budget, watch, caveats, missing };
 }
 
 /**

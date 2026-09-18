@@ -26,14 +26,24 @@ export const FORMAT_OPTIONS: { value: ProductionFormat; label: string }[] = [
 export const NOTES_MAX = 1200;
 
 export interface CreativeContext {
-  campaign_objective: CampaignObjective | null;
+  campaign_objectives: CampaignObjective[];
   production_formats: ProductionFormat[];
   claims_notes: string | null;
   recent_creative_notes: string | null;
 }
 
-export function parseObjective(raw: unknown): CampaignObjective | null {
-  return typeof raw === "string" && (CAMPAIGN_OBJECTIVES as readonly string[]).includes(raw) ? (raw as CampaignObjective) : null;
+/** Every objective ticked, in the canonical order, unknown values dropped. */
+export function parseObjectives(raw: unknown[]): CampaignObjective[] {
+  const out: CampaignObjective[] = [];
+  for (const o of CAMPAIGN_OBJECTIVES) if (raw.includes(o)) out.push(o);
+  return out;
+}
+
+/** "purchases and leads", "purchases, leads and traffic". */
+export function objectiveList(objectives: readonly CampaignObjective[]): string {
+  const names = objectives.map((o) => OBJECTIVE_OPTIONS.find((x) => x.value === o)?.label.toLowerCase() ?? o);
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
 export function parseFormats(raw: unknown[]): ProductionFormat[] {
@@ -51,7 +61,7 @@ function note(raw: unknown): string | null {
 /** Reads the context fields off a form. Every field is optional. */
 export function parseCreativeContext(form: { get(name: string): unknown; getAll(name: string): unknown[] }): CreativeContext {
   return {
-    campaign_objective: parseObjective(form.get("campaign_objective")),
+    campaign_objectives: parseObjectives(form.getAll("campaign_objectives")),
     production_formats: parseFormats(form.getAll("production_formats")),
     claims_notes: note(form.get("claims_notes")),
     recent_creative_notes: note(form.get("recent_creative_notes")),
@@ -62,15 +72,15 @@ export function parseCreativeContext(form: { get(name: string): unknown; getAll(
  * What the first week can and cannot say, from what the brand handed over.
  * A brand with no ad results gets a research-only week, labeled as one.
  */
-export function firstWeekMode(input: { adHistoryRows: number; hasObjective: boolean }): { researchOnly: boolean; line: string } {
+export function firstWeekMode(input: { adHistoryRows: number; objectives: number }): { researchOnly: boolean; line: string } {
   if (input.adHistoryRows === 0) {
     return {
       researchOnly: true,
-      line: "Research-only week: no ad results are on file, so nothing here is checked against what has worked for you, and no brief will say what performed. Add an Ads Manager export to change that.",
+      line: "Research-only week: no ad results are on file, so nothing here is checked against what has worked for you, and no brief will say what performed. Connect Meta and TRND reads your account itself, or add an Ads Manager export.",
     };
   }
-  if (!input.hasObjective) {
-    return { researchOnly: false, line: "Your ad results are on file. Say what your campaigns optimize for and each brief's evaluation plan names the right number." };
+  if (input.objectives === 0) {
+    return { researchOnly: false, line: "Your ad results are on file. Say what your campaigns optimize for and each brief's evaluation plan names the right numbers." };
   }
   return { researchOnly: false, line: "" };
 }

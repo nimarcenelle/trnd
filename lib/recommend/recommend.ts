@@ -46,6 +46,52 @@ export function stemToken(t: string): string {
   return t;
 }
 
+/** Words that say nothing about what a term is about. */
+const THEME_STOPWORDS = new Set(["for", "with", "the", "and", "near", "best", "how", "what", "why", "you", "your", "from", "into"]);
+
+function themeTokens(normalizedTerm: string): Set<string> {
+  return new Set(
+    normalizedTerm
+      .split("_")
+      .filter((x) => x.length > 2 && !THEME_STOPWORDS.has(x))
+      .map(stemToken),
+  );
+}
+
+/** "filter" and "filtered", "shower" and "showerhead": one root, however
+ * the search spelled it. Four letters or more, so "hard" is not "hardware". */
+function sameRoot(a: string, b: string): boolean {
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return short.length >= 4 && long.startsWith(short);
+}
+
+/**
+ * The week's seats, spread over what the brand's customers talk about. Five
+ * phrasings of the one product are five seats on one idea: Jolile's first
+ * week was "hard water softener", "filter with shower head", "shower purifier
+ * filter", and the acne, eczema and straw-hair terms its customers actually
+ * search sat under them. A term that shares a root word with a seated term
+ * waits; it takes a seat only if the pass ends with seats to spare. Order
+ * within the result stays best-first.
+ */
+export function spreadTopTerms<T extends { signal: { normalized_term: string } }>(sorted: T[], seats: number): T[] {
+  const seated: { entry: T; toks: Set<string> }[] = [];
+  const deferred: T[] = [];
+  for (const entry of sorted) {
+    if (seated.length >= seats) break;
+    const toks = themeTokens(entry.signal.normalized_term);
+    const kin = seated.some((k) => [...toks].some((t) => [...k.toks].some((u) => sameRoot(t, u))));
+    if (kin) deferred.push(entry);
+    else seated.push({ entry, toks });
+  }
+  const out = seated.map((k) => k.entry);
+  for (const entry of deferred) {
+    if (out.length >= seats) break;
+    out.push(entry);
+  }
+  return out;
+}
+
 export function dedupeByTerm<T extends { normalized_term: string; delta_pct: number | null }>(
   signals: T[],
 ): T[] {
@@ -421,10 +467,10 @@ export async function recommendForBusiness(
   // A Hold is "don't build a campaign yet", so it never takes a seat in the
   // week's five. When every candidate holds, the week stores nothing rather
   // than dressing the least-bad Hold up as a pick.
-  const top = graded
-    .filter((e) => !e.grade.hold)
-    .sort((a, b) => b.grade.score - a.grade.score || b.result.score - a.result.score)
-    .slice(0, TOP_N);
+  const top = spreadTopTerms(
+    graded.filter((e) => !e.grade.hold).sort((a, b) => b.grade.score - a.grade.score || b.result.score - a.result.score),
+    TOP_N,
+  );
 
   // What the week held, and why, is the other half of the call: the pick
   // page says "not this week" from these rows.

@@ -38,6 +38,7 @@ import type {
   PilotApplication,
   ProviderUsage,
   Subscription,
+  StrategyReadRow,
 } from "../types";
 
 /** A business row read before 0022 carries none of its columns. */

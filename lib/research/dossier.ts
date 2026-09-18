@@ -199,7 +199,7 @@ export interface Dossier {
 const money = (cents: number | null | undefined): string | null =>
   typeof cents === "number" ? `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}` : null;
 
-const clip = (s: string | null | undefined, n = CAPS.captionChars): string => (s ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+const clip = (s: string | null | undefined, n: number = CAPS.captionChars): string => (s ?? "").replace(/\s+/g, " ").trim().slice(0, n);
 
 const dayOf = (iso: string | null | undefined): string | null => (iso ? iso.slice(0, 10) : null);
 
@@ -271,7 +271,7 @@ export function adsFromRead(read: CompetitorRead, rival: string, facebook: strin
     if (advertiser && !isRivalAd({ name: rival, facebook }, { advertiser, pageUrl: null }) && !facebook) continue;
     const headline = str(a.headline);
     const snippet = str(a.snippet);
-    const text = [headline, snippet].filter((x): x is string => Boolean(x) && !isTemplateText(x)).join(" ").trim();
+    const text = [headline, snippet].filter((x): x is string => typeof x === "string" && !isTemplateText(x)).join(" ").trim();
     out.push({
       rival,
       advertiser,

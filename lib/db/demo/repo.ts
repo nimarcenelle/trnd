@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 
 import { MAX_AD_HISTORY_READ, type Repo } from "../repo";
 import type {
-  AdHistory,
   Alert,
   BrandPick,
   NewPickBundle,
@@ -11,7 +10,6 @@ import type {
   PickFeedback,
   PickRun,
   NewSignalReading,
-  SignalReading,
   NewWeekSkip,
   WeekSkip,
   Business,
@@ -32,7 +30,6 @@ import type {
   NewPilotApplication,
   NewProviderUsage,
   PilotApplication,
-  SocialPostKind,
   NewCampaign,
   NewBusinessBrief,
   NewCampaignResult,

@@ -5,18 +5,17 @@ import { tokens } from "@/lib/scoring";
 import { businessStateGeo } from "@/lib/signals/geo";
 import { weekOf } from "@/lib/recommend/recommend";
 import { upcomingMoments } from "@/lib/recommend/seasonal";
-import { benchmarkFor } from "@/lib/results/benchmarks";
 import { sentenceCase } from "@/lib/text";
 
 /**
  * The proactive half of the product: TRND notices, the owner doesn't have to
- * ask. Evaluated after every ingest/recommend run and on dashboard loads —
- * every rule is idempotent because alerts dedupe on a stable key, so
- * re-evaluation is always safe and never spams.
+ * ask. Evaluated after every ingest run and on the week's page — every rule
+ * is idempotent because alerts dedupe on a stable key, so re-evaluation is
+ * always safe and never spams. Every alert lands somewhere that exists: the
+ * week's tests or the rivals in Settings.
  */
 
 const SPIKE_DELTA = 30;
-const UNDERPERFORM_RATIO = 0.6;
 
 export async function evaluateAlerts(repo: Repo, business: Business): Promise<Alert[]> {
   const week = weekOf();
@@ -26,7 +25,7 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
     if (row) created.push(row);
   };
 
-  const [signals, brief, competitors, reads, campaigns, results] = await Promise.all([
+  const [signals, brief, competitors, reads] = await Promise.all([
     repo.listSignalsForCategory(business.category, {
       sinceDays: 7,
       geo: businessStateGeo(business),
@@ -34,8 +33,6 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
     repo.getBusinessBrief(business.id),
     repo.listCompetitors(business.id),
     repo.listCompetitorReads(business.id, { sinceDays: 14 }),
-    repo.listCampaigns(business.id),
-    repo.listResultsForBusiness(business.id),
   ]);
 
   // ---- demand spike on a term this business actually cares about
@@ -57,7 +54,7 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
         s.delta_pct >= 100
           ? `"${sentenceCase(s.term)}" doubled or more ${window}`
           : `"${sentenceCase(s.term)}" is up ${Math.round(s.delta_pct)}% ${window}`,
-      body: `It matches what you sell and is in this week's ranking.`,
+      body: `It matches what you sell and is in this week's research.`,
       href: "/app/picks",
       dedupe_key: `spike:${s.normalized_term}:${week}`,
     });
@@ -81,7 +78,7 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
     const competitor = byCompetitor.get(competitorId);
     if (!competitor) continue;
     // Franchise-scale keyword totals are brand noise, not a local move —
-    // never alert on them (the report still shows the labeled read).
+    // never alert on them.
     if (v.last > AD_COUNT_LOCAL_MAX || (v.prev !== null && v.prev > AD_COUNT_LOCAL_MAX)) continue;
     const isNew = v.prev === null && v.last > 0;
     const scaled = v.prev !== null && v.last > v.prev;
@@ -91,8 +88,8 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
       title: isNew
         ? `${competitor.name} is running ${v.last} active ad${v.last === 1 ? "" : "s"}`
         : `${competitor.name} scaled up: ${v.prev} → ${v.last} active ads`,
-      body: `Their ads are in the competitor section of your report.`,
-      href: "/app/report",
+      body: `Their ads are read into this week's briefs as observed; what they say is under each test's evidence.`,
+      href: "/app/settings",
       dedupe_key: `compads:${competitorId}:${v.last}:${v.day}`,
     });
   }
@@ -104,42 +101,23 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
       kind: "seasonal_window",
       title: `Prep window open: ${m.label} (${m.daysOut} days out)`,
       body: m.advice,
-      href: "/app/report",
+      href: "/app/picks",
       dedupe_key: `seasonal:${m.label}:${new Date().getUTCFullYear()}`,
-    });
-  }
-
-  // ---- a live campaign is underperforming its category benchmark
-  const benchmark = benchmarkFor(business.category);
-  const latestResultByCampaign = new Map<string, number>();
-  for (const r of results) {
-    if (r.ctr === null || latestResultByCampaign.has(r.campaign_id)) continue;
-    latestResultByCampaign.set(r.campaign_id, Number(r.ctr));
-  }
-  for (const c of campaigns.filter((x) => x.status === "live")) {
-    const ctr = latestResultByCampaign.get(c.id);
-    if (ctr === undefined || ctr >= benchmark * UNDERPERFORM_RATIO) continue;
-    await add({
-      kind: "campaign_performance",
-      title: `"${c.hook.slice(0, 60)}" is trailing benchmark`,
-      body: `CTR ${(ctr * 100).toFixed(2)}% vs a ${(benchmark * 100).toFixed(1)}% category average. Try the next headline before adding spend.`,
-      href: `/app/campaigns/${c.id}`,
-      dedupe_key: `perf:${c.id}:${week}`,
     });
   }
 
   return created;
 }
 
-/** The weekly "your report is ready" alert — fired by the Monday cron. */
-export async function createReportReadyAlert(repo: Repo, business: Business): Promise<Alert | null> {
+/** The weekly "your tests are written" alert — fired by the Monday cron. */
+export async function createWeekReadyAlert(repo: Repo, business: Business, count: number): Promise<Alert | null> {
   const week = weekOf();
   return repo.createAlert({
     business_id: business.id,
     kind: "report_ready",
-    title: "Your weekly intel report is ready",
-    body: "This week's recommendation, ranking, demand, and competitor moves, with sources.",
-    href: "/app/report",
+    title: count === 1 ? "This week's creative test is written" : `This week's ${count} creative tests are written`,
+    body: "Each one is a hypothesis with the evidence behind it and a brief you can hand to a creator.",
+    href: "/app/picks",
     dedupe_key: `report:${week}`,
   });
 }

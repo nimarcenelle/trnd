@@ -13,7 +13,6 @@ const MAX_AD_EXPORT_BYTES = 5 * 1024 * 1024;
 function revalidateAdSurfaces() {
   revalidatePath("/app/settings");
   revalidatePath("/app", "layout");
-  revalidatePath("/app/report");
 }
 
 /** The notice travels as a code plus numbers, never as free text, so a
@@ -64,7 +63,16 @@ export async function importAdExportAction(formData: FormData): Promise<void> {
     revalidateAdSurfaces();
     back("error");
   }
+  // Rows named for an open creative test land on it now, not at the next cron.
+  try {
+    const { syncRunsFromHistory } = await import("@/lib/ads/run-sync");
+    await syncRunsFromHistory(repo, business.id);
+  } catch (err) {
+    console.warn("[ads:import] runs from history failed (non-fatal):", (err as Error).message);
+  }
   revalidateAdSurfaces();
+  revalidatePath("/app/campaigns");
+  revalidatePath("/app/record");
   back(trimmed ? "trimmed" : "imported", {
     n: written || read.rows.length,
     skipped,

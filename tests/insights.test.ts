@@ -5,7 +5,6 @@ import {
   buildNextAction,
   creativeTestBudgetFor,
   launchByFor,
-  buildResultsTakeaway,
 } from "../lib/recommend/insights";
 import type { Learning, Signal } from "../lib/db/types";
 import type { ScoredOpportunity } from "../lib/scoring";
@@ -126,13 +125,6 @@ describe("insight engine", () => {
     expect(launchByFor("2026-09-07", Date.UTC(2026, 8, 10, 15))).toBe("2026-09-11");
   });
 
-  it("results takeaway is one line, never a paragraph", () => {
-    const t = buildResultsTakeaway({ avgCtr: 0.025, benchmark: 0.018, roas: 6.9 });
-    expect(t).toBeTruthy();
-    expect(t!).not.toContain("\n");
-    expect(t!).toMatch(/scale the winner/);
-    expect(buildResultsTakeaway({ avgCtr: null, benchmark: 0.018, roas: null })).toBeNull();
-  });
 });
 
 describe("history insight provenance", () => {

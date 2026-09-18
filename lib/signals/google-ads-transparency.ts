@@ -1,6 +1,6 @@
 import { env } from "@/lib/env";
 
-import { ACTOR_ATTEMPTS, ACTOR_TIMEOUT_MS } from "@/lib/social/apify";
+import { runActorSync } from "@/lib/social/apify";
 
 import { CircuitBreaker, fetchText } from "./http";
 
@@ -21,7 +21,6 @@ import { CircuitBreaker, fetchText } from "./http";
  * warn, never a throw.
  */
 
-const RUN_URL = "https://api.apify.com/v2/acts";
 const REGION = "US";
 const MAX_ADS = 30;
 /**
@@ -333,24 +332,17 @@ export async function fetchGoogleAds(
   if (!host) return [];
 
   if (env.apifyToken) {
-    const doFetchText = opts.fetchText ?? fetchText;
-    const actor = (env.apifyGoogleAdsActor || DEFAULT_ACTOR).trim().replace("/", "~");
+    const actor = env.apifyGoogleAdsActor || DEFAULT_ACTOR;
     try {
-      const text = await doFetchText(
-        `${RUN_URL}/${encodeURIComponent(actor)}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          // Both spellings the store's actors take: the default reads
-          // searchQuery, others read domains. Unknown keys are ignored.
-          body: JSON.stringify({ searchQuery: host, domains: [host], region: REGION, maxResults: MAX_ADS }),
-          breaker,
-          timeoutMs: ACTOR_TIMEOUT_MS,
-          attempts: ACTOR_ATTEMPTS,
-        },
+      // The shared call meters the run at the actor's own rate (this path
+      // billed unmetered before). Both input spellings the store's actors
+      // take: the default reads searchQuery, others read domains.
+      const items = await runActorSync<unknown>(
+        actor,
+        { searchQuery: host, domains: [host], region: REGION, maxResults: MAX_ADS },
+        { breaker, fetchText: opts.fetchText, rateKey: "apify:result:google_ads" },
       );
-      const parsed = JSON.parse(text) as unknown;
-      return Array.isArray(parsed) ? toGoogleAds(parsed, host) : [];
+      return toGoogleAds(items, host);
     } catch (err) {
       console.warn(`[signals:google_ads] apify "${host}" failed:`, (err as Error).message);
       return [];

@@ -12,9 +12,10 @@ export default function TermsPage() {
     <LegalShell title="Terms of Service" updated="September 12, 2026">
       <h2>What TRND is</h2>
       <p>
-        TRND recommends what a business should advertise each week, generates the campaign
-        assets, and tracks the results you record. It is a decision-support and content tool —
-        you run the ads on your own ad accounts, with your own budgets.
+        TRND writes weekly creative test briefs for a brand: each a hypothesis with the evidence
+        behind it, in a brief a creator can shoot from, and tracks the results you record or
+        that sync from your own ad account. It is a decision-support and content tool — you make
+        the ads and run them on your own ad accounts, with your own budgets.
       </p>
 
       <h2>Your account</h2>
@@ -31,16 +32,16 @@ export default function TermsPage() {
         starts with a 14-day trial period and no card on file; nothing is charged through the app
         unless you choose a paid plan. Paid plans are billed monthly through Stripe and you can
         cancel anytime from the billing portal; cancellation stops future charges and your plan
-        runs to the end of the paid period. Founding-business pricing stays locked while your
-        subscription is continuous. The briefs and campaigns TRND wrote for you are yours; export
-        them any time, on any plan or none.
+        runs to the end of the paid period. Founding-brand pricing stays locked while your
+        subscription is continuous. The briefs TRND wrote for you are yours; export them any
+        time, on any plan or none.
       </p>
 
       <h2>Connected ad accounts</h2>
       <p>
-        If you connect an ad account, such as Meta or Google Ads, you confirm you have the right
-        to give TRND access to it. TRND reads your campaign results and only creates or changes
-        campaigns when you tell it to. Your spend is billed by the ad platform, not by us, and
+        If you connect an ad account, such as Meta, you confirm you have the right to give TRND
+        access to it. TRND only reads your account&apos;s ad history and results; it never creates,
+        changes or spends on a campaign. Your spend is billed by the ad platform, not by us, and
         that platform&apos;s own terms and ad policies apply. You can disconnect any time in
         Settings. See our <a className="text-amber" href="/privacy">Privacy Policy</a> for what
         we store and how Google API data is handled.
@@ -77,11 +78,11 @@ export default function TermsPage() {
 
       <h2>Signals, scores, and generated content</h2>
       <p>
-        Trend signals, scores, grades, and benchmarks are estimates, clearly labeled when
-        illustrative. They are not guarantees of demand or ad performance. Generated copy is a
-        draft for your judgment — review it before you spend money on it. You own the campaign
-        content generated for your business; we may use aggregated, de-identified performance
-        patterns to make recommendations sharper for everyone.
+        Trend signals and benchmarks are estimates, clearly labeled when illustrative. They are
+        not guarantees of demand or ad performance. A brief is a hypothesis for your judgment —
+        review it before you spend money on it. You own the briefs written for your business; we
+        may use aggregated, de-identified performance patterns to make briefs sharper for
+        everyone.
       </p>
 
       <h2>Liability</h2>

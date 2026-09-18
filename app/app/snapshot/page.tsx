@@ -121,11 +121,11 @@ export default async function SnapshotPage() {
                 ))}
               </ol>
               <div className="flex items-center gap-[14px] mt-4 flex-wrap">
-                <Link href="/app/opportunities" className="btn btn-primary btn-sm">
-                  See this week&apos;s ranked plays
+                <Link href="/app/picks" className="btn btn-primary btn-sm">
+                  See this week&apos;s creative tests
                 </Link>
                 <span className="font-mono text-[11px] text-ink-faint">
-                  every week, live demand is ranked against this analysis
+                  every week, what is moving is read against this analysis
                 </span>
               </div>
             </div>
@@ -243,9 +243,8 @@ export default async function SnapshotPage() {
               </div>
               <p className="text-[12.5px]">
                 Search phrases your customers actually type, read daily{isDataForSeoConfigured ? " in your own metro" : " — nationally until the metro volume feed is switched on"}. When one
-                of them moves, it shows up ranked in{" "}
-                <Link className="text-(--amber-text)" href="/app/picks">This week</Link> with a campaign
-                ready to build — that&apos;s the point of this page.
+                of them moves, it becomes the research input for a creative test in{" "}
+                <Link className="text-(--amber-text)" href="/app/picks">This week</Link>. That is the point of this page.
               </p>
             </div>
           )}
@@ -255,8 +254,8 @@ export default async function SnapshotPage() {
             <p>
               This isn&apos;t a report to file — it&apos;s the lens the rest of TRND looks through. The
               watch terms above feed the daily demand scan; every trend that scan finds is judged against
-              your positioning and menu before it&apos;s allowed to rank; and when you build a campaign,
-              the copy is written from your edge, your prices, and your voice — not a template.
+              your positioning and catalog before it can become a test; and every brief is written from
+              your edge, your prices, and your voice, with each fact checked against what is on file.
               <span className="font-mono text-[11px] text-ink-faint block mt-2">
                 {isTemplate ? "TRND category playbooks" : "AI analysis"} of your profile
                 {business.website ? " + website" : ""}{generatedOn ? ` · ${generatedOn}` : ""} · regenerates

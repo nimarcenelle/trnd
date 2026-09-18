@@ -3,14 +3,16 @@ import { CircuitBreaker, fetchText } from "@/lib/signals/http";
 import { recordProviderUsage } from "@/lib/usage/providers";
 
 /**
- * The one Apify call every social read makes.
+ * The one Apify call every paid read makes.
  *
  * run-sync-get-dataset-items blocks until the actor finishes and returns the
- * dataset inline — no run polling, no dataset left behind to clean up. It is
- * the same call `lib/signals/adapters/tiktok-apify.ts` makes per term; it
- * lives here so the three account readers (Instagram, TikTok, Facebook)
- * share one URL shape, one breaker convention and one "not an array means
- * nothing" rule instead of drifting apart.
+ * dataset inline — no run polling, no dataset left behind to clean up. The
+ * three account readers (Instagram, TikTok, Facebook), the per-term TikTok
+ * adapter, the rival Ad Library read and the Google Transparency read all
+ * come through here, so they share one URL shape, one breaker convention,
+ * one "not an array means nothing" rule, and one meter. Three of those paths
+ * used to build the URL themselves and billed without a row in
+ * provider_usage; the in-app cost per brand was low by exactly that much.
  *
  * Every call is money — actors bill per result — so callers cap results in
  * their input and never retry a whole account on their own.
@@ -26,6 +28,16 @@ export const ACTOR_ATTEMPTS = 1;
 export interface RunActorOptions {
   breaker?: CircuitBreaker;
   fetchText?: typeof fetchText;
+  /** The rate the meter estimates results with; the generic per-result
+   * rate unless the actor's own price is known (lib/usage/providers.ts). */
+  rateKey?: string;
+  /**
+   * Throw on a body that is not JSON instead of returning []. The social
+   * reads treat an HTML error page as "nothing to show"; the rival Ad
+   * Library read must not, because an empty list there is written up as
+   * "no active ads" for a rival whose read never happened.
+   */
+  strict?: boolean;
 }
 
 /** Apify addresses actors as `owner~name` in the path. Docs and the store
@@ -44,6 +56,7 @@ export async function runActorSync<T>(
   // an empty list as "nothing to show".
   if (!env.apifyToken) return [];
   const doFetchText = opts.fetchText ?? fetchText;
+  const rateKey = opts.rateKey ?? "apify:result";
   let text: string;
   try {
     text = await doFetchText(
@@ -66,13 +79,15 @@ export async function runActorSync<T>(
   try {
     parsed = JSON.parse(text);
   } catch {
-    // An HTML error page or a truncated body is "no items", not a crash.
+    // An HTML error page or a truncated body is "no items", not a crash —
+    // unless the caller said a non-answer must not pass for an empty one.
     recordProviderUsage({ provider: "apify", operation: actor, rateKey: "apify:run", units: 1, ok: false, note: "answer was not JSON" });
+    if (opts.strict) throw new Error(`apify ${actor}: answer was not JSON`);
     return [];
   }
   const items = Array.isArray(parsed) ? (parsed as T[]) : [];
   // Actors bill per result: the meter counts what came back.
-  if (items.length > 0) recordProviderUsage({ provider: "apify", operation: actor, rateKey: "apify:result", units: items.length });
+  if (items.length > 0) recordProviderUsage({ provider: "apify", operation: actor, rateKey, units: items.length });
   else recordProviderUsage({ provider: "apify", operation: actor, rateKey: "apify:run", units: 1 });
   return items;
 }

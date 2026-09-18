@@ -155,7 +155,6 @@ export async function updateSocialHandlesAction(formData: FormData): Promise<voi
   });
   revalidatePath("/app/settings");
   revalidatePath("/app", "layout");
-  revalidatePath("/app/report");
 }
 
 /** How they sell, what they spend on paid social, and where. The controls
@@ -179,7 +178,6 @@ export async function updateBusinessProfileAction(formData: FormData): Promise<v
   await repo.updateBusiness(business.id, parsed.profile);
   revalidatePath("/app/settings");
   revalidatePath("/app", "layout");
-  revalidatePath("/app/report");
 }
 
 export async function deleteServiceAction(formData: FormData): Promise<void> {

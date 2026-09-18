@@ -1,4 +1,4 @@
-import type { BrandPick, NewAdHistory, PickRun, PickRunStatus, PickScript, RunVerdict } from "@/lib/db/types";
+import type { AdHistorySource, BrandPick, NewAdHistory, PickRun, PickRunStatus, PickScript, RunVerdict } from "@/lib/db/types";
 import type { GradeLetter } from "@/lib/scoring/model";
 
 import type { MetricDirection } from "./format";
@@ -109,6 +109,42 @@ export function generationDecision(entry: GenerationEntry | undefined, now: numb
 /** True when a keyed background job was not kicked inside the window. */
 export function dueForKick(lastAt: number | undefined, now: number, windowMs: number): boolean {
   return lastAt === undefined || now - lastAt >= windowMs;
+}
+
+/* -------------------------------- empty week -------------------------------- */
+
+/**
+ * What an empty week says. "Nothing worth spending on" is only true when the
+ * signals were read and every candidate still held; when half of them had
+ * nothing to read (no ad results on file, no competitors named) the honest
+ * line is which half, and where to fix it. Pure, so the wording is tested.
+ */
+export function emptyWeekLine(input: {
+  held: number;
+  adHistoryRows: number;
+  competitors: number;
+  where: string;
+  category: string;
+}): { line: string; missing: { label: string; href: string }[] } {
+  const missing: { label: string; href: string }[] = [];
+  if (input.adHistoryRows === 0) missing.push({ label: "Add an Ads Manager export", href: "/app/settings#ads" });
+  if (input.competitors === 0) missing.push({ label: "Name your competitors", href: "/app/settings" });
+  if (input.held > 0 && missing.length > 0) {
+    const what =
+      missing.length === 2
+        ? "no ad results are on file and no competitors are named, so the Brand and Competitive signals had nothing to read and the grade rested on the market alone"
+        : input.adHistoryRows === 0
+          ? "no ad results are on file, so the Brand signal had nothing to read"
+          : "no competitors are named, so the Competitive signal had nothing to read";
+    return {
+      line: `${input.held} ${input.held === 1 ? "candidate was" : "candidates were"} graded and every one held: ${what}. The week is graded again on the next daily read once that lands.`,
+      missing,
+    };
+  }
+  if (input.held > 0) {
+    return { line: `${input.held} ${input.held === 1 ? "candidate was" : "candidates were"} graded and every one held. The daily read keeps going; new tests land on Monday.`, missing };
+  }
+  return { line: `This week's reads for ${input.category} ${input.where} did not turn up a candidate. The daily read keeps going; new tests land on Monday.`, missing };
 }
 
 /* ---------------------------------- grade ---------------------------------- */
@@ -230,18 +266,60 @@ function isoDay(d: Date | string): string {
   return (typeof d === "string" ? new Date(d) : d).toISOString().slice(0, 10);
 }
 
+/** The campaign name a run's ad-history row carries, so its own row can be
+ * told apart from the rest of the account when the run is judged. */
+export function runCampaignName(pick: Pick<BrandPick, "term">): string {
+  return `TRND pick: ${pick.term.trim()}`;
+}
+
+/**
+ * What the brand names the ad in Ads Manager so its results find their way
+ * back to this test: the account history sync and an uploaded export are
+ * matched on it (lib/ads/run-sync.ts). The concept's title, because that
+ * is what the creative team calls the idea; the research term on a pick
+ * written before titles existed.
+ */
+export function runTrackingName(pick: Pick<BrandPick, "term"> & { concept_title?: string | null }): string {
+  const name = (pick.concept_title ?? pick.term).replace(/\s+/g, " ").trim().slice(0, 80);
+  return `TRND: ${name}`;
+}
+
+const numeric = (v: unknown): number | null => {
+  const n = typeof v === "string" ? Number(v) : v;
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+};
+
+/**
+ * The results form leaves blank what the owner does not know. A run the
+ * account sync already filled must not lose those numbers to a blank: the
+ * owner's figure wins where they gave one, the synced figure stays where
+ * they did not.
+ */
+export function withSyncedNumbers(results: RunResults, run: Partial<RunResults>): RunResults {
+  return {
+    spend_usd: results.spend_usd ?? numeric(run.spend_usd),
+    impressions: results.impressions ?? numeric(run.impressions),
+    clicks: results.clicks ?? numeric(run.clicks),
+    conversions: results.conversions ?? numeric(run.conversions),
+    revenue_usd: results.revenue_usd ?? numeric(run.revenue_usd),
+  };
+}
+
 /**
  * The ad-history row a completed run becomes, or null when the owner gave no
  * delivery numbers (impressions or clicks): a row with neither teaches the
  * Brand baseline nothing. Its identity is the pick and the run's start day,
- * so a repeat submit upserts the same row.
+ * so a repeat submit upserts the same row. A run the daily sync closed is
+ * written as "meta_api", the source the account history sync replaces, so
+ * the same ad never counts twice once the account's own row arrives.
  */
 export function runAdHistoryRow(input: {
   pick: Pick<BrandPick, "business_id" | "term" | "bet_what">;
   scripts: Pick<PickScript, "position" | "variant_label" | "hook">[];
   run: Pick<PickRun, "started_at">;
   results: RunResults;
-  endedAt: Date;
+  endedAt: Date | null;
+  source?: Extract<AdHistorySource, "manual" | "meta_api">;
 }): NewAdHistory | null {
   const { pick, run, results } = input;
   if (results.impressions === null && results.clicks === null) return null;
@@ -252,7 +330,7 @@ export function runAdHistoryRow(input: {
   return {
     business_id: pick.business_id,
     platform: "meta",
-    campaign_name: `TRND pick: ${term}`,
+    campaign_name: runCampaignName(pick),
     ad_name: first?.variant_label?.trim() || term,
     copy: copy || null,
     impressions: results.impressions,
@@ -261,7 +339,7 @@ export function runAdHistoryRow(input: {
     results: results.conversions,
     ctr: ratio(results.clicks, results.impressions),
     started_on: Number.isNaN(started.getTime()) ? null : isoDay(started),
-    ended_on: isoDay(input.endedAt),
-    source: "manual",
+    ended_on: input.endedAt ? isoDay(input.endedAt) : null,
+    source: input.source ?? "manual",
   };
 }

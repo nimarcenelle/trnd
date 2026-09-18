@@ -22,13 +22,19 @@ import SubmitButton from "@/components/app/submit-button";
 import { getUserRepo } from "@/lib/db";
 import { sentenceCase } from "@/lib/text";
 import {
+  isApifyConfigured,
   isDataForSeoConfigured,
   isEmailConfigured,
   isGeminiConfigured,
+  isInstagramConfigured,
   isMetaAdsConfigured,
   isPlacesConfigured,
+  isRedditConfigured,
   isStripeConfigured,
+  isXConfigured,
+  isYoutubeConfigured,
 } from "@/lib/env";
+import { liveSources, liveSourcesLine, liveSourcesNote } from "@/lib/signals/live-sources";
 import {
   addCompetitorAction,
   deleteCompetitorAction,
@@ -208,10 +214,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           : "Not available yet",
       ok: metaConnected,
       note: metaConnected
-        ? "Launched campaigns sync their results back every day."
+        ? "Your account's last 180 days of ads sync daily, and a test named the way its brief says gets its results by that name."
         : isMetaAdsConfigured
-          ? "Connect to launch campaigns from TRND and sync results automatically."
-          : "Results are entered by hand until ad-account sync is available for your workspace.",
+          ? "Connect to sync your own ad history daily, so briefs are graded against it and tests get their results without an upload."
+          : "Results come from your Ads Manager export until ad-account sync is available for your workspace.",
       action: metaConnected ? ("disconnect-meta" as const) : isMetaAdsConfigured ? ("connect-meta" as const) : null,
     },
     {
@@ -234,17 +240,25 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       note: isEmailConfigured ? "The Monday report lands in your inbox." : "The report is always available here every week.",
       action: null,
     },
-    {
-      name: "Market reads",
-      detail: isDataForSeoConfigured
-        ? "Search volume by metro, Google Trends, weather, autocomplete, news, Meta ads, TikTok, YouTube"
-        : "Google Trends, weather, autocomplete, news, Meta ads, TikTok, YouTube",
-      ok: true,
-      note: isDataForSeoConfigured
-        ? "Refreshed daily. Search volume is measured in your metro."
-        : "Refreshed daily. Search reads are national until metro volume is available for your workspace.",
-      action: null,
-    },
+    // Only the reads that actually run with the keys as set: a source named
+    // here is one that has written rows, never one that could.
+    (() => {
+      const sources = liveSources({
+        dataForSeo: isDataForSeoConfigured,
+        youtube: isYoutubeConfigured,
+        apify: isApifyConfigured,
+        reddit: isRedditConfigured,
+        x: isXConfigured,
+        instagram: isInstagramConfigured,
+      });
+      return {
+        name: "Market reads",
+        detail: liveSourcesLine(sources),
+        ok: true,
+        note: liveSourcesNote(sources, isDataForSeoConfigured),
+        action: null,
+      };
+    })(),
   ];
 
   return (
@@ -594,9 +608,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           <p className="text-[13.5px] text-ink-soft m-0 leading-[1.55]">
             {plan.plan === "trial"
               ? plan.locked
-                ? "Everything you generated stays yours. Pick a plan to keep the weekly recommendations and campaign builds coming."
-                : "Full product, no card on file. Pick a plan any time; founding businesses lock their price."
-              : "One ad a week, written before you open the app, your rivals read daily, and the Monday report in your inbox — recorded results sharpen the next one."}
+                ? "Every brief you received stays yours. Pick a plan to keep the weekly creative tests coming."
+                : "Full product, no card on file. Pick a plan any time; founding brands lock their price."
+              : "Up to three creative test briefs a week, your rivals read weekly, and the Monday email in your inbox. What you record sharpens the next week."}
           </p>
         </div>
 
@@ -725,7 +739,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       <section className="panel">
         <div className="panel__head">
           <span className="panel__title">Integrations</span>
-          <span className="panel__meta">What powers your recommendations</span>
+          <span className="panel__meta">What powers your briefs</span>
         </div>
         {connectError && (
           <p className="mx-0 mt-0 mb-[14px] font-mono text-[12px] text-red">
@@ -734,7 +748,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         )}
         {justConnected && (
           <p className="mx-0 mt-0 mb-[14px] font-mono text-[12px] text-(--mint-text)">
-            Connected. Results will sync from your next launched campaign.
+            Connected. Your ad history syncs tonight; a test named the way its brief says gets its results from then on.
           </p>
         )}
         <div className="grid grid-cols-[repeat(auto-fit,_minmax(220px,_1fr))] gap-[14px]">

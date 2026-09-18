@@ -1,4 +1,4 @@
-import { bestTheme, historyOnTerm } from "@/lib/ads/history-read";
+import { bestTheme, historyLineage, historyOnTerm } from "@/lib/ads/history-read";
 import {
   defaultConceptWriter,
   fallbackConceptWrite,
@@ -354,6 +354,10 @@ async function buildConcept(repo: Repo, input: WeekInputs, opportunity: Opportun
   });
   const creative = assembleBrief(words, {
     evaluation,
+    // The concept against the brand's own record: its last ads of this
+    // shape, and how many beat the account. Read once the concept exists,
+    // because the shape is the concept's, not the search term's.
+    lineage: ctx.history.length > 0 ? historyLineage(ctx.history, [words.title, words.hooks.primary, words.hypothesis].join(". ")) : null,
     structuralUnknowns: structuralUnknowns({
       history: ctx.history,
       hasRecentCreative: Boolean(business.recent_creative_notes),

@@ -92,6 +92,18 @@ export default function ConceptDetail({ view, head, exportHref, refine }: { view
             <p className="cb__p">{view.hypothesis}</p>
             <p className="cb__label-note">A hypothesis, not a prediction. The test is how we find out.</p>
           </div>
+          {view.lineage && (
+            <div className="pickd__card">
+              <h2 className="pickd__h2">Your own record on this shape</h2>
+              <p className="cb__p">{view.lineage.line}</p>
+              <p className="cb__label-note">
+                Click-through only, from your ad history{view.lineage.latest ? `, the latest from ${day(view.lineage.latest)}` : ""}. Not purchase data.{" "}
+                <Link href="/app/settings#ads" className="cb__link">
+                  Your past ads
+                </Link>
+              </p>
+            </div>
+          )}
           {view.priorityReason && (
             <div className="pickd__card">
               <h2 className="pickd__h2">Why this is worth a test this week</h2>
@@ -201,6 +213,13 @@ export default function ConceptDetail({ view, head, exportHref, refine }: { view
             <div>
               <dt>Budget</dt>
               <dd>{view.evaluation.budget}</dd>
+            </div>
+            <div>
+              <dt>Name it</dt>
+              <dd>
+                Name the ad <code className="cb__code">{view.trackingName}</code> in Ads Manager. With your Meta account connected, or an export
+                uploaded later, its results land on this test by that name.
+              </dd>
             </div>
             <div>
               <dt>Watch</dt>

@@ -407,10 +407,15 @@ export async function runIngest(
   const reports: AdapterRunReport[] = [];
   let totalSignals = 0;
   let totalSeriesPoints = 0;
+  // A read that outlived the remainder of the budget spent it. Said here
+  // rather than left to the clock: a timer set for what was left can fire
+  // while Date.now still reads a millisecond short, and the next adapter
+  // would run on a budget that was gone.
+  let budgetSpent = false;
 
   for (const adapter of adapters) {
     const report: AdapterRunReport = { adapter: adapter.name, ok: false, signals: 0, seriesPoints: 0 };
-    if (Date.now() - startedAt >= budgetMs) {
+    if (budgetSpent || Date.now() - startedAt >= budgetMs) {
       // This is how DataForSEO went 48 hours without writing a row: nothing
       // failed, nothing errored, it was just never reached. A skip is a
       // silent outage unless it is said out loud.
@@ -423,6 +428,9 @@ export async function runIngest(
       reports.push(report);
       continue;
     }
+    // Whether the slice handed to this adapter was the budget's remainder
+    // rather than the per-adapter cap: then its timeout is the budget's end.
+    let cappedByBudget = false;
     try {
       if (!(await adapter.isAvailable())) {
         report.skipped = "unavailable (missing key or open circuit)";
@@ -430,15 +438,19 @@ export async function runIngest(
         reports.push(report);
         continue;
       }
+      let slice = sliceMs();
+      cappedByBudget = slice < adapterTimeoutMs;
       const raw = await withTimeout(
         adapter.fetch({ terms: watchTerms, watch, places, subreddits, geo, windowDays }),
-        sliceMs(),
+        slice,
       );
       report.signals = await repo.upsertSignals(toSignalRows(raw));
       if (adapter.fetchSeries) {
+        slice = sliceMs();
+        cappedByBudget = slice < adapterTimeoutMs;
         const series = await withTimeout(
           adapter.fetchSeries({ terms: watchTerms, watch, places, subreddits, geo, windowDays }),
-          sliceMs(),
+          slice,
         );
         report.seriesPoints = await repo.upsertSeriesPoints(
           series.map((p) => ({
@@ -454,6 +466,7 @@ export async function runIngest(
       totalSeriesPoints += report.seriesPoints;
     } catch (err) {
       report.error = (err as Error).message;
+      if (report.error === "timed out" && cappedByBudget) budgetSpent = true;
       console.warn(`[ingest] adapter ${adapter.name} failed:`, report.error);
     }
     reports.push(report);

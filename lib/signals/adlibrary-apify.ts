@@ -1,6 +1,6 @@
 import { env } from "@/lib/env";
 
-import { ACTOR_ATTEMPTS, ACTOR_TIMEOUT_MS } from "@/lib/social/apify";
+import { runActorSync } from "@/lib/social/apify";
 
 import { CircuitBreaker, fetchText } from "./http";
 
@@ -28,7 +28,6 @@ import { CircuitBreaker, fetchText } from "./http";
  * renamed key must degrade to a missing fact, never throw mid-run.
  */
 
-const RUN_URL = "https://api.apify.com/v2/acts";
 /** Overridable via APIFY_ADLIBRARY_ACTOR because actors get renamed and
  * deprecated out from under you. */
 const DEFAULT_ACTOR = "curious_coder/facebook-ads-library-scraper";
@@ -343,24 +342,13 @@ export async function fetchAdvertiserAds(
     console.warn(`[signals:adlibrary_apify] APIFY_TOKEN unset — skipping "${name}"`);
     return [];
   }
-  const doFetchText = opts.fetchText ?? fetchText;
   const actor = env.apifyAdLibraryActor || DEFAULT_ACTOR;
   try {
-    // run-sync-get-dataset-items blocks until the run finishes and hands back
-    // the items directly — no polling, and no dataset left behind to clean up.
-    const text = await doFetchText(
-      `${RUN_URL}/${encodeURIComponent(actor)}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(adLibraryActorInput(name)),
-        breaker,
-        timeoutMs: ACTOR_TIMEOUT_MS,
-        attempts: ACTOR_ATTEMPTS,
-      },
-    );
-    const parsed = JSON.parse(text) as unknown;
-    return Array.isArray(parsed) ? toAdvertiserAds(parsed) : [];
+    // The shared call meters the run (this path billed unmetered before).
+    // Strict: a body that is not JSON throws, because an empty list here is
+    // written up as "no active Meta ads".
+    const items = await runActorSync<unknown>(actor, adLibraryActorInput(name), { breaker, fetchText: opts.fetchText, strict: true });
+    return toAdvertiserAds(items);
   } catch (err) {
     // A failed read is not "no ads". Callers store nothing and read again
     // tomorrow; an empty list here was written up as "no active Meta ads"

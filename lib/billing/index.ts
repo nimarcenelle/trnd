@@ -12,9 +12,9 @@ import { isStripeConfigured } from "@/lib/env";
  * - LOCKING only happens when Stripe is actually configured. Without keys
  *   there is no way to pay, so an expired "trial" stays usable and the UI
  *   says billing isn't connected — a demo install never bricks itself.
- * - Locked means: no new campaign builds. Everything already generated stays
- *   readable and exportable — the landing page promises "the campaigns you
- *   generated are yours", and the product keeps that promise.
+ * - Locked means: no new week of briefs. Everything already written stays
+ *   readable and exportable — the landing page promises the briefs are the
+ *   customer's, and the product keeps that promise.
  */
 
 export const TRIAL_DAYS = 14;
@@ -109,10 +109,10 @@ export function derivePlanState(
   if (billingLive) {
     if (isTrialing && trialEnd && trialEnd.getTime() <= now.getTime()) {
       locked = true;
-      lockedReason = "Your free trial has ended — pick a plan to keep building campaigns.";
+      lockedReason = "Your free trial has ended — pick a plan to keep the weekly creative tests coming.";
     } else if (sub.status === "canceled") {
       locked = true;
-      lockedReason = "Your subscription ended — restart it to keep building campaigns.";
+      lockedReason = "Your subscription ended — restart it to keep the weekly creative tests coming.";
     }
     // past_due keeps working: Stripe retries the card; cutting the product
     // off during a bank hiccup churns customers who meant to pay.

@@ -90,6 +90,8 @@ export const isGoogleAdsConfigured = Boolean(
 export const isPlacesConfigured = Boolean(env.placesApiKey);
 /** Per-term TikTok; the national board adapter runs regardless. */
 export const isApifyConfigured = Boolean(env.apifyToken);
+/** The Shorts read; free, and the single highest-value key in the file. */
+export const isYoutubeConfigured = Boolean(env.youtubeApiKey);
 export const isXConfigured = Boolean(env.xBearerToken);
 /** Reels needs both halves: a token and the business account it reads as. */
 export const isInstagramConfigured = Boolean(env.instagramToken && env.instagramUserId);

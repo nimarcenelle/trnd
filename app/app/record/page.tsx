@@ -9,6 +9,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { formatUsd } from "@/lib/picks/format";
 import { shortDate } from "@/lib/picks/list";
+import { calibrationReport } from "@/lib/record/calibration";
 import { OUTCOME_LABEL, OUTCOME_TONE } from "@/lib/record/outcome";
 import { buildTrackRecord, hitRateLine, ratePct } from "@/lib/record/track";
 import { weekOf } from "@/lib/recommend/week";
@@ -43,7 +44,10 @@ export default async function TrackRecordPage() {
     safe(repo.listAdHistory(business.id), []),
   ]);
   const accountCtr = readAdHistory(history).accountCtr;
-  const record = buildTrackRecord(runs, { accountCtr, benchmarkCtr: benchmarkFor(business.category) });
+  const outcomes = { accountCtr, benchmarkCtr: benchmarkFor(business.category) };
+  const record = buildTrackRecord(runs, outcomes);
+  // Predicted against actual: the stamp each run carried, and what it did.
+  const calibration = calibrationReport(runs, outcomes);
   const judged = accountCtr ? "your own account average" : "the category average";
 
   const stats = [
@@ -107,26 +111,30 @@ export default async function TrackRecordPage() {
         <section className="rec__section" aria-labelledby="rec-grades">
           <div className="rec__section-head">
             <span id="rec-grades" className="eyebrow m-0">
-              What each grade has done for you
+              Predicted against actual
             </span>
+            <span className="rec__count">what each grade has done for you</span>
           </div>
           <div className="rec__table-wrap">
             <table className="rec__table">
               <thead>
                 <tr>
                   <th>Grade</th>
+                  <th className="num">Predicted</th>
                   <th className="num">Ran</th>
                   <th className="num">Won</th>
                   <th className="num">Lost</th>
                   <th>Hit rate</th>
+                  <th className="num">Lift</th>
                 </tr>
               </thead>
               <tbody>
-                {record.byGrade.map((g) => {
-                  const rate = g.scored > 0 ? g.won / g.scored : null;
+                {calibration.grades.map((g) => {
+                  const rate = g.hitRate;
                   return (
                     <tr key={g.letter}>
                       <td className="rec__grade">{g.letter}</td>
+                      <td className="num">{g.predicted === null ? "—" : `${g.predicted} of 100`}</td>
                       <td className="num">{g.runs}</td>
                       <td className="num">{g.won}</td>
                       <td className="num">{g.scored - g.won}</td>
@@ -142,12 +150,16 @@ export default async function TrackRecordPage() {
                           </>
                         )}
                       </td>
+                      <td className="num" title={g.medianLift === null ? "No run of this grade has logged its click-through against your account yet." : `Median of ${g.lifts}`}>
+                        {g.medianLift === null ? "—" : `${g.medianLift.toFixed(2)}×`}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+          {calibration.line && <p className="rec__read">{calibration.line} Lift is the run&apos;s click-through over your account average when it ended, logged on the run.</p>}
         </section>
       )}
 

@@ -263,7 +263,23 @@ export interface Repo {
   updatePickRun(
     id: string,
     patch: Partial<
-      Pick<PickRun, "status" | "ended_at" | "spend_usd" | "result_note" | "impressions" | "clicks" | "conversions" | "revenue_usd" | "verdict" | "launched_at" | "learned">
+      Pick<
+        PickRun,
+        | "status"
+        | "ended_at"
+        | "spend_usd"
+        | "result_note"
+        | "impressions"
+        | "clicks"
+        | "conversions"
+        | "revenue_usd"
+        | "verdict"
+        | "launched_at"
+        | "learned"
+        | "baseline_ctr"
+        | "lift"
+        | "meta_campaign_id"
+      >
     > & { status?: PickRunStatus },
   ): Promise<PickRun>;
   /** Newest first, every run this business ever opened, with its pick. */

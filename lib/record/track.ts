@@ -132,14 +132,29 @@ export function hitRateLine(record: TrackRecord): string | null {
 
 /**
  * What this grade has actually done for this brand, for the grade card.
- * Honest at every count: no finished runs says so, one says one.
+ * Honest at every count: no finished runs says so, one says one. When the
+ * runs logged a lift over the account, the median rides along: won or lost
+ * is the verdict, the lift is by how much.
  */
-export function calibrationLine(record: TrackRecord, letter: GradeLetter | null): string | null {
+export function calibrationLine(record: TrackRecord, letter: GradeLetter | null, lifts: number[] = []): string | null {
   if (!letter || letter === "Hold") return null;
   const g = record.byGrade.find((x) => x.letter === letter);
   if (!g || g.runs === 0) return `No ${letter} picks have finished running for you yet.`;
   if (g.scored === 0) return `${g.runs} ${letter} ${g.runs === 1 ? "pick is" : "picks are"} running or unscored; none finished with a result yet.`;
-  return `${letter} picks have won ${g.won} of ${g.scored} for you so far.`;
+  const base = `${letter} picks have won ${g.won} of ${g.scored} for you so far.`;
+  const valid = lifts.filter((l) => Number.isFinite(l) && l > 0).sort((a, b) => a - b);
+  if (valid.length === 0) return base;
+  const m = valid.length % 2 ? valid[(valid.length - 1) / 2] : (valid[valid.length / 2 - 1] + valid[valid.length / 2]) / 2;
+  return `${base} Their click-through ran ${(Math.round(m * 100) / 100).toString()}x your account average (median of ${valid.length}).`;
+}
+
+/** The lifts the runs of one grade logged, for calibrationLine. */
+export function liftsForGrade(runs: { run: Pick<PickRun, "lift">; pick: Pick<BrandPick, "grade"> }[], letter: GradeLetter | null): number[] {
+  if (!letter) return [];
+  return runs
+    .filter(({ pick }) => gradeLetterOf(pick) === letter)
+    .map(({ run }) => num(run.lift))
+    .filter((n): n is number => n !== null && n > 0);
 }
 
 /** Percent for display: "60%". */

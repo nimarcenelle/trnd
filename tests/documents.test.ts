@@ -14,8 +14,6 @@ const { resetStore } = await import("../lib/db/demo/store");
 const { extractText, fallbackDigest, guessKind, mimeFor, readCsv, servicesFromText } = await import("../lib/documents/parse");
 const XLSX = await import("xlsx");
 const { digestUpload, documentFacts } = await import("../lib/documents/digest");
-const { buildIntelReport } = await import("../lib/report/build");
-const { reportFacts } = await import("../lib/report/note");
 
 const bizInput = (ownerId: string): NewBusiness => ({
   owner_id: ownerId,
@@ -108,7 +106,7 @@ describe("reading uploads without a model", () => {
 describe("what the owner uploaded rides on every read", () => {
   beforeEach(() => resetStore());
 
-  it("stores the digest, cites it in the report facts, and is private to the business", async () => {
+  it("stores the digest, turns it into citable facts, and is private to the business", async () => {
     const user = createDemoRepo({ kind: "user", userId: "owner" });
     const biz = await user.createBusiness(bizInput("owner"));
     const read = await digestUpload(biz, { name: "q3-sales.csv", mime: "text/csv", bytes: new TextEncoder().encode(SALES) });
@@ -118,9 +116,7 @@ describe("what the owner uploaded rides on every read", () => {
 
     const facts = documentFacts([doc]);
     expect(facts[1]).toBe('From "q3-sales.csv" (sales): Top by Revenue: Glass skin facial (5,880), Brow lamination (2,635), Dermaplaning (1,320), LED add-on (1,100), Gift card (900).');
-    const report = await buildIntelReport(user, biz);
-    expect(report.documents.length).toBe(3);
-    expect(reportFacts(report)).toContain('From "q3-sales.csv" (sales): Top by Revenue');
+    expect(facts.length).toBe(3);
 
     const stranger = createDemoRepo({ kind: "user", userId: "someone-else" });
     expect(await stranger.listDocuments(biz.id)).toEqual([]);

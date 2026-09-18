@@ -673,7 +673,7 @@ export default function OnboardingWizard() {
         <textarea id="ob-claims" rows={2} maxLength={NOTES_MAX} value={claimsNotes} onChange={(e) => setClaimsNotes(e.target.value)} placeholder='e.g. Never say "cures". No before-and-after photos.' />
       </div>
       <div className="field">
-        <label>Your recent ad results (optional)</label>
+        <label>Your recent ad results</label>
         <label className="menu-drop" style={{ padding: "16px 18px" }}>
           <input
             type="file"
@@ -688,8 +688,10 @@ export default function OnboardingWizard() {
           />
           <span className="menu-drop__title">{exportFiles.length > 0 ? "Add another export" : "Upload an Ads Manager or Google Ads export"}</span>
           <span className="menu-drop__hint">
-            CSV or Excel, at the ad level. It stops TRND repeating ideas that already failed and lets each brief compare against your
-            real baseline. A results export carries numbers and ad names, not the creative itself; the brief reads what is there.
+            CSV or Excel, at the ad level, the last 90 to 180 days. This is what makes week one a real baseline instead of research
+            only: every brief is graded against how your own ads of that shape did, and TRND stops repeating ideas that already
+            failed. A results export carries numbers and ad names, not the creative itself; the brief reads what is there. You can
+            skip it and add it later in Settings.
           </span>
         </label>
         {exportFiles.length > 0 && (

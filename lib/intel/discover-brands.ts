@@ -84,13 +84,6 @@ export function isMarketplace(brand: Pick<ProposedBrand, "name" | "website">): b
   return MARKETPLACES.has(label) || MARKETPLACES.has(squash(brand.name));
 }
 
-/** The same loose match the daily ads read uses, so the counts agree. */
-const sameAdvertiser = (brand: string, advertiser: string) => {
-  const a = advertiser.toLowerCase().trim();
-  const r = brand.toLowerCase().trim();
-  return Boolean(a) && Boolean(r) && (a.includes(r) || r.includes(a));
-};
-
 async function settle<T>(work: () => Promise<T>, fallback: T, label: string): Promise<T> {
   try {
     return await work();

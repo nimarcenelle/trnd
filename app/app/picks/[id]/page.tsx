@@ -21,7 +21,7 @@ import { weekRangeLabel } from "@/lib/picks/list";
 import { weekDeepening, weekStillWriting } from "@/lib/picks/progress";
 import { readAdHistory } from "@/lib/ads/history-read";
 import { notThisWeek, type DontCall } from "@/lib/record/calls";
-import { buildTrackRecord, calibrationLine, gradeLetterOf } from "@/lib/record/track";
+import { buildTrackRecord, calibrationLine, gradeLetterOf, liftsForGrade } from "@/lib/record/track";
 import { weekOf } from "@/lib/recommend/week";
 import { benchmarkFor } from "@/lib/results/benchmarks";
 import { isGeminiConfigured } from "@/lib/env";
@@ -72,7 +72,8 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
   const record = buildTrackRecord(runs, { accountCtr: readAdHistory(history).accountCtr, benchmarkCtr: benchmarkFor(business.category) });
   // Day one says nothing about the record: a line about runs that never
   // happened reads as a gap, not as honesty. It starts with the first run.
-  const calibration = { line: record.runs > 0 ? calibrationLine(record, gradeLetterOf(detail.pick)) : null, proven: record.scored > 0 };
+  const letter = gradeLetterOf(detail.pick);
+  const calibration = { line: record.runs > 0 ? calibrationLine(record, letter, liftsForGrade(runs, letter)) : null, proven: record.scored > 0 };
   const dont = notThisWeek({ runs, skips: skips.filter((s) => s.normalized_term !== normalizeTerm(detail.pick.term)) });
   const items = siblings.map((s) => ({ href: `/app/picks/${s.pick.id}`, term: s.pick.concept_title ?? sentenceCase(s.pick.term) }));
   const index = Math.max(0, siblings.findIndex((s) => s.pick.id === id));

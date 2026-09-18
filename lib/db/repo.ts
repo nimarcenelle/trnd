@@ -71,6 +71,8 @@ import type {
   PilotApplication,
   ProviderUsage,
   Subscription,
+  NewStrategyReadRow,
+  StrategyReadRow,
 } from "./types";
 
 /**
@@ -161,6 +163,10 @@ export interface Repo {
   /* intel notes — the analyst note opening each week's report */
   upsertIntelNote(input: NewIntelNote): Promise<IntelNote>;
   getIntelNote(businessId: string, weekOf: string): Promise<IntelNote | null>;
+
+  /** The week's account read (lib/research). Reads as null until migration 0031 is applied. */
+  upsertStrategyRead(input: NewStrategyReadRow): Promise<StrategyReadRow | null>;
+  getStrategyRead(businessId: string, weekOf: string): Promise<StrategyReadRow | null>;
 
   /** The analyst's read on one pick — see PickRead. */
   upsertPickRead(input: NewPickRead): Promise<PickRead>;

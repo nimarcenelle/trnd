@@ -536,6 +536,29 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwIf(error, "getIntelNote");
       return (data as IntelNote | null) ?? null;
     },
+    async upsertStrategyRead(input) {
+      const { data, error } = await sb
+        .from("strategy_reads")
+        .upsert(input, { onConflict: "business_id,week_of" })
+        .select()
+        .single();
+      if (isMissingTable(error)) {
+        console.warn("[supabase:upsertStrategyRead] table missing — run the pending migrations (supabase/migrations). Not stored.");
+        return null;
+      }
+      throwIf(error, "upsertStrategyRead");
+      return data as StrategyReadRow;
+    },
+    async getStrategyRead(businessId, weekOf) {
+      const { data, error } = await sb
+        .from("strategy_reads")
+        .select("*")
+        .eq("business_id", businessId)
+        .eq("week_of", weekOf)
+        .maybeSingle();
+      throwUnlessMissing(error, "getStrategyRead");
+      return (data as StrategyReadRow | null) ?? null;
+    },
     async upsertPickRead(input) {
       const { data, error } = await sb
         .from("pick_reads")

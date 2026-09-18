@@ -119,3 +119,86 @@ a.pickd__proof-src:hover {
   white-space: nowrap;
 }
 }
+
+/* ------------------------------ the week's read ------------------------------ */
+/* The concept page carries its own .page wrapper, so above it the read
+ * takes the same gutter and width and none of the bottom padding. */
+.wread-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 36px 32px 0;
+}
+.wread-wrap .wread {
+  margin-bottom: 0;
+}
+@media (max-width: 640px) {
+  .wread-wrap {
+    padding: 20px 16px 0;
+  }
+}
+.wread {
+  margin: 0 0 18px;
+  padding: 16px 20px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.wread__summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+.wread__summary::-webkit-details-marker {
+  display: none;
+}
+.wread__eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.wread__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wread__situation {
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+  max-width: 78ch;
+}
+.wread__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px 24px;
+  margin-top: 16px;
+}
+.wread__h {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+.wread__list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.wread__list li + li {
+  margin-top: 4px;
+}
+.wread__unknowns {
+  margin: 14px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}

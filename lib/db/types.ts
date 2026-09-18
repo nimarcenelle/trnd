@@ -818,6 +818,25 @@ export interface IntelNote {
 export type NewIntelNote = Omit<IntelNote, "id" | "created_at">;
 
 /**
+ * The week's account read: the strategist pass over the research dossier
+ * (lib/research/strategist.ts). `read` is the StrategyRead JSON and
+ * `coverage` the dossier's coverage counts when it was written, so a week
+ * whose reads grew afterwards is read again rather than served stale.
+ */
+export interface StrategyReadRow {
+  id: string;
+  business_id: string;
+  week_of: string; // yyyy-mm-dd (Monday)
+  read: unknown;
+  coverage: unknown;
+  dossier_chars: number;
+  model_used: string;
+  prompt_version: string;
+  created_at: string;
+}
+export type NewStrategyReadRow = Omit<StrategyReadRow, "id" | "created_at">;
+
+/**
  * The read on one pick — the analyst's paragraphs on why this term, for this
  * business, this week, written from the same facts the score meters show.
  * Model-written only; without a model the deterministic insight lines stand

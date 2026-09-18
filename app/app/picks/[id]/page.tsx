@@ -12,6 +12,7 @@ import DetailActions from "@/components/picks/detail-actions";
 import DetailCopyButton from "@/components/picks/detail-copy-button";
 import DemandChart from "@/components/picks/demand-chart";
 import SignalRead from "@/components/picks/signal-read";
+import WeekRead from "@/components/picks/week-read";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { buildConceptView } from "@/lib/picks/concept-view";
@@ -24,6 +25,7 @@ import { notThisWeek, type DontCall } from "@/lib/record/calls";
 import { buildTrackRecord, calibrationLine, gradeLetterOf, liftsForGrade } from "@/lib/record/track";
 import { weekOf } from "@/lib/recommend/week";
 import { benchmarkFor } from "@/lib/results/benchmarks";
+import { storedWeekStrategy } from "@/lib/research/weekly";
 import { isGeminiConfigured } from "@/lib/env";
 import { normalizeTerm } from "@/lib/signals/normalize";
 import { sentenceCase } from "@/lib/text";
@@ -58,7 +60,7 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
       return fallback;
     }
   };
-  const [siblings, unreadAlerts, writing, deepening, runs, skips, history] = await Promise.all([
+  const [siblings, unreadAlerts, writing, deepening, runs, skips, history, weekRead] = await Promise.all([
     repo.listReadyPicks(business.id, week),
     repo.listAlerts(business.id, { unreadOnly: true, limit: 5 }),
     weekStillWriting(repo, business),
@@ -66,6 +68,7 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
     safe(repo.listPickRuns(business.id), []),
     safe(repo.listWeekSkips(business.id, week), []),
     safe(repo.listAdHistory(business.id), []),
+    safe(storedWeekStrategy(repo, business.id, week), null),
   ]);
   // The brand's own record decides how the grade is read: what this letter
   // has actually done here, and what not to run alongside this pick.
@@ -86,6 +89,11 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
     return (
       <>
         <AlertBar alerts={unreadAlerts} />
+        {weekRead && (
+          <div className="wread-wrap">
+            <WeekRead read={weekRead} brand={business.name} />
+          </div>
+        )}
         <ConceptDetail
           view={concept}
           head={{ items, index, weekRange: weekRangeLabel(week), writing, deepening }}
@@ -127,6 +135,7 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
   return (
     <div className="page pickd">
       <AlertBar alerts={unreadAlerts} />
+      {weekRead && <WeekRead read={weekRead} brand={business.name} />}
       {sections.map((s) => render[s]())}
     </div>
   );

@@ -5,6 +5,7 @@ import {
   type ConceptWriter,
   type ConceptWriterInput,
 } from "@/lib/ai/concept-writer";
+import type { ConceptStrategy } from "@/lib/ai/concept-writer";
 import type { Repo } from "@/lib/db/repo";
 import type { Business, BusinessBrief, NewPickBundle, Opportunity, Review, Service, Signal, SocialComment } from "@/lib/db/types";
 import { indexSeries } from "@/lib/demand/series";
@@ -12,6 +13,8 @@ import { explainOpportunity } from "@/lib/recommend/explain";
 import { campaignSignalBrief, loadSignalContext, type SignalContext } from "@/lib/recommend/four-signals";
 import { loadBrandMemory, memoryLines, type BrandMemory } from "@/lib/record/memory";
 import { weekOf as currentWeek } from "@/lib/recommend/week";
+import type { StrategyRead } from "@/lib/research/strategist";
+import { ensureWeekStrategy } from "@/lib/research/weekly";
 import { isCulturalSource } from "@/lib/scoring";
 import { rankScoreOf } from "@/lib/scoring/grade-opportunity";
 import { assessAdRead } from "@/lib/signals/ad-relevance";
@@ -46,6 +49,8 @@ export const CANDIDATES_PER_WEEK = 5;
 export const DEFAULT_SCRIPT_SECONDS = 20;
 
 export interface GenerateWeekPicksOptions {
+  /** The week's account read to build from; null skips the strategist. Omit to make or load it. */
+  strategy?: StrategyRead | null;
   /** Defaults to this week. */
   weekOf?: string;
   /** False builds the bundles without storing them. Defaults to true. */
@@ -206,6 +211,8 @@ function reviewFacts(term: string, reviews: Review[]): EvidenceFacts["reviews"] 
 
 interface WeekInputs {
   business: Business;
+  /** The week's account read, when the strategist could make one. */
+  strategy: StrategyRead | null;
   services: Service[];
   brief: BusinessBrief | null;
   pool: Signal[];
@@ -216,6 +223,28 @@ interface WeekInputs {
   documentFacts: string[];
   memory: BrandMemory;
   writer: ConceptWriter;
+}
+
+/**
+ * The angle a concept builds: the read's angle on the concept's product
+ * when there is one not already taken by an earlier concept this week,
+ * else null with the whole ranked list, so the writer chooses.
+ */
+export function strategyFor(read: StrategyRead | null, matched: Service | null, others: ConceptWrite[]): ConceptStrategy | null {
+  if (!read) return null;
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const taken = new Set(others.map((c) => norm(c.title)));
+  const free = read.angles.filter((a) => !taken.has(norm(a.title)));
+  const product = matched ? norm(matched.name) : null;
+  const angle = product ? (free.find((a) => norm(a.product) === product || norm(a.product).includes(product) || product.includes(norm(a.product))) ?? null) : null;
+  return { situation: read.situation, angle, angles: free, whitespace: read.whitespace, doNot: read.do_not };
+}
+
+/** The read's lines a brief's facts may trace to: the situation and the
+ * angle's evidence are dossier quotes, so a fact taken from them is on file. */
+export function strategyCorpus(strategy: ConceptStrategy | null): string[] {
+  if (!strategy) return [];
+  return [strategy.situation, ...(strategy.angle ? [strategy.angle.the_bet, strategy.angle.why_now, ...strategy.angle.evidence] : []), ...strategy.whitespace];
 }
 
 /** Everything a fact in the brief may trace to. */
@@ -299,6 +328,7 @@ async function buildConcept(repo: Repo, input: WeekInputs, opportunity: Opportun
   });
 
   const signals = campaignSignalBrief(signal, ctx);
+  const strategy = strategyFor(input.strategy, matched, others);
   const termMemory = memory.get(signal.normalized_term);
   const quotes = [...(comments?.onTerm ?? []).map((c) => c.text), ...(reviews?.onTerm ?? []).map((r) => r.text)].slice(0, 6);
   const durationSec = scriptSeconds(signals.medianDurationSec);
@@ -314,10 +344,11 @@ async function buildConcept(repo: Repo, input: WeekInputs, opportunity: Opportun
     memory: memoryLines(termMemory),
     otherConcepts: others.map((c) => ({ title: c.title, hypothesis: c.hypothesis })),
     durationSec,
+    strategy,
   };
   const rules: ConceptRules = {
     term: signal.term,
-    corpus: factCorpus(input, evidence.map((e) => e.claim)),
+    corpus: factCorpus(input, [...evidence.map((e) => e.claim), ...strategyCorpus(strategy)]),
     allowedPriceCents: services.filter((s) => s.is_active !== false && typeof s.price_cents === "number").map((s) => s.price_cents as number),
     forbiddenPhrases: forbiddenPhrases(business.claims_notes),
   };
@@ -472,8 +503,22 @@ export async function generateWeekPicks(repo: Repo, business: Business, opts: Ge
     safe(repo.listDocuments(business.id), []),
   ]);
   const [ctx, memory] = await Promise.all([loadSignalContext(repo, business, brief, pool), loadBrandMemory(repo, business)]);
+  // The week's account read first: one strategist pass over the whole
+  // dossier, stored on the week, so every concept below starts from the
+  // same situation and builds one of its angles. Without a model, or when
+  // it fails, the concepts are written as before.
+  let strategy: StrategyRead | null = null;
+  if (opts.strategy !== undefined) strategy = opts.strategy;
+  else {
+    try {
+      strategy = (await ensureWeekStrategy(repo, business, { weekOf: week }))?.read ?? null;
+    } catch (err) {
+      console.warn(`[picks] account read failed for ${business.id} (non-fatal):`, (err as Error).message);
+    }
+  }
   const inputs: WeekInputs = {
     business,
+    strategy,
     services,
     brief,
     pool,

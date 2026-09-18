@@ -38,6 +38,7 @@ import type {
   PilotApplication,
   ProviderUsage,
   Subscription,
+  StrategyReadRow,
 } from "../types";
 
 /** A local account record — demo mode's stand-in for auth.users. */
@@ -65,6 +66,7 @@ export interface DemoStore {
   business_briefs: BusinessBrief[];
   subscriptions: Subscription[];
   intel_notes: IntelNote[];
+  strategy_reads?: StrategyReadRow[];
   pick_reads?: PickRead[];
   standing_questions?: StandingQuestion[];
   business_documents?: BusinessDocument[];
@@ -106,6 +108,7 @@ function emptyStore(): DemoStore {
     business_briefs: [],
     subscriptions: [],
     intel_notes: [],
+    strategy_reads: [],
     pick_reads: [],
     standing_questions: [],
     business_documents: [],

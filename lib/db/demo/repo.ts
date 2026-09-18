@@ -608,6 +608,24 @@ export function createDemoRepo(actor: DemoActor): Repo {
       saveStore();
       return q;
     },
+    async upsertStrategyRead(input) {
+      assertOwnsBusiness(input.business_id);
+      store.strategy_reads ??= [];
+      const existing = store.strategy_reads.find((r) => r.business_id === input.business_id && r.week_of === input.week_of);
+      if (existing) {
+        Object.assign(existing, input);
+        saveStore();
+        return existing;
+      }
+      const row = { ...input, id: randomUUID(), created_at: new Date().toISOString() };
+      store.strategy_reads.push(row);
+      saveStore();
+      return row;
+    },
+    async getStrategyRead(businessId, weekOf) {
+      if (!visibleBusinessIds().has(businessId)) return null;
+      return (store.strategy_reads ?? []).find((r) => r.business_id === businessId && r.week_of === weekOf) ?? null;
+    },
     async getIntelNote(businessId, weekOf) {
       if (!visibleBusinessIds().has(businessId)) return null;
       return (

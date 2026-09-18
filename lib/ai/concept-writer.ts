@@ -43,6 +43,32 @@ export interface ConceptWriterInput {
   feedback?: string | null;
   /** A refinement ask from the owner, when rewriting an existing brief. */
   refinement?: { ask: string; previous: ConceptWrite } | null;
+  /** The week's account read (lib/research), when one exists: the
+   * situation, the angle this concept should build, and the read's
+   * whitespace and do-not lists. */
+  strategy?: ConceptStrategy | null;
+}
+
+export interface ConceptStrategy {
+  situation: string;
+  /** The angle chosen for this concept, or null when the writer should pick from `angles`. */
+  angle: StrategyAngle | null;
+  /** The other angles the read ranked, so the writer can choose or avoid. */
+  angles: StrategyAngle[];
+  whitespace: string[];
+  doNot: string[];
+}
+
+export interface StrategyAngle {
+  priority: number;
+  title: string;
+  product: string;
+  the_bet: string;
+  why_now: string;
+  differs_from_rivals: string;
+  evidence: string[];
+  risk: string;
+  format_hint: string;
 }
 
 /** Returns unvalidated output; the weekly job validates whatever comes back. */
@@ -151,6 +177,28 @@ function brandBlock(input: ConceptWriterInput): string {
   return out.join("\n");
 }
 
+function strategyBlock({ strategy }: ConceptWriterInput): string {
+  if (!strategy) return "";
+  const out: string[] = ["THE ACCOUNT READ THIS WEEK (the strategist's read of the whole dossier; the concept must sit inside it):", `Situation: ${strategy.situation}`];
+  if (strategy.angle) {
+    const a = strategy.angle;
+    out.push(
+      `THE ANGLE THIS CONCEPT BUILDS: "${a.title}" on ${a.product}.`,
+      `- The bet: ${a.the_bet}`,
+      `- Why now: ${a.why_now}`,
+      `- Against the rivals: ${a.differs_from_rivals}`,
+      `- Risk: ${a.risk}`,
+      `- Format the strategist had in mind: ${a.format_hint}`,
+      ...(a.evidence.length ? ["- The evidence behind it:", ...a.evidence.map((e) => `  - ${e}`)] : []),
+    );
+  } else if (strategy.angles.length > 0) {
+    out.push("THE ANGLES THE READ RANKED (choose the one the research input fits; say which in priority_reason):", ...strategy.angles.map((a) => `- ${a.priority}. "${a.title}" on ${a.product}: ${a.the_bet}`));
+  }
+  if (strategy.whitespace.length) out.push("WHAT NO RIVAL IS SAYING:", ...strategy.whitespace.map((w) => `- ${w}`));
+  if (strategy.doNot.length) out.push("DO NOT (from the read):", ...strategy.doNot.map((d) => `- ${d}`));
+  return out.join("\n");
+}
+
 function productionBlock(input: ConceptWriterInput): string {
   const formats = (input.business.production_formats ?? []).map((f) => FORMAT_NAMES[f] ?? f);
   return formats.length > 0
@@ -181,6 +229,8 @@ export function buildConceptPrompt(input: ConceptWriterInput): string {
     matchedService ? `The item this concept most likely sells: "${matchedService.name}"${price ? ` at ${price}` : ""}. Choose another listed item if it fits the concept better.` : "Choose the listed item that fits the concept.",
     "",
     catalogBlock(input, online),
+    "",
+    strategyBlock(input),
     "",
     customerBlock(input),
     "",

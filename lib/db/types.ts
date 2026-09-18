@@ -318,6 +318,10 @@ export interface Connection {
   /** Platform account id (e.g. Meta act_… or a Places place_id). */
   account_id: string | null;
   account_name: string | null;
+  /** The platform user who authorized the link (Meta's app-scoped user id).
+   * It is how a deauthorize or data-deletion request from the platform,
+   * which names the user and not the business, finds the row. */
+  provider_user_id: string | null;
   access_token: string;
   refresh_token: string | null;
   token_expires_at: string | null;

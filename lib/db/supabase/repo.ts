@@ -619,11 +619,11 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
     },
 
     async upsertConnection(input) {
-      const { data, error } = await sb
-        .from("connections")
-        .upsert({ ...input, updated_at: new Date().toISOString() }, { onConflict: "business_id,provider" })
-        .select()
-        .single();
+      const { data, error } = await writeTolerant(
+        { ...input, updated_at: new Date().toISOString() },
+        (row) => sb.from("connections").upsert(row, { onConflict: "business_id,provider" }).select().single(),
+        "upsertConnection",
+      );
       throwIf(error, "upsertConnection");
       return data as Connection;
     },
@@ -640,6 +640,21 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
     async listConnections(businessId) {
       const { data, error } = await sb.from("connections").select("*").eq("business_id", businessId);
       throwIf(error, "listConnections");
+      return (data ?? []) as Connection[];
+    },
+    async listConnectionsByProviderUser(provider, providerUserId) {
+      const { data, error } = await sb
+        .from("connections")
+        .select("*")
+        .eq("provider", provider)
+        .eq("provider_user_id", providerUserId);
+      // Before migration 0032 the column does not exist; there is then no
+      // row it could name, which is the same answer.
+      if (missingColumn(error)) {
+        console.warn("[supabase:listConnectionsByProviderUser] column missing — run migration 0032. Reading as empty.");
+        return [];
+      }
+      throwIf(error, "listConnectionsByProviderUser");
       return (data ?? []) as Connection[];
     },
     async deleteConnection(businessId, provider) {

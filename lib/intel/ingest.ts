@@ -49,6 +49,7 @@ async function ingestOwnReviews(repo: Repo, business: Business): Promise<number>
       status: "connected",
       account_id: placeId,
       account_name: place.name,
+      provider_user_id: null,
       access_token: "places-api",
       refresh_token: null,
       token_expires_at: null,

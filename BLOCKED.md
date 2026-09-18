@@ -42,13 +42,16 @@ Each is implemented behind its interface and registered unavailable at runtime.
 - Needs a Meta developer app with Marketing API access. Until its keys exist, Settings
   shows the connect card as "not available yet" and results come from the export.
 - **Seam**: create an app at developers.facebook.com (type Business), add the Marketing
-  API product, request `ads_read` in App Review (business verification required for
-  public use; the app works immediately for its admins/testers). Set `META_APP_ID`,
-  `META_APP_SECRET`, and `NEXT_PUBLIC_APP_URL` (the OAuth redirect is
-  `<APP_URL>/api/connect/meta/callback` — add it to the app's Valid OAuth Redirect URIs).
-  The connect button and the daily history sync activate on their own. TRND only reads;
-  the `ads_management` scope is still requested for accounts that already granted it but
-  nothing in the product uses it.
+  API product, request Advanced Access for `ads_read` in App Review (business verification
+  required for public use; the app works immediately for its admins/testers). Set
+  `META_APP_ID`, `META_APP_SECRET`, and `NEXT_PUBLIC_APP_URL`. The OAuth redirect is
+  `<APP_URL>/api/connect/meta/callback`; the deauthorize callback is
+  `<APP_URL>/api/connect/meta/deauthorize`; the data-deletion callback is
+  `<APP_URL>/api/connect/meta/data-deletion`. All three go in the app dashboard. The
+  connect button and the daily history sync activate on their own. TRND only reads, and
+  `ads_read` is the only scope it requests; the callback checks what was actually granted
+  and refuses a connect that cannot read ads. The submission itself (settings, use-case
+  text, screencast script, test login) is in `GO-LIVE.md`.
 
 ## Google Places (reviews & competitor ratings)
 - **Seam**: a Google Cloud project with "Places API (New)" enabled; set

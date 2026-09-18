@@ -204,20 +204,27 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
     d.digest.services_found.filter((x) => !serviceNames.has(x.name.trim().toLowerCase())).length;
 
   const metaConnected = metaConnection?.status === "connected";
+  // Meta told us the person removed TRND from their account: the token is
+  // dead and the sync has stopped. Nothing to disconnect; something to say.
+  const metaRevoked = metaConnection?.status === "revoked";
   const integrations = [
     {
       name: "Meta ad account",
       detail: metaConnected
         ? `${metaConnection?.account_name ?? metaConnection?.account_id ?? "Connected"}`
-        : isMetaAdsConfigured
-          ? "Ready to connect"
-          : "Not available yet",
+        : metaRevoked
+          ? "Access removed on Meta"
+          : isMetaAdsConfigured
+            ? "Ready to connect"
+            : "Not available yet",
       ok: metaConnected,
       note: metaConnected
         ? "Your account's last 180 days of ads sync daily, and a test named the way its brief says gets its results by that name."
-        : isMetaAdsConfigured
-          ? "Connect to sync your own ad history daily, so briefs are graded against it and tests get their results without an upload."
-          : "Results come from your Ads Manager export until ad-account sync is available for your workspace.",
+        : metaRevoked
+          ? "TRND was removed from your Meta account, so the daily sync has stopped. What was synced stays until you clear it above. Connect again to resume."
+          : isMetaAdsConfigured
+            ? "Connect to sync your own ad history daily, so briefs are graded against it and tests get their results without an upload."
+            : "Results come from your Ads Manager export until ad-account sync is available for your workspace.",
       action: metaConnected ? ("disconnect-meta" as const) : isMetaAdsConfigured ? ("connect-meta" as const) : null,
     },
     {

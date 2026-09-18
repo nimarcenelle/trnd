@@ -29,7 +29,7 @@ export const env = {
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
   stripePriceBaseline: process.env.STRIPE_PRICE_BASELINE ?? "",
   stripePricePro: process.env.STRIPE_PRICE_PRO ?? "",
-  /** Meta Marketing API app — ad-account connect, results sync, launch. */
+  /** Meta Marketing API app — ad-account connect and the daily history sync. */
   metaAppId: process.env.META_APP_ID ?? "",
   metaAppSecret: process.env.META_APP_SECRET ?? "",
   /** Flip to "1" only AFTER Meta App Review approves instagram_basic —

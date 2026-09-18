@@ -664,6 +664,12 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (!visibleBusinessIds().has(businessId)) return [];
       return (store.connections ?? []).filter((c) => c.business_id === businessId);
     },
+    async listConnectionsByProviderUser(provider, providerUserId) {
+      const visible = visibleBusinessIds();
+      return (store.connections ?? []).filter(
+        (c) => c.provider === provider && c.provider_user_id === providerUserId && visible.has(c.business_id),
+      );
+    },
     async deleteConnection(businessId, provider) {
       assertOwnsBusiness(businessId);
       store.connections = (store.connections ?? []).filter(

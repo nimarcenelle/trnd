@@ -190,6 +190,9 @@ export interface Repo {
   upsertConnection(input: NewConnection): Promise<Connection>;
   getConnection(businessId: string, provider: ConnectionProvider): Promise<Connection | null>;
   listConnections(businessId: string): Promise<Connection[]>;
+  /** Every connection a platform user authorized, across businesses: the
+   * lookup a platform's deauthorize or data-deletion callback needs. */
+  listConnectionsByProviderUser(provider: ConnectionProvider, providerUserId: string): Promise<Connection[]>;
   deleteConnection(businessId: string, provider: ConnectionProvider): Promise<void>;
 
   /* competitors — named rivals + dated observations */

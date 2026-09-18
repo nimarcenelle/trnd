@@ -478,7 +478,9 @@ describe("meta instagram scopes", () => {
     // consent screen for the connect that already works.
     expect(process.env.META_INSTAGRAM_SCOPES).not.toBe("1");
     expect(META_SCOPES).not.toContain("instagram_basic");
-    expect(META_SCOPES).toContain("ads_read");
+    // App Review approves what the screencast shows in use. The product
+    // reads results and never launches, so the ask is exactly one scope.
+    expect(META_SCOPES).toEqual(["ads_read"]);
   });
 });
 

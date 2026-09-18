@@ -12,7 +12,15 @@ import { env } from "@/lib/env";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
-const AD_SCOPES = ["ads_read", "ads_management", "business_management"];
+/**
+ * The one permission the product uses. TRND reads an account's own ad
+ * results and never creates, edits or launches an ad, so `ads_read` is the
+ * whole ask: App Review approves what the screencast shows in use, and the
+ * consent screen should promise the brand nothing more than that.
+ */
+const AD_SCOPES = ["ads_read"];
+/** What the connect must end up holding, whatever else the user allowed. */
+export const REQUIRED_SCOPE = "ads_read";
 
 /**
  * Reading Reels per hashtag needs `instagram_basic` + `pages_show_list` and
@@ -99,6 +107,22 @@ export async function exchangeCodeForToken(code: string): Promise<{ token: strin
   return {
     token: long.access_token,
     expiresAt: long.expires_in ? new Date(Date.now() + long.expires_in * 1000).toISOString() : null,
+  };
+}
+
+/**
+ * Who just authorized, and what they actually allowed. Meta lets a person
+ * untick a permission on the consent screen and still complete the flow, so
+ * the requested list says nothing about what the token can do; this does.
+ */
+export async function whoAuthorized(token: string): Promise<{ userId: string; granted: string[] }> {
+  const me = await graphGet<{ id: string }>("/me", { fields: "id", access_token: token });
+  const perms = await graphGet<{ data?: { permission: string; status: string }[] }>("/me/permissions", {
+    access_token: token,
+  });
+  return {
+    userId: me.id,
+    granted: (perms.data ?? []).filter((p) => p.status === "granted").map((p) => p.permission),
   };
 }
 

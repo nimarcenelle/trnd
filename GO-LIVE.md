@@ -8,12 +8,85 @@ every one of them is in place and tested.
 
 | # | Do this | Cost | What it switches on |
 |---|---|---|---|
-| 1 | **Meta App Review for `ads_read`** (the app and the scope are already wired; review is what lets accounts outside the app's testers grant it) | Free; days to weeks | 180 days of ad-level results with creative copy, no upload (`lib/ads/history-sync.ts`), and every test named the way its brief says (`TRND: <concept title>`) gets its numbers from that history daily and goes live on first delivery (`lib/ads/run-sync.ts`). Brand stops being the dark 25% lane. |
+| 1 | **Meta App Review for `ads_read`** (the app, the one scope, and Meta's deauthorize and data-deletion callbacks are wired; review is what lets accounts outside the app's testers grant it; the submission is written out below) | Free; days to weeks | 180 days of ad-level results with creative copy, no upload (`lib/ads/history-sync.ts`), and every test named the way its brief says (`TRND: <concept title>`) gets its numbers from that history daily and goes live on first delivery (`lib/ads/run-sync.ts`). Brand stops being the dark 25% lane. |
 | 2 | **Require an export at pilot onboarding** (process, not code: the upload step is on the Context screen and in Settings) | Free | Week one starts from a real baseline: every brief is graded against the brand's own ads of that shape ("2 of your last 3 ads built on explaining something beat your account click-through"), and the evaluation plan names the account's own cost per result. |
 | 3 | **Set `YOUTUBE_API_KEY`** (Google Cloud console, free tier, no card) | Free, 10,000 units a day | The Shorts read per watch term. Currently unset, so the short-form half of the demand read runs on the TikTok board alone. Settings names only the reads that run, so this shows up the day it is set. |
 | 4 | **Create the Reddit script app** and set `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` | Free | The adapter is already on OAuth; without the app it reads nothing from a cloud IP. |
 | 5 | **Verify the per-term TikTok actor on one live run**: `APIFY_TOKEN=... pnpm tsx scripts/probe-tiktok-apify.ts "shower filter"` | One paid run, a few cents | The probe prints which documented fields arrived and exits non-zero if a required one did not. The adapter now warns once per night when the actor drifts, and every run is metered. ~$4 per 25-term read. |
 | 6 | **Paste migration 0029** (`supabase/migrations/0029_calibration.sql`) | Free | The calibration log: baseline click-through and lift on every finished run, read back as Predicted against actual on the Track record. Until it runs, writes drop the two columns and everything else still lands. |
+| 7 | **Paste migration 0032** (`supabase/migrations/0032_connection_provider_user.sql`) | Free | The Meta login behind each connection, which is how a deauthorize or data-deletion request from Meta finds the row. Until it runs, connects still land (the column is dropped from the write) and the callbacks find nothing to act on. |
+
+## Meta App Review: the submission (2026-09-18)
+
+The pilot does not need this. An app in Development mode works for anyone with a role on
+it: add each pilot brand's Facebook user as a **Tester** under App roles, they accept from
+their developer notifications, and Connect Meta in Settings works that day. Review is what
+lets a brand with no role on the app connect, which is the public product.
+
+**Before submitting, in the app dashboard.** Start business verification first; it is its own
+review and the slowest part.
+
+| Where | Set to |
+|---|---|
+| App settings → Basic → Privacy policy URL | `https://usetrnd.com/privacy` |
+| App settings → Basic → Terms of service URL | `https://usetrnd.com/terms` |
+| App settings → Basic → Data deletion → Data deletion request callback URL | `https://usetrnd.com/api/connect/meta/data-deletion` |
+| App settings → Basic → App icon, category, contact email | Icon 1024×1024; category Business and pages |
+| App settings → Advanced → Deauthorize callback URL | `https://usetrnd.com/api/connect/meta/deauthorize` |
+| Facebook Login → Settings → Valid OAuth redirect URIs | `https://usetrnd.com/api/connect/meta/callback` |
+| App settings → Verification → Business verification | Legal name, address, one document (licence, utility bill, bank statement) |
+
+The three callback URLs are real endpoints: the redirect finishes the connect, the
+deauthorize marks the connection revoked the moment a person removes TRND on Facebook, and
+the data-deletion one deletes the connection and everything it synced and answers Meta with
+the confirmation code and status page it requires (`lib/ads/meta-callbacks.ts`). Replace
+the host with `NEXT_PUBLIC_APP_URL` if it is not usetrnd.com.
+
+**The request.** App Review → Permissions and features → `ads_read` → Request Advanced
+Access. Nothing else: the connect asks for exactly this one scope, and the callback refuses
+a connect that did not grant it, so the screencast and the consent screen match.
+
+Use-case text, as written:
+
+> TRND writes weekly creative test briefs for small advertisers and grades them against the
+> advertiser's own ad history. With ads_read, TRND reads the connected ad account's ad-level
+> results (spend, impressions, link clicks, purchases or leads, and the ad's headline and
+> primary text) for the last 180 days, once a day. It uses them for two things only: to grade
+> each new brief against what that account's past ads of the same shape did, and to attach
+> results to the tests the advertiser ran, matched by the ad name the brief told them to
+> use. TRND never creates, edits, pauses or launches an ad, never changes a budget, and reads
+> nothing about people: no audiences, no messages, no Page content. The advertiser can
+> disconnect in Settings, which deletes the token, or remove the app on Facebook, which
+> revokes it and can trigger deletion of everything synced.
+
+**The screencast**, under five minutes, on the production app, no cuts inside a step:
+
+1. Sign in to the reviewer's TRND account (below).
+2. Settings → Integrations → Connect Meta. Show the Meta consent screen with `ads_read` on
+   it, allow, and land back on Settings reading "Connected".
+3. Settings → Your past ads: the row count from the synced account (it fills within a minute
+   of connecting; wait on camera or cut to it and say so).
+4. What to make next → open one brief → scroll to "Your own record on this shape" (the
+   lineage line built from the synced ads) and the "Name it" row.
+5. Campaigns: a launched test whose spend, impressions and click-through are already on
+   its row, found in the account under the name its brief gave it (the daily sync fills
+   them; run `POST /api/cron/sync-results` with the cron secret before recording so the
+   row is filled on camera).
+6. Settings → Integrations → Disconnect, and the card reading "Ready to connect" again.
+
+**The test login.** Create a TRND account for the reviewer on production with a business
+already set up (any real category, Atlanta is fine), put its email and password in the
+submission notes, and connect it to a Meta test user or a real ad account you control that
+has delivery in the last 180 days. Reviewers reproduce the screencast themselves; an
+account with nothing to sync gets rejected as "could not verify the use case".
+
+**Data Use Checkup** (asked at submission and yearly): data is used only to provide the
+features above to the business that connected the account; stored in Supabase; not sold,
+not shared, not used for anything else; deleted on disconnect, on the platform's deletion
+request, or with the account.
+
+After approval, switch the app from Development to **Live** (top of the dashboard). Until
+it is Live, a person without a role on the app cannot connect at all.
 
 ## Keys and accounts
 

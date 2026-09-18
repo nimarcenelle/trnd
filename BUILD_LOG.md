@@ -891,3 +891,21 @@ narrower and deeper, without trading working functionality for ambition.
   privacy and Settings copy say what the product does now: it reads, it never launches.
 - **Verified**: unit suite green, lint and typecheck clean, production build, and the Playwright
   path from signup to the track record on the demo store.
+
+## P31 — Ready for Meta App Review (2026-09-18)
+The one thing outside the code that closes the loop for brands outside the app's testers.
+Everything Meta's reviewer checks now exists and does what the policy says.
+
+- **One scope.** The connect asks for `ads_read` and nothing else; `ads_management` and
+  `business_management` were requested and never used, and a screencast cannot demonstrate a
+  permission the product does not exercise. The callback reads what the person actually
+  granted, refuses a connect that cannot read ads with a plain message, refuses a login with no
+  active ad account, and stores the Meta user id and the granted list on the row.
+- **Meta's callbacks are real.** Deauthorize marks the connection revoked (Settings says so and
+  the sync stops). Data deletion removes the connection and every row it synced, keeps the
+  owner's own upload, and answers with the confirmation code and a status page that verifies
+  the code without a table (`lib/ads/meta-callbacks.ts`, migration 0032 for the user id).
+- **The policy says it.** Privacy has a "Deleting the data from a connected account" section
+  at `/privacy#data-deletion` with the three ways and what each removes.
+- **The submission is written.** GO-LIVE.md carries the dashboard settings, the use-case text,
+  the screencast script against real labels, the test login, and the Data Use Checkup answers.

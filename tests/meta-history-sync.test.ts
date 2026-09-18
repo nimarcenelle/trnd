@@ -166,6 +166,7 @@ describe("syncing a connected account's history", () => {
         status: "connected",
         account_id: "act_42",
         account_name: "Northfield",
+        provider_user_id: "10001",
         access_token: "tok",
         refresh_token: null,
         token_expires_at: null,

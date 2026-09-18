@@ -4,7 +4,7 @@ export const metadata = { title: "Privacy Policy — TRND" };
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="Privacy Policy" updated="September 12, 2026">
+    <LegalShell title="Privacy Policy" updated="September 18, 2026">
       <p>
         TRND (usetrnd.com) tells local businesses what to advertise each week and writes the ads.
         This policy covers what we collect to do that, what we do with it, and how to get it
@@ -36,16 +36,47 @@ export default function PrivacyPage() {
       <p>
         You can connect an ad account, such as Meta (Facebook and Instagram), so TRND can read
         how your own ads have done. When you connect, the platform shows you exactly what access
-        TRND is asking for. We store the access token it gives us, your ad account ID and name,
-        and the ad-level numbers we sync (spend, impressions, clicks, conversions, and the text of
-        each ad). We use that access only to grade briefs against your own history and to put
-        results on the tests you ran. TRND never creates or changes a campaign, never touches a
-        budget, and doesn&apos;t read personal messages, friends lists, or customer lists.
+        TRND is asking for: on Meta it is one permission, <em>ads_read</em>, and nothing else. We
+        store the access token it gives us, your ad account ID and name, the ID of the Meta login
+        that connected it, and the ad-level numbers we sync (spend, impressions, clicks,
+        conversions, and the text of each ad). We use that access only to grade briefs against
+        your own history and to put results on the tests you ran. TRND never creates or changes a
+        campaign, never touches a budget, and doesn&apos;t read personal messages, friends lists,
+        or customer lists.
       </p>
       <p>
         You can disconnect any time in Settings, which deletes the stored token. You can also
         revoke access from the platform&apos;s own settings. Deleting your account deletes
         everything we synced.
+      </p>
+
+      <h2 id="data-deletion">Deleting the data from a connected account</h2>
+      <p>
+        Any of these removes what TRND holds from your Meta account. None of them needs an
+        email to us.
+      </p>
+      <ol>
+        <li>
+          <strong>Remove TRND on Meta.</strong> In Facebook, open Settings &amp; privacy →
+          Settings → Apps and websites, find TRND and choose Remove. Meta tells us the moment
+          you do. The stored token is marked dead and the daily sync stops. If you also tick
+          Meta&apos;s option to delete your data from the app, Meta sends us a deletion request:
+          we delete the connection and every ad result we synced from it, and Meta shows you a
+          confirmation code with a link where you can check that it was done.
+        </li>
+        <li>
+          <strong>Disconnect in TRND.</strong> Settings → Integrations → Disconnect deletes the
+          stored token. The ad results already synced stay in your ad history until you clear
+          them in Settings → Your past ads → Clear, or delete your account.
+        </li>
+        <li>
+          <strong>Delete your TRND account.</strong> Settings → Delete account removes your
+          account, business, connected accounts, synced results, briefs and tests.
+        </li>
+      </ol>
+      <p>
+        An export you uploaded yourself is yours and is never touched by a Meta deletion
+        request; clear it in Settings whenever you like.
       </p>
       <p>
         <strong>Google user data.</strong> TRND&apos;s use of information received from Google

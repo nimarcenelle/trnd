@@ -3,12 +3,18 @@
 Integrations that could not go live in this environment, per Overnight Protocol §3.2.
 Each is implemented behind its interface and registered unavailable at runtime.
 
-## Gemini API key
-- The brief points at the GRWM repo for the key. The repo was cloned, but this session's
-  permission classifier denies grepping repositories for API-key material (twice).
-- **Seam**: put the key in `.env.local` as `GEMINI_API_KEY=` — nothing else changes.
-  `lib/ai/gemini.ts` detects it at startup; without it the template concept writer in
-  `lib/ai/concept-writer.ts` produces a whole brief so every downstream screen works.
+## OpenAI API key (was Gemini until 2026-09-19)
+- No model key in this container. The whole model layer runs on OpenAI now
+  (`lib/ai/openai.ts`, the only SDK import), held to strict JSON Schema built from the same
+  Zod schema each reply is validated with (`lib/ai/json-schema.ts`).
+- **Seam**: put the key in `.env.local` as `OPENAI_API_KEY=` — nothing else changes. Without
+  it the template writers and the rules classifiers produce every shape so every screen works.
+- **Unverified live**: no OpenAI call has been made from this container. The structured
+  output schemas are unit-tested for the keywords strict mode allows; the first live run
+  should be `pnpm eval:quality` with the key set, which exercises the founding analysis, the
+  relevance judge and a campaign end to end. Prompts were tuned against Gemini; expect to
+  re-tune temperature-free reasoning models by effort (`FLASH_EFFORT`, `PRO_EFFORT` in the
+  adapter) rather than temperature.
 
 ## Supabase (database + auth)
 - No `NEXT_PUBLIC_SUPABASE_URL`/keys in the environment; `supabase start` impossible —
@@ -251,3 +257,30 @@ thing each still needs from outside it. See `GO-LIVE.md`, "Close the loop first"
   actor now throws instead of reading as "no active ads".
 - **Settings, Market reads** names only the sources whose keys are set
   (`lib/signals/live-sources.ts`). With no YouTube key it says so.
+
+## The build-out (2026-09-19)
+
+What landed in code this session, and the one thing each needs from outside it.
+
+- **Meta video and purchase fields** (`lib/ads/meta.ts`): the insights request asks for
+  `action_values`, `video_3_sec_watched_actions` and `video_thruplay_watched_actions`; a field
+  Graph has retired is dropped from the request and the sync goes on. Unverified against a
+  live account (no Meta app credentials here); the retry is unit-tested.
+- **Linking an ad to a test by id** and **the fidelity check**: verified against the demo
+  store. The model half of the fidelity check (`checkAdFidelityWithModel`) has not run live;
+  the rules half runs everywhere.
+- **The ad classifier**: rules verified; the model batch call unverified live.
+- **Team members through row security** (`0034`): the policies are written against
+  `auth.jwt() ->> 'email'` so an invited email sees the brand before its first sign-in claims
+  the row. Verified in the demo store's mirror of the rules, not against a live Supabase.
+- **Share links** (`/share/<token>`): the page reads through the admin repo by token; verified
+  in demo. Tokens are 24 random bytes, base64url.
+- **Word export**: `docx` (the npm package) added; the zip signature is unit-tested, the
+  document has not been opened in Word here.
+- **Shopify** (`lib/shopify`): the Admin API client is written to the 2025-07 REST endpoints
+  from documentation and unit-tested against fixtures; no live store has been connected.
+  Costs need `read_inventory`, orders `read_orders`, codes `read_discounts`; each read
+  degrades on its own when a scope is missing.
+- **The free account read**: runs the whole signup read on a prospect; in this container the
+  site read is blocked by egress, so it was verified with the site read stubbed.
+- **Plans**: three Stripe prices are read from env; Stripe itself is still dormant here.

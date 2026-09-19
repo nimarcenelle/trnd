@@ -160,15 +160,12 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       return withBusinessDefaults(data as Business);
     },
     async getBusinessByOwner(ownerId) {
-      const { data, error } = await sb
-        .from("businesses")
-        .select("*")
-        .eq("owner_id", ownerId)
-        .order("created_at")
-        .limit(1)
-        .maybeSingle();
+      // The founder's own brand, never one of the prospect shadow brands
+      // the free account read creates under the same owner.
+      const { data, error } = await sb.from("businesses").select("*").eq("owner_id", ownerId).order("created_at").limit(20);
       throwIf(error, "getBusinessByOwner");
-      return data ? withBusinessDefaults(data as Business) : null;
+      const own = ((data ?? []) as Business[]).find((b) => !b.prospect);
+      return own ? withBusinessDefaults(own) : null;
     },
     async getBusinessForUser(user) {
       const own = await this.getBusinessByOwner(user.id);
@@ -238,10 +235,10 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwIf(error, "updateBusiness");
       return withBusinessDefaults(data as Business);
     },
-    async listAllBusinesses() {
+    async listAllBusinesses(opts) {
       const { data, error } = await sb.from("businesses").select("*");
       throwIf(error, "listAllBusinesses");
-      return ((data ?? []) as Business[]).map(withBusinessDefaults);
+      return ((data ?? []) as Business[]).filter((b) => opts?.includeProspects || !b.prospect).map(withBusinessDefaults);
     },
 
     async createServices(inputs) {

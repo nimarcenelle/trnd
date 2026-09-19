@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { AccountRead } from "./account-read";
+
 import { HOT_MIN, scoreFit, WARM_MIN, type FitTier } from "@/lib/prospect/fit";
 import { DEFAULT_BODY, DEFAULT_SUBJECT, renderTemplate } from "@/lib/prospect/template";
 import type { ProspectLead, RunEvent } from "@/lib/prospect/types";
@@ -332,6 +334,8 @@ export function ProspectorClient() {
             {statusLine ?? `${leads.length} leads on file`}
           </div>
         </div>
+
+        <AccountRead T={T} inputStyle={inputStyle} />
 
         <div className="flex flex-col lg:flex-row">
           {/* search panel */}

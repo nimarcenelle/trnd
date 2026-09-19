@@ -103,8 +103,9 @@ export interface Repo {
   getBusinessForUser(user: { id: string; email?: string | null }): Promise<Business | null>;
   getBusiness(id: string): Promise<Business | null>;
   updateBusiness(id: string, patch: Partial<NewBusiness>): Promise<Business>;
-  /** All businesses; admin/cron surface only. */
-  listAllBusinesses(): Promise<Business[]>;
+  /** All businesses; admin/cron surface only. Prospect shadow brands
+   * (free account reads) are left out unless asked for. */
+  listAllBusinesses(opts?: { includeProspects?: boolean }): Promise<Business[]>;
 
   /* services */
   createServices(inputs: NewService[]): Promise<Service[]>;

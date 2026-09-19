@@ -94,6 +94,9 @@ export interface Business {
   recent_creative_notes?: string | null;
   /** The product or offer the brand wants briefs to lead with. */
   priority_service_id?: string | null;
+  /** A shadow brand read for a prospect's free account read (0036): owned
+   * by the founder, never given a week, an email or a cron read. */
+  prospect?: boolean;
   created_at: string;
 }
 

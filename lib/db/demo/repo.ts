@@ -164,7 +164,8 @@ export function createDemoRepo(actor: DemoActor): Repo {
     },
     async getBusinessByOwner(ownerId) {
       if (actor.kind === "user" && actor.userId !== ownerId) return null;
-      return store.businesses.find((b) => b.owner_id === ownerId) ?? null;
+      // The founder's own brand, never a prospect shadow brand under the same owner.
+      return store.businesses.find((b) => b.owner_id === ownerId && !b.prospect) ?? null;
     },
     async getBusiness(id) {
       const b = store.businesses.find((x) => x.id === id) ?? null;
@@ -178,11 +179,12 @@ export function createDemoRepo(actor: DemoActor): Repo {
       saveStore();
       return b;
     },
-    async listAllBusinesses() {
+    async listAllBusinesses(opts) {
+      const keep = (b: Business) => Boolean(opts?.includeProspects) || !b.prospect;
       if (actor.kind !== "admin") {
-        return store.businesses.filter((b) => b.owner_id === (actor as { userId: string }).userId);
+        return store.businesses.filter((b) => b.owner_id === (actor as { userId: string }).userId && keep(b));
       }
-      return [...store.businesses];
+      return store.businesses.filter(keep);
     },
 
     /* ------------------------------ services ------------------------------ */

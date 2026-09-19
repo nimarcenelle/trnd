@@ -14,19 +14,7 @@ const GRAPH = "https://graph.facebook.com/v21.0";
 
 const AD_SCOPES = ["ads_read", "ads_management", "business_management"];
 
-/**
- * Reading Reels per hashtag needs `instagram_basic` + `pages_show_list` and
- * an Instagram Business account linked to a Facebook Page — and Meta will
- * not grant either without App Review. Requesting a scope the app has not
- * been approved for degrades the consent screen for the ad-account connect
- * that already works, so these are added only once META_INSTAGRAM_SCOPES is
- * set, which should happen the day review passes and not before.
- */
-const INSTAGRAM_SCOPES = ["instagram_basic", "pages_show_list"];
-
-export const META_SCOPES = env.metaInstagramScopes
-  ? [...AD_SCOPES, ...INSTAGRAM_SCOPES]
-  : AD_SCOPES;
+export const META_SCOPES = AD_SCOPES;
 
 /* ------------------------------- OAuth state ------------------------------ */
 

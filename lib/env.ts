@@ -36,10 +36,6 @@ export const env = {
   /** Meta Marketing API app — ad-account connect, results sync, launch. */
   metaAppId: process.env.META_APP_ID ?? "",
   metaAppSecret: process.env.META_APP_SECRET ?? "",
-  /** Flip to "1" only AFTER Meta App Review approves instagram_basic —
-   * requesting an unapproved scope degrades the live ad-connect consent
-   * screen, so the Reels read stays dark until the approval exists. */
-  metaInstagramScopes: process.env.META_INSTAGRAM_SCOPES === "1",
   /** Google Ads OAuth + developer token — seam; sync ships Meta-first. */
   googleAdsClientId: process.env.GOOGLE_ADS_CLIENT_ID ?? "",
   googleAdsClientSecret: process.env.GOOGLE_ADS_CLIENT_SECRET ?? "",
@@ -67,8 +63,7 @@ export const env = {
   /** Instagram Graph, as OUR OWN professional account. Reads any public
    * professional account's posts free through Business Discovery
    * (lib/social/instagram.ts) with no App Review: the reader is an account
-   * with a role on the app. The hashtag Reels adapter uses the same pair
-   * and does need App Review. A token from Instagram Login ("IG…") or
+   * with a role on the app. A token from Instagram Login ("IG…") or
    * Facebook Login ("EAA…") both work; the id is the professional account's. */
   instagramToken: process.env.INSTAGRAM_ACCESS_TOKEN ?? "",
   instagramUserId: process.env.INSTAGRAM_BUSINESS_ID ?? "",

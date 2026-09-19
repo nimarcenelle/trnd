@@ -4,7 +4,6 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { parseTrendsRss } from "../lib/signals/adapters/google-trends-rss";
-import { parseNewsRss } from "../lib/signals/adapters/google-news";
 import { topRedditSignals, type RedditListing } from "../lib/signals/adapters/reddit";
 import {
   deltaFromSeries,
@@ -40,14 +39,6 @@ describe("reddit ranker", () => {
     expect(signals[0].term).toContain("skin barrier");
     expect(signals.every((s) => s.source === "reddit")).toBe(true);
     expect(signals.every((s) => (s.delta_pct ?? 0) <= 100)).toBe(true);
-  });
-});
-
-describe("news RSS parser", () => {
-  it("parses item pubDates for recency windowing", () => {
-    const items = parseNewsRss(fixture("news-rss.xml"));
-    expect(items).toHaveLength(3);
-    expect(items[0].title).toContain("facial balancing");
   });
 });
 
@@ -468,17 +459,6 @@ describe("tiktok per-term read (apify)", () => {
     );
     expect(read.uploads).toBe(1);
     expect(read.views).toBe(1_000);
-  });
-});
-
-describe("meta instagram scopes", () => {
-  it("does not request unapproved Reels scopes in the live ad-connect flow", async () => {
-    const { META_SCOPES } = await import("../lib/ads/meta");
-    // Until App Review passes, asking for instagram_basic degrades the
-    // consent screen for the connect that already works.
-    expect(process.env.META_INSTAGRAM_SCOPES).not.toBe("1");
-    expect(META_SCOPES).not.toContain("instagram_basic");
-    expect(META_SCOPES).toContain("ads_read");
   });
 });
 

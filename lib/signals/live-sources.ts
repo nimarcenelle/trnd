@@ -30,7 +30,7 @@ export function liveSources(f: SourceFlags): LiveSources {
   const add = (live: boolean, name: string, needs: string) => (live ? on.push(name) : off.push({ name, needs }));
 
   add(f.dataForSeo, "Search volume by metro", "a DataForSEO account");
-  on.push("Google Trends", "Autocomplete", "News", "Weather");
+  on.push("Google Trends", "Autocomplete");
   add(f.youtube, "YouTube Shorts", "a YouTube Data API key (free)");
   on.push("TikTok trending board");
   add(f.apify, "TikTok profiles", "an Apify token");

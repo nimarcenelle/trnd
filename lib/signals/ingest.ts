@@ -6,22 +6,19 @@ import { weekOf } from "@/lib/recommend/recommend";
 
 import { createDataForSeoAdapter } from "./adapters/dataforseo";
 import { createDataForSeoRelatedAdapter } from "./adapters/dataforseo-related";
-import { createGoogleNewsAdapter } from "./adapters/google-news";
 import { createGoogleTrendsRssAdapter } from "./adapters/google-trends-rss";
 import { createRedditAdapter } from "./adapters/reddit";
 import { createSuggestAdapter } from "./adapters/suggest";
-import { createInstagramAdapter } from "./adapters/instagram";
 import { createTiktokCcAdapter } from "./adapters/tiktok-cc";
 import { createTrendsIotAdapter } from "./adapters/trends-iot";
 import { createTrendsRelatedAdapter } from "./adapters/trends-related";
-import { createWeatherAdapter } from "./adapters/weather";
 import { createXAdapter } from "./adapters/x";
 import { createYoutubeAdapter } from "./adapters/youtube";
 import { createMetaAdsAdapter } from "./adlibrary";
 import { CATEGORY_CONFIGS } from "./category-terms";
 import { businessStateGeo, isOnlineBusiness, resolveMetro } from "./geo";
 import { normalizeTerm } from "./normalize";
-import type { AdapterRunReport, SignalAdapter, WatchPlace, WatchSubreddit } from "./types";
+import type { AdapterRunReport, SignalAdapter, WatchSubreddit } from "./types";
 
 export interface IngestSummary {
   day: string;
@@ -101,7 +98,7 @@ export interface BusinessIngestResult {
 }
 
 /** Sources whose per-term reads cost money: a term read today is not read again. */
-const PAID_SOURCES: Record<string, string> = { tiktok_apify: "tiktok", youtube: "youtube", x: "x", instagram: "instagram" };
+const PAID_SOURCES: Record<string, string> = { tiktok_apify: "tiktok", youtube: "youtube", x: "x" };
 /** A first read fits one job hop; what is left continues on the next. */
 export const BUSINESS_INGEST_BUDGET_MS = 200_000;
 /**
@@ -115,13 +112,13 @@ export const SIGNUP_YOUTUBE_UNITS = 2_500;
 
 /**
  * Which readers a per-business scan runs. The fast tier is the free and
- * quick set (search volume, the Trends line, Google News, TikTok's public
- * board, YouTube's API): enough for an honest first pick in a couple of
+ * quick set (search volume, the Trends line, TikTok's public board,
+ * YouTube's API): enough for an honest first pick in a couple of
  * minutes. The slow tier is the scraped short-form and ad reads that take
  * minutes each; a fresh signup gets them after its first pick, not before.
  */
 export type ScanTier = "fast" | "slow" | "all";
-export const SLOW_ADAPTERS = new Set(["tiktok_apify", "instagram", "x", "meta_ads"]);
+export const SLOW_ADAPTERS = new Set(["tiktok_apify", "x", "meta_ads"]);
 /** A fast first read fits well inside one hop. */
 export const FAST_SCAN_BUDGET_MS = 75_000;
 
@@ -197,9 +194,7 @@ export async function runSignalIngestForBusiness(
     createRedditAdapter(),
     createYoutubeAdapter({ unitBudget: SIGNUP_YOUTUBE_UNITS }),
     createTiktokCcAdapter(),
-    createInstagramAdapter(),
     createXAdapter(),
-    createGoogleNewsAdapter(),
     createMetaAdsAdapter(),
     createTrendsIotAdapter(),
   ].filter((a) => tier === "all" || (tier === "slow") === SLOW_ADAPTERS.has(a.name));
@@ -286,16 +281,13 @@ export function defaultAdapters(): SignalAdapter[] {
     // Apify bill, and TikTok is read by profile (own and rivals) instead.
     createYoutubeAdapter({ unitBudget: CRON_YOUTUBE_UNITS }),
     createTiktokCcAdapter(),
-    // Reels is where local operators actually post, X is the written half
-    // of the conversation. Both key-gated; both skip cleanly when unset.
-    createInstagramAdapter(),
+    // X is the written half of the conversation, read nationally. Key-gated;
+    // skips cleanly when unset.
     createXAdapter(),
     // Saturation and context.
     createGoogleTrendsRssAdapter(),
-    createWeatherAdapter(),
     createSuggestAdapter(),
     createRedditAdapter(),
-    createGoogleNewsAdapter(),
     createMetaAdsAdapter(),
     // The fragile unofficial Trends endpoints last, where a failure costs
     // nothing — but note the interest-over-time read is what the anchor
@@ -361,7 +353,6 @@ export async function runIngest(
     subreddits.push({ name: key, category });
   };
   for (const c of CATEGORY_CONFIGS) for (const s of c.subreddits) addSubreddit(s, c.category);
-  const placeMap = new Map<string, WatchPlace>();
   try {
     const week = weekOf();
     for (const b of await repo.listAllBusinesses()) {
@@ -369,7 +360,7 @@ export async function runIngest(
       // A business's own terms watch its own METRO where the city resolves
       // to one (Google Trends takes DMA geos), its state otherwise — never
       // the whole country. Local demand measured locally is the product.
-      // An online brand reads nationally: no metro, no state, no weather.
+      // An online brand reads nationally: no metro, no state.
       const online = isOnlineBusiness(b);
       const metro = online ? null : resolveMetro(b.city, b.region);
       const stateGeo = businessStateGeo(b) ?? "US";
@@ -384,24 +375,10 @@ export async function runIngest(
         const sig = await repo.getSignal(o.signal_id);
         if (sig) addWatch(online || !b.city ? sig.term : `${sig.term} ${b.city}`, b.category, stateGeo);
       }
-      // One weather read per place, tagged with every category present there.
-      if (online) continue;
-      const placeKey = bizGeo;
-      const place = placeMap.get(placeKey) ?? {
-        city: b.city,
-        region: b.region,
-        geo: bizGeo,
-        lat: metro?.lat ?? null,
-        lng: metro?.lng ?? null,
-        categories: [],
-      };
-      if (!place.categories.includes(b.category)) place.categories.push(b.category);
-      placeMap.set(placeKey, place);
     }
   } catch (err) {
     console.warn("[ingest] business watchlist unavailable:", (err as Error).message);
   }
-  const places = [...placeMap.values()];
 
   const reports: AdapterRunReport[] = [];
   let totalSignals = 0;
@@ -440,7 +417,7 @@ export async function runIngest(
       let slice = sliceMs();
       cappedByBudget = slice < adapterTimeoutMs;
       const raw = await withTimeout(
-        adapter.fetch({ terms: watchTerms, watch, places, subreddits, geo, windowDays }),
+        adapter.fetch({ terms: watchTerms, watch, subreddits, geo, windowDays }),
         slice,
       );
       report.signals = await repo.upsertSignals(toSignalRows(raw));
@@ -448,7 +425,7 @@ export async function runIngest(
         slice = sliceMs();
         cappedByBudget = slice < adapterTimeoutMs;
         const series = await withTimeout(
-          adapter.fetchSeries({ terms: watchTerms, watch, places, subreddits, geo, windowDays }),
+          adapter.fetchSeries({ terms: watchTerms, watch, subreddits, geo, windowDays }),
           slice,
         );
         report.seriesPoints = await repo.upsertSeriesPoints(

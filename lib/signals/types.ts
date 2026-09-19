@@ -32,18 +32,6 @@ export interface WatchTerm {
   locality?: string[];
 }
 
-/** A place with businesses in it — the weather adapter's unit of work. */
-export interface WatchPlace {
-  city: string;
-  region: string | null;
-  /** Metro geo when resolvable, else state geo. */
-  geo: string;
-  lat: number | null;
-  lng: number | null;
-  /** Categories with at least one business in this place. */
-  categories: string[];
-}
-
 /** A community to read, tagged with the category its signals file under. */
 export interface WatchSubreddit {
   name: string;
@@ -55,8 +43,6 @@ export interface AdapterFetchInput {
   /** Category-tagged watchlist: stock per-category terms plus every
    * business's snapshot-generated watch_terms. */
   watch: WatchTerm[];
-  /** Deduped business locations, metro-resolved where possible. */
-  places?: WatchPlace[];
   /** Stock per-category subreddits plus every business's snapshot-named
    * communities. Adapters that read Reddit use this over the stock list. */
   subreddits?: WatchSubreddit[];

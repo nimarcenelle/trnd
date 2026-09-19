@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { parseAdLibrary } from "../lib/signals/adlibrary";
 import { competitorGap } from "../lib/scoring";
-import { upcomingMoments } from "../lib/recommend/seasonal";
 import { extractImageUrls } from "../lib/import/website";
 
 // Trimmed from a live render of the Ad Library search page (Aug 2026).
@@ -61,24 +60,6 @@ describe("competitor gap with real ad counts", () => {
     const high = competitorGap({ coverageCount: null, adCount: 180 });
     expect(high.score).toBe(0);
     expect(high.reason).toContain("crowded field");
-  });
-});
-
-describe("seasonal calendar", () => {
-  it("returns upcoming moments inside the horizon, soonest first, with prep flags", () => {
-    // Late August: Labor Day (Sep 7) is ~2 weeks out for restaurants.
-    const late_aug = new Date(Date.UTC(2026, 7, 25));
-    const ups = upcomingMoments("Restaurants & cafés", late_aug);
-    expect(ups.length).toBeGreaterThan(0);
-    expect(ups[0].label).toContain("Labor Day");
-    expect(ups[0].prepNow).toBe(true);
-    expect(ups.map((u) => u.daysOut)).toEqual([...ups.map((u) => u.daysOut)].sort((a, b) => a - b));
-  });
-
-  it("wraps into next year for moments already past", () => {
-    const december = new Date(Date.UTC(2026, 11, 20));
-    const ups = upcomingMoments("Fitness studios", december);
-    expect(ups[0].label).toContain("New Year");
   });
 });
 

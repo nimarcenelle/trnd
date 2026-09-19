@@ -627,6 +627,10 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwUnlessMissing(error, "getStrategyRead");
       return (data as StrategyReadRow | null) ?? null;
     },
+    async deleteStrategyRead(businessId, weekOf) {
+      const { error } = await sb.from("strategy_reads").delete().eq("business_id", businessId).eq("week_of", weekOf);
+      throwUnlessMissing(error, "deleteStrategyRead");
+    },
     async upsertPickRead(input) {
       const { data, error } = await sb
         .from("pick_reads")

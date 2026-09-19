@@ -662,6 +662,12 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (!visibleBusinessIds().has(businessId)) return null;
       return (store.strategy_reads ?? []).find((r) => r.business_id === businessId && r.week_of === weekOf) ?? null;
     },
+    async deleteStrategyRead(businessId, weekOf) {
+      assertOwnsBusiness(businessId);
+      const before = (store.strategy_reads ?? []).length;
+      store.strategy_reads = (store.strategy_reads ?? []).filter((r) => !(r.business_id === businessId && r.week_of === weekOf));
+      if (store.strategy_reads.length !== before) saveStore();
+    },
     async getIntelNote(businessId, weekOf) {
       if (!visibleBusinessIds().has(businessId)) return null;
       return (

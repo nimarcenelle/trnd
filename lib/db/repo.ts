@@ -179,6 +179,8 @@ export interface Repo {
   /** The week's account read (lib/research). Reads as null until migration 0031 is applied. */
   upsertStrategyRead(input: NewStrategyReadRow): Promise<StrategyReadRow | null>;
   getStrategyRead(businessId: string, weekOf: string): Promise<StrategyReadRow | null>;
+  /** Forgets the week's read so the next stage reads the dossier again. */
+  deleteStrategyRead(businessId: string, weekOf: string): Promise<void>;
 
   /** The analyst's read on one pick — see PickRead. */
   upsertPickRead(input: NewPickRead): Promise<PickRead>;

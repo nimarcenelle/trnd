@@ -1,7 +1,7 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, NewOpportunity, NewSignal, NewSignalReading, Signal } from "@/lib/db/types";
 import { indexSeries } from "@/lib/demand/series";
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 import { applyRelevance, scoreOpportunity, tokens, type ScoredOpportunity } from "@/lib/scoring";
 import { dedupeReadings, loadGradeContext } from "@/lib/scoring/gather";
 import { DOESNT_FIT_NOTE, gradeOpportunity, holdForReason, storedSignalScores } from "@/lib/scoring/grade-opportunity";
@@ -250,9 +250,9 @@ export async function recommendForBusiness(
   // A configured judge with no analysis yet would produce exactly the thing
   // this pipeline must never ship: an unjudged ranking wearing confident
   // grades. New businesses hold an empty week for the minute or two until
-  // the analysis lands — its write re-ranks immediately. (Without Gemini
+  // the analysis lands — its write re-ranks immediately. (Without the model
   // there is no judge either way; the deterministic ranking stands.)
-  if (isGeminiConfigured && !brief) {
+  if (isModelConfigured && !brief) {
     const existing = await repo.listOpportunities(business.id, weekOf());
     return {
       businessId: business.id,
@@ -378,12 +378,12 @@ export async function recommendForBusiness(
   // fits a contrast-therapy studio; the founding analysis knows better. One
   // Flash call re-judges the candidate pool against what the business
   // actually sells and who its customers are.
-  if (isGeminiConfigured && scored.length > 0) {
+  if (isModelConfigured && scored.length > 0) {
     if (brief) {
-      let judgments: Awaited<ReturnType<typeof import("@/lib/ai/gemini").judgeSignalRelevance>> | null = null;
+      let judgments: Awaited<ReturnType<typeof import("@/lib/ai/openai").judgeSignalRelevance>> | null = null;
       for (let attempt = 0; attempt < 2 && !judgments; attempt++) {
         try {
-          const { judgeSignalRelevance } = await import("@/lib/ai/gemini");
+          const { judgeSignalRelevance } = await import("@/lib/ai/openai");
           judgments = await judgeSignalRelevance(
             business,
             brief,

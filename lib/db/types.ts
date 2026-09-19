@@ -94,6 +94,9 @@ export interface Business {
   recent_creative_notes?: string | null;
   /** The product or offer the brand wants briefs to lead with. */
   priority_service_id?: string | null;
+  /** A shadow brand read for a prospect's free account read (0036): owned
+   * by the founder, never given a week, an email or a cron read. */
+  prospect?: boolean;
   created_at: string;
 }
 
@@ -116,7 +119,38 @@ export interface Service {
   is_active: boolean;
   /** From the store's public catalog, refreshed daily. Null means never read. */
   in_stock?: boolean | null;
+  /** What the product costs the brand, from Shopify's inventory items
+   * (migration 0037). With the price, the gross margin a brief may spend. */
+  cost_cents?: number | null;
+  /** The store's own product id, so a resync updates rather than duplicates. */
+  external_id?: string | null;
+  variants?: ServiceVariant[];
 }
+
+export interface ServiceVariant {
+  name: string;
+  price_cents: number | null;
+  cost_cents: number | null;
+  in_stock: boolean | null;
+}
+
+/** The store's last 30 days as of one day (migration 0037). */
+export interface StoreRead {
+  id: string;
+  business_id: string;
+  captured_on: string; // yyyy-mm-dd
+  provider: "shopify";
+  orders_30d: number | null;
+  new_customers_30d: number | null;
+  returning_customers_30d: number | null;
+  revenue_30d_cents: number | null;
+  aov_cents: number | null;
+  /** The codes live on the day: what an offer test can lean on or must avoid. */
+  discount_codes: { code: string; summary: string; ends_at: string | null }[];
+  raw: unknown;
+  created_at: string;
+}
+export type NewStoreRead = Omit<StoreRead, "id" | "created_at">;
 
 export interface Signal {
   id: string;
@@ -282,7 +316,10 @@ export interface BusinessBrief {
   created_at: string;
 }
 
-export type PlanId = "trial" | "baseline" | "pro";
+/** trial: the 14-day trial (baseline limits). starter, baseline, pro: the
+ * three plans on access (lib/billing). "baseline" is the pilot tier. */
+export type PlanId = "trial" | "starter" | "baseline" | "pro";
+export const PAID_PLANS: readonly Exclude<PlanId, "trial">[] = ["starter", "baseline", "pro"];
 export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled";
 
 /**
@@ -306,7 +343,7 @@ export interface Subscription {
 
 /* ------------------------- connections & intel ------------------------- */
 
-export type ConnectionProvider = "meta" | "google_ads" | "google_business";
+export type ConnectionProvider = "meta" | "google_ads" | "google_business" | "shopify";
 export type ConnectionStatus = "connected" | "error" | "revoked";
 
 /** An OAuth link to an external account (ad platform, business profile). */
@@ -457,8 +494,36 @@ export interface AdHistory {
   started_on: string | null; // yyyy-mm-dd
   ended_on: string | null;
   source: AdHistorySource;
+  /** The platform's own ad id when the row was synced (migration 0032). */
+  external_ad_id?: string | null;
+  /** Purchases and their value, apart from the platform's generic "results". */
+  purchases?: number | null;
+  purchase_value_cents?: number | null;
+  /** Video delivery: 3-second plays (the hook) and ThruPlays (the hold). */
+  video_3s_views?: number | null;
+  thruplays?: number | null;
+  /** A thumbnail or image of the creative, when the platform gave one. */
+  creative_url?: string | null;
+  creative_kind?: "video" | "image" | "carousel" | null;
+  /** The creative test this ad is linked to by the owner (pick_runs.id). */
+  run_id?: string | null;
+  /** How the ad is built, classified once from its copy and creative
+   * (lib/ads/classify.ts, migration 0033): the persuasion angle, the kind
+   * of opening, and the production format. Null until classified. */
+  angle?: AdAngle | null;
+  hook_type?: HookType | null;
+  format?: AdFormat | null;
+  /** The classifier that wrote the three: a model id or "trnd-rules/1". */
+  classifier?: string | null;
   created_at: string;
 }
+
+export type AdAngle = "education" | "offer" | "scarcity" | "social_proof" | "speed" | "novelty";
+export const AD_ANGLES: readonly AdAngle[] = ["education", "offer", "scarcity", "social_proof", "speed", "novelty"];
+export type HookType = "question" | "problem" | "claim" | "story" | "comparison" | "callout" | "demonstration" | "offer" | "other";
+export const HOOK_TYPES: readonly HookType[] = ["question", "problem", "claim", "story", "comparison", "callout", "demonstration", "offer", "other"];
+export type AdFormat = "talking_head" | "ugc" | "demo" | "static" | "editor" | "studio" | "carousel" | "video" | "unknown";
+export const AD_FORMATS: readonly AdFormat[] = ["talking_head", "ugc", "demo", "static", "editor", "studio", "carousel", "video", "unknown"];
 
 /** Mined themes from the business's own reviews — regenerates as reviews land. */
 export interface ReviewDigest {
@@ -559,6 +624,10 @@ export interface CreativeBrief {
   lineage?: ConceptLineage | null;
   /** The previous brief when this one is a refinement, so nothing is lost. */
   refined_from?: { at: string; ask: string; brief: Omit<CreativeBrief, "refined_from"> } | null;
+  /** The first three seconds, shot by shot: the one part of the ad the brief
+   * dictates rather than directs. The first beat's voice line is the hook,
+   * word for word. Null on briefs written before ct-2. */
+  opening?: { beats: PickBeat[] } | null;
 }
 
 /**
@@ -646,6 +715,8 @@ export interface BrandPick {
   basis?: PickBasis | null;
   /** Why this concept sits where it does this week. */
   priority_reason?: string | null;
+  /** The token /share/<token> reads the brief by, without an account (0034). */
+  share_token?: string | null;
   status: PickStatus;
   created_at: string;
 }
@@ -736,6 +807,26 @@ export interface PickRun {
   /** The platform campaign id when the run was launched through a connected
    * account; the daily sync writes its numbers back by it. */
   meta_campaign_id: string | null;
+  /** How closely the finished ad followed the brief, 0 to 1, and the read
+   * behind it (lib/picks/fidelity.ts, migration 0033). Null until checked. */
+  fidelity_score?: number | null;
+  fidelity_read?: FidelityRead | null;
+}
+
+/** The finished ad checked against its brief: each line is yes, no, or
+ * could not tell. The score is the share of the checks that could be made
+ * that came back yes. */
+export interface FidelityRead {
+  version: string;
+  hook_present: boolean | null;
+  opening_followed: boolean | null;
+  facts_only: boolean | null;
+  format_matches: boolean | null;
+  notes: string[];
+  /** "pasted": the owner pasted the ad's words. "linked": read from the linked ad's copy. */
+  source: "pasted" | "linked";
+  checked_at: string;
+  model: string;
 }
 
 /** Why a week held a term instead of picking it (migration 0026). */
@@ -891,6 +982,22 @@ export interface DocumentDigest {
   services_found: { name: string; price_cents: number | null }[];
   watchouts: string[];
 }
+
+/** Someone the owner invited to the brand: the media buyer, the strategist,
+ * the creator (migration 0034). Invited by email; user_id lands at first
+ * sign-in. A member sees the brand's data; the business row stays the
+ * owner's to edit. */
+export interface BusinessMember {
+  id: string;
+  business_id: string;
+  email: string;
+  user_id: string | null;
+  role: "member";
+  invited_by: string | null;
+  created_at: string;
+  accepted_at: string | null;
+}
+export type NewBusinessMember = Pick<BusinessMember, "business_id" | "email"> & Partial<Pick<BusinessMember, "invited_by">>;
 
 /**
  * The owner's own knowledge, next to the market's: a menu PDF, a sales

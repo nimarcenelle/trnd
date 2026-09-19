@@ -48,15 +48,7 @@ export function buildInsights(
 
   // ---- momentum
   const delta = signal.delta_pct;
-  if (signal.metric_type === "weather_trigger") {
-    // Forecast-derived: the honest framing is a window, not a measured rise.
-    const raw = signal.raw as { detail?: string } | null;
-    insights.push({
-      kind: "momentum",
-      headline: "Weather window, next 7 days",
-      detail: `${raw?.detail ?? "The forecast crosses a seasonal threshold this week."} Demand estimate is forecast-derived, not a measured trend.`,
-    });
-  } else if (signal.metric_type === "shortform_views") {
+  if (signal.metric_type === "shortform_views") {
     // Short-form is the basis of the product, so its read gets said in its
     // own units — what people are watching, how hard, in what shape, and
     // who keeps making it. The delta is velocity (views per hour since

@@ -21,7 +21,9 @@ import type {
   Creative,
   IntelNote,
   Learning,
+  BusinessMember,
   NewAdHistory,
+  StoreRead,
   NewAlert,
   NewBusiness,
   NewSocialPost,
@@ -71,7 +73,7 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-class OwnershipError extends Error {
+export class OwnershipError extends Error {
   constructor(what: string) {
     super(`demo-mode ownership check failed (would be blocked by RLS): ${what}`);
   }
@@ -80,20 +82,39 @@ class OwnershipError extends Error {
 export function createDemoRepo(actor: DemoActor): Repo {
   const store = loadStore();
 
+  /** The businesses this user was invited to, by user id or by their email. */
+  function memberBusinessIds(userId: string): Set<string> {
+    const email = store.users.find((u) => u.id === userId)?.email?.toLowerCase() ?? null;
+    return new Set(
+      (store.business_members ?? [])
+        .filter((m) => m.user_id === userId || (email !== null && m.email.toLowerCase() === email))
+        .map((m) => m.business_id),
+    );
+  }
+
+  /** Mirrors owns_business(): the owner, or a member. */
   function assertOwnsBusiness(businessId: string): Business {
     const b = store.businesses.find((x) => x.id === businessId);
     if (!b) throw new OwnershipError(`business ${businessId} not found`);
-    if (actor.kind === "user" && b.owner_id !== actor.userId) {
+    if (actor.kind === "user" && b.owner_id !== actor.userId && !memberBusinessIds(actor.userId).has(businessId)) {
       throw new OwnershipError(`business ${businessId}`);
     }
     return b;
   }
 
+  /** The business row itself is the owner's to edit. */
+  function assertIsOwner(businessId: string): Business {
+    const b = store.businesses.find((x) => x.id === businessId);
+    if (!b) throw new OwnershipError(`business ${businessId} not found`);
+    if (actor.kind === "user" && b.owner_id !== actor.userId) throw new OwnershipError(`business ${businessId}`);
+    return b;
+  }
+
   function visibleBusinessIds(): Set<string> {
     if (actor.kind === "admin") return new Set(store.businesses.map((b) => b.id));
-    return new Set(
-      store.businesses.filter((b) => b.owner_id === actor.userId).map((b) => b.id),
-    );
+    const ids = new Set(store.businesses.filter((b) => b.owner_id === actor.userId).map((b) => b.id));
+    for (const id of memberBusinessIds(actor.userId)) ids.add(id);
+    return ids;
   }
 
   function campaignOrThrow(id: string): Campaign {
@@ -129,9 +150,23 @@ export function createDemoRepo(actor: DemoActor): Repo {
       saveStore();
       return row;
     },
+    async getBusinessForUser(user) {
+      const own = await this.getBusinessByOwner(user.id);
+      if (own) return own;
+      const email = (user.email ?? store.users.find((u) => u.id === user.id)?.email ?? "").trim().toLowerCase();
+      const member = (store.business_members ?? []).find((m) => m.user_id === user.id || (email && m.email.toLowerCase() === email));
+      if (!member) return null;
+      if (!member.user_id) {
+        member.user_id = user.id;
+        member.accepted_at = nowIso();
+        saveStore();
+      }
+      return store.businesses.find((b) => b.id === member.business_id) ?? null;
+    },
     async getBusinessByOwner(ownerId) {
       if (actor.kind === "user" && actor.userId !== ownerId) return null;
-      return store.businesses.find((b) => b.owner_id === ownerId) ?? null;
+      // The founder's own brand, never a prospect shadow brand under the same owner.
+      return store.businesses.find((b) => b.owner_id === ownerId && !b.prospect) ?? null;
     },
     async getBusiness(id) {
       const b = store.businesses.find((x) => x.id === id) ?? null;
@@ -145,11 +180,12 @@ export function createDemoRepo(actor: DemoActor): Repo {
       saveStore();
       return b;
     },
-    async listAllBusinesses() {
+    async listAllBusinesses(opts) {
+      const keep = (b: Business) => Boolean(opts?.includeProspects) || !b.prospect;
       if (actor.kind !== "admin") {
-        return store.businesses.filter((b) => b.owner_id === (actor as { userId: string }).userId);
+        return store.businesses.filter((b) => b.owner_id === (actor as { userId: string }).userId && keep(b));
       }
-      return [...store.businesses];
+      return store.businesses.filter(keep);
     },
 
     /* ------------------------------ services ------------------------------ */
@@ -900,6 +936,75 @@ export function createDemoRepo(actor: DemoActor): Repo {
       );
     },
 
+    /* ----------------------------- store reads ----------------------------- */
+    async upsertStoreRead(input) {
+      assertOwnsBusiness(input.business_id);
+      store.store_reads ??= [];
+      const i = store.store_reads.findIndex((r) => r.business_id === input.business_id && r.captured_on === input.captured_on);
+      const row: StoreRead = { ...input, id: i >= 0 ? store.store_reads[i].id : randomUUID(), created_at: nowIso() };
+      if (i >= 0) store.store_reads[i] = row;
+      else store.store_reads.push(row);
+      saveStore();
+      return row;
+    },
+    async getLatestStoreRead(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return null;
+      return [...(store.store_reads ?? [])].filter((r) => r.business_id === businessId).sort((a, b) => b.captured_on.localeCompare(a.captured_on))[0] ?? null;
+    },
+
+    /* --------------------------------- team -------------------------------- */
+    async listMembers(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      return (store.business_members ?? []).filter((m) => m.business_id === businessId);
+    },
+    async inviteMember(input) {
+      assertIsOwner(input.business_id);
+      store.business_members ??= [];
+      const email = input.email.trim().toLowerCase();
+      const existing = store.business_members.find((m) => m.business_id === input.business_id && m.email === email);
+      if (existing) return existing;
+      const row: BusinessMember = {
+        id: randomUUID(),
+        business_id: input.business_id,
+        email,
+        user_id: null,
+        role: "member",
+        invited_by: input.invited_by ?? null,
+        created_at: nowIso(),
+        accepted_at: null,
+      };
+      store.business_members.push(row);
+      saveStore();
+      return row;
+    },
+    async removeMember(id) {
+      const row = (store.business_members ?? []).find((m) => m.id === id);
+      if (!row) return;
+      assertIsOwner(row.business_id);
+      store.business_members = (store.business_members ?? []).filter((m) => m.id !== id);
+      saveStore();
+    },
+    async findMembershipByEmail(email) {
+      const e = email.trim().toLowerCase();
+      return (store.business_members ?? []).find((m) => m.email === e) ?? null;
+    },
+
+    /* -------------------------------- share -------------------------------- */
+    async setPickShareToken(pickId, token) {
+      const pick = (store.picks ?? []).find((p) => p.id === pickId);
+      if (!pick) throw new OwnershipError(`pick ${pickId} not found`);
+      assertOwnsBusiness(pick.business_id);
+      pick.share_token = token;
+      saveStore();
+    },
+    async getPickDetailByShareToken(token) {
+      if (actor.kind !== "admin") throw new OwnershipError("shared briefs read as admin");
+      const pick = (store.picks ?? []).find((p) => p.share_token === token);
+      if (!pick) return null;
+      const [detail, business] = await Promise.all([this.getPickDetail(pick.id), this.getBusiness(pick.business_id)]);
+      return detail && business ? { detail, business } : null;
+    },
+
     /* ------------------------------ ad history ---------------------------- */
     async upsertAdHistory(inputs: NewAdHistory[]) {
       store.ad_history ??= [];
@@ -927,6 +1032,23 @@ export function createDemoRepo(actor: DemoActor): Repo {
         .filter((r) => r.business_id === businessId)
         .sort((a, b) => (b.started_on ?? "").localeCompare(a.started_on ?? ""))
         .slice(0, MAX_AD_HISTORY_READ);
+    },
+    async setAdHistoryClassification(rows) {
+      const byId = new Map((store.ad_history ?? []).map((r) => [r.id, r]));
+      for (const { id, ...patch } of rows) {
+        const row = byId.get(id);
+        if (!row) continue;
+        assertOwnsBusiness(row.business_id);
+        Object.assign(row, patch);
+      }
+      if (rows.length) saveStore();
+    },
+    async linkAdHistoryToRun(adHistoryId, runId) {
+      const row = (store.ad_history ?? []).find((r) => r.id === adHistoryId);
+      if (!row) return;
+      assertOwnsBusiness(row.business_id);
+      row.run_id = runId;
+      saveStore();
     },
     async deleteAdHistory(businessId, opts) {
       assertOwnsBusiness(businessId);

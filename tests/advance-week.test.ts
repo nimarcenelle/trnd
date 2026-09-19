@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Business, NewBusiness } from "../lib/db/types";
 
 process.env.TRND_DEMO_DIR = mkdtempSync(path.join(tmpdir(), "trnd-week-"));
-delete process.env.GEMINI_API_KEY;
+delete process.env.OPENAI_API_KEY;
 
 const { createDemoRepo } = await import("../lib/db/demo/repo");
 const { resetStore } = await import("../lib/db/demo/store");

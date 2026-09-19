@@ -1,5 +1,5 @@
 /**
- * Central env access. `isSupabaseConfigured` / `isGeminiConfigured` are the
+ * Central env access. `isSupabaseConfigured` / `isModelConfigured` are the
  * switches that flip the app between real integrations and the loudly-labeled
  * local fallbacks documented in BLOCKED.md.
  *
@@ -12,7 +12,11 @@ export const env = {
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
-  geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  openaiApiKey: process.env.OPENAI_API_KEY ?? "",
+  /** Pin the two model tiers (lib/ai/openai.ts); unset, the newest general
+   * and the newest small model on the account are resolved at first use. */
+  openaiModelPro: process.env.OPENAI_MODEL_PRO ?? "",
+  openaiModelFlash: process.env.OPENAI_MODEL_FLASH ?? "",
   youtubeApiKey: process.env.YOUTUBE_API_KEY ?? "",
   redditUserAgent: process.env.REDDIT_USER_AGENT || "trnd-signal/0.1 (by /u/trnd)",
   /** Reddit's official API (free, 100 requests a minute) — a script app's
@@ -27,15 +31,12 @@ export const env = {
     process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+  stripePriceStarter: process.env.STRIPE_PRICE_STARTER ?? "",
   stripePriceBaseline: process.env.STRIPE_PRICE_BASELINE ?? "",
   stripePricePro: process.env.STRIPE_PRICE_PRO ?? "",
   /** Meta Marketing API app — ad-account connect, results sync, launch. */
   metaAppId: process.env.META_APP_ID ?? "",
   metaAppSecret: process.env.META_APP_SECRET ?? "",
-  /** Flip to "1" only AFTER Meta App Review approves instagram_basic —
-   * requesting an unapproved scope degrades the live ad-connect consent
-   * screen, so the Reels read stays dark until the approval exists. */
-  metaInstagramScopes: process.env.META_INSTAGRAM_SCOPES === "1",
   /** Google Ads OAuth + developer token — seam; sync ships Meta-first. */
   googleAdsClientId: process.env.GOOGLE_ADS_CLIENT_ID ?? "",
   googleAdsClientSecret: process.env.GOOGLE_ADS_CLIENT_SECRET ?? "",
@@ -63,8 +64,7 @@ export const env = {
   /** Instagram Graph, as OUR OWN professional account. Reads any public
    * professional account's posts free through Business Discovery
    * (lib/social/instagram.ts) with no App Review: the reader is an account
-   * with a role on the app. The hashtag Reels adapter uses the same pair
-   * and does need App Review. A token from Instagram Login ("IG…") or
+   * with a role on the app. A token from Instagram Login ("IG…") or
    * Facebook Login ("EAA…") both work; the id is the professional account's. */
   instagramToken: process.env.INSTAGRAM_ACCESS_TOKEN ?? "",
   instagramUserId: process.env.INSTAGRAM_BUSINESS_ID ?? "",
@@ -84,7 +84,7 @@ export const env = {
 };
 
 export const isSupabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey);
-export const isGeminiConfigured = Boolean(env.geminiApiKey);
+export const isModelConfigured = Boolean(env.openaiApiKey);
 /** Billing switches on with a secret key + at least the baseline price id. */
 export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePriceBaseline);
 export const isMetaAdsConfigured = Boolean(env.metaAppId && env.metaAppSecret);

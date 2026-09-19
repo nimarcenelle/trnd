@@ -1,6 +1,6 @@
 import { getSessionUser } from "@/lib/auth/session";
 import { digestUpload } from "@/lib/documents/digest";
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 import {
   discoverMenuFiles,
   extractFromPages,
@@ -36,7 +36,7 @@ const MAX_SITE_TEXT = 16_000;
 /**
  * Owner-initiated read of their own website during onboarding, streamed as
  * NDJSON progress events: the crawl narrates page by page, heuristics land
- * as a `partial` prefill, and the Gemini refinement follows as `final`.
+ * as a `partial` prefill, and the model refinement follows as `final`.
  * Failure is normal and non-blocking — onboarding continues manually.
  */
 export async function POST(req: Request): Promise<Response> {
@@ -139,7 +139,7 @@ export async function POST(req: Request): Promise<Response> {
         // Menus kept in a PDF or an image on the site — the priced menu a
         // lot of restaurants have and nothing else. Read alongside the
         // refinement below, since they're the slowest thing here.
-        const menuFiles = isGeminiConfigured ? discoverMenuFiles(corpus.pages) : [];
+        const menuFiles = isModelConfigured ? discoverMenuFiles(corpus.pages) : [];
         if (menuFiles.length > 0) {
           send({
             type: "status",
@@ -169,12 +169,12 @@ export async function POST(req: Request): Promise<Response> {
           }),
         ).then((docs) => docs.filter((d): d is OnboardingDocument => d !== null));
 
-        if (isGeminiConfigured) {
+        if (isModelConfigured) {
           send({ type: "status", label: "Making sense of what we found…" });
           try {
-            const { extractSiteWithGemini } = await import("@/lib/ai/gemini");
-            const refined = await extractSiteWithGemini(corpus.text, url);
-            // Gemini names the offerings where it found them; prices come from
+            const { extractSiteWithModel } = await import("@/lib/ai/openai");
+            const refined = await extractSiteWithModel(corpus.text, url);
+            // The model names the offerings where it found them; prices come from
             // the store's catalog first, then from what the crawl priced, and
             // priced catalog products it didn't name are kept.
             const services =
@@ -204,7 +204,7 @@ export async function POST(req: Request): Promise<Response> {
               menuHost: services.some((s) => s.price) ? undefined : data.menuHost,
             };
           } catch (err) {
-            console.warn("[import] Gemini refine failed — using heuristics:", (err as Error).message);
+            console.warn("[import] model refine failed — using heuristics:", (err as Error).message);
           }
         }
 

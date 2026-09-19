@@ -19,7 +19,7 @@ export default async function CampaignsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
 
   const [pickRuns, history] = await Promise.all([
@@ -47,7 +47,7 @@ export default async function CampaignsPage() {
         )}
       </div>
 
-      <ListRuns runs={pickRuns} outcomes={outcomes} />
+      <ListRuns runs={pickRuns} outcomes={outcomes} history={history} />
 
       {pickRuns.length === 0 && (
         <div className="panel max-w-[620px]">

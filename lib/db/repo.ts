@@ -13,6 +13,9 @@ import type {
   IntelNote,
   Learning,
   AdHistory,
+  AdAngle,
+  AdFormat,
+  HookType,
   NewAdHistory,
   BrandPick,
   NewPickBundle,
@@ -41,6 +44,8 @@ import type {
   NewStandingQuestion,
   NewBusinessDocument,
   BusinessDocument,
+  BusinessMember,
+  NewBusinessMember,
   NewLearning,
   NewOpportunity,
   NewReview,
@@ -73,6 +78,8 @@ import type {
   Subscription,
   NewStrategyReadRow,
   StrategyReadRow,
+  StoreRead,
+  NewStoreRead,
 } from "./types";
 
 /**
@@ -92,10 +99,15 @@ export interface Repo {
   /* businesses */
   createBusiness(input: NewBusiness): Promise<Business>;
   getBusinessByOwner(ownerId: string): Promise<Business | null>;
+  /** The business this user works in: their own, else the one they were
+   * invited to (by user id, or by email before the first sign-in claimed
+   * the invitation, which this claims). */
+  getBusinessForUser(user: { id: string; email?: string | null }): Promise<Business | null>;
   getBusiness(id: string): Promise<Business | null>;
   updateBusiness(id: string, patch: Partial<NewBusiness>): Promise<Business>;
-  /** All businesses; admin/cron surface only. */
-  listAllBusinesses(): Promise<Business[]>;
+  /** All businesses; admin/cron surface only. Prospect shadow brands
+   * (free account reads) are left out unless asked for. */
+  listAllBusinesses(opts?: { includeProspects?: boolean }): Promise<Business[]>;
 
   /* services */
   createServices(inputs: NewService[]): Promise<Service[]>;
@@ -172,6 +184,19 @@ export interface Repo {
   upsertPickRead(input: NewPickRead): Promise<PickRead>;
   getPickRead(opportunityId: string): Promise<PickRead | null>;
 
+  /* team — the people the owner invited (0034) */
+  listMembers(businessId: string): Promise<BusinessMember[]>;
+  /** Idempotent on (business, email). Returns the row. */
+  inviteMember(input: NewBusinessMember): Promise<BusinessMember>;
+  removeMember(id: string): Promise<void>;
+  /** Any invitation for this email, across brands. Admin surface (signup). */
+  findMembershipByEmail(email: string): Promise<BusinessMember | null>;
+
+  /* share — a brief that reads without an account (0034) */
+  setPickShareToken(pickId: string, token: string | null): Promise<void>;
+  /** The shared brief and the brand it belongs to. Admin surface (public page). */
+  getPickDetailByShareToken(token: string): Promise<{ detail: PickDetail; business: Business } | null>;
+
   /** The owner's uploaded knowledge — see BusinessDocument. */
   listDocuments(businessId: string): Promise<BusinessDocument[]>;
   createDocument(input: NewBusinessDocument): Promise<BusinessDocument>;
@@ -185,6 +210,11 @@ export interface Repo {
     id: string,
     patch: Pick<StandingQuestion, "answer" | "changed" | "answered_week" | "previous_answer" | "model_used">,
   ): Promise<StandingQuestion>;
+
+  /* store reads — the brand's own store, last 30 days (0037) */
+  /** One per (business, day); a same-day rerun replaces it. No-op before 0037. */
+  upsertStoreRead(input: NewStoreRead): Promise<StoreRead | null>;
+  getLatestStoreRead(businessId: string): Promise<StoreRead | null>;
 
   /* connections — OAuth links to ad platforms & business profiles */
   upsertConnection(input: NewConnection): Promise<Connection>;
@@ -245,6 +275,12 @@ export interface Repo {
   /** Newest first, at most MAX_AD_HISTORY_READ rows. */
   listAdHistory(businessId: string): Promise<AdHistory[]>;
   deleteAdHistory(businessId: string, opts?: { source?: AdHistory["source"] }): Promise<number>;
+  /** Points a history row at a creative test (or clears it). Reads as a
+   * no-op before migration 0032. */
+  linkAdHistoryToRun(adHistoryId: string, runId: string | null): Promise<void>;
+  /** Writes each row's angle, kind of opening and format (lib/ads/classify.ts).
+   * Reads as a no-op before migration 0033. */
+  setAdHistoryClassification(rows: { id: string; angle: AdAngle; hook_type: HookType; format: AdFormat; classifier: string }[]): Promise<void>;
 
   /* picks — the week's ads, written whole by the weekly job */
   /** Replaces a week's picks (keeping any with a run or a dismissal) in one
@@ -285,6 +321,8 @@ export interface Repo {
         | "baseline_ctr"
         | "lift"
         | "meta_campaign_id"
+        | "fidelity_score"
+        | "fidelity_read"
       >
     > & { status?: PickRunStatus },
   ): Promise<PickRun>;

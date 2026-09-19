@@ -7,7 +7,7 @@ import "./env";
  * the outputs. Entirely in memory; touches no store.
  *
  *   pnpm eval:quality            # deterministic judges only (no key needed)
- *   GEMINI_API_KEY=… pnpm eval:quality   # full: briefs, model judge, campaigns
+ *   OPENAI_API_KEY=… pnpm eval:quality   # full: briefs, model judge, campaigns
  *
  * Exit 1 on hard failures: a mismatched trend judged relevant, a campaign
  * shipping unsupported numeric claims, or a model brief thinner than spec.
@@ -17,7 +17,7 @@ import { generateBusinessBrief } from "../lib/ai/brief";
 import { buildClaimFacts, campaignTexts, findUnsupportedClaims } from "../lib/ai/claims";
 import { generateCampaign } from "../lib/ai/index";
 import type { Business, BusinessBrief, Opportunity, Service, Signal } from "../lib/db/types";
-import { isGeminiConfigured } from "../lib/env";
+import { isModelConfigured } from "../lib/env";
 import { buildBusinessFitContext, judgeTermRelevance } from "../lib/recommend/relevance";
 
 interface EvalCase {
@@ -166,7 +166,7 @@ const info = (msg: string) => console.log(`  · ${msg}`);
 
 async function main() {
   console.log(
-    `[eval] ${CASES.length} synthetic businesses — Gemini ${isGeminiConfigured ? "ON (full pipeline)" : "OFF (deterministic judges only)"}\n`,
+    `[eval] ${CASES.length} synthetic businesses — model ${isModelConfigured ? "ON (full pipeline)" : "OFF (deterministic judges only)"}\n`,
   );
 
   for (const c of CASES) {
@@ -176,7 +176,7 @@ async function main() {
     // 1. Founding analysis depth (model path only — the fallback's stock
     // shape is covered by unit tests).
     let brief: BusinessBrief | null = null;
-    if (isGeminiConfigured) {
+    if (isModelConfigured) {
       const generated = await generateBusinessBrief(business, services);
       brief = { ...generated, target_customer: generated.target_customer ?? null, id: "eval-brief", created_at: new Date().toISOString() };
       const modelWritten = !brief.model_used.startsWith("trnd-template");
@@ -205,8 +205,8 @@ async function main() {
 
     // 3. Model judge on the same probes — the two judges must agree on the
     // hard mismatches (a mismatch the model judge rates ≥0.5 is a failure).
-    if (isGeminiConfigured && brief) {
-      const { judgeSignalRelevance } = await import("../lib/ai/gemini");
+    if (isModelConfigured && brief) {
+      const { judgeSignalRelevance } = await import("../lib/ai/openai");
       const candidates = c.probes.map((p) => ({ term: p.term, metric: "search_interest" }));
       const judged = await judgeSignalRelevance(business, brief, services, candidates);
       for (let i = 0; i < c.probes.length; i++) {
@@ -223,7 +223,7 @@ async function main() {
     }
 
     // 4. One full campaign; every number in the copy must trace to a fact.
-    if (isGeminiConfigured) {
+    if (isModelConfigured) {
       const signal = makeSignal(c.probes.find((p) => p.relevant)!.term, business.category);
       const opportunity: Opportunity = {
         id: "eval-opp",

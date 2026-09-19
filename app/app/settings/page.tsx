@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import AccountPanel from "@/components/app/account-panel";
+import ShopifyConnect from "@/components/app/shopify-connect";
+import TeamPanel from "@/components/app/team-panel";
 import BusinessSettingsForm from "@/components/app/business-settings-form";
 import CreativeContextForm from "@/components/app/creative-context-form";
 import DocumentUpload from "@/components/app/document-upload";
@@ -13,19 +15,20 @@ import type { AdHistory, SocialHandles } from "@/lib/db/types";
 import { handleUrl, SOCIAL_PLATFORMS } from "@/lib/import/social-links";
 import type { AdTheme } from "@/lib/signals/adlibrary-apify";
 import { isSocialReadAvailable } from "@/lib/social";
-import { getPlanState, PLAN_LABELS, PLAN_PRICES } from "@/lib/billing";
+import { getPlanState, PLAN_LABELS, PLAN_PRICES, PLAN_TIERS, planLimits } from "@/lib/billing";
 import { openBillingPortalAction, startCheckoutAction } from "@/lib/billing/actions";
 import { seedCompetitorsAction } from "@/lib/intel/actions";
 import { adoptDocumentServicesAction, deleteDocumentAction } from "@/lib/documents/actions";
 import { MAX_DOCUMENTS } from "@/lib/documents/parse";
 import SubmitButton from "@/components/app/submit-button";
 import { getUserRepo } from "@/lib/db";
+import { disconnectShopifyAction } from "@/lib/shopify/actions";
 import { sentenceCase } from "@/lib/text";
 import {
   isApifyConfigured,
   isDataForSeoConfigured,
   isEmailConfigured,
-  isGeminiConfigured,
+  isModelConfigured,
   isInstagramConfigured,
   isMetaAdsConfigured,
   isPlacesConfigured,
@@ -170,7 +173,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const params = await searchParams;
   const connectError = typeof params.connect_error === "string" ? params.connect_error : null;
@@ -179,7 +182,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   const billingNotice = BILLING_NOTICES[billingFlag] ?? null;
   const adsFlag = String(params.ads ?? "");
   const adNotice = adsNotice(adsFlag, params);
-  const [services, rivals, metaConnection, gbpConnection, plan, documents, adRows] = await Promise.all([
+  const [services, rivals, metaConnection, gbpConnection, plan, documents, adRows, members, shopifyConnection, storeRead] = await Promise.all([
     repo.listServices(business.id),
     repo.listCompetitors(business.id),
     repo.getConnection(business.id, "meta"),
@@ -190,7 +193,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       console.warn("[settings] ad history read failed (non-fatal):", err.message);
       return [] as AdHistory[];
     }),
+    repo.listMembers(business.id).catch(() => []),
+    repo.getConnection(business.id, "shopify").catch(() => null),
+    repo.getLatestStoreRead(business.id).catch(() => null),
   ]);
+  const isOwner = business.owner_id === user.id;
+  const limits = planLimits(plan.plan);
   // Most direct rivals first; ones not yet scored sit at the bottom.
   const competitors = [...rivals].sort((a, b) => (b.directness ?? -1) - (a.directness ?? -1));
   const adRead = adRows.length > 0 ? readAdHistory(adRows) : null;
@@ -219,6 +227,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           ? "Connect to sync your own ad history daily, so briefs are graded against it and tests get their results without an upload."
           : "Results come from your Ads Manager export until ad-account sync is available for your workspace.",
       action: metaConnected ? ("disconnect-meta" as const) : isMetaAdsConfigured ? ("connect-meta" as const) : null,
+    },
+    {
+      name: "Shopify store",
+      detail: shopifyConnection
+        ? `${shopifyConnection.account_name ?? shopifyConnection.account_id ?? "Connected"}`
+        : "Custom app token",
+      ok: Boolean(shopifyConnection),
+      note: shopifyConnection
+        ? `Products, costs, variants and stock sync nightly${storeRead?.orders_30d !== null && storeRead?.orders_30d !== undefined ? `; ${storeRead.orders_30d} orders in the last 30 days, ${storeRead.new_customers_30d ?? 0} first orders` : ""}. A brief knows what an offer can afford and which codes are already live.`
+        : "In your Shopify admin: Settings, Apps, Develop apps, create an app with read_products, read_inventory, read_orders and read_discounts, install it, and paste the Admin API access token.",
+      action: shopifyConnection ? ("disconnect-shopify" as const) : ("connect-shopify" as const),
     },
     {
       name: "Google reviews",
@@ -487,7 +506,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             })}
           </div>
         )}
-        {documents.length < MAX_DOCUMENTS && <DocumentUpload modelReady={isGeminiConfigured} />}
+        {documents.length < MAX_DOCUMENTS && <DocumentUpload modelReady={isModelConfigured} />}
       </section>
 
       <section className="panel mb-5" id="context">
@@ -617,20 +636,23 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
               ? plan.locked
                 ? "Every brief you received stays yours. Pick a plan to keep the weekly creative tests coming."
                 : "Full product, no card on file. Pick a plan any time; founding brands lock their price."
-              : "Up to three creative test briefs a week, your rivals read weekly, and the Monday email in your inbox. What you record sharpens the next week."}
+              : `${PLAN_LABELS[plan.plan]}: up to ${limits.briefsPerWeek} ${limits.briefsPerWeek === 1 ? "brief" : "briefs"} a week, ${limits.rivals} competitors read weekly, ${limits.seats} ${limits.seats === 1 ? "seat" : "seats"} besides you. What you record sharpens the next week.`}
           </p>
         </div>
+        <p className="text-[12.5px] text-ink-faint mx-0 mt-0 mb-4">
+          Using {competitors.length} of {limits.rivals} competitors and {members.length} of {limits.seats} seats. Founding brands lock their price for a year.
+        </p>
 
         {isStripeConfigured ? (
           <div className="flex gap-[10px] flex-wrap">
-            {plan.plan !== "baseline" && plan.status !== "active" && (
-              <form action={startCheckoutAction}>
-                <input type="hidden" name="plan" value="baseline" />
-                <button type="submit" className="btn btn-primary btn-sm">
-                  Start TRND — {PLAN_PRICES.baseline}
+            {PLAN_TIERS.filter((t) => !(plan.plan === t.id && plan.status === "active")).map((t) => (
+              <form key={t.id} action={startCheckoutAction}>
+                <input type="hidden" name="plan" value={t.id} />
+                <button type="submit" className={`btn btn-sm ${t.featured ? "btn-primary" : "btn-ghost"}`}>
+                  {t.name} — {t.price}
                 </button>
               </form>
-            )}
+            ))}
             {plan.subscription.stripe_customer_id && (
               <form action={openBillingPortalAction}>
                 <button type="submit" className="btn btn-ghost btn-sm">
@@ -646,6 +668,18 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         )}
       </section>
 
+      <section className="panel mb-5" id="team">
+        <div className="panel__head">
+          <span className="panel__title">Team</span>
+          <span className="panel__meta">{members.length + 1} {members.length === 0 ? "person" : "people"}</span>
+        </div>
+        <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4">
+          The media buyer, the strategist, whoever shoots the ads. A teammate sees this week&apos;s tests, the campaigns and the
+          record; only the owner edits the brand and the roster. A creator who will never log in gets a share link from the brief instead.
+        </p>
+        <TeamPanel members={members} isOwner={isOwner} ownerEmail={isOwner ? user.email : "the owner"} />
+      </section>
+
       <section className="panel mb-5" id="account">
         <div className="panel__head">
           <span className="panel__title">Account</span>
@@ -657,7 +691,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       <section className="panel mb-5">
         <div className="panel__head">
           <span className="panel__title">Competitors</span>
-          <span className="panel__meta">{competitors.length} tracked</span>
+          <span className="panel__meta">{competitors.length} of {limits.rivals} tracked</span>
         </div>
         <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4">
           Name the local rivals that matter. TRND reads their ads, posts and Google ratings
@@ -775,6 +809,14 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
               )}
               {it.action === "disconnect-meta" && (
                 <form action={disconnectMetaAction}>
+                  <button type="submit" className="btn btn-ghost btn-sm text-[11.5px]">
+                    Disconnect
+                  </button>
+                </form>
+              )}
+              {it.action === "connect-shopify" && isOwner && <ShopifyConnect />}
+              {it.action === "disconnect-shopify" && isOwner && (
+                <form action={disconnectShopifyAction}>
                   <button type="submit" className="btn btn-ghost btn-sm text-[11.5px]">
                     Disconnect
                   </button>

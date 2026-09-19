@@ -21,6 +21,7 @@ export * from "./types";
  */
 function rememberOwnerReads(repo: Repo): Repo {
   const business = new Map<string, ReturnType<Repo["getBusinessByOwner"]>>();
+  const forUser = new Map<string, ReturnType<Repo["getBusinessForUser"]>>();
   const subscription = new Map<string, ReturnType<Repo["getSubscription"]>>();
   return {
     ...repo,
@@ -29,6 +30,14 @@ function rememberOwnerReads(repo: Repo): Repo {
       if (!hit) {
         hit = repo.getBusinessByOwner(ownerId);
         business.set(ownerId, hit);
+      }
+      return hit;
+    },
+    getBusinessForUser(user) {
+      let hit = forUser.get(user.id);
+      if (!hit) {
+        hit = repo.getBusinessForUser(user);
+        forUser.set(user.id, hit);
       }
       return hit;
     },

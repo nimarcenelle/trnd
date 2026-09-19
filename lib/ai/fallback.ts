@@ -1,8 +1,8 @@
 /**
  * Deterministic campaign generator. This is the guaranteed path: it runs with
  * zero network access and produces brand-voiced, business-specific campaign
- * JSON that validates against the same schemas as the Gemini path. When
- * GEMINI_API_KEY is present the model path is preferred and this becomes the
+ * JSON that validates against the same schemas as the model path. When
+ * OPENAI_API_KEY is present the model path is preferred and this becomes the
  * schema-violation fallback (see lib/ai/index.ts and BLOCKED.md).
  *
  * Voice rules from the brief: short declaratives, concrete nouns and real

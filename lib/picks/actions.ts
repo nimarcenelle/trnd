@@ -1,10 +1,13 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { env } from "@/lib/env";
 import { cleanNote, isPickId, parseDismissReason, viewableDetail } from "@/lib/picks/detail";
 
 /**
@@ -19,7 +22,7 @@ async function ownedPick(formData: FormData) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const pickId = formData.get("pickId");
   if (!isPickId(pickId)) redirect("/app/picks");
@@ -95,4 +98,39 @@ export async function dismissPickAction(formData: FormData): Promise<void> {
   }
   revalidatePick(pickId);
   redirect("/app/picks");
+}
+
+export interface ShareState {
+  url: string | null;
+  error?: string;
+}
+
+/** The public URL of a shared brief. */
+export async function shareUrl(token: string | null | undefined): Promise<string | null> {
+  return token ? `${env.appUrl}/share/${token}` : null;
+}
+
+/**
+ * "Share link": a token on the pick, and /share/<token> reads the brief
+ * without an account. Made once and kept; "stop" retires it. The link is
+ * for the creator who will never log in, so it carries the brief and
+ * nothing else about the brand.
+ */
+export async function sharePickAction(_prev: ShareState, formData: FormData): Promise<ShareState> {
+  const { repo, detail } = await ownedPick(formData);
+  const stop = String(formData.get("stop") ?? "") === "1";
+  try {
+    if (stop) {
+      await repo.setPickShareToken(detail.pick.id, null);
+      revalidatePick(detail.pick.id);
+      return { url: null };
+    }
+    const token = detail.pick.share_token ?? randomBytes(18).toString("base64url");
+    if (!detail.pick.share_token) await repo.setPickShareToken(detail.pick.id, token);
+    revalidatePick(detail.pick.id);
+    return { url: await shareUrl(token) };
+  } catch (err) {
+    console.warn("[share] failed:", (err as Error).message);
+    return { url: await shareUrl(detail.pick.share_token), error: "The link could not be made. If the share migration has not been run yet, that is why." };
+  }
 }

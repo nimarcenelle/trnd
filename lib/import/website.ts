@@ -11,7 +11,7 @@ import { poolSocialHandles } from "./social-links";
  * Website import: one polite fetch of the business's own site (owner-initiated,
  * 8s timeout, identified UA), then best-effort extraction of name, category,
  * location, and priced offerings. The deterministic extractor below always
- * runs; Gemini refines it when configured. Everything is a PREFILL the owner
+ * runs; the model refines it when configured. Everything is a PREFILL the owner
  * confirms in onboarding — never silently trusted.
  */
 

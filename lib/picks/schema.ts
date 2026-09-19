@@ -56,7 +56,7 @@ const ScriptSchema = z.object({
   duration_seconds: z.number().min(5).max(90),
 });
 
-const PickWriteBase = z.object({
+export const PickWriteBase = z.object({
   finding: text(20, 260),
   bet_what: text(10, 200),
   guardrail: z.string().max(360).nullish(),

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import { getPlanState, planLimits } from "@/lib/billing";
 
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
@@ -18,11 +19,17 @@ export async function addCompetitorAction(formData: FormData): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
   const website = String(formData.get("website") ?? "").trim().slice(0, 200) || null;
   if (!name) return;
+  // The plan meters rivals tracked.
+  const [existing, plan] = await Promise.all([repo.listCompetitors(business.id), getPlanState(repo, business)]);
+  if (existing.length >= planLimits(plan.plan).rivals) {
+    revalidatePath("/app/settings");
+    return;
+  }
   const competitor = await repo.createCompetitor({ business_id: business.id, name, website, place_id: null });
   after(async () => {
     const jobRepo = getAdminRepo();
@@ -43,7 +50,7 @@ export async function seedCompetitorsAction(): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const { seedCompetitors } = await import("@/lib/intel/seed-competitors");
   let created = 0;
@@ -89,7 +96,7 @@ export async function updateCompetitorHandlesAction(formData: FormData): Promise
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const id = String(formData.get("competitor_id") ?? "");
   const competitor = (await repo.listCompetitors(business.id)).find((c) => c.id === id);
@@ -110,7 +117,7 @@ export async function markAlertsReadAction(): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) return;
   await repo.markAlertsRead(business.id);
   revalidatePath("/app", "layout");
@@ -120,7 +127,7 @@ export async function disconnectMetaAction(): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) return;
   await repo.deleteConnection(business.id, "meta");
   revalidatePath("/app/settings");

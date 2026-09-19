@@ -22,7 +22,7 @@ export default async function AppHome({
     const user = await getSessionUser();
     if (!user) redirect("/login");
     const repo = await getUserRepo(user.id);
-    const business = await repo.getBusinessByOwner(user.id);
+    const business = await repo.getBusinessForUser(user);
     if (!business) redirect("/onboarding");
     const rows = await repo.listReadyPicks(business.id, weekOf());
     const index = legacyPickIndex(pick, rows.length);

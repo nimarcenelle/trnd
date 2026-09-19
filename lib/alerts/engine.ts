@@ -4,7 +4,6 @@ import { AD_COUNT_LOCAL_MAX } from "@/lib/intel/ingest";
 import { tokens } from "@/lib/scoring";
 import { businessStateGeo } from "@/lib/signals/geo";
 import { weekOf } from "@/lib/recommend/recommend";
-import { upcomingMoments } from "@/lib/recommend/seasonal";
 import { sentenceCase } from "@/lib/text";
 
 /**
@@ -91,18 +90,6 @@ export async function evaluateAlerts(repo: Repo, business: Business): Promise<Al
       body: `Their ads are read into this week's briefs as observed; what they say is under each test's evidence.`,
       href: "/app/settings",
       dedupe_key: `compads:${competitorId}:${v.last}:${v.day}`,
-    });
-  }
-
-  // ---- a seasonal prep window just opened
-  for (const m of upcomingMoments(business.category)) {
-    if (!m.prepNow) continue;
-    await add({
-      kind: "seasonal_window",
-      title: `Prep window open: ${m.label} (${m.daysOut} days out)`,
-      body: m.advice,
-      href: "/app/picks",
-      dedupe_key: `seasonal:${m.label}:${new Date().getUTCFullYear()}`,
     });
   }
 

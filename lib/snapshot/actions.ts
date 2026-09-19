@@ -13,7 +13,7 @@ export async function refreshSnapshotAction(): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
 
   const services = await repo.listServices(business.id);

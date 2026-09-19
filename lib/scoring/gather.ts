@@ -31,8 +31,7 @@ import type {
 } from "@/lib/db/types";
 import { indexSeries } from "@/lib/demand/series";
 import { loadSignalContext, type SignalContext } from "@/lib/recommend/four-signals";
-import { upcomingMoments } from "@/lib/recommend/seasonal";
-import { audienceMatch, matchService, tokens } from "@/lib/scoring";
+import { audienceMatch, matchService } from "@/lib/scoring";
 import { normalizeTerm } from "@/lib/signals/normalize";
 import { engagementOf, postsOnTerm } from "@/lib/social/read";
 
@@ -520,17 +519,6 @@ export function actionPctFor(signal: Signal, reads: Signal[]): number | null {
   return best?.pct ?? null;
 }
 
-/** Is this the term's (or the category's) active window. Null when the
- * category has no calendar at all, which is unknown, not "off season". */
-function seasonalFor(term: string, category: string, now: Date): CultureInput["seasonal"] {
-  const year = upcomingMoments(category, now, 366);
-  if (year.length === 0) return null;
-  const want = tokens(term);
-  const named = year.find((m) => [...tokens(m.label)].some((t) => want.has(t)));
-  const moment = named ?? year.find((m) => m.prepNow) ?? year[0];
-  return { inWindow: moment.prepNow, daysOut: moment.daysOut, label: moment.label };
-}
-
 /* ------------------------------- competitive ------------------------------ */
 
 interface StoredAd {
@@ -755,10 +743,10 @@ export async function gatherSignalInputs(
     categoryGrowthBaseline: baselineOf(ctx.baselines.culture, "growthPct", today),
     // The term's own year beats the category calendar when it is readable:
     // a year of daily points first, twelve months of search volume next.
-    seasonal:
-      seasonalFromSeries(yearSeries, ctx.now) ??
-      seasonalFromMonthly(allPoints, ctx.now) ??
-      seasonalFor(signal.term, business.category, ctx.now),
+    // Seasonality is read from the term's own year of history, never from
+    // a stock calendar: a DTC brand's season is whatever its customers'
+    // searches say it is.
+    seasonal: seasonalFromSeries(yearSeries, ctx.now) ?? seasonalFromMonthly(allPoints, ctx.now),
     series,
   };
 

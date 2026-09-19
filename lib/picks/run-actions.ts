@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { syncRunsFromHistory } from "@/lib/ads/run-sync";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import type { Repo } from "@/lib/db/repo";
@@ -29,7 +30,7 @@ async function ownedRun(
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
 
   const runId = String(formData.get("run_id") ?? "").trim();
@@ -46,6 +47,72 @@ export async function cleanLearned(raw: unknown): Promise<string | null> {
   if (typeof raw !== "string") return null;
   const t = raw.trim();
   return t ? Array.from(t).slice(0, 600).join("") : null;
+}
+
+/**
+ * "This is the ad": the owner points a synced or uploaded ad at a test by
+ * id, so a media buyer who did not follow the naming convention can still
+ * hand the test its numbers. The row and the run must both be this brand's.
+ */
+export async function linkAdToRunAction(formData: FormData): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const repo = await getUserRepo(user.id);
+  const business = await repo.getBusinessForUser(user);
+  if (!business) redirect("/onboarding");
+  const runId = String(formData.get("run_id") ?? "").trim();
+  const adId = String(formData.get("ad_id") ?? "").trim();
+  const unlink = String(formData.get("unlink") ?? "") === "1";
+  if (!runId || !adId) return;
+  const owned = (await repo.listPickRuns(business.id)).find((r) => r.run.id === runId);
+  if (!owned || (owned.run.status !== "planned" && owned.run.status !== "running")) return;
+  const row = (await repo.listAdHistory(business.id)).find((r) => r.id === adId);
+  if (!row) return;
+  await repo.linkAdHistoryToRun(row.id, unlink ? null : runId);
+  // The link is the numbers: fill them now rather than on tomorrow's sync.
+  await syncRunsFromHistory(repo, business.id);
+  revalidateRunScreens();
+}
+
+export interface FidelityState {
+  error?: string;
+  ok?: boolean;
+  line?: string;
+}
+
+/**
+ * The finished ad checked against its brief. The owner pastes the ad's
+ * words (script, captions, copy); with nothing pasted, the words of the ad
+ * linked to this test are read instead. The read lands on the run so the
+ * Track record can count a wrong concept and a wrong shoot apart.
+ */
+export async function checkRunFidelityAction(_prev: FidelityState, formData: FormData): Promise<FidelityState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const repo = await getUserRepo(user.id);
+  const business = await repo.getBusinessForUser(user);
+  if (!business) redirect("/onboarding");
+  const runId = String(formData.get("run_id") ?? "").trim();
+  const owned = (await repo.listPickRuns(business.id)).find((r) => r.run.id === runId);
+  if (!owned) return { error: "That test could not be found." };
+  const brief = owned.pick.brief;
+  if (!brief) return { error: "This test has no brief to check against." };
+
+  let text = String(formData.get("ad_text") ?? "").trim();
+  let source: "pasted" | "linked" = "pasted";
+  if (!text) {
+    const linked = (await repo.listAdHistory(business.id).catch(() => [])).filter((r) => r.run_id === runId && r.copy);
+    text = linked.map((r) => r.copy as string).join("\n\n").trim();
+    source = "linked";
+    if (!text) return { error: "Paste the ad's words (its script, captions or copy), or link the ad to this test first." };
+  }
+  if (text.length < 12) return { error: "That is too short to check. Paste the whole script or copy." };
+
+  const { checkFidelity, fidelityLine } = await import("@/lib/picks/fidelity");
+  const { read, score } = await checkFidelity(brief, text, source);
+  await repo.updatePickRun(owned.run.id, { fidelity_score: score, fidelity_read: read });
+  revalidateRunScreens();
+  return { ok: true, line: fidelityLine(read, score) };
 }
 
 /** "Mark launched" from Campaigns: a planned test goes live. */

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { hashtagFor, readReels } from "../lib/signals/adapters/instagram";
 import { readX, xSeries } from "../lib/signals/adapters/x";
 
 const now = new Date("2026-09-12T12:00:00Z");
@@ -49,59 +48,6 @@ describe("X recent-search read", () => {
     expect(series).toHaveLength(6);
     expect(series[0].day < series[series.length - 1].day).toBe(true);
     expect(series.every((p) => p.term === "post game drinks")).toBe(true);
-  });
-});
-
-describe("Instagram Reels read", () => {
-  it("counts only video as a Reel", () => {
-    const read = readReels(
-      [
-        { id: "1", media_type: "VIDEO", timestamp: at(1), like_count: 10, comments_count: 2 },
-        { id: "2", media_type: "IMAGE", timestamp: at(1), like_count: 500 },
-        { id: "3", media_type: "CAROUSEL_ALBUM", timestamp: at(2), like_count: 400 },
-      ],
-      now,
-    );
-    // Counting stills as short-form would inflate the one number this
-    // adapter exists to report.
-    expect(read.reels).toBe(1);
-    expect(read.posts).toBe(3);
-    expect(read.reactions).toBe(12);
-  });
-
-  it("ignores media outside the seven-day window", () => {
-    const read = readReels(
-      [
-        { id: "1", media_type: "VIDEO", timestamp: at(2) },
-        { id: "2", media_type: "VIDEO", timestamp: at(40) },
-      ],
-      now,
-    );
-    expect(read.reels).toBe(1);
-  });
-
-  it("names the Reel with the most reaction", () => {
-    const read = readReels(
-      [
-        { id: "1", media_type: "VIDEO", timestamp: at(1), like_count: 5, permalink: "p1" },
-        { id: "2", media_type: "VIDEO", timestamp: at(2), like_count: 90, comments_count: 10, permalink: "p2" },
-      ],
-      now,
-    );
-    expect(read.top?.id).toBe("2");
-    expect(read.top?.reactions).toBe(100);
-  });
-
-  it("turns a term into a hashtag Instagram will accept", () => {
-    expect(hashtagFor("Cold Plunge NYC")).toBe("coldplungenyc");
-    expect(hashtagFor("brown-sugar oat latte!")).toBe("brownsugaroatlatte");
-  });
-
-  it("returns an empty read rather than throwing on no media", () => {
-    const read = readReels([], now);
-    expect(read.reels).toBe(0);
-    expect(read.top).toBeNull();
-    expect(read.daily).toEqual([]);
   });
 });
 

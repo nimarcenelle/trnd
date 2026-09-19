@@ -8,6 +8,7 @@ import PickPager from "@/components/app/pick-pager";
 import AlertBar from "@/components/picks/alert-bar";
 import ConceptDetail from "@/components/picks/concept-detail";
 import RefineForm from "@/components/picks/refine-form";
+import ShareLink from "@/components/picks/share-link";
 import DetailActions from "@/components/picks/detail-actions";
 import DetailCopyButton from "@/components/picks/detail-copy-button";
 import DemandChart from "@/components/picks/demand-chart";
@@ -15,6 +16,7 @@ import SignalRead from "@/components/picks/signal-read";
 import WeekRead from "@/components/picks/week-read";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { shareUrl } from "@/lib/picks/actions";
 import { buildConceptView } from "@/lib/picks/concept-view";
 import { buildDetailView, isPickId, viewableDetail, type DetailSection, type DetailView } from "@/lib/picks/detail";
 import { gradeTone, type GradeView } from "@/lib/picks/grade-view";
@@ -26,7 +28,7 @@ import { buildTrackRecord, calibrationLine, gradeLetterOf, liftsForGrade } from 
 import { weekOf } from "@/lib/recommend/week";
 import { benchmarkFor } from "@/lib/results/benchmarks";
 import { storedWeekStrategy } from "@/lib/research/weekly";
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 import { normalizeTerm } from "@/lib/signals/normalize";
 import { sentenceCase } from "@/lib/text";
 
@@ -44,7 +46,7 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
   if (!user) redirect("/login");
   if (!isPickId(id)) notFound();
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const detail = viewableDetail(await repo.getPickDetail(id), business.id);
   // The week's picks are rewritten under new ids when the rest of a fresh
@@ -98,7 +100,8 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
           view={concept}
           head={{ items, index, weekRange: weekRangeLabel(week), writing, deepening }}
           exportHref={`/app/picks/${detail.pick.id}/export`}
-          refine={concept.status === "proposed" || concept.status === "chosen" ? <RefineForm pickId={detail.pick.id} modelReady={isGeminiConfigured} /> : undefined}
+          refine={concept.status === "proposed" || concept.status === "chosen" ? <RefineForm pickId={detail.pick.id} modelReady={isModelConfigured} /> : undefined}
+          share={<ShareLink pickId={detail.pick.id} url={await shareUrl(detail.pick.share_token)} />}
         />
       </>
     );

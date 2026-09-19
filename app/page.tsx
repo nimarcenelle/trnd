@@ -1,4 +1,4 @@
-import { BASELINE_FEATURES } from "@/lib/billing";
+import { BASELINE_FEATURES, PLAN_TIERS } from "@/lib/billing";
 import Link from "next/link";
 
 import PilotForm from "@/components/landing/pilot-form";
@@ -23,10 +23,10 @@ const OLD_WAY = [
   "Brief the next batch from memory and hope it is different from the last one.",
 ];
 const TRND_WAY = [
-  "Up to three creative test briefs a week, each a hypothesis with its evidence.",
+  "Up to three creative test briefs a week, each a hypothesis with its evidence and its limits.",
   "Competitors' ads and posts read weekly and quoted as observed, not as proof.",
-  "Your customers' own words, quoted or not at all.",
-  "Your own results on file, so a brief never repeats what already failed.",
+  "Every ad you ever ran, classified by angle, so the record starts on day one.",
+  "Each finished ad checked against its brief, so a loss says whether the idea or the shoot lost.",
 ];
 
 const INPUTS = [
@@ -57,8 +57,8 @@ const LOOP = [
   { n: "02", h: "Concepts", p: "Up to three distinct creative tests, in priority order, with the reason each is worth a test now." },
   { n: "03", h: "Brief", p: "The hook, the direction, the shot list and the facts a creator may use. Copy it or export it." },
   { n: "04", h: "Decide", p: "Choose it, refine it, or pass with a reason. A pass is a decision, not a result." },
-  { n: "05", h: "Judge", p: "A plan for the test built from your objective and your own baseline, with the caveats the numbers carry." },
-  { n: "06", h: "Learn", p: "What you launched and what it taught shapes the next week. The topic is never banned by one execution." },
+  { n: "05", h: "Judge", p: "A plan for the test built from your objective and your own baseline, and the finished ad checked against the brief." },
+  { n: "06", h: "Learn", p: "What you launched and what it taught shapes the next week, and the record shows it, in public. The topic is never banned by one execution." },
 ];
 
 /** An example brief in the shape the app writes. The brand and every
@@ -129,10 +129,11 @@ export default function Home() {
           <Brand href={null} />
         </a>
         <div className="nav__links">
-          <a href="#problem">Problem</a>
-          <a href="#inputs">What it reads</a>
+          <a href="#problem">The Monday problem</a>
+          <a href="#inputs">Honest evidence</a>
           <a href="#how">How it works</a>
-          <a href="#pilot">The pilot</a>
+          <Link href="/record">The record</Link>
+          <a href="#pilot">Plans</a>
         </div>
         <div className="nav__right">
           <Link className="font-body text-[14px] text-ink-soft" href="/login">
@@ -148,13 +149,14 @@ export default function Home() {
       <header className="hero" id="top">
         <div className="hero__texture" />
         <div className="wrap hero__inner">
-          <div className="eyebrow">For small DTC marketing teams that already run Meta ads</div>
+          <div className="eyebrow">The weekly creative test agenda for DTC brands on Meta</div>
           <h1>
             Know what <em>to make next.</em>
           </h1>
           <p className="hero__sub">
-            Weekly creative test briefs grounded in your customers, competitor ads, and your own results. Each one is a
-            hypothesis a creator can shoot from, with the evidence behind it and what that evidence cannot say.
+            Not a dashboard. Not an ad generator. Every Monday, up to three creative tests worth running, each a brief a creator
+            can shoot from, with the evidence behind it and what that evidence cannot say. Then a record of what happened, in
+            public.
           </p>
           <div className="hero__ctas">
             <a href="#pilot" className="btn btn-primary">
@@ -165,9 +167,9 @@ export default function Home() {
             </a>
           </div>
           <div className="hero__proof">
-            <span className="pill">Up to three briefs a week</span>
-            <span className="pill">Every fact checked against your catalog</span>
-            <span className="pill">Founder-assisted, one month, $500</span>
+            <span className="pill">The decision, not more data</span>
+            <span className="pill">Every brief shows what the evidence cannot say</span>
+            <span className="pill">The track record is public</span>
           </div>
           <HeroBrief />
         </div>
@@ -178,12 +180,13 @@ export default function Home() {
       <section className="block" id="problem">
         <div className="wrap">
           <div className="head reveal">
-            <span className="eyebrow">The problem</span>
-            <h2>You make new creative every week. Deciding what to make is still the slowest part.</h2>
+            <span className="eyebrow">The Monday problem</span>
+            <h2>Someone says &ldquo;let&rsquo;s try a UGC one.&rdquo; Nobody can say why.</h2>
             <p>
               The research is out there, in comment sections, ad libraries, reviews and your own account. What is missing
               is the hours to read it and the discipline to turn it into a brief with a reason. So the next batch gets
-              briefed from memory, and the creator fills the gaps.
+              briefed from memory, the creator fills the gaps, and when it loses nobody knows whether the idea or the shoot
+              lost. The enemy is not another tool. It is guesswork with a budget.
             </p>
           </div>
           <div className="chipband reveal">
@@ -224,11 +227,13 @@ export default function Home() {
       <section className="block" id="inputs">
         <div className="wrap">
           <div className="head reveal">
-            <span className="eyebrow">What it reads</span>
-            <h2>Evidence with its limits printed next to it.</h2>
+            <span className="eyebrow">Honest evidence</span>
+            <h2>Every brief shows what the evidence cannot say.</h2>
             <p>
-              A brief separates what was observed from what we think may work. Facts trace to your catalog, your notes or a
-              source you can open. Judgments are labeled as hypotheses. Numbers are never invented.
+              Marketing software is distrusted because it sounds certain. A TRND brief separates what was observed from what
+              we think may work. Facts trace to your catalog, your notes or a source you can open. Judgments are labeled as
+              hypotheses. Numbers are never invented, and a threshold is never made up. In this category, restraint is the
+              expertise.
             </p>
           </div>
           <div className="signals reveal">
@@ -254,8 +259,9 @@ export default function Home() {
             <span className="eyebrow">The week</span>
             <h2>Not more information. The next brief.</h2>
             <p>
-              Most tools stop at data and leave the marketer to figure it out. TRND carries the research to a brief a
-              creator can shoot from, then keeps what you learned for the next one.
+              Ad libraries and creative analytics tell you what happened and what rivals are running. Nobody sells the
+              decision. TRND carries the research to a brief a creator can shoot from, checks the ad against it, keeps
+              score in public, and keeps what you learned for the next one.
             </p>
           </div>
           <div className="fly__list loop reveal">
@@ -278,35 +284,46 @@ export default function Home() {
         <div className="wrap">
           <div className="head reveal">
             <span className="eyebrow">The pilot</span>
-            <h2>One month. $500. A founder reads every brief.</h2>
+            <h2>Priced on access. Metered on briefs, rivals and seats.</h2>
             <p>
-              TRND is new, and the honest way to sell it is a pilot: four weeks of briefs, with the founder reviewing each
-              one before it reaches you and on a call with you each week. You bring your Ads Manager export and a creator
-              who can shoot. We bring the briefs. At the end you decide whether to keep going.
+              Every plan carries the whole product: your account classified by angle, your rivals&apos; ads read weekly, the
+              brief, the check against it, the record. The tiers differ in how many briefs a week, how many rivals and how
+              many people. New brands start with the pilot: one month on the TRND tier, the founder reading every brief, and
+              at the end you decide whether to keep going. Founding brands lock their price for a year.
             </p>
           </div>
 
           <div className="tiers reveal">
-            <div className="tier tier--featured">
-              <span className="tier__badge">Pilot</span>
-              <h3 className="tier__name">Four weeks of briefs</h3>
-              <div className="tier__price">
-                $500<small>/ MONTH</small>
+            {PLAN_TIERS.map((t) => (
+              <div key={t.id} className={`tier${t.featured ? " tier--featured" : ""}`}>
+                {t.badge && <span className="tier__badge">{t.badge}</span>}
+                <h3 className="tier__name">{t.name}</h3>
+                <div className="tier__price">
+                  {t.price.replace("/mo", "")}
+                  <small>/ MONTH</small>
+                </div>
+                <p className="tier__promise">{t.who}</p>
+                <div className="tier__list">
+                  {t.meter.map((f) => (
+                    <div key={f}>
+                      <IcoCheck />
+                      {f}
+                    </div>
+                  ))}
+                  {t.featured &&
+                    BASELINE_FEATURES.map((f) => (
+                      <div key={f}>
+                        <IcoCheck />
+                        {f}
+                      </div>
+                    ))}
+                </div>
+                <a href="#apply" className={`btn ${t.featured ? "btn-primary" : "btn-ghost"} justify-center`}>
+                  {t.featured ? "Apply for the pilot" : "Apply"}
+                </a>
+                <span className="tier__foot">{t.featured ? "The pilot runs on this tier, with the founder reading every brief for a month." : `${t.annual} billed yearly.`}</span>
               </div>
-              <p className="tier__promise">Billed once we have agreed it is a fit. No card on this page.</p>
-              <div className="tier__list">
-                {BASELINE_FEATURES.map((f) => (
-                  <div key={f}>
-                    <IcoCheck />
-                    {f}
-                  </div>
-                ))}
-              </div>
-              <a href="#apply" className="btn btn-primary justify-center">
-                Apply for the pilot
-              </a>
-              <span className="tier__foot">What you supply: an Ads Manager export, your product facts, and someone who can shoot.</span>
-            </div>
+            ))}
           </div>
 
           <p className="founding-note reveal">

@@ -21,38 +21,103 @@ export const TRIAL_DAYS = 14;
 
 export const PLAN_LABELS: Record<PlanId, string> = {
   trial: "Free trial",
+  starter: "Starter",
   baseline: "TRND",
-  pro: "TRND Pro",
+  pro: "Scale",
 };
 
 /**
- * One plan, priced against what it replaces rather than other tools: a
- * brand spending $50K a month on paid social isn't weighing $500, it's
- * weighing $50K behind a mediocre ad. One incremental winner pays for a
- * year. Founding brands lock the price. The "pro" id survives for
- * subscriptions that already carry it and so the Stripe seam still
- * compiles; it is not sold, and it prints the same price as the one plan.
- * The Stripe price itself is an env var (STRIPE_PRICE_BASELINE), never an
- * id in code.
+ * Three plans on access, metered on the three things a team feels: briefs
+ * a week, rivals tracked, seats. The brand's own history classified by
+ * angle and the rival ad library are in every plan; they are what keeps a
+ * team coming back. "baseline" is the pilot tier and the one the landing
+ * page features. Founding brands lock their price for a year. Each Stripe
+ * price is an env var (STRIPE_PRICE_*), never an id in code.
  */
 export const PLAN_PRICES: Record<Exclude<PlanId, "trial">, string> = {
+  starter: "$250/mo",
   baseline: "$500/mo",
-  pro: "$500/mo",
+  pro: "$1,000/mo",
 };
 
 /** Annual, two months free — the same numbers the landing page prints. */
 export const PLAN_PRICES_ANNUAL: Record<Exclude<PlanId, "trial">, string> = {
+  starter: "$2,500/yr",
   baseline: "$5,000/yr",
-  pro: "$5,000/yr",
+  pro: "$10,000/yr",
 };
 
-/** What the pilot delivers, one list, printed everywhere the plan is described. */
+export interface PlanLimits {
+  /** Creative test briefs written each Monday. */
+  briefsPerWeek: number;
+  /** Competitors whose ads and posts are read weekly. */
+  rivals: number;
+  /** People on the roster besides the owner. */
+  seats: number;
+}
+
+/** The trial runs on the pilot tier's limits. */
+export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
+  trial: { briefsPerWeek: 3, rivals: 10, seats: 3 },
+  starter: { briefsPerWeek: 1, rivals: 3, seats: 1 },
+  baseline: { briefsPerWeek: 3, rivals: 10, seats: 3 },
+  pro: { briefsPerWeek: 5, rivals: 25, seats: 10 },
+};
+
+export function planLimits(plan: PlanId | null | undefined): PlanLimits {
+  return PLAN_LIMITS[plan ?? "trial"] ?? PLAN_LIMITS.trial;
+}
+
+export interface PlanTier {
+  id: Exclude<PlanId, "trial">;
+  name: string;
+  price: string;
+  annual: string;
+  /** Who it is for, one line. */
+  who: string;
+  /** What the meter says, printed as the first lines of the list. */
+  meter: string[];
+  featured?: boolean;
+  badge?: string;
+}
+
+/** The three tiers as the landing page and Settings print them. */
+export const PLAN_TIERS: PlanTier[] = [
+  {
+    id: "starter",
+    name: PLAN_LABELS.starter,
+    price: PLAN_PRICES.starter,
+    annual: PLAN_PRICES_ANNUAL.starter,
+    who: "One brief a week for a founder who is the creative team.",
+    meter: ["One creative test brief every Monday", "Three competitors read weekly", "One seat"],
+  },
+  {
+    id: "baseline",
+    name: PLAN_LABELS.baseline,
+    price: PLAN_PRICES.baseline,
+    annual: PLAN_PRICES_ANNUAL.baseline,
+    who: "The Monday agenda for a brand with an in-house creative process.",
+    meter: ["Up to three briefs every Monday", "Ten competitors read weekly", "Three seats: the buyer, the strategist, the creator"],
+    featured: true,
+    badge: "The pilot tier",
+  },
+  {
+    id: "pro",
+    name: PLAN_LABELS.pro,
+    price: PLAN_PRICES.pro,
+    annual: PLAN_PRICES_ANNUAL.pro,
+    who: "For a team testing across several products at once.",
+    meter: ["Up to five briefs every Monday", "Twenty-five competitors read weekly", "Ten seats"],
+  },
+];
+
+/** What every plan carries, one list, printed everywhere a plan is described. */
 export const BASELINE_FEATURES = [
-  "Up to three creative test briefs a week: the concept, the hypothesis, the hook, the direction, the shot list and the facts you may use",
+  "Each brief: the concept, the hypothesis, the hook, the first three seconds shot by shot, the direction, the shot list and the facts you may use",
   "The evidence behind each one, with its source, its date, its sample and what it cannot say",
-  "Your direct competitors' ads and posts read weekly, quoted as observed, never as proof",
-  "Your own results read from an Ads Manager export, so briefs build on what you ran and never repeat what failed",
-  "A founder reads every brief before it reaches you during the pilot",
+  "Your competitors' ads and posts read weekly, quoted as observed, never as proof",
+  "Every ad you ever ran, classified by angle, with what each angle does for you on cost per purchase",
+  "A test checked against its brief, so the record says whether the idea or the shoot lost",
   "Continuity: what you chose, launched, learned and passed on shapes the next week",
 ] as const;
 

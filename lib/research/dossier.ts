@@ -17,6 +17,7 @@ import type {
 } from "@/lib/db/types";
 import { memoryLines, loadBrandMemory } from "@/lib/record/memory";
 import { targetCustomerOf } from "@/lib/ai/brief";
+import { marginPct } from "@/lib/shopify/sync";
 import { competitiveSet } from "@/lib/recommend/four-signals";
 import { monthlyVolumes, yearOverYearFromMonthly } from "@/lib/scoring/gather";
 import { classifyAdCopy, isRivalAd, type AdTheme } from "@/lib/signals/adlibrary-apify";
@@ -159,7 +160,9 @@ export interface Dossier {
     voiceNotes: string | null;
   };
   brand: {
-    catalog: { name: string; price: string | null; description: string | null; inStock: boolean | null }[];
+    catalog: { name: string; price: string | null; description: string | null; inStock: boolean | null; marginPct: number | null; variants: string[] }[];
+    /** The store's last 30 days when a store is connected (lib/shopify). */
+    store: { capturedOn: string; orders30d: number | null; newCustomers30d: number | null; returningCustomers30d: number | null; aov: string | null; discountCodes: string[] } | null;
     positioning: string | null;
     segments: string[];
     moat: string | null;
@@ -381,7 +384,20 @@ export async function buildDossier(repo: Repo, business: Business, opts: { now?:
     price: money(s.price_cents),
     description: s.description ? clip(s.description, 240) : null,
     inStock: typeof s.in_stock === "boolean" ? s.in_stock : null,
+    marginPct: marginPct(s),
+    variants: (s.variants ?? []).filter((v) => v.name).map((v) => `${v.name}${v.price_cents !== null ? ` ${money(v.price_cents)}` : ""}${v.in_stock === false ? " (out of stock)" : ""}`),
   }));
+  const storeRead = await safe(repo.getLatestStoreRead(business.id), null);
+  const store = storeRead
+    ? {
+        capturedOn: storeRead.captured_on,
+        orders30d: storeRead.orders_30d,
+        newCustomers30d: storeRead.new_customers_30d,
+        returningCustomers30d: storeRead.returning_customers_30d,
+        aov: money(storeRead.aov_cents),
+        discountCodes: (storeRead.discount_codes ?? []).map((d) => `${d.code}: ${d.summary}${d.ends_at ? ` until ${d.ends_at.slice(0, 10)}` : ""}`),
+      }
+    : null;
 
   /* own performance */
   const ownPosts = posts.filter((p) => p.competitor_id === null);
@@ -598,6 +614,7 @@ export async function buildDossier(repo: Repo, business: Business, opts: { now?:
     },
     brand: {
       catalog,
+      store,
       positioning: brief?.positioning ?? null,
       segments: brief?.customer_segments ?? [],
       moat: brief?.moat ?? null,
@@ -736,7 +753,25 @@ export function renderDossier(d: Dossier): string {
     ].filter((x): x is string => Boolean(x))),
   );
 
-  out.push(section("Catalog (name · price · in stock)", d.brand.catalog.map((c) => `- ${c.name}${c.price ? ` · ${c.price}` : ""}${c.inStock === false ? " · OUT OF STOCK" : ""}${c.description ? ` · ${c.description}` : ""}`)));
+  out.push(
+    section(
+      "Catalog (name · price · margin · in stock)",
+      d.brand.catalog.map(
+        (c) =>
+          `- ${c.name}${c.price ? ` · ${c.price}` : ""}${c.marginPct !== null ? ` · ${c.marginPct}% gross margin` : ""}${c.inStock === false ? " · OUT OF STOCK" : ""}${c.variants.length ? ` · variants: ${c.variants.join(", ")}` : ""}${c.description ? ` · ${c.description}` : ""}`,
+      ),
+    ),
+  );
+  if (d.brand.store) {
+    const st = d.brand.store;
+    out.push(
+      section(`The store, last 30 days (as of ${st.capturedOn})`, [
+        st.orders30d !== null ? `- Orders: ${st.orders30d}${st.newCustomers30d !== null ? ` (${st.newCustomers30d} first orders, ${st.returningCustomers30d ?? 0} returning customers)` : ""}` : null,
+        st.aov ? `- Average order: ${st.aov}` : null,
+        st.discountCodes.length ? `- Discount codes live now (an offer test must not repeat what checkout already gives): ${st.discountCodes.join("; ")}` : "- No discount codes live.",
+      ].filter((x): x is string => Boolean(x))),
+    );
+  }
 
   const ads = d.ownPerformance.ads;
   out.push(

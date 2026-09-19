@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { CreativeBrief, PickDirection } from "@/lib/db/types";
+import type { CreativeBrief, PickBeat, PickDirection } from "@/lib/db/types";
 
 import { plainText, pricesMentioned } from "./schema";
 
@@ -16,7 +16,10 @@ import { plainText, pricesMentioned } from "./schema";
  * whole draft, and the retry is told which one.
  */
 
-export const CONCEPT_VERSION = "ct-1";
+/** ct-2: the brief dictates its first three seconds (opening beats). */
+export const CONCEPT_VERSION = "ct-2";
+export const OPENING_BEATS_MIN = 2;
+export const OPENING_BEATS_MAX = 4;
 export const HOOK_ALTERNATIVES_MAX = 3;
 export const UNKNOWNS_MAX = 5;
 export const SHOT_LIST_MAX = 7;
@@ -28,6 +31,12 @@ const DirectionSchema = z.object({
   show: text(20, 400),
   say: text(20, 400),
   prove: text(10, 400),
+});
+
+const BeatSchema = z.object({
+  visual: text(8, 240),
+  on_screen_text: z.string().max(120).default(""),
+  vo: z.string().max(240).default(""),
 });
 
 export const ConceptWriteSchema = z.object({
@@ -46,6 +55,9 @@ export const ConceptWriteSchema = z.object({
     cta: text(3, 120),
     duration_seconds: z.number().min(5).max(90),
   }),
+  /** The first three seconds, shot by shot. Nullable so a brief written
+   * before ct-2 still parses; the model is told it is required. */
+  opening: z.object({ beats: z.array(BeatSchema).min(OPENING_BEATS_MIN).max(OPENING_BEATS_MAX) }).nullish(),
   shot_list: z.array(text(5, 200)).min(2).max(SHOT_LIST_MAX),
   approved_facts: z.array(text(5, 200)).min(1).max(APPROVED_FACTS_MAX),
   outcomes: z.object({
@@ -68,6 +80,8 @@ export interface ConceptWrite {
   format: string;
   hooks: { primary: string; alternatives: string[] };
   script: { direction: PickDirection; cta: string; duration_seconds: number };
+  /** The first three seconds, shot by shot; the first beat says the hook. */
+  opening?: { beats: PickBeat[] } | null;
   shot_list: string[];
   approved_facts: string[];
   outcomes: { if_better: string; if_same: string; if_worse: string };
@@ -238,6 +252,29 @@ export function conceptSchemaFor(rules: ConceptRules) {
       const hit = forbidden.find((p) => f.toLowerCase().includes(p));
       if (hit) issue.addIssue({ code: "custom", path: ["approved_facts", i], message: `uses "${hit}", which the brand said never to use` });
     });
+    // The opening is the one part the brief dictates: the first beat says
+    // the hook word for word, and no beat carries a figure the file lacks.
+    if (v.opening === null) {
+      issue.addIssue({ code: "custom", path: ["opening"], message: "opening is required: the first three seconds, shot by shot, the first beat's vo being the primary hook" });
+    } else if (v.opening) {
+      // The hook is said or shown in the opening, word for word.
+      const said = v.opening.beats.some((b) => wordOverlap(b.vo, v.hooks.primary) >= 0.6 || wordOverlap(b.on_screen_text, v.hooks.primary) >= 0.6);
+      if (!said) {
+        issue.addIssue({ code: "custom", path: ["opening", "beats"], message: "one of the opening beats must say or show the primary hook, word for word" });
+      }
+      v.opening.beats.forEach((b, i) => {
+        const s = `${b.visual} ${b.on_screen_text} ${b.vo}`;
+        const c = claimNumbers(s);
+        const badPct = c.percents.find((p) => !have.percents.has(p));
+        const badDollar = c.dollars.find((d) => !allowedDollars.some((a) => Math.abs(a - d) <= 0.5) && !have.numbers.has(d));
+        if (badPct !== undefined || badDollar !== undefined) {
+          issue.addIssue({ code: "custom", path: ["opening", "beats", i], message: "an opening beat carries a figure nothing on file supports" });
+        }
+        if (RESULT_WORDS.test(s)) issue.addIssue({ code: "custom", path: ["opening", "beats", i], message: "an opening beat promises a result" });
+        const hit = forbidden.find((p) => s.toLowerCase().includes(p));
+        if (hit) issue.addIssue({ code: "custom", path: ["opening", "beats", i], message: `uses "${hit}", which the brand said never to use` });
+      });
+    }
     // The hypothesis is a hypothesis: it says what may happen, not what will.
     if (/\b(will|always|definitely|certainly)\b/i.test(v.hypothesis) && !/\b(may|might|could|whether|we think|we expect|likely)\b/i.test(v.hypothesis)) {
       issue.addIssue({ code: "custom", path: ["hypothesis"], message: "written as a certainty; a hypothesis says what may improve response and why" });
@@ -256,6 +293,9 @@ export function conceptSchemaFor(rules: ConceptRules) {
         cta: plainText(v.script.cta),
         duration_seconds: Math.round(v.script.duration_seconds),
       },
+      opening: v.opening
+        ? { beats: v.opening.beats.map((b) => ({ visual: plainText(b.visual), on_screen_text: plainText(b.on_screen_text ?? ""), vo: plainText(b.vo ?? "") })) }
+        : null,
       shot_list: v.shot_list.map(plainText).filter(Boolean),
       approved_facts: v.approved_facts.map(plainText).filter(Boolean),
       outcomes: { if_better: plainText(v.outcomes.if_better), if_same: plainText(v.outcomes.if_same), if_worse: plainText(v.outcomes.if_worse) },
@@ -332,6 +372,7 @@ export function assembleBrief(
     format: write.format,
     hooks: write.hooks,
     script: write.script,
+    opening: write.opening ?? null,
     shot_list: write.shot_list,
     approved_facts: write.approved_facts,
     evaluation: computed.evaluation,

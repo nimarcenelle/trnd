@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Zod schemas for every generation call. Both the Gemini path and the
+ * Zod schemas for every generation call. Both the model path and the
  * deterministic fallback validate against these, so downstream screens can
  * trust the shape either way.
  */
@@ -193,3 +193,26 @@ export const DocumentDigestSchema = z.object({
   watchouts: z.array(z.string()).transform((a) => a.filter((s) => s.trim().length >= 8).slice(0, 4)),
 });
 export type DocumentDigestResult = z.infer<typeof DocumentDigestSchema>;
+
+/** One ad's shape, from its words and creative (lib/ads/classify.ts). */
+export const AdClassificationSchema = z.object({
+  ads: z.array(
+    z.object({
+      index: z.number().int().min(0),
+      angle: z.enum(["education", "offer", "scarcity", "social_proof", "speed", "novelty"]),
+      hook_type: z.enum(["question", "problem", "claim", "story", "comparison", "callout", "demonstration", "offer", "other"]),
+      format: z.enum(["talking_head", "ugc", "demo", "static", "editor", "studio", "carousel", "video", "unknown"]),
+    }),
+  ),
+});
+export type AdClassificationResult = z.infer<typeof AdClassificationSchema>;
+
+/** The finished ad against its brief (lib/picks/fidelity.ts). */
+export const FidelitySchema = z.object({
+  hook_present: z.boolean().nullable(),
+  opening_followed: z.boolean().nullable(),
+  facts_only: z.boolean().nullable(),
+  format_matches: z.boolean().nullable(),
+  notes: z.array(z.string()).max(5),
+});
+export type FidelityResult = z.infer<typeof FidelitySchema>;

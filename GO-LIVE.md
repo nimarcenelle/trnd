@@ -15,6 +15,16 @@ every one of them is in place and tested.
 | 5 | **Verify the per-term TikTok actor on one live run**: `APIFY_TOKEN=... pnpm tsx scripts/probe-tiktok-apify.ts "shower filter"` | One paid run, a few cents | The probe prints which documented fields arrived and exits non-zero if a required one did not. The adapter now warns once per night when the actor drifts, and every run is metered. ~$4 per 25-term read. |
 | 6 | **Paste migration 0029** (`supabase/migrations/0029_calibration.sql`) | Free | The calibration log: baseline click-through and lift on every finished run, read back as Predicted against actual on the Track record. Until it runs, writes drop the two columns and everything else still lands. |
 
+## Migrations 0032 to 0037 (2026-09-19)
+
+Paste in order, after 0031: `0032_ad_depth` (purchases, video metrics, the creative, the ad
+id, the link to a test), `0033_creative_record` (angle, opening and format on every ad;
+fidelity on every run), `0034_team_and_share` (the roster, members through row security,
+the share token), `0035_plans` (the starter plan), `0036_prospect_reads` (prospect shadow
+brands), `0037_shopify` (cost, variants and the store id on products; store reads; the
+Shopify connection). Every write tolerates a missing column until its migration runs, but
+nothing new shows until it does.
+
 ## Keys and accounts
 
 Everything below is a seam that already exists in code (see `BLOCKED.md` for the
@@ -26,10 +36,11 @@ In the order it changes what an owner sees:
 | 1 | Create a **DataForSEO** account | ~$0.05 per 1k keywords; pennies a day | Real monthly search volume and week-over-week deltas for every watch term, per metro. This is the fix for "no weekly read yet": Google's unofficial Trends endpoint 403s from datacenter IPs and cannot be the backbone. | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` |
 | 2 | Create a **YouTube Data API** key | Free (10k units/day) | Shorts views per watch term, this week vs last, and the one video pulling the most. The short-form half of the ranking. | `YOUTUBE_API_KEY` |
 | 3 | Enable **Places API (New)** on a Google Cloud project | Free tier covers SMB volume | Own-review mining (customer voice in the copy) and daily rival ratings; "Find my nearest rivals" appears. | `GOOGLE_PLACES_API_KEY` |
-| 4 | Set the **Gemini** key in production | Cents per business per week | The read on every pick, the written-for-you ad, the founding analysis, Ask, standing questions, the Monday note. Without it every one of these is a template. | `GEMINI_API_KEY` |
+| 4 | Set the **OpenAI** key in production | Cents per business per week | The founding analysis, the strategist read, the briefs, the ad classifier, the fidelity check, document digests. Without it every one of these is a template or a rule. Pin the tiers with `OPENAI_MODEL_PRO` / `OPENAI_MODEL_FLASH` once you have chosen them. | `OPENAI_API_KEY` |
 | 5 | Verify a sending domain on **Resend** | Free tier | The Monday email actually leaves the building. | `RESEND_API_KEY`, `EMAIL_FROM` |
 | 6 | Register a **Reddit script app** | Free | Category-subreddit and per-term conversation reads; anonymous JSON returns HTML from datacenter IPs. The adapter is already on OAuth; only the two env vars are missing. | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` |
-| 7 | Create a **Meta app** with Marketing API access and pass App Review for `ads_read` | Free; days to weeks of review | The connected account's own ad history syncs daily and tests get their results by name. TRND never launches an ad. Works immediately for admins/testers of the app, which is enough for a three-brand pilot. | `META_APP_ID`, `META_APP_SECRET`, `NEXT_PUBLIC_APP_URL` |
+| 7 | Create a **Meta app** with Marketing API access and pass App Review for `ads_read` | Free; days to weeks of review | The connected account's own ad history syncs daily with purchases, purchase value, 3-second plays, ThruPlays and the creative, every ad is classified by angle, and tests get their results by name or by the ad the owner links. TRND never launches an ad. Works immediately for admins/testers of the app, which is enough for a three-brand pilot. | `META_APP_ID`, `META_APP_SECRET`, `NEXT_PUBLIC_APP_URL` |
+| 7b | Ask each pilot brand for a **Shopify custom app token** (Settings, Apps, Develop apps: read_products, read_inventory, read_orders, read_discounts) | Free; ten minutes on their side | Cost beside price on every product, variants and stock, the last 30 days of orders split first against returning, and the live discount codes, in the dossier and every brief. Pasted on Settings; nothing to configure on ours. | none |
 | 8 | Set `CRON_SECRET` and confirm the Vercel crons fire | Free | Daily ingest, intel and ranking, the Monday picks and email, the daily results sync. Nothing is weekly if the crons don't run. | `CRON_SECRET` |
 
 Items 1–4 make the product stop being thin. Item 7 closes the loop without an upload.

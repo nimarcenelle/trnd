@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
 
   if (params.get("error")) fail(params.get("error_description") ?? "Meta denied the connection.");

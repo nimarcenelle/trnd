@@ -31,6 +31,12 @@ const good = () => ({
   differs_from: "Recent ads opened on the product on a white background; this opens on the problem in a real bathroom.",
   format: "20-second talking head",
   hooks: { primary: "That white crust is in the water you wash with", alternatives: ["I blamed my shampoo for a year", "Look at your showerhead first"] },
+  opening: {
+    beats: [
+      { visual: "The scale on the old showerhead in close-up, the light as it is.", on_screen_text: "", vo: "That white crust is in the water you wash with" },
+      { visual: "The filter going on by hand.", on_screen_text: "15-stage filter", vo: "" },
+    ],
+  },
   script: {
     direction: {
       show: "A real bathroom, the scale on the old showerhead in close-up, then the filter going on by hand in one shot.",
@@ -64,6 +70,24 @@ describe("a creative test the writer returns", () => {
       expect(v.value.hooks.alternatives).toHaveLength(2);
       expect(v.value.approved_facts).toHaveLength(2);
     }
+  });
+
+  it("requires the opening to say the hook and to carry no foreign figure, and lets an older brief through without one", () => {
+    const ok = validateConceptWrite(good(), rules);
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.value.opening?.beats).toHaveLength(2);
+    const noHook = validateConceptWrite({ ...good(), opening: { beats: [{ visual: "The bathroom, empty.", on_screen_text: "", vo: "Something else entirely" }] } }, rules);
+    expect(noHook.ok).toBe(false);
+    if (!noHook.ok) expect(noHook.error).toMatch(/say or show the primary hook/);
+    const figure = validateConceptWrite({ ...good(), opening: { beats: [{ visual: "Close-up.", on_screen_text: "Removes 99% of chlorine", vo: "That white crust is in the water you wash with" }] } }, rules);
+    expect(figure.ok).toBe(false);
+    if (!figure.ok) expect(figure.error).toMatch(/opening beat carries a figure/);
+    const missing = validateConceptWrite({ ...good(), opening: null }, rules);
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) expect(missing.error).toMatch(/opening is required/);
+    const older = { ...good() } as Record<string, unknown>;
+    delete older.opening;
+    expect(validateConceptWrite(older, rules).ok).toBe(true);
   });
 
   it("fails a fact that nothing on file supports", () => {

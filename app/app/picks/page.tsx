@@ -9,7 +9,7 @@ import WeekClock from "@/components/app/week-clock";
 import { BRIEF_FALLBACK_MODEL, BRIEF_PROMPT_VERSION, briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
-import { isEmailConfigured, isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
+import { isEmailConfigured, isModelConfigured, isSupabaseConfigured } from "@/lib/env";
 import { firstWeekMode } from "@/lib/onboarding/context";
 import { nextWeekStage } from "@/lib/picks/advance-week";
 import { conceptRow, STATUS_LABEL } from "@/lib/picks/concept-view";
@@ -42,7 +42,7 @@ export default async function PicksPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
 
   const week = weekOf();
@@ -65,7 +65,7 @@ export default async function PicksPage() {
   const now = requestTime();
   if (
     brief &&
-    (brief.prompt_version !== BRIEF_PROMPT_VERSION || (brief.model_used === BRIEF_FALLBACK_MODEL && isGeminiConfigured)) &&
+    (brief.prompt_version !== BRIEF_PROMPT_VERSION || (brief.model_used === BRIEF_FALLBACK_MODEL && isModelConfigured)) &&
     dueForKick(briefKicks.get(business.id), now, BRIEF_KICK_WINDOW_MS)
   ) {
     briefKicks.set(business.id, now);

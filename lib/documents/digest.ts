@@ -1,5 +1,5 @@
 import type { Business, DocumentDigest } from "@/lib/db/types";
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 
 import { extractText, fallbackDigest, isModelRead } from "./parse";
 
@@ -16,10 +16,10 @@ export async function digestUpload(
   doc: { name: string; mime: string; bytes: Uint8Array },
 ): Promise<{ text: string; digest: DocumentDigest; model_used: string }> {
   const text = await extractText(doc.mime, doc.bytes);
-  if (isGeminiConfigured) {
+  if (isModelConfigured) {
     try {
-      const { digestDocumentWithGemini } = await import("@/lib/ai/gemini");
-      const { value, model } = await digestDocumentWithGemini(business, {
+      const { digestDocumentWithModel } = await import("@/lib/ai/openai");
+      const { value, model } = await digestDocumentWithModel(business, {
         name: doc.name,
         mime: doc.mime,
         text,

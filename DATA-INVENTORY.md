@@ -34,14 +34,8 @@ configured, surfaced automatically.
 | Subreddit heat | Reddit public JSON | weekly top posts per category subreddit (food, HVAC, SkincareAddiction, …): title, score, comment count, permalink |
 | TikTok hashtags | TikTok Creative Center (unofficial) | trending hashtags per industry: name, video views, rank, humanized term, on-topic verdict |
 | TikTok per term | Apify actor (needs `APIFY_TOKEN`) | per-term posts: views, likes, comments, shares, saves, duration, author followers, hashtags |
-| X posts | X recent search (needs a PAID `X_BEARER_TOKEN`) | daily post counts over 7 days, engagement on a 25-post sample, top post |
-| Instagram Reels | Graph API (needs `INSTAGRAM_ACCESS_TOKEN` + App Review) | reactions on Reels per hashtag over 7 days (the Reel count saturates at one page, so it is context only), permalink; 30 hashtags/7 days |
-
-## 4 · News coverage
-
-| Pull | Source | Fields captured |
-|---|---|---|
-| Coverage counts | Google News RSS per watched term | total + recent article counts (used as a saturation proxy when no ad data exists) |
+| X posts | X recent search (needs a PAID `X_BEARER_TOKEN`) | daily post counts over 7 days, engagement on a 25-post sample, top post; the national conversation read |
+| Own and rivals' Instagram, TikTok, Facebook posts and comments | Business Discovery (own account) and Apify | posts with engagement, and the comments under them, quoted as written |
 
 ## 5 · Competitor ads ← the competitor-tracking base layer
 
@@ -52,15 +46,6 @@ configured, surfaced automatically.
 This is already per-business (queries are built from each business's ranked
 terms + city). It's the natural seed for a fuller competitor-tracking view:
 the raw payload keeps who is advertising and what they're saying.
-
-## 6 · Weather demand triggers (keyless, most local signal in the stack)
-
-| Pull | Source | Fields captured |
-|---|---|---|
-| 21-day window | Open-Meteo forecast API per metro | 14 days past + 7 days forecast: daily max/min temp, precipitation → deterministic triggers: first heat wave, first freeze, patio window, rain streak, dry-window rebound — each with a plain-English detail sentence and a heuristic demand delta (labeled as such) |
-
-Fires only when the forecast crosses a line the recent past didn't (a heat wave
-in an Arizona July is not news and doesn't fire).
 
 ## 7 · Video (key-gated)
 
@@ -74,22 +59,24 @@ in an Arizona July is not news and doesn't fire).
 |---|---|---|
 | Website import | One owner-initiated crawl at onboarding | business name, category, city/state, **menu/services with prices**, brand-voice hints, up to 6 real photos, page text (feeds the founding analysis) |
 | Watchlist | Generated founding analysis | 5–8 search phrases this business's real customers use — these drive rows 1, 2, 4 above, per business, in its metro |
-| Own ad history | Ads Manager or Google Ads export (deterministic parser), or the connected Meta account's ad-level insights with creative copy, 180 days, synced daily | impressions, clicks, spend, results, CTR, copy, dates per ad → account click-through, best and worst ads, themes, and the last three ads of each shape a concept is graded against |
-| Test results | The owner's own entry on Campaigns, or the ad history rows named `TRND: <concept title>` | spend, impressions, clicks, purchases, revenue per test → outcome, lift over the account, the track record and predicted-against-actual per grade |
+| Own ad history | Ads Manager or Google Ads export (deterministic parser), or the connected Meta account's ad-level insights, 180 days, synced daily | impressions, clicks, spend, results, **purchases and purchase value, 3-second plays and ThruPlays**, the creative's thumbnail and shape, copy, dates, the platform's ad id → account click-through and cost per purchase, best and worst ads, and **every ad classified by angle, opening and format** (the model, or the rules) for the angle-level record |
+| Own store | A Shopify custom app token, pasted on Settings, synced daily | products with **cost** (gross margin), variants and stock, the last 30 days of orders split first against returning, average order, the discount codes live today |
+| Test results | The owner's own entry on Campaigns, the ad history rows named `TRND: <concept title>`, or the ad the owner linked to the test by id | spend, impressions, clicks, purchases, revenue per test → outcome, lift over the account, the track record and predicted-against-actual per grade |
+| Fidelity | The finished ad's words, pasted or read from the linked ad, checked against the brief | hook present, opening followed, facts only, format matches → the record split by whether the ad followed its brief |
 
 ---
 
 ## Customer view vs master view (how the data is scoped today)
 
-- **Master pool:** all of categories 1–7 land in one shared `signals` table —
+- **Master pool:** the market reads land in one shared `signals` table —
   market data, owned by no customer. This IS the master view; an internal
   screen over it is a query, not a schema change.
 - **Customer view:** each business sees the pool filtered to its category +
   its state/metro, re-scored against *its* services, fit-gated, and graded —
   that's the weekly dashboard.
-- **Per-business rows:** watchlist terms, ad-library reads (term + city),
-  weather (metro), website import, results. Results roll up into de-identified
-  category learnings that sharpen everyone.
+- **Per-business rows:** watchlist terms, ad-library reads, website import, the store,
+  the ad history and its classification, results and fidelity. Results roll up into the
+  public record (`/record`) with nothing named.
 
 Provenance is kept everywhere: every signal knows its source, its geo level
 ("Atlanta metro" vs national), and whether a delta is measured or heuristic —

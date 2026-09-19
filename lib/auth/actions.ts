@@ -40,7 +40,15 @@ export async function signUpAction(
   if (isPilotGated) {
     const code = String(formData.get("invite_code") ?? "").trim();
     if (!code || code !== env.pilotInviteCode) {
-      return { error: "TRND is in a founder-assisted pilot. The invite code is in the email that accepted your application." };
+      // A teammate an owner invited by email needs no code: the brand
+      // already exists and the roster names them.
+      const { getAdminRepo } = await import("@/lib/db/admin");
+      const invited = await getAdminRepo()
+        .findMembershipByEmail(email)
+        .catch(() => null);
+      if (!invited) {
+        return { error: "TRND is in a founder-assisted pilot. The invite code is in the email that accepted your application." };
+      }
     }
   }
 

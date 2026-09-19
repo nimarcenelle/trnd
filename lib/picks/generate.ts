@@ -7,7 +7,7 @@ import {
 } from "@/lib/ai/concept-writer";
 import type { ConceptStrategy } from "@/lib/ai/concept-writer";
 import type { Repo } from "@/lib/db/repo";
-import type { Business, BusinessBrief, NewPickBundle, Opportunity, Review, Service, Signal, SocialComment } from "@/lib/db/types";
+import type { Business, BusinessBrief, NewPickBundle, Opportunity, Review, Service, Signal, SocialComment , StoreRead } from "@/lib/db/types";
 import { indexSeries } from "@/lib/demand/series";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { campaignSignalBrief, loadSignalContext, type SignalContext } from "@/lib/recommend/four-signals";
@@ -21,6 +21,8 @@ import { assessAdRead } from "@/lib/signals/ad-relevance";
 import { isOnlineBusiness, placeWords } from "@/lib/signals/geo";
 import { engagementOf, postsOnTerm } from "@/lib/social/read";
 import { recordProviderUsage } from "@/lib/usage/providers";
+
+import { getPlanState, planLimits } from "@/lib/billing";
 
 import { pickBet } from "./bet";
 import { assembleBrief, conceptsOverlap, CONCEPT_VERSION, validateConceptWrite, type ConceptRules, type ConceptWrite } from "./concept";
@@ -44,6 +46,8 @@ import { metricLabelFor, metricLevel, pickMetric, sparklineOf } from "./metric";
  */
 
 export const PICKS_PER_WEEK = 3;
+/** The most any plan writes in a week (lib/billing PLAN_LIMITS). */
+export const PICKS_MAX = 5;
 /** How many ranked rows are tried to fill the week: a near-duplicate costs a slot. */
 export const CANDIDATES_PER_WEEK = 5;
 export const DEFAULT_SCRIPT_SECONDS = 20;
@@ -55,9 +59,9 @@ export interface GenerateWeekPicksOptions {
   weekOf?: string;
   /** False builds the bundles without storing them. Defaults to true. */
   write?: boolean;
-  /** Pre-resolved Gemini models, so a batch run lists models once. */
+  /** Pre-resolved model tiers, so a batch run lists models once. */
   models?: { flash: string; pro: string };
-  /** Replaces the default writer (Gemini, or the keyless template). */
+  /** Replaces the default writer (the model, or the keyless template). */
   writer?: ConceptWriter;
   /** Write only the top N of the week: the first pick lands before the rest. */
   limit?: number;
@@ -221,6 +225,8 @@ interface WeekInputs {
   reviews: Review[];
   /** Citable facts from the owner's uploaded documents. */
   documentFacts: string[];
+  /** The brand's own store, last 30 days, when one is connected. */
+  store: StoreRead | null;
   memory: BrandMemory;
   writer: ConceptWriter;
 }
@@ -345,6 +351,14 @@ async function buildConcept(repo: Repo, input: WeekInputs, opportunity: Opportun
     otherConcepts: others.map((c) => ({ title: c.title, hypothesis: c.hypothesis })),
     durationSec,
     strategy,
+    store: input.store
+      ? {
+          orders30d: input.store.orders_30d,
+          newCustomers30d: input.store.new_customers_30d,
+          aov: typeof input.store.aov_cents === "number" ? `$${(input.store.aov_cents / 100).toFixed(0)}` : null,
+          discountCodes: (input.store.discount_codes ?? []).map((d) => `${d.code} (${d.summary})`),
+        }
+      : null,
   };
   const rules: ConceptRules = {
     term: signal.term,
@@ -482,7 +496,11 @@ export function conceptOf(bundle: Pick<NewPickBundle, "pick">): ConceptWrite | n
 
 export async function generateWeekPicks(repo: Repo, business: Business, opts: GenerateWeekPicksOptions = {}): Promise<GenerateWeekPicksResult> {
   const week = opts.weekOf ?? currentWeek();
-  const want = Math.min(opts.limit ?? PICKS_PER_WEEK, PICKS_PER_WEEK);
+  // The plan meters briefs a week; the trial runs on the pilot tier's three.
+  const planBriefs = await getPlanState(repo, business)
+    .then((p) => planLimits(p.plan).briefsPerWeek)
+    .catch(() => PICKS_PER_WEEK);
+  const want = Math.min(opts.limit ?? planBriefs, PICKS_MAX);
   const opportunities = eligibleWeekOpportunities(await repo.listOpportunities(business.id, week));
   if (opportunities.length === 0) return { ready: 0, draft: 0, duplicates: 0, pickIds: [], bundles: [] };
 
@@ -526,6 +544,7 @@ export async function generateWeekPicks(repo: Repo, business: Business, opts: Ge
     comments,
     reviews,
     documentFacts: documents.flatMap((d) => d.digest?.facts ?? []),
+    store: await safe(repo.getLatestStoreRead(business.id), null),
     memory,
     writer: opts.writer ?? defaultConceptWriter(opts.models),
   };

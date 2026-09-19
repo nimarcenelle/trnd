@@ -1,4 +1,4 @@
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 
 import { classifyTerm } from "../category-terms";
 import { normalizeTerm } from "../normalize";
@@ -100,7 +100,7 @@ export function curveDelta(curve: CcCurvePoint[] | undefined): number | null {
  * insight layer frames them as a national moment instead of a category
  * trend.
  *
- * This lexicon check is the FALLBACK, used only when Gemini is unconfigured.
+ * This lexicon check is the FALLBACK, used only when the model is unconfigured.
  * It is deliberately conservative because it is weak: a live board read
  * showed it marking "#sorority recruitment outfits" on the Home Improvement
  * board as on-topic (it hit the apparel lexicon, for a different category)
@@ -197,7 +197,7 @@ export function ccSeries(
 }
 
 export function createTiktokCcAdapter(opts: {
-  /** Injectable for tests; defaults to the Gemini pass when configured. */
+  /** Injectable for tests; defaults to the model pass when configured. */
   humanize?: (items: { hashtag: string; category: string }[]) => Promise<{ term: string; onTopic: boolean }[]>;
   /** Injectable for tests; defaults to the hardened fetchJson. */
   fetchJson?: typeof fetchJson;
@@ -230,8 +230,8 @@ export function createTiktokCcAdapter(opts: {
     try {
       const humanize =
         opts.humanize ??
-        (isGeminiConfigured
-          ? (await import("@/lib/ai/gemini")).humanizeTrendTerms
+        (isModelConfigured
+          ? (await import("@/lib/ai/openai")).humanizeTrendTerms
           : null);
       if (!humanize) return;
       const reads = await humanize(items);

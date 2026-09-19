@@ -34,7 +34,19 @@ function day(iso: string | null): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-export default function ConceptDetail({ view, head, exportHref, refine }: { view: ConceptView; head: ConceptHead; exportHref: string; refine?: React.ReactNode }) {
+export default function ConceptDetail({
+  view,
+  head,
+  exportHref,
+  refine,
+  share,
+}: {
+  view: ConceptView;
+  head: ConceptHead;
+  exportHref: string;
+  refine?: React.ReactNode;
+  share?: React.ReactNode;
+}) {
   const status = STATUS_LABEL[view.status];
   return (
     <div className="page pickd cb">
@@ -155,6 +167,28 @@ export default function ConceptDetail({ view, head, exportHref, refine }: { view
                   <li key={h}>{h}</li>
                 ))}
               </ul>
+            </div>
+          )}
+          {view.opening && view.opening.beats.length > 0 && (
+            <div className="cb__opening">
+              <span className="pickd__k">The first three seconds, shot by shot</span>
+              <ol className="cb__beats">
+                {view.opening.beats.map((b, i) => (
+                  <li key={i}>
+                    <span className="cb__beat-visual">{b.visual}</span>
+                    {b.on_screen_text && (
+                      <span className="cb__beat-line">
+                        <em>On screen:</em> {b.on_screen_text}
+                      </span>
+                    )}
+                    {b.vo && (
+                      <span className="cb__beat-line">
+                        <em>Say:</em> {b.vo}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
           <dl className="pickd__direction">
@@ -310,7 +344,7 @@ export default function ConceptDetail({ view, head, exportHref, refine }: { view
         </div>
       </details>
 
-      <ConceptActions pickId={view.id} copyText={view.copyAll} exportHref={exportHref} status={view.status} refine={refine} />
+      <ConceptActions pickId={view.id} copyText={view.copyAll} exportHref={exportHref} status={view.status} refine={refine} share={share} />
     </div>
   );
 }

@@ -1,7 +1,6 @@
-import type { Schema } from "@google/genai";
 
-import { isGeminiConfigured } from "@/lib/env";
-import { pickWriteSchemaFor, type PickWrite, type PickWriteScript } from "@/lib/picks/schema";
+import { isModelConfigured } from "@/lib/env";
+import { PickWriteBase, pickWriteSchemaFor, type PickWrite, type PickWriteScript } from "@/lib/picks/schema";
 import { isOnlineBusiness } from "@/lib/signals/geo";
 
 import { buildPickPrompt, formatPrice, PICK_PROMPT_VERSION, type PickPromptCtx } from "./prompts/pick";
@@ -12,7 +11,7 @@ import { buildPickPrompt, formatPrice, PICK_PROMPT_VERSION, type PickPromptCtx }
  * kill rule) is computed before this is called and is not the writer's to
  * change.
  *
- * With GEMINI_API_KEY: one Pro call through `structuredCall`, which retries
+ * With OPENAI_API_KEY: one Pro call through `structuredCall`, which retries
  * once on a schema violation. Without it: a deterministic template, so a
  * demo install still gets ready picks.
  */
@@ -28,48 +27,11 @@ export interface PickWriterInput extends PickPromptCtx {
 /** Returns unvalidated output; the weekly job validates whatever comes back. */
 export type PickWriter = (input: PickWriterInput) => Promise<unknown>;
 
-/**
- * The response schema the model is held to. Plain values rather than the
- * SDK's Type enum so the SDK itself stays behind lib/ai/gemini.ts.
- */
-export const PICK_RESPONSE_SCHEMA = {
-  type: "OBJECT",
-  properties: {
-    finding: { type: "STRING" },
-    bet_what: { type: "STRING" },
-    guardrail: { type: "STRING", nullable: true },
-    scripts: {
-      type: "ARRAY",
-      items: {
-        type: "OBJECT",
-        properties: {
-          variant_label: { type: "STRING" },
-          thesis: { type: "STRING" },
-          hook: { type: "STRING" },
-          direction: {
-            type: "OBJECT",
-            properties: {
-              show: { type: "STRING" },
-              say: { type: "STRING" },
-              prove: { type: "STRING" },
-            },
-            required: ["show", "say", "prove"],
-          },
-          cta: { type: "STRING" },
-          duration_seconds: { type: "INTEGER" },
-        },
-        required: ["variant_label", "thesis", "hook", "direction", "cta", "duration_seconds"],
-      },
-    },
-  },
-  required: ["finding", "bet_what", "guardrail", "scripts"],
-} as unknown as Schema;
-
-export async function writePickWithGemini(
+export async function writePickWithModel(
   input: PickWriterInput,
   models?: { flash: string; pro: string },
 ): Promise<{ value: PickWrite; model: string }> {
-  const { creativeCall, resolveModels } = await import("./gemini");
+  const { creativeCall, resolveModels } = await import("./openai");
   const m = models ?? (await resolveModels());
   const schema = pickWriteSchemaFor({ term: input.term, deltaPct: input.deltaPct, gap: true });
   const validate = (d: unknown) => schema.parse(d);
@@ -79,7 +41,7 @@ export async function writePickWithGemini(
   // draft, which is an empty list; a Flash pick that passes the same checks
   // is better than no week at all.
   try {
-    return await creativeCall(m, buildPickPrompt(input), PICK_RESPONSE_SCHEMA, validate);
+    return await creativeCall(m, buildPickPrompt(input), PickWriteBase, validate);
   } catch (err) {
     // Four blind attempts kept writing the same rejected line ("Fifty nine
     // dollars for a hair towel sounds insane", four times, for a rule that
@@ -88,7 +50,7 @@ export async function writePickWithGemini(
     const feedback = validationFeedback(err);
     if (!feedback) throw err;
     console.warn(`[picks] "${input.term}" rejected (${feedback}); asking for a fix`);
-    return await creativeCall(m, buildPickPrompt({ ...input, feedback }), PICK_RESPONSE_SCHEMA, validate);
+    return await creativeCall(m, buildPickPrompt({ ...input, feedback }), PickWriteBase, validate);
   }
 }
 
@@ -182,6 +144,6 @@ direction: {
 
 /** The writer the weekly job uses when none is injected. */
 export function defaultPickWriter(models?: { flash: string; pro: string }): PickWriter {
-  if (!isGeminiConfigured) return async (input) => fallbackPickWrite(input);
-  return async (input) => (await writePickWithGemini(input, models)).value;
+  if (!isModelConfigured) return async (input) => fallbackPickWrite(input);
+  return async (input) => (await writePickWithModel(input, models)).value;
 }

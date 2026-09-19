@@ -50,7 +50,11 @@ type Field =
   | "start"
   | "end"
   | "headline"
-  | "body";
+  | "body"
+  | "purchases"
+  | "purchase_value"
+  | "video_3s"
+  | "thruplays";
 
 type Aliases = Record<Field, string[]>;
 
@@ -70,6 +74,10 @@ const META: Aliases = {
   end: ["reporting ends"],
   headline: ["headline", "title", "ad creative title"],
   body: ["body", "ad creative body", "primary text"],
+  purchases: ["purchases", "website purchases", "meta purchases"],
+  purchase_value: ["purchases conversion value", "website purchases conversion value", "purchase conversion value", "meta purchases conversion value"],
+  video_3s: ["3-second video plays", "3-second video views", "video plays at 3 seconds"],
+  thruplays: ["thruplays", "thruplay"],
 };
 
 const GOOGLE: Aliases = {
@@ -85,6 +93,10 @@ const GOOGLE: Aliases = {
   end: ["end date"],
   headline: ["headline 1", "headline"],
   body: ["description", "description 1", "description line 1"],
+  purchases: ["purchases"],
+  purchase_value: ["conv. value", "total conv. value", "all conv. value"],
+  video_3s: [],
+  thruplays: [],
 };
 
 const PLATFORMS = [
@@ -337,6 +349,10 @@ export function parseAdExport(input: AdExportInput): AdExportRead {
           started_on: startedOn,
           ended_on: endedOn,
           source: found.source,
+          purchases: parseCount(at(row, "purchases")),
+          purchase_value_cents: parseCents(at(row, "purchase_value")),
+          video_3s_views: parseCount(at(row, "video_3s")),
+          thruplays: parseCount(at(row, "thruplays")),
         },
         ctrWeighted: reportedCtr !== null && impressions ? reportedCtr * impressions : 0,
         ctrImpressions: reportedCtr !== null && impressions ? impressions : 0,
@@ -349,6 +365,10 @@ export function parseAdExport(input: AdExportInput): AdExportRead {
       d.clicks = add(d.clicks, clicks);
       d.spend_cents = add(d.spend_cents, spend);
       d.results = add(d.results, parseNumber(at(row, "results")));
+      d.purchases = add(d.purchases ?? null, parseCount(at(row, "purchases")));
+      d.purchase_value_cents = add(d.purchase_value_cents ?? null, parseCents(at(row, "purchase_value")));
+      d.video_3s_views = add(d.video_3s_views ?? null, parseCount(at(row, "video_3s")));
+      d.thruplays = add(d.thruplays ?? null, parseCount(at(row, "thruplays")));
       d.copy = d.copy ?? copy;
       if (endedOn && (!d.ended_on || endedOn > d.ended_on)) d.ended_on = endedOn;
       if (reportedCtr !== null && impressions) {

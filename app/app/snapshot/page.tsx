@@ -37,7 +37,7 @@ export default async function SnapshotPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
 
   const [services, brief] = await Promise.all([repo.listServices(business.id), repo.getBusinessBrief(business.id)]);

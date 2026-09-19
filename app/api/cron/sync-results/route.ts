@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { classifyAdHistory } from "@/lib/ads/classify";
 import { runMetaHistorySync } from "@/lib/ads/history-sync";
 import { syncRunsFromHistory } from "@/lib/ads/run-sync";
 import { getAdminRepo } from "@/lib/db/admin";
 import { env, isMetaAdsConfigured } from "@/lib/env";
+import { runShopifySync } from "@/lib/shopify/sync";
 
 export const maxDuration = 300;
 
@@ -24,17 +26,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const repo = getAdminRepo();
+  // The brand's own store first: costs, variants, stock, the last 30 days.
+  const stores = await runShopifySync(repo);
   const history = isMetaAdsConfigured ? await runMetaHistorySync(repo) : { skipped: "META_APP_ID / META_APP_SECRET not configured" };
   const runs: { businessId: string; synced: number }[] = [];
+  const classified: { businessId: string; ads: number }[] = [];
   try {
     for (const business of await repo.listAllBusinesses()) {
       const synced = await syncRunsFromHistory(repo, business.id);
       if (synced.length > 0) runs.push({ businessId: business.id, synced: synced.length });
+      // Every ad the brand ran, classified by angle, opening and format, so
+      // the record reads the whole account and not only TRND's tests.
+      const c = await classifyAdHistory(repo, business.id);
+      if (c.classified > 0) classified.push({ businessId: business.id, ads: c.classified });
     }
   } catch (err) {
     console.warn("[sync-results] runs from history failed:", (err as Error).message);
   }
-  return NextResponse.json({ history, runs });
+  return NextResponse.json({ stores, history, runs, classified });
 }
 
 // Vercel Cron invokes with GET (same Bearer CRON_SECRET header).

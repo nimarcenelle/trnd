@@ -10,7 +10,7 @@ import type { NewBusiness } from "../lib/db/types";
 // set the env first, then import dynamically. A fake key is safe here: the
 // gate under test returns before any model call.
 process.env.TRND_DEMO_DIR = mkdtempSync(path.join(tmpdir(), "trnd-gate-"));
-process.env.GEMINI_API_KEY = "test-key-never-called";
+process.env.OPENAI_API_KEY = "test-key-never-called";
 
 const { createDemoRepo } = await import("../lib/db/demo/repo");
 const { resetStore } = await import("../lib/db/demo/store");

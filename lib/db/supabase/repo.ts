@@ -10,6 +10,8 @@ import type {
   PickFeedback,
   SignalReading,
   AdHistory,
+  BusinessMember,
+  StoreRead,
   Business,
   BusinessBrief,
   Campaign,
@@ -159,20 +161,71 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       return withBusinessDefaults(data as Business);
     },
     async getBusinessByOwner(ownerId) {
-      const { data, error } = await sb
-        .from("businesses")
-        .select("*")
-        .eq("owner_id", ownerId)
-        .order("created_at")
-        .limit(1)
-        .maybeSingle();
+      // The founder's own brand, never one of the prospect shadow brands
+      // the free account read creates under the same owner.
+      const { data, error } = await sb.from("businesses").select("*").eq("owner_id", ownerId).order("created_at").limit(20);
       throwIf(error, "getBusinessByOwner");
-      return data ? withBusinessDefaults(data as Business) : null;
+      const own = ((data ?? []) as Business[]).find((b) => !b.prospect);
+      return own ? withBusinessDefaults(own) : null;
+    },
+    async getBusinessForUser(user) {
+      const own = await this.getBusinessByOwner(user.id);
+      if (own) return own;
+      const email = (user.email ?? "").trim().toLowerCase().replace(/[%_,()]/g, "");
+      let q = sb.from("business_members").select("*").order("created_at").limit(1);
+      q = email ? q.or(`user_id.eq.${user.id},email.ilike.${email}`) : q.eq("user_id", user.id);
+      const { data, error } = await q.maybeSingle();
+      // Before migration 0034 there is no roster: the user has no business.
+      if (error && (missingColumn(error) || /business_members/.test(error.message))) return null;
+      throwIf(error, "getBusinessForUser:members");
+      const member = data as BusinessMember | null;
+      if (!member) return null;
+      if (!member.user_id) {
+        // First sign-in claims the invitation; a failure here costs nothing.
+        await sb.from("business_members").update({ user_id: user.id, accepted_at: new Date().toISOString() }).eq("id", member.id);
+      }
+      return this.getBusiness(member.business_id);
     },
     async getBusiness(id) {
       const { data, error } = await sb.from("businesses").select("*").eq("id", id).maybeSingle();
       throwIf(error, "getBusiness");
       return data ? withBusinessDefaults(data as Business) : null;
+    },
+
+    /* --------------------------------- team -------------------------------- */
+    async listMembers(businessId) {
+      const { data, error } = await sb.from("business_members").select("*").eq("business_id", businessId).order("created_at");
+      throwUnlessMissing(error, "listMembers");
+      return (data ?? []) as BusinessMember[];
+    },
+    async inviteMember(input) {
+      const row = { business_id: input.business_id, email: input.email.trim().toLowerCase(), invited_by: input.invited_by ?? null };
+      const { data, error } = await sb.from("business_members").upsert(row, { onConflict: "business_id,email" }).select().single();
+      throwIf(error, "inviteMember");
+      return data as BusinessMember;
+    },
+    async removeMember(id) {
+      const { error } = await sb.from("business_members").delete().eq("id", id);
+      throwIf(error, "removeMember");
+    },
+    async findMembershipByEmail(email) {
+      const { data, error } = await sb.from("business_members").select("*").ilike("email", email.trim().toLowerCase()).limit(1).maybeSingle();
+      throwUnlessMissing(error, "findMembershipByEmail");
+      return (data as BusinessMember | null) ?? null;
+    },
+
+    /* -------------------------------- share -------------------------------- */
+    async setPickShareToken(pickId, token) {
+      const { error } = await sb.from("picks").update({ share_token: token }).eq("id", pickId);
+      throwIf(error, "setPickShareToken");
+    },
+    async getPickDetailByShareToken(token) {
+      const { data, error } = await sb.from("picks").select("id,business_id").eq("share_token", token).maybeSingle();
+      throwUnlessMissing(error, "getPickDetailByShareToken");
+      const row = data as { id: string; business_id: string } | null;
+      if (!row) return null;
+      const [detail, business] = await Promise.all([this.getPickDetail(row.id), this.getBusiness(row.business_id)]);
+      return detail && business ? { detail, business } : null;
     },
     async updateBusiness(id, patch) {
       const { data, error } = await writeTolerant(
@@ -183,15 +236,16 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwIf(error, "updateBusiness");
       return withBusinessDefaults(data as Business);
     },
-    async listAllBusinesses() {
+    async listAllBusinesses(opts) {
       const { data, error } = await sb.from("businesses").select("*");
       throwIf(error, "listAllBusinesses");
-      return ((data ?? []) as Business[]).map(withBusinessDefaults);
+      return ((data ?? []) as Business[]).filter((b) => opts?.includeProspects || !b.prospect).map(withBusinessDefaults);
     },
 
     async createServices(inputs) {
       if (inputs.length === 0) return [];
-      const { data, error } = await sb.from("services").insert(inputs).select();
+      // cost, variants and the store id land with 0037; rows still land without them.
+      const { data, error } = await writeTolerant(inputs, (rows) => sb.from("services").insert(rows as Record<string, unknown>[]).select(), "createServices");
       throwIf(error, "createServices");
       return (data ?? []) as Service[];
     },
@@ -201,9 +255,22 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       return (data ?? []) as Service[];
     },
     async updateService(id, patch) {
-      const { data, error } = await sb.from("services").update(patch).eq("id", id).select().single();
+      const { data, error } = await writeTolerant(patch, (row) => sb.from("services").update(row).eq("id", id).select().single(), "updateService");
       throwIf(error, "updateService");
       return data as Service;
+    },
+
+    /* ----------------------------- store reads ----------------------------- */
+    async upsertStoreRead(input) {
+      const { data, error } = await sb.from("store_reads").upsert(input, { onConflict: "business_id,captured_on" }).select().single();
+      if (error && (missingColumn(error) || /store_reads/.test(error.message))) return null;
+      throwIf(error, "upsertStoreRead");
+      return data as StoreRead;
+    },
+    async getLatestStoreRead(businessId) {
+      const { data, error } = await sb.from("store_reads").select("*").eq("business_id", businessId).order("captured_on", { ascending: false }).limit(1).maybeSingle();
+      throwUnlessMissing(error, "getLatestStoreRead");
+      return (data as StoreRead | null) ?? null;
     },
     async deleteService(id) {
       const { error } = await sb.from("services").delete().eq("id", id);
@@ -846,13 +913,36 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
 
     async upsertAdHistory(inputs) {
       if (inputs.length === 0) return 0;
-      const { count, error } = await sb.from("ad_history").upsert(inputs, {
-        onConflict: "business_id,platform,campaign_name,ad_name,started_on",
-        ignoreDuplicates: true,
-        count: "exact",
-      });
+      // The depth columns land with migration 0032; until it is pasted the
+      // rows still land without them.
+      let written = 0;
+      const { error } = await writeTolerant(
+        inputs,
+        async (rows) => {
+          const res = await sb.from("ad_history").upsert(rows as Record<string, unknown>[], {
+            onConflict: "business_id,platform,campaign_name,ad_name,started_on",
+            ignoreDuplicates: true,
+            count: "exact",
+          });
+          written = res.count ?? 0;
+          return { data: null, error: res.error };
+        },
+        "upsertAdHistory",
+      );
       throwIf(error, "upsertAdHistory");
-      return count ?? 0;
+      return written;
+    },
+    async setAdHistoryClassification(rows) {
+      for (const { id, ...patch } of rows) {
+        const { error } = await sb.from("ad_history").update(patch).eq("id", id);
+        if (error && missingColumn(error)) return;
+        throwIf(error, "setAdHistoryClassification");
+      }
+    },
+    async linkAdHistoryToRun(adHistoryId, runId) {
+      const { error } = await sb.from("ad_history").update({ run_id: runId }).eq("id", adHistoryId);
+      if (error && missingColumn(error)) return;
+      throwIf(error, "linkAdHistoryToRun");
     },
     async listAdHistory(businessId) {
       const { data, error } = await sb

@@ -116,13 +116,30 @@ describe("the tracking name", () => {
     expect(historyRowsForRun(rows, pick).map((r) => r.impressions)).toEqual([100, 200, 300]);
   });
 
-  it("sums the matched rows into the run's numbers and leaves revenue to the owner", () => {
+  it("takes the rows the owner linked by id over the name match, and the name match when nothing is linked", () => {
+    const pick = { term: "hard water", concept_title: "The crust on the showerhead" };
+    const rows = [
+      row({ ad_name: "TRND: The crust on the showerhead", impressions: 100 }),
+      row({ ad_name: "crust_v2_final", impressions: 700, run_id: "run-1" }),
+      row({ ad_name: "Founder story", impressions: 400, run_id: "run-2" }),
+    ];
+    expect(historyRowsForRun(rows, pick, "run-1").map((r) => r.impressions)).toEqual([700]);
+    expect(historyRowsForRun(rows, pick, "run-9").map((r) => r.impressions)).toEqual([100]);
+  });
+
+  it("sums the matched rows into the run's numbers; purchases and their value win over generic results", () => {
     expect(
       resultsFromRows([
         row({ impressions: 9000, clicks: 180, spend_cents: 40012, results: 6 }),
         row({ impressions: 1000, clicks: 20, spend_cents: null, results: 2 }),
       ]),
     ).toEqual({ spend_usd: 400.12, impressions: 10000, clicks: 200, conversions: 8, revenue_usd: null });
+    expect(
+      resultsFromRows([
+        row({ impressions: 9000, clicks: 180, spend_cents: 40012, results: 9, purchases: 6, purchase_value_cents: 52000 }),
+        row({ impressions: 1000, clicks: 20, spend_cents: null, results: 2 }),
+      ]),
+    ).toEqual({ spend_usd: 400.12, impressions: 10000, clicks: 200, conversions: 6, revenue_usd: 520 });
     expect(resultsFromRows([])).toEqual({ spend_usd: null, impressions: null, clicks: null, conversions: null, revenue_usd: null });
   });
 });

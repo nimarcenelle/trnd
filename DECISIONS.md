@@ -181,3 +181,34 @@ One line each: what was decided and why, per Overnight Protocol §3.1.
   (`TRND: <concept title>`), and every ad-history row that carries it, synced or uploaded,
   is summed onto the test. The sync never closes a run; the owner's "mark completed" does,
   with the synced numbers already filled in and never erased by a blank.
+- **OpenAI replaces Gemini (2026-09-19, user direction).** One adapter file, two tiers pinned
+  by env or resolved from the account's model list, reasoning models tuned by effort not
+  temperature. The hand-built response schemas are gone: the Zod schema a reply is validated
+  with is turned into the strict JSON Schema the model is held to, so there is one shape per
+  call and a rejected reply is asked for once more with the rejection in the prompt.
+- **Charge on access; measure what we control.** Three plans metered on briefs a week, rivals
+  and seats; every plan carries the whole product. Because TRND cannot control the shoot, a
+  finished ad is checked against its brief and the record counts tests that followed the brief
+  apart from tests that strayed: a lost test says whether the idea or the shoot lost.
+- **The record reads the whole account, not only TRND's tests.** Every ad-history row is
+  classified by angle, opening and format on arrival, so the Track record can say what each
+  angle does for the brand on cost per purchase from day one, and one bad shoot never decides
+  a read.
+- **The brief dictates its first three seconds and directs the rest.** On an access model
+  TRND carries no outcome liability, so the caution that kept lines out of the brief cost
+  usefulness. The opening beats are validated by the same fact rules as everything else.
+- **Results by id outrank results by name.** A media buyer who did not follow the naming
+  convention can point the test at its ad from Campaigns; the link is keyed on the platform's
+  ad id so a resync keeps it.
+- **A brand is a team, and a brief leaves the building.** Members see the brand through the
+  same row security the owner does (owns_business includes members); the business row and the
+  roster stay the owner's. A creator who will never log in gets a share link.
+- **X stays; the local-era sources go.** Weather, news counts, the Instagram hashtag adapter
+  and the stock seasonal calendars were reads for a local business. X is kept as the national
+  conversation read (user direction).
+- **The teardown is the pitch.** A prospect's site is read the way a signup's is, into a
+  shadow brand the founder owns and no cron touches, and the email quotes the strategist's
+  read or says plainly that there was not enough to read.
+- **The store's own numbers over the crawl's.** A Shopify custom app token, pasted by the
+  owner, gives the catalog its costs, variants and stock and the dossier its orders and live
+  codes; no OAuth app, no review. An offer test now knows the margin and the codes.

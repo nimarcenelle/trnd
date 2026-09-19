@@ -60,7 +60,7 @@ export async function updateBusinessAction(
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
 
   const name = String(formData.get("name") ?? "").trim();
@@ -92,7 +92,7 @@ export async function updateCreativeContextAction(_prev: SettingsState, formData
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const context = parseCreativeContext(formData);
   const wanted = String(formData.get("priority_service_id") ?? "").trim();
@@ -107,7 +107,7 @@ export async function addServiceAction(formData: FormData): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
@@ -143,7 +143,7 @@ export async function updateSocialHandlesAction(formData: FormData): Promise<voi
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const updated = await repo.updateBusiness(business.id, { social_handles: handlesFromForm(formData) });
   after(async () => {
@@ -164,7 +164,7 @@ export async function updateBusinessProfileAction(formData: FormData): Promise<v
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const parsed = parseMarketProfile(
     {

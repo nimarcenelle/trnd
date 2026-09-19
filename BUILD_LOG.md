@@ -891,3 +891,24 @@ narrower and deeper, without trading working functionality for ambition.
   privacy and Settings copy say what the product does now: it reads, it never launches.
 - **Verified**: unit suite green, lint and typecheck clean, production build, and the Playwright
   path from signup to the track record on the demo store.
+
+## 2026-09-19 · The build-out after the coverage assessment
+
+Eleven commits on `claude/feature-coverage-assessment-xgaqc9`, in the order they landed:
+
+1. The model layer moves to OpenAI, one adapter, strict JSON Schema from Zod, two tiers.
+2. The ad history carries purchases, purchase value, 3-second plays, ThruPlays, the creative
+   and the ad id; a test can be pointed at its ad by id (0032).
+3. Every ad classified by angle, opening and format; the angle-level record; the fidelity
+   check; the brief's first three seconds shot by shot (0033).
+4. The local-era sources come out; X stays.
+5. The roster, members through row security, the share link, Markdown and Word export (0034).
+6. Three plans on access, metered on briefs, rivals and seats (0035).
+7. The landing sells the decision; the public record at `/record`.
+8. The free account read from the prospector, into a prospect shadow brand (0036).
+9. The Shopify store into the catalog and the brief (0037).
+10. Docs.
+
+Checks at the end: 900 unit tests green, lint clean, typecheck clean, the keyless quality
+eval green, the production build green. Nothing was verified against a live model, a live
+Meta account, a live Supabase or a live Shopify store from this container (see BLOCKED.md).

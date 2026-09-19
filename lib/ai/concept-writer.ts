@@ -1,10 +1,10 @@
-import type { Schema } from "@google/genai";
 
 import type { Business, BusinessBrief, PickSignal, Service } from "@/lib/db/types";
-import { isGeminiConfigured } from "@/lib/env";
-import { conceptSchemaFor, type ConceptRules, type ConceptWrite } from "@/lib/picks/concept";
+import { isModelConfigured } from "@/lib/env";
+import { conceptSchemaFor, ConceptWriteSchema, type ConceptRules, type ConceptWrite } from "@/lib/picks/concept";
 import type { CampaignSignalBrief } from "@/lib/recommend/four-signals";
 import { objectiveList } from "@/lib/onboarding/context";
+import { marginPct } from "@/lib/shopify/sync";
 import { isOnlineBusiness } from "@/lib/signals/geo";
 
 import { formatPrice } from "./prompts/pick";
@@ -47,6 +47,8 @@ export interface ConceptWriterInput {
    * situation, the angle this concept should build, and the read's
    * whitespace and do-not lists. */
   strategy?: ConceptStrategy | null;
+  /** The brand's own store, last 30 days, when one is connected (lib/shopify). */
+  store?: { orders30d: number | null; newCustomers30d: number | null; aov: string | null; discountCodes: string[] } | null;
 }
 
 export interface ConceptStrategy {
@@ -74,46 +76,6 @@ export interface StrategyAngle {
 /** Returns unvalidated output; the weekly job validates whatever comes back. */
 export type ConceptWriter = (input: ConceptWriterInput, rules: ConceptRules) => Promise<unknown>;
 
-export const CONCEPT_RESPONSE_SCHEMA = {
-  type: "OBJECT",
-  properties: {
-    title: { type: "STRING" },
-    situation: { type: "STRING" },
-    hypothesis: { type: "STRING" },
-    unknowns: { type: "ARRAY", items: { type: "STRING" } },
-    differs_from: { type: "STRING", nullable: true },
-    format: { type: "STRING" },
-    hooks: {
-      type: "OBJECT",
-      properties: { primary: { type: "STRING" }, alternatives: { type: "ARRAY", items: { type: "STRING" } } },
-      required: ["primary", "alternatives"],
-    },
-    script: {
-      type: "OBJECT",
-      properties: {
-        direction: {
-          type: "OBJECT",
-          properties: { show: { type: "STRING" }, say: { type: "STRING" }, prove: { type: "STRING" } },
-          required: ["show", "say", "prove"],
-        },
-        cta: { type: "STRING" },
-        duration_seconds: { type: "INTEGER" },
-      },
-      required: ["direction", "cta", "duration_seconds"],
-    },
-    shot_list: { type: "ARRAY", items: { type: "STRING" } },
-    approved_facts: { type: "ARRAY", items: { type: "STRING" } },
-    outcomes: {
-      type: "OBJECT",
-      properties: { if_better: { type: "STRING" }, if_same: { type: "STRING" }, if_worse: { type: "STRING" } },
-      required: ["if_better", "if_same", "if_worse"],
-    },
-    priority_reason: { type: "STRING" },
-    guardrail: { type: "STRING", nullable: true },
-  },
-  required: ["title", "situation", "hypothesis", "unknowns", "differs_from", "format", "hooks", "script", "shot_list", "approved_facts", "outcomes", "priority_reason", "guardrail"],
-} as unknown as Schema;
-
 const FORMAT_NAMES: Record<string, string> = {
   talking_head: "talking head to camera",
   ugc: "creator-style UGC",
@@ -129,12 +91,25 @@ function catalogBlock(input: ConceptWriterInput, online: boolean): string {
   const active = input.services.filter((s) => s.is_active !== false).slice(0, 90);
   if (active.length === 0) return "";
   return [
-    online ? "CATALOG (what the brand sells, at its listed price):" : "MENU (what the business sells, at its listed price):",
+    online ? "CATALOG (what the brand sells, at its listed price; the gross margin where the store reports its cost):" : "MENU (what the business sells, at its listed price):",
     ...active.map((s) => {
       const p = formatPrice(s.price_cents);
-      return `- ${s.name}${p ? ` (${p})` : ""}${s.description ? `: ${s.description.replace(/\s+/g, " ").slice(0, 160)}` : ""}`;
+      const m = marginPct(s);
+      const stock = s.in_stock === false ? ", out of stock" : "";
+      return `- ${s.name}${p ? ` (${p}${m !== null ? `, ${m}% margin` : ""}${stock})` : ""}${s.description ? `: ${s.description.replace(/\s+/g, " ").slice(0, 160)}` : ""}`;
     }),
+    ...storeLines(input),
   ].join("\n");
+}
+
+/** What the store says an offer can afford and must not repeat. */
+function storeLines({ store }: ConceptWriterInput): string[] {
+  if (!store) return [];
+  const out: string[] = [];
+  if (store.orders30d !== null) out.push(`THE STORE, LAST 30 DAYS: ${store.orders30d} orders${store.newCustomers30d !== null ? `, ${store.newCustomers30d} of them first orders` : ""}${store.aov ? `, average order ${store.aov}` : ""}.`);
+  if (store.discountCodes.length) out.push(`DISCOUNT CODES ALREADY LIVE (an offer in the brief must not repeat or undercut these): ${store.discountCodes.join("; ")}.`);
+  if (out.length) out.push("A margin below 40% cannot carry a discount test; say so in unknowns rather than write one.");
+  return out;
 }
 
 function customerBlock({ signals, quotes }: ConceptWriterInput): string {
@@ -258,6 +233,7 @@ export function buildConceptPrompt(input: ConceptWriterInput): string {
     `- format: the format, e.g. "20-second talking head" or "static image, one line".`,
     `- hooks: primary is the opening line or moment, under 12 words, a line a person would say, no price, no figure. alternatives: 2 or 3 other openings for the same concept.`,
     `- script: direction for the person making it, never lines to read. show: what the video shows (setting, the item in use, what one person can shoot). say: the argument in their own words. prove: the one fact to back up, and with what. cta: how to close, naming the item${price ? " and its listed price" : ""}. duration_seconds: ${durationSec}.`,
+    `- opening: the first three seconds, shot by shot, the one part of the ad the brief dictates. beats: 2 to 4, in order. Each: visual (exactly what the camera sees in that beat, one sentence), on_screen_text (the words on screen in that beat, or ""), vo (the words said in that beat, verbatim, or ""). The first beat's vo is the primary hook, word for word. No figure or claim that is not in approved_facts. For a static image, one beat: the image and its one line.`,
     `- shot_list: 3 to 6 shots, demonstrations or assets the creator needs, each one line, each shootable by one person unless the brand said it can do more.`,
     `- approved_facts: 1 to 5 product facts or claims the brief relies on, each taken from the catalog, the product pages, the owner's claims notes or the observations above. Never a fact from memory or from a rival. These are checked.`,
     `- outcomes: if_better, if_same, if_worse: one sentence each on what the result would teach and what to do next.`,
@@ -291,22 +267,22 @@ export function buildConceptPrompt(input: ConceptWriterInput): string {
 
 /* ------------------------------ the model path ---------------------------- */
 
-export async function writeConceptWithGemini(
+export async function writeConceptWithModel(
   input: ConceptWriterInput,
   rules: ConceptRules,
   models?: { flash: string; pro: string },
 ): Promise<{ value: ConceptWrite; model: string }> {
-  const { creativeCall, resolveModels } = await import("./gemini");
+  const { creativeCall, resolveModels } = await import("./openai");
   const m = models ?? (await resolveModels());
   const schema = conceptSchemaFor(rules);
   const validate = (d: unknown) => schema.parse(d);
   try {
-    return await creativeCall(m, buildConceptPrompt(input), CONCEPT_RESPONSE_SCHEMA, validate);
+    return await creativeCall(m, buildConceptPrompt(input), ConceptWriteSchema, validate);
   } catch (err) {
     const feedback = validationFeedback(err);
     if (!feedback) throw err;
     console.warn(`[concept] "${input.term}" rejected (${feedback}); asking for a fix`);
-    return await creativeCall(m, buildConceptPrompt({ ...input, feedback }), CONCEPT_RESPONSE_SCHEMA, validate);
+    return await creativeCall(m, buildConceptPrompt({ ...input, feedback }), ConceptWriteSchema, validate);
   }
 }
 
@@ -360,6 +336,13 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
         cta,
         duration_seconds: durationSec,
       },
+      opening: {
+        beats: [
+          { visual: `The generic alternative on a plain surface, label turned away, the light as it is.`, on_screen_text: "", vo: `The one you have, and this one, same spot, same light` },
+          { visual: `${product} set down beside it in the same frame.`, on_screen_text: `${product}`, vo: `` },
+          { visual: `A hand reaches for ${product}.`, on_screen_text: "", vo: `` },
+        ],
+      },
       shot_list: [
         `The generic alternative on a plain surface, label turned away.`,
         `${product} placed beside it in the same frame and light.`,
@@ -397,6 +380,12 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
         cta,
         duration_seconds: durationSec,
       },
+      opening: {
+        beats: [
+          { visual: `${product} unopened, on a counter, a phone on a stand, a clock in the corner of the frame.`, on_screen_text: "No cuts", vo: `No cuts. Start to finish, this is all it takes` },
+          { visual: `Hands open it and begin, the clock still in frame.`, on_screen_text: "", vo: `` },
+        ],
+      },
       shot_list: [
         `${product} unopened, in frame with whatever it is used with.`,
         `The whole use in one continuous take, phone on a stand.`,
@@ -433,6 +422,13 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
       cta,
       duration_seconds: durationSec,
     },
+    opening: {
+      beats: [
+        { visual: `The problem people mean by "${term}", in a real setting, held before anything is said.`, on_screen_text: "", vo: `` },
+        { visual: `The same view, the person's hand entering the frame.`, on_screen_text: "", vo: `This is what people mean by "${term}"` },
+        { visual: `${product} picked up, still in the same setting.`, on_screen_text: `${product}`, vo: `` },
+      ],
+    },
     shot_list: [
       `The problem in a real setting, held two seconds before anything is said.`,
       `${product} in use, one continuous shot, hands and product in frame.`,
@@ -451,6 +447,6 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
 }
 
 export function defaultConceptWriter(models?: { flash: string; pro: string }): ConceptWriter {
-  if (!isGeminiConfigured) return async (input) => fallbackConceptWrite(input);
-  return async (input, rules) => (await writeConceptWithGemini(input, rules, models)).value;
+  if (!isModelConfigured) return async (input) => fallbackConceptWrite(input);
+  return async (input, rules) => (await writeConceptWithModel(input, rules, models)).value;
 }

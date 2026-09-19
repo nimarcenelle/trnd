@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
+import { PAID_PLANS } from "@/lib/db/types";
 import { isStripeConfigured } from "@/lib/env";
 
 import { getOrCreateSubscription } from "./index";
@@ -14,7 +15,8 @@ import { getOrCreateSubscription } from "./index";
  * flag instead of erroring.
  */
 export async function startCheckoutAction(formData: FormData): Promise<void> {
-  const plan = String(formData.get("plan") ?? "baseline") === "pro" ? "pro" : "baseline";
+  const asked = String(formData.get("plan") ?? "baseline");
+  const plan = (PAID_PLANS as readonly string[]).includes(asked) ? (asked as (typeof PAID_PLANS)[number]) : "baseline";
   const user = await getSessionUser();
   if (!user) redirect("/login");
   if (!isStripeConfigured) redirect("/app/settings?billing=unconfigured");

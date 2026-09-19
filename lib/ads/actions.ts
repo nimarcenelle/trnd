@@ -32,7 +32,7 @@ export async function importAdExportAction(formData: FormData): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
 
   const file = formData.get("file");
@@ -70,6 +70,14 @@ export async function importAdExportAction(formData: FormData): Promise<void> {
   } catch (err) {
     console.warn("[ads:import] runs from history failed (non-fatal):", (err as Error).message);
   }
+  // Every uploaded ad classified by angle, opening and format, so the
+  // record has an angle-level read the day the export lands.
+  try {
+    const { classifyAdHistory } = await import("@/lib/ads/classify");
+    await classifyAdHistory(repo, business.id);
+  } catch (err) {
+    console.warn("[ads:import] classification failed (non-fatal):", (err as Error).message);
+  }
   revalidateAdSurfaces();
   revalidatePath("/app/campaigns");
   revalidatePath("/app/record");
@@ -85,7 +93,7 @@ export async function clearAdHistoryAction(): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   try {
     await repo.deleteAdHistory(business.id);

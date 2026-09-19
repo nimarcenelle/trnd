@@ -1,5 +1,5 @@
 // Diagnostic: build a brand's dossier and run the strategist pass over it,
-// printing the read a founder would see and the raw JSON. One Gemini call.
+// printing the read a founder would see and the raw JSON. One model call.
 // `pnpm tsx scripts/probe-strategist.ts [name] [--json]`
 import "./env";
 
@@ -16,7 +16,7 @@ async function main() {
     .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
   if (!business) return console.log(`no business matching "${needle}"`);
   const strategist = defaultStrategist();
-  if (!strategist) return console.log("GEMINI_API_KEY is not set");
+  if (!strategist) return console.log("OPENAI_API_KEY is not set");
   const t0 = Date.now();
   const dossier = await buildDossier(repo, business);
   const { value, model } = await strategist(dossier);

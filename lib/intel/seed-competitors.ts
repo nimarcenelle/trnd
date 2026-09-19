@@ -1,10 +1,11 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, Competitor } from "@/lib/db/types";
-import { isGeminiConfigured, isPlacesConfigured } from "@/lib/env";
+import { isModelConfigured, isPlacesConfigured } from "@/lib/env";
 import { discoverCompetingBrands } from "@/lib/intel/discover-brands";
 import { readRivalSite, scoreDirectness, type RivalSiteRead } from "@/lib/intel/direct";
 import { CHAIN_NAMES } from "@/lib/prospect/fit";
 import { discoverPlaces, type DiscoveredPlace } from "@/lib/prospect/discover";
+import { getPlanState, planLimits } from "@/lib/billing";
 
 /**
  * The rivals an owner would name if asked — found for them. Named-rival
@@ -111,14 +112,18 @@ export async function seedCompetitors(
 ): Promise<SeedResult> {
   if (business.market === "online") {
     // The brand list comes from the model and is verified against the web;
-    // without Gemini there is nothing to verify, and a Places search would
+    // without the model there is nothing to verify, and a Places search would
     // return the wrong kind of rival.
-    if (!isGeminiConfigured) return { created: [], note: "Competing-brand discovery isn't switched on for this workspace." };
+    if (!isModelConfigured) return { created: [], note: "Competing-brand discovery isn't switched on for this workspace." };
     return discoverCompetingBrands(repo, business, { fetchHtml: opts.fetchHtml });
   }
   if (!isPlacesConfigured) return { created: [], note: "Rival discovery isn't switched on for this workspace." };
   const existing = await repo.listCompetitors(business.id);
-  const room = SEED_COMPETITOR_COUNT - existing.length;
+  // The plan meters rivals tracked; discovery fills what is left of it.
+  const cap = await getPlanState(repo, business)
+    .then((p) => planLimits(p.plan).rivals)
+    .catch(() => SEED_COMPETITOR_COUNT);
+  const room = Math.min(SEED_COMPETITOR_COUNT, cap) - existing.length;
   if (room <= 0) return { created: [], note: null };
   const location = `${business.city}${business.region ? `, ${business.region}` : ""}`;
   const places = await discoverPlaces({

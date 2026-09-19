@@ -68,6 +68,8 @@ export interface ConceptView {
   format: string;
   hooks: { primary: string; alternatives: string[] };
   script: CreativeBrief["script"];
+  /** The first three seconds, shot by shot; empty on briefs written before ct-2. */
+  opening: CreativeBrief["opening"] | null;
   shotList: string[];
   approvedFacts: string[];
   evaluation: CreativeBrief["evaluation"];
@@ -124,7 +126,8 @@ export function buildConceptEvidence(evidence: PickEvidence[]): ConceptEvidenceG
 /** The brief as plain text, for the clipboard and the export: what a
  * creator needs, in the order they need it, with the evidence and its
  * limits at the end. */
-export function conceptToText(view: Pick<ConceptView, "title" | "situation" | "hypothesis" | "format" | "hooks" | "script" | "shotList" | "approvedFacts" | "guardrail" | "unknowns" | "differsFrom" | "evaluation" | "outcomes" | "evidence" | "researchTerm"> & { lineage?: CreativeBrief["lineage"] | null; trackingName?: string }): string {
+export function conceptToText(view: Pick<ConceptView, "title" | "situation" | "hypothesis" | "format" | "hooks" | "script" | "shotList" | "approvedFacts" | "guardrail" | "unknowns" | "differsFrom" | "evaluation" | "outcomes" | "evidence" | "researchTerm"> & { lineage?: CreativeBrief["lineage"] | null; trackingName?: string; opening?: CreativeBrief["opening"] | null }): string {
+  const beats = view.opening?.beats ?? [];
   const lines: string[] = [
     view.title.toUpperCase(),
     `Format: ${view.format}`,
@@ -140,6 +143,13 @@ export function conceptToText(view: Pick<ConceptView, "title" | "situation" | "h
     view.hooks.primary,
     ...(view.hooks.alternatives.length ? ["Alternatives:", ...view.hooks.alternatives.map((h) => `- ${h}`)] : []),
     "",
+    ...(beats.length
+      ? [
+          "THE FIRST THREE SECONDS (shoot these as written)",
+          ...beats.map((b, i) => `${i + 1}. See: ${b.visual}${b.on_screen_text ? ` | On screen: ${b.on_screen_text}` : ""}${b.vo ? ` | Say: ${b.vo}` : ""}`),
+          "",
+        ]
+      : []),
     "DIRECTION",
     `Show: ${view.script.direction.show}`,
     `Say: ${view.script.direction.say}`,
@@ -199,6 +209,7 @@ export function buildConceptView(detail: PickDetail): ConceptView | null {
     format: brief.format,
     hooks: brief.hooks,
     script: brief.script,
+    opening: brief.opening ?? null,
     shotList: brief.shot_list,
     approvedFacts: brief.approved_facts,
     guardrail: pick.guardrail?.trim() || null,

@@ -157,6 +157,28 @@ export default function ConceptDetail({ view, head, exportHref, refine }: { view
               </ul>
             </div>
           )}
+          {view.opening && view.opening.beats.length > 0 && (
+            <div className="cb__opening">
+              <span className="pickd__k">The first three seconds, shot by shot</span>
+              <ol className="cb__beats">
+                {view.opening.beats.map((b, i) => (
+                  <li key={i}>
+                    <span className="cb__beat-visual">{b.visual}</span>
+                    {b.on_screen_text && (
+                      <span className="cb__beat-line">
+                        <em>On screen:</em> {b.on_screen_text}
+                      </span>
+                    )}
+                    {b.vo && (
+                      <span className="cb__beat-line">
+                        <em>Say:</em> {b.vo}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           <dl className="pickd__direction">
             {(
               [

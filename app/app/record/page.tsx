@@ -4,14 +4,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import HitRateChart from "@/components/record/hit-rate-chart";
-import { readAdHistory } from "@/lib/ads/history-read";
+import { angleLine, readAdHistory, readByAngle } from "@/lib/ads/history-read";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import { formatUsd } from "@/lib/picks/format";
 import { shortDate } from "@/lib/picks/list";
 import { calibrationReport } from "@/lib/record/calibration";
 import { OUTCOME_LABEL, OUTCOME_TONE } from "@/lib/record/outcome";
-import { buildTrackRecord, hitRateLine, ratePct } from "@/lib/record/track";
+import { buildTrackRecord, fidelityLine, hitRateLine, ratePct } from "@/lib/record/track";
 import { weekOf } from "@/lib/recommend/week";
 import { benchmarkFor } from "@/lib/results/benchmarks";
 import { sentenceCase } from "@/lib/text";
@@ -49,6 +49,14 @@ export default async function TrackRecordPage() {
   // Predicted against actual: the stamp each run carried, and what it did.
   const calibration = calibrationReport(runs, outcomes);
   const judged = accountCtr ? "your own account average" : "the category average";
+  // Every ad the brand ran, by angle: the read that does not wait on a test.
+  const angles = readByAngle(history);
+  const angleRead = angleLine(angles);
+  const fidelity = fidelityLine(record);
+  const angleName: Record<string, string> = { education: "Education", offer: "Offer", scarcity: "Scarcity", social_proof: "Social proof", speed: "Speed and ease", novelty: "Novelty" };
+  const perResult = angles.resultKind === "purchase" ? "per purchase" : "per result";
+  const ratio = (r: number | null) => (r === null ? "—" : `${r.toFixed(2)}×`);
+  const pct = (r: number | null) => (r === null ? "—" : `${(r * 100).toFixed(r * 100 >= 10 ? 0 : 1)}%`);
 
   const stats = [
     { label: `Hit rate · ${record.scored} scored`, value: ratePct(record.hitRate), hero: true },
@@ -104,6 +112,100 @@ export default async function TrackRecordPage() {
           <div className="rec__chart-card">
             <HitRateChart points={record.series} />
           </div>
+        </section>
+      )}
+
+      {(record.byFidelity.followed.runs > 0 || record.byFidelity.strayed.runs > 0) && (
+        <section className="rec__section" aria-labelledby="rec-fidelity">
+          <div className="rec__section-head">
+            <span id="rec-fidelity" className="eyebrow m-0">
+              The idea or the shoot
+            </span>
+            <span className="rec__count">tests checked against their brief</span>
+          </div>
+          <div className="rec__table-wrap">
+            <table className="rec__table">
+              <thead>
+                <tr>
+                  <th>The ad</th>
+                  <th className="num">Ran</th>
+                  <th className="num">Won</th>
+                  <th className="num">Lost</th>
+                  <th>Hit rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(
+                  [
+                    ["Followed the brief", record.byFidelity.followed],
+                    ["Strayed from the brief", record.byFidelity.strayed],
+                  ] as const
+                ).map(([label, t]) => (
+                  <tr key={label}>
+                    <td>{label}</td>
+                    <td className="num">{t.runs}</td>
+                    <td className="num">{t.won}</td>
+                    <td className="num">{t.scored - t.won}</td>
+                    <td>{t.scored === 0 ? <span className="rec__reason">Not scored yet</span> : <span className="rec__grade">{ratePct(t.won / t.scored)}</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="rec__read">
+            {fidelity ?? "A test is checked against its brief on Campaigns: the hook, the first three seconds, the approved facts and the format."}
+            {record.byFidelity.unchecked > 0 ? ` ${record.byFidelity.unchecked} ${record.byFidelity.unchecked === 1 ? "test has" : "tests have"} not been checked.` : ""}
+          </p>
+        </section>
+      )}
+
+      {angles.byAngle.length > 0 && (
+        <section className="rec__section" aria-labelledby="rec-angles">
+          <div className="rec__section-head">
+            <span id="rec-angles" className="eyebrow m-0">
+              By angle, across every ad you ran
+            </span>
+            <span className="rec__count">{history.length} ads on file</span>
+          </div>
+          <div className="rec__table-wrap">
+            <table className="rec__table">
+              <thead>
+                <tr>
+                  <th>Angle</th>
+                  <th className="num">Ads</th>
+                  <th className="num">Spend</th>
+                  <th className="num">CTR</th>
+                  <th className="num">vs account</th>
+                  <th className="num">Cost {perResult}</th>
+                  <th className="num">vs account</th>
+                  <th className="num">Hook rate</th>
+                  <th className="num">Hold rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {angles.byAngle.map((a) => (
+                  <tr key={a.angle}>
+                    <td>{angleName[a.angle] ?? a.angle}</td>
+                    <td className="num">{a.ads}</td>
+                    <td className="num">{a.spendCents > 0 ? formatUsd(a.spendCents / 100) : "—"}</td>
+                    <td className="num">{pct(a.ctr)}</td>
+                    <td className="num">{ratio(a.vsAccountCtr)}</td>
+                    <td className="num">{a.cpaCents === null ? "—" : formatUsd(a.cpaCents / 100)}</td>
+                    <td className="num" title="Below 1× is cheaper than your account average.">
+                      {ratio(a.vsAccountCpa)}
+                    </td>
+                    <td className="num">{pct(a.hookRate)}</td>
+                    <td className="num">{pct(a.holdRate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="rec__read">
+            {angleRead ?? "No angle stands apart from your account yet; the read needs a few ads with results on each."} Every ad in your history is
+            classified by its persuasion angle, TRND&apos;s tests and the rest alike, so this reads the whole account and not one shoot. Hook
+            rate is 3-second plays over impressions; hold rate is ThruPlays over 3-second plays.
+          </p>
         </section>
       )}
 

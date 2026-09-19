@@ -1,6 +1,8 @@
-import type { AdHistory } from "@/lib/db/types";
+import type { AdAngle, AdHistory } from "@/lib/db/types";
 import { tokens } from "@/lib/scoring";
 import { classifyAdCopy, type AdTheme } from "@/lib/signals/adlibrary-apify";
+
+import { classificationOf } from "./classify";
 
 /**
  * What the owner's own past ads say, read against their own account.
@@ -270,3 +272,121 @@ export function bestTheme(rows: AdHistory[]): { theme: AdTheme; vsAccount: numbe
   }
   return best;
 }
+
+/* ------------------------------- by angle -------------------------------- */
+
+export interface AngleRead {
+  angle: AdAngle;
+  ads: number;
+  impressions: number;
+  spendCents: number;
+  /** Impression-weighted click-through, and its ratio to the account's. */
+  ctr: number | null;
+  vsAccountCtr: number | null;
+  /** Purchases when the rows carry them, else the platform's results. */
+  results: number;
+  /** Spend over results, in cents; null without both. Ratio to the account's:
+   * below 1 is cheaper than the account. */
+  cpaCents: number | null;
+  vsAccountCpa: number | null;
+  /** 3-second plays over impressions, and ThruPlays over 3-second plays. */
+  hookRate: number | null;
+  holdRate: number | null;
+}
+
+export interface AngleRecord {
+  accountCtr: number | null;
+  accountCpaCents: number | null;
+  /** Whether the cost per result is per purchase or per platform result. */
+  resultKind: "purchase" | "result" | null;
+  byAngle: AngleRead[];
+}
+
+const resultsOf = (r: AdHistory, kind: "purchase" | "result" | null) =>
+  kind === "purchase" ? (r.purchases ?? null) : kind === "result" ? (r.results ?? null) : null;
+
+function cpa(rows: AdHistory[], kind: "purchase" | "result" | null): { cpaCents: number | null; results: number } {
+  let spend = 0;
+  let results = 0;
+  for (const r of rows) {
+    const n = resultsOf(r, kind);
+    if (r.spend_cents === null || n === null) continue;
+    spend += r.spend_cents;
+    results += n;
+  }
+  return { cpaCents: results > 0 ? spend / results : null, results };
+}
+
+function rates(rows: AdHistory[]): { hookRate: number | null; holdRate: number | null } {
+  let impressions = 0;
+  let plays = 0;
+  let playsWithThru = 0;
+  let thru = 0;
+  for (const r of rows) {
+    if (typeof r.video_3s_views === "number" && r.impressions) {
+      impressions += r.impressions;
+      plays += r.video_3s_views;
+    }
+    if (typeof r.video_3s_views === "number" && typeof r.thruplays === "number" && r.video_3s_views > 0) {
+      playsWithThru += r.video_3s_views;
+      thru += r.thruplays;
+    }
+  }
+  return { hookRate: impressions > 0 ? plays / impressions : null, holdRate: playsWithThru > 0 ? thru / playsWithThru : null };
+}
+
+/**
+ * How each angle does for this brand across every ad it ran, TRND's tests
+ * and the rest alike, against the account's own click-through and cost
+ * per result. Rows classified by the model use that; the rest use the
+ * rules, so the read never waits on a classification pass.
+ */
+export function readByAngle(rows: AdHistory[]): AngleRecord {
+  const accountCtr = weightedCtr(rows).ctr;
+  const resultKind = rows.some((r) => typeof r.purchases === "number") ? "purchase" : rows.some((r) => typeof r.results === "number") ? "result" : null;
+  const account = cpa(rows, resultKind);
+  const groups = new Map<AdAngle, AdHistory[]>();
+  for (const r of rows) {
+    const { angle } = classificationOf(r);
+    groups.set(angle, [...(groups.get(angle) ?? []), r]);
+  }
+  const byAngle = [...groups.entries()]
+    .map(([angle, group]): AngleRead => {
+      const { ctr, impressions } = weightedCtr(group);
+      const own = cpa(group, resultKind);
+      return {
+        angle,
+        ads: group.length,
+        impressions,
+        spendCents: group.reduce((n, r) => n + (r.spend_cents ?? 0), 0),
+        ctr,
+        vsAccountCtr: ctr !== null && accountCtr ? ctr / accountCtr : null,
+        results: own.results,
+        cpaCents: own.cpaCents,
+        vsAccountCpa: own.cpaCents !== null && account.cpaCents ? own.cpaCents / account.cpaCents : null,
+        ...rates(group),
+      };
+    })
+    .sort((a, b) => b.spendCents - a.spendCents || b.ads - a.ads);
+  return { accountCtr, accountCpaCents: account.cpaCents, resultKind, byAngle };
+}
+
+/** "Education angles ran 18% cheaper per purchase than your account across 11 ads." Null when nothing stands out. */
+export function angleLine(record: AngleRecord): string | null {
+  const eligible = record.byAngle.filter((a) => a.impressions >= MIN_THEME_IMPRESSIONS && a.ads >= 2);
+  const byCpa = eligible.filter((a) => a.vsAccountCpa !== null && a.results >= 5).sort((a, b) => (a.vsAccountCpa as number) - (b.vsAccountCpa as number));
+  if (byCpa.length > 0 && (byCpa[0].vsAccountCpa as number) < 0.95) {
+    const a = byCpa[0];
+    const what = record.resultKind === "purchase" ? "purchase" : "result";
+    return `${label(a.angle)} angles ran ${Math.round((1 - (a.vsAccountCpa as number)) * 100)}% cheaper per ${what} than your account across ${a.ads} ads.`;
+  }
+  const byCtr = eligible.filter((a) => a.vsAccountCtr !== null).sort((a, b) => (b.vsAccountCtr as number) - (a.vsAccountCtr as number));
+  if (byCtr.length > 0 && (byCtr[0].vsAccountCtr as number) >= 1.1) {
+    const a = byCtr[0];
+    return `${label(a.angle)} angles beat your account click-through by ${Math.round(((a.vsAccountCtr as number) - 1) * 100)}% across ${a.ads} ads.`;
+  }
+  return null;
+}
+
+const ANGLE_NAME: Record<AdAngle, string> = { education: "Education", offer: "Offer", scarcity: "Scarcity", social_proof: "Social proof", speed: "Speed and ease", novelty: "Novelty" };
+const label = (angle: AdAngle) => ANGLE_NAME[angle];

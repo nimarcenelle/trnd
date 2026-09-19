@@ -217,6 +217,7 @@ export function buildConceptPrompt(input: ConceptWriterInput): string {
     `- format: the format, e.g. "20-second talking head" or "static image, one line".`,
     `- hooks: primary is the opening line or moment, under 12 words, a line a person would say, no price, no figure. alternatives: 2 or 3 other openings for the same concept.`,
     `- script: direction for the person making it, never lines to read. show: what the video shows (setting, the item in use, what one person can shoot). say: the argument in their own words. prove: the one fact to back up, and with what. cta: how to close, naming the item${price ? " and its listed price" : ""}. duration_seconds: ${durationSec}.`,
+    `- opening: the first three seconds, shot by shot, the one part of the ad the brief dictates. beats: 2 to 4, in order. Each: visual (exactly what the camera sees in that beat, one sentence), on_screen_text (the words on screen in that beat, or ""), vo (the words said in that beat, verbatim, or ""). The first beat's vo is the primary hook, word for word. No figure or claim that is not in approved_facts. For a static image, one beat: the image and its one line.`,
     `- shot_list: 3 to 6 shots, demonstrations or assets the creator needs, each one line, each shootable by one person unless the brand said it can do more.`,
     `- approved_facts: 1 to 5 product facts or claims the brief relies on, each taken from the catalog, the product pages, the owner's claims notes or the observations above. Never a fact from memory or from a rival. These are checked.`,
     `- outcomes: if_better, if_same, if_worse: one sentence each on what the result would teach and what to do next.`,
@@ -319,6 +320,13 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
         cta,
         duration_seconds: durationSec,
       },
+      opening: {
+        beats: [
+          { visual: `The generic alternative on a plain surface, label turned away, the light as it is.`, on_screen_text: "", vo: `The one you have, and this one, same spot, same light` },
+          { visual: `${product} set down beside it in the same frame.`, on_screen_text: `${product}`, vo: `` },
+          { visual: `A hand reaches for ${product}.`, on_screen_text: "", vo: `` },
+        ],
+      },
       shot_list: [
         `The generic alternative on a plain surface, label turned away.`,
         `${product} placed beside it in the same frame and light.`,
@@ -356,6 +364,12 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
         cta,
         duration_seconds: durationSec,
       },
+      opening: {
+        beats: [
+          { visual: `${product} unopened, on a counter, a phone on a stand, a clock in the corner of the frame.`, on_screen_text: "No cuts", vo: `No cuts. Start to finish, this is all it takes` },
+          { visual: `Hands open it and begin, the clock still in frame.`, on_screen_text: "", vo: `` },
+        ],
+      },
       shot_list: [
         `${product} unopened, in frame with whatever it is used with.`,
         `The whole use in one continuous take, phone on a stand.`,
@@ -391,6 +405,13 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
       },
       cta,
       duration_seconds: durationSec,
+    },
+    opening: {
+      beats: [
+        { visual: `The problem people mean by "${term}", in a real setting, held before anything is said.`, on_screen_text: "", vo: `` },
+        { visual: `The same view, the person's hand entering the frame.`, on_screen_text: "", vo: `This is what people mean by "${term}"` },
+        { visual: `${product} picked up, still in the same setting.`, on_screen_text: `${product}`, vo: `` },
+      ],
     },
     shot_list: [
       `The problem in a real setting, held two seconds before anything is said.`,

@@ -1,6 +1,8 @@
 import type { BrandPick, PickRun } from "@/lib/db/types";
 import type { GradeLetter } from "@/lib/scoring/model";
 
+import { fidelityLabel } from "@/lib/picks/fidelity";
+
 import { runOutcome, type OutcomeContext, type RunOutcome } from "./outcome";
 
 /**
@@ -23,6 +25,16 @@ export interface TrackRow {
   outcome: RunOutcome;
   reason: string;
   spendUsd: number | null;
+  /** How closely the ad followed the brief, 0-1; null when unchecked. */
+  fidelity: number | null;
+}
+
+/** The record split by whether the ad followed the brief, so a wrong
+ * concept and a wrong shoot are counted apart. */
+export interface FidelityRecord {
+  followed: { runs: number; scored: number; won: number };
+  strayed: { runs: number; scored: number; won: number };
+  unchecked: number;
 }
 
 export interface GradeRecord {
@@ -55,6 +67,7 @@ export interface TrackRecord {
   series: TrackPoint[];
   /** Every run, newest first. */
   rows: TrackRow[];
+  byFidelity: FidelityRecord;
 }
 
 const LETTERS = new Set<string>(GRADE_ORDER);
@@ -82,6 +95,7 @@ export function buildTrackRecord(runs: { run: PickRun; pick: BrandPick }[], ctx:
         outcome: read.outcome,
         reason: read.reason,
         spendUsd: num(run.spend_usd),
+        fidelity: num(run.fidelity_score),
       };
     })
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
@@ -110,6 +124,18 @@ export function buildTrackRecord(runs: { run: PickRun; pick: BrandPick }[], ctx:
     series.push({ day: (r.endedAt as string).slice(0, 10), won: w, scored: s, rate: w / s });
   }
 
+  const tally = (label: "followed" | "strayed") => {
+    const mine = rows.filter((r) => fidelityLabel(r.fidelity) === label);
+    const w = mine.filter((r) => r.outcome === "won").length;
+    const l = mine.filter((r) => r.outcome === "lost").length;
+    return { runs: mine.length, scored: w + l, won: w };
+  };
+  const byFidelity: FidelityRecord = {
+    followed: tally("followed"),
+    strayed: tally("strayed"),
+    unchecked: rows.filter((r) => fidelityLabel(r.fidelity) === null).length,
+  };
+
   return {
     runs: rows.length,
     open: count("open"),
@@ -121,7 +147,32 @@ export function buildTrackRecord(runs: { run: PickRun; pick: BrandPick }[], ctx:
     byGrade,
     series,
     rows,
+    byFidelity,
   };
+}
+
+/**
+ * What the split says, in one line. Null until both sides have a scored
+ * run: one side alone cannot separate the concept from the shoot.
+ */
+export function fidelityLine(record: TrackRecord): string | null {
+  const { followed, strayed } = record.byFidelity;
+  if (followed.scored === 0 && strayed.scored === 0) return null;
+  const rate = (t: { scored: number; won: number }) => (t.scored > 0 ? `${t.won} of ${t.scored}` : "none scored");
+  if (followed.scored > 0 && strayed.scored > 0) {
+    const f = followed.won / followed.scored;
+    const s = strayed.won / strayed.scored;
+    const verdict =
+      f > s
+        ? "The briefs hold up where they were followed; the losses sit with the shoots that strayed."
+        : f < s
+          ? "Tests that strayed did better than tests that followed the brief: the briefs are the problem, not the shoots."
+          : "Following the brief has not separated the winners from the losers yet.";
+    return `Tests that followed the brief won ${rate(followed)}; tests that strayed won ${rate(strayed)}. ${verdict}`;
+  }
+  return followed.scored > 0
+    ? `Tests that followed the brief won ${rate(followed)}. No scored test has strayed from its brief yet.`
+    : `Tests that strayed from the brief won ${rate(strayed)}. No scored test has followed its brief yet.`;
 }
 
 /** "3 of 5 picks you ran won." Null until a run is scored. */

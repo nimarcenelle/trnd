@@ -13,6 +13,9 @@ import type {
   IntelNote,
   Learning,
   AdHistory,
+  AdAngle,
+  AdFormat,
+  HookType,
   NewAdHistory,
   BrandPick,
   NewPickBundle,
@@ -248,6 +251,9 @@ export interface Repo {
   /** Points a history row at a creative test (or clears it). Reads as a
    * no-op before migration 0032. */
   linkAdHistoryToRun(adHistoryId: string, runId: string | null): Promise<void>;
+  /** Writes each row's angle, kind of opening and format (lib/ads/classify.ts).
+   * Reads as a no-op before migration 0033. */
+  setAdHistoryClassification(rows: { id: string; angle: AdAngle; hook_type: HookType; format: AdFormat; classifier: string }[]): Promise<void>;
 
   /* picks — the week's ads, written whole by the weekly job */
   /** Replaces a week's picks (keeping any with a run or a dismissal) in one
@@ -288,6 +294,8 @@ export interface Repo {
         | "baseline_ctr"
         | "lift"
         | "meta_campaign_id"
+        | "fidelity_score"
+        | "fidelity_read"
       >
     > & { status?: PickRunStatus },
   ): Promise<PickRun>;

@@ -865,6 +865,13 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwIf(error, "upsertAdHistory");
       return written;
     },
+    async setAdHistoryClassification(rows) {
+      for (const { id, ...patch } of rows) {
+        const { error } = await sb.from("ad_history").update(patch).eq("id", id);
+        if (error && missingColumn(error)) return;
+        throwIf(error, "setAdHistoryClassification");
+      }
+    },
     async linkAdHistoryToRun(adHistoryId, runId) {
       const { error } = await sb.from("ad_history").update({ run_id: runId }).eq("id", adHistoryId);
       if (error && missingColumn(error)) return;

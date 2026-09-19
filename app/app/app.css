@@ -2350,3 +2350,30 @@ details.disclosure[open] .stars__over {
   padding: 2px 8px;
   font-size: 12px;
 }
+
+/* The first three seconds of a brief (components/picks/concept-detail.tsx). */
+.cb__opening {
+  margin: 12px 0 4px;
+}
+.cb__beats {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cb__beats li {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.cb__beat-visual {
+  display: block;
+}
+.cb__beat-line {
+  display: block;
+  color: var(--ink-soft);
+}
+.cb__beat-line em {
+  font-style: normal;
+  color: var(--ink-faint);
+}

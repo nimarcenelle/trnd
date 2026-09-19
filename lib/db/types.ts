@@ -470,8 +470,23 @@ export interface AdHistory {
   creative_kind?: "video" | "image" | "carousel" | null;
   /** The creative test this ad is linked to by the owner (pick_runs.id). */
   run_id?: string | null;
+  /** How the ad is built, classified once from its copy and creative
+   * (lib/ads/classify.ts, migration 0033): the persuasion angle, the kind
+   * of opening, and the production format. Null until classified. */
+  angle?: AdAngle | null;
+  hook_type?: HookType | null;
+  format?: AdFormat | null;
+  /** The classifier that wrote the three: a model id or "trnd-rules/1". */
+  classifier?: string | null;
   created_at: string;
 }
+
+export type AdAngle = "education" | "offer" | "scarcity" | "social_proof" | "speed" | "novelty";
+export const AD_ANGLES: readonly AdAngle[] = ["education", "offer", "scarcity", "social_proof", "speed", "novelty"];
+export type HookType = "question" | "problem" | "claim" | "story" | "comparison" | "callout" | "demonstration" | "offer" | "other";
+export const HOOK_TYPES: readonly HookType[] = ["question", "problem", "claim", "story", "comparison", "callout", "demonstration", "offer", "other"];
+export type AdFormat = "talking_head" | "ugc" | "demo" | "static" | "editor" | "studio" | "carousel" | "video" | "unknown";
+export const AD_FORMATS: readonly AdFormat[] = ["talking_head", "ugc", "demo", "static", "editor", "studio", "carousel", "video", "unknown"];
 
 /** Mined themes from the business's own reviews — regenerates as reviews land. */
 export interface ReviewDigest {
@@ -572,6 +587,10 @@ export interface CreativeBrief {
   lineage?: ConceptLineage | null;
   /** The previous brief when this one is a refinement, so nothing is lost. */
   refined_from?: { at: string; ask: string; brief: Omit<CreativeBrief, "refined_from"> } | null;
+  /** The first three seconds, shot by shot: the one part of the ad the brief
+   * dictates rather than directs. The first beat's voice line is the hook,
+   * word for word. Null on briefs written before ct-2. */
+  opening?: { beats: PickBeat[] } | null;
 }
 
 /**
@@ -749,6 +768,26 @@ export interface PickRun {
   /** The platform campaign id when the run was launched through a connected
    * account; the daily sync writes its numbers back by it. */
   meta_campaign_id: string | null;
+  /** How closely the finished ad followed the brief, 0 to 1, and the read
+   * behind it (lib/picks/fidelity.ts, migration 0033). Null until checked. */
+  fidelity_score?: number | null;
+  fidelity_read?: FidelityRead | null;
+}
+
+/** The finished ad checked against its brief: each line is yes, no, or
+ * could not tell. The score is the share of the checks that could be made
+ * that came back yes. */
+export interface FidelityRead {
+  version: string;
+  hook_present: boolean | null;
+  opening_followed: boolean | null;
+  facts_only: boolean | null;
+  format_matches: boolean | null;
+  notes: string[];
+  /** "pasted": the owner pasted the ad's words. "linked": read from the linked ad's copy. */
+  source: "pasted" | "linked";
+  checked_at: string;
+  model: string;
 }
 
 /** Why a week held a term instead of picking it (migration 0026). */

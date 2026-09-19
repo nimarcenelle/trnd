@@ -3,6 +3,8 @@ import Link from "next/link";
 import SubmitButton from "@/components/app/submit-button";
 import type { AdHistory, BrandPick, PickRun } from "@/lib/db/types";
 import ListRunsComplete from "@/components/picks/list-runs-complete";
+import ListRunsFidelity from "@/components/picks/list-runs-fidelity";
+import { fidelityLine } from "@/lib/picks/fidelity";
 import { formatUsd } from "@/lib/picks/format";
 import { runChip, runRatesLine, shortDate, truncateFinding } from "@/lib/picks/list";
 import { killPickRunAction, launchRunAction, linkAdToRunAction } from "@/lib/picks/run-actions";
@@ -63,6 +65,14 @@ export default function ListRuns({
                 {run.learned && <p className="picks-run__stats">Learned: {run.learned}</p>}
                 {(run.status === "planned" || run.status === "running") && (
                   <LinkAd runId={run.id} linked={linkable.filter((r) => r.run_id === run.id)} candidates={linkable.filter((r) => !r.run_id)} />
+                )}
+                {run.fidelity_read && <p className="picks-run__stats">{fidelityLine(run.fidelity_read, numeric(run.fidelity_score))}</p>}
+                {pick.brief && (
+                  <ListRunsFidelity
+                    runId={run.id}
+                    hasLinkedCopy={history.some((r) => r.run_id === run.id && Boolean(r.copy))}
+                    current={run.fidelity_read ? fidelityLine(run.fidelity_read, numeric(run.fidelity_score)) : null}
+                  />
                 )}
               </div>
               {chip && (

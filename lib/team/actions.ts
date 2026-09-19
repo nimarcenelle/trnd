@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getSessionUser } from "@/lib/auth/session";
+import { getPlanState, planLimits } from "@/lib/billing";
 import { getUserRepo } from "@/lib/db";
 import { sendTeamInvite } from "@/lib/email/team-invite";
 
@@ -18,8 +19,6 @@ export interface TeamState {
   ok?: string;
 }
 
-/** Seats the roster allows. Pricing tiers raise it (lib/billing). */
-export const MAX_MEMBERS = 10;
 
 async function ownerBusiness() {
   const user = await getSessionUser();
@@ -35,8 +34,9 @@ export async function inviteMemberAction(_prev: TeamState, formData: FormData): 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!/.+@.+\..+/.test(email)) return { error: "Enter a valid email." };
   if (email === user.email.toLowerCase()) return { error: "That is your own email." };
-  const members = await repo.listMembers(business.id).catch(() => []);
-  if (members.length >= MAX_MEMBERS) return { error: `The roster holds ${MAX_MEMBERS} people.` };
+  const [members, plan] = await Promise.all([repo.listMembers(business.id).catch(() => []), getPlanState(repo, business)]);
+  const seats = planLimits(plan.plan).seats;
+  if (members.length >= seats) return { error: `Your plan has ${seats} ${seats === 1 ? "seat" : "seats"} besides you. Move up a plan for more.` };
   try {
     await repo.inviteMember({ business_id: business.id, email, invited_by: user.id });
   } catch (err) {

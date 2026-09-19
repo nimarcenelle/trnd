@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import { getPlanState, planLimits } from "@/lib/billing";
 
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
@@ -23,6 +24,12 @@ export async function addCompetitorAction(formData: FormData): Promise<void> {
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
   const website = String(formData.get("website") ?? "").trim().slice(0, 200) || null;
   if (!name) return;
+  // The plan meters rivals tracked.
+  const [existing, plan] = await Promise.all([repo.listCompetitors(business.id), getPlanState(repo, business)]);
+  if (existing.length >= planLimits(plan.plan).rivals) {
+    revalidatePath("/app/settings");
+    return;
+  }
   const competitor = await repo.createCompetitor({ business_id: business.id, name, website, place_id: null });
   after(async () => {
     const jobRepo = getAdminRepo();

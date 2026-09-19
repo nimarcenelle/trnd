@@ -5,6 +5,7 @@ import { cleanSocialHandles } from "@/lib/import/social-links";
 import { readRivalSite, scoreDirectness, type RivalSiteRead } from "@/lib/intel/direct";
 import { fetchAdvertiserAds, isAdLibraryApifyAvailable, isRivalAd, type AdvertiserAd } from "@/lib/signals/adlibrary-apify";
 import { normalizeHandle } from "@/lib/social";
+import { getPlanState, planLimits } from "@/lib/billing";
 
 /**
  * The direct competitors of an online brand, found for the owner. A DTC
@@ -124,7 +125,11 @@ export async function discoverCompetingBrands(
   const adsOn = (opts.adsAvailable ?? isAdLibraryApifyAvailable)();
 
   const existing = await repo.listCompetitors(business.id);
-  const room = BRAND_SEED_COUNT - existing.length;
+  // The plan meters rivals tracked; discovery fills what is left of it.
+  const cap = await getPlanState(repo, business)
+    .then((p) => planLimits(p.plan).rivals)
+    .catch(() => BRAND_SEED_COUNT);
+  const room = Math.min(BRAND_SEED_COUNT, cap) - existing.length;
   if (room <= 0) return { created: [], note: null };
 
   const read = (url: string) =>

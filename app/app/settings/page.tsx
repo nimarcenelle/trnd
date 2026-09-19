@@ -14,7 +14,7 @@ import type { AdHistory, SocialHandles } from "@/lib/db/types";
 import { handleUrl, SOCIAL_PLATFORMS } from "@/lib/import/social-links";
 import type { AdTheme } from "@/lib/signals/adlibrary-apify";
 import { isSocialReadAvailable } from "@/lib/social";
-import { getPlanState, PLAN_LABELS, PLAN_PRICES } from "@/lib/billing";
+import { getPlanState, PLAN_LABELS, PLAN_PRICES, PLAN_TIERS, planLimits } from "@/lib/billing";
 import { openBillingPortalAction, startCheckoutAction } from "@/lib/billing/actions";
 import { seedCompetitorsAction } from "@/lib/intel/actions";
 import { adoptDocumentServicesAction, deleteDocumentAction } from "@/lib/documents/actions";
@@ -194,6 +194,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
     repo.listMembers(business.id).catch(() => []),
   ]);
   const isOwner = business.owner_id === user.id;
+  const limits = planLimits(plan.plan);
   // Most direct rivals first; ones not yet scored sit at the bottom.
   const competitors = [...rivals].sort((a, b) => (b.directness ?? -1) - (a.directness ?? -1));
   const adRead = adRows.length > 0 ? readAdHistory(adRows) : null;
@@ -620,20 +621,23 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
               ? plan.locked
                 ? "Every brief you received stays yours. Pick a plan to keep the weekly creative tests coming."
                 : "Full product, no card on file. Pick a plan any time; founding brands lock their price."
-              : "Up to three creative test briefs a week, your rivals read weekly, and the Monday email in your inbox. What you record sharpens the next week."}
+              : `${PLAN_LABELS[plan.plan]}: up to ${limits.briefsPerWeek} ${limits.briefsPerWeek === 1 ? "brief" : "briefs"} a week, ${limits.rivals} competitors read weekly, ${limits.seats} ${limits.seats === 1 ? "seat" : "seats"} besides you. What you record sharpens the next week.`}
           </p>
         </div>
+        <p className="text-[12.5px] text-ink-faint mx-0 mt-0 mb-4">
+          Using {competitors.length} of {limits.rivals} competitors and {members.length} of {limits.seats} seats. Founding brands lock their price for a year.
+        </p>
 
         {isStripeConfigured ? (
           <div className="flex gap-[10px] flex-wrap">
-            {plan.plan !== "baseline" && plan.status !== "active" && (
-              <form action={startCheckoutAction}>
-                <input type="hidden" name="plan" value="baseline" />
-                <button type="submit" className="btn btn-primary btn-sm">
-                  Start TRND — {PLAN_PRICES.baseline}
+            {PLAN_TIERS.filter((t) => !(plan.plan === t.id && plan.status === "active")).map((t) => (
+              <form key={t.id} action={startCheckoutAction}>
+                <input type="hidden" name="plan" value={t.id} />
+                <button type="submit" className={`btn btn-sm ${t.featured ? "btn-primary" : "btn-ghost"}`}>
+                  {t.name} — {t.price}
                 </button>
               </form>
-            )}
+            ))}
             {plan.subscription.stripe_customer_id && (
               <form action={openBillingPortalAction}>
                 <button type="submit" className="btn btn-ghost btn-sm">
@@ -672,7 +676,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       <section className="panel mb-5">
         <div className="panel__head">
           <span className="panel__title">Competitors</span>
-          <span className="panel__meta">{competitors.length} tracked</span>
+          <span className="panel__meta">{competitors.length} of {limits.rivals} tracked</span>
         </div>
         <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4">
           Name the local rivals that matter. TRND reads their ads, posts and Google ratings

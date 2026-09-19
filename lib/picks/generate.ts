@@ -22,6 +22,8 @@ import { isOnlineBusiness, placeWords } from "@/lib/signals/geo";
 import { engagementOf, postsOnTerm } from "@/lib/social/read";
 import { recordProviderUsage } from "@/lib/usage/providers";
 
+import { getPlanState, planLimits } from "@/lib/billing";
+
 import { pickBet } from "./bet";
 import { assembleBrief, conceptsOverlap, CONCEPT_VERSION, validateConceptWrite, type ConceptRules, type ConceptWrite } from "./concept";
 import { buildEvaluationPlan, conceptBasis, structuralUnknowns } from "./evaluation";
@@ -44,6 +46,8 @@ import { metricLabelFor, metricLevel, pickMetric, sparklineOf } from "./metric";
  */
 
 export const PICKS_PER_WEEK = 3;
+/** The most any plan writes in a week (lib/billing PLAN_LIMITS). */
+export const PICKS_MAX = 5;
 /** How many ranked rows are tried to fill the week: a near-duplicate costs a slot. */
 export const CANDIDATES_PER_WEEK = 5;
 export const DEFAULT_SCRIPT_SECONDS = 20;
@@ -482,7 +486,11 @@ export function conceptOf(bundle: Pick<NewPickBundle, "pick">): ConceptWrite | n
 
 export async function generateWeekPicks(repo: Repo, business: Business, opts: GenerateWeekPicksOptions = {}): Promise<GenerateWeekPicksResult> {
   const week = opts.weekOf ?? currentWeek();
-  const want = Math.min(opts.limit ?? PICKS_PER_WEEK, PICKS_PER_WEEK);
+  // The plan meters briefs a week; the trial runs on the pilot tier's three.
+  const planBriefs = await getPlanState(repo, business)
+    .then((p) => planLimits(p.plan).briefsPerWeek)
+    .catch(() => PICKS_PER_WEEK);
+  const want = Math.min(opts.limit ?? planBriefs, PICKS_MAX);
   const opportunities = eligibleWeekOpportunities(await repo.listOpportunities(business.id, week));
   if (opportunities.length === 0) return { ready: 0, draft: 0, duplicates: 0, pickIds: [], bundles: [] };
 

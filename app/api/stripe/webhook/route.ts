@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
 
 import { getAdminRepo } from "@/lib/db";
-import type { SubscriptionStatus } from "@/lib/db/types";
+import { PAID_PLANS, type PlanId, type SubscriptionStatus } from "@/lib/db/types";
 import { env, isStripeConfigured } from "@/lib/env";
 
 /**
@@ -9,6 +9,8 @@ import { env, isStripeConfigured } from "@/lib/env";
  * idempotent (upserts keyed on business_id); unknown events are 200-OK'd so
  * Stripe doesn't retry them forever.
  */
+
+const isPaidPlan = (p: unknown): p is Exclude<PlanId, "trial"> => typeof p === "string" && (PAID_PLANS as readonly string[]).includes(p);
 
 function mapStatus(s: Stripe.Subscription.Status): SubscriptionStatus {
   switch (s) {
@@ -54,7 +56,7 @@ export async function POST(req: Request): Promise<Response> {
         const businessId =
           session.metadata?.business_id ?? session.client_reference_id ?? null;
         if (!businessId) break;
-        const plan = session.metadata?.plan === "pro" ? "pro" : "baseline";
+        const plan = isPaidPlan(session.metadata?.plan) ? session.metadata!.plan : "baseline";
         const existing = await repo.getSubscription(businessId);
         await repo.upsertSubscription({
           business_id: businessId,

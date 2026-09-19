@@ -22,12 +22,13 @@ export function getStripe(): Stripe {
 }
 
 export function priceIdFor(plan: Exclude<PlanId, "trial">): string | null {
-  const id = plan === "pro" ? env.stripePricePro : env.stripePriceBaseline;
+  const id = plan === "pro" ? env.stripePricePro : plan === "starter" ? env.stripePriceStarter : env.stripePriceBaseline;
   return id || null;
 }
 
 export function planForPriceId(priceId: string | null | undefined): Exclude<PlanId, "trial"> {
   if (priceId && priceId === env.stripePricePro) return "pro";
+  if (priceId && priceId === env.stripePriceStarter) return "starter";
   return "baseline";
 }
 

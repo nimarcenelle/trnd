@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { derivePlanState, TRIAL_DAYS, trialEndsAtFor } from "../lib/billing";
+import { derivePlanState, PLAN_LIMITS, PLAN_TIERS, planLimits, TRIAL_DAYS, trialEndsAtFor } from "../lib/billing";
 import type { Subscription } from "../lib/db/types";
 
 const sub = (over: Partial<Subscription> = {}): Subscription => ({
@@ -49,5 +49,20 @@ describe("plan state", () => {
     const state = derivePlanState(canceled, new Date(), true);
     expect(state.locked).toBe(true);
     expect(state.lockedReason).toMatch(/restart/i);
+  });
+});
+
+describe("plan limits", () => {
+  it("meters briefs, rivals and seats per plan, the trial on the pilot tier's numbers", () => {
+    expect(planLimits("trial")).toEqual(PLAN_LIMITS.baseline);
+    expect(planLimits("starter")).toEqual({ briefsPerWeek: 1, rivals: 3, seats: 1 });
+    expect(planLimits("pro").briefsPerWeek).toBeGreaterThan(planLimits("baseline").briefsPerWeek);
+    expect(planLimits(null)).toEqual(PLAN_LIMITS.trial);
+    expect(planLimits("nonsense" as never)).toEqual(PLAN_LIMITS.trial);
+  });
+
+  it("prints three tiers with the pilot tier featured", () => {
+    expect(PLAN_TIERS.map((t) => t.id)).toEqual(["starter", "baseline", "pro"]);
+    expect(PLAN_TIERS.filter((t) => t.featured).map((t) => t.id)).toEqual(["baseline"]);
   });
 });

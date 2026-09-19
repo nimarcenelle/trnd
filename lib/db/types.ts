@@ -282,7 +282,10 @@ export interface BusinessBrief {
   created_at: string;
 }
 
-export type PlanId = "trial" | "baseline" | "pro";
+/** trial: the 14-day trial (baseline limits). starter, baseline, pro: the
+ * three plans on access (lib/billing). "baseline" is the pilot tier. */
+export type PlanId = "trial" | "starter" | "baseline" | "pro";
+export const PAID_PLANS: readonly Exclude<PlanId, "trial">[] = ["starter", "baseline", "pro"];
 export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled";
 
 /**

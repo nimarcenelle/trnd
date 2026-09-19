@@ -1,4 +1,4 @@
-import { BASELINE_FEATURES } from "@/lib/billing";
+import { BASELINE_FEATURES, PLAN_TIERS } from "@/lib/billing";
 import Link from "next/link";
 
 import PilotForm from "@/components/landing/pilot-form";
@@ -278,35 +278,46 @@ export default function Home() {
         <div className="wrap">
           <div className="head reveal">
             <span className="eyebrow">The pilot</span>
-            <h2>One month. $500. A founder reads every brief.</h2>
+            <h2>Priced on access. Metered on briefs, rivals and seats.</h2>
             <p>
-              TRND is new, and the honest way to sell it is a pilot: four weeks of briefs, with the founder reviewing each
-              one before it reaches you and on a call with you each week. You bring your Ads Manager export and a creator
-              who can shoot. We bring the briefs. At the end you decide whether to keep going.
+              Every plan carries the whole product: your account classified by angle, your rivals&apos; ads read weekly, the
+              brief, the check against it, the record. The tiers differ in how many briefs a week, how many rivals and how
+              many people. New brands start with the pilot: one month on the TRND tier, the founder reading every brief, and
+              at the end you decide whether to keep going. Founding brands lock their price for a year.
             </p>
           </div>
 
           <div className="tiers reveal">
-            <div className="tier tier--featured">
-              <span className="tier__badge">Pilot</span>
-              <h3 className="tier__name">Four weeks of briefs</h3>
-              <div className="tier__price">
-                $500<small>/ MONTH</small>
+            {PLAN_TIERS.map((t) => (
+              <div key={t.id} className={`tier${t.featured ? " tier--featured" : ""}`}>
+                {t.badge && <span className="tier__badge">{t.badge}</span>}
+                <h3 className="tier__name">{t.name}</h3>
+                <div className="tier__price">
+                  {t.price.replace("/mo", "")}
+                  <small>/ MONTH</small>
+                </div>
+                <p className="tier__promise">{t.who}</p>
+                <div className="tier__list">
+                  {t.meter.map((f) => (
+                    <div key={f}>
+                      <IcoCheck />
+                      {f}
+                    </div>
+                  ))}
+                  {t.featured &&
+                    BASELINE_FEATURES.map((f) => (
+                      <div key={f}>
+                        <IcoCheck />
+                        {f}
+                      </div>
+                    ))}
+                </div>
+                <a href="#apply" className={`btn ${t.featured ? "btn-primary" : "btn-ghost"} justify-center`}>
+                  {t.featured ? "Apply for the pilot" : "Apply"}
+                </a>
+                <span className="tier__foot">{t.featured ? "The pilot runs on this tier, with the founder reading every brief for a month." : `${t.annual} billed yearly.`}</span>
               </div>
-              <p className="tier__promise">Billed once we have agreed it is a fit. No card on this page.</p>
-              <div className="tier__list">
-                {BASELINE_FEATURES.map((f) => (
-                  <div key={f}>
-                    <IcoCheck />
-                    {f}
-                  </div>
-                ))}
-              </div>
-              <a href="#apply" className="btn btn-primary justify-center">
-                Apply for the pilot
-              </a>
-              <span className="tier__foot">What you supply: an Ads Manager export, your product facts, and someone who can shoot.</span>
-            </div>
+            ))}
           </div>
 
           <p className="founding-note reveal">

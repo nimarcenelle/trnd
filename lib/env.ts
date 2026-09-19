@@ -31,6 +31,7 @@ export const env = {
     process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+  stripePriceStarter: process.env.STRIPE_PRICE_STARTER ?? "",
   stripePriceBaseline: process.env.STRIPE_PRICE_BASELINE ?? "",
   stripePricePro: process.env.STRIPE_PRICE_PRO ?? "",
   /** Meta Marketing API app — ad-account connect, results sync, launch. */

@@ -3,7 +3,7 @@ import {
   isApifyConfigured,
   isDataForSeoConfigured,
   isEmailConfigured,
-  isGeminiConfigured,
+  isModelConfigured,
   isMetaAdsConfigured,
   isStripeConfigured,
   isSupabaseConfigured,
@@ -62,7 +62,7 @@ export async function GET(): Promise<Response> {
   }
   // Model spend, last 24 hours, by the job that made the calls.
   let aiUsage24h: ReturnType<typeof summarizeUsage> | null = null;
-  if (isSupabaseConfigured && isGeminiConfigured) {
+  if (isSupabaseConfigured && isModelConfigured) {
     try {
       const { getAdminRepo } = await import("@/lib/db/admin");
       aiUsage24h = summarizeUsage(await getAdminRepo().listAiUsage({ sinceHours: 24 }));
@@ -95,7 +95,7 @@ export async function GET(): Promise<Response> {
     providerUsage24h,
     mode: {
       database,
-      generation: isGeminiConfigured ? "gemini" : "template",
+      generation: isModelConfigured ? "openai" : "template",
       billing: isStripeConfigured ? (env.stripeSecretKey.startsWith("sk_live_") ? "stripe-live" : "stripe-test") : "off",
     },
     /** Presence only, never values: what a customer's week and receipt need. */

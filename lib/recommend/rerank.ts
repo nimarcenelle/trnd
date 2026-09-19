@@ -1,6 +1,6 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business } from "@/lib/db/types";
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 import { generateWeekPicks } from "@/lib/picks/generate";
 
 import { recommendForBusiness, weekOf } from "./recommend";
@@ -52,7 +52,7 @@ export async function regenerateWeekPicks(repo: Repo, business: Business): Promi
       console.warn(`[picks] regeneration for ${business.id} failed (non-fatal):`, (err as Error).message);
     }
   };
-  if (!isGeminiConfigured) return run();
+  if (!isModelConfigured) return run();
   try {
     const { after } = await import("next/server");
     after(run);

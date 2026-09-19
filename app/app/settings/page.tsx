@@ -25,7 +25,7 @@ import {
   isApifyConfigured,
   isDataForSeoConfigured,
   isEmailConfigured,
-  isGeminiConfigured,
+  isModelConfigured,
   isInstagramConfigured,
   isMetaAdsConfigured,
   isPlacesConfigured,
@@ -487,7 +487,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             })}
           </div>
         )}
-        {documents.length < MAX_DOCUMENTS && <DocumentUpload modelReady={isGeminiConfigured} />}
+        {documents.length < MAX_DOCUMENTS && <DocumentUpload modelReady={isModelConfigured} />}
       </section>
 
       <section className="panel mb-5" id="context">

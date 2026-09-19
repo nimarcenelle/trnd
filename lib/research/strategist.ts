@@ -1,7 +1,6 @@
-import type { Schema } from "@google/genai";
 import { z } from "zod";
 
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 import { withAiContext } from "@/lib/ai/usage";
 
 import { renderDossier, type Dossier } from "./dossier";
@@ -57,50 +56,6 @@ export const StrategyReadSchema = z.object({
 });
 
 export type StrategyRead = z.infer<typeof StrategyReadSchema>;
-
-export const STRATEGY_RESPONSE_SCHEMA = {
-  type: "OBJECT",
-  properties: {
-    situation: { type: "STRING" },
-    insights: {
-      type: "ARRAY",
-      items: {
-        type: "OBJECT",
-        properties: {
-          area: { type: "STRING", enum: ["customer", "competitive", "brand", "culture"] },
-          insight: { type: "STRING" },
-          evidence: { type: "ARRAY", items: { type: "STRING" } },
-          confidence: { type: "STRING", enum: ["high", "medium", "low"] },
-          why_confidence: { type: "STRING" },
-        },
-        required: ["area", "insight", "evidence", "confidence", "why_confidence"],
-      },
-    },
-    tensions: { type: "ARRAY", items: { type: "STRING" } },
-    whitespace: { type: "ARRAY", items: { type: "STRING" } },
-    angles: {
-      type: "ARRAY",
-      items: {
-        type: "OBJECT",
-        properties: {
-          priority: { type: "INTEGER" },
-          title: { type: "STRING" },
-          product: { type: "STRING" },
-          the_bet: { type: "STRING" },
-          why_now: { type: "STRING" },
-          differs_from_rivals: { type: "STRING" },
-          evidence: { type: "ARRAY", items: { type: "STRING" } },
-          risk: { type: "STRING" },
-          format_hint: { type: "STRING" },
-        },
-        required: ["priority", "title", "product", "the_bet", "why_now", "differs_from_rivals", "evidence", "risk", "format_hint"],
-      },
-    },
-    unknowns: { type: "ARRAY", items: { type: "STRING" } },
-    do_not: { type: "ARRAY", items: { type: "STRING" } },
-  },
-  required: ["situation", "insights", "tensions", "whitespace", "angles", "unknowns", "do_not"],
-} as unknown as Schema;
 
 /* ------------------------------ validation ------------------------------- */
 
@@ -173,15 +128,15 @@ export function buildStrategistPrompt(dossier: Dossier, feedback?: string | null
 
 export type StrategistWriter = (dossier: Dossier) => Promise<{ value: StrategyRead; model: string }>;
 
-export async function readStrategyWithGemini(dossier: Dossier, models?: { flash: string; pro: string }): Promise<{ value: StrategyRead; model: string }> {
-  const { creativeCall, resolveModels } = await import("@/lib/ai/gemini");
+export async function readStrategyWithModel(dossier: Dossier, models?: { flash: string; pro: string }): Promise<{ value: StrategyRead; model: string }> {
+  const { creativeCall, resolveModels } = await import("@/lib/ai/openai");
   const m = models ?? (await resolveModels());
   const validate = (raw: unknown) => {
     const checked = validateStrategyRead(raw, dossier);
     if (!checked.ok) throw new StrategyRejected(checked.error);
     return checked.value;
   };
-  const run = (feedback?: string | null) => creativeCall(m, buildStrategistPrompt(dossier, feedback), STRATEGY_RESPONSE_SCHEMA, validate);
+  const run = (feedback?: string | null) => creativeCall(m, buildStrategistPrompt(dossier, feedback), StrategyReadSchema, validate);
   try {
     return await run();
   } catch (err) {
@@ -194,8 +149,8 @@ export async function readStrategyWithGemini(dossier: Dossier, models?: { flash:
 export class StrategyRejected extends Error {}
 
 export function defaultStrategist(): StrategistWriter | null {
-  if (!isGeminiConfigured) return null;
-  return (dossier) => withAiContext({ businessId: null, purpose: "strategist" }, () => readStrategyWithGemini(dossier));
+  if (!isModelConfigured) return null;
+  return (dossier) => withAiContext({ businessId: null, purpose: "strategist" }, () => readStrategyWithModel(dossier));
 }
 
 /* -------------------------------- render --------------------------------- */

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Zod schemas for every generation call. Both the Gemini path and the
+ * Zod schemas for every generation call. Both the model path and the
  * deterministic fallback validate against these, so downstream screens can
  * trust the shape either way.
  */

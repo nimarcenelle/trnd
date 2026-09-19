@@ -1,10 +1,9 @@
-import { Type, type Schema } from "@google/genai";
 import { z } from "zod";
 
 import type { Business, BusinessBrief, Service } from "@/lib/db/types";
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 
-import { resolveModels, structuredCall } from "./gemini";
+import { resolveModels, structuredCall } from "./openai";
 
 /**
  * The brands an online owner would name as rivals. There is no map to
@@ -28,27 +27,6 @@ export interface ProposedBrand {
 
 export const MAX_PROPOSED_BRANDS = 12;
 const MAX_SITE_TEXT = 3000;
-
-const brandsResponseSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    brands: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          name: { type: Type.STRING },
-          website: { type: Type.STRING },
-          instagram: { type: Type.STRING, nullable: true },
-          tiktok: { type: Type.STRING, nullable: true },
-          why: { type: Type.STRING },
-        },
-        required: ["name", "website", "why"],
-      },
-    },
-  },
-  required: ["brands"],
-};
 
 const BrandsSchema = z.object({
   brands: z.array(
@@ -111,7 +89,7 @@ export function buildRivalBrandsPrompt(
 }
 
 /**
- * Up to 12 proposed rival brands. Resolves [] when Gemini isn't configured
+ * Up to 12 proposed rival brands. Resolves [] when the model isn't configured
  * or both models fail: discovery with nothing to verify seeds nothing,
  * which beats a list the owner has to clean up.
  */
@@ -121,7 +99,7 @@ export async function proposeCompetingBrands(
   brief: BriefInput,
   siteText?: string | null,
 ): Promise<ProposedBrand[]> {
-  if (!isGeminiConfigured) return [];
+  if (!isModelConfigured) return [];
   try {
     const models = await resolveModels();
     const prompt = buildRivalBrandsPrompt(business, services, brief, siteText);
@@ -130,13 +108,13 @@ export async function proposeCompetingBrands(
     // the larger model invents fewer. Flash is the fallback, not the default.
     let parsed: z.infer<typeof BrandsSchema>;
     try {
-      parsed = await structuredCall(models.pro, prompt, brandsResponseSchema, validate, {
+      parsed = await structuredCall(models.pro, prompt, BrandsSchema, validate, {
         // Naming real brands and the domains they use is recall, not invention.
         temperature: 0.2,
       });
     } catch (err) {
       console.warn(`[ai] rival brands on ${models.pro} failed, retrying on ${models.flash}:`, (err as Error).message);
-      parsed = await structuredCall(models.flash, prompt, brandsResponseSchema, validate, { temperature: 0.2 });
+      parsed = await structuredCall(models.flash, prompt, BrandsSchema, validate, { temperature: 0.2 });
     }
     const out: ProposedBrand[] = [];
     for (const b of parsed.brands) {

@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { targetCustomerOf } from "@/lib/ai/brief";
-import { writeConceptWithGemini, type ConceptWriterInput } from "@/lib/ai/concept-writer";
+import { writeConceptWithModel, type ConceptWriterInput } from "@/lib/ai/concept-writer";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 import { assembleBrief, CONCEPT_VERSION, type ConceptRules, type ConceptWrite } from "@/lib/picks/concept";
 import { askFor, REFINEMENTS, rotateHook, type RefineState } from "@/lib/picks/refinements";
 import { isConceptPick } from "@/lib/picks/concept-view";
@@ -49,7 +49,7 @@ export async function refinePickAction(_prev: RefineState, formData: FormData): 
   const stamp = { at: new Date().toISOString(), ask, brief: previousBrief };
 
   // The hook swap needs no writing.
-  if (kind === "hook" && !isGeminiConfigured) {
+  if (kind === "hook" && !isModelConfigured) {
     const rotated = rotateHook(detail.pick.brief);
     if (!rotated) return { error: "This brief has no alternative hook to switch to." };
     await repo.updatePickConcept(pickId, { brief: { ...rotated, refined_from: stamp } });
@@ -57,7 +57,7 @@ export async function refinePickAction(_prev: RefineState, formData: FormData): 
     revalidatePath(`/app/picks/${pickId}`);
     return { ok: true };
   }
-  if (!isGeminiConfigured) {
+  if (!isModelConfigured) {
     return { error: "This refinement needs the writing model, which is not configured here. Copy the brief and adjust it by hand, or change the hook." };
   }
 
@@ -89,7 +89,7 @@ export async function refinePickAction(_prev: RefineState, formData: FormData): 
   };
   let written: ConceptWrite;
   try {
-    written = (await writeConceptWithGemini(input, rules)).value;
+    written = (await writeConceptWithModel(input, rules)).value;
   } catch (err) {
     console.warn(`[refine] ${pickId} failed:`, (err as Error).message);
     return { error: "The rewrite did not pass the fact check. Nothing was changed; try a narrower ask." };

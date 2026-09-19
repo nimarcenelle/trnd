@@ -86,7 +86,7 @@ export default function PrivacyPage() {
       <p>
         <strong>How we use and share it:</strong> to show you demand trends and example videos
         inside TRND, with links back to YouTube. Parts of it may be included in the text sent to
-        Google Gemini to write your recommendations. We don&apos;t sell it or share it with
+        OpenAI to write your recommendations. We don&apos;t sell it or share it with
         anyone else.
       </p>
       <p>
@@ -122,7 +122,7 @@ export default function PrivacyPage() {
       <h2>Who else handles it</h2>
       <p>
         Only companies that help us run TRND, under contract: Vercel (hosting), Supabase
-        (database and sign-in), Stripe (payments), Resend (email), and Google Gemini, which
+        (database and sign-in), Stripe (payments), Resend (email), and OpenAI, which
         receives your business profile and uploaded text to write your briefs. Our paid data
         providers get search terms, brand names and places, never your account details. We do not sell
         personal data, and we don&apos;t use your data to target you with ads anywhere else.

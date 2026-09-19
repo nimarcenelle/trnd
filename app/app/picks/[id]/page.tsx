@@ -26,7 +26,7 @@ import { buildTrackRecord, calibrationLine, gradeLetterOf, liftsForGrade } from 
 import { weekOf } from "@/lib/recommend/week";
 import { benchmarkFor } from "@/lib/results/benchmarks";
 import { storedWeekStrategy } from "@/lib/research/weekly";
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 import { normalizeTerm } from "@/lib/signals/normalize";
 import { sentenceCase } from "@/lib/text";
 
@@ -98,7 +98,7 @@ export default async function PickDetailPage({ params }: { params: Promise<{ id:
           view={concept}
           head={{ items, index, weekRange: weekRangeLabel(week), writing, deepening }}
           exportHref={`/app/picks/${detail.pick.id}/export`}
-          refine={concept.status === "proposed" || concept.status === "chosen" ? <RefineForm pickId={detail.pick.id} modelReady={isGeminiConfigured} /> : undefined}
+          refine={concept.status === "proposed" || concept.status === "chosen" ? <RefineForm pickId={detail.pick.id} modelReady={isModelConfigured} /> : undefined}
         />
       </>
     );

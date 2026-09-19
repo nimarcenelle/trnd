@@ -1,5 +1,5 @@
 /**
- * Central env access. `isSupabaseConfigured` / `isGeminiConfigured` are the
+ * Central env access. `isSupabaseConfigured` / `isModelConfigured` are the
  * switches that flip the app between real integrations and the loudly-labeled
  * local fallbacks documented in BLOCKED.md.
  *
@@ -12,7 +12,11 @@ export const env = {
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
-  geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  openaiApiKey: process.env.OPENAI_API_KEY ?? "",
+  /** Pin the two model tiers (lib/ai/openai.ts); unset, the newest general
+   * and the newest small model on the account are resolved at first use. */
+  openaiModelPro: process.env.OPENAI_MODEL_PRO ?? "",
+  openaiModelFlash: process.env.OPENAI_MODEL_FLASH ?? "",
   youtubeApiKey: process.env.YOUTUBE_API_KEY ?? "",
   redditUserAgent: process.env.REDDIT_USER_AGENT || "trnd-signal/0.1 (by /u/trnd)",
   /** Reddit's official API (free, 100 requests a minute) — a script app's
@@ -84,7 +88,7 @@ export const env = {
 };
 
 export const isSupabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey);
-export const isGeminiConfigured = Boolean(env.geminiApiKey);
+export const isModelConfigured = Boolean(env.openaiApiKey);
 /** Billing switches on with a secret key + at least the baseline price id. */
 export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePriceBaseline);
 export const isMetaAdsConfigured = Boolean(env.metaAppId && env.metaAppSecret);

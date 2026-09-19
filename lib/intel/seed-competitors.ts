@@ -1,6 +1,6 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, Competitor } from "@/lib/db/types";
-import { isGeminiConfigured, isPlacesConfigured } from "@/lib/env";
+import { isModelConfigured, isPlacesConfigured } from "@/lib/env";
 import { discoverCompetingBrands } from "@/lib/intel/discover-brands";
 import { readRivalSite, scoreDirectness, type RivalSiteRead } from "@/lib/intel/direct";
 import { CHAIN_NAMES } from "@/lib/prospect/fit";
@@ -111,9 +111,9 @@ export async function seedCompetitors(
 ): Promise<SeedResult> {
   if (business.market === "online") {
     // The brand list comes from the model and is verified against the web;
-    // without Gemini there is nothing to verify, and a Places search would
+    // without the model there is nothing to verify, and a Places search would
     // return the wrong kind of rival.
-    if (!isGeminiConfigured) return { created: [], note: "Competing-brand discovery isn't switched on for this workspace." };
+    if (!isModelConfigured) return { created: [], note: "Competing-brand discovery isn't switched on for this workspace." };
     return discoverCompetingBrands(repo, business, { fetchHtml: opts.fetchHtml });
   }
   if (!isPlacesConfigured) return { created: [], note: "Rival discovery isn't switched on for this workspace." };

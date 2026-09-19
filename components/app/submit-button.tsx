@@ -4,7 +4,7 @@ import { useFormStatus } from "react-dom";
 
 /**
  * Submit button with a live pending state — used for server actions that can
- * take a few seconds (campaign generation especially, once Gemini is on).
+ * take a few seconds (campaign generation especially, once the model is on).
  */
 export default function SubmitButton({
   children,

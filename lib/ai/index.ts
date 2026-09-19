@@ -1,12 +1,12 @@
 /**
- * The one generation entrypoint the app calls. Prefers Gemini when
- * GEMINI_API_KEY is set (lib/ai/gemini.ts); otherwise — or on schema
+ * The one generation entrypoint the app calls. Prefers the model when
+ * OPENAI_API_KEY is set (lib/ai/openai.ts); otherwise — or on schema
  * violation after one retry — falls back to the deterministic template
  * generator so every screen downstream always works (BLOCKED.md).
  */
 
 import type { Business, BusinessBrief, Opportunity, Service, Signal } from "@/lib/db/types";
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 import type { CampaignSignalBrief } from "@/lib/recommend/four-signals";
 
 import {
@@ -42,13 +42,13 @@ export async function generateCampaign(
   ctx: GenerationContext,
   onStatus: (label: string) => void = () => {},
 ): Promise<GeneratedCampaign> {
-  if (isGeminiConfigured) {
+  if (isModelConfigured) {
     try {
-      const { generateWithGemini } = await import("./gemini");
-      return await generateWithGemini(ctx, onStatus);
+      const { generateWithModel } = await import("./openai");
+      return await generateWithModel(ctx, onStatus);
     } catch (err) {
       console.warn(
-        "[ai] Gemini generation failed — using deterministic fallback:",
+        "[ai] model generation failed — using deterministic fallback:",
         (err as Error).message,
       );
     }

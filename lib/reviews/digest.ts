@@ -1,12 +1,12 @@
 import type { Business, NewReviewDigest, Review } from "@/lib/db/types";
-import { isGeminiConfigured } from "@/lib/env";
+import { isModelConfigured } from "@/lib/env";
 
 export const REVIEW_DIGEST_FALLBACK_MODEL = "trnd-template/v1";
 
 /**
  * Voice-of-customer mining: what people praise (themes), the phrases they
  * actually use (ready-made ad copy), and what ads must not overpromise
- * (recurring complaints). Gemini writes it; a deterministic frequency pass
+ * (recurring complaints). The model writes it; a deterministic frequency pass
  * stands in without a key, honestly labeled.
  */
 
@@ -70,16 +70,16 @@ export async function generateReviewDigest(
   reviews: Review[],
 ): Promise<NewReviewDigest> {
   const own = reviews.filter((r) => r.competitor_id === null);
-  if (isGeminiConfigured && own.length >= 3) {
+  if (isModelConfigured && own.length >= 3) {
     try {
-      const { generateReviewDigestWithGemini } = await import("@/lib/ai/gemini");
-      const { value, model } = await generateReviewDigestWithGemini(
+      const { generateReviewDigestWithModel } = await import("@/lib/ai/openai");
+      const { value, model } = await generateReviewDigestWithModel(
         business,
         own.map((r) => ({ rating: r.rating, text: r.text })),
       );
       return { business_id: business.id, review_count: own.length, ...value, model_used: model };
     } catch (err) {
-      console.warn("[reviews] Gemini digest failed — using deterministic fallback:", (err as Error).message);
+      console.warn("[reviews] model digest failed — using deterministic fallback:", (err as Error).message);
     }
   }
   return buildFallbackReviewDigest(business, reviews);

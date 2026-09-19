@@ -55,9 +55,9 @@ export interface GenerateWeekPicksOptions {
   weekOf?: string;
   /** False builds the bundles without storing them. Defaults to true. */
   write?: boolean;
-  /** Pre-resolved Gemini models, so a batch run lists models once. */
+  /** Pre-resolved model tiers, so a batch run lists models once. */
   models?: { flash: string; pro: string };
-  /** Replaces the default writer (Gemini, or the keyless template). */
+  /** Replaces the default writer (the model, or the keyless template). */
   writer?: ConceptWriter;
   /** Write only the top N of the week: the first pick lands before the rest. */
   limit?: number;

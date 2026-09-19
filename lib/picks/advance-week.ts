@@ -1,7 +1,7 @@
 import { generateBusinessBrief, businessJustOnboarded } from "@/lib/ai/brief";
 import type { Repo } from "@/lib/db/repo";
 import type { Business, CompetitorRead, Opportunity } from "@/lib/db/types";
-import { env, isEmailConfigured, isGeminiConfigured, isPlacesConfigured } from "@/lib/env";
+import { env, isEmailConfigured, isModelConfigured, isPlacesConfigured } from "@/lib/env";
 import { weekOf } from "@/lib/recommend/week";
 import { withAiContext } from "@/lib/ai/usage";
 import { NO_COMPETITORS_NOTE, NOTHING_READ_NOTE } from "@/lib/scoring/competitive";
@@ -117,7 +117,7 @@ export function picksBehindGrade(
 /** Whether rival discovery can run for this brand at all: brands are named
  * by the model and verified on the web; places come from Places. */
 export function rivalDiscoveryConfigured(business: Business): boolean {
-  return business.market === "online" ? isGeminiConfigured : isPlacesConfigured;
+  return business.market === "online" ? isModelConfigured : isPlacesConfigured;
 }
 
 /** What the week still needs, read from the database alone. */

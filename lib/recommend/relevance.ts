@@ -3,7 +3,7 @@ import { verticalKey } from "@/lib/signals/vertical";
 
 /**
  * Deterministic relevance judge — the keyless half of "does this trend make
- * sense for THIS business". The Gemini judge (lib/ai/gemini.ts) reads the
+ * sense for THIS business". The model judge (lib/ai/openai.ts) reads the
  * founding analysis and re-ranks with full context when a key is present;
  * this module guarantees the same *kind* of judgment with zero network:
  * a BBQ smokehouse never gets an espresso-martini trend as its #1 just

@@ -1,8 +1,7 @@
-import type { Schema } from "@google/genai";
 
 import type { Business, BusinessBrief, PickSignal, Service } from "@/lib/db/types";
-import { isGeminiConfigured } from "@/lib/env";
-import { conceptSchemaFor, type ConceptRules, type ConceptWrite } from "@/lib/picks/concept";
+import { isModelConfigured } from "@/lib/env";
+import { conceptSchemaFor, ConceptWriteSchema, type ConceptRules, type ConceptWrite } from "@/lib/picks/concept";
 import type { CampaignSignalBrief } from "@/lib/recommend/four-signals";
 import { objectiveList } from "@/lib/onboarding/context";
 import { isOnlineBusiness } from "@/lib/signals/geo";
@@ -73,46 +72,6 @@ export interface StrategyAngle {
 
 /** Returns unvalidated output; the weekly job validates whatever comes back. */
 export type ConceptWriter = (input: ConceptWriterInput, rules: ConceptRules) => Promise<unknown>;
-
-export const CONCEPT_RESPONSE_SCHEMA = {
-  type: "OBJECT",
-  properties: {
-    title: { type: "STRING" },
-    situation: { type: "STRING" },
-    hypothesis: { type: "STRING" },
-    unknowns: { type: "ARRAY", items: { type: "STRING" } },
-    differs_from: { type: "STRING", nullable: true },
-    format: { type: "STRING" },
-    hooks: {
-      type: "OBJECT",
-      properties: { primary: { type: "STRING" }, alternatives: { type: "ARRAY", items: { type: "STRING" } } },
-      required: ["primary", "alternatives"],
-    },
-    script: {
-      type: "OBJECT",
-      properties: {
-        direction: {
-          type: "OBJECT",
-          properties: { show: { type: "STRING" }, say: { type: "STRING" }, prove: { type: "STRING" } },
-          required: ["show", "say", "prove"],
-        },
-        cta: { type: "STRING" },
-        duration_seconds: { type: "INTEGER" },
-      },
-      required: ["direction", "cta", "duration_seconds"],
-    },
-    shot_list: { type: "ARRAY", items: { type: "STRING" } },
-    approved_facts: { type: "ARRAY", items: { type: "STRING" } },
-    outcomes: {
-      type: "OBJECT",
-      properties: { if_better: { type: "STRING" }, if_same: { type: "STRING" }, if_worse: { type: "STRING" } },
-      required: ["if_better", "if_same", "if_worse"],
-    },
-    priority_reason: { type: "STRING" },
-    guardrail: { type: "STRING", nullable: true },
-  },
-  required: ["title", "situation", "hypothesis", "unknowns", "differs_from", "format", "hooks", "script", "shot_list", "approved_facts", "outcomes", "priority_reason", "guardrail"],
-} as unknown as Schema;
 
 const FORMAT_NAMES: Record<string, string> = {
   talking_head: "talking head to camera",
@@ -291,22 +250,22 @@ export function buildConceptPrompt(input: ConceptWriterInput): string {
 
 /* ------------------------------ the model path ---------------------------- */
 
-export async function writeConceptWithGemini(
+export async function writeConceptWithModel(
   input: ConceptWriterInput,
   rules: ConceptRules,
   models?: { flash: string; pro: string },
 ): Promise<{ value: ConceptWrite; model: string }> {
-  const { creativeCall, resolveModels } = await import("./gemini");
+  const { creativeCall, resolveModels } = await import("./openai");
   const m = models ?? (await resolveModels());
   const schema = conceptSchemaFor(rules);
   const validate = (d: unknown) => schema.parse(d);
   try {
-    return await creativeCall(m, buildConceptPrompt(input), CONCEPT_RESPONSE_SCHEMA, validate);
+    return await creativeCall(m, buildConceptPrompt(input), ConceptWriteSchema, validate);
   } catch (err) {
     const feedback = validationFeedback(err);
     if (!feedback) throw err;
     console.warn(`[concept] "${input.term}" rejected (${feedback}); asking for a fix`);
-    return await creativeCall(m, buildConceptPrompt({ ...input, feedback }), CONCEPT_RESPONSE_SCHEMA, validate);
+    return await creativeCall(m, buildConceptPrompt({ ...input, feedback }), ConceptWriteSchema, validate);
   }
 }
 
@@ -451,6 +410,6 @@ export function fallbackConceptWrite(input: ConceptWriterInput): ConceptWrite {
 }
 
 export function defaultConceptWriter(models?: { flash: string; pro: string }): ConceptWriter {
-  if (!isGeminiConfigured) return async (input) => fallbackConceptWrite(input);
-  return async (input, rules) => (await writeConceptWithGemini(input, rules, models)).value;
+  if (!isModelConfigured) return async (input) => fallbackConceptWrite(input);
+  return async (input, rules) => (await writeConceptWithModel(input, rules, models)).value;
 }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import AccountPanel from "@/components/app/account-panel";
+import ShopifyConnect from "@/components/app/shopify-connect";
 import TeamPanel from "@/components/app/team-panel";
 import BusinessSettingsForm from "@/components/app/business-settings-form";
 import CreativeContextForm from "@/components/app/creative-context-form";
@@ -21,6 +22,7 @@ import { adoptDocumentServicesAction, deleteDocumentAction } from "@/lib/documen
 import { MAX_DOCUMENTS } from "@/lib/documents/parse";
 import SubmitButton from "@/components/app/submit-button";
 import { getUserRepo } from "@/lib/db";
+import { disconnectShopifyAction } from "@/lib/shopify/actions";
 import { sentenceCase } from "@/lib/text";
 import {
   isApifyConfigured,
@@ -180,7 +182,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   const billingNotice = BILLING_NOTICES[billingFlag] ?? null;
   const adsFlag = String(params.ads ?? "");
   const adNotice = adsNotice(adsFlag, params);
-  const [services, rivals, metaConnection, gbpConnection, plan, documents, adRows, members] = await Promise.all([
+  const [services, rivals, metaConnection, gbpConnection, plan, documents, adRows, members, shopifyConnection, storeRead] = await Promise.all([
     repo.listServices(business.id),
     repo.listCompetitors(business.id),
     repo.getConnection(business.id, "meta"),
@@ -192,6 +194,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       return [] as AdHistory[];
     }),
     repo.listMembers(business.id).catch(() => []),
+    repo.getConnection(business.id, "shopify").catch(() => null),
+    repo.getLatestStoreRead(business.id).catch(() => null),
   ]);
   const isOwner = business.owner_id === user.id;
   const limits = planLimits(plan.plan);
@@ -223,6 +227,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           ? "Connect to sync your own ad history daily, so briefs are graded against it and tests get their results without an upload."
           : "Results come from your Ads Manager export until ad-account sync is available for your workspace.",
       action: metaConnected ? ("disconnect-meta" as const) : isMetaAdsConfigured ? ("connect-meta" as const) : null,
+    },
+    {
+      name: "Shopify store",
+      detail: shopifyConnection
+        ? `${shopifyConnection.account_name ?? shopifyConnection.account_id ?? "Connected"}`
+        : "Custom app token",
+      ok: Boolean(shopifyConnection),
+      note: shopifyConnection
+        ? `Products, costs, variants and stock sync nightly${storeRead?.orders_30d !== null && storeRead?.orders_30d !== undefined ? `; ${storeRead.orders_30d} orders in the last 30 days, ${storeRead.new_customers_30d ?? 0} first orders` : ""}. A brief knows what an offer can afford and which codes are already live.`
+        : "In your Shopify admin: Settings, Apps, Develop apps, create an app with read_products, read_inventory, read_orders and read_discounts, install it, and paste the Admin API access token.",
+      action: shopifyConnection ? ("disconnect-shopify" as const) : ("connect-shopify" as const),
     },
     {
       name: "Google reviews",
@@ -794,6 +809,14 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
               )}
               {it.action === "disconnect-meta" && (
                 <form action={disconnectMetaAction}>
+                  <button type="submit" className="btn btn-ghost btn-sm text-[11.5px]">
+                    Disconnect
+                  </button>
+                </form>
+              )}
+              {it.action === "connect-shopify" && isOwner && <ShopifyConnect />}
+              {it.action === "disconnect-shopify" && isOwner && (
+                <form action={disconnectShopifyAction}>
                   <button type="submit" className="btn btn-ghost btn-sm text-[11.5px]">
                     Disconnect
                   </button>

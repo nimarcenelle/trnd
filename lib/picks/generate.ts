@@ -7,7 +7,7 @@ import {
 } from "@/lib/ai/concept-writer";
 import type { ConceptStrategy } from "@/lib/ai/concept-writer";
 import type { Repo } from "@/lib/db/repo";
-import type { Business, BusinessBrief, NewPickBundle, Opportunity, Review, Service, Signal, SocialComment } from "@/lib/db/types";
+import type { Business, BusinessBrief, NewPickBundle, Opportunity, Review, Service, Signal, SocialComment , StoreRead } from "@/lib/db/types";
 import { indexSeries } from "@/lib/demand/series";
 import { explainOpportunity } from "@/lib/recommend/explain";
 import { campaignSignalBrief, loadSignalContext, type SignalContext } from "@/lib/recommend/four-signals";
@@ -225,6 +225,8 @@ interface WeekInputs {
   reviews: Review[];
   /** Citable facts from the owner's uploaded documents. */
   documentFacts: string[];
+  /** The brand's own store, last 30 days, when one is connected. */
+  store: StoreRead | null;
   memory: BrandMemory;
   writer: ConceptWriter;
 }
@@ -349,6 +351,14 @@ async function buildConcept(repo: Repo, input: WeekInputs, opportunity: Opportun
     otherConcepts: others.map((c) => ({ title: c.title, hypothesis: c.hypothesis })),
     durationSec,
     strategy,
+    store: input.store
+      ? {
+          orders30d: input.store.orders_30d,
+          newCustomers30d: input.store.new_customers_30d,
+          aov: typeof input.store.aov_cents === "number" ? `$${(input.store.aov_cents / 100).toFixed(0)}` : null,
+          discountCodes: (input.store.discount_codes ?? []).map((d) => `${d.code} (${d.summary})`),
+        }
+      : null,
   };
   const rules: ConceptRules = {
     term: signal.term,
@@ -534,6 +544,7 @@ export async function generateWeekPicks(repo: Repo, business: Business, opts: Ge
     comments,
     reviews,
     documentFacts: documents.flatMap((d) => d.digest?.facts ?? []),
+    store: await safe(repo.getLatestStoreRead(business.id), null),
     memory,
     writer: opts.writer ?? defaultConceptWriter(opts.models),
   };

@@ -11,6 +11,7 @@ import type {
   SignalReading,
   AdHistory,
   BusinessMember,
+  StoreRead,
   Business,
   BusinessBrief,
   Campaign,
@@ -243,7 +244,8 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
 
     async createServices(inputs) {
       if (inputs.length === 0) return [];
-      const { data, error } = await sb.from("services").insert(inputs).select();
+      // cost, variants and the store id land with 0037; rows still land without them.
+      const { data, error } = await writeTolerant(inputs, (rows) => sb.from("services").insert(rows as Record<string, unknown>[]).select(), "createServices");
       throwIf(error, "createServices");
       return (data ?? []) as Service[];
     },
@@ -253,9 +255,22 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       return (data ?? []) as Service[];
     },
     async updateService(id, patch) {
-      const { data, error } = await sb.from("services").update(patch).eq("id", id).select().single();
+      const { data, error } = await writeTolerant(patch, (row) => sb.from("services").update(row).eq("id", id).select().single(), "updateService");
       throwIf(error, "updateService");
       return data as Service;
+    },
+
+    /* ----------------------------- store reads ----------------------------- */
+    async upsertStoreRead(input) {
+      const { data, error } = await sb.from("store_reads").upsert(input, { onConflict: "business_id,captured_on" }).select().single();
+      if (error && (missingColumn(error) || /store_reads/.test(error.message))) return null;
+      throwIf(error, "upsertStoreRead");
+      return data as StoreRead;
+    },
+    async getLatestStoreRead(businessId) {
+      const { data, error } = await sb.from("store_reads").select("*").eq("business_id", businessId).order("captured_on", { ascending: false }).limit(1).maybeSingle();
+      throwUnlessMissing(error, "getLatestStoreRead");
+      return (data as StoreRead | null) ?? null;
     },
     async deleteService(id) {
       const { error } = await sb.from("services").delete().eq("id", id);

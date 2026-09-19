@@ -23,6 +23,7 @@ import type {
   Learning,
   BusinessMember,
   NewAdHistory,
+  StoreRead,
   NewAlert,
   NewBusiness,
   NewSocialPost,
@@ -933,6 +934,22 @@ export function createDemoRepo(actor: DemoActor): Repo {
       return (store.provider_usage ?? []).filter(
         (u) => new Date(u.created_at).getTime() >= cutoff && (!opts?.businessId || u.business_id === opts.businessId),
       );
+    },
+
+    /* ----------------------------- store reads ----------------------------- */
+    async upsertStoreRead(input) {
+      assertOwnsBusiness(input.business_id);
+      store.store_reads ??= [];
+      const i = store.store_reads.findIndex((r) => r.business_id === input.business_id && r.captured_on === input.captured_on);
+      const row: StoreRead = { ...input, id: i >= 0 ? store.store_reads[i].id : randomUUID(), created_at: nowIso() };
+      if (i >= 0) store.store_reads[i] = row;
+      else store.store_reads.push(row);
+      saveStore();
+      return row;
+    },
+    async getLatestStoreRead(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return null;
+      return [...(store.store_reads ?? [])].filter((r) => r.business_id === businessId).sort((a, b) => b.captured_on.localeCompare(a.captured_on))[0] ?? null;
     },
 
     /* --------------------------------- team -------------------------------- */

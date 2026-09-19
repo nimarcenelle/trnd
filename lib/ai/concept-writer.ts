@@ -4,6 +4,7 @@ import { isModelConfigured } from "@/lib/env";
 import { conceptSchemaFor, ConceptWriteSchema, type ConceptRules, type ConceptWrite } from "@/lib/picks/concept";
 import type { CampaignSignalBrief } from "@/lib/recommend/four-signals";
 import { objectiveList } from "@/lib/onboarding/context";
+import { marginPct } from "@/lib/shopify/sync";
 import { isOnlineBusiness } from "@/lib/signals/geo";
 
 import { formatPrice } from "./prompts/pick";
@@ -46,6 +47,8 @@ export interface ConceptWriterInput {
    * situation, the angle this concept should build, and the read's
    * whitespace and do-not lists. */
   strategy?: ConceptStrategy | null;
+  /** The brand's own store, last 30 days, when one is connected (lib/shopify). */
+  store?: { orders30d: number | null; newCustomers30d: number | null; aov: string | null; discountCodes: string[] } | null;
 }
 
 export interface ConceptStrategy {
@@ -88,12 +91,25 @@ function catalogBlock(input: ConceptWriterInput, online: boolean): string {
   const active = input.services.filter((s) => s.is_active !== false).slice(0, 90);
   if (active.length === 0) return "";
   return [
-    online ? "CATALOG (what the brand sells, at its listed price):" : "MENU (what the business sells, at its listed price):",
+    online ? "CATALOG (what the brand sells, at its listed price; the gross margin where the store reports its cost):" : "MENU (what the business sells, at its listed price):",
     ...active.map((s) => {
       const p = formatPrice(s.price_cents);
-      return `- ${s.name}${p ? ` (${p})` : ""}${s.description ? `: ${s.description.replace(/\s+/g, " ").slice(0, 160)}` : ""}`;
+      const m = marginPct(s);
+      const stock = s.in_stock === false ? ", out of stock" : "";
+      return `- ${s.name}${p ? ` (${p}${m !== null ? `, ${m}% margin` : ""}${stock})` : ""}${s.description ? `: ${s.description.replace(/\s+/g, " ").slice(0, 160)}` : ""}`;
     }),
+    ...storeLines(input),
   ].join("\n");
+}
+
+/** What the store says an offer can afford and must not repeat. */
+function storeLines({ store }: ConceptWriterInput): string[] {
+  if (!store) return [];
+  const out: string[] = [];
+  if (store.orders30d !== null) out.push(`THE STORE, LAST 30 DAYS: ${store.orders30d} orders${store.newCustomers30d !== null ? `, ${store.newCustomers30d} of them first orders` : ""}${store.aov ? `, average order ${store.aov}` : ""}.`);
+  if (store.discountCodes.length) out.push(`DISCOUNT CODES ALREADY LIVE (an offer in the brief must not repeat or undercut these): ${store.discountCodes.join("; ")}.`);
+  if (out.length) out.push("A margin below 40% cannot carry a discount test; say so in unknowns rather than write one.");
+  return out;
 }
 
 function customerBlock({ signals, quotes }: ConceptWriterInput): string {

@@ -78,6 +78,8 @@ import type {
   Subscription,
   NewStrategyReadRow,
   StrategyReadRow,
+  StoreRead,
+  NewStoreRead,
 } from "./types";
 
 /**
@@ -208,6 +210,11 @@ export interface Repo {
     id: string,
     patch: Pick<StandingQuestion, "answer" | "changed" | "answered_week" | "previous_answer" | "model_used">,
   ): Promise<StandingQuestion>;
+
+  /* store reads — the brand's own store, last 30 days (0037) */
+  /** One per (business, day); a same-day rerun replaces it. No-op before 0037. */
+  upsertStoreRead(input: NewStoreRead): Promise<StoreRead | null>;
+  getLatestStoreRead(businessId: string): Promise<StoreRead | null>;
 
   /* connections — OAuth links to ad platforms & business profiles */
   upsertConnection(input: NewConnection): Promise<Connection>;

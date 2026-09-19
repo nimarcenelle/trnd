@@ -119,7 +119,38 @@ export interface Service {
   is_active: boolean;
   /** From the store's public catalog, refreshed daily. Null means never read. */
   in_stock?: boolean | null;
+  /** What the product costs the brand, from Shopify's inventory items
+   * (migration 0037). With the price, the gross margin a brief may spend. */
+  cost_cents?: number | null;
+  /** The store's own product id, so a resync updates rather than duplicates. */
+  external_id?: string | null;
+  variants?: ServiceVariant[];
 }
+
+export interface ServiceVariant {
+  name: string;
+  price_cents: number | null;
+  cost_cents: number | null;
+  in_stock: boolean | null;
+}
+
+/** The store's last 30 days as of one day (migration 0037). */
+export interface StoreRead {
+  id: string;
+  business_id: string;
+  captured_on: string; // yyyy-mm-dd
+  provider: "shopify";
+  orders_30d: number | null;
+  new_customers_30d: number | null;
+  returning_customers_30d: number | null;
+  revenue_30d_cents: number | null;
+  aov_cents: number | null;
+  /** The codes live on the day: what an offer test can lean on or must avoid. */
+  discount_codes: { code: string; summary: string; ends_at: string | null }[];
+  raw: unknown;
+  created_at: string;
+}
+export type NewStoreRead = Omit<StoreRead, "id" | "created_at">;
 
 export interface Signal {
   id: string;
@@ -312,7 +343,7 @@ export interface Subscription {
 
 /* ------------------------- connections & intel ------------------------- */
 
-export type ConnectionProvider = "meta" | "google_ads" | "google_business";
+export type ConnectionProvider = "meta" | "google_ads" | "google_business" | "shopify";
 export type ConnectionStatus = "connected" | "error" | "revoked";
 
 /** An OAuth link to an external account (ad platform, business profile). */

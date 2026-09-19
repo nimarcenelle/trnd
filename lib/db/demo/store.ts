@@ -6,6 +6,7 @@ import type {
   Alert,
   BrandPick,
   BusinessMember,
+  StoreRead,
   PickEvidence,
   PickFeedback,
   PickRun,
@@ -92,6 +93,7 @@ export interface DemoStore {
   provider_usage?: ProviderUsage[];
   pilot_applications?: PilotApplication[];
   business_members?: BusinessMember[];
+  store_reads?: StoreRead[];
 }
 
 function emptyStore(): DemoStore {

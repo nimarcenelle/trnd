@@ -928,6 +928,13 @@ export function createDemoRepo(actor: DemoActor): Repo {
         .sort((a, b) => (b.started_on ?? "").localeCompare(a.started_on ?? ""))
         .slice(0, MAX_AD_HISTORY_READ);
     },
+    async linkAdHistoryToRun(adHistoryId, runId) {
+      const row = (store.ad_history ?? []).find((r) => r.id === adHistoryId);
+      if (!row) return;
+      assertOwnsBusiness(row.business_id);
+      row.run_id = runId;
+      saveStore();
+    },
     async deleteAdHistory(businessId, opts) {
       assertOwnsBusiness(businessId);
       const before = (store.ad_history ?? []).length;

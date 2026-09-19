@@ -2319,3 +2319,34 @@ details.disclosure[open] .stars__over {
 }
 
 }
+
+/* Pointing a test at its ad on Campaigns (components/picks/list-runs.tsx). */
+.picks-run__link {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.picks-run__linked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.picks-run__linked .picks-run__stats {
+  margin: 0;
+}
+.picks-run__linkform {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.picks-run__linkform select {
+  max-width: 420px;
+  font-size: 13px;
+}
+.btn-xs {
+  padding: 2px 8px;
+  font-size: 12px;
+}

@@ -1,11 +1,11 @@
 import Link from "next/link";
 
 import SubmitButton from "@/components/app/submit-button";
-import type { BrandPick, PickRun } from "@/lib/db/types";
+import type { AdHistory, BrandPick, PickRun } from "@/lib/db/types";
 import ListRunsComplete from "@/components/picks/list-runs-complete";
 import { formatUsd } from "@/lib/picks/format";
 import { runChip, runRatesLine, shortDate, truncateFinding } from "@/lib/picks/list";
-import { killPickRunAction, launchRunAction } from "@/lib/picks/run-actions";
+import { killPickRunAction, launchRunAction, linkAdToRunAction } from "@/lib/picks/run-actions";
 import { OUTCOME_LABEL, OUTCOME_TONE, runOutcome, STATUS_MEANING, type OutcomeContext } from "@/lib/record/outcome";
 
 /**
@@ -14,8 +14,19 @@ import { OUTCOME_LABEL, OUTCOME_TONE, runOutcome, STATUS_MEANING, type OutcomeCo
  * whatever results the owner has, or stopped; an ended one says how it
  * ended, what it did, and what the owner said it taught.
  */
-export default function ListRuns({ runs, outcomes = {} }: { runs: { run: PickRun; pick: BrandPick }[]; outcomes?: OutcomeContext }) {
+export default function ListRuns({
+  runs,
+  outcomes = {},
+  history = [],
+}: {
+  runs: { run: PickRun; pick: BrandPick }[];
+  outcomes?: OutcomeContext;
+  /** The brand's ad history, so an open test can be pointed at its ad by id. */
+  history?: AdHistory[];
+}) {
   if (runs.length === 0) return null;
+  // Ads with delivery, newest first, not already linked to another test.
+  const linkable = history.filter((r) => (r.impressions ?? 0) > 0 || (r.spend_cents ?? 0) > 0);
   return (
     <section className="picks-section" aria-labelledby="picks-runs-title">
       <div className="panel__head mb-3">
@@ -50,6 +61,9 @@ export default function ListRuns({ runs, outcomes = {} }: { runs: { run: PickRun
                 {results && <p className="picks-run__stats">{results}</p>}
                 {verdictLine && !results?.includes(verdictLine) && <p className="picks-run__stats">{verdictLine}</p>}
                 {run.learned && <p className="picks-run__stats">Learned: {run.learned}</p>}
+                {(run.status === "planned" || run.status === "running") && (
+                  <LinkAd runId={run.id} linked={linkable.filter((r) => r.run_id === run.id)} candidates={linkable.filter((r) => !r.run_id)} />
+                )}
               </div>
               {chip && (
                 <span className={`badge badge--${chip.tone}`}>
@@ -83,6 +97,59 @@ export default function ListRuns({ runs, outcomes = {} }: { runs: { run: PickRun
         })}
       </ul>
     </section>
+  );
+}
+
+/** One line an owner recognises an ad by in Ads Manager. */
+function adLabel(r: AdHistory): string {
+  const name = r.ad_name ?? r.campaign_name;
+  const spent = typeof r.spend_cents === "number" && r.spend_cents > 0 ? ` · ${formatUsd(r.spend_cents / 100)}` : "";
+  const when = r.started_on ? ` · ${shortDate(r.started_on)}` : "";
+  return `${name}${r.ad_name ? ` (${r.campaign_name})` : ""}${spent}${when}`.slice(0, 120);
+}
+
+/**
+ * The ad this test is, by id. A brief says what to name the ad and the
+ * sync finds it by that name; when the name was not used, the owner picks
+ * the ad from the account history here and the numbers follow.
+ */
+function LinkAd({ runId, linked, candidates }: { runId: string; linked: AdHistory[]; candidates: AdHistory[] }) {
+  if (linked.length === 0 && candidates.length === 0) return null;
+  return (
+    <div className="picks-run__link">
+      {linked.map((r) => (
+        <form key={r.id} action={linkAdToRunAction} className="picks-run__linked">
+          <input type="hidden" name="run_id" value={runId} />
+          <input type="hidden" name="ad_id" value={r.id} />
+          <input type="hidden" name="unlink" value="1" />
+          <span className="picks-run__stats">This is: {adLabel(r)}</span>
+          <SubmitButton className="btn btn-ghost btn-xs" pendingLabel="…">
+            Unlink
+          </SubmitButton>
+        </form>
+      ))}
+      {candidates.length > 0 && (
+        <form action={linkAdToRunAction} className="picks-run__linkform">
+          <input type="hidden" name="run_id" value={runId} />
+          <label className="sr-only" htmlFor={`link-${runId}`}>
+            Which ad in your account is this test
+          </label>
+          <select id={`link-${runId}`} name="ad_id" className="input" defaultValue="">
+            <option value="" disabled>
+              {linked.length > 0 ? "Add another ad from your account…" : "Which ad in your account is this test?"}
+            </option>
+            {candidates.slice(0, 60).map((r) => (
+              <option key={r.id} value={r.id}>
+                {adLabel(r)}
+              </option>
+            ))}
+          </select>
+          <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Linking…">
+            Link
+          </SubmitButton>
+        </form>
+      )}
+    </div>
   );
 }
 

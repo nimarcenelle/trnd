@@ -128,6 +128,11 @@ export interface MetaAdInsight {
   /** A percentage (1.25 means 1.25%), computed on all clicks. */
   ctr?: string;
   actions?: { action_type: string; value: string }[];
+  /** The value of each action type, in the account currency. */
+  action_values?: { action_type: string; value: string }[];
+  /** 3-second plays and ThruPlays, each a one-item list keyed "video_view". */
+  video_3_sec_watched_actions?: { action_type: string; value: string }[];
+  video_thruplay_watched_actions?: { action_type: string; value: string }[];
   date_start?: string;
   date_stop?: string;
 }
@@ -138,9 +143,12 @@ export interface MetaAdCopy {
   body: string | null;
   /** yyyy-mm-dd the ad was created, the closest thing Graph has to a start. */
   createdOn: string | null;
+  /** The creative's thumbnail or image, and what shape the creative is. */
+  thumbnailUrl?: string | null;
+  kind?: "video" | "image" | "carousel" | null;
 }
 
-const AD_INSIGHT_FIELDS = [
+const AD_INSIGHT_BASE_FIELDS = [
   "ad_id",
   "ad_name",
   "adset_name",
@@ -153,7 +161,18 @@ const AD_INSIGHT_FIELDS = [
   "actions",
   "date_start",
   "date_stop",
-].join(",");
+];
+/** The fields a DTC brand buys on and a hook is judged by. Graph retires
+ * insight fields by name between versions, so a field it refuses is dropped
+ * from the request rather than failing the whole sync. */
+const AD_INSIGHT_EXTRA_FIELDS = ["action_values", "video_3_sec_watched_actions", "video_thruplay_watched_actions"];
+export const AD_INSIGHT_FIELDS = [...AD_INSIGHT_BASE_FIELDS, ...AD_INSIGHT_EXTRA_FIELDS].join(",");
+
+/** "(#100) video_3_sec_watched_actions is not valid for fields param." */
+export function invalidField(message: string): string | null {
+  const m = /([a-z0-9_]+) is not valid for fields/i.exec(message) ?? /Unsupported field[^a-z0-9_]*([a-z0-9_]+)/i.exec(message);
+  return m ? m[1] : null;
+}
 
 /** 20 pages of 500 is 10,000 ads, far past what the history read ranks. A
  * cap keeps a runaway cursor from eating the cron's whole time budget. */
@@ -182,19 +201,39 @@ export async function fetchAdLevelInsights(
   opts: { maxPages?: number } = {},
 ): Promise<MetaAdInsight[]> {
   const path = `/${adAccountId}/insights`;
-  const params = new URLSearchParams({
-    level: "ad",
-    fields: AD_INSIGHT_FIELDS,
-    time_range: JSON.stringify(window),
-    limit: String(INSIGHT_PAGE_SIZE),
-    access_token: token,
-  });
+  let fields = [...AD_INSIGHT_BASE_FIELDS, ...AD_INSIGHT_EXTRA_FIELDS];
   const out: MetaAdInsight[] = [];
-  let url: string | undefined = `${GRAPH}${path}?${params}`;
-  for (let page = 0; url && page < (opts.maxPages ?? MAX_INSIGHT_PAGES); page++) {
-    const data: { data?: MetaAdInsight[]; paging?: { next?: string } } = await graphGetUrl(url, path);
+  let url: string | undefined;
+  for (let page = 0; page < (opts.maxPages ?? MAX_INSIGHT_PAGES); page++) {
+    if (page === 0) {
+      const params = new URLSearchParams({
+        level: "ad",
+        fields: fields.join(","),
+        time_range: JSON.stringify(window),
+        limit: String(INSIGHT_PAGE_SIZE),
+        access_token: token,
+      });
+      url = `${GRAPH}${path}?${params}`;
+    }
+    if (!url) break;
+    let data: { data?: MetaAdInsight[]; paging?: { next?: string } };
+    try {
+      data = await graphGetUrl(url, path);
+    } catch (err) {
+      // A retired extra field: ask again without it. The base fields are
+      // never dropped; an error on them is real.
+      const bad = invalidField((err as Error).message);
+      if (page === 0 && bad && AD_INSIGHT_EXTRA_FIELDS.includes(bad) && fields.includes(bad)) {
+        console.warn(`[ads:meta] Graph refused field ${bad}; syncing without it`);
+        fields = fields.filter((f) => f !== bad);
+        page -= 1;
+        continue;
+      }
+      throw err;
+    }
     out.push(...(data.data ?? []));
     url = data.paging?.next;
+    if (!url) break;
   }
   return out;
 }
@@ -202,12 +241,31 @@ export async function fetchAdLevelInsights(
 interface GraphCreative {
   body?: string;
   title?: string;
+  thumbnail_url?: string;
+  image_url?: string;
+  video_id?: string;
   object_story_spec?: {
-    link_data?: { message?: string; name?: string };
-    video_data?: { message?: string; title?: string };
+    link_data?: { message?: string; name?: string; picture?: string; child_attachments?: unknown[] };
+    video_data?: { message?: string; title?: string; image_url?: string; video_id?: string };
     template_data?: { message?: string; name?: string };
   };
-  asset_feed_spec?: { bodies?: { text?: string }[]; titles?: { text?: string }[] };
+  asset_feed_spec?: { bodies?: { text?: string }[]; titles?: { text?: string }[]; videos?: unknown[]; images?: unknown[] };
+}
+
+/** What the creative is built from, and a picture of it. */
+export function creativeShape(creative: GraphCreative | undefined): { thumbnailUrl: string | null; kind: "video" | "image" | "carousel" | null } {
+  if (!creative) return { thumbnailUrl: null, kind: null };
+  const story = creative.object_story_spec;
+  const feed = creative.asset_feed_spec;
+  const thumbnailUrl = firstText(creative.thumbnail_url, creative.image_url, story?.video_data?.image_url, story?.link_data?.picture);
+  const kind = (story?.link_data?.child_attachments?.length ?? 0) > 1
+    ? "carousel"
+    : creative.video_id || story?.video_data || (feed?.videos?.length ?? 0) > 0
+      ? "video"
+      : creative.image_url || story?.link_data || (feed?.images?.length ?? 0) > 0
+        ? "image"
+        : null;
+  return { thumbnailUrl, kind };
 }
 
 const firstText = (...values: (string | undefined)[]) =>
@@ -246,12 +304,12 @@ export async function fetchAdCreativeCopy(token: string, adIds: string[]): Promi
   for (let i = 0; i < ids.length; i += IDS_PER_REQUEST) {
     const data = await graphGet<Record<string, { created_time?: string; creative?: GraphCreative }>>("/", {
       ids: ids.slice(i, i + IDS_PER_REQUEST).join(","),
-      fields: "created_time,creative{body,title,object_story_spec,asset_feed_spec}",
+      fields: "created_time,creative{body,title,thumbnail_url,image_url,video_id,object_story_spec,asset_feed_spec}",
       access_token: token,
     });
     for (const [id, ad] of Object.entries(data)) {
       if (!ad || typeof ad !== "object") continue;
-      out[id] = { ...creativeCopy(ad.creative), createdOn: ad.created_time?.slice(0, 10) ?? null };
+      out[id] = { ...creativeCopy(ad.creative), ...creativeShape(ad.creative), createdOn: ad.created_time?.slice(0, 10) ?? null };
     }
   }
   return out;

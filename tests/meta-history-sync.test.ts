@@ -11,7 +11,7 @@ process.env.TRND_DEMO_DIR = mkdtempSync(path.join(tmpdir(), "trnd-meta-history-"
 
 const { createDemoRepo } = await import("../lib/db/demo/repo");
 const { resetStore } = await import("../lib/db/demo/store");
-const { fetchAdCreativeCopy, fetchAdLevelInsights, MAX_INSIGHT_PAGES } = await import("../lib/ads/meta");
+const { creativeShape, fetchAdCreativeCopy, fetchAdLevelInsights, invalidField, MAX_INSIGHT_PAGES } = await import("../lib/ads/meta");
 const { syncMetaAdHistory, toAdHistoryRows } = await import("../lib/ads/history-sync");
 
 afterEach(() => vi.unstubAllGlobals());
@@ -54,6 +54,12 @@ const INSIGHTS: MetaAdInsight[] = [
       { action_type: "lead", value: "3" },
       { action_type: "link_click", value: "400" },
     ],
+    action_values: [
+      { action_type: "omni_purchase", value: "1044.50" },
+      { action_type: "purchase", value: "1044.50" },
+    ],
+    video_3_sec_watched_actions: [{ action_type: "video_view", value: "6000" }],
+    video_thruplay_watched_actions: [{ action_type: "video_view", value: "1500" }],
     date_start: "2026-03-16",
     date_stop: "2026-09-12",
   },
@@ -72,7 +78,7 @@ const INSIGHTS: MetaAdInsight[] = [
 ];
 
 const COPY: Record<string, MetaAdCopy> = {
-  "1": { title: "Back in stock", body: "The jacket that sold out twice is back.", createdOn: "2026-07-01" },
+  "1": { title: "Back in stock", body: "The jacket that sold out twice is back.", createdOn: "2026-07-01", thumbnailUrl: "https://cdn/thumb1.jpg", kind: "video" },
   "2": { title: null, body: null, createdOn: "2025-11-02" },
 };
 
@@ -92,12 +98,33 @@ describe("Meta insights into ad history rows", () => {
       results: 15,
       started_on: "2026-07-01",
       ended_on: null,
+      external_ad_id: "1",
+      purchases: 12,
+      purchase_value_cents: 104450,
+      video_3s_views: 6000,
+      thruplays: 1500,
+      creative_url: "https://cdn/thumb1.jpg",
+      creative_kind: "video",
+      run_id: null,
     });
     expect(restock.ctr).toBeCloseTo(0.02);
     // No clicks column: Graph's percentage becomes a fraction. Created before
     // the window, so it starts on the window's first day.
-    expect(founder).toMatchObject({ clicks: null, results: null, copy: null, started_on: "2026-03-16", spend_cents: 4000 });
+    expect(founder).toMatchObject({ clicks: null, results: null, copy: null, started_on: "2026-03-16", spend_cents: 4000, purchases: null, video_3s_views: null, creative_url: null });
     expect(founder.ctr).toBeCloseTo(0.012);
+  });
+
+  it("carries the owner's ad-to-test links across a resync, keyed on the ad id", () => {
+    const [restock, founder] = toAdHistoryRows(INSIGHTS, COPY, { "1": "run-a" });
+    expect(restock.run_id).toBe("run-a");
+    expect(founder.run_id).toBeNull();
+  });
+
+  it("reads the creative's shape and picture", () => {
+    expect(creativeShape({ video_id: "v1", thumbnail_url: "https://cdn/t.jpg" })).toEqual({ thumbnailUrl: "https://cdn/t.jpg", kind: "video" });
+    expect(creativeShape({ object_story_spec: { link_data: { picture: "https://cdn/p.jpg", child_attachments: [{}, {}, {}] } } })).toEqual({ thumbnailUrl: "https://cdn/p.jpg", kind: "carousel" });
+    expect(creativeShape({ image_url: "https://cdn/i.jpg" })).toEqual({ thumbnailUrl: "https://cdn/i.jpg", kind: "image" });
+    expect(creativeShape(undefined)).toEqual({ thumbnailUrl: null, kind: null });
   });
 
   it("reads dynamic creative copy from asset_feed_spec", async () => {
@@ -118,8 +145,8 @@ describe("Meta insights into ad history rows", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     const copy = await fetchAdCreativeCopy("tok", ["1", "2", "1"]);
-    expect(copy["1"]).toEqual({ title: "Built for winter", body: "Down that packs into its own pocket.", createdOn: "2026-08-01" });
-    expect(copy["2"]).toEqual({ title: "Story title", body: "Story body", createdOn: null });
+    expect(copy["1"]).toEqual({ title: "Built for winter", body: "Down that packs into its own pocket.", createdOn: "2026-08-01", thumbnailUrl: null, kind: null });
+    expect(copy["2"]).toEqual({ title: "Story title", body: "Story body", createdOn: null, thumbnailUrl: null, kind: "image" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toContain("ids=1%2C2");
   });
@@ -139,6 +166,31 @@ describe("paging the insights edge", () => {
     expect(first.searchParams.get("level")).toBe("ad");
     expect(first.searchParams.get("time_range")).toBe('{"since":"2026-03-16","until":"2026-09-12"}');
     expect(first.searchParams.get("fields")).toContain("inline_link_clicks");
+  });
+
+  it("drops an extra field Graph has retired and asks again, but never a base field", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        calls.push(String(url));
+        const fields = new URL(String(url)).searchParams.get("fields") ?? "";
+        if (fields.includes("video_3_sec_watched_actions")) {
+          return Response.json({ error: { message: "(#100) video_3_sec_watched_actions is not valid for fields param. please check https://developers.facebook.com/docs/marketing-api/reference/ads-insights/ for all valid values" } }, { status: 400 });
+        }
+        return Response.json({ data: [{ ad_id: "x", impressions: "10" }] });
+      }),
+    );
+    const rows = await fetchAdLevelInsights("tok", "act_1", { since: "a", until: "b" });
+    expect(rows).toHaveLength(1);
+    expect(calls).toHaveLength(2);
+    const second = new URL(calls[1]).searchParams.get("fields") ?? "";
+    expect(second).not.toContain("video_3_sec_watched_actions");
+    expect(second).toContain("video_thruplay_watched_actions");
+    expect(second).toContain("action_values");
+    expect(invalidField("(#100) impressions is not valid for fields param.")).toBe("impressions");
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: { message: "(#100) impressions is not valid for fields param." } }, { status: 400 })));
+    await expect(fetchAdLevelInsights("tok", "act_1", { since: "a", until: "b" })).rejects.toThrow(/impressions is not valid/);
   });
 
   it("stops when there is no next page and surfaces Graph errors", async () => {

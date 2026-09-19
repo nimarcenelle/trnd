@@ -245,6 +245,9 @@ export interface Repo {
   /** Newest first, at most MAX_AD_HISTORY_READ rows. */
   listAdHistory(businessId: string): Promise<AdHistory[]>;
   deleteAdHistory(businessId: string, opts?: { source?: AdHistory["source"] }): Promise<number>;
+  /** Points a history row at a creative test (or clears it). Reads as a
+   * no-op before migration 0032. */
+  linkAdHistoryToRun(adHistoryId: string, runId: string | null): Promise<void>;
 
   /* picks — the week's ads, written whole by the weekly job */
   /** Replaces a week's picks (keeping any with a run or a dismissal) in one

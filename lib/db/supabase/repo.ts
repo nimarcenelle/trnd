@@ -846,13 +846,29 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
 
     async upsertAdHistory(inputs) {
       if (inputs.length === 0) return 0;
-      const { count, error } = await sb.from("ad_history").upsert(inputs, {
-        onConflict: "business_id,platform,campaign_name,ad_name,started_on",
-        ignoreDuplicates: true,
-        count: "exact",
-      });
+      // The depth columns land with migration 0032; until it is pasted the
+      // rows still land without them.
+      let written = 0;
+      const { error } = await writeTolerant(
+        inputs,
+        async (rows) => {
+          const res = await sb.from("ad_history").upsert(rows as Record<string, unknown>[], {
+            onConflict: "business_id,platform,campaign_name,ad_name,started_on",
+            ignoreDuplicates: true,
+            count: "exact",
+          });
+          written = res.count ?? 0;
+          return { data: null, error: res.error };
+        },
+        "upsertAdHistory",
+      );
       throwIf(error, "upsertAdHistory");
-      return count ?? 0;
+      return written;
+    },
+    async linkAdHistoryToRun(adHistoryId, runId) {
+      const { error } = await sb.from("ad_history").update({ run_id: runId }).eq("id", adHistoryId);
+      if (error && missingColumn(error)) return;
+      throwIf(error, "linkAdHistoryToRun");
     },
     async listAdHistory(businessId) {
       const { data, error } = await sb

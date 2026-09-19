@@ -84,6 +84,20 @@ describe("parseAdExport: Meta", () => {
     expect(x.rows[0]).toMatchObject({ impressions: 15000, clicks: 300, spend_cents: 133456, started_on: "2026-08-01" });
     expect(x.rows[0].ctr).toBeCloseTo(0.02, 6);
   });
+
+  it("reads purchases, their value and the video plays when the export carries the columns", () => {
+    const aoa = [
+      ["Campaign name", "Ad name", "Impressions", "Link clicks", "Amount spent (USD)", "Purchases", "Purchases conversion value", "3-second video plays", "ThruPlays", "Reporting starts"],
+      ["Fall Promo", "Pumpkin latte", 15000, 300, 1334.56, 20, 1810.5, 4200, 900, "2026-08-01"],
+      ["Fall Promo", "Pumpkin latte", 5000, 100, 100, 5, 200, 800, 100, "2026-08-01"],
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Report");
+    const out = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const x = parseAdExport({ name: "meta.xlsx", mime: "application/octet-stream", bytes: new Uint8Array(out) });
+    expect(x.rows).toHaveLength(1);
+    expect(x.rows[0]).toMatchObject({ purchases: 25, purchase_value_cents: 201050, video_3s_views: 5000, thruplays: 1000 });
+  });
 });
 
 describe("parseAdExport: Google Ads", () => {

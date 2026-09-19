@@ -457,6 +457,19 @@ export interface AdHistory {
   started_on: string | null; // yyyy-mm-dd
   ended_on: string | null;
   source: AdHistorySource;
+  /** The platform's own ad id when the row was synced (migration 0032). */
+  external_ad_id?: string | null;
+  /** Purchases and their value, apart from the platform's generic "results". */
+  purchases?: number | null;
+  purchase_value_cents?: number | null;
+  /** Video delivery: 3-second plays (the hook) and ThruPlays (the hold). */
+  video_3s_views?: number | null;
+  thruplays?: number | null;
+  /** A thumbnail or image of the creative, when the platform gave one. */
+  creative_url?: string | null;
+  creative_kind?: "video" | "image" | "carousel" | null;
+  /** The creative test this ad is linked to by the owner (pick_runs.id). */
+  run_id?: string | null;
   created_at: string;
 }
 

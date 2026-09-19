@@ -47,7 +47,7 @@ export default async function CampaignsPage() {
         )}
       </div>
 
-      <ListRuns runs={pickRuns} outcomes={outcomes} />
+      <ListRuns runs={pickRuns} outcomes={outcomes} history={history} />
 
       {pickRuns.length === 0 && (
         <div className="panel max-w-[620px]">

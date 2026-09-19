@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { syncRunsFromHistory } from "@/lib/ads/run-sync";
 import { getSessionUser } from "@/lib/auth/session";
 import { getUserRepo } from "@/lib/db";
 import type { Repo } from "@/lib/db/repo";
@@ -46,6 +47,31 @@ export async function cleanLearned(raw: unknown): Promise<string | null> {
   if (typeof raw !== "string") return null;
   const t = raw.trim();
   return t ? Array.from(t).slice(0, 600).join("") : null;
+}
+
+/**
+ * "This is the ad": the owner points a synced or uploaded ad at a test by
+ * id, so a media buyer who did not follow the naming convention can still
+ * hand the test its numbers. The row and the run must both be this brand's.
+ */
+export async function linkAdToRunAction(formData: FormData): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const repo = await getUserRepo(user.id);
+  const business = await repo.getBusinessByOwner(user.id);
+  if (!business) redirect("/onboarding");
+  const runId = String(formData.get("run_id") ?? "").trim();
+  const adId = String(formData.get("ad_id") ?? "").trim();
+  const unlink = String(formData.get("unlink") ?? "") === "1";
+  if (!runId || !adId) return;
+  const owned = (await repo.listPickRuns(business.id)).find((r) => r.run.id === runId);
+  if (!owned || (owned.run.status !== "planned" && owned.run.status !== "running")) return;
+  const row = (await repo.listAdHistory(business.id)).find((r) => r.id === adId);
+  if (!row) return;
+  await repo.linkAdHistoryToRun(row.id, unlink ? null : runId);
+  // The link is the numbers: fill them now rather than on tomorrow's sync.
+  await syncRunsFromHistory(repo, business.id);
+  revalidateRunScreens();
 }
 
 /** "Mark launched" from Campaigns: a planned test goes live. */

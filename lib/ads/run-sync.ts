@@ -21,9 +21,16 @@ import { runCampaignName, runTrackingName, type RunResults } from "@/lib/picks/l
 
 const normalize = (s: string | null | undefined) => (s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
 
-/** The history rows that carry this run's tracking name in their ad or
- * campaign name, or the run's own completion row. */
-export function historyRowsForRun(rows: AdHistory[], pick: Pick<BrandPick, "term" | "concept_title">): AdHistory[] {
+/** The history rows the owner linked to this run by ad id; when there are
+ * none, the rows that carry the run's tracking name in their ad or
+ * campaign name, or the run's own completion row. A link is a decision and
+ * outranks a name match: a media buyer who did not follow the naming
+ * convention can still point the test at its ad. */
+export function historyRowsForRun(rows: AdHistory[], pick: Pick<BrandPick, "term" | "concept_title">, runId?: string | null): AdHistory[] {
+  if (runId) {
+    const linked = rows.filter((r) => r.run_id === runId);
+    if (linked.length > 0) return linked;
+  }
   const tracking = normalize(runTrackingName(pick));
   const own = normalize(runCampaignName(pick));
   return rows.filter((r) => {
@@ -35,25 +42,32 @@ export function historyRowsForRun(rows: AdHistory[], pick: Pick<BrandPick, "term
 
 const add = (a: number | null, b: number | null) => (a === null ? b : b === null ? a : a + b);
 
-/** Pure: the matched rows summed into the run's numbers. Revenue is not in
- * an export or the account insights as stored, so it stays the owner's. */
+/** Pure: the matched rows summed into the run's numbers. Purchases and
+ * their value are taken when the rows carry them (a synced account, an
+ * export with the purchase columns); otherwise the platform's "results"
+ * stand in for conversions and revenue stays the owner's. */
 export function resultsFromRows(rows: AdHistory[]): RunResults {
   let impressions: number | null = null;
   let clicks: number | null = null;
   let spendCents: number | null = null;
   let results: number | null = null;
+  let purchases: number | null = null;
+  let valueCents: number | null = null;
   for (const r of rows) {
     impressions = add(impressions, r.impressions);
     clicks = add(clicks, r.clicks);
     spendCents = add(spendCents, r.spend_cents);
     results = add(results, r.results);
+    purchases = add(purchases, r.purchases ?? null);
+    valueCents = add(valueCents, r.purchase_value_cents ?? null);
   }
+  const conversions = purchases ?? results;
   return {
     spend_usd: spendCents === null ? null : Math.round(spendCents) / 100,
     impressions,
     clicks,
-    conversions: results === null ? null : Math.round(results),
-    revenue_usd: null,
+    conversions: conversions === null ? null : Math.round(conversions),
+    revenue_usd: valueCents === null ? null : Math.round(valueCents) / 100,
   };
 }
 
@@ -90,11 +104,11 @@ export async function syncRunsFromHistory(repo: Repo, businessId: string, now = 
   if (history.length === 0) return out;
   for (const { run, pick } of runs) {
     if (run.status !== "planned" && run.status !== "running") continue;
-    const rows = historyRowsForRun(history, pick);
+    const rows = historyRowsForRun(history, pick, run.id);
     if (rows.length === 0) continue;
     const results = resultsFromRows(rows);
     // The owner's own revenue figure, when they typed one, is kept.
-    const patch: Parameters<Repo["updatePickRun"]>[1] = { ...results, revenue_usd: run.revenue_usd ?? null };
+    const patch: Parameters<Repo["updatePickRun"]>[1] = { ...results, revenue_usd: run.revenue_usd ?? results.revenue_usd };
     let status: PickRunStatus = run.status;
     if (status === "planned" && delivered(results)) {
       status = "running";

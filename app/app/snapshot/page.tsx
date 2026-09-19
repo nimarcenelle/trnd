@@ -10,6 +10,7 @@ import { briefLikelyInFlight, generateBusinessBrief } from "@/lib/ai/brief";
 import { getSessionUser } from "@/lib/auth/session";
 import { sentenceCase } from "@/lib/text";
 import { getUserRepo } from "@/lib/db";
+import { buildDossier } from "@/lib/research/dossier";
 import { refreshSnapshotAction } from "@/lib/snapshot/actions";
 
 import { isOnlineBusiness } from "@/lib/signals/geo";
@@ -55,6 +56,28 @@ export default async function SnapshotPage() {
   }
 
   const activeServices = services.filter((s) => s.is_active);
+  // What TRND has actually read for this brand: the dossier's own tally, a
+  // read of what is stored (nothing fetched), so the owner can see the
+  // evidence base behind the week instead of taking it on trust.
+  const coverage = await buildDossier(repo, business)
+    .then((d) => d.coverage)
+    .catch((err: Error) => {
+      console.warn("[snapshot] coverage read failed (non-fatal):", err.message);
+      return null;
+    });
+  const SOURCE_NAMES: Record<string, string> = {
+    dataforseo: "Search volume",
+    google_trends: "Google Trends",
+    google_suggest: "Autocomplete",
+    reddit: "Reddit",
+    youtube: "YouTube Shorts",
+    tiktok: "TikTok",
+    meta_ads: "Meta Ad Library",
+    x: "X",
+    instagram: "Instagram",
+    snapshot: "Founding analysis",
+    seed: "Sample data",
+  };
   const generatedOn = brief
     ? new Date(brief.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
@@ -245,6 +268,41 @@ export default async function SnapshotPage() {
                 Search phrases your customers actually type, read daily{isDataForSeoConfigured ? " in your own metro" : " — nationally until the metro volume feed is switched on"}. When one
                 of them moves, it becomes the research input for a creative test in{" "}
                 <Link className="text-(--amber-text)" href="/app/picks">This week</Link>. That is the point of this page.
+              </p>
+            </div>
+          )}
+
+          {coverage && (
+            <div className="note-card" id="coverage">
+              <span className="t">What TRND has read for you</span>
+              <div className="profile-bar mt-3 mb-3">
+                <div className="p-stat"><span className="k">Competitors</span><div className="v">{coverage.rivalsNamed} named · {coverage.rivalsDirect} direct</div></div>
+                <div className="p-stat"><span className="k">Their ads</span><div className="v">{coverage.rivalAdsStored} ads · {coverage.rivalsWithAdsRead} rivals read</div></div>
+                <div className="p-stat"><span className="k">Posts</span><div className="v">{coverage.ownPosts} yours · {coverage.rivalPosts} rivals&apos;</div></div>
+                <div className="p-stat"><span className="k">Customer words</span><div className="v">{coverage.comments} comments · {coverage.reviews} reviews</div></div>
+                <div className="p-stat"><span className="k">Your ads</span><div className="v">{coverage.ownAdRows} rows{coverage.ownAdSource ? ` · ${coverage.ownAdSource.replace("_", " ")}` : ""}</div></div>
+                <div className="p-stat"><span className="k">Search terms</span><div className="v">{coverage.termsWithVolume} with volume · {coverage.termsWithSeries} with history</div></div>
+                <div className="p-stat"><span className="k">Documents</span><div className="v">{coverage.documents}</div></div>
+              </div>
+              {coverage.sources.length > 0 ? (
+                <p className="text-[12.5px] m-0 mb-2">
+                  <b>Market reads in the last 35 days:</b>{" "}
+                  {coverage.sources.map((s) => `${SOURCE_NAMES[s.source] ?? s.source} (${s.rows} rows, last ${s.lastRead ?? "unknown"})`).join(" · ")}
+                </p>
+              ) : (
+                <p className="text-[12.5px] m-0 mb-2">No market reads have landed for your category in the last 35 days.</p>
+              )}
+              {coverage.missing.length > 0 ? (
+                <ul className="m-0 pl-5 text-[12.5px] text-ink-soft">
+                  {coverage.missing.map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[12.5px] m-0 text-ink-soft">Nothing major is missing from the read.</p>
+              )}
+              <p className="font-mono text-[11px] text-ink-faint mt-2 mb-0">
+                The same tally the strategist sees before every brief. Rows, not reach: a rival&apos;s ad counts once whether it ran a day or a year.
               </p>
             </div>
           )}

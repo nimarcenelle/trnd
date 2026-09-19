@@ -14,6 +14,8 @@ import { firstWeekMode } from "@/lib/onboarding/context";
 import { nextWeekStage } from "@/lib/picks/advance-week";
 import { conceptRow, STATUS_LABEL } from "@/lib/picks/concept-view";
 import { PICKS_PER_WEEK } from "@/lib/picks/generate";
+import SubmitButton from "@/components/app/submit-button";
+import { rewriteWeekAction } from "@/lib/picks/actions";
 import { kickWeekJob } from "@/lib/picks/kick";
 import { waitHeadline, weekProgress } from "@/lib/picks/progress";
 import { dueForKick, emptyWeekLine, truncateFinding, weekRangeLabel } from "@/lib/picks/list";
@@ -107,9 +109,18 @@ export default async function PicksPage() {
               {chosen > 0 ? ` ${chosen} chosen so far.` : ""}
             </p>
           </div>
-          <Link href="/app/campaigns" className="btn btn-ghost btn-sm">
-            Tests in progress
-          </Link>
+          <div className="flex gap-2 flex-wrap items-center">
+            {business.owner_id === user.id && !stillWriting && (
+              <form action={rewriteWeekAction}>
+                <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Starting…">
+                  Write this week again
+                </SubmitButton>
+              </form>
+            )}
+            <Link href="/app/campaigns" className="btn btn-ghost btn-sm">
+              Tests in progress
+            </Link>
+          </div>
         </div>
         {mode.line && (
           <p className={`cbl__mode${mode.researchOnly ? " is-research" : ""}`} role="status">

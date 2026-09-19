@@ -134,3 +134,34 @@ export async function sharePickAction(_prev: ShareState, formData: FormData): Pr
     return { url: await shareUrl(detail.pick.share_token), error: "The link could not be made. If the share migration has not been run yet, that is why." };
   }
 }
+
+/**
+ * "Write this week again": the owner asks for the week's briefs to be
+ * written afresh, today, rather than waiting for Monday. The tests already
+ * chosen, launched or passed on stay; the rest of the week's picks and the
+ * strategist's read are cleared, and the week job is kicked so the next
+ * visit to This week shows the briefs landing. The reason it exists: a
+ * model or a read changed since Monday and the owner wants this week's
+ * briefs to carry it.
+ */
+export async function rewriteWeekAction(): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const repo = await getUserRepo(user.id);
+  const business = await repo.getBusinessByOwner(user.id);
+  if (!business) redirect("/onboarding");
+  const { weekOf } = await import("@/lib/recommend/week");
+  const { kickWeekJob, requestOrigin } = await import("@/lib/picks/kick");
+  const week = weekOf();
+  try {
+    // replaceWeekPicks keeps every pick with a run or a decision on it.
+    await repo.replaceWeekPicks(business.id, week, []);
+    await repo.deleteStrategyRead(business.id, week);
+  } catch (err) {
+    console.warn("[picks] rewrite failed (non-fatal):", (err as Error).message);
+  }
+  await kickWeekJob(business.id, { origin: await requestOrigin() });
+  revalidatePath("/app/picks");
+  revalidatePath("/app", "layout");
+  redirect("/app/picks");
+}

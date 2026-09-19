@@ -23,7 +23,7 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: "Bad origin." }, { status: 403 });
   }
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) return Response.json({ error: "Set up your business first." }, { status: 400 });
   if ((await repo.listDocuments(business.id)).length >= MAX_DOCUMENTS) {
     return Response.json({ error: `You can keep up to ${MAX_DOCUMENTS} documents — remove one first.` }, { status: 400 });

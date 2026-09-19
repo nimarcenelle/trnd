@@ -5,6 +5,7 @@ import type {
   AdHistory,
   Alert,
   BrandPick,
+  BusinessMember,
   PickEvidence,
   PickFeedback,
   PickRun,
@@ -90,6 +91,7 @@ export interface DemoStore {
   ai_usage?: AiUsage[];
   provider_usage?: ProviderUsage[];
   pilot_applications?: PilotApplication[];
+  business_members?: BusinessMember[];
 }
 
 function emptyStore(): DemoStore {

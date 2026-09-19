@@ -32,7 +32,7 @@ export async function importAdExportAction(formData: FormData): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
 
   const file = formData.get("file");
@@ -93,7 +93,7 @@ export async function clearAdHistoryAction(): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   try {
     await repo.deleteAdHistory(business.id);

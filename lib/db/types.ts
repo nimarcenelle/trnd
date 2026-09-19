@@ -678,6 +678,8 @@ export interface BrandPick {
   basis?: PickBasis | null;
   /** Why this concept sits where it does this week. */
   priority_reason?: string | null;
+  /** The token /share/<token> reads the brief by, without an account (0034). */
+  share_token?: string | null;
   status: PickStatus;
   created_at: string;
 }
@@ -943,6 +945,22 @@ export interface DocumentDigest {
   services_found: { name: string; price_cents: number | null }[];
   watchouts: string[];
 }
+
+/** Someone the owner invited to the brand: the media buyer, the strategist,
+ * the creator (migration 0034). Invited by email; user_id lands at first
+ * sign-in. A member sees the brand's data; the business row stays the
+ * owner's to edit. */
+export interface BusinessMember {
+  id: string;
+  business_id: string;
+  email: string;
+  user_id: string | null;
+  role: "member";
+  invited_by: string | null;
+  created_at: string;
+  accepted_at: string | null;
+}
+export type NewBusinessMember = Pick<BusinessMember, "business_id" | "email"> & Partial<Pick<BusinessMember, "invited_by">>;
 
 /**
  * The owner's own knowledge, next to the market's: a menu PDF, a sales

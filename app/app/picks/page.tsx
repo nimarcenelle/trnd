@@ -42,7 +42,7 @@ export default async function PicksPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
 
   const week = weekOf();

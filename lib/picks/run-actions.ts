@@ -30,7 +30,7 @@ async function ownedRun(
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
 
   const runId = String(formData.get("run_id") ?? "").trim();
@@ -58,7 +58,7 @@ export async function linkAdToRunAction(formData: FormData): Promise<void> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const runId = String(formData.get("run_id") ?? "").trim();
   const adId = String(formData.get("ad_id") ?? "").trim();
@@ -90,7 +90,7 @@ export async function checkRunFidelityAction(_prev: FidelityState, formData: For
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const runId = String(formData.get("run_id") ?? "").trim();
   const owned = (await repo.listPickRuns(business.id)).find((r) => r.run.id === runId);

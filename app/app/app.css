@@ -2377,3 +2377,41 @@ details.disclosure[open] .stars__over {
   font-style: normal;
   color: var(--ink-faint);
 }
+
+/* Share link and export formats on a brief (components/picks/*). */
+.pickd__exports {
+  display: inline-flex;
+  gap: 4px;
+}
+.pickd__export-alt {
+  padding-left: 8px;
+  padding-right: 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.pickd__share {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pickd__share-url {
+  width: 260px;
+  max-width: 100%;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+/* A brief read by share link (app/share/[token]). */
+.shared__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0 18px;
+}
+.shared__foot {
+  display: block;
+  padding: 24px 0 8px;
+  color: var(--ink-faint);
+}

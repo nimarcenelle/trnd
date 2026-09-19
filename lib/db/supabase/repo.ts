@@ -10,6 +10,7 @@ import type {
   PickFeedback,
   SignalReading,
   AdHistory,
+  BusinessMember,
   Business,
   BusinessBrief,
   Campaign,
@@ -169,10 +170,64 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwIf(error, "getBusinessByOwner");
       return data ? withBusinessDefaults(data as Business) : null;
     },
+    async getBusinessForUser(user) {
+      const own = await this.getBusinessByOwner(user.id);
+      if (own) return own;
+      const email = (user.email ?? "").trim().toLowerCase().replace(/[%_,()]/g, "");
+      let q = sb.from("business_members").select("*").order("created_at").limit(1);
+      q = email ? q.or(`user_id.eq.${user.id},email.ilike.${email}`) : q.eq("user_id", user.id);
+      const { data, error } = await q.maybeSingle();
+      // Before migration 0034 there is no roster: the user has no business.
+      if (error && (missingColumn(error) || /business_members/.test(error.message))) return null;
+      throwIf(error, "getBusinessForUser:members");
+      const member = data as BusinessMember | null;
+      if (!member) return null;
+      if (!member.user_id) {
+        // First sign-in claims the invitation; a failure here costs nothing.
+        await sb.from("business_members").update({ user_id: user.id, accepted_at: new Date().toISOString() }).eq("id", member.id);
+      }
+      return this.getBusiness(member.business_id);
+    },
     async getBusiness(id) {
       const { data, error } = await sb.from("businesses").select("*").eq("id", id).maybeSingle();
       throwIf(error, "getBusiness");
       return data ? withBusinessDefaults(data as Business) : null;
+    },
+
+    /* --------------------------------- team -------------------------------- */
+    async listMembers(businessId) {
+      const { data, error } = await sb.from("business_members").select("*").eq("business_id", businessId).order("created_at");
+      throwUnlessMissing(error, "listMembers");
+      return (data ?? []) as BusinessMember[];
+    },
+    async inviteMember(input) {
+      const row = { business_id: input.business_id, email: input.email.trim().toLowerCase(), invited_by: input.invited_by ?? null };
+      const { data, error } = await sb.from("business_members").upsert(row, { onConflict: "business_id,email" }).select().single();
+      throwIf(error, "inviteMember");
+      return data as BusinessMember;
+    },
+    async removeMember(id) {
+      const { error } = await sb.from("business_members").delete().eq("id", id);
+      throwIf(error, "removeMember");
+    },
+    async findMembershipByEmail(email) {
+      const { data, error } = await sb.from("business_members").select("*").ilike("email", email.trim().toLowerCase()).limit(1).maybeSingle();
+      throwUnlessMissing(error, "findMembershipByEmail");
+      return (data as BusinessMember | null) ?? null;
+    },
+
+    /* -------------------------------- share -------------------------------- */
+    async setPickShareToken(pickId, token) {
+      const { error } = await sb.from("picks").update({ share_token: token }).eq("id", pickId);
+      throwIf(error, "setPickShareToken");
+    },
+    async getPickDetailByShareToken(token) {
+      const { data, error } = await sb.from("picks").select("id,business_id").eq("share_token", token).maybeSingle();
+      throwUnlessMissing(error, "getPickDetailByShareToken");
+      const row = data as { id: string; business_id: string } | null;
+      if (!row) return null;
+      const [detail, business] = await Promise.all([this.getPickDetail(row.id), this.getBusiness(row.business_id)]);
+      return detail && business ? { detail, business } : null;
     },
     async updateBusiness(id, patch) {
       const { data, error } = await writeTolerant(

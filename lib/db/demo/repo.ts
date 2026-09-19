@@ -21,6 +21,7 @@ import type {
   Creative,
   IntelNote,
   Learning,
+  BusinessMember,
   NewAdHistory,
   NewAlert,
   NewBusiness,
@@ -71,7 +72,7 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-class OwnershipError extends Error {
+export class OwnershipError extends Error {
   constructor(what: string) {
     super(`demo-mode ownership check failed (would be blocked by RLS): ${what}`);
   }
@@ -80,20 +81,39 @@ class OwnershipError extends Error {
 export function createDemoRepo(actor: DemoActor): Repo {
   const store = loadStore();
 
+  /** The businesses this user was invited to, by user id or by their email. */
+  function memberBusinessIds(userId: string): Set<string> {
+    const email = store.users.find((u) => u.id === userId)?.email?.toLowerCase() ?? null;
+    return new Set(
+      (store.business_members ?? [])
+        .filter((m) => m.user_id === userId || (email !== null && m.email.toLowerCase() === email))
+        .map((m) => m.business_id),
+    );
+  }
+
+  /** Mirrors owns_business(): the owner, or a member. */
   function assertOwnsBusiness(businessId: string): Business {
     const b = store.businesses.find((x) => x.id === businessId);
     if (!b) throw new OwnershipError(`business ${businessId} not found`);
-    if (actor.kind === "user" && b.owner_id !== actor.userId) {
+    if (actor.kind === "user" && b.owner_id !== actor.userId && !memberBusinessIds(actor.userId).has(businessId)) {
       throw new OwnershipError(`business ${businessId}`);
     }
     return b;
   }
 
+  /** The business row itself is the owner's to edit. */
+  function assertIsOwner(businessId: string): Business {
+    const b = store.businesses.find((x) => x.id === businessId);
+    if (!b) throw new OwnershipError(`business ${businessId} not found`);
+    if (actor.kind === "user" && b.owner_id !== actor.userId) throw new OwnershipError(`business ${businessId}`);
+    return b;
+  }
+
   function visibleBusinessIds(): Set<string> {
     if (actor.kind === "admin") return new Set(store.businesses.map((b) => b.id));
-    return new Set(
-      store.businesses.filter((b) => b.owner_id === actor.userId).map((b) => b.id),
-    );
+    const ids = new Set(store.businesses.filter((b) => b.owner_id === actor.userId).map((b) => b.id));
+    for (const id of memberBusinessIds(actor.userId)) ids.add(id);
+    return ids;
   }
 
   function campaignOrThrow(id: string): Campaign {
@@ -128,6 +148,19 @@ export function createDemoRepo(actor: DemoActor): Repo {
       store.businesses.push(row);
       saveStore();
       return row;
+    },
+    async getBusinessForUser(user) {
+      const own = await this.getBusinessByOwner(user.id);
+      if (own) return own;
+      const email = (user.email ?? store.users.find((u) => u.id === user.id)?.email ?? "").trim().toLowerCase();
+      const member = (store.business_members ?? []).find((m) => m.user_id === user.id || (email && m.email.toLowerCase() === email));
+      if (!member) return null;
+      if (!member.user_id) {
+        member.user_id = user.id;
+        member.accepted_at = nowIso();
+        saveStore();
+      }
+      return store.businesses.find((b) => b.id === member.business_id) ?? null;
     },
     async getBusinessByOwner(ownerId) {
       if (actor.kind === "user" && actor.userId !== ownerId) return null;
@@ -898,6 +931,59 @@ export function createDemoRepo(actor: DemoActor): Repo {
       return (store.provider_usage ?? []).filter(
         (u) => new Date(u.created_at).getTime() >= cutoff && (!opts?.businessId || u.business_id === opts.businessId),
       );
+    },
+
+    /* --------------------------------- team -------------------------------- */
+    async listMembers(businessId) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      return (store.business_members ?? []).filter((m) => m.business_id === businessId);
+    },
+    async inviteMember(input) {
+      assertIsOwner(input.business_id);
+      store.business_members ??= [];
+      const email = input.email.trim().toLowerCase();
+      const existing = store.business_members.find((m) => m.business_id === input.business_id && m.email === email);
+      if (existing) return existing;
+      const row: BusinessMember = {
+        id: randomUUID(),
+        business_id: input.business_id,
+        email,
+        user_id: null,
+        role: "member",
+        invited_by: input.invited_by ?? null,
+        created_at: nowIso(),
+        accepted_at: null,
+      };
+      store.business_members.push(row);
+      saveStore();
+      return row;
+    },
+    async removeMember(id) {
+      const row = (store.business_members ?? []).find((m) => m.id === id);
+      if (!row) return;
+      assertIsOwner(row.business_id);
+      store.business_members = (store.business_members ?? []).filter((m) => m.id !== id);
+      saveStore();
+    },
+    async findMembershipByEmail(email) {
+      const e = email.trim().toLowerCase();
+      return (store.business_members ?? []).find((m) => m.email === e) ?? null;
+    },
+
+    /* -------------------------------- share -------------------------------- */
+    async setPickShareToken(pickId, token) {
+      const pick = (store.picks ?? []).find((p) => p.id === pickId);
+      if (!pick) throw new OwnershipError(`pick ${pickId} not found`);
+      assertOwnsBusiness(pick.business_id);
+      pick.share_token = token;
+      saveStore();
+    },
+    async getPickDetailByShareToken(token) {
+      if (actor.kind !== "admin") throw new OwnershipError("shared briefs read as admin");
+      const pick = (store.picks ?? []).find((p) => p.share_token === token);
+      if (!pick) return null;
+      const [detail, business] = await Promise.all([this.getPickDetail(pick.id), this.getBusiness(pick.business_id)]);
+      return detail && business ? { detail, business } : null;
     },
 
     /* ------------------------------ ad history ---------------------------- */

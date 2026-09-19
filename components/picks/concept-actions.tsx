@@ -43,6 +43,7 @@ export default function ConceptActions({
   exportHref,
   status,
   refine,
+  share,
 }: {
   pickId: string;
   copyText: string;
@@ -50,6 +51,8 @@ export default function ConceptActions({
   status: ConceptStatus;
   /** The refinement form, rendered by the page; null when the pick can no longer change. */
   refine?: React.ReactNode;
+  /** The share-link control, rendered by the page. */
+  share?: React.ReactNode;
 }) {
   const [passing, setPassing] = useState(false);
   const [refining, setRefining] = useState(false);
@@ -80,9 +83,18 @@ export default function ConceptActions({
       )}
       <div className="pickd__bar">
         <DetailCopyButton text={copyText} label="Copy brief" copiedLabel="Copied" />
-        <a className="btn btn-ghost btn-sm" href={exportHref} download>
-          Export
-        </a>
+        <span className="pickd__exports" role="group" aria-label="Export the brief">
+          <a className="btn btn-ghost btn-sm" href={exportHref} download>
+            Export
+          </a>
+          <a className="btn btn-ghost btn-sm pickd__export-alt" href={`${exportHref}?format=md`} download title="Markdown, for Notion and Slack">
+            .md
+          </a>
+          <a className="btn btn-ghost btn-sm pickd__export-alt" href={`${exportHref}?format=docx`} download title="Word, for the agency">
+            .docx
+          </a>
+        </span>
+        {share}
         {refine && (status === "proposed" || status === "chosen") && (
           <button type="button" className="btn btn-ghost btn-sm" aria-expanded={refining} aria-controls="pickd-refine" onClick={() => setRefining((v) => !v)}>
             Refine

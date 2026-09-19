@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import AccountPanel from "@/components/app/account-panel";
+import TeamPanel from "@/components/app/team-panel";
 import BusinessSettingsForm from "@/components/app/business-settings-form";
 import CreativeContextForm from "@/components/app/creative-context-form";
 import DocumentUpload from "@/components/app/document-upload";
@@ -170,7 +171,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const params = await searchParams;
   const connectError = typeof params.connect_error === "string" ? params.connect_error : null;
@@ -179,7 +180,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   const billingNotice = BILLING_NOTICES[billingFlag] ?? null;
   const adsFlag = String(params.ads ?? "");
   const adNotice = adsNotice(adsFlag, params);
-  const [services, rivals, metaConnection, gbpConnection, plan, documents, adRows] = await Promise.all([
+  const [services, rivals, metaConnection, gbpConnection, plan, documents, adRows, members] = await Promise.all([
     repo.listServices(business.id),
     repo.listCompetitors(business.id),
     repo.getConnection(business.id, "meta"),
@@ -190,7 +191,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       console.warn("[settings] ad history read failed (non-fatal):", err.message);
       return [] as AdHistory[];
     }),
+    repo.listMembers(business.id).catch(() => []),
   ]);
+  const isOwner = business.owner_id === user.id;
   // Most direct rivals first; ones not yet scored sit at the bottom.
   const competitors = [...rivals].sort((a, b) => (b.directness ?? -1) - (a.directness ?? -1));
   const adRead = adRows.length > 0 ? readAdHistory(adRows) : null;
@@ -644,6 +647,18 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             Payments aren&apos;t set up for this workspace yet. Your trial continues and nothing is locked.
           </p>
         )}
+      </section>
+
+      <section className="panel mb-5" id="team">
+        <div className="panel__head">
+          <span className="panel__title">Team</span>
+          <span className="panel__meta">{members.length + 1} {members.length === 0 ? "person" : "people"}</span>
+        </div>
+        <p className="text-[13px] text-ink-faint mx-0 mt-0 mb-4">
+          The media buyer, the strategist, whoever shoots the ads. A teammate sees this week&apos;s tests, the campaigns and the
+          record; only the owner edits the brand and the roster. A creator who will never log in gets a share link from the brief instead.
+        </p>
+        <TeamPanel members={members} isOwner={isOwner} ownerEmail={isOwner ? user.email : "the owner"} />
       </section>
 
       <section className="panel mb-5" id="account">

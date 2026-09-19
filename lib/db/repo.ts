@@ -44,6 +44,8 @@ import type {
   NewStandingQuestion,
   NewBusinessDocument,
   BusinessDocument,
+  BusinessMember,
+  NewBusinessMember,
   NewLearning,
   NewOpportunity,
   NewReview,
@@ -95,6 +97,10 @@ export interface Repo {
   /* businesses */
   createBusiness(input: NewBusiness): Promise<Business>;
   getBusinessByOwner(ownerId: string): Promise<Business | null>;
+  /** The business this user works in: their own, else the one they were
+   * invited to (by user id, or by email before the first sign-in claimed
+   * the invitation, which this claims). */
+  getBusinessForUser(user: { id: string; email?: string | null }): Promise<Business | null>;
   getBusiness(id: string): Promise<Business | null>;
   updateBusiness(id: string, patch: Partial<NewBusiness>): Promise<Business>;
   /** All businesses; admin/cron surface only. */
@@ -174,6 +180,19 @@ export interface Repo {
   /** The analyst's read on one pick — see PickRead. */
   upsertPickRead(input: NewPickRead): Promise<PickRead>;
   getPickRead(opportunityId: string): Promise<PickRead | null>;
+
+  /* team — the people the owner invited (0034) */
+  listMembers(businessId: string): Promise<BusinessMember[]>;
+  /** Idempotent on (business, email). Returns the row. */
+  inviteMember(input: NewBusinessMember): Promise<BusinessMember>;
+  removeMember(id: string): Promise<void>;
+  /** Any invitation for this email, across brands. Admin surface (signup). */
+  findMembershipByEmail(email: string): Promise<BusinessMember | null>;
+
+  /* share — a brief that reads without an account (0034) */
+  setPickShareToken(pickId: string, token: string | null): Promise<void>;
+  /** The shared brief and the brand it belongs to. Admin surface (public page). */
+  getPickDetailByShareToken(token: string): Promise<{ detail: PickDetail; business: Business } | null>;
 
   /** The owner's uploaded knowledge — see BusinessDocument. */
   listDocuments(businessId: string): Promise<BusinessDocument[]>;

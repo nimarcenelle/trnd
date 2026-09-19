@@ -27,7 +27,7 @@ export async function adoptDocumentServicesAction(formData: FormData): Promise<v
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const repo = await getUserRepo(user.id);
-  const business = await repo.getBusinessByOwner(user.id);
+  const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
   const id = String(formData.get("id") ?? "");
   const doc = (await repo.listDocuments(business.id)).find((d) => d.id === id);

@@ -34,7 +34,19 @@ function day(iso: string | null): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-export default function ConceptDetail({ view, head, exportHref, refine }: { view: ConceptView; head: ConceptHead; exportHref: string; refine?: React.ReactNode }) {
+export default function ConceptDetail({
+  view,
+  head,
+  exportHref,
+  refine,
+  share,
+}: {
+  view: ConceptView;
+  head: ConceptHead;
+  exportHref: string;
+  refine?: React.ReactNode;
+  share?: React.ReactNode;
+}) {
   const status = STATUS_LABEL[view.status];
   return (
     <div className="page pickd cb">
@@ -332,7 +344,7 @@ export default function ConceptDetail({ view, head, exportHref, refine }: { view
         </div>
       </details>
 
-      <ConceptActions pickId={view.id} copyText={view.copyAll} exportHref={exportHref} status={view.status} refine={refine} />
+      <ConceptActions pickId={view.id} copyText={view.copyAll} exportHref={exportHref} status={view.status} refine={refine} share={share} />
     </div>
   );
 }

@@ -15,11 +15,11 @@ const LONG = 21;
 /** An ad the way it looks in a feed: who ran it, how long it has run, the words. */
 export function AdCard({ ad, advertiser }: { ad: ReadAd; advertiser: string }) {
   const long = (ad.runningDays ?? 0) >= LONG;
-  return (
-    <a className="rd-ad" href={ad.url} target="_blank" rel="noreferrer">
+  const body = (
+    <>
       <div className="rd-ad__head">
         <span className="rd-ad__avatar" aria-hidden="true">
-          {advertiser.slice(0, 1).toUpperCase()}
+          {(advertiser.startsWith("Brand ") ? advertiser.slice(6, 7) : advertiser.slice(0, 1)).toUpperCase()}
         </span>
         <span className="rd-ad__who">
           <b>{advertiser}</b>
@@ -32,7 +32,15 @@ export function AdCard({ ad, advertiser }: { ad: ReadAd; advertiser: string }) {
       </div>
       <p className="rd-ad__text">{ad.text || "Image or video only, no words to read."}</p>
       {ad.opening ? <span className="rd-tag">{OPENING_LABEL[ad.opening]}</span> : null}
+    </>
+  );
+  // An anonymized ad has no link: the Ad Library page would name the brand.
+  return ad.url ? (
+    <a className="rd-ad" href={ad.url} target="_blank" rel="noreferrer">
+      {body}
     </a>
+  ) : (
+    <div className="rd-ad">{body}</div>
   );
 }
 

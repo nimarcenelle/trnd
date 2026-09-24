@@ -1,13 +1,13 @@
 @layer components {
 /* The landing page: the category read and the pitch around it
-   (app/page.tsx, components/read/*). A cheat sheet: cream paper, ink,
-   a yellow highlighter on the words that matter and a red pen for the
-   answer. Light on purpose whatever the app's theme toggle says: this page
-   is the storefront. Its tokens are scoped to .rd and re-point the shared
+   (app/page.tsx, components/read/*). Warm white, ink, one brass accent,
+   and a single dark card for the answer so the moment reads as the moment.
+   Light on purpose whatever the app's theme toggle says: this page is the
+   storefront. Its tokens are scoped to .rd and re-point the shared
    ones (--ink, --line, --paper…) so the wordmark and the pilot form follow. */
 
 .rd {
-  --rd-bg: #f7f3ea;
+  --rd-bg: #f8f6f1;
   --rd-paper: #fffdf8;
   --rd-surface: #fffdf8;
   --rd-surface-2: #f1ece0;
@@ -17,10 +17,13 @@
   --rd-ink: #17140f;
   --rd-soft: #544c3e;
   --rd-faint: #6f6757;
-  --rd-hi: #ffe45c;
-  --rd-hi-soft: rgba(255, 228, 92, 0.45);
-  --rd-red: #d8432a;
-  --rd-red-soft: rgba(216, 67, 42, 0.08);
+  --rd-hi: #b0801f;
+  --rd-hi-soft: rgba(176, 128, 31, 0.1);
+  --rd-accent: #8a6212;
+  --rd-accent-soft: rgba(176, 128, 31, 0.1);
+  --rd-red: #b3381f;
+  --rd-red-soft: rgba(179, 56, 31, 0.07);
+  --rd-night: #15130f;
   --rd-green: #17806f;
   --rd-green-soft: rgba(23, 128, 111, 0.1);
   --rd-gold-text: #8a6208;
@@ -49,27 +52,27 @@
   font-family: var(--body);
 }
 html:has(.rd) body {
-  background: #f7f3ea;
+  background: #f8f6f1;
 }
 
-/* Ruled paper under the hero, fading out, with the red margin line. */
+/* Soft daylight from above and a faint dot field that fades out. */
 .rd-atmos {
   position: absolute;
   inset: 0 0 auto;
   height: 1100px;
   z-index: -1;
   pointer-events: none;
-  background-image: repeating-linear-gradient(180deg, transparent 0 35px, rgba(56, 108, 170, 0.09) 35px 36px);
-  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.6) 45%, transparent 85%);
+  background:
+    radial-gradient(55% 40% at 50% -5%, rgba(176, 128, 31, 0.1), transparent 70%),
+    radial-gradient(30% 30% at 90% 20%, rgba(23, 128, 111, 0.06), transparent 70%);
 }
 .rd-atmos::before {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: clamp(20px, 6vw, 88px);
-  width: 1.5px;
-  background: rgba(216, 67, 42, 0.3);
+  inset: 0;
+  background-image: radial-gradient(rgba(28, 24, 16, 0.08) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(60% 50% at 50% 10%, #000 20%, transparent 75%);
 }
 
 /* ---------- type ---------- */
@@ -79,18 +82,13 @@ html:has(.rd) body {
   font-family: var(--disp);
   color: var(--rd-ink);
 }
-/* The highlighter: a yellow stroke behind the words, a little ragged. */
+/* The accent line: serif italic in brass. */
 .rd em {
   font-family: var(--rd-serif);
   font-style: italic;
   font-weight: 400;
   letter-spacing: -0.01em;
-  color: var(--rd-ink);
-  padding: 0 0.12em;
-  margin: 0 -0.04em;
-  background: linear-gradient(100deg, rgba(255, 228, 92, 0.15) 0%, var(--rd-hi) 4%, var(--rd-hi) 94%, rgba(255, 228, 92, 0.2) 100%) 0 62% / 100% 58% no-repeat;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
+  color: var(--rd-accent);
 }
 .rd-kicker {
   display: inline-flex;
@@ -103,7 +101,7 @@ html:has(.rd) body {
   color: var(--rd-faint);
 }
 .rd-kicker--gold {
-  color: var(--rd-red);
+  color: var(--rd-accent);
 }
 .rd-soft {
   color: var(--rd-soft);
@@ -154,19 +152,15 @@ html:has(.rd) body {
   cursor: default;
   opacity: 0.45;
 }
-/* The primary action: ink, with the highlighter as its shadow. */
+/* The primary action: solid ink with a soft lift. */
 .rd-btn--gold {
   color: #fffdf8;
-  background: var(--rd-ink);
-  box-shadow: 4px 4px 0 var(--rd-hi), 4px 4px 0 1px var(--rd-ink);
+  background: linear-gradient(180deg, #2a2620, var(--rd-ink));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 2px rgba(28, 24, 16, 0.2), 0 8px 20px -8px rgba(28, 24, 16, 0.45);
 }
 .rd-btn--gold:hover:not(:disabled) {
-  transform: translate(-1px, -1px);
-  box-shadow: 6px 6px 0 var(--rd-hi), 6px 6px 0 1px var(--rd-ink);
-}
-.rd-btn--gold:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--rd-hi), 1px 1px 0 1px var(--rd-ink);
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 4px rgba(28, 24, 16, 0.2), 0 14px 28px -10px rgba(28, 24, 16, 0.5);
 }
 .rd-btn--ghost {
   color: var(--rd-ink);
@@ -289,34 +283,6 @@ html:has(.rd) body {
 .rd-hero h1 em {
   letter-spacing: -0.02em;
 }
-/* The red-pen circle around one word. */
-.rd-circled {
-  position: relative;
-  white-space: nowrap;
-}
-.rd-circled svg {
-  position: absolute;
-  left: -7%;
-  top: 2%;
-  width: 114%;
-  height: 108%;
-  overflow: visible;
-  pointer-events: none;
-}
-.rd-circled path {
-  fill: none;
-  stroke: var(--rd-red);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-dasharray: 520;
-  stroke-dashoffset: 520;
-  animation: rdDraw 0.9s 0.35s cubic-bezier(0.6, 0, 0.3, 1) forwards;
-}
-@keyframes rdDraw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
 .rd-hero__sub {
   font-size: clamp(16px, 1.6vw, 19px);
   line-height: 1.6;
@@ -337,12 +303,13 @@ html:has(.rd) body {
   padding: 8px 8px 8px 20px;
   border-radius: 18px;
   background: var(--rd-paper);
-  border: 1.5px solid var(--rd-ink);
+  border: 1px solid var(--rd-stroke-2);
   box-shadow: var(--rd-shadow-lg);
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .rd-command:focus-within {
-  box-shadow: var(--rd-shadow-lg), 0 0 0 5px var(--rd-hi-soft);
+  border-color: rgba(28, 24, 16, 0.4);
+  box-shadow: var(--rd-shadow-lg), 0 0 0 5px rgba(176, 128, 31, 0.12);
 }
 .rd-command__prefix {
   font-family: var(--mono);
@@ -370,7 +337,6 @@ html:has(.rd) body {
 }
 .rd-command .rd-btn:hover:not(:disabled) {
   transform: none;
-  box-shadow: 0 0 0 3px var(--rd-hi);
 }
 .rd-trust {
   display: flex;
@@ -446,7 +412,7 @@ html:has(.rd) body {
   position: absolute;
   inset: 0;
   width: 40%;
-  background: #e2b400;
+  background: var(--rd-hi);
   animation: rdSweep 1.1s ease-in-out infinite;
 }
 @keyframes rdSweep {
@@ -469,8 +435,8 @@ html:has(.rd) body {
   font-size: 14px;
   line-height: 1.55;
   color: var(--rd-soft);
-  background: rgba(255, 228, 92, 0.22);
-  border: 1px solid rgba(190, 150, 0, 0.3);
+  background: var(--rd-accent-soft);
+  border: 1px solid rgba(176, 128, 31, 0.28);
 }
 .rd-alert b {
   color: var(--rd-ink);
@@ -575,8 +541,8 @@ a.rd-ad:hover {
   font-weight: 700;
   font-size: 13px;
   color: var(--rd-ink);
-  background: var(--rd-hi);
-  box-shadow: inset 0 0 0 1px rgba(28, 24, 16, 0.12);
+  background: var(--rd-surface-2);
+  box-shadow: inset 0 0 0 1px rgba(28, 24, 16, 0.08);
 }
 .rd-ad__who {
   display: flex;
@@ -633,8 +599,8 @@ a.rd-ad:hover {
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: 6px;
-  color: var(--rd-ink);
-  background: var(--rd-hi-soft);
+  color: var(--rd-soft);
+  background: var(--rd-surface-2);
 }
 .rd-skel {
   min-height: 132px;
@@ -683,7 +649,7 @@ a.rd-ad:hover {
   font-size: 13px;
 }
 
-/* ---------- the gap: the answer, circled ---------- */
+/* ---------- the gap: the one dark card on the page ---------- */
 .rd-gap-wrap {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
@@ -691,17 +657,24 @@ a.rd-ad:hover {
   align-items: start;
 }
 .rd-gap {
+  --rd-ink: #f6f1e6;
+  --rd-soft: #c9bea9;
+  --rd-faint: #978b76;
+  --rd-stroke: rgba(255, 238, 205, 0.12);
   position: relative;
   overflow: hidden;
-  padding: 28px;
+  padding: 30px;
   border-radius: 22px;
-  background: var(--rd-paper);
-  border: 1.5px solid var(--rd-ink);
-  box-shadow: 8px 8px 0 var(--rd-hi), 8px 8px 0 1.5px var(--rd-ink);
+  color: var(--rd-ink);
+  background: radial-gradient(90% 70% at 100% 0%, rgba(214, 164, 64, 0.22), transparent 60%), var(--rd-night);
+  box-shadow: 0 30px 70px -30px rgba(21, 19, 15, 0.6), inset 0 1px 0 rgba(255, 238, 205, 0.08);
   display: flex;
   flex-direction: column;
   gap: 18px;
   min-width: 0;
+}
+.rd-gap .rd-kicker--gold {
+  color: #e3b456;
 }
 .rd-gap__glow {
   display: none;
@@ -709,31 +682,21 @@ a.rd-ad:hover {
 .rd-gap__body {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 26px;
 }
 .rd-gap__ratio {
-  position: relative;
   display: grid;
   grid-template-columns: auto auto;
   align-items: baseline;
   flex: 0 0 auto;
   line-height: 0.9;
-  padding: 6px 12px 4px;
-}
-.rd-gap__ratio::before {
-  content: "";
-  position: absolute;
-  inset: -4px -6px 14px -8px;
-  border: 2.5px solid var(--rd-red);
-  border-radius: 50% 46% 52% 48% / 55% 50% 50% 45%;
-  transform: rotate(-4deg);
 }
 .rd-gap__ratio b {
   font-family: var(--rd-serif);
   font-weight: 400;
   font-size: clamp(76px, 10vw, 118px);
   letter-spacing: -0.04em;
-  color: var(--rd-red);
+  color: #e3b456;
 }
 .rd-gap__ratio span {
   font-family: var(--rd-serif);
@@ -747,7 +710,7 @@ a.rd-ad:hover {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--rd-faint);
-  margin-top: 12px;
+  margin-top: 10px;
 }
 .rd-gap__headline {
   margin: 0;
@@ -756,13 +719,14 @@ a.rd-ad:hover {
   font-size: clamp(21px, 2.4vw, 28px);
   line-height: 1.22;
   letter-spacing: -0.015em;
+  color: var(--rd-ink);
   text-wrap: balance;
 }
 .rd-gap__quote {
   margin: 0;
   padding: 14px 16px;
   border-radius: 12px;
-  background: var(--rd-sunk);
+  background: rgba(255, 238, 205, 0.06);
   border: 1px solid var(--rd-stroke);
 }
 .rd-gap__quote blockquote {
@@ -773,7 +737,7 @@ a.rd-ad:hover {
 .rd-gap__quote figcaption {
   font-family: var(--mono);
   font-size: 11.5px;
-  color: var(--rd-green);
+  color: #7fcbb8;
 }
 
 /* ---------- the opening mix ---------- */
@@ -806,7 +770,7 @@ a.rd-ad:hover {
 }
 .rd-sw--you,
 .rd-bar__fill--you {
-  background: #e2b400;
+  background: var(--rd-hi);
 }
 .rd-mix__row {
   display: grid;
@@ -818,15 +782,15 @@ a.rd-ad:hover {
   border-radius: 10px;
 }
 .rd-mix__row.is-gap {
-  background: var(--rd-red-soft);
-  box-shadow: inset 0 0 0 1.5px var(--rd-red);
+  background: var(--rd-accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(176, 128, 31, 0.45);
 }
 .rd-mix__label {
   font-size: 13px;
   color: var(--rd-soft);
 }
 .rd-mix__row.is-gap .rd-mix__label {
-  color: var(--rd-red);
+  color: var(--rd-accent);
   font-weight: 600;
 }
 .rd-mix__bars {
@@ -878,7 +842,7 @@ a.rd-ad:hover {
   margin: 20px 0 24px;
   padding: 18px 22px;
   border-radius: 14px;
-  border-left: 3px solid var(--rd-red);
+  border-left: 3px solid var(--rd-hi);
   background: var(--rd-sunk);
   font-family: var(--rd-serif);
   font-style: italic;
@@ -893,7 +857,7 @@ a.rd-ad:hover {
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--rd-red);
+  color: var(--rd-accent);
 }
 .rd-board {
   display: grid;
@@ -913,8 +877,9 @@ a.rd-ad:hover {
   min-height: 230px;
   padding: 44px 16px 56px;
   border-radius: 18px;
-  background: repeating-linear-gradient(180deg, #fffdf8 0 27px, rgba(56, 108, 170, 0.08) 27px 28px);
-  border: 1.5px solid var(--rd-ink);
+  background: linear-gradient(180deg, #fff, var(--rd-sunk));
+  border: 1px solid var(--rd-stroke-2);
+  box-shadow: inset 0 0 0 5px rgba(28, 24, 16, 0.03);
   overflow: hidden;
 }
 .rd-phone__at {
@@ -940,8 +905,8 @@ a.rd-ad:hover {
   line-height: 1.25;
   padding: 6px 8px;
   border-radius: 6px;
-  color: var(--rd-ink);
-  background: var(--rd-hi);
+  color: #fffdf8;
+  background: var(--rd-ink);
 }
 .rd-frame__see {
   margin: 0;
@@ -999,7 +964,7 @@ a.rd-ad:hover {
   text-align: left;
 }
 
-/* ---------- the sample: a cheat sheet on the desk ---------- */
+/* ---------- the sample under the hero ---------- */
 .rd-sample {
   position: relative;
 }
@@ -1009,7 +974,6 @@ a.rd-ad:hover {
   background: var(--rd-paper);
   border: 1px solid var(--rd-stroke-2);
   box-shadow: var(--rd-shadow-lg), 0 60px 120px -60px rgba(28, 24, 16, 0.35);
-  transform: rotate(-0.6deg);
   overflow: hidden;
 }
 .rd-window__bar {
@@ -1045,7 +1009,8 @@ a.rd-ad:hover {
   padding: 3px 8px;
   margin: 0;
   border-radius: 6px;
-  background: var(--rd-hi);
+  color: var(--rd-accent);
+  background: var(--rd-accent-soft);
 }
 .rd-window__body {
   display: grid;
@@ -1062,24 +1027,6 @@ a.rd-ad:hover {
 .rd-sample__note {
   text-align: center;
   margin-top: 20px;
-}
-/* The sticky note on the corner of the sheet. */
-.rd-sticky {
-  position: absolute;
-  z-index: 2;
-  top: -26px;
-  right: -14px;
-  width: 170px;
-  padding: 14px 14px 16px;
-  font-family: var(--rd-serif);
-  font-style: italic;
-  font-size: 18px;
-  line-height: 1.2;
-  text-align: left;
-  color: var(--rd-ink);
-  background: var(--rd-hi);
-  box-shadow: 0 12px 24px -10px rgba(28, 24, 16, 0.35);
-  transform: rotate(4deg);
 }
 
 /* ---------- figures ---------- */
@@ -1139,7 +1086,7 @@ a.rd-ad:hover {
   font-style: italic;
   font-size: 44px;
   line-height: 1;
-  color: var(--rd-red);
+  color: var(--rd-accent);
 }
 .rd-step h3 {
   font-size: 19px;
@@ -1163,8 +1110,8 @@ a.rd-ad:hover {
   font-size: 14.5px;
   line-height: 1.6;
   color: var(--rd-soft);
-  background: var(--rd-sunk);
-  border: 1.5px dashed var(--rd-stroke-2);
+  background: var(--rd-paper);
+  border: 1px solid var(--rd-stroke);
 }
 .rd-honest__stamp {
   font-family: var(--mono);
@@ -1172,10 +1119,9 @@ a.rd-ad:hover {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   padding: 6px 10px;
-  border: 1.5px solid var(--rd-red);
   border-radius: 6px;
-  color: var(--rd-red);
-  transform: rotate(-3deg);
+  color: var(--rd-accent);
+  background: var(--rd-accent-soft);
   white-space: nowrap;
 }
 .rd-honest b {
@@ -1201,8 +1147,8 @@ a.rd-ad:hover {
   box-shadow: var(--rd-shadow);
 }
 .rd-plan--featured {
-  border: 1.5px solid var(--rd-ink);
-  box-shadow: 8px 8px 0 var(--rd-hi), 8px 8px 0 1.5px var(--rd-ink);
+  border: 1px solid rgba(28, 24, 16, 0.35);
+  box-shadow: 0 2px 4px rgba(28, 24, 16, 0.04), 0 40px 80px -40px rgba(28, 24, 16, 0.35);
 }
 .rd-plan__badge {
   position: absolute;
@@ -1215,7 +1161,7 @@ a.rd-ad:hover {
   padding: 4px 10px;
   border-radius: 999px;
   color: #fffdf8;
-  background: var(--rd-red);
+  background: var(--rd-ink);
 }
 .rd-plan h3 {
   font-size: 16px;
@@ -1260,7 +1206,7 @@ a.rd-ad:hover {
   top: 3px;
   width: 13px;
   height: 13px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3 5 8.6l4.5-5' fill='none' stroke='%23d8432a' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3 5 8.6l4.5-5' fill='none' stroke='%238a6212' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     center / contain no-repeat;
 }
 
@@ -1318,18 +1264,9 @@ a.rd-ad:hover {
     grid-template-columns: repeat(3, 1fr);
     row-gap: 12px;
   }
-  .rd-sticky {
-    top: -34px;
-    right: 4px;
-    width: 150px;
-    font-size: 16px;
-  }
 }
 @media (max-width: 640px) {
   .rd-nav__links {
-    display: none;
-  }
-  .rd-atmos::before {
     display: none;
   }
   .rd-command {
@@ -1358,10 +1295,6 @@ a.rd-ad:hover {
   .rd-panel {
     padding: 20px 18px;
   }
-  .rd-gap,
-  .rd-plan--featured {
-    box-shadow: 5px 5px 0 var(--rd-hi), 5px 5px 0 1.5px var(--rd-ink);
-  }
   .rd-window {
     transform: none;
   }
@@ -1388,10 +1321,6 @@ a.rd-ad:hover {
   .rd-spin,
   .rd-rail .is-active i::after {
     animation: none;
-  }
-  .rd-circled path {
-    animation: none;
-    stroke-dashoffset: 0;
   }
 }
 }

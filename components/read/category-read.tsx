@@ -176,7 +176,7 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
           ) : phase === "idle" ? (
             <>Show me their answers →</>
           ) : (
-            <>Cheat again →</>
+            <>Run another read →</>
           )}
         </button>
       </form>
@@ -217,7 +217,7 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
               <section className="rd-panel rd-in">
                 <div className="rd-panel__head">
                   <div>
-                    <span className="rd-kicker">Your homework</span>
+                    <span className="rd-kicker">Your live ads</span>
                     <h2>{read.brand.name}</h2>
                     <p className="rd-soft">{read.brand.category}</p>
                   </div>
@@ -258,7 +258,7 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
               <section className="rd-panel rd-in">
                 <div className="rd-panel__head">
                   <div>
-                    <span className="rd-kicker">Their answers</span>
+                    <span className="rd-kicker">Competitor ads</span>
                     <h2>{read.rivals.length === 0 ? "We couldn't name your rivals" : "What your rivals keep paying for"}</h2>
                     <p className="rd-soft">
                       {read.rivals.length === 0
@@ -316,7 +316,7 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
 
             {phase === "done" && read.gap ? (
               <section className="rd-close rd-in">
-                <span className="rd-kicker rd-kicker--gold">That was one answer</span>
+                <span className="rd-kicker rd-kicker--gold">That was one test</span>
                 <h2>
                   Get three every Monday. <em>Know which one won.</em>
                 </h2>

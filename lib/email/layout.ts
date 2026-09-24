@@ -21,10 +21,16 @@ export interface EmailLayout {
   cta: EmailCta | null;
   /** One quiet line under the button, when there is something to say. */
   footnote?: string | null;
+  /** Why this inbox gets the email; defaults to having an account. */
+  reason?: string;
+  /** A one-click way out, shown in the footer when set. */
+  stopUrl?: string;
 }
 
-export const FONT = `"Instrument Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif`;
-export const MONO = `"IBM Plex Mono", Menlo, monospace`;
+// Single quotes inside: these land in double-quoted style="" attributes,
+// and a double quote there ends the attribute and drops every style after it.
+export const FONT = `'Instrument Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif`;
+export const MONO = `'IBM Plex Mono', Menlo, monospace`;
 
 export const INK = "#23201a";
 export const SOFT = "#5d564a";
@@ -103,7 +109,9 @@ export function renderEmail(opts: EmailLayout): string {
         <tr>
           <td style="padding:18px 4px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${FAINT};">
             TRND &middot; <a href="https://usetrnd.com" style="color:${FAINT};text-decoration:none;">usetrnd.com</a><br>
-            You get this because you have a TRND account.
+            ${esc(opts.reason ?? "You get this because you have a TRND account.")}${
+              opts.stopUrl ? ` <a href="${esc(opts.stopUrl)}" style="color:${FAINT};">Stop these emails</a>.` : ""
+            }
           </td>
         </tr>
       </table>

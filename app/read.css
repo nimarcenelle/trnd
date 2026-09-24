@@ -1034,6 +1034,78 @@ a.rd-ad:hover {
   text-align: left;
 }
 
+/* ---------- keep score: the loop, from the read ---------- */
+.rd-watch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  gap: 24px 36px;
+  align-items: center;
+  padding: 26px 28px;
+  border-radius: 22px;
+  background: var(--rd-paper);
+  border: 1px solid rgba(176, 128, 31, 0.35);
+  box-shadow: var(--rd-shadow);
+}
+.rd-watch h3 {
+  font-weight: 700;
+  font-size: clamp(22px, 2.6vw, 28px);
+  letter-spacing: -0.02em;
+  margin: 8px 0 6px;
+}
+.rd-watch b {
+  color: var(--rd-ink);
+}
+.rd-watch__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.rd-watch__form input {
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--rd-stroke-2);
+  background: #fff;
+  font-family: var(--body);
+  font-size: 15px;
+  color: var(--rd-ink);
+  outline: none;
+}
+.rd-watch__form input:focus {
+  border-color: rgba(28, 24, 16, 0.4);
+  box-shadow: 0 0 0 4px rgba(176, 128, 31, 0.12);
+}
+.rd-watch__form .rd-fine {
+  grid-column: 1 / -1;
+}
+.rd-watch__error {
+  color: var(--rd-red);
+}
+.rd-watch__done {
+  padding: 16px 18px;
+  border-radius: 14px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--rd-soft);
+  background: var(--rd-green-soft);
+}
+.rd-watch-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(56px, 10vw, 120px) clamp(16px, 4vw, 40px);
+}
+.rd-watch-page .rd-panel {
+  padding: 32px;
+}
+.rd-watch-page .rd-h2 {
+  font-size: clamp(28px, 4vw, 40px);
+  margin-bottom: 14px;
+}
+.rd-watch-page__action {
+  margin-top: 24px;
+}
+
 /* ---------- the sample under the hero ---------- */
 .rd-sample {
   position: relative;
@@ -1312,6 +1384,9 @@ a.rd-ad:hover {
 
 /* ---------- smaller screens ---------- */
 @media (max-width: 900px) {
+  .rd-watch {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .rd-rivals,
   .rd-gap-wrap,
   .rd-window__body {
@@ -1336,6 +1411,12 @@ a.rd-ad:hover {
   }
 }
 @media (max-width: 640px) {
+  .rd-watch {
+    padding: 20px 18px;
+  }
+  .rd-watch__form {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .rd-nav__links {
     display: none;
   }

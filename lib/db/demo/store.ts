@@ -38,6 +38,7 @@ import type {
   SocialComment,
   AiUsage,
   PilotApplication,
+  TestWatch,
   ProviderUsage,
   Subscription,
   StrategyReadRow,
@@ -92,6 +93,7 @@ export interface DemoStore {
   ai_usage?: AiUsage[];
   provider_usage?: ProviderUsage[];
   pilot_applications?: PilotApplication[];
+  test_watches?: TestWatch[];
   business_members?: BusinessMember[];
   store_reads?: StoreRead[];
 }

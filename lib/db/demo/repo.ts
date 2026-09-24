@@ -30,8 +30,12 @@ import type {
   NewSocialComment,
   NewAiUsage,
   NewPilotApplication,
+  NewTestWatch,
   NewProviderUsage,
   PilotApplication,
+  TestWatch,
+  TestWatchPatch,
+  TestWatchStatus,
   NewCampaign,
   NewBusinessBrief,
   NewCampaignResult,
@@ -1300,6 +1304,41 @@ export function createDemoRepo(actor: DemoActor): Repo {
       store.pilot_applications ??= [];
       const row: PilotApplication = { ...input, id: randomUUID(), status: "new", created_at: nowIso() };
       store.pilot_applications.push(row);
+      saveStore();
+      return row;
+    },
+
+    async insertTestWatch(input: NewTestWatch) {
+      store.test_watches ??= [];
+      const row: TestWatch = {
+        ...input,
+        email: input.email.toLowerCase(),
+        id: randomUUID(),
+        status: "pending",
+        matched_ad: null,
+        stages_sent: [],
+        confirmed_at: null,
+        live_at: null,
+        ended_at: null,
+        last_checked_at: null,
+        created_at: nowIso(),
+      };
+      store.test_watches.push(row);
+      saveStore();
+      return row;
+    },
+    async getTestWatchByToken(token: string) {
+      return (store.test_watches ?? []).find((w) => w.token === token) ?? null;
+    },
+    async listTestWatches(opts: { statuses?: TestWatchStatus[]; email?: string }) {
+      return (store.test_watches ?? []).filter(
+        (w) => (!opts.statuses?.length || opts.statuses.includes(w.status)) && (!opts.email || w.email === opts.email.toLowerCase()),
+      );
+    },
+    async updateTestWatch(id: string, patch: TestWatchPatch) {
+      const row = (store.test_watches ?? []).find((w) => w.id === id);
+      if (!row) throw new Error(`test watch ${id} not found`);
+      Object.assign(row, patch);
       saveStore();
       return row;
     },

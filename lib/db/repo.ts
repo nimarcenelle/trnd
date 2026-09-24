@@ -72,8 +72,12 @@ import type {
   AiUsage,
   NewAiUsage,
   NewPilotApplication,
+  NewTestWatch,
   NewProviderUsage,
   PilotApplication,
+  TestWatch,
+  TestWatchPatch,
+  TestWatchStatus,
   ProviderUsage,
   Subscription,
   NewStrategyReadRow,
@@ -270,6 +274,12 @@ export interface Repo {
 
   /* pilot applications — the founder-assisted pilot's front door (0028) */
   insertPilotApplication(input: NewPilotApplication): Promise<PilotApplication>;
+
+  /* test watches — a free read's test, watched in the Ad Library (0038). Service role only. */
+  insertTestWatch(input: NewTestWatch): Promise<TestWatch>;
+  getTestWatchByToken(token: string): Promise<TestWatch | null>;
+  listTestWatches(opts: { statuses?: TestWatchStatus[]; email?: string }): Promise<TestWatch[]>;
+  updateTestWatch(id: string, patch: TestWatchPatch): Promise<TestWatch>;
 
   /* ad history — the owner's own past ads and how they did */
   /** Dedupes on (business, platform, campaign, ad, start). Returns rows written. */

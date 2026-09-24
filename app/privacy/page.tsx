@@ -23,6 +23,12 @@ export default function PrivacyPage() {
         read anything behind a login.
       </p>
       <p>
+        <strong>A test you ask us to watch:</strong> if you leave your email after a free read, we
+        keep that email, your store&apos;s address and the test the read wrote, and check the
+        public Meta Ad Library once a day for your version of it. Nothing is watched until you
+        confirm by email, and every email has a link to stop.
+      </p>
+      <p>
         <strong>Documents you upload:</strong> menus, price lists, and similar files. We pull the
         text out once and throw the original file away. Only the text and a short summary are
         kept.
@@ -144,6 +150,12 @@ export default function PrivacyPage() {
         public website or business listing, to offer a free demand snapshot. If you get one of
         those emails, reply &quot;no thanks&quot; and you won&apos;t hear from us again. Ask us
         and we&apos;ll delete your record.
+      </p>
+      <p>
+        If you asked us to watch a test from a free read, you get one email to confirm, then only
+        news about that test: when it goes live, when it passes three weeks, and when it stops.
+        We stop after it ends or after 45 days without finding it, and at any time you click
+        stop.
       </p>
 
       <h2>Cookies</h2>

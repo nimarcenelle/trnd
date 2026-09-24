@@ -1083,6 +1083,58 @@ export interface PilotApplication {
   created_at: string;
 }
 export type NewPilotApplication = Omit<PilotApplication, "id" | "created_at" | "status">;
+
+/**
+ * A test someone chose to have watched from the free read (migration 0038):
+ * TRND looks for their version of the brief in the public Ad Library and
+ * reports how long it survives against the rival ad it was modeled on.
+ * pending until the email is confirmed; watching until the ad is found;
+ * live while it runs; ended when it stops; expired when it never showed;
+ * stopped when the person unsubscribed.
+ */
+export type TestWatchStatus = "pending" | "watching" | "live" | "ended" | "expired" | "stopped";
+export type TestWatchStage = "confirm" | "live" | "past_three_weeks" | "ended" | "expired";
+
+export interface TestWatchRival {
+  advertiser: string;
+  text: string;
+  /** yyyy-mm-dd, back-dated from its running days when the watch began. */
+  startedOn: string | null;
+}
+
+export interface TestWatchAd {
+  id: string;
+  text: string;
+  startedOn: string | null;
+  url: string;
+  /** Set when a read first misses the ad; a second miss a day later ends the watch. */
+  missedSince?: string;
+}
+
+export interface TestWatch {
+  id: string;
+  /** Unguessable; the confirm and stop links carry it. */
+  token: string;
+  email: string;
+  website: string;
+  domain: string;
+  brand_name: string;
+  title: string;
+  hook: string;
+  on_screen: string | null;
+  rival: TestWatchRival | null;
+  status: TestWatchStatus;
+  matched_ad: TestWatchAd | null;
+  /** Emails already sent, so a daily check never repeats one. */
+  stages_sent: TestWatchStage[];
+  confirmed_at: string | null;
+  live_at: string | null;
+  ended_at: string | null;
+  last_checked_at: string | null;
+  created_at: string;
+}
+export type NewTestWatch = Pick<TestWatch, "token" | "email" | "website" | "domain" | "brand_name" | "title" | "hook" | "on_screen" | "rival">;
+export type TestWatchPatch = Partial<Omit<TestWatch, "id" | "token" | "email" | "created_at">>;
 export type NewAdHistory = Omit<AdHistory, "id" | "created_at">;
 export type NewReviewDigest = Omit<ReviewDigest, "id" | "created_at">;
 export type NewAlert = Omit<Alert, "id" | "created_at" | "read_at">;

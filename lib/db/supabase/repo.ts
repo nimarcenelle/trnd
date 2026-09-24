@@ -38,6 +38,7 @@ import type {
   SocialComment,
   AiUsage,
   PilotApplication,
+  TestWatch,
   ProviderUsage,
   Subscription,
   StrategyReadRow,
@@ -1185,6 +1186,30 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       const { data, error } = await sb.from("pilot_applications").insert(input).select().maybeSingle();
       throwIf(error, "insertPilotApplication");
       return (data as PilotApplication | null) ?? { ...input, id: "", status: "new", created_at: new Date().toISOString() };
+    },
+
+    async insertTestWatch(input) {
+      const { data, error } = await sb.from("test_watches").insert(input).select().single();
+      throwIf(error, "insertTestWatch");
+      return data as TestWatch;
+    },
+    async getTestWatchByToken(token) {
+      const { data, error } = await sb.from("test_watches").select("*").eq("token", token).maybeSingle();
+      throwIf(error, "getTestWatchByToken");
+      return (data as TestWatch | null) ?? null;
+    },
+    async listTestWatches(opts) {
+      let q = sb.from("test_watches").select("*").order("created_at", { ascending: true });
+      if (opts.statuses?.length) q = q.in("status", opts.statuses);
+      if (opts.email) q = q.eq("email", opts.email.toLowerCase());
+      const { data, error } = await q;
+      throwIf(error, "listTestWatches");
+      return (data ?? []) as TestWatch[];
+    },
+    async updateTestWatch(id, patch) {
+      const { data, error } = await sb.from("test_watches").update(patch).eq("id", id).select().single();
+      throwIf(error, "updateTestWatch");
+      return data as TestWatch;
     },
   };
 }

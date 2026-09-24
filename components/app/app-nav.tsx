@@ -5,23 +5,24 @@ import { usePathname } from "next/navigation";
 
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
+import { FOCUS_MODE } from "@/lib/focus";
 import { sentenceCase } from "@/lib/text";
 
-// Five tabs for a one-decision product: the week's tests, the tests in
+// Five tabs for a one-decision product (two while FOCUS_MODE hides the rest): the week's tests, the tests in
 // progress, the record they built, the analysis they are written against,
 // and the settings that feed them. Nothing else is a route.
 const LINKS = [
   // The week is the ranked list now; each pick's own page sits under it, so
   // the tab stays lit while an owner reads one.
   { href: "/app/picks", label: "This week" },
-  { href: "/app/campaigns", label: "Campaigns" },
+  { href: "/app/campaigns", label: "Campaigns", hidden: FOCUS_MODE },
   // The number the product is judged on: how the picks that ran turned out.
-  { href: "/app/record", label: "Track record" },
+  { href: "/app/record", label: "Track record", hidden: FOCUS_MODE },
   // The founding analysis is one of the four things the product IS, and it
   // was reachable only by a link buried on the pick screen and in Settings.
-  { href: "/app/snapshot", label: "Snapshot" },
+  { href: "/app/snapshot", label: "Snapshot", hidden: FOCUS_MODE },
   { href: "/app/settings", label: "Settings" },
-] as const;
+].filter((l) => !l.hidden);
 
 export default function AppNav({
   businessName,

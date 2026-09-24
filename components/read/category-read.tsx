@@ -1,19 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import PilotForm from "@/components/landing/pilot-form";
 import type { ReadBrief } from "@/lib/read/brief";
-import type { AdvertiserSummary, Gap, ReadAd } from "@/lib/read/gap";
-import { OPENING_LABEL } from "@/lib/read/labels";
+import type { AdvertiserSummary, Gap } from "@/lib/read/gap";
 import type { ReadBrand, ReadEvent, ReadRival } from "@/lib/read/run";
+
+import { AdCard, BriefBoard, GapCard, OpeningMix, Stats } from "./parts";
 
 /**
  * The landing page's one input. A store's address goes in; the read
  * streams back and each section fills in the moment its stage lands, so
  * the minute it takes is spent watching the brand's category appear
- * rather than a spinner.
+ * rather than a spinner. Before anything is typed, `sample` (the sample
+ * read) sits where the results will.
  */
 
 type Phase = "idle" | "running" | "done" | "error";
@@ -69,9 +71,27 @@ function reduce(s: ReadState, e: ReadEvent): ReadState {
   }
 }
 
-const days = (n: number | null) => (n === null ? "start date unknown" : n === 1 ? "1 day" : `${n} days`);
+type StepState = "done" | "active" | "todo";
 
-export default function CategoryRead({ gated }: { gated: boolean }) {
+function steps(r: ReadState, phase: Phase): { label: string; state: StepState }[] {
+  const rivalsIn = r.rivals !== null && r.rivals.every((x) => r.rivalReads[x.name] || r.rivalFailed.includes(x.name));
+  const done = [
+    r.brand !== null,
+    r.rivals !== null,
+    r.own !== null || r.ownFailed,
+    rivalsIn,
+    r.gap !== null,
+    r.brief !== null || (phase === "done" && r.gap !== null),
+  ];
+  const labels = ["Your site", "Your rivals", "Your ads", "Their ads", "The gap", "Your test"];
+  const firstOpen = done.findIndex((d) => !d);
+  return labels.map((label, i) => ({
+    label,
+    state: done[i] ? "done" : i === firstOpen && phase === "running" ? "active" : "todo",
+  }));
+}
+
+export default function CategoryRead({ gated, sample }: { gated: boolean; sample?: ReactNode }) {
   const [website, setWebsite] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [read, setRead] = useState<ReadState>(EMPTY);
@@ -122,11 +142,14 @@ export default function CategoryRead({ gated }: { gated: boolean }) {
   }
 
   const started = phase !== "idle";
-  const rivalsPending = read.rivals?.filter((r) => !read.rivalReads[r.name] && !read.rivalFailed.includes(r.name)) ?? [];
+  const rivalSummaries = (read.rivals ?? []).map((r) => read.rivalReads[r.name]).filter((s): s is AdvertiserSummary => Boolean(s));
 
   return (
     <>
-      <form className="read-form" onSubmit={start}>
+      <form className="rd-command" onSubmit={start}>
+        <span className="rd-command__prefix" aria-hidden="true">
+          https://
+        </span>
         <label htmlFor="read-site" className="sr-only">
           Your store&rsquo;s address
         </label>
@@ -135,124 +158,181 @@ export default function CategoryRead({ gated }: { gated: boolean }) {
           type="text"
           inputMode="url"
           autoComplete="url"
+          spellCheck={false}
           placeholder="yourbrand.com"
           value={website}
           onChange={(e) => setWebsite(e.target.value)}
           disabled={phase === "running"}
         />
-        <button type="submit" className="btn btn-primary" disabled={phase === "running" || !website.trim()}>
-          {phase === "running" ? "Reading…" : phase === "idle" ? "Read my category" : "Read again"}
+        <button type="submit" className="rd-btn rd-btn--gold" disabled={phase === "running" || !website.trim()}>
+          {phase === "running" ? (
+            <>
+              <span className="rd-spin" aria-hidden="true" /> Reading
+            </>
+          ) : phase === "idle" ? (
+            <>Read my category →</>
+          ) : (
+            <>Read another →</>
+          )}
         </button>
       </form>
-      <p className="read-form__note">Free, no account. About a minute. We read your site and the public Meta Ad Library, nothing else.</p>
+      <ul className="rd-trust">
+        <li>No login</li>
+        <li>No ad account</li>
+        <li>Public data only</li>
+        <li>~60 seconds</li>
+      </ul>
 
-      <div ref={resultsRef} className="read-results" aria-live="polite">
-        {!started ? null : (
+      <div ref={resultsRef} className="rd-results" aria-live="polite">
+        {!started ? (
+          sample ?? null
+        ) : (
           <>
+            <ol className="rd-rail">
+              {steps(read, phase).map((s) => (
+                <li key={s.label} className={`is-${s.state}`}>
+                  <i aria-hidden="true" />
+                  {s.label}
+                </li>
+              ))}
+            </ol>
             {read.status ? (
-              <div className="read-status" role="status">
-                <span className="read-status__dot" aria-hidden="true" />
+              <p className="rd-status" role="status">
                 {read.status}
-              </div>
+              </p>
             ) : null}
-            {read.error ? <div className="read-error">{read.error}</div> : null}
+            {read.error ? <div className="rd-alert rd-alert--error">{read.error}</div> : null}
             {read.example ? (
-              <div className="read-example">
-                <strong>Example read.</strong> This install has no live keys, so this is an invented brand and invented rivals run through
-                the real arithmetic. With keys set, it reads the address you typed.
+              <div className="rd-alert">
+                <b>Example read.</b> This deployment has no live keys, so this is an invented brand and invented rivals run through the real
+                arithmetic. With keys set, it reads the address you typed.
               </div>
             ) : null}
 
             {read.brand ? (
-              <section className="read-section">
-                <div className="read-section__head">
-                  <span className="eyebrow">01 · What you&rsquo;re running</span>
-                  <h2>{read.brand.name}</h2>
-                  <p className="read-muted">
-                    {read.brand.category}
-                    {read.brand.products.length ? ` · ${read.brand.products.slice(0, 3).map((p) => p.name).join(", ")}` : ""}
-                  </p>
+              <section className="rd-panel rd-in">
+                <div className="rd-panel__head">
+                  <div>
+                    <span className="rd-kicker">What you&rsquo;re running</span>
+                    <h2>{read.brand.name}</h2>
+                    <p className="rd-soft">{read.brand.category}</p>
+                  </div>
+                  {read.own && read.own.active > 0 ? <Stats summary={read.own} /> : null}
                 </div>
                 {read.own ? (
-                  <AdvertiserCard summary={read.own} own />
+                  read.own.active === 0 ? (
+                    <p className="rd-soft">No live Meta ads found. The gap below is the opening to enter with.</p>
+                  ) : (
+                    <>
+                      <div className="rd-ads">
+                        {read.own.top.map((ad) => (
+                          <AdCard key={ad.id} ad={ad} advertiser={read.own!.name} />
+                        ))}
+                      </div>
+                      {read.own.stillRunning > 0 ? (
+                        <p className="rd-fine rd-note">
+                          {read.own.stillRunning === 1 ? "One ad has" : `${read.own.stillRunning} ads have`} run past three weeks. You&rsquo;re
+                          still paying for {read.own.stillRunning === 1 ? "it" : "them"}, so you know better than we do whether that&rsquo;s because{" "}
+                          {read.own.stillRunning === 1 ? "it works" : "they work"}.
+                        </p>
+                      ) : null}
+                    </>
+                  )
                 ) : read.ownFailed ? (
-                  <div className="read-card read-muted">We couldn&rsquo;t reach the Ad Library for {read.brand.name}. The rest of the read goes on.</div>
+                  <p className="rd-soft">We couldn&rsquo;t reach the Ad Library for {read.brand.name}. The rest of the read goes on.</p>
                 ) : (
-                  <div className="read-card read-skeleton" aria-hidden="true" />
+                  <div className="rd-ads">
+                    <div className="rd-ad rd-skel" />
+                    <div className="rd-ad rd-skel" />
+                    <div className="rd-ad rd-skel" />
+                  </div>
                 )}
               </section>
             ) : null}
 
             {read.rivals ? (
-              <section className="read-section">
-                <div className="read-section__head">
-                  <span className="eyebrow">02 · What your rivals keep paying for</span>
-                  <h2>{read.rivals.length === 0 ? "We couldn't name your rivals" : "Their longest-running ads"}</h2>
-                  <p className="read-muted">
-                    {read.rivals.length === 0
-                      ? "None of the brands we'd name had a site we could load. Sign up and add them yourself."
-                      : "An ad still running after three weeks is one its brand keeps paying for."}
-                  </p>
+              <section className="rd-panel rd-in">
+                <div className="rd-panel__head">
+                  <div>
+                    <span className="rd-kicker">What your rivals keep paying for</span>
+                    <h2>{read.rivals.length === 0 ? "We couldn't name your rivals" : "Their longest-running ads"}</h2>
+                    <p className="rd-soft">
+                      {read.rivals.length === 0
+                        ? "None of the brands we'd name had a site we could load. Sign up and add them yourself."
+                        : "An ad still running after three weeks is one its brand keeps paying for."}
+                    </p>
+                  </div>
                 </div>
-                <div className="read-grid">
-                  {read.rivals.map((r) =>
-                    read.rivalReads[r.name] ? (
-                      <AdvertiserCard key={r.domain} summary={read.rivalReads[r.name]} why={r.why} />
-                    ) : read.rivalFailed.includes(r.name) ? (
-                      <div key={r.domain} className="read-card">
-                        <h3>{r.name}</h3>
-                        <p className="read-muted">The Ad Library didn&rsquo;t answer for {r.name}.</p>
+                <div className="rd-rivals">
+                  {read.rivals.map((r) => {
+                    const s = read.rivalReads[r.name];
+                    return (
+                      <div key={r.domain} className="rd-rival">
+                        <div className="rd-rival__head">
+                          <div>
+                            <h3>{r.name}</h3>
+                            <span className="rd-domain">{r.domain}</span>
+                          </div>
+                          {s && s.active > 0 ? <Stats summary={s} /> : null}
+                        </div>
+                        {r.why ? <p className="rd-soft rd-why">{r.why}</p> : null}
+                        {s ? (
+                          s.active === 0 ? (
+                            <p className="rd-soft">No live Meta ads right now.</p>
+                          ) : (
+                            s.top.slice(0, 2).map((ad) => <AdCard key={ad.id} ad={ad} advertiser={r.name} />)
+                          )
+                        ) : read.rivalFailed.includes(r.name) ? (
+                          <p className="rd-soft">The Ad Library didn&rsquo;t answer for {r.name}.</p>
+                        ) : (
+                          <div className="rd-ad rd-skel" />
+                        )}
                       </div>
-                    ) : (
-                      <div key={r.domain} className="read-card read-skeleton">
-                        <h3>{r.name}</h3>
-                        <p className="read-muted">Reading their live ads…</p>
-                      </div>
-                    ),
-                  )}
+                    );
+                  })}
                 </div>
-                {rivalsPending.length > 0 ? <span className="sr-only">{rivalsPending.length} rivals still loading</span> : null}
               </section>
             ) : null}
 
             {read.gap ? (
-              <section className="read-section read-gap">
-                <span className="eyebrow">03 · The gap</span>
-                <p className="read-gap__headline">{read.gap.headline}</p>
-                {read.gap.example ? (
-                  <figure className="read-gap__example">
-                    <blockquote>&ldquo;{read.gap.example.text}&rdquo;</blockquote>
-                    <figcaption>
-                      {read.gap.example.advertiser}, still running after {days(read.gap.example.runningDays)}
-                    </figcaption>
-                  </figure>
-                ) : null}
-                <p className="read-limit">{read.gap.limit}</p>
+              <section className="rd-in rd-gap-wrap">
+                <GapCard gap={read.gap} />
+                <div className="rd-panel">
+                  <span className="rd-kicker">How the ads open, you against them</span>
+                  <OpeningMix own={read.own} rivals={rivalSummaries} highlight={read.gap.opening} />
+                </div>
               </section>
             ) : null}
 
-            {read.brief ? <BriefCard brief={read.brief} /> : null}
+            {read.brief ? (
+              <section className="rd-in">
+                <BriefBoard brief={read.brief} />
+              </section>
+            ) : null}
 
             {phase === "done" && read.gap ? (
-              <section className="read-cta">
-                <h2>Get three of these every Monday.</h2>
+              <section className="rd-close rd-in">
+                <span className="rd-kicker rd-kicker--gold">That was one test</span>
+                <h2>
+                  Get three every Monday. <em>Know which one won.</em>
+                </h2>
                 <p>
-                  TRND reads your category every week, writes the tests worth running with the evidence behind each one, checks the
-                  finished ad against its brief, and keeps score of what won.
+                  TRND reads your category every week, writes the tests worth running with the evidence behind each one, checks the finished
+                  ad against its brief, and keeps score of what won.
                 </p>
                 {gated ? (
                   applying ? (
-                    <div className="read-apply">
+                    <div className="rd-apply">
                       <PilotForm />
                     </div>
                   ) : (
-                    <button type="button" className="btn btn-primary" onClick={() => setApplying(true)}>
-                      Apply for the pilot
+                    <button type="button" className="rd-btn rd-btn--gold rd-btn--lg" onClick={() => setApplying(true)}>
+                      Apply for the pilot →
                     </button>
                   )
                 ) : (
-                  <Link href="/signup" className="btn btn-primary">
-                    Get my first week
+                  <Link href="/signup" className="rd-btn rd-btn--gold rd-btn--lg">
+                    Get my first week →
                   </Link>
                 )}
               </section>
@@ -261,96 +341,5 @@ export default function CategoryRead({ gated }: { gated: boolean }) {
         )}
       </div>
     </>
-  );
-}
-
-function AdLine({ ad }: { ad: ReadAd }) {
-  return (
-    <li className="read-ad">
-      <div className="read-ad__meta">
-        <span className={`read-days${(ad.runningDays ?? 0) >= 21 ? " read-days--long" : ""}`}>{days(ad.runningDays)}</span>
-        {ad.opening ? <span className="read-chip">{OPENING_LABEL[ad.opening]}</span> : null}
-      </div>
-      <a href={ad.url} target="_blank" rel="noreferrer" className="read-ad__text">
-        {ad.text || "Image or video only, no words to read"}
-      </a>
-    </li>
-  );
-}
-
-function AdvertiserCard({ summary, why, own = false }: { summary: AdvertiserSummary; why?: string; own?: boolean }) {
-  if (summary.active === 0) {
-    return (
-      <div className="read-card">
-        {own ? null : <h3>{summary.name}</h3>}
-        <p className="read-muted">{own ? "No live Meta ads found. The gap below is the opening to enter with." : "No live Meta ads right now."}</p>
-      </div>
-    );
-  }
-  return (
-    <div className="read-card">
-      {own ? null : (
-        <>
-          <h3>{summary.name}</h3>
-          {why ? <p className="read-muted read-why">{why}</p> : null}
-        </>
-      )}
-      <div className="read-stats">
-        <span>
-          <b>{summary.active}</b> live
-        </span>
-        <span>
-          <b>{summary.stillRunning}</b> past 3 weeks
-        </span>
-        {summary.longestDays !== null ? (
-          <span>
-            longest <b>{summary.longestDays}</b> days
-          </span>
-        ) : null}
-      </div>
-      <ul className="read-ads">
-        {summary.top.slice(0, own ? 3 : 2).map((ad) => (
-          <AdLine key={ad.id} ad={ad} />
-        ))}
-      </ul>
-      {own && summary.stillRunning > 0 ? (
-        <p className="read-muted read-own-note">
-          {summary.stillRunning === 1 ? "One ad has" : `${summary.stillRunning} ads have`} run past three weeks. You&rsquo;re still paying for
-          {summary.stillRunning === 1 ? " it" : " them"}, so you know better than we do whether that&rsquo;s because {summary.stillRunning === 1 ? "it works" : "they work"}.
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function BriefCard({ brief }: { brief: ReadBrief }) {
-  return (
-    <section className="read-section read-brief">
-      <span className="eyebrow">04 · Your first test</span>
-      <h2>{brief.title}</h2>
-      <p className="read-muted">On {brief.product}</p>
-      <p className="read-brief__hyp">{brief.hypothesis}</p>
-      <div className="read-brief__hook">
-        <span className="mono-label">The hook, word for word</span>
-        <p>&ldquo;{brief.hook}&rdquo;</p>
-      </div>
-      <div className="read-beats">
-        <span className="mono-label">The first three seconds</span>
-        {brief.beats.map((b) => (
-          <div key={b.at} className="read-beat">
-            <span className="read-beat__at">{b.at}</span>
-            <div>
-              <p>{b.see}</p>
-              {b.onScreen && b.onScreen !== "none" ? <p className="read-muted">On screen: {b.onScreen}</p> : null}
-              {b.say && b.say !== "none" ? <p className="read-muted">Said: &ldquo;{b.say}&rdquo;</p> : null}
-            </div>
-          </div>
-        ))}
-      </div>
-      <p className="read-limit">
-        Why this test: {brief.because}
-        {brief.hook.includes("[") ? " The bracketed parts are yours to fill." : ""}
-      </p>
-    </section>
   );
 }

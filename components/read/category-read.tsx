@@ -100,7 +100,11 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
 
   async function start(e: React.FormEvent) {
     e.preventDefault();
-    if (!website.trim() || phase === "running") return;
+    if (phase === "running") return;
+    if (!website.trim()) {
+      document.getElementById("read-site")?.focus();
+      return;
+    }
     setPhase("running");
     setRead(EMPTY);
     setApplying(false);
@@ -164,15 +168,15 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
           onChange={(e) => setWebsite(e.target.value)}
           disabled={phase === "running"}
         />
-        <button type="submit" className="rd-btn rd-btn--gold" disabled={phase === "running" || !website.trim()}>
+        <button type="submit" className="rd-btn rd-btn--gold" disabled={phase === "running"}>
           {phase === "running" ? (
             <>
               <span className="rd-spin" aria-hidden="true" /> Reading
             </>
           ) : phase === "idle" ? (
-            <>Read my category →</>
+            <>Show me their answers →</>
           ) : (
-            <>Read another →</>
+            <>Cheat again →</>
           )}
         </button>
       </form>
@@ -213,7 +217,7 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
               <section className="rd-panel rd-in">
                 <div className="rd-panel__head">
                   <div>
-                    <span className="rd-kicker">What you&rsquo;re running</span>
+                    <span className="rd-kicker">Your homework</span>
                     <h2>{read.brand.name}</h2>
                     <p className="rd-soft">{read.brand.category}</p>
                   </div>
@@ -254,8 +258,8 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
               <section className="rd-panel rd-in">
                 <div className="rd-panel__head">
                   <div>
-                    <span className="rd-kicker">What your rivals keep paying for</span>
-                    <h2>{read.rivals.length === 0 ? "We couldn't name your rivals" : "Their longest-running ads"}</h2>
+                    <span className="rd-kicker">Their answers</span>
+                    <h2>{read.rivals.length === 0 ? "We couldn't name your rivals" : "What your rivals keep paying for"}</h2>
                     <p className="rd-soft">
                       {read.rivals.length === 0
                         ? "None of the brands we'd name had a site we could load. Sign up and add them yourself."
@@ -312,7 +316,7 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
 
             {phase === "done" && read.gap ? (
               <section className="rd-close rd-in">
-                <span className="rd-kicker rd-kicker--gold">That was one test</span>
+                <span className="rd-kicker rd-kicker--gold">That was one answer</span>
                 <h2>
                   Get three every Monday. <em>Know which one won.</em>
                 </h2>

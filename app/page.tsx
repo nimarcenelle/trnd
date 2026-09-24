@@ -13,6 +13,9 @@ import { findGap, summarizeAdvertiser } from "@/lib/read/gap";
 import "./landing.css";
 import "./read.css";
 
+// The pitch: cheat off your competitors, because the Ad Library is public
+// and their long-running ads are the answers they already paid for. It never
+// means copying: the brief is written in the brand's own voice.
 // The page is one input: a store's address, and a minute later the
 // brand's category read back to it (lib/read/run.ts). Under the input sits
 // a sample read of an invented brand, run through the same arithmetic, so
@@ -28,12 +31,17 @@ function SampleRead() {
   const shown = rivals.slice(0, 2).map((r) => ({ name: r.name, ad: r.top[0] }));
   return (
     <div className="rd-sample" aria-label="A sample read of an invented brand">
+      <div className="rd-sticky" aria-hidden="true">
+        Their answers.
+        <br />
+        Your test.
+      </div>
       <div className="rd-window">
         <div className="rd-window__bar" aria-hidden="true">
           <i />
           <i />
           <i />
-          <span>trnd · category read · {EXAMPLE_BRAND.domain}</span>
+          <span>cheat sheet · {EXAMPLE_BRAND.domain}</span>
           <em>Sample</em>
         </div>
         <div className="rd-window__body">
@@ -47,7 +55,7 @@ function SampleRead() {
           </div>
         </div>
       </div>
-      <p className="rd-fine rd-sample__note">A sample read of an invented shower-filter brand. Yours reads your store and your real rivals.</p>
+      <p className="rd-fine rd-sample__note">A sample cheat sheet for an invented shower-filter brand. Yours reads your store and your real rivals.</p>
     </div>
   );
 }
@@ -55,18 +63,18 @@ function SampleRead() {
 const STEPS = [
   {
     n: "01",
-    h: "We name your rivals",
-    p: "From your store alone: the brands selling the same thing to the same customer at the same price. Every one checked to exist.",
+    h: "Find the smart kids",
+    p: "From your store alone, we name the brands selling the same thing to your customer at your price. Every one checked to exist.",
   },
   {
     n: "02",
-    h: "We read what they keep paying for",
-    p: "Every live Meta ad, yours and theirs, sorted by how long it has survived on its owner's money, and read for how it opens.",
+    h: "Read their answers",
+    p: "Every ad they're running, sorted by how long it has survived on their budget. Losers get switched off. What's left is what they keep paying for.",
   },
   {
     n: "03",
-    h: "You get the test to run",
-    p: "The opening they lean on that you don't, and a brief a creator can shoot from, with the first three seconds dictated.",
+    h: "Write your own",
+    p: "The opening they lean on that you don't, and a brief in your voice a creator can shoot from. Never a copy of theirs.",
   },
 ];
 
@@ -99,7 +107,7 @@ export default function Home() {
             Sign in
           </Link>
           <a href="#read" className="rd-btn rd-btn--ghost rd-btn--sm">
-            Free read
+            Free cheat sheet
           </a>
         </div>
       </nav>
@@ -107,15 +115,23 @@ export default function Home() {
       <main>
         <header className="rd-hero" id="read">
           <span className="rd-pill">
-            <i aria-hidden="true" /> Reading the Meta Ad Library live
+            <i aria-hidden="true" /> It&rsquo;s not cheating if it&rsquo;s public
           </span>
           <h1>
-            Your rivals already found the ads worth paying for.
-            <em> See them in sixty seconds.</em>
+            Cheat off your{" "}
+            <span className="rd-circled">
+              competitors.
+              <svg viewBox="0 0 300 100" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M152 8C84 4 14 18 8 50c-6 34 70 46 146 44 76-2 140-16 138-46C290 16 214 2 128 10" />
+              </svg>
+            </span>
+            <span className="rd-hero__answer">
+              <em>They already paid for the answers.</em>
+            </span>
           </h1>
           <p className="rd-hero__sub">
-            Paste your store. TRND names your competitors, reads every ad they&rsquo;re running, finds the opening they keep paying for that
-            you don&rsquo;t, and writes the test to fill it.
+            Your rivals spent months and real money finding out which ads work. Paste your store and see their answers in sixty seconds:
+            what they keep paying for, the opening you&rsquo;re missing, and a test to beat them with.
           </p>
           <CategoryRead gated={isPilotGated} sample={<SampleRead />} />
         </header>
@@ -130,9 +146,9 @@ export default function Home() {
         </section>
 
         <section className="rd-section" id="how">
-          <span className="rd-kicker rd-kicker--gold">How it works</span>
+          <span className="rd-kicker rd-kicker--gold">How the cheating works</span>
           <h2 className="rd-h2">
-            Research your team does on a Friday afternoon, <em>done before your coffee cools.</em>
+            They ran the tests. <em>You read the answers.</em>
           </h2>
           <div className="rd-steps">
             {STEPS.map((s) => (
@@ -144,16 +160,19 @@ export default function Home() {
             ))}
           </div>
           <div className="rd-honest">
-            <b>What we won&rsquo;t pretend.</b> The Ad Library shows when an ad started, never what it spent or sold. An ad still running after
-            three weeks is one its brand keeps paying for: a strong hint, not proof. Every read says so, and every brief is a hypothesis to test,
-            not a promise.
+            <span className="rd-honest__stamp">Hall pass</span>
+            <p style={{ margin: 0 }}>
+              <b>It&rsquo;s all public, and it&rsquo;s all yours.</b> Every ad we read is in the Meta Ad Library, open to anyone. We never copy
+              an ad: we show you what&rsquo;s working for them and write a test that&rsquo;s yours. And we&rsquo;ll say it plainly: an ad still
+              running after three weeks is one its brand keeps paying for. That&rsquo;s a strong hint, not proof, and every read says so.
+            </p>
           </div>
         </section>
 
         <section className="rd-section" id="pricing">
           <span className="rd-kicker rd-kicker--gold">After the free read</span>
           <h2 className="rd-h2">
-            Three tests every Monday. <em>A record of which ones won.</em>
+            Cheat every Monday. <em>Keep score of what won.</em>
           </h2>
           <div className="rd-plans">
             {PLAN_TIERS.map((t) => (
@@ -171,7 +190,7 @@ export default function Home() {
                   ))}
                 </ul>
                 <a href="#read" className={`rd-btn ${t.featured ? "rd-btn--gold" : "rd-btn--ghost"}`}>
-                  Start with a free read
+                  Start with a free cheat sheet
                 </a>
               </div>
             ))}
@@ -180,10 +199,10 @@ export default function Home() {
 
         <section className="rd-final">
           <h2 className="rd-h2">
-            Stop briefing from memory. <em>Brief from what&rsquo;s working.</em>
+            Everyone else is guessing. <em>You don&rsquo;t have to.</em>
           </h2>
           <a href="#read" className="rd-btn rd-btn--gold rd-btn--lg">
-            Read my category →
+            Show me their answers →
           </a>
         </section>
       </main>

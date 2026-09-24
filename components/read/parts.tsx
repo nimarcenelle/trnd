@@ -119,7 +119,7 @@ export function GapCard({ gap }: { gap: Gap }) {
   return (
     <div className="rd-gap">
       <div className="rd-gap__glow" aria-hidden="true" />
-      <span className="rd-kicker rd-kicker--gold">The gap</span>
+      <span className="rd-kicker rd-kicker--gold">The answer you&rsquo;re missing</span>
       <div className="rd-gap__body">
         {showRatio ? (
           <div className="rd-gap__ratio" aria-hidden="true">

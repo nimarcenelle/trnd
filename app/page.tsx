@@ -73,7 +73,7 @@ function MarketStrip({ pulse }: { pulse: MarketPulse }) {
   );
   return (
     <div className="rd-strip" role="region" aria-label="This week's reads, summed across every brand">
-      <span className="rd-strip__label">Live</span>
+      <span className="rd-strip__label">Rec</span>
       <div className="rd-strip__track">
         {row(false)}
         {row(true)}
@@ -166,7 +166,7 @@ export default async function Home() {
       <div className="rd-atmos" aria-hidden="true" />
 
       <nav className="rd-nav">
-        <Brand href={null} />
+        <Brand href={null} live />
         <div className="rd-nav__links">
           <a href="#how">How it works</a>
           <a href="#pricing">Pricing</a>
@@ -185,7 +185,7 @@ export default async function Home() {
       <main>
         <header className="rd-hero" id="read">
           <span className="rd-pill">
-            <i aria-hidden="true" /> Built on the public Meta Ad Library
+            <i aria-hidden="true" /> Always-on surveillance for paid social
           </span>
           <h1>
             Cheat off your competitors.
@@ -273,7 +273,7 @@ export default async function Home() {
 
       <footer className="rd-footer">
         <Brand href={null} size={14} />
-        <span>Know what to make next.</span>
+        <span>Ad intelligence. Always-on surveillance for paid social.</span>
         <span className="rd-footer__links">
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>

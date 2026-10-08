@@ -43,7 +43,7 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
     <main className="rd ob">
       <div className="rd-atmos" aria-hidden="true" />
       <nav className="rd-nav">
-        <Brand href={null} />
+        <Brand href={null} live />
       </nav>
       <section className="ob-hero">
         <span className="rd-kicker rd-kicker--gold">One step</span>

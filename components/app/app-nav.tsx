@@ -31,7 +31,7 @@ export default function AppNav({
   return (
     <nav className="rd-nav rd-appnav">
       <div className="rd-appnav__left">
-        <Brand href="/app/rivals" size={16} />
+        <Brand href="/app/rivals" size={16} live />
         <span className="rd-appnav__biz">{sentenceCase(businessName)}</span>
       </div>
       <div className="rd-appnav__tabs" role="navigation" aria-label="App sections">

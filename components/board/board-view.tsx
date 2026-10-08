@@ -97,9 +97,15 @@ export function MissingList({ missing }: { missing: Missing[] }) {
           </figure>
         ) : null}
         <p className="rd-fine">{top.detail}</p>
-        <Link href="/app/picks" className="bd-act bd-act--dark">
-          Brief the test that fills it →
-        </Link>
+        {top.kind === "placement" ? (
+          <a href="https://adsmanager.facebook.com/" target="_blank" rel="noreferrer" className="bd-act bd-act--dark">
+            Turn it on in Ads Manager ↗
+          </a>
+        ) : (
+          <Link href="/app/picks" className="bd-act bd-act--dark">
+            {top.kind === "volume" || top.kind === "pace" ? "Brief more tests →" : "Brief the test that fills it →"}
+          </Link>
+        )}
       </div>
       {rest.length > 0 ? (
         <ol className="bd-missing__rest">

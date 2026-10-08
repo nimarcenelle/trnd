@@ -41,9 +41,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #d8432a;
-  box-shadow: 0 0 0 4px rgba(216, 67, 42, 0.14);
-  animation: rdPulse 1.6s ease-in-out infinite;
+  background: var(--mint);
+  animation: brandRec 2s ease-out infinite;
 }
 .bd-chips {
   display: flex;
@@ -290,8 +289,8 @@
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #d8432a;
-  box-shadow: 0 0 0 3px rgba(216, 67, 42, 0.14);
+  background: var(--mint);
+  animation: brandRec 2s ease-out infinite;
 }
 .bd-rec.is-off {
   background: var(--rd-stroke-2);
@@ -381,7 +380,8 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bd-live i {
+  .bd-live i,
+  .bd-rec {
     animation: none;
   }
 }

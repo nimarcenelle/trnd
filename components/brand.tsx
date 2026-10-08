@@ -1,16 +1,20 @@
 import Link from "next/link";
 
 /**
- * The TRND wordmark, matched to the logo: sage-mint dot, wide-tracked
+ * The TRND wordmark, matched to the logo: the dot is the recording light
+ * (pulsing when `live`), sage-mint, wide-tracked
  * geometric caps in warm off-white (ink). One component so every surface
  * renders the identical mark.
  */
 export default function Brand({
   href = "/",
   size = 17,
+  live = false,
 }: {
   href?: string | null;
   size?: number;
+  /** The dot as a recording light: it pulses while TRND is watching. */
+  live?: boolean;
 }) {
   const mark = (
     <span
@@ -28,6 +32,7 @@ export default function Brand({
     >
       <i
         aria-hidden="true"
+        className={live ? "brand-rec" : undefined}
         style={{
           width: Math.round(size * 0.5),
           height: Math.round(size * 0.5),

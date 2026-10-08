@@ -51,7 +51,7 @@ export default async function RivalsPage() {
         <div>
           <span className="bd-live">
             <i aria-hidden="true" />
-            {competitors.length > 0 ? `Watching ${competitors.length} competitor${competitors.length === 1 ? "" : "s"}` : "Naming your competitors"}
+            {competitors.length > 0 ? `Rec · watching ${competitors.length} competitor${competitors.length === 1 ? "" : "s"}` : "Naming your competitors"}
             {board.lastReadAt ? ` · last read ${ago(board.lastReadAt, now)}` : ""}
           </span>
           <h1>

@@ -20,9 +20,9 @@ import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://usetrnd.com";
-const TITLE = "TRND: Know what ad to run next";
+const TITLE = "TRND: Ad intelligence. Always-on surveillance for paid social.";
 const DESCRIPTION =
-  "An AI creative strategist for DTC brands. Every week TRND reads your customers, your category, your competitors and your own results, and calls the next ad to run: the product, the audience, the angle, the format and three scripts to test.";
+  "Cheat off your competitors. TRND watches every competitor's Meta ads every day: what they launched, what they killed, what they keep paying for, and what you're missing.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

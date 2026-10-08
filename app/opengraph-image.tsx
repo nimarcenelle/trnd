@@ -7,7 +7,7 @@ import { ImageResponse } from "next/og";
  * this renders outside CSS.
  */
 
-export const alt = "TRND: Know what ad to run next";
+export const alt = "TRND: Ad intelligence. Always-on surveillance for paid social.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -32,22 +32,23 @@ export default function Image() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
-          <div style={{ width: 26, height: 26, borderRadius: 999, background: MINT, display: "flex" }} />
+          {/* The dot is the recording light. */}
+          <div style={{ width: 26, height: 26, borderRadius: 999, background: MINT, boxShadow: `0 0 0 10px ${MINT}33`, display: "flex" }} />
           <div style={{ fontSize: 54, fontWeight: 700, letterSpacing: 22, color: INK, display: "flex" }}>
             TRND
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ fontSize: 74, fontWeight: 700, color: INK, lineHeight: 1.15, display: "flex" }}>
-            Know what ad
+            Cheat off your competitors.
           </div>
-          <div style={{ fontSize: 74, fontWeight: 700, color: GOLD, lineHeight: 1.15, display: "flex" }}>
-            to run next.
+          <div style={{ fontSize: 58, fontWeight: 400, fontStyle: "italic", color: GOLD, lineHeight: 1.2, display: "flex" }}>
+            Always-on surveillance for paid social.
           </div>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 28, color: INK_FAINT, display: "flex" }}>
-            The next best ad, for DTC growth teams.
+            Ad intelligence.
           </div>
           <div style={{ fontSize: 28, color: INK_FAINT, letterSpacing: 2, display: "flex" }}>
             usetrnd.com

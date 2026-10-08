@@ -107,6 +107,12 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
     }
     setPhase("running");
     setRead(EMPTY);
+    // Setup prefills the store someone just read (components/onboarding/url-start.tsx).
+    try {
+      localStorage.setItem("trnd-read-site", website.trim());
+    } catch {
+      /* storage blocked: setup just starts empty */
+    }
     setApplying(false);
     requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     let state = EMPTY;

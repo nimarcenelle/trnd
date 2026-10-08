@@ -101,14 +101,14 @@ export async function signInAction(
       }
       return { error: error.message };
     }
-    redirect("/app/picks");
+    redirect("/app/rivals");
   }
 
   const result = demoSignIn(email, password);
   if ("error" in result) return { error: result.error };
   const cookieStore = await cookies();
   cookieStore.set(DEMO_SESSION_COOKIE, createSessionToken(result.user.id), COOKIE_OPTS);
-  redirect("/app/picks");
+  redirect("/app/rivals");
 }
 
 /** Magic link — Supabase mode only; demo mode has no mailbox to land in. */

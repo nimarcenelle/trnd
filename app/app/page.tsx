@@ -28,5 +28,5 @@ export default async function AppHome({
     const index = legacyPickIndex(pick, rows.length);
     if (index !== null) redirect(`/app/picks/${rows[index].pick.id}`);
   }
-  redirect("/app/picks");
+  redirect("/app/rivals");
 }

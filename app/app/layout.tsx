@@ -1,4 +1,5 @@
 import "./app.css";
+import "../read.css";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -19,7 +20,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
   const plan = await getPlanState(repo, business);
 
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="rd min-h-dvh flex flex-col">
       <AppNav businessName={business.name} signOut={signOutAction} />
       {isStripeConfigured && plan.locked && (
         <div className="demo-strip" role="status">

@@ -39,6 +39,7 @@ import type {
   AiUsage,
   PilotApplication,
   TestWatch,
+  OwnAdRead,
   ProviderUsage,
   Subscription,
   StrategyReadRow,
@@ -94,6 +95,7 @@ export interface DemoStore {
   provider_usage?: ProviderUsage[];
   pilot_applications?: PilotApplication[];
   test_watches?: TestWatch[];
+  own_ad_reads?: OwnAdRead[];
   business_members?: BusinessMember[];
   store_reads?: StoreRead[];
 }

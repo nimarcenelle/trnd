@@ -31,6 +31,8 @@ import type {
   NewAiUsage,
   NewPilotApplication,
   NewTestWatch,
+  NewOwnAdRead,
+  OwnAdRead,
   NewProviderUsage,
   PilotApplication,
   TestWatch,
@@ -778,6 +780,23 @@ export function createDemoRepo(actor: DemoActor): Repo {
       }
       if (written) saveStore();
       return written;
+    },
+    async upsertOwnAdRead(input: NewOwnAdRead) {
+      assertOwnsBusiness(input.business_id);
+      store.own_ad_reads ??= [];
+      const captured = input.captured_at ?? nowIso();
+      if (store.own_ad_reads.some((r) => r.business_id === input.business_id && r.captured_at.slice(0, 10) === captured.slice(0, 10))) return 0;
+      const row: OwnAdRead = { ...input, id: randomUUID(), captured_at: captured };
+      store.own_ad_reads.push(row);
+      saveStore();
+      return 1;
+    },
+    async listOwnAdReads(businessId: string, opts?: { sinceDays?: number }) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      const cutoff = Date.now() - (opts?.sinceDays ?? 30) * 86400_000;
+      return (store.own_ad_reads ?? [])
+        .filter((r) => r.business_id === businessId && new Date(r.captured_at).getTime() >= cutoff)
+        .sort((a, b) => b.captured_at.localeCompare(a.captured_at));
     },
     async listCompetitorReads(businessId, opts) {
       if (!visibleBusinessIds().has(businessId)) return [];

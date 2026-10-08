@@ -22,8 +22,8 @@ import { getPlanState, planLimits } from "@/lib/billing";
  * those are the ads the owner's ads are actually up against.
  */
 
-/** The same five the local seed watches: enough for a panel, few enough to read daily. */
-export const BRAND_SEED_COUNT = 5;
+/** Every competitor's paid ads are read daily: the top ten, within the plan's cap. */
+export const BRAND_SEED_COUNT = 10;
 /** Sites and ad reads at once: quick enough for onboarding's after(), gentle on the network. */
 const VERIFY_CONCURRENCY = 5;
 /**

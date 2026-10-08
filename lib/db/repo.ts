@@ -73,6 +73,8 @@ import type {
   NewAiUsage,
   NewPilotApplication,
   NewTestWatch,
+  NewOwnAdRead,
+  OwnAdRead,
   NewProviderUsage,
   PilotApplication,
   TestWatch,
@@ -236,6 +238,9 @@ export interface Repo {
   /** Idempotent per (competitor, kind, day). Returns rows written. */
   upsertCompetitorReads(inputs: NewCompetitorRead[]): Promise<number>;
   listCompetitorReads(businessId: string, opts?: { sinceDays?: number }): Promise<CompetitorRead[]>;
+  /** The brand's own live ads, one read a day (0039). */
+  upsertOwnAdRead(input: NewOwnAdRead): Promise<number>;
+  listOwnAdReads(businessId: string, opts?: { sinceDays?: number }): Promise<OwnAdRead[]>;
 
   /* reviews — own + competitor voice-of-customer */
   /** Dedupes on (business, competitor, author, text). Returns rows written. */

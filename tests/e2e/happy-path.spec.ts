@@ -19,6 +19,9 @@ test("signup → onboarding → the week's tests → choose → launch → resul
   // --- onboarding wizard, the manual path (no website): a local business,
   // so the steps ask for a city and the seeded category has signals.
   await expect(page).toHaveURL(/\/onboarding/);
+  // Setup is one URL field now; the manual wizard is kept at ?full=1 and
+  // needs no network, which is what this run has.
+  await page.goto("/onboarding?full=1");
   await page.getByLabel("Business name").fill("Glow Aesthetics Studio");
   await page.getByRole("button", { name: "Continue" }).click();
 
@@ -42,12 +45,14 @@ test("signup → onboarding → the week's tests → choose → launch → resul
   await page.getByRole("button", { name: "Continue" }).click();
 
   await page.getByLabel("Brand voice notes").fill("Warm but direct. No exclamation marks.");
-  const toApp = page.waitForURL(/\/app(\/picks)?$/, { timeout: 30_000 });
+  const toApp = page.waitForURL(/\/app(\/rivals|\/picks)?$/, { timeout: 30_000 });
   await page
     .getByRole("button", { name: /Finish setup|Finishing setup/ })
     .click({ timeout: 10_000 })
     .catch(() => {}); // the button may detach as the action navigates
   await toApp;
+  // Competitors is home; the week's briefs are one tab over.
+  await page.goto("/app/picks");
 
   // --- the week is written in the background; the page waits, then lists it
   await expect(page.getByRole("heading", { name: "What to make next" })).toBeVisible({ timeout: 120_000 });

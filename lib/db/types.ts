@@ -1092,6 +1092,20 @@ export type NewPilotApplication = Omit<PilotApplication, "id" | "created_at" | "
  * live while it runs; ended when it stops; expired when it never showed;
  * stopped when the person unsubscribed.
  */
+/**
+ * The brand's own live Meta ads, read from the public Ad Library once a day
+ * (migration 0039), the same shape a rival's ads read stores in
+ * competitor_reads.raw, so the board compares like with like.
+ */
+export interface OwnAdRead {
+  id: string;
+  business_id: string;
+  active: number;
+  raw: unknown;
+  captured_at: string;
+}
+export type NewOwnAdRead = Omit<OwnAdRead, "id" | "captured_at"> & { captured_at?: string };
+
 export type TestWatchStatus = "pending" | "watching" | "live" | "ended" | "expired" | "stopped";
 export type TestWatchStage = "confirm" | "live" | "past_three_weeks" | "ended" | "expired";
 

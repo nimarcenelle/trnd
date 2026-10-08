@@ -41,6 +41,30 @@
   --paper: var(--rd-paper);
   --card-stroke: var(--rd-stroke-2);
   --mint: var(--rd-green);
+  /* The rest of the shared palette, pinned light: inside .rd a saved dark
+     preference must not leave the older app screens half dark. */
+  --bg: var(--rd-bg);
+  --bg-3: #e3dfd1;
+  --amber: #b0801f;
+  --amber-text: #8a6212;
+  --amber-display: #8a6212;
+  --amber-ink: #fffdf8;
+  --amber-hover: #c4922c;
+  --amber-glow: rgba(176, 128, 31, 0.14);
+  --amber-soft: rgba(176, 128, 31, 0.1);
+  --amber-softer: rgba(176, 128, 31, 0.04);
+  --mint-text: #0f6e60;
+  --mint-ink: #eafbf6;
+  --mint-glow: rgba(23, 128, 111, 0.16);
+  --mint-soft: rgba(23, 128, 111, 0.1);
+  --mint-softer: rgba(23, 128, 111, 0.05);
+  --red: #b3381f;
+  --nav-bg: rgba(248, 246, 241, 0.85);
+  --overlay-tint: rgba(248, 246, 241, 0.55);
+  --texture-dot: rgba(28, 24, 16, 0.05);
+  --shadow: rgba(28, 24, 16, 0.12);
+  --elev-1: 0 1px 2px rgba(28, 24, 16, 0.04), 0 6px 20px rgba(28, 24, 16, 0.05);
+  --elev-2: 0 2px 4px rgba(28, 24, 16, 0.05), 0 16px 40px rgba(28, 24, 16, 0.09);
 
   color-scheme: light;
   position: relative;
@@ -296,6 +320,68 @@ html:has(.rd) body {
 @keyframes rdTicker {
   to {
     transform: translateX(-50%);
+  }
+}
+
+/* ---------- the app's nav, in the same family ---------- */
+.rd-appnav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+.rd-appnav__left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.rd-appnav__biz {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--rd-faint);
+  padding-left: 14px;
+  border-left: 1px solid var(--rd-stroke-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rd-appnav__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--rd-surface-2);
+}
+.rd-appnav__tabs a {
+  padding: 7px 14px;
+  border-radius: 9px;
+  font-size: 14px;
+  color: var(--rd-soft);
+  white-space: nowrap;
+}
+.rd-appnav__tabs a:hover {
+  color: var(--rd-ink);
+}
+.rd-appnav__tabs a.is-active {
+  color: var(--rd-ink);
+  font-weight: 600;
+  background: var(--rd-paper);
+  box-shadow: 0 1px 2px rgba(28, 24, 16, 0.08);
+}
+.rd-appnav__right {
+  justify-self: end;
+}
+@media (max-width: 760px) {
+  .rd-appnav {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 10px;
+  }
+  .rd-appnav__tabs {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    overflow-x: auto;
+  }
+  .rd-appnav__biz {
+    display: none;
   }
 }
 

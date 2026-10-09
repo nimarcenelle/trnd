@@ -139,6 +139,14 @@ function changeLine(c: Change): string {
   return `${c.you ? "Your" : `${c.advertiser}'s`} ad crossed ${c.days} days`;
 }
 
+/** The outlined tag a change wears: the vocabulary of the pings. */
+function ChangeTag({ c }: { c: Change }) {
+  if (c.you) return <span className="rd-tag rd-tag--you">Your ads</span>;
+  if (c.kind === "launched") return <span className="rd-tag rd-tag--new">New</span>;
+  if (c.kind === "stopped") return <span className="rd-tag rd-tag--loser">Stopped</span>;
+  return <span className="rd-tag rd-tag--winner">Winner</span>;
+}
+
 export function ChangeLog({ changes, historyDays, now }: { changes: Change[]; historyDays: number; now: Date }) {
   if (changes.length === 0) {
     return (
@@ -156,7 +164,7 @@ export function ChangeLog({ changes, historyDays, now }: { changes: Change[]; hi
       {changes.slice(0, 40).map((c, i) => (
         <li key={i} className={`bd-log__item is-${c.kind}${c.you ? " is-you" : ""}`}>
           <span className="bd-log__when">{when(c.day, now)}</span>
-          <i aria-hidden="true" />
+          <ChangeTag c={c} />
           <div>
             <p className="bd-log__what">{changeLine(c)}</p>
             {c.text ? <p className="rd-fine">&ldquo;{c.text}&rdquo;</p> : null}
@@ -167,12 +175,48 @@ export function ChangeLog({ changes, historyDays, now }: { changes: Change[]; hi
   );
 }
 
-export function Feed({ rival, now }: { rival: BoardRival; now: Date }) {
+const LONG = 21;
+
+/** The first words of the longest runner, the way a camera's overlay shows them. */
+function camHeadline(text: string | null | undefined): string {
+  if (!text) return "Image or video only";
+  const words = text.split(/\s+/);
+  const cut = words.slice(0, 7).join(" ");
+  return words.length > 7 ? `${cut}…` : cut;
+}
+
+export function Feed({ rival, index, now }: { rival: BoardRival; index: number; now: Date }) {
   const s = rival.summary;
+  const top = s?.top[0] ?? null;
+  const long = (top?.runningDays ?? 0) >= LONG;
+  const fresh = (top?.runningDays ?? 99) <= 7;
+  const tile = (
+    <>
+      <div className="rd-cam__top">
+        <span>
+          <i aria-hidden="true" className={s && s.active > 0 ? undefined : "is-off"} />
+          CAM {String(index + 1).padStart(2, "0")}
+        </span>
+        <span>{top?.runningDays != null ? `${top.runningDays}d` : s ? "no live ads" : "pending"}</span>
+      </div>
+      <div className="rd-cam__head">{s ? (top ? camHeadline(top.text) : "No live Meta ads") : "First read on its way"}</div>
+      <div className="rd-cam__bot">
+        <span className="rd-cam__name">{rival.name}</span>
+        {top ? <span className={`rd-cam__tag${long ? " is-winner" : fresh ? " is-new" : ""}`}>{long ? "Winner" : fresh ? "New" : "Testing"}</span> : null}
+      </div>
+    </>
+  );
+  const cls = `rd-cam bd-feed__cam rd-cam--${index % 10}`;
   return (
     <article className="bd-feed">
+      {top?.url ? (
+        <a className={cls} href={top.url} target="_blank" rel="noreferrer">
+          {tile}
+        </a>
+      ) : (
+        <div className={cls}>{tile}</div>
+      )}
       <header className="bd-feed__head">
-        <span className={`bd-rec${s ? "" : " is-off"}`} aria-hidden="true" />
         <div className="bd-feed__who">
           <h3>{rival.name}</h3>
           <span className="rd-domain">{rival.website?.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") ?? "no site on file"}</span>
@@ -200,7 +244,7 @@ export function Feed({ rival, now }: { rival: BoardRival; now: Date }) {
               ))}
             </div>
           ) : null}
-          {s.top[0] ? <AdCard ad={s.top[0]} advertiser={rival.name} /> : <p className="rd-soft">No live Meta ads right now.</p>}
+          {top?.text ? <p className="bd-feed__text">&ldquo;{top.text}&rdquo;</p> : null}
         </>
       ) : (
         <p className="rd-soft bd-feed__pending">Reading their ads. The first read lands within the day.</p>

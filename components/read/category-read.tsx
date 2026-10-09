@@ -180,20 +180,19 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
               <span className="rd-spin" aria-hidden="true" /> Reading
             </>
           ) : phase === "idle" ? (
-            <>Show me their answers →</>
+            <>Start watching</>
           ) : (
-            <>Run another read →</>
+            <>Read another</>
           )}
         </button>
       </form>
       <ul className="rd-trust">
-        <li>No login</li>
-        <li>No ad account</li>
+        <li>Free read, about a minute</li>
+        <li>No login, no ad account</li>
         <li>Public data only</li>
-        <li>~60 seconds</li>
       </ul>
 
-      <div ref={resultsRef} className="rd-results" aria-live="polite">
+      <div ref={resultsRef} className={started ? "rd-results" : "rd-results rd-results--idle"} aria-live="polite">
         {!started ? (
           sample ?? null
         ) : (
@@ -326,13 +325,11 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
 
             {phase === "done" && read.gap ? (
               <section className="rd-close rd-in">
-                <span className="rd-kicker rd-kicker--gold">That was one test</span>
-                <h2>
-                  Get three every Monday. <em>Know which one won.</em>
-                </h2>
+                <span className="rd-kicker rd-kicker--gold">That was one read</span>
+                <h2>Members get it every morning.</h2>
                 <p>
-                  TRND reads your category every week, writes the tests worth running with the evidence behind each one, checks the finished
-                  ad against its brief, and keeps score of what won.
+                  Cameras on every competitor, read daily: what they launched, what they killed, what they keep paying for, and the test that
+                  fills the gap, with the score once it&rsquo;s live.
                 </p>
                 {gated ? (
                   applying ? (
@@ -346,7 +343,7 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
                   )
                 ) : (
                   <Link href="/signup" className="rd-btn rd-btn--gold rd-btn--lg">
-                    Get my first week →
+                    Switch the cameras on
                   </Link>
                 )}
               </section>
@@ -429,7 +426,7 @@ function WatchForm({ website, brand, brief, gap }: { website: string; brand: Rea
             disabled={state.kind === "sending"}
           />
           <button type="submit" className="rd-btn rd-btn--gold" disabled={state.kind === "sending"}>
-            {state.kind === "sending" ? "Sending…" : "Watch for my ad →"}
+            {state.kind === "sending" ? "Sending…" : "Watch for my ad"}
           </button>
           <p className="rd-fine">
             {state.kind === "error" ? <span className="rd-watch__error">{state.reason}</span> : "No login. One confirmation, then only news. Stop any time."}

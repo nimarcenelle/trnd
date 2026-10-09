@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = { themeColor: "#14100C" };
+export const viewport: Viewport = { themeColor: "#3C7E70" };
 
 /** Applies a saved theme override before first paint so there is no flash. */
 const themeInit = `try{var t=localStorage.getItem("trnd-theme");if(t==="dark"||t==="light"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}`;
@@ -55,6 +55,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+        {/* The display face and the wordmark's: Archivo and Jost, loaded once for every surface. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Jost:wght@400;500&display=swap"
+        />
       </head>
       <body>{children}</body>
     </html>

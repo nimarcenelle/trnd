@@ -91,7 +91,7 @@ export default async function RivalsPage() {
 
       <section className="bd-section">
         <div className="bd-section__head">
-          <span className="rd-kicker rd-kicker--gold">What you&rsquo;re missing</span>
+          <span className="rd-kicker rd-kicker--gold">The gap · what you&rsquo;re missing</span>
           <h2>What they run that you don&rsquo;t.</h2>
         </div>
         {read === 0 ? (
@@ -140,8 +140,8 @@ export default async function RivalsPage() {
           </div>
         ) : (
           <div className="bd-wall">
-            {board.rivals.map((r) => (
-              <Feed key={r.id} rival={r} now={now} />
+            {board.rivals.map((r, i) => (
+              <Feed key={r.id} rival={r} index={i} now={now} />
             ))}
           </div>
         )}

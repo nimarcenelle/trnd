@@ -22,10 +22,10 @@ export default function Brand({
         display: "inline-flex",
         alignItems: "center",
         gap: Math.round(size * 0.62),
-        fontFamily: "var(--disp)",
+        fontFamily: "var(--logo, var(--disp))",
         fontWeight: 500,
-        fontSize: size,
-        letterSpacing: "0.22em",
+        fontSize: size * 1.15,
+        letterSpacing: "0.3em",
         color: "var(--ink)",
         lineHeight: 1,
       }}
@@ -37,7 +37,7 @@ export default function Brand({
           width: Math.round(size * 0.5),
           height: Math.round(size * 0.5),
           borderRadius: "50%",
-          background: "var(--mint)",
+          background: "var(--brand-dot, var(--mint))",
           flex: "0 0 auto",
         }}
       />

@@ -17,11 +17,12 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
   const repo = await getUserRepo(user.id);
   const business = await repo.getBusinessForUser(user);
   if (!business) redirect("/onboarding");
-  const plan = await getPlanState(repo, business);
+  const [plan, competitors] = await Promise.all([getPlanState(repo, business), repo.listCompetitors(business.id).catch(() => [])]);
 
   return (
-    <div className="rd min-h-dvh flex flex-col">
-      <AppNav businessName={business.name} signOut={signOutAction} />
+    <div className="rd ap">
+      <AppNav businessName={business.name} website={business.website} watching={competitors.length} signOut={signOutAction} />
+      <div className="ap-main">
       {isStripeConfigured && plan.locked && (
         <div className="demo-strip" role="status">
           <b>Trial ended.</b> Your briefs stay yours. Pick a plan to keep the weekly tests coming.{" "}
@@ -38,7 +39,8 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
           </Link>
         </div>
       )}
-      <main className="flex-1">{children}</main>
+        <main>{children}</main>
+      </div>
     </div>
   );
 }

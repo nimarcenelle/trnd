@@ -201,12 +201,12 @@ export default async function Home() {
           <div className="rd-hero__grid">
             <div className="rd-hero__copy">
               <span className="rd-pill">
-                <i aria-hidden="true" /> Always-on surveillance for paid social
+                <i aria-hidden="true" /> Live · watching Meta ads 24/7
               </span>
-              <h1>Cheat off your competitors.</h1>
+              <h1>Always-on surveillance for paid social.</h1>
               <p className="rd-hero__sub">
-                They already paid to learn what works. TRND keeps cameras on your top ten competitors&rsquo; Meta ads, day and night: every
-                launch, scale-up and shutdown, with what you&rsquo;re missing and the test to run next. Paste your store for a free read.
+                TRND puts cameras on your competitors&rsquo; Facebook and Instagram ads. Every launch, clone, scale-up and shutdown pings you
+                the moment it happens, with what it means for your business and what to run next. Paste your store for a free read.
               </p>
               <CategoryRead gated={isPilotGated} />
             </div>

@@ -43,7 +43,7 @@ export type ReadEvent =
   | { type: "brand"; brand: ReadBrand }
   | { type: "rivals"; rivals: ReadRival[] }
   | { type: "advertiser"; role: "brand" | "rival"; summary: AdvertiserSummary }
-  | { type: "advertiser_failed"; role: "brand" | "rival"; name: string }
+  | { type: "advertiser_failed"; role: "brand" | "rival"; name: string; reason: string }
   | { type: "gap"; gap: Gap }
   | { type: "brief"; brief: ReadBrief }
   | { type: "done"; example: boolean }
@@ -116,12 +116,28 @@ async function runExample(emit: (e: ReadEvent) => void, now: Date): Promise<void
   emit({ type: "done", example: true });
 }
 
+/** Why a read failed, short enough to show: the page says what blocked it instead of a shrug. */
+export function failReason(err: unknown): string {
+  const m = (err instanceof Error ? err.message : String(err)).replace(/\s+/g, " ").trim();
+  return m.length > 160 ? `${m.slice(0, 157)}…` : m || "no reason given";
+}
+
 async function settle<T>(work: Promise<T>, label: string): Promise<T | null> {
   try {
     return await work;
   } catch (err) {
     console.warn(`[read] ${label} failed:`, (err as Error).message);
     return null;
+  }
+}
+
+/** settle, keeping the reason: the read goes on, and the page can say what happened. */
+async function settleWhy<T>(work: Promise<T>, label: string): Promise<{ value: T | null; reason: string | null }> {
+  try {
+    return { value: await work, reason: null };
+  } catch (err) {
+    console.warn(`[read] ${label} failed:`, (err as Error).message);
+    return { value: null, reason: failReason(err) };
   }
 }
 
@@ -166,7 +182,7 @@ export async function runCategoryRead(website: string, emit: (e: ReadEvent) => v
     site = await readSite(url, (label) => emit({ type: "status", label }));
   } catch (err) {
     console.warn("[read] site read failed:", (err as Error).message);
-    emit({ type: "error", reason: "We couldn't read that site. Check the address, or try your store's homepage." });
+    emit({ type: "error", reason: `We couldn't read that site (${failReason(err)}). Check the address, or try your store's homepage.` });
     return;
   }
   const domain = brandDomain(url) ?? url;
@@ -175,9 +191,10 @@ export async function runCategoryRead(website: string, emit: (e: ReadEvent) => v
   // The brand's own ads start now, alongside naming its rivals: both are slow.
   emit({ type: "status", label: `Reading ${site.name}'s live Meta ads…` });
   const ownRead = (async (): Promise<AdvertiserSummary | null> => {
-    const [handles, ads] = await Promise.all([settle(readHandles(url), "own handles"), settle(fetchAds(site.name), "own ads")]);
+    const [handles, own] = await Promise.all([settle(readHandles(url), "own handles"), settleWhy(fetchAds(site.name), "own ads")]);
+    const ads = own.value;
     if (ads === null) {
-      emit({ type: "advertiser_failed", role: "brand", name: site.name });
+      emit({ type: "advertiser_failed", role: "brand", name: site.name, reason: own.reason ?? "no reason given" });
       return null;
     }
     const mine = ads.filter((a) => isRivalAd({ name: site.name, facebook: handles?.facebook ?? null }, a));
@@ -197,9 +214,9 @@ export async function runCategoryRead(website: string, emit: (e: ReadEvent) => v
   if (rivals.length > 0) emit({ type: "status", label: `Reading ${rivals.length === 1 ? "their" : `all ${rivals.length} rivals'`} live ads…` });
   const rivalReads = await Promise.all(
     rivals.map(async ({ c, handles }) => {
-      const ads = await settle(fetchAds(c.name), `ads for ${c.name}`);
+      const { value: ads, reason } = await settleWhy(fetchAds(c.name), `ads for ${c.name}`);
       if (ads === null) {
-        emit({ type: "advertiser_failed", role: "rival", name: c.name });
+        emit({ type: "advertiser_failed", role: "rival", name: c.name, reason: reason ?? "no reason given" });
         return null;
       }
       const theirs = ads.filter((a) => isRivalAd({ name: c.name, facebook: handles?.facebook ?? null }, a));

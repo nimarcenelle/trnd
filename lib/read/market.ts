@@ -55,6 +55,10 @@ export interface MarketPulse {
 }
 
 interface StoredAd {
+  id?: string;
+  platforms?: string[];
+  cta?: string | null;
+  variants?: number;
   advertiser?: string;
   snippet?: string;
   headline?: string | null;
@@ -77,22 +81,23 @@ function daysSince(day: string, now: Date): number | null {
 }
 
 /** Pure: a stored read's ads as the reader's shape, running days recomputed for today. */
-export function adsFromRead(read: Pick<CompetitorRead, "raw">, now: Date): AdvertiserAd[] {
+export function adsFromRead(read: { raw: unknown }, now: Date): AdvertiserAd[] {
   const raw = (read.raw ?? {}) as { source?: string; ads?: StoredAd[] };
   if (raw.source !== "apify" || !Array.isArray(raw.ads)) return [];
   return raw.ads.map((a, i) => {
     const startedOn = typeof a.startedOn === "string" ? a.startedOn : null;
     return {
-      id: `${a.url ?? ""}#${i}`,
+      // Reads stored before the id was kept fall back to the Library link, which carries it.
+      id: a.id ?? (a.url || `${a.advertiser ?? ""}#${i}`),
       advertiser: clean(a.advertiser ?? ""),
       snippet: clean(a.snippet ?? ""),
       headline: a.headline ? clean(a.headline) : null,
-      cta: null,
+      cta: a.cta ?? null,
       landing: null,
       startedOn,
       runningDays: startedOn ? daysSince(startedOn, now) : null,
-      platforms: [],
-      variants: 1,
+      platforms: Array.isArray(a.platforms) ? a.platforms.filter((p): p is string => typeof p === "string") : [],
+      variants: typeof a.variants === "number" ? a.variants : 1,
       active: true,
       url: a.url ?? "",
     };

@@ -49,10 +49,11 @@ export type ReadEvent =
   | { type: "done"; example: boolean }
   | { type: "error"; reason: string };
 
-/** Rivals shown on the page: enough to agree with each other, few enough to read in a minute. */
-export const READ_RIVALS = 4;
+/** Rivals read: the top ten, the same as a signed-up brand tracks. Their
+ * Ad Library reads run side by side, so ten take about as long as four. */
+export const READ_RIVALS = 10;
 /** Proposed rivals whose sites are checked, to end with READ_RIVALS that exist. */
-const RIVAL_CANDIDATES = 7;
+const RIVAL_CANDIDATES = 14;
 
 export interface ReadDeps {
   live?: () => boolean;

@@ -165,7 +165,7 @@ describe("discoverCompetingBrands", () => {
     expect(isMarketplace({ name: "Tower 28", website: "tower28beauty.com" })).toBe(false);
   });
 
-  it("never creates more than five, counts the rivals already watched, and reads five at a time", async () => {
+  it("never creates more than ten, counts the rivals already watched, and reads five at a time", async () => {
     const brands = Array.from({ length: 12 }, (_, i) => brand(`Brand ${i}`, `brand${i}.com`));
     let inFlight = 0;
     let peak = 0;
@@ -178,7 +178,7 @@ describe("discoverCompetingBrands", () => {
     };
     const fresh = fakeRepo();
     await discoverCompetingBrands(fresh.repo, { ...BUSINESS, website: null }, { ...baseOpts(brands, {}), readSite });
-    expect(fresh.created).toHaveLength(5);
+    expect(fresh.created).toHaveLength(10);
     expect(peak).toBeLessThanOrEqual(5);
 
     const watched = [
@@ -187,7 +187,7 @@ describe("discoverCompetingBrands", () => {
     ] as Competitor[];
     const partly = fakeRepo(watched);
     await discoverCompetingBrands(partly.repo, BUSINESS, { ...baseOpts(brands, {}), readSite });
-    expect(partly.created).toHaveLength(3);
+    expect(partly.created).toHaveLength(8);
     expect(partly.created.map((c) => c.name)).not.toContain("Brand 0");
   });
 

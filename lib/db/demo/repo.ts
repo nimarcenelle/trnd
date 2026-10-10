@@ -30,8 +30,14 @@ import type {
   NewSocialComment,
   NewAiUsage,
   NewPilotApplication,
+  NewTestWatch,
+  NewOwnAdRead,
+  OwnAdRead,
   NewProviderUsage,
   PilotApplication,
+  TestWatch,
+  TestWatchPatch,
+  TestWatchStatus,
   NewCampaign,
   NewBusinessBrief,
   NewCampaignResult,
@@ -775,6 +781,23 @@ export function createDemoRepo(actor: DemoActor): Repo {
       if (written) saveStore();
       return written;
     },
+    async upsertOwnAdRead(input: NewOwnAdRead) {
+      assertOwnsBusiness(input.business_id);
+      store.own_ad_reads ??= [];
+      const captured = input.captured_at ?? nowIso();
+      if (store.own_ad_reads.some((r) => r.business_id === input.business_id && r.captured_at.slice(0, 10) === captured.slice(0, 10))) return 0;
+      const row: OwnAdRead = { ...input, id: randomUUID(), captured_at: captured };
+      store.own_ad_reads.push(row);
+      saveStore();
+      return 1;
+    },
+    async listOwnAdReads(businessId: string, opts?: { sinceDays?: number }) {
+      if (!visibleBusinessIds().has(businessId)) return [];
+      const cutoff = Date.now() - (opts?.sinceDays ?? 30) * 86400_000;
+      return (store.own_ad_reads ?? [])
+        .filter((r) => r.business_id === businessId && new Date(r.captured_at).getTime() >= cutoff)
+        .sort((a, b) => b.captured_at.localeCompare(a.captured_at));
+    },
     async listCompetitorReads(businessId, opts) {
       if (!visibleBusinessIds().has(businessId)) return [];
       const cutoff = Date.now() - (opts?.sinceDays ?? 30) * 86400_000;
@@ -1300,6 +1323,41 @@ export function createDemoRepo(actor: DemoActor): Repo {
       store.pilot_applications ??= [];
       const row: PilotApplication = { ...input, id: randomUUID(), status: "new", created_at: nowIso() };
       store.pilot_applications.push(row);
+      saveStore();
+      return row;
+    },
+
+    async insertTestWatch(input: NewTestWatch) {
+      store.test_watches ??= [];
+      const row: TestWatch = {
+        ...input,
+        email: input.email.toLowerCase(),
+        id: randomUUID(),
+        status: "pending",
+        matched_ad: null,
+        stages_sent: [],
+        confirmed_at: null,
+        live_at: null,
+        ended_at: null,
+        last_checked_at: null,
+        created_at: nowIso(),
+      };
+      store.test_watches.push(row);
+      saveStore();
+      return row;
+    },
+    async getTestWatchByToken(token: string) {
+      return (store.test_watches ?? []).find((w) => w.token === token) ?? null;
+    },
+    async listTestWatches(opts: { statuses?: TestWatchStatus[]; email?: string }) {
+      return (store.test_watches ?? []).filter(
+        (w) => (!opts.statuses?.length || opts.statuses.includes(w.status)) && (!opts.email || w.email === opts.email.toLowerCase()),
+      );
+    },
+    async updateTestWatch(id: string, patch: TestWatchPatch) {
+      const row = (store.test_watches ?? []).find((w) => w.id === id);
+      if (!row) throw new Error(`test watch ${id} not found`);
+      Object.assign(row, patch);
       saveStore();
       return row;
     },

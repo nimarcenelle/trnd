@@ -38,6 +38,8 @@ import type {
   SocialComment,
   AiUsage,
   PilotApplication,
+  TestWatch,
+  OwnAdRead,
   ProviderUsage,
   Subscription,
   StrategyReadRow,
@@ -772,6 +774,25 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       throwIf(error, "upsertCompetitorReads");
       return count ?? 0;
     },
+    async upsertOwnAdRead(input) {
+      const captured = input.captured_at ?? new Date().toISOString();
+      const { count, error } = await sb
+        .from("own_ad_reads")
+        .upsert({ ...input, captured_at: captured, day: captured.slice(0, 10) }, { onConflict: "business_id,day", ignoreDuplicates: true, count: "exact" });
+      throwIf(error, "upsertOwnAdRead");
+      return count ?? 0;
+    },
+    async listOwnAdReads(businessId, opts) {
+      const since = new Date(Date.now() - (opts?.sinceDays ?? 30) * 86400_000).toISOString();
+      const { data, error } = await sb
+        .from("own_ad_reads")
+        .select("*")
+        .eq("business_id", businessId)
+        .gte("captured_at", since)
+        .order("captured_at", { ascending: false });
+      throwIf(error, "listOwnAdReads");
+      return (data ?? []) as OwnAdRead[];
+    },
     async listCompetitorReads(businessId, opts) {
       const since = new Date(Date.now() - (opts?.sinceDays ?? 30) * 86400_000).toISOString();
       const { data, error } = await sb
@@ -1185,6 +1206,30 @@ export function createSupabaseRepo(sb: SupabaseClient): Repo {
       const { data, error } = await sb.from("pilot_applications").insert(input).select().maybeSingle();
       throwIf(error, "insertPilotApplication");
       return (data as PilotApplication | null) ?? { ...input, id: "", status: "new", created_at: new Date().toISOString() };
+    },
+
+    async insertTestWatch(input) {
+      const { data, error } = await sb.from("test_watches").insert(input).select().single();
+      throwIf(error, "insertTestWatch");
+      return data as TestWatch;
+    },
+    async getTestWatchByToken(token) {
+      const { data, error } = await sb.from("test_watches").select("*").eq("token", token).maybeSingle();
+      throwIf(error, "getTestWatchByToken");
+      return (data as TestWatch | null) ?? null;
+    },
+    async listTestWatches(opts) {
+      let q = sb.from("test_watches").select("*").order("created_at", { ascending: true });
+      if (opts.statuses?.length) q = q.in("status", opts.statuses);
+      if (opts.email) q = q.eq("email", opts.email.toLowerCase());
+      const { data, error } = await q;
+      throwIf(error, "listTestWatches");
+      return (data ?? []) as TestWatch[];
+    },
+    async updateTestWatch(id, patch) {
+      const { data, error } = await sb.from("test_watches").update(patch).eq("id", id).select().single();
+      throwIf(error, "updateTestWatch");
+      return data as TestWatch;
     },
   };
 }

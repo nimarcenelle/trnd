@@ -1,0 +1,69 @@
+@layer components {
+/* Setup: one field, in the landing page's look. */
+.ob-hero {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(56px, 10vw, 120px) clamp(16px, 4vw, 40px) 80px;
+  text-align: center;
+}
+.ob-hero h1 {
+  font-weight: 700;
+  font-size: clamp(34px, 5.4vw, 60px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  margin: 16px 0 16px;
+  text-wrap: balance;
+}
+.ob-hero h1 em {
+  display: block;
+  font-size: 0.86em;
+  margin-top: 6px;
+}
+.ob-sub {
+  font-size: 17px;
+  max-width: 560px;
+  margin: 0 auto 32px;
+}
+.ob-note,
+.ob-error {
+  margin-top: 16px;
+}
+.ob-steps {
+  list-style: none;
+  margin: 22px auto 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-width: 320px;
+  text-align: left;
+}
+.ob-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14.5px;
+  color: var(--rd-faint);
+}
+.ob-steps i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--rd-stroke-2);
+}
+.ob-steps li.is-done {
+  color: var(--rd-soft);
+}
+.ob-steps li.is-done i {
+  background: var(--rd-green);
+  border-color: var(--rd-green);
+}
+.ob-steps li.is-active {
+  color: var(--rd-ink);
+  font-weight: 600;
+}
+.ob-steps li.is-active i {
+  border-color: var(--rd-hi);
+  background: var(--rd-hi);
+  animation: rdPulse 1.2s ease-in-out infinite;
+}
+}

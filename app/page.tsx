@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import Brand from "@/components/brand";
 import FullLanding from "@/components/landing/full-landing";
+import CameraWall from "@/components/read/camera-wall";
 import CategoryRead from "@/components/read/category-read";
 import { AdCard, GapCard, OpeningMix } from "@/components/read/parts";
 import { PLAN_TIERS } from "@/lib/billing";
@@ -73,7 +74,7 @@ function MarketStrip({ pulse }: { pulse: MarketPulse }) {
   );
   return (
     <div className="rd-strip" role="region" aria-label="This week's reads, summed across every brand">
-      <span className="rd-strip__label">Live</span>
+      <span className="rd-strip__label">Rec</span>
       <div className="rd-strip__track">
         {row(false)}
         {row(true)}
@@ -82,27 +83,44 @@ function MarketStrip({ pulse }: { pulse: MarketPulse }) {
   );
 }
 
-function SampleRead({ pulse }: { pulse: MarketPulse | null }) {
+/** The sample's data: a real anonymized category when the pulse has one, the invented example when not. */
+function sampleData(pulse: MarketPulse | null) {
   const real = pulse?.sample ?? null;
-  let own, rivals, gap, title, note;
   if (real) {
-    ({ own, rivals, gap } = real);
-    title = `trnd · competitive read · ${real.category.toLowerCase()}`;
-    note = `A real read from ${real.category.toLowerCase()} this week, one brand against ${rivals.length} of its rivals, every name hidden. Yours reads your store and your real rivals.`;
-  } else {
-    const ads = exampleAds();
-    own = summarizeAdvertiser(EXAMPLE_BRAND.name, EXAMPLE_BRAND.domain, ads[EXAMPLE_BRAND.name] ?? []);
-    rivals = EXAMPLE_RIVALS.map((r) => summarizeAdvertiser(r.name, r.domain, ads[r.name] ?? []));
-    gap = findGap(own, rivals);
-    title = `trnd · competitive read · ${EXAMPLE_BRAND.domain}`;
-    note = "A sample read of an invented shower-filter brand. Yours reads your store and your real rivals.";
+    const { own, rivals, gap } = real;
+    return {
+      real: true,
+      own,
+      rivals,
+      gap,
+      category: real.category,
+      title: `trnd · competitive read · ${real.category.toLowerCase()}`,
+      note: `A real read from ${real.category.toLowerCase()} this week, one brand against ${rivals.length} of its rivals, every name hidden. Yours reads your store and your real rivals.`,
+    };
   }
+  const ads = exampleAds();
+  const own = summarizeAdvertiser(EXAMPLE_BRAND.name, EXAMPLE_BRAND.domain, ads[EXAMPLE_BRAND.name] ?? []);
+  const rivals = EXAMPLE_RIVALS.map((r) => summarizeAdvertiser(r.name, r.domain, ads[r.name] ?? []));
+  return {
+    real: false,
+    own,
+    rivals,
+    gap: findGap(own, rivals),
+    category: EXAMPLE_BRAND.category,
+    title: `trnd · competitive read · ${EXAMPLE_BRAND.domain}`,
+    note: "A sample read of an invented shower-filter brand. Yours reads your store and your real rivals.",
+  };
+}
+
+function SampleRead({ pulse }: { pulse: MarketPulse | null }) {
+  const { real, own, rivals, gap, title, note } = sampleData(pulse);
   const shown = rivals
     .map((r) => ({ name: r.name, ad: r.top.find((a) => a.opening === gap.opening && a.text) ?? r.top[0] }))
     .filter((s) => s.ad)
     .slice(0, 2);
   return (
     <div className="rd-sample" aria-label={real ? "A real read with every brand's name hidden" : "A sample read of an invented brand"}>
+      <p className="rd-kicker rd-sample__kicker">What a read looks like</p>
       <div className="rd-window">
         <div className="rd-window__bar" aria-hidden="true">
           <i />
@@ -130,43 +148,39 @@ function SampleRead({ pulse }: { pulse: MarketPulse | null }) {
 const STEPS = [
   {
     n: "01",
-    h: "Name your real competitors",
-    p: "From your store alone, we name the brands selling the same thing to your customer at your price. Every one checked to exist.",
+    h: "Paste your site",
+    p: "We read what you sell and who you sell it to, find your socials and your live ads, and name the ten brands running Meta ads to your customers. Every one checked to exist.",
   },
   {
     n: "02",
-    h: "Read what they keep paying for",
-    p: "Every ad they're running, sorted by how long it has survived on their budget. Losers get switched off. What's left is what they keep paying for.",
+    h: "Cameras on, every day",
+    p: "Each competitor's ads are read daily and sorted by how long they've survived on a real budget. Losers get switched off. What's left is what they keep paying for.",
   },
   {
     n: "03",
-    h: "Get the test to run",
-    p: "The opening they lean on that you don't, and a brief in your voice a creator can shoot from. Never a copy of theirs.",
+    h: "The gap, the test, the score",
+    p: "What they launched and killed, the opening they lean on that you don't, a brief in your voice to fill it, and the score once it's live. Never a copy of theirs.",
   },
 ];
 
 const FIGURES = [
-  { v: "~60s", l: "from URL to brief" },
-  { v: "4", l: "rivals read, named for you" },
-  { v: "30", l: "live ads a brand, by survival" },
-  { v: "0", l: "logins or ad accounts" },
+  { v: "~60s", l: "from URL to your first read" },
+  { v: "10", l: "competitors on camera, named for you" },
+  { v: "Daily", l: "every ad of theirs, read again" },
+  { v: "0", l: "logins or ad accounts to start" },
 ];
 
 export default async function Home() {
   if (!FOCUS_MODE) return <FullLanding />;
   const pulse = await loadPulse();
   const showStrip = pulse !== null && pulse.categories.length > 0;
+  const wall = sampleData(pulse);
   return (
     <div className="rd">
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap"
-        precedence="default"
-      />
       <div className="rd-atmos" aria-hidden="true" />
 
       <nav className="rd-nav">
-        <Brand href={null} />
+        <Brand href={null} live />
         <div className="rd-nav__links">
           <a href="#how">How it works</a>
           <a href="#pricing">Pricing</a>
@@ -184,20 +198,21 @@ export default async function Home() {
 
       <main>
         <header className="rd-hero" id="read">
-          <span className="rd-pill">
-            <i aria-hidden="true" /> Built on the public Meta Ad Library
-          </span>
-          <h1>
-            Cheat off your competitors.
-            <span className="rd-hero__answer">
-              <em>They already paid to learn what works.</em>
-            </span>
-          </h1>
-          <p className="rd-hero__sub">
-            Your rivals spent months and real money finding out which ads work. Paste your store and see their answers in sixty seconds:
-            what they keep paying for, the opening you&rsquo;re missing, and a test to beat them with.
-          </p>
-          <CategoryRead gated={isPilotGated} sample={<SampleRead pulse={pulse} />} />
+          <div className="rd-hero__grid">
+            <div className="rd-hero__copy">
+              <span className="rd-pill">
+                <i aria-hidden="true" /> Live · watching Meta ads 24/7
+              </span>
+              <h1>Always-on surveillance for paid ads.</h1>
+              <p className="rd-hero__sub">
+                TRND puts cameras on your competitors&rsquo; Facebook and Instagram ads. Every launch, clone, scale-up and shutdown pings you
+                the moment it happens, with what it means for your business and what to run next. Paste your store for a free read.
+              </p>
+              <CategoryRead gated={isPilotGated} />
+            </div>
+            <CameraWall rivals={wall.rivals} own={wall.own} category={wall.category} />
+          </div>
+          <SampleRead pulse={pulse} />
         </header>
 
         <section className="rd-figures">
@@ -262,18 +277,19 @@ export default async function Home() {
         </section>
 
         <section className="rd-final">
-          <h2 className="rd-h2">
-            Everyone else is guessing. <em>You don&rsquo;t have to.</em>
-          </h2>
+          <span className="rd-pill">
+            <i aria-hidden="true" /> Your market is running ads right now
+          </span>
+          <h2 className="rd-h2">Switch the cameras on.</h2>
           <a href="#read" className="rd-btn rd-btn--gold rd-btn--lg">
-            Show me their answers →
+            Switch the cameras on
           </a>
         </section>
       </main>
 
       <footer className="rd-footer">
         <Brand href={null} size={14} />
-        <span>Know what to make next.</span>
+        <span>Ad intelligence. Always-on surveillance for paid ads.</span>
         <span className="rd-footer__links">
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>

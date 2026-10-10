@@ -107,6 +107,12 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
     }
     setPhase("running");
     setRead(EMPTY);
+    // Setup prefills the store someone just read (components/onboarding/url-start.tsx).
+    try {
+      localStorage.setItem("trnd-read-site", website.trim());
+    } catch {
+      /* storage blocked: setup just starts empty */
+    }
     setApplying(false);
     requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     let state = EMPTY;
@@ -174,20 +180,19 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
               <span className="rd-spin" aria-hidden="true" /> Reading
             </>
           ) : phase === "idle" ? (
-            <>Show me their answers →</>
+            <>Start watching</>
           ) : (
-            <>Run another read →</>
+            <>Read another</>
           )}
         </button>
       </form>
       <ul className="rd-trust">
-        <li>No login</li>
-        <li>No ad account</li>
+        <li>Free read, about a minute</li>
+        <li>No login, no ad account</li>
         <li>Public data only</li>
-        <li>~60 seconds</li>
       </ul>
 
-      <div ref={resultsRef} className="rd-results" aria-live="polite">
+      <div ref={resultsRef} className={started ? "rd-results" : "rd-results rd-results--idle"} aria-live="polite">
         {!started ? (
           sample ?? null
         ) : (
@@ -314,15 +319,17 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
               </section>
             ) : null}
 
+            {phase === "done" && read.brief && read.brand && !read.example ? (
+              <WatchForm website={website} brand={read.brand} brief={read.brief} gap={read.gap} />
+            ) : null}
+
             {phase === "done" && read.gap ? (
               <section className="rd-close rd-in">
-                <span className="rd-kicker rd-kicker--gold">That was one test</span>
-                <h2>
-                  Get three every Monday. <em>Know which one won.</em>
-                </h2>
+                <span className="rd-kicker rd-kicker--gold">That was one read</span>
+                <h2>Members get it every morning.</h2>
                 <p>
-                  TRND reads your category every week, writes the tests worth running with the evidence behind each one, checks the finished
-                  ad against its brief, and keeps score of what won.
+                  Cameras on every competitor, read daily: what they launched, what they killed, what they keep paying for, and the test that
+                  fills the gap, with the score once it&rsquo;s live.
                 </p>
                 {gated ? (
                   applying ? (
@@ -336,7 +343,7 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
                   )
                 ) : (
                   <Link href="/signup" className="rd-btn rd-btn--gold rd-btn--lg">
-                    Get my first week →
+                    Switch the cameras on
                   </Link>
                 )}
               </section>
@@ -345,5 +352,87 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
         )}
       </div>
     </>
+  );
+}
+
+type WatchState = { kind: "idle" } | { kind: "sending" } | { kind: "sent"; email: string } | { kind: "error"; reason: string };
+
+/**
+ * The loop, from the read: leave an email and TRND watches the Ad Library
+ * for this brief going live, then keeps score against the rival ad it was
+ * modeled on (lib/watch). One confirmation email before anything else.
+ */
+function WatchForm({ website, brand, brief, gap }: { website: string; brand: ReadBrand; brief: ReadBrief; gap: Gap | null }) {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState<WatchState>({ kind: "idle" });
+  const rival = gap?.example ?? null;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (state.kind === "sending") return;
+    setState({ kind: "sending" });
+    try {
+      const res = await fetch("/api/read/watch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email,
+          website,
+          brand: { name: brand.name, domain: brand.domain },
+          brief: { title: brief.title, hook: brief.hook, onScreen: brief.beats[0]?.onScreen ?? null },
+          rival: rival ? { advertiser: rival.advertiser, runningDays: rival.runningDays, text: rival.text } : null,
+        }),
+      });
+      const body = (await res.json().catch(() => null)) as { ok?: boolean; reason?: string } | null;
+      if (res.ok && body?.ok) setState({ kind: "sent", email });
+      else setState({ kind: "error", reason: body?.reason ?? "That didn't work. Try again in a minute." });
+    } catch {
+      setState({ kind: "error", reason: "The connection dropped. Try again." });
+    }
+  }
+
+  return (
+    <section className="rd-watch rd-in" aria-labelledby="rd-watch-title">
+      <div className="rd-watch__copy">
+        <span className="rd-kicker rd-kicker--gold">Keep score</span>
+        <h3 id="rd-watch-title">Launch it. We&rsquo;ll watch.</h3>
+        <p className="rd-soft">
+          When your version goes live in the Ad Library we&rsquo;ll tell you, then keep score against the ad you cheated off
+          {rival ? (
+            <>
+              : <b>{rival.advertiser}&rsquo;s</b>, running {rival.runningDays ?? "?"} days
+            </>
+          ) : null}
+          .
+        </p>
+      </div>
+      {state.kind === "sent" ? (
+        <div className="rd-watch__done" role="status">
+          <b>Check your inbox.</b> One click to confirm and we start watching. We sent it to {state.email}.
+        </div>
+      ) : (
+        <form className="rd-watch__form" onSubmit={submit}>
+          <label htmlFor="rd-watch-email" className="sr-only">
+            Your email
+          </label>
+          <input
+            id="rd-watch-email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="you@yourbrand.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={state.kind === "sending"}
+          />
+          <button type="submit" className="rd-btn rd-btn--gold" disabled={state.kind === "sending"}>
+            {state.kind === "sending" ? "Sending…" : "Watch for my ad"}
+          </button>
+          <p className="rd-fine">
+            {state.kind === "error" ? <span className="rd-watch__error">{state.reason}</span> : "No login. One confirmation, then only news. Stop any time."}
+          </p>
+        </form>
+      )}
+    </section>
   );
 }

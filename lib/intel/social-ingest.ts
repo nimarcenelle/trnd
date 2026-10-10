@@ -1,5 +1,6 @@
 import type { Repo } from "@/lib/db/repo";
 import type { Business, Competitor, SocialPlatform } from "@/lib/db/types";
+import { getPlanState, planLimits } from "@/lib/billing";
 import { competitiveSet } from "@/lib/recommend/four-signals";
 import { fetchAdvertiserAds, isAdLibraryApifyAvailable, isRivalAd, readAdvertiser } from "@/lib/signals/adlibrary-apify";
 import { fetchAccountPosts, isSocialReadAvailable } from "@/lib/social";
@@ -137,6 +138,9 @@ function cadence(perWeek: number, prev: number): string {
  * past it was refused with a 402 and paid for again on the next hop. Two
  * per brand keeps two brands inside it. */
 const READ_CONCURRENCY = 2;
+/** Ad Library reads are seconds of actor time each and run side by side:
+ * every tracked competitor is read daily, so they can't queue two at a time. */
+const AD_READ_CONCURRENCY = 6;
 
 export async function ingestSocialAccounts(
   repo: Repo,
@@ -229,9 +233,16 @@ export async function ingestRivalAds(
   opts: { deadline?: number } = {},
 ): Promise<{ written: number; exhausted: boolean }> {
   const deadline = opts.deadline ?? Infinity;
+  // Paid ads are the product: every tracked competitor is read, not only
+  // the direct set the Competitive signal grades, closest first, up to the
+  // plan's cap.
+  const cap = await getPlanState(repo, business)
+    .then((p) => planLimits(p.plan).rivals)
+    .catch(() => 10);
+  const tracked = [...competitors].sort((a, b) => (b.directness ?? 0) - (a.directness ?? 0)).slice(0, cap);
   const results = await mapLimit(
-    watched(competitors),
-    READ_CONCURRENCY,
+    tracked,
+    AD_READ_CONCURRENCY,
     (c) => readRivalAds(repo, business, c),
     () => Date.now() > deadline,
   );
@@ -239,6 +250,45 @@ export async function ingestRivalAds(
     written: results.reduce<number>((s, n) => s + (n ?? 0), 0),
     exhausted: results.some((n) => n === undefined),
   };
+}
+
+/**
+ * The brand's own live Meta ads, read the same way a rival's are and
+ * stored in the same shape, once a day. The board compares the two and
+ * the change feed diffs each against yesterday. Never throws.
+ */
+export async function readOwnAds(repo: Repo, business: Business): Promise<number> {
+  if (!isAdLibraryApifyAvailable()) return 0;
+  try {
+    const ads = (await fetchAdvertiserAds(business.name)).filter((a) =>
+      isRivalAd({ name: business.name, facebook: business.social_handles?.facebook }, a),
+    );
+    const read = readAdvertiser(ads);
+    return await repo.upsertOwnAdRead({
+      business_id: business.id,
+      active: read.active,
+      raw: {
+        source: "apify",
+        ads: read.sample.map((a) => ({
+          id: a.id,
+          advertiser: a.advertiser,
+          snippet: a.snippet,
+          headline: a.headline,
+          cta: a.cta,
+          landing: a.landing,
+          variants: a.variants,
+          platforms: a.platforms,
+          runningDays: a.runningDays,
+          startedOn: a.startedOn,
+          url: a.url,
+        })),
+        newThisWeek: read.newThisWeek,
+      },
+    });
+  } catch (err) {
+    console.warn(`[intel:ads] own Meta read for ${business.name} failed:`, (err as Error).message);
+    return 0;
+  }
 }
 
 /** One rival's Meta ads. Never throws: a failed read is logged and skipped. */
@@ -266,6 +316,7 @@ async function readRivalAds(repo: Repo, business: Business, c: Competitor): Prom
             raw: {
               source: "apify",
               ads: read.sample.map((a) => ({
+                id: a.id,
                 advertiser: a.advertiser,
                 snippet: a.snippet,
                 headline: a.headline,

@@ -87,3 +87,11 @@ describe("first picks email", () => {
     expect(html).toContain("Your first 2 picks are ready");
   });
 });
+
+describe("inline styles", () => {
+  it("never put a double quote inside a style attribute", () => {
+    const html = renderEmail({ preheader: "p", title: "t", intro: "i", body: "", cta: { label: "Go", url: "https://x" }, footnote: "f" });
+    for (const m of html.matchAll(/style="([^"]*)"/g)) expect(m[1]).not.toMatch(/font-family:\s*$/);
+    expect(html).toContain("font-family:'Instrument Sans'");
+  });
+});

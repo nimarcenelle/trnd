@@ -72,8 +72,14 @@ import type {
   AiUsage,
   NewAiUsage,
   NewPilotApplication,
+  NewTestWatch,
+  NewOwnAdRead,
+  OwnAdRead,
   NewProviderUsage,
   PilotApplication,
+  TestWatch,
+  TestWatchPatch,
+  TestWatchStatus,
   ProviderUsage,
   Subscription,
   NewStrategyReadRow,
@@ -232,6 +238,9 @@ export interface Repo {
   /** Idempotent per (competitor, kind, day). Returns rows written. */
   upsertCompetitorReads(inputs: NewCompetitorRead[]): Promise<number>;
   listCompetitorReads(businessId: string, opts?: { sinceDays?: number }): Promise<CompetitorRead[]>;
+  /** The brand's own live ads, one read a day (0039). */
+  upsertOwnAdRead(input: NewOwnAdRead): Promise<number>;
+  listOwnAdReads(businessId: string, opts?: { sinceDays?: number }): Promise<OwnAdRead[]>;
 
   /* reviews — own + competitor voice-of-customer */
   /** Dedupes on (business, competitor, author, text). Returns rows written. */
@@ -270,6 +279,12 @@ export interface Repo {
 
   /* pilot applications — the founder-assisted pilot's front door (0028) */
   insertPilotApplication(input: NewPilotApplication): Promise<PilotApplication>;
+
+  /* test watches — a free read's test, watched in the Ad Library (0038). Service role only. */
+  insertTestWatch(input: NewTestWatch): Promise<TestWatch>;
+  getTestWatchByToken(token: string): Promise<TestWatch | null>;
+  listTestWatches(opts: { statuses?: TestWatchStatus[]; email?: string }): Promise<TestWatch[]>;
+  updateTestWatch(id: string, patch: TestWatchPatch): Promise<TestWatch>;
 
   /* ad history — the owner's own past ads and how they did */
   /** Dedupes on (business, platform, campaign, ad, start). Returns rows written. */

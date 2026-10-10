@@ -206,7 +206,7 @@ export async function runIntelIngestForBusiness(
   // ---- the social and paid-ad reads: own accounts, direct rivals' accounts,
   // and what those rivals are paying to show.
   try {
-    const { ingestRivalAds, ingestSocialAccounts } = await import("@/lib/intel/social-ingest");
+    const { ingestRivalAds, ingestSocialAccounts, readOwnAds } = await import("@/lib/intel/social-ingest");
     const { rescoreRivals } = await import("@/lib/intel/direct");
     // A rival scored under the bar is re-read weekly, so a mis-score (or a
     // rival that changed its range) does not leave it unwatched for good.
@@ -215,7 +215,8 @@ export async function runIntelIngestForBusiness(
     // are seconds per rival; the account reads are minutes and used to run
     // ahead of them, so a budget that ran out left a brand with every
     // rival's Instagram grid and none of their ads.
-    const ads = await ingestRivalAds(repo, business, competitors, { deadline });
+    // The brand's own ads beside its rivals', read alongside them.
+    const [ads] = await Promise.all([ingestRivalAds(repo, business, competitors, { deadline }), readOwnAds(repo, business)]);
     summary.rivalAdReads = ads.written;
     summary.competitorReads += ads.written;
     summary.exhausted = ads.exhausted;

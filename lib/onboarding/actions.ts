@@ -66,7 +66,7 @@ export async function completeOnboardingAction(
 
   const repo = await getUserRepo(user.id);
   const existing = await repo.getBusinessByOwner(user.id);
-  if (existing) redirect("/app/picks");
+  if (existing) redirect("/app/rivals");
 
   let photoUrls: string[] = [];
   try {
@@ -259,5 +259,5 @@ export async function completeOnboardingAction(
     await kickWeekJob(business.id, { origin });
   });
 
-  redirect("/app/picks");
+  redirect("/app/rivals");
 }

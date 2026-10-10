@@ -1951,3 +1951,25 @@ textarea.input {
 .cb__refine-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .cb__refine-opt:focus-within { outline: 2px solid var(--amber); outline-offset: 2px; }
 }
+
+/* The logo's dot is a recording light: TRND is always watching. */
+@keyframes brandRec {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--mint) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.brand-rec {
+  animation: brandRec 2s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-rec {
+    animation: none;
+  }
+}
+

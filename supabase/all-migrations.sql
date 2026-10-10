@@ -1,5 +1,5 @@
 -- TRND: every migration, 0001 through 0039, in order. Paste into the Supabase SQL editor and run once.
--- Generated from supabase/migrations/. Each file is idempotent, so re-running is safe.
+-- Generated from supabase/migrations/ and made re-runnable: every create has "if not exists", every policy and constraint is dropped before it is re-created. Running it twice, or after a partial run, is safe.
 
 
 -- ============================================================
@@ -11,7 +11,7 @@
 create extension if not exists "pgcrypto";
 
 -- ---------------------------------------------------------------- profiles
-create table public.profiles (
+create table if not exists public.profiles (
   id          uuid primary key references auth.users (id) on delete cascade,
   email       text not null,
   full_name   text,
@@ -19,8 +19,10 @@ create table public.profiles (
 );
 alter table public.profiles enable row level security;
 
+drop policy if exists "profiles: own row select" on public.profiles;
 create policy "profiles: own row select" on public.profiles
   for select using (id = (select auth.uid()));
+drop policy if exists "profiles: own row update" on public.profiles;
 create policy "profiles: own row update" on public.profiles
   for update using (id = (select auth.uid()));
 
@@ -37,12 +39,13 @@ begin
   return new;
 end;
 $$;
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
 -- -------------------------------------------------------------- businesses
-create table public.businesses (
+create table if not exists public.businesses (
   id                 uuid primary key default gen_random_uuid(),
   owner_id           uuid not null references public.profiles (id) on delete cascade,
   name               text not null,
@@ -59,8 +62,9 @@ create table public.businesses (
   created_at         timestamptz not null default now()
 );
 alter table public.businesses enable row level security;
-create index businesses_owner_idx on public.businesses (owner_id);
+create index if not exists businesses_owner_idx on public.businesses (owner_id);
 
+drop policy if exists "businesses: owner all" on public.businesses;
 create policy "businesses: owner all" on public.businesses
   for all using (owner_id = (select auth.uid()))
   with check (owner_id = (select auth.uid()));
@@ -79,7 +83,7 @@ as $$
 $$;
 
 -- ---------------------------------------------------------------- services
-create table public.services (
+create table if not exists public.services (
   id           uuid primary key default gen_random_uuid(),
   business_id  uuid not null references public.businesses (id) on delete cascade,
   name         text not null,
@@ -88,8 +92,9 @@ create table public.services (
   is_active    boolean not null default true
 );
 alter table public.services enable row level security;
-create index services_business_idx on public.services (business_id);
+create index if not exists services_business_idx on public.services (business_id);
 
+drop policy if exists "services: via business" on public.services;
 create policy "services: via business" on public.services
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
@@ -97,7 +102,7 @@ create policy "services: via business" on public.services
 -- ----------------------------------------------------------------- signals
 -- Shared market data: readable by any signed-in user, written only by cron
 -- (service role bypasses RLS; no insert/update policies on purpose).
-create table public.signals (
+create table if not exists public.signals (
   id               uuid primary key default gen_random_uuid(),
   source           text not null check (source in ('google_trends','reddit','youtube','news','seed')),
   term             text not null,
@@ -115,15 +120,16 @@ create table public.signals (
   raw              jsonb
 );
 alter table public.signals enable row level security;
-create unique index signals_daily_uniq
+create unique index if not exists signals_daily_uniq
   on public.signals (source, normalized_term, geo, captured_day);
-create index signals_category_idx on public.signals (category, captured_at desc);
+create index if not exists signals_category_idx on public.signals (category, captured_at desc);
 
+drop policy if exists "signals: authenticated read" on public.signals;
 create policy "signals: authenticated read" on public.signals
   for select using ((select auth.role()) = 'authenticated');
 
 -- ----------------------------------------------------------- signal_series
-create table public.signal_series (
+create table if not exists public.signal_series (
   id               uuid primary key default gen_random_uuid(),
   normalized_term  text not null,
   geo              text not null default 'US',
@@ -131,13 +137,14 @@ create table public.signal_series (
   value            numeric not null
 );
 alter table public.signal_series enable row level security;
-create unique index signal_series_uniq on public.signal_series (normalized_term, geo, day);
+create unique index if not exists signal_series_uniq on public.signal_series (normalized_term, geo, day);
 
+drop policy if exists "signal_series: authenticated read" on public.signal_series;
 create policy "signal_series: authenticated read" on public.signal_series
   for select using ((select auth.role()) = 'authenticated');
 
 -- ------------------------------------------------------------ opportunities
-create table public.opportunities (
+create table if not exists public.opportunities (
   id                  uuid primary key default gen_random_uuid(),
   business_id         uuid not null references public.businesses (id) on delete cascade,
   signal_id           uuid not null references public.signals (id) on delete cascade,
@@ -152,16 +159,18 @@ create table public.opportunities (
   unique (business_id, signal_id, week_of)
 );
 alter table public.opportunities enable row level security;
-create index opportunities_business_week_idx on public.opportunities (business_id, week_of desc);
+create index if not exists opportunities_business_week_idx on public.opportunities (business_id, week_of desc);
 
+drop policy if exists "opportunities: via business select" on public.opportunities;
 create policy "opportunities: via business select" on public.opportunities
   for select using (public.owns_business(business_id));
+drop policy if exists "opportunities: via business update" on public.opportunities;
 create policy "opportunities: via business update" on public.opportunities
   for update using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
 
 -- ---------------------------------------------------------------- campaigns
-create table public.campaigns (
+create table if not exists public.campaigns (
   id              uuid primary key default gen_random_uuid(),
   opportunity_id  uuid not null references public.opportunities (id) on delete cascade,
   business_id     uuid not null references public.businesses (id) on delete cascade,
@@ -177,14 +186,15 @@ create table public.campaigns (
   created_at      timestamptz not null default now()
 );
 alter table public.campaigns enable row level security;
-create index campaigns_business_idx on public.campaigns (business_id, created_at desc);
+create index if not exists campaigns_business_idx on public.campaigns (business_id, created_at desc);
 
+drop policy if exists "campaigns: via business" on public.campaigns;
 create policy "campaigns: via business" on public.campaigns
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
 
 -- ---------------------------------------------------------------- creatives
-create table public.creatives (
+create table if not exists public.creatives (
   id             uuid primary key default gen_random_uuid(),
   campaign_id    uuid not null references public.campaigns (id) on delete cascade,
   kind           text not null check (kind in
@@ -193,8 +203,9 @@ create table public.creatives (
   variant_index  integer not null default 0
 );
 alter table public.creatives enable row level security;
-create index creatives_campaign_idx on public.creatives (campaign_id);
+create index if not exists creatives_campaign_idx on public.creatives (campaign_id);
 
+drop policy if exists "creatives: via campaign" on public.creatives;
 create policy "creatives: via campaign" on public.creatives
   for all using (public.owns_business(
     (select c.business_id from public.campaigns c where c.id = campaign_id)))
@@ -203,7 +214,7 @@ create policy "creatives: via campaign" on public.creatives
 
 -- ---------------------------------------------------------- campaign_results
 -- Manual entry in the MVP; `source` leaves room for a Meta API sync later.
-create table public.campaign_results (
+create table if not exists public.campaign_results (
   id             uuid primary key default gen_random_uuid(),
   campaign_id    uuid not null references public.campaigns (id) on delete cascade,
   impressions    integer,
@@ -217,8 +228,9 @@ create table public.campaign_results (
   recorded_at    timestamptz not null default now()
 );
 alter table public.campaign_results enable row level security;
-create index campaign_results_campaign_idx on public.campaign_results (campaign_id);
+create index if not exists campaign_results_campaign_idx on public.campaign_results (campaign_id);
 
+drop policy if exists "campaign_results: via campaign" on public.campaign_results;
 create policy "campaign_results: via campaign" on public.campaign_results
   for all using (public.owns_business(
     (select c.business_id from public.campaigns c where c.id = campaign_id)))
@@ -227,7 +239,7 @@ create policy "campaign_results: via campaign" on public.campaign_results
 
 -- ---------------------------------------------------------------- learnings
 -- Aggregated, anonymized lift by category/geo/angle. Shared read; cron write.
-create table public.learnings (
+create table if not exists public.learnings (
   id           uuid primary key default gen_random_uuid(),
   category     text not null,
   geo_bucket   text not null,
@@ -239,12 +251,13 @@ create table public.learnings (
 );
 alter table public.learnings enable row level security;
 
+drop policy if exists "learnings: authenticated read" on public.learnings;
 create policy "learnings: authenticated read" on public.learnings
   for select using ((select auth.role()) = 'authenticated');
 
 -- ------------------------------------------------------------- demo_requests
 -- Public marketing form. Anyone may insert; only service role reads.
-create table public.demo_requests (
+create table if not exists public.demo_requests (
   id             uuid primary key default gen_random_uuid(),
   full_name      text not null,
   email          text not null,
@@ -255,6 +268,7 @@ create table public.demo_requests (
 );
 alter table public.demo_requests enable row level security;
 
+drop policy if exists "demo_requests: public insert" on public.demo_requests;
 create policy "demo_requests: public insert" on public.demo_requests
   for insert with check (true);
 
@@ -265,12 +279,12 @@ create policy "demo_requests: public insert" on public.demo_requests
 -- 1) Learnings carry provenance: seeded priors are never presented as real
 --    campaign history. 'measured' rows come only from recorded results.
 alter table public.learnings
-  add column source text not null default 'measured'
+  add column if not exists source text not null default 'measured'
   check (source in ('seed', 'measured'));
 
 -- 2) Business briefs — the positioning read generated when a business joins:
 --    what they do well, their moat, edges to press in ads, and what to avoid.
-create table public.business_briefs (
+create table if not exists public.business_briefs (
   id              uuid primary key default gen_random_uuid(),
   business_id     uuid not null unique references public.businesses (id) on delete cascade,
   does_well       text[] not null default '{}',
@@ -283,6 +297,7 @@ create table public.business_briefs (
 );
 alter table public.business_briefs enable row level security;
 
+drop policy if exists "business_briefs: via business" on public.business_briefs;
 create policy "business_briefs: via business" on public.business_briefs
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
@@ -296,19 +311,20 @@ create policy "business_briefs: via business" on public.business_briefs
 -- Defaults keep pre-existing rows valid; the app regenerates any brief whose
 -- prompt_version predates the current one.
 alter table public.business_briefs
-  add column positioning       text   not null default '',
-  add column customer_segments text[] not null default '{}',
-  add column market_context    text   not null default '',
-  add column pricing_read      text   not null default '',
-  add column seasonality       text   not null default '',
-  add column first_moves       text[] not null default '{}';
+  add column if not exists positioning       text   not null default '',
+  add column if not exists customer_segments text[] not null default '{}',
+  add column if not exists market_context    text   not null default '',
+  add column if not exists pricing_read      text   not null default '',
+  add column if not exists seasonality       text   not null default '',
+  add column if not exists first_moves       text[] not null default '{}';
 
 
 -- ============================================================
 -- 0004_tiktok_source.sql
 -- ============================================================
 -- TikTok Creative Center joins the signal sources.
-alter table public.signals drop constraint signals_source_check;
+alter table public.signals drop constraint if exists signals_source_check;
+alter table public.signals drop constraint if exists signals_source_check;
 alter table public.signals
   add constraint signals_source_check
   check (source in ('google_trends', 'reddit', 'youtube', 'news', 'tiktok', 'seed'));
@@ -321,7 +337,7 @@ alter table public.signals
 -- phrases its real customers use, fed into signal ingestion so TRND watches
 -- what THIS business sells — not just its category.
 alter table public.business_briefs
-  add column watch_terms text[] not null default '{}';
+  add column if not exists watch_terms text[] not null default '{}';
 
 
 -- ============================================================
@@ -330,7 +346,7 @@ alter table public.business_briefs
 -- Real photos harvested from the business's own website during onboarding —
 -- ad previews and creative directions use these instead of placeholders.
 alter table public.businesses
-  add column photo_urls text[] not null default '{}';
+  add column if not exists photo_urls text[] not null default '{}';
 
 
 -- ============================================================
@@ -338,7 +354,8 @@ alter table public.businesses
 -- ============================================================
 -- Meta Ad Library joins the signal sources: real competitor ad-saturation
 -- reads (metric_type 'ad_saturation') replacing the news-coverage proxy.
-alter table public.signals drop constraint signals_source_check;
+alter table public.signals drop constraint if exists signals_source_check;
+alter table public.signals drop constraint if exists signals_source_check;
 alter table public.signals
   add constraint signals_source_check
   check (source in ('google_trends', 'reddit', 'youtube', 'news', 'tiktok', 'meta_ads', 'seed'));
@@ -351,7 +368,7 @@ alter table public.signals
 -- 14-day trial; Stripe webhooks (service role) move it to a paid plan.
 -- Owners can read their own row; all writes go through the service role so
 -- a client can never grant itself a plan.
-create table public.subscriptions (
+create table if not exists public.subscriptions (
   id                      uuid primary key default gen_random_uuid(),
   business_id             uuid not null unique references public.businesses (id) on delete cascade,
   plan                    text not null default 'trial'
@@ -367,17 +384,19 @@ create table public.subscriptions (
 );
 alter table public.subscriptions enable row level security;
 
+drop policy if exists "subscriptions: owner reads" on public.subscriptions;
 create policy "subscriptions: owner reads" on public.subscriptions
   for select using (public.owns_business(business_id));
 
 -- The trial row is created alongside the business by the app (owner insert);
 -- plan/status changes arrive only via the service role, which bypasses RLS.
+drop policy if exists "subscriptions: owner creates trial" on public.subscriptions;
 create policy "subscriptions: owner creates trial" on public.subscriptions
   for insert with check (
     public.owns_business(business_id) and plan = 'trial' and status = 'trialing'
   );
 
-create index subscriptions_stripe_sub_idx on public.subscriptions (stripe_subscription_id);
+create index if not exists subscriptions_stripe_sub_idx on public.subscriptions (stripe_subscription_id);
 
 
 -- ============================================================
@@ -389,7 +408,8 @@ create index subscriptions_stripe_sub_idx on public.subscriptions (stripe_subscr
 --                     flagged in raw).
 -- 'google_suggest'  — autocomplete intent + discovery reads
 --                     (metric_type 'search_intent').
-alter table public.signals drop constraint signals_source_check;
+alter table public.signals drop constraint if exists signals_source_check;
+alter table public.signals drop constraint if exists signals_source_check;
 alter table public.signals
   add constraint signals_source_check
   check (source in ('google_trends', 'google_suggest', 'reddit', 'youtube', 'news', 'tiktok', 'meta_ads', 'weather', 'seed'));
@@ -403,8 +423,8 @@ alter table public.signals
 -- classification vocabulary and communities, so the category configs are
 -- scaffolding rather than the backbone.
 alter table public.business_briefs
-  add column lexicon text[] not null default '{}',
-  add column subreddits text[] not null default '{}';
+  add column if not exists lexicon text[] not null default '{}',
+  add column if not exists subreddits text[] not null default '{}';
 
 
 -- ============================================================
@@ -415,14 +435,15 @@ alter table public.business_briefs
 -- when the trend pool doesn't fit a business, its own watch terms become the
 -- week's candidates instead of least-bad junk. The check is the FULL union of
 -- every live source — replacing it with a partial list breaks daily ingest.
-alter table public.signals drop constraint signals_source_check;
+alter table public.signals drop constraint if exists signals_source_check;
+alter table public.signals drop constraint if exists signals_source_check;
 alter table public.signals
   add constraint signals_source_check
   check (source in ('google_trends', 'google_suggest', 'reddit', 'youtube', 'news', 'tiktok', 'meta_ads', 'weather', 'dataforseo', 'snapshot', 'seed'));
 
 -- The relevance judge's 0-1 fit, persisted so screens can re-derive the same
 -- gated score breakdown the ranking used (null = ranking was never judged).
-alter table public.opportunities add column relevance numeric(3,2);
+alter table public.opportunities add column if not exists relevance numeric(3,2);
 
 
 -- ============================================================
@@ -431,7 +452,7 @@ alter table public.opportunities add column relevance numeric(3,2);
 -- The analyst note that opens each week's intel report — the one AI-written
 -- (or deterministic-fallback) block on an otherwise data-derived page.
 -- Persisted per (business, week) so the report is stable within a week.
-create table public.intel_notes (
+create table if not exists public.intel_notes (
   id              uuid primary key default gen_random_uuid(),
   business_id     uuid not null references public.businesses (id) on delete cascade,
   week_of         date not null,
@@ -444,8 +465,9 @@ create table public.intel_notes (
   unique (business_id, week_of)
 );
 alter table public.intel_notes enable row level security;
-create index intel_notes_business_week_idx on public.intel_notes (business_id, week_of desc);
+create index if not exists intel_notes_business_week_idx on public.intel_notes (business_id, week_of desc);
 
+drop policy if exists "intel_notes: via business" on public.intel_notes;
 create policy "intel_notes: via business" on public.intel_notes
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
@@ -459,7 +481,7 @@ create policy "intel_notes: via business" on public.intel_notes
 -- campaigns so launched ads sync their own results back.
 
 -- ------------------------------------------------------------- connections
-create table public.connections (
+create table if not exists public.connections (
   id                uuid primary key default gen_random_uuid(),
   business_id       uuid not null references public.businesses (id) on delete cascade,
   provider          text not null check (provider in ('meta','google_ads','google_business')),
@@ -475,12 +497,13 @@ create table public.connections (
   unique (business_id, provider)
 );
 alter table public.connections enable row level security;
+drop policy if exists "connections: via business" on public.connections;
 create policy "connections: via business" on public.connections
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
 
 -- ------------------------------------------------------------- competitors
-create table public.competitors (
+create table if not exists public.competitors (
   id           uuid primary key default gen_random_uuid(),
   business_id  uuid not null references public.businesses (id) on delete cascade,
   name         text not null,
@@ -490,11 +513,12 @@ create table public.competitors (
   unique (business_id, name)
 );
 alter table public.competitors enable row level security;
+drop policy if exists "competitors: via business" on public.competitors;
 create policy "competitors: via business" on public.competitors
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
 
-create table public.competitor_reads (
+create table if not exists public.competitor_reads (
   id             uuid primary key default gen_random_uuid(),
   competitor_id  uuid not null references public.competitors (id) on delete cascade,
   business_id    uuid not null references public.businesses (id) on delete cascade,
@@ -508,13 +532,14 @@ create table public.competitor_reads (
   unique (competitor_id, kind, day)
 );
 alter table public.competitor_reads enable row level security;
-create index competitor_reads_business_idx on public.competitor_reads (business_id, captured_at desc);
+create index if not exists competitor_reads_business_idx on public.competitor_reads (business_id, captured_at desc);
+drop policy if exists "competitor_reads: via business" on public.competitor_reads;
 create policy "competitor_reads: via business" on public.competitor_reads
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
 
 -- ----------------------------------------------------------------- reviews
-create table public.reviews (
+create table if not exists public.reviews (
   id             uuid primary key default gen_random_uuid(),
   business_id    uuid not null references public.businesses (id) on delete cascade,
   competitor_id  uuid references public.competitors (id) on delete cascade,
@@ -527,12 +552,13 @@ create table public.reviews (
   unique (business_id, competitor_id, author, text)
 );
 alter table public.reviews enable row level security;
-create index reviews_business_idx on public.reviews (business_id, published_at desc);
+create index if not exists reviews_business_idx on public.reviews (business_id, published_at desc);
+drop policy if exists "reviews: via business" on public.reviews;
 create policy "reviews: via business" on public.reviews
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
 
-create table public.review_digests (
+create table if not exists public.review_digests (
   id            uuid primary key default gen_random_uuid(),
   business_id   uuid not null unique references public.businesses (id) on delete cascade,
   review_count  integer not null default 0,
@@ -543,12 +569,13 @@ create table public.review_digests (
   created_at    timestamptz not null default now()
 );
 alter table public.review_digests enable row level security;
+drop policy if exists "review_digests: via business" on public.review_digests;
 create policy "review_digests: via business" on public.review_digests
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
 
 -- ------------------------------------------------------------------ alerts
-create table public.alerts (
+create table if not exists public.alerts (
   id           uuid primary key default gen_random_uuid(),
   business_id  uuid not null references public.businesses (id) on delete cascade,
   kind         text not null check (kind in ('demand_spike','competitor_ads','seasonal_window','campaign_performance','report_ready')),
@@ -561,14 +588,15 @@ create table public.alerts (
   unique (business_id, dedupe_key)
 );
 alter table public.alerts enable row level security;
-create index alerts_business_idx on public.alerts (business_id, created_at desc);
+create index if not exists alerts_business_idx on public.alerts (business_id, created_at desc);
+drop policy if exists "alerts: via business" on public.alerts;
 create policy "alerts: via business" on public.alerts
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
 
 -- --------------------------------------------- campaign platform linkage
-alter table public.campaigns add column external_id text;
-alter table public.campaigns add column external_status text;
+alter table public.campaigns add column if not exists external_id text;
+alter table public.campaigns add column if not exists external_status text;
 
 -- (The signals source check is owned by 0011 — the full live union,
 -- dataforseo included. Rewriting it here with a partial list broke ingest.)
@@ -581,7 +609,7 @@ alter table public.campaigns add column external_status text;
 -- Service-role only — RLS is enabled with no user policies on purpose, so the
 -- anon/user keys can never read or write prospect data.
 
-create table public.prospect_leads (
+create table if not exists public.prospect_leads (
   id            uuid primary key default gen_random_uuid(),
   place_id      text not null unique,
   name          text not null,
@@ -606,8 +634,8 @@ create table public.prospect_leads (
 );
 alter table public.prospect_leads enable row level security;
 
-create index prospect_leads_status_idx on public.prospect_leads (status);
-create index prospect_leads_best_email_idx on public.prospect_leads (best_email);
+create index if not exists prospect_leads_status_idx on public.prospect_leads (status);
+create index if not exists prospect_leads_best_email_idx on public.prospect_leads (best_email);
 
 
 -- ============================================================
@@ -641,7 +669,7 @@ alter table public.prospect_leads
 -- next, which seed the pick's Ask box. One row per opportunity; the
 -- prompt_version carries a fingerprint of the facts it was written from, so
 -- a read whose facts moved (new score, new match) is rewritten, not shown.
-create table public.pick_reads (
+create table if not exists public.pick_reads (
   id              uuid primary key default gen_random_uuid(),
   opportunity_id  uuid not null references public.opportunities (id) on delete cascade,
   business_id     uuid not null references public.businesses (id) on delete cascade,
@@ -653,8 +681,9 @@ create table public.pick_reads (
   unique (opportunity_id)
 );
 alter table public.pick_reads enable row level security;
-create index pick_reads_business_idx on public.pick_reads (business_id);
+create index if not exists pick_reads_business_idx on public.pick_reads (business_id);
 
+drop policy if exists "pick_reads: via business" on public.pick_reads;
 create policy "pick_reads: via business" on public.pick_reads
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
@@ -678,7 +707,7 @@ create unique index if not exists campaigns_opportunity_uniq
 -- each Monday by the weekly cron against that week's facts and memory, with
 -- one line on what moved since the previous answer. The evergreen loop —
 -- a question that never closes, answered before it's asked.
-create table public.standing_questions (
+create table if not exists public.standing_questions (
   id               uuid primary key default gen_random_uuid(),
   business_id      uuid not null references public.businesses (id) on delete cascade,
   question         text not null,
@@ -691,8 +720,9 @@ create table public.standing_questions (
   created_at       timestamptz not null default now()
 );
 alter table public.standing_questions enable row level security;
-create index standing_questions_business_idx on public.standing_questions (business_id, created_at);
+create index if not exists standing_questions_business_idx on public.standing_questions (business_id, created_at);
 
+drop policy if exists "standing_questions: via business" on public.standing_questions;
 create policy "standing_questions: via business" on public.standing_questions
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
@@ -704,7 +734,7 @@ create policy "standing_questions: via business" on public.standing_questions
 -- The owner's own knowledge next to the market's: uploaded menus, sales
 -- exports, brand guides, past ad results. The raw file is never stored —
 -- text is extracted on upload and digested into facts; both live here.
-create table public.business_documents (
+create table if not exists public.business_documents (
   id           uuid primary key default gen_random_uuid(),
   business_id  uuid not null references public.businesses (id) on delete cascade,
   name         text not null,
@@ -716,8 +746,9 @@ create table public.business_documents (
   created_at   timestamptz not null default now()
 );
 alter table public.business_documents enable row level security;
-create index business_documents_business_idx on public.business_documents (business_id, created_at desc);
+create index if not exists business_documents_business_idx on public.business_documents (business_id, created_at desc);
 
+drop policy if exists "business_documents: via business" on public.business_documents;
 create policy "business_documents: via business" on public.business_documents
   for all using (public.owns_business(business_id))
   with check (public.owns_business(business_id));
@@ -735,7 +766,8 @@ create policy "business_documents: via business" on public.business_documents
 --
 -- The check is the FULL union of every live source — replacing it with a
 -- partial list breaks daily ingest.
-alter table public.signals drop constraint signals_source_check;
+alter table public.signals drop constraint if exists signals_source_check;
+alter table public.signals drop constraint if exists signals_source_check;
 alter table public.signals
   add constraint signals_source_check
   check (source in (
@@ -769,6 +801,7 @@ alter table public.businesses
   add column if not exists ad_platforms text[] not null default '{}';
 
 alter table public.businesses drop constraint if exists businesses_market_check;
+alter table public.businesses drop constraint if exists businesses_market_check;
 alter table public.businesses
   add constraint businesses_market_check check (market in ('online','local'));
 
@@ -781,6 +814,7 @@ alter table public.business_briefs
   add column if not exists target_customer jsonb not null default '{}'::jsonb;
 
 -- Social and Google-ads reads join the dated observations on a rival.
+alter table public.competitor_reads drop constraint if exists competitor_reads_kind_check;
 alter table public.competitor_reads drop constraint if exists competitor_reads_kind_check;
 alter table public.competitor_reads
   add constraint competitor_reads_kind_check
@@ -1238,6 +1272,7 @@ create policy "social_comments: via business" on public.social_comments
 -- Trustpilot for online brands and their rivals; a rival's own site when it
 -- publishes reviews as structured data. Google stays the local read.
 alter table public.reviews drop constraint if exists reviews_source_check;
+alter table public.reviews drop constraint if exists reviews_source_check;
 alter table public.reviews
   add constraint reviews_source_check
   check (source in ('google','seed','trustpilot','site'));
@@ -1290,6 +1325,7 @@ alter table public.picks
   add column if not exists basis text,
   add column if not exists priority_reason text;
 alter table public.picks drop constraint if exists picks_basis_check;
+alter table public.picks drop constraint if exists picks_basis_check;
 alter table public.picks
   add constraint picks_basis_check check (basis is null or basis in ('builds_on','explores'));
 
@@ -1303,6 +1339,7 @@ alter table public.pick_evidence
   add column if not exists sample_size integer,
   add column if not exists limitation text;
 alter table public.pick_evidence drop constraint if exists pick_evidence_kind_check;
+alter table public.pick_evidence drop constraint if exists pick_evidence_kind_check;
 alter table public.pick_evidence
   add constraint pick_evidence_kind_check check (kind in ('observation','quote','measurement','context'));
 
@@ -1310,8 +1347,10 @@ alter table public.pick_evidence
 -- chosen: picked for production (not launched). refined: rewritten on the
 -- owner's direction. running and dismissed keep their meaning.
 alter table public.pick_feedback drop constraint if exists pick_feedback_action_check;
+alter table public.pick_feedback drop constraint if exists pick_feedback_action_check;
 alter table public.pick_feedback
   add constraint pick_feedback_action_check check (action in ('running','dismissed','chosen','refined'));
+alter table public.pick_feedback drop constraint if exists pick_feedback_reason_check;
 alter table public.pick_feedback drop constraint if exists pick_feedback_reason_check;
 alter table public.pick_feedback
   add constraint pick_feedback_reason_check
@@ -1321,6 +1360,7 @@ alter table public.pick_feedback
 -- planned: chosen for production, nothing live yet. running: launched.
 -- completed / killed: ended, with or without numbers. learned: the owner's
 -- own sentence on what the test taught, kept apart from the numbers.
+alter table public.pick_runs drop constraint if exists pick_runs_status_check;
 alter table public.pick_runs drop constraint if exists pick_runs_status_check;
 alter table public.pick_runs
   add constraint pick_runs_status_check check (status in ('planned','running','completed','killed'));
@@ -1336,6 +1376,7 @@ alter table public.businesses
   add column if not exists claims_notes text,
   add column if not exists recent_creative_notes text,
   add column if not exists priority_service_id uuid references public.services (id) on delete set null;
+alter table public.businesses drop constraint if exists businesses_campaign_objective_check;
 alter table public.businesses drop constraint if exists businesses_campaign_objective_check;
 alter table public.businesses
   add constraint businesses_campaign_objective_check
@@ -1517,6 +1558,7 @@ alter table public.businesses drop constraint if exists businesses_campaign_obje
 alter table public.businesses drop column if exists campaign_objective;
 
 alter table public.businesses drop constraint if exists businesses_campaign_objectives_check;
+alter table public.businesses drop constraint if exists businesses_campaign_objectives_check;
 alter table public.businesses
   add constraint businesses_campaign_objectives_check
   check (campaign_objectives <@ array['purchases','leads','traffic','awareness']::text[]);
@@ -1573,6 +1615,7 @@ alter table public.ad_history
   add column if not exists creative_kind text,
   add column if not exists run_id uuid references public.pick_runs (id) on delete set null;
 alter table public.ad_history drop constraint if exists ad_history_creative_kind_check;
+alter table public.ad_history drop constraint if exists ad_history_creative_kind_check;
 alter table public.ad_history
   add constraint ad_history_creative_kind_check check (creative_kind is null or creative_kind in ('video','image','carousel'));
 create index if not exists ad_history_external_idx on public.ad_history (business_id, external_ad_id);
@@ -1595,11 +1638,14 @@ alter table public.ad_history
   add column if not exists format text,
   add column if not exists classifier text;
 alter table public.ad_history drop constraint if exists ad_history_angle_check;
+alter table public.ad_history drop constraint if exists ad_history_angle_check;
 alter table public.ad_history
   add constraint ad_history_angle_check check (angle is null or angle in ('education','offer','scarcity','social_proof','speed','novelty'));
 alter table public.ad_history drop constraint if exists ad_history_hook_type_check;
+alter table public.ad_history drop constraint if exists ad_history_hook_type_check;
 alter table public.ad_history
   add constraint ad_history_hook_type_check check (hook_type is null or hook_type in ('question','problem','claim','story','comparison','callout','demonstration','offer','other'));
+alter table public.ad_history drop constraint if exists ad_history_format_check;
 alter table public.ad_history drop constraint if exists ad_history_format_check;
 alter table public.ad_history
   add constraint ad_history_format_check check (format is null or format in ('talking_head','ugc','demo','static','editor','studio','carousel','video','unknown'));
@@ -1706,6 +1752,7 @@ create unique index if not exists picks_share_token_idx on public.picks (share_t
 -- seats: starter, baseline (the pilot tier) and pro. Run after 0034.
 -- Idempotent: pasted by hand, safe to re-run.
 alter table public.subscriptions drop constraint if exists subscriptions_plan_check;
+alter table public.subscriptions drop constraint if exists subscriptions_plan_check;
 alter table public.subscriptions
   add constraint subscriptions_plan_check check (plan in ('trial', 'starter', 'baseline', 'pro'));
 
@@ -1731,6 +1778,7 @@ create index if not exists businesses_prospect_idx on public.businesses (prospec
 -- returning, and the discount codes that are live. Run after 0036.
 -- Idempotent: pasted by hand, safe to re-run.
 
+alter table public.connections drop constraint if exists connections_provider_check;
 alter table public.connections drop constraint if exists connections_provider_check;
 alter table public.connections
   add constraint connections_provider_check check (provider in ('meta','google_ads','google_business','shopify'));

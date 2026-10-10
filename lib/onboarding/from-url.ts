@@ -1,5 +1,6 @@
 "use server";
 
+import { failReason } from "@/lib/read/run";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
@@ -44,7 +45,7 @@ export async function startFromUrlAction(_prev: UrlStartState, formData: FormDat
     site = { ...read, handles: own?.handles ?? {} };
   } catch (err) {
     console.warn("[onboarding:url] site read failed:", (err as Error).message);
-    return { error: "We couldn't read that site. Check the address, or try your store's homepage." };
+    return { error: `We couldn't read that site (${failReason(err)}). Check the address, or try your store's homepage.` };
   }
 
   const business = await repo.createBusiness({

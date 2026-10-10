@@ -28,6 +28,8 @@ interface ReadState {
   ownFailed: boolean;
   rivalReads: Record<string, AdvertiserSummary>;
   rivalFailed: string[];
+  /** Why a read failed, by advertiser name; the brand's own under its name. */
+  failReasons: Record<string, string>;
   gap: Gap | null;
   brief: ReadBrief | null;
   example: boolean;
@@ -42,6 +44,7 @@ const EMPTY: ReadState = {
   ownFailed: false,
   rivalReads: {},
   rivalFailed: [],
+  failReasons: {},
   gap: null,
   brief: null,
   example: false,
@@ -58,8 +61,10 @@ function reduce(s: ReadState, e: ReadEvent): ReadState {
       return { ...s, rivals: e.rivals };
     case "advertiser":
       return e.role === "brand" ? { ...s, own: e.summary } : { ...s, rivalReads: { ...s.rivalReads, [e.summary.name]: e.summary } };
-    case "advertiser_failed":
-      return e.role === "brand" ? { ...s, ownFailed: true } : { ...s, rivalFailed: [...s.rivalFailed, e.name] };
+    case "advertiser_failed": {
+      const failReasons = { ...s.failReasons, [e.name]: e.reason };
+      return e.role === "brand" ? { ...s, ownFailed: true, failReasons } : { ...s, rivalFailed: [...s.rivalFailed, e.name], failReasons };
+    }
     case "gap":
       return { ...s, gap: e.gap };
     case "brief":
@@ -248,7 +253,10 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
                     </>
                   )
                 ) : read.ownFailed ? (
-                  <p className="rd-soft">We couldn&rsquo;t reach the Ad Library for {read.brand.name}. The rest of the read goes on.</p>
+                  <p className="rd-soft">
+                    We couldn&rsquo;t reach the Ad Library for {read.brand.name}. The rest of the read goes on.
+                    {read.failReasons[read.brand.name] ? <span className="rd-fine rd-why"> Reason: {read.failReasons[read.brand.name]}</span> : null}
+                  </p>
                 ) : (
                   <div className="rd-ads">
                     <div className="rd-ad rd-skel" />
@@ -292,7 +300,10 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
                             s.top.slice(0, 2).map((ad) => <AdCard key={ad.id} ad={ad} advertiser={r.name} />)
                           )
                         ) : read.rivalFailed.includes(r.name) ? (
-                          <p className="rd-soft">The Ad Library didn&rsquo;t answer for {r.name}.</p>
+                          <p className="rd-soft">
+                            The Ad Library didn&rsquo;t answer for {r.name}.
+                            {read.failReasons[r.name] ? <span className="rd-fine rd-why"> Reason: {read.failReasons[r.name]}</span> : null}
+                          </p>
                         ) : (
                           <div className="rd-ad rd-skel" />
                         )}

@@ -20,7 +20,7 @@ import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://usetrnd.com";
-const TITLE = "TRND: Ad intelligence. Always-on surveillance for paid social.";
+const TITLE = "TRND: Ad intelligence. Always-on surveillance for paid ads.";
 const DESCRIPTION =
   "Cheat off your competitors. TRND watches every competitor's Meta ads every day: what they launched, what they killed, what they keep paying for, and what you're missing.";
 

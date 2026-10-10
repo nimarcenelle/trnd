@@ -7,7 +7,7 @@ import { ImageResponse } from "next/og";
  * this renders outside CSS.
  */
 
-export const alt = "TRND: Ad intelligence. Always-on surveillance for paid social.";
+export const alt = "TRND: Ad intelligence. Always-on surveillance for paid ads.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -43,7 +43,7 @@ export default function Image() {
             Cheat off your competitors.
           </div>
           <div style={{ fontSize: 58, fontWeight: 400, fontStyle: "italic", color: GOLD, lineHeight: 1.2, display: "flex" }}>
-            Always-on surveillance for paid social.
+            Always-on surveillance for paid ads.
           </div>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

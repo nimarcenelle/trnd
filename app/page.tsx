@@ -203,7 +203,7 @@ export default async function Home() {
               <span className="rd-pill">
                 <i aria-hidden="true" /> Live · watching Meta ads 24/7
               </span>
-              <h1>Always-on surveillance for paid social.</h1>
+              <h1>Always-on surveillance for paid ads.</h1>
               <p className="rd-hero__sub">
                 TRND puts cameras on your competitors&rsquo; Facebook and Instagram ads. Every launch, clone, scale-up and shutdown pings you
                 the moment it happens, with what it means for your business and what to run next. Paste your store for a free read.
@@ -289,7 +289,7 @@ export default async function Home() {
 
       <footer className="rd-footer">
         <Brand href={null} size={14} />
-        <span>Ad intelligence. Always-on surveillance for paid social.</span>
+        <span>Ad intelligence. Always-on surveillance for paid ads.</span>
         <span className="rd-footer__links">
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>

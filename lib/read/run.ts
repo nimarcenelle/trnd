@@ -122,6 +122,18 @@ export function failReason(err: unknown): string {
   return m.length > 160 ? `${m.slice(0, 157)}…` : m || "no reason given";
 }
 
+/**
+ * When a brand ends up with no ads but the Library answered, the Pages it
+ * answered with: the read says so instead of "no ads", and the log keeps
+ * the names so a near miss ("TilePix - Photo Tiles") can be seen and fixed.
+ */
+export function unmatchedPages(name: string, kept: AdvertiserAd[], all: AdvertiserAd[]): string[] {
+  if (kept.length > 0 || all.length === 0) return [];
+  const names = [...new Set(all.map((a) => a.advertiser).filter(Boolean))].slice(0, 5);
+  if (names.length > 0) console.warn(`[read] "${name}": ${all.length} ads from the Library, none taken as the brand's. Pages: ${names.join(" | ")}`);
+  return names;
+}
+
 async function settle<T>(work: Promise<T>, label: string): Promise<T | null> {
   try {
     return await work;
@@ -198,7 +210,7 @@ export async function runCategoryRead(website: string, emit: (e: ReadEvent) => v
       return null;
     }
     const mine = ads.filter((a) => isRivalAd({ name: site.name, facebook: handles?.facebook ?? null }, a));
-    const summary = summarizeAdvertiser(site.name, domain, mine);
+    const summary: AdvertiserSummary = { ...summarizeAdvertiser(site.name, domain, mine), unmatched: unmatchedPages(site.name, mine, ads) };
     emit({ type: "advertiser", role: "brand", summary });
     return summary;
   })();
@@ -220,7 +232,7 @@ export async function runCategoryRead(website: string, emit: (e: ReadEvent) => v
         return null;
       }
       const theirs = ads.filter((a) => isRivalAd({ name: c.name, facebook: handles?.facebook ?? null }, a));
-      const summary = summarizeAdvertiser(c.name, c.domain, theirs);
+      const summary: AdvertiserSummary = { ...summarizeAdvertiser(c.name, c.domain, theirs), unmatched: unmatchedPages(c.name, theirs, ads) };
       emit({ type: "advertiser", role: "rival", summary });
       return summary;
     }),

@@ -32,7 +32,7 @@ import { CircuitBreaker, fetchText } from "./http";
  * deprecated out from under you. */
 const DEFAULT_ACTOR = "curious_coder/facebook-ads-library-scraper";
 /** Per-rival cap: cost is per item, and thirty is enough to read a theme. */
-/** Depth per advertiser; env ADLIBRARY_RESULTS. 30 was cutting brands with real volume short. */
+/** Depth per advertiser; env ADLIBRARY_RESULTS raises it for brands with real volume. */
 const RESULTS_PER_PAGE = env.adLibraryResults;
 /** Survived ≥3 weeks on the rival's budget — the "still running" proxy. */
 export const PROVEN_DAYS = 21;
@@ -51,7 +51,8 @@ const SNIPPET_MAX = 280;
  * below is what keeps a mismatch from being a crash.
  */
 export function adLibraryActorInput(pageName: string): Record<string, unknown> {
-  const url = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=US&q=${encodeURIComponent(pageName)}&search_type=page`;
+  // Every country: a brand that advertises only outside the US is not a brand with no ads.
+  const url = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q=${encodeURIComponent(pageName)}&search_type=page`;
   return {
     urls: [{ url }],
     count: RESULTS_PER_PAGE,

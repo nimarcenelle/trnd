@@ -241,7 +241,16 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
                 </div>
                 {read.own ? (
                   read.own.active === 0 ? (
-                    <p className="rd-soft">No live Meta ads found. The gap below is the opening to enter with.</p>
+                    <p className="rd-soft">
+                      No live Meta ads found. The gap below is the opening to enter with.
+                      {read.own.unmatched && read.own.unmatched.length > 0 ? (
+                        <span className="rd-fine rd-why">
+                          {" "}
+                          The Library answered with ads from {read.own.unmatched.join(", ")}; not counted as yours, since the Page name doesn&rsquo;t
+                          match.
+                        </span>
+                      ) : null}
+                    </p>
                   ) : (
                     <>
                       <div className="rd-ads">
@@ -301,7 +310,16 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
                         {r.why ? <p className="rd-soft rd-why">{r.why}</p> : null}
                         {s ? (
                           s.active === 0 ? (
-                            <p className="rd-soft">No live Meta ads right now.</p>
+                            <p className="rd-soft">
+                              No live Meta ads right now.
+                              {s.unmatched && s.unmatched.length > 0 ? (
+                                <span className="rd-fine rd-why">
+                                  {" "}
+                                  The Library answered with ads from {s.unmatched.join(", ")}; not counted as {r.name}&rsquo;s, since the Page name
+                                  doesn&rsquo;t match.
+                                </span>
+                              ) : null}
+                            </p>
                           ) : (
                             s.top.slice(0, 2).map((ad) => <AdCard key={ad.id} ad={ad} advertiser={r.name} />)
                           )

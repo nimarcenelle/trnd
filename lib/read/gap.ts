@@ -42,6 +42,8 @@ export interface AdvertiserSummary {
   openings: Partial<Record<Opening, number>>;
   /** The longest-running live ads, up to three. */
   top: ReadAd[];
+  /** Pages the Library answered with that were not taken as this brand's, when it ended up with none. */
+  unmatched?: string[];
 }
 
 const TEXT_MAX = 180;

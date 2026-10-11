@@ -57,6 +57,8 @@ export const env = {
   apifyInstagramActor: process.env.APIFY_INSTAGRAM_ACTOR ?? "",
   apifyFacebookActor: process.env.APIFY_FACEBOOK_ACTOR ?? "",
   apifyAdLibraryActor: process.env.APIFY_ADLIBRARY_ACTOR ?? "",
+  /** Ads asked for per advertiser per read. A brand with 200 live ads is read to this depth. */
+  adLibraryResults: Math.min(500, Math.max(10, Number(process.env.ADLIBRARY_RESULTS) || 75)),
   apifyGoogleAdsActor: process.env.APIFY_GOOGLE_ADS_ACTOR ?? "",
   /** X recent search — the written half of the conversation read. No
    * keyless path exists; read access is a paid tier. */

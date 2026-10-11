@@ -206,15 +206,18 @@ export function Feed({ rival, index, now }: { rival: BoardRival; index: number; 
       </div>
     </>
   );
-  const cls = `rd-cam bd-feed__cam rd-cam--${index % 10}`;
+  const cls = `rd-cam bd-feed__cam rd-cam--${index % 10}${top?.preview ? " rd-cam--shot" : ""}`;
+  const style = top?.preview ? { backgroundImage: `linear-gradient(180deg, rgba(22,20,15,0.35), rgba(22,20,15,0.8)), url("${top.preview}")` } : undefined;
   return (
     <article className="bd-feed">
       {top?.url ? (
-        <a className={cls} href={top.url} target="_blank" rel="noreferrer">
+        <a className={cls} style={style} href={top.url} target="_blank" rel="noreferrer">
           {tile}
         </a>
       ) : (
-        <div className={cls}>{tile}</div>
+        <div className={cls} style={style}>
+          {tile}
+        </div>
       )}
       <header className="bd-feed__head">
         <div className="bd-feed__who">

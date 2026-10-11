@@ -64,6 +64,9 @@ interface StoredAd {
   headline?: string | null;
   startedOn?: string | null;
   url?: string;
+  kind?: string;
+  preview?: string | null;
+  video?: string | null;
 }
 
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -100,9 +103,15 @@ export function adsFromRead(read: { raw: unknown }, now: Date): AdvertiserAd[] {
       variants: typeof a.variants === "number" ? a.variants : 1,
       active: true,
       url: a.url ?? "",
+      kind: isKind(a.kind) ? a.kind : "unknown",
+      preview: typeof a.preview === "string" ? a.preview : null,
+      video: typeof a.video === "string" ? a.video : null,
     };
   });
 }
+
+const KINDS = new Set(["video", "image", "carousel", "dynamic", "unknown"]);
+const isKind = (k: unknown): k is AdvertiserAd["kind"] & string => typeof k === "string" && KINDS.has(k);
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -179,6 +188,9 @@ export function pickSample(category: string, byAdvertiser: Map<string, Advertise
       snippet: scrub(a.snippet, names, [category]),
       headline: a.headline ? scrub(a.headline, names, [category]) : null,
       url: "",
+      // The creative shows the brand's name, logo and product: not on an anonymized read.
+      preview: null,
+      video: null,
     }));
     return summarizeAdvertiser(tag, null, scrubbed);
   };

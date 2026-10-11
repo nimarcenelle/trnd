@@ -32,7 +32,8 @@ import { CircuitBreaker, fetchText } from "./http";
  * deprecated out from under you. */
 const DEFAULT_ACTOR = "curious_coder/facebook-ads-library-scraper";
 /** Per-rival cap: cost is per item, and thirty is enough to read a theme. */
-const RESULTS_PER_PAGE = 30;
+/** Depth per advertiser; env ADLIBRARY_RESULTS. 30 was cutting brands with real volume short. */
+const RESULTS_PER_PAGE = env.adLibraryResults;
 /** Survived ≥3 weeks on the rival's budget — the "still running" proxy. */
 export const PROVEN_DAYS = 21;
 const WEEK_DAYS = 7;
@@ -75,7 +76,15 @@ export interface AdvertiserAd {
   url: string;
   /** The advertising Page's profile URL, when the actor carries it. */
   pageUrl?: string | null;
+  /** What the creative is: a video (Reels included), an image, a carousel of cards, or a dynamic product ad. */
+  kind?: AdKind;
+  /** A still of the creative: the video's poster frame or the image itself. Expires; the Library link is the durable one. */
+  preview?: string | null;
+  /** The video file, when the actor carries it. */
+  video?: string | null;
 }
+
+export type AdKind = "video" | "image" | "carousel" | "dynamic" | "unknown";
 
 /** Words that say what kind of company it is, not which one: stripped from
  * both names before they are compared. */
@@ -203,8 +212,30 @@ function snapshotText(v: unknown): string | null {
   return str(v);
 }
 
+/** Dynamic ads carry template slots ("{{product.name}} Metal Poster"); they are not words a person saw. */
 function cleanCopy(s: string | null): string {
-  return (s ?? "").replace(/\s+/g, " ").trim();
+  return (s ?? "")
+    .replace(/\{\{[^}]*\}\}/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^[\s—–\-·:,.]+|[\s—–\-·:,]+$/g, "")
+    .trim();
+}
+
+/** The creative's kind, from the actor's display_format or from what media it carries. */
+function kindOf(snapshot: Item, videos: Item[], images: Item[], cards: Item[]): AdKind {
+  const fmt = (str(pick(snapshot, "display_format", "displayFormat")) ?? "").toUpperCase();
+  if (fmt === "VIDEO") return "video";
+  if (fmt === "IMAGE") return "image";
+  if (fmt === "CAROUSEL" || fmt === "MULTI_IMAGES" || fmt === "MULTI_VIDEOS" || fmt === "MULTI_MEDIAS") return "carousel";
+  if (fmt === "DCO" || fmt === "DPA") return "dynamic";
+  if (videos.length > 0 || cards.some((c) => str(pick(c, "video_hd_url", "video_sd_url", "videoHdUrl")))) return "video";
+  if (cards.length > 1) return "carousel";
+  if (images.length > 0 || cards.some((c) => str(pick(c, "original_image_url", "resized_image_url", "originalImageUrl")))) return "image";
+  return "unknown";
+}
+
+function records(v: unknown): Item[] {
+  return Array.isArray(v) ? v.map(asRecord).filter((x): x is Item => x !== null) : [];
 }
 
 /** Pure mapper over the actor's dataset — tolerant of every key spelling
@@ -223,14 +254,30 @@ export function toAdvertiserAds(items: unknown[], now = new Date()): AdvertiserA
     if (!id || seen.has(id)) continue;
 
     const body = asRecord(snapshot.body);
-    const snippet = cleanCopy(
-      (body ? str(body.text) : str(snapshot.body)) ??
-        snapshotText(pick(item, "body", "text", "ad_creative_body")) ??
-        null,
-    ).slice(0, SNIPPET_MAX);
+    const cards = records(pick(snapshot, "cards"));
+    const videos = records(pick(snapshot, "videos"));
+    const images = records(pick(snapshot, "images"));
+    // The words a person saw: the body, or for a carousel or dynamic ad whose
+    // body is a template, the first card's.
+    const bodyText = cleanCopy((body ? str(body.text) : str(snapshot.body)) ?? snapshotText(pick(item, "body", "text", "ad_creative_body")) ?? null);
+    const cardText = cleanCopy(cards.map((c) => str(pick(c, "body", "text"))).find((t) => t && cleanCopy(t)) ?? null);
+    const snippet = (bodyText || cardText).slice(0, SNIPPET_MAX);
     const headline = cleanCopy(
-      snapshotText(pick(snapshot, "title", "headline")) ?? snapshotText(pick(item, "title", "headline")),
+      snapshotText(pick(snapshot, "title", "headline")) ??
+        snapshotText(pick(item, "title", "headline")) ??
+        cards.map((c) => str(pick(c, "title"))).find(Boolean) ??
+        snapshotText(pick(snapshot, "link_description", "linkDescription")),
     );
+    const kind = kindOf(snapshot, videos, images, cards);
+    const preview =
+      str(pick(videos[0] ?? {}, "video_preview_image_url", "videoPreviewImageUrl")) ??
+      str(pick(images[0] ?? {}, "original_image_url", "resized_image_url", "originalImageUrl", "resizedImageUrl")) ??
+      cards.map((c) => str(pick(c, "video_preview_image_url", "original_image_url", "resized_image_url"))).find(Boolean) ??
+      null;
+    const video =
+      str(pick(videos[0] ?? {}, "video_hd_url", "video_sd_url", "videoHdUrl", "videoSdUrl")) ??
+      cards.map((c) => str(pick(c, "video_hd_url", "video_sd_url"))).find(Boolean) ??
+      null;
 
     const startedOn = toDay(pick(item, "start_date", "startDate", "start_date_string", "startDateFormatted"));
     const endedOn = toDay(pick(item, "end_date", "endDate"));
@@ -259,6 +306,9 @@ export function toAdvertiserAds(items: unknown[], now = new Date()): AdvertiserA
         str(pick(item, "ad_snapshot_url", "adSnapshotUrl", "url")) ??
         `https://www.facebook.com/ads/library/?id=${encodeURIComponent(id)}`,
       pageUrl: str(pick(snapshot, "page_profile_uri", "pageProfileUri")) ?? str(pick(item, "page_profile_uri", "pageUrl")),
+      kind,
+      preview,
+      video,
     });
   }
   return out;

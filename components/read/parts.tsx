@@ -30,7 +30,18 @@ export function AdCard({ ad, advertiser }: { ad: ReadAd; advertiser: string }) {
           {days(ad.runningDays)}
         </span>
       </div>
-      <p className="rd-ad__text">{ad.text || "Image or video only, no words to read."}</p>
+      {ad.preview ? (
+        <span className="rd-ad__media">
+          {/* The creative itself, from the Library's CDN: a poster frame for video, the image for the rest. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={ad.preview} alt="" loading="lazy" referrerPolicy="no-referrer" />
+          {ad.kind === "video" ? <b>▶ Video</b> : ad.kind === "carousel" ? <b>▣ Carousel</b> : null}
+        </span>
+      ) : null}
+      <p className="rd-ad__text">
+        {ad.text ||
+          (ad.kind === "video" ? "A video with no caption to read." : ad.kind === "image" ? "An image with no words to read." : "Image or video only, no words to read.")}
+      </p>
       {ad.opening ? <span className="rd-tag">{OPENING_LABEL[ad.opening]}</span> : null}
     </>
   );

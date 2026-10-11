@@ -35,6 +35,9 @@ export async function signUpAction(
   const { email, password, fullName } = fields(formData);
   if (!email || !/.+@.+\..+/.test(email)) return { error: "Enter a valid email." };
   if (!fullName) return { error: "Enter your name." };
+  // The store the free read just read, carried into onboarding so it starts on its own.
+  const site = String(formData.get("site") ?? "").trim().slice(0, 200);
+  const onboarding = site ? `/onboarding?site=${encodeURIComponent(site)}` : "/onboarding";
   // During the pilot an account is by invitation: a signup starts a paid
   // scan, and that is spent only on a brand the founder has talked to.
   if (isPilotGated) {
@@ -66,14 +69,14 @@ export async function signUpAction(
     if (!data.session) {
       return { notice: "Almost there — check your email and click the confirmation link to finish signing up." };
     }
-    redirect("/onboarding");
+    redirect(onboarding);
   }
 
   const result = demoSignUp(email, password, fullName);
   if ("error" in result) return { error: result.error };
   const cookieStore = await cookies();
   cookieStore.set(DEMO_SESSION_COOKIE, createSessionToken(result.user.id), COOKIE_OPTS);
-  redirect("/onboarding");
+  redirect(onboarding);
 }
 
 export async function signInAction(

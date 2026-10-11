@@ -13,21 +13,33 @@ const STEPS = ["Reading your site", "Finding your socials", "Looking up your liv
  * Onboarding as one field. While the site is read, the steps tick by so
  * the half minute reads as work being done, not a frozen button.
  */
-export default function UrlStart() {
+/**
+ * `site` is the store carried in from signup (?site=): the field is filled
+ * and submitted on its own, so the person who just ran a free read never
+ * types the address twice.
+ */
+export default function UrlStart({ site }: { site?: string }) {
   const [state, action, pending] = useActionState<UrlStartState, FormData>(startFromUrlAction, {});
   const input = useRef<HTMLInputElement>(null);
+  const form = useRef<HTMLFormElement>(null);
+  const started = useRef(false);
   const [step, setStep] = useState(0);
 
   // Prefilled outside React's state: the server renders an empty field and
-  // the stored store lands after hydration without a second render.
+  // the stored store lands after hydration without a second render. A
+  // carried site also submits itself, once: an error stops the loop.
   useEffect(() => {
     try {
-      const last = localStorage.getItem(LAST_READ_KEY);
+      const last = site || localStorage.getItem(LAST_READ_KEY);
       if (last && input.current && !input.current.value) input.current.value = last;
     } catch {
       /* storage blocked: the field just starts empty */
     }
-  }, []);
+    if (site && !started.current) {
+      started.current = true;
+      form.current?.requestSubmit();
+    }
+  }, [site]);
 
   useEffect(() => {
     if (!pending) return;
@@ -36,7 +48,7 @@ export default function UrlStart() {
   }, [pending]);
 
   return (
-    <form action={action} className="ob-url" onSubmit={() => setStep(0)}>
+    <form ref={form} action={action} className="ob-url" onSubmit={() => setStep(0)}>
       <div className="rd-command">
         <span className="rd-command__prefix" aria-hidden="true">
           https://
@@ -53,6 +65,7 @@ export default function UrlStart() {
           spellCheck={false}
           placeholder="yourbrand.com"
           ref={input}
+          defaultValue={site ?? ""}
           disabled={pending}
           required
         />

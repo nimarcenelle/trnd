@@ -12,7 +12,7 @@ import {
 
 const initial: AuthFormState = {};
 
-export default function AuthForm({ mode, invite = false }: { mode: "login" | "signup"; invite?: boolean }) {
+export default function AuthForm({ mode, invite = false, site }: { mode: "login" | "signup"; invite?: boolean; site?: string }) {
   const [state, formAction, pending] = useActionState(
     mode === "login" ? signInAction : signUpAction,
     initial,
@@ -22,6 +22,7 @@ export default function AuthForm({ mode, invite = false }: { mode: "login" | "si
   return (
     <div>
       <form action={formAction}>
+        {site ? <input type="hidden" name="site" value={site} /> : null}
         {mode === "signup" && (
           <div className="field">
             <label htmlFor="full_name">Full name</label>

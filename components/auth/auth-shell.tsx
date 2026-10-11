@@ -1,5 +1,6 @@
+import "@/app/read.css";
+
 import Brand from "@/components/brand";
-import ThemeToggle from "@/components/theme-toggle";
 
 export default function AuthShell({
   title,
@@ -11,12 +12,9 @@ export default function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-dvh flex flex-col">
-      <nav className="flex items-center justify-between py-4 px-8 border-b border-line"
-       
-      >
-        <Brand />
-        <ThemeToggle />
+    <main className="rd min-h-dvh flex flex-col">
+      <nav className="rd-nav">
+        <Brand live />
       </nav>
       <div className="flex-1 flex items-center justify-center py-12 px-5"
        

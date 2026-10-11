@@ -63,13 +63,15 @@ export default function CameraWall({ rivals, own, category, max = 4 }: { rivals:
               </div>
             </>
           );
-          const cls = `rd-cam rd-cam--${i % 10}`;
+          const cls = `rd-cam rd-cam--${i % 10}${top?.preview ? " rd-cam--shot" : ""}`;
+          // The creative itself behind the overlay when the read carried one.
+          const style = top?.preview ? { backgroundImage: `linear-gradient(180deg, rgba(22,20,15,0.35), rgba(22,20,15,0.8)), url("${top.preview}")` } : undefined;
           return top?.url ? (
-            <a key={s.name} className={cls} href={top.url} target="_blank" rel="noreferrer">
+            <a key={s.name} className={cls} style={style} href={top.url} target="_blank" rel="noreferrer">
               {inner}
             </a>
           ) : (
-            <div key={s.name} className={cls}>
+            <div key={s.name} className={cls} style={style}>
               {inner}
             </div>
           );

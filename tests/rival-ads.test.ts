@@ -6,7 +6,11 @@ import {
   readAdvertiser,
   toAdvertiserAds,
 } from "../lib/signals/adlibrary-apify";
-import { parseTransparencyText, readGoogleAds, type GoogleAd } from "../lib/signals/google-ads-transparency";
+import {
+  parseTransparencyText,
+  readGoogleAds,
+  type GoogleAd,
+} from "../lib/signals/google-ads-transparency";
 
 const NOW = new Date("2026-09-12T12:00:00Z");
 const unix = (day: string) => Date.parse(`${day}T00:00:00Z`) / 1000;
@@ -36,8 +40,16 @@ const ITEMS: unknown[] = [
     snapshot: { body: { text: "Now serving brand new cardamom buns" } },
   },
   { page_name: "No id at all", snapshot: { body: { text: "dropped" } } },
-  { ad_archive_id: "111", snapshot: { body: { text: "duplicate id, dropped" } } },
-  { ad_archive_id: "333", start_date: "not a date", end_date: unix("2026-09-01"), snapshot: {} },
+  {
+    ad_archive_id: "111",
+    snapshot: { body: { text: "duplicate id, dropped" } },
+  },
+  {
+    ad_archive_id: "333",
+    start_date: "not a date",
+    end_date: unix("2026-09-01"),
+    snapshot: {},
+  },
   "garbage",
   null,
 ];
@@ -94,9 +106,19 @@ describe("readAdvertiser", () => {
     [
       ...ITEMS,
       // Exactly on the threshold: counts as proven.
-      { ad_archive_id: "444", start_date: "2026-08-22", snapshot: { body: { text: "Rated 5-star by 2,000 neighbors" } } },
+      {
+        ad_archive_id: "444",
+        start_date: "2026-08-22",
+        snapshot: { body: { text: "Rated 5-star by 2,000 neighbors" } },
+      },
       // One day short.
-      { ad_archive_id: "555", start_date: "2026-08-23", snapshot: { body: { text: "Did you know sourdough is easier to digest?" } } },
+      {
+        ad_archive_id: "555",
+        start_date: "2026-08-23",
+        snapshot: {
+          body: { text: "Did you know sourdough is easier to digest?" },
+        },
+      },
       // Image-only and new: counts as active and new, not as a theme.
       { ad_archive_id: "666", start_date: "2026-09-08", snapshot: {} },
     ],
@@ -118,8 +140,15 @@ describe("readAdvertiser", () => {
   });
 
   it("counts themes from ads that have words", () => {
-    const counts = Object.fromEntries(read.themes.map((t) => [t.theme, t.count]));
-    expect(counts).toEqual({ scarcity: 1, novelty: 1, social_proof: 1, education: 1 });
+    const counts = Object.fromEntries(
+      read.themes.map((t) => [t.theme, t.count]),
+    );
+    expect(counts).toEqual({
+      scarcity: 1,
+      novelty: 1,
+      social_proof: 1,
+      education: 1,
+    });
   });
 
   it("samples at most five, proven first", () => {
@@ -168,7 +197,9 @@ describe("classifyAdCopy", () => {
   });
 
   it("is deterministic when copy carries two themes", () => {
-    expect(classifyAdCopy("Half off lattes, this weekend only")).toBe("scarcity");
+    expect(classifyAdCopy("Half off lattes, this weekend only")).toBe(
+      "scarcity",
+    );
   });
 });
 
@@ -195,31 +226,52 @@ Last shown: 9/11/2026
 
 describe("parseTransparencyText", () => {
   it("reads cards with format, copy and shown dates", () => {
-    const ads = parseTransparencyText(TRANSPARENCY, { domain: "bellwoodplumbing.com" });
+    const ads = parseTransparencyText(TRANSPARENCY, {
+      domain: "bellwoodplumbing.com",
+    });
     expect(ads.length).toBe(3);
     expect(ads[0]).toMatchObject({
       advertiser: "Bellwood Plumbing LLC",
       format: "text",
-      snippet: "Emergency Plumber in Asheville 24/7 licensed plumbers, same-day service",
+      snippet:
+        "Emergency Plumber in Asheville 24/7 licensed plumbers, same-day service",
       firstShown: "2026-07-01",
       lastShown: "2026-09-10",
     });
     expect(ads[0].url).toContain("domain=bellwoodplumbing.com");
-    expect(ads[1]).toMatchObject({ format: "video", snippet: "", firstShown: null, lastShown: "2026-08-01" });
-    expect(ads[2]).toMatchObject({ format: "image", firstShown: "2026-06-15", lastShown: "2026-09-11" });
+    expect(ads[1]).toMatchObject({
+      format: "video",
+      snippet: "",
+      firstShown: null,
+      lastShown: "2026-08-01",
+    });
+    expect(ads[2]).toMatchObject({
+      format: "image",
+      firstShown: "2026-06-15",
+      lastShown: "2026-09-11",
+    });
     expect(new Set(ads.map((a) => a.id)).size).toBe(3);
   });
 
   it("degrades to [] on garbage", () => {
     expect(parseTransparencyText("")).toEqual([]);
-    expect(parseTransparencyText("lorem\nipsum\n$$$\nText ad\nFirst shown: someday")).toEqual([]);
+    expect(
+      parseTransparencyText("lorem\nipsum\n$$$\nText ad\nFirst shown: someday"),
+    ).toEqual([]);
     expect(parseTransparencyText(undefined as unknown as string)).toEqual([]);
-    expect(parseTransparencyText("Sign in\nYou have no ads to show")).toEqual([]);
+    expect(parseTransparencyText("Sign in\nYou have no ads to show")).toEqual(
+      [],
+    );
   });
 });
 
 describe("readGoogleAds", () => {
-  const ad = (id: string, format: GoogleAd["format"], firstShown: string | null, lastShown: string | null): GoogleAd => ({
+  const ad = (
+    id: string,
+    format: GoogleAd["format"],
+    firstShown: string | null,
+    lastShown: string | null,
+  ): GoogleAd => ({
     id,
     advertiser: "Bellwood Plumbing LLC",
     format,
@@ -246,7 +298,11 @@ describe("readGoogleAds", () => {
   });
 
   it("is empty-safe", () => {
-    expect(readGoogleAds([], NOW)).toEqual({ active: 0, formats: { text: 0, image: 0, video: 0, unknown: 0 }, sample: [] });
+    expect(readGoogleAds([], NOW)).toEqual({
+      active: 0,
+      formats: { text: 0, image: 0, video: 0, unknown: 0 },
+      sample: [],
+    });
   });
 });
 
@@ -254,21 +310,177 @@ describe("whose ad it is", () => {
   it("matches a rival by Page name or by its Facebook handle, never a retailer selling its product", async () => {
     const { isRivalAd } = await import("../lib/signals/adlibrary-apify");
     const rival = { name: "Dae Hair", facebook: "daehair" };
-    expect(isRivalAd(rival, { advertiser: "Sephora", pageUrl: "https://www.facebook.com/sephora/" })).toBe(false);
-    expect(isRivalAd(rival, { advertiser: "dae", pageUrl: "https://www.facebook.com/daehair/" })).toBe(true);
-    expect(isRivalAd(rival, { advertiser: "Dae Hair Official", pageUrl: null })).toBe(true);
+    expect(
+      isRivalAd(rival, {
+        advertiser: "Sephora",
+        pageUrl: "https://www.facebook.com/sephora/",
+      }),
+    ).toBe(false);
+    expect(
+      isRivalAd(rival, {
+        advertiser: "dae",
+        pageUrl: "https://www.facebook.com/daehair/",
+      }),
+    ).toBe(true);
+    expect(
+      isRivalAd(rival, { advertiser: "Dae Hair Official", pageUrl: null }),
+    ).toBe(true);
     // A name is the same company or it is not: no substrings. These are the
     // advertisers prod filed under haircare and shower-filter brands.
-    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "Rozalia Beauty", pageUrl: null })).toBe(false);
-    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "Roz Strategies", pageUrl: null })).toBe(false);
-    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "Dr. Roz MD", pageUrl: null })).toBe(false);
-    expect(isRivalAd({ name: "Canopy", facebook: null }, { advertiser: "Crane & Canopy", pageUrl: null })).toBe(false);
-    expect(isRivalAd({ name: "Vitaclean", facebook: null }, { advertiser: "VitaClean Nutrition", pageUrl: null })).toBe(false);
-    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "RŌZ Hair", pageUrl: null })).toBe(false);
-    expect(isRivalAd({ name: "Roz", facebook: null }, { advertiser: "Roz", pageUrl: null })).toBe(true);
-    expect(isRivalAd({ name: "Filterbaby", facebook: null }, { advertiser: "My Filterbaby", pageUrl: null })).toBe(true);
-    expect(isRivalAd({ name: "Act+Acre", facebook: null }, { advertiser: "ActandAcre", pageUrl: null })).toBe(true);
-    expect(isRivalAd({ name: "JVN Hair", facebook: null }, { advertiser: "JVN Hair", pageUrl: null })).toBe(true);
-    expect(isRivalAd({ name: "Hello Klean", facebook: null }, { advertiser: "Hello Klean", pageUrl: null })).toBe(true);
+    expect(
+      isRivalAd(
+        { name: "Roz", facebook: null },
+        { advertiser: "Rozalia Beauty", pageUrl: null },
+      ),
+    ).toBe(false);
+    expect(
+      isRivalAd(
+        { name: "Roz", facebook: null },
+        { advertiser: "Roz Strategies", pageUrl: null },
+      ),
+    ).toBe(false);
+    expect(
+      isRivalAd(
+        { name: "Roz", facebook: null },
+        { advertiser: "Dr. Roz MD", pageUrl: null },
+      ),
+    ).toBe(false);
+    expect(
+      isRivalAd(
+        { name: "Canopy", facebook: null },
+        { advertiser: "Crane & Canopy", pageUrl: null },
+      ),
+    ).toBe(false);
+    expect(
+      isRivalAd(
+        { name: "Vitaclean", facebook: null },
+        { advertiser: "VitaClean Nutrition", pageUrl: null },
+      ),
+    ).toBe(false);
+    expect(
+      isRivalAd(
+        { name: "Roz", facebook: null },
+        { advertiser: "RŌZ Hair", pageUrl: null },
+      ),
+    ).toBe(false);
+    expect(
+      isRivalAd(
+        { name: "Roz", facebook: null },
+        { advertiser: "Roz", pageUrl: null },
+      ),
+    ).toBe(true);
+    expect(
+      isRivalAd(
+        { name: "Filterbaby", facebook: null },
+        { advertiser: "My Filterbaby", pageUrl: null },
+      ),
+    ).toBe(true);
+    expect(
+      isRivalAd(
+        { name: "Act+Acre", facebook: null },
+        { advertiser: "ActandAcre", pageUrl: null },
+      ),
+    ).toBe(true);
+    expect(
+      isRivalAd(
+        { name: "JVN Hair", facebook: null },
+        { advertiser: "JVN Hair", pageUrl: null },
+      ),
+    ).toBe(true);
+    expect(
+      isRivalAd(
+        { name: "Hello Klean", facebook: null },
+        { advertiser: "Hello Klean", pageUrl: null },
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("toAdvertiserAds: the creative, templates and cards", () => {
+  const NOW2 = new Date("2026-09-15T12:00:00Z");
+  const ads = toAdvertiserAds(
+    [
+      {
+        ad_archive_id: "v1",
+        page_name: "Clearwell",
+        start_date: "2026-06-01",
+        snapshot: {
+          display_format: "VIDEO",
+          body: { text: "It's the water." },
+          videos: [
+            {
+              video_hd_url: "https://v.example/hd.mp4",
+              video_preview_image_url: "https://i.example/poster.jpg",
+            },
+          ],
+        },
+      },
+      {
+        ad_archive_id: "d1",
+        page_name: "Clearwell",
+        start_date: "2026-08-01",
+        snapshot: {
+          display_format: "DCO",
+          body: {
+            text: "{{product.name}} Metal Poster — Wall art that gets you!",
+          },
+          cards: [
+            {
+              body: "Magnet mounted, no drill.",
+              title: "{{product.brand}} poster",
+              original_image_url: "https://i.example/card.jpg",
+            },
+          ],
+        },
+      },
+      {
+        ad_archive_id: "c1",
+        page_name: "Clearwell",
+        start_date: "2026-08-20",
+        snapshot: {
+          body: { text: "{{product.name}}" },
+          cards: [
+            {
+              body: "Three stages.",
+              original_image_url: "https://i.example/a.jpg",
+            },
+            {
+              body: "Lifetime warranty.",
+              original_image_url: "https://i.example/b.jpg",
+            },
+          ],
+        },
+      },
+      {
+        ad_archive_id: "i1",
+        page_name: "Clearwell",
+        start_date: "2026-09-01",
+        snapshot: {
+          images: [{ original_image_url: "https://i.example/img.jpg" }],
+        },
+      },
+    ],
+    NOW2,
+  );
+
+  it("keeps the video's poster frame and file, and says it is a video", () => {
+    expect(ads[0].kind).toBe("video");
+    expect(ads[0].preview).toBe("https://i.example/poster.jpg");
+    expect(ads[0].video).toBe("https://v.example/hd.mp4");
+  });
+  it("strips template slots from dynamic ads and keeps the words a person saw", () => {
+    expect(ads[1].kind).toBe("dynamic");
+    expect(ads[1].snippet).toBe("Metal Poster — Wall art that gets you!");
+    expect(ads[1].headline).toBe("poster");
+    expect(ads[1].preview).toBe("https://i.example/card.jpg");
+  });
+  it("falls back to the first card's words when the body is only a template", () => {
+    expect(ads[2].kind).toBe("carousel");
+    expect(ads[2].snippet).toBe("Three stages.");
+  });
+  it("reads an image ad as an image with its still", () => {
+    expect(ads[3].kind).toBe("image");
+    expect(ads[3].preview).toBe("https://i.example/img.jpg");
+    expect(ads[3].snippet).toBe("");
   });
 });

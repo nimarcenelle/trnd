@@ -1,5 +1,5 @@
 import { hookTypeOf } from "@/lib/ads/classify";
-import { PROVEN_DAYS, type AdvertiserAd } from "@/lib/signals/adlibrary-apify";
+import { type AdKind, PROVEN_DAYS, type AdvertiserAd } from "@/lib/signals/adlibrary-apify";
 
 import { OPENING_LABEL, OPENING_PHRASE, type Opening } from "./labels";
 
@@ -25,6 +25,10 @@ export interface ReadAd {
   runningDays: number | null;
   opening: Opening | null;
   url: string;
+  /** What the creative is; "unknown" when the read predates the field. */
+  kind: AdKind;
+  /** A still of the creative when the read carried one. Empty on an anonymized read. */
+  preview: string | null;
 }
 
 export interface AdvertiserSummary {
@@ -62,6 +66,8 @@ function toReadAd(ad: AdvertiserAd): ReadAd {
     runningDays: ad.runningDays,
     opening: openingOf(ad),
     url: ad.url,
+    kind: ad.kind ?? "unknown",
+    preview: ad.preview ?? null,
   };
 }
 

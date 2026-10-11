@@ -1520,6 +1520,63 @@ a.rd-ad:hover {
   margin-top: 24px;
 }
 
+/* ---------- once a read runs, the page is the read ---------- */
+.rd.is-reading .rd-sample,
+.rd.is-reading .rd-figures,
+.rd.is-reading #how,
+.rd.is-reading #pricing,
+.rd.is-reading .rd-final,
+.rd.is-reading .rd-hero__grid > .rd-wall {
+  display: none;
+}
+.rd.is-reading .rd-hero__grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.rd.is-reading .rd-hero__copy > .rd-results {
+  grid-column: 1;
+}
+.rd.is-reading main {
+  padding-bottom: 96px;
+}
+.rd-convert {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100% - 24px);
+  padding: 8px 8px 8px 18px;
+  border-radius: 999px;
+  background: var(--rd-night);
+  color: #f7f3ec;
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.5);
+  animation: rdIn 0.4s ease-out both;
+}
+.rd-convert > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rd-convert i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--rd-rec);
+  animation: rdPulse 1.6s ease-in-out infinite;
+  flex: 0 0 auto;
+}
+.rd-close .rd-fine {
+  margin-top: 14px;
+}
+
 /* ---------- the sample under the hero ---------- */
 .rd-sample {
   position: relative;

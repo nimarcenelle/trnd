@@ -24,7 +24,8 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
   const repo = await getUserRepo(user.id);
   const business = await repo.getBusinessByOwner(user.id);
   if (business) redirect("/app/rivals");
-  const { full } = await searchParams;
+  const { full, site } = await searchParams;
+  const carried = typeof site === "string" ? site.trim() : "";
 
   if (full === "1") {
     return (
@@ -46,14 +47,24 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
         <Brand href={null} live />
       </nav>
       <section className="ob-hero">
-        <span className="rd-kicker rd-kicker--gold">One step</span>
+        <span className="rd-kicker rd-kicker--gold">{carried ? "Switching the cameras on" : "One step"}</span>
         <h1>
-          Your store&rsquo;s address. <em>We&rsquo;ll find the rest.</em>
+          {carried ? (
+            <>
+              Setting up <em>{carried.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}.</em>
+            </>
+          ) : (
+            <>
+              Your store&rsquo;s address. <em>We&rsquo;ll find the rest.</em>
+            </>
+          )}
         </h1>
         <p className="rd-soft ob-sub">
-          Your products, your socials and your live ads. Then your top competitors, and a camera on every ad they run, read every day.
+          {carried
+            ? "Your products, your socials and your live ads, then your top competitors and a camera on every ad they run. About a minute."
+            : "Your products, your socials and your live ads. Then your top competitors, and a camera on every ad they run, read every day."}
         </p>
-        <UrlStart />
+        <UrlStart site={carried || undefined} />
       </section>
     </main>
   );

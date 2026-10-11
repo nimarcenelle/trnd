@@ -112,6 +112,9 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
     }
     setPhase("running");
     setRead(EMPTY);
+    // The read takes the page over: the sample, the figures and the pitch
+    // below it leave, and what's left is this brand's read and the way in.
+    document.querySelector(".rd")?.classList.add("is-reading");
     // Setup prefills the store someone just read (components/onboarding/url-start.tsx).
     try {
       localStorage.setItem("trnd-read-site", website.trim());
@@ -158,6 +161,9 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
 
   const started = phase !== "idle";
   const rivalSummaries = (read.rivals ?? []).map((r) => read.rivalReads[r.name]).filter((s): s is AdvertiserSummary => Boolean(s));
+  // Signup carries the store along, so onboarding starts from it without asking again.
+  const signupHref = `/signup?site=${encodeURIComponent(website.trim())}`;
+  const rivalCount = read.rivals?.length ?? 0;
 
   return (
     <>
@@ -330,17 +336,13 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
               </section>
             ) : null}
 
-            {phase === "done" && read.brief && read.brand && !read.example ? (
-              <WatchForm website={website} brand={read.brand} brief={read.brief} gap={read.gap} />
-            ) : null}
-
             {phase === "done" && read.gap ? (
               <section className="rd-close rd-in">
                 <span className="rd-kicker rd-kicker--gold">That was one read</span>
-                <h2>Members get it every morning.</h2>
+                <h2>Keep the cameras on.</h2>
                 <p>
-                  Cameras on every competitor, read daily: what they launched, what they killed, what they keep paying for, and the test that
-                  fills the gap, with the score once it&rsquo;s live.
+                  {rivalCount > 0 ? `These ${rivalCount} competitors` : "Your competitors"}, read again every morning: what they launched, what
+                  they killed, what they keep paying for, and the test that fills the gap, with the score once it&rsquo;s live.
                 </p>
                 {gated ? (
                   applying ? (
@@ -353,11 +355,28 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
                     </button>
                   )
                 ) : (
-                  <Link href="/signup" className="rd-btn rd-btn--gold rd-btn--lg">
+                  <Link href={signupHref} className="rd-btn rd-btn--gold rd-btn--lg">
                     Switch the cameras on
                   </Link>
                 )}
+                <p className="rd-fine">Two minutes. Your competitors are already named; the first daily read starts the moment you&rsquo;re in.</p>
               </section>
+            ) : null}
+
+            {phase === "done" && read.brief && read.brand && !read.example ? (
+              <WatchForm website={website} brand={read.brand} brief={read.brief} gap={read.gap} />
+            ) : null}
+
+            {rivalCount > 0 && !read.error && !gated ? (
+              <div className="rd-convert" role="complementary">
+                <span>
+                  <i aria-hidden="true" />
+                  {phase === "done" ? `Read done · ${rivalCount} competitors found` : `Reading ${rivalCount} competitors' ads…`}
+                </span>
+                <Link href={signupHref} className="rd-btn rd-btn--gold rd-btn--sm">
+                  Keep the cameras on
+                </Link>
+              </div>
             ) : null}
           </>
         )}

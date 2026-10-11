@@ -485,6 +485,9 @@ html:has(.rd) body {
   grid-column: 1;
   min-width: 0;
 }
+.rd-hero__copy > .rd-pill {
+  justify-self: start;
+}
 .rd-hero__copy > .rd-pill,
 .rd-hero__copy > h1,
 .rd-hero__copy > .rd-hero__sub {

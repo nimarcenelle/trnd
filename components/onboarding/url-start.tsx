@@ -75,7 +75,7 @@ export default function UrlStart({ site }: { site?: string }) {
               <span className="rd-spin" aria-hidden="true" /> Setting up
             </>
           ) : (
-            <>Start watching →</>
+            <>Start watching</>
           )}
         </button>
       </div>

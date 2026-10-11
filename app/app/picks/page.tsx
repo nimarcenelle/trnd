@@ -336,30 +336,24 @@ export default async function PicksPage() {
       <div className="page-head">
         <div>
           <span className="eyebrow m-0">This week · {weekRange}</span>
-          <h1>No tests this week</h1>
-          <p className="context">{empty.line}</p>
+          <h1>No tests yet</h1>
+          <p className="context">The tests come from the gap: what your competitors keep paying for that you don&rsquo;t run. The first batch lands once their ads have been read; new ones every Monday.</p>
         </div>
       </div>
       <div className="panel max-w-[620px]">
-        {empty.missing.length > 0 ? (
-          <p className="m-0 text-ink-soft leading-[1.65] text-[14.5px]">
-            What the grade could not read is what to add. Each brief is then checked against your own ads and your rivals&apos;
-            instead of the market alone.
-          </p>
-        ) : (
-          <p className="m-0 text-ink-soft leading-[1.65] text-[14.5px]">
-            TRND shows nothing rather than a weak idea dressed up as a test.
-          </p>
-        )}
+        <p className="m-0 text-ink-soft leading-[1.65] text-[14.5px]">
+          Meanwhile the board already shows the gap, the log of what they launched and killed, and every competitor on camera. TRND
+          shows nothing here rather than a weak idea dressed up as a test.
+        </p>
         <div className="flex gap-3 flex-wrap mt-[18px]">
+          <Link className="rd-btn rd-btn--gold rd-btn--sm" href="/app/rivals">
+            See the competitors
+          </Link>
           {empty.missing.map((m) => (
-            <Link key={m.href} className="btn btn-primary btn-sm" href={m.href}>
+            <Link key={m.href} className="rd-btn rd-btn--ghost rd-btn--sm" href={m.href}>
               {m.label}
             </Link>
           ))}
-          <Link className="btn btn-ghost btn-sm" href="/app/snapshot">
-            Your analysis
-          </Link>
         </div>
       </div>
     </div>

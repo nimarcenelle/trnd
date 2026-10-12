@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "probe": "tsx scripts/probe-adlibrary.ts"
+    "probe": "tsx --env-file-if-exists=.env.local scripts/probe-adlibrary.ts",
+    "run:once": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/run-once.ts"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",

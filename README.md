@@ -28,7 +28,13 @@ for objects with an `ad_archive_id` and a `snapshot`, so it survives Meta moving
 If Meta answers with a login wall (it sometimes does to datacenter IPs), the same URL goes through an Apify Ad Library
 actor when `APIFY_TOKEN` is set. Without the token, the rival shows the error.
 
-Try it from any machine:
+Run the whole pipeline once for a real business, no database or login (needs `OPENAI_API_KEY`):
+
+```
+pnpm run:once glossier.com     # writes runs/glossier.com.md and .json
+```
+
+Or just the scraper:
 
 ```
 pnpm probe "Brand Name"

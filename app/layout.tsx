@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = { themeColor: "#3C7E70" };
+export const viewport: Viewport = { themeColor: "#0d0b09" };
 
 /** Applies a saved theme override before first paint so there is no flash. */
 const themeInit = `try{var t=localStorage.getItem("trnd-theme");if(t==="dark"||t==="light"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}`;

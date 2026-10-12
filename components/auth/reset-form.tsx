@@ -20,7 +20,7 @@ export default function ResetForm() {
         <input id="confirm_password" name="confirm_password" type="password" placeholder="Same again" autoComplete="new-password" required minLength={8} />
       </div>
       {state.error && <p className="form-error">{state.error}</p>}
-      <button type="submit" className="btn btn-primary w-full justify-center" disabled={pending}>
+      <button type="submit" className="btn btn-primary btn-lg w-full" disabled={pending}>
         {pending ? "Saving…" : "Set new password"}
       </button>
     </form>

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 /**
  * The ad's creative. Ad Library media URLs are signed and expire after a few
- * days, so a broken image falls back to the format label; the link to the
+ * days, so a broken image falls back to a quiet placeholder; the link to the
  * library always works.
  */
 export default function AdThumb({ src, label }: { src: string | null; label: string }) {
@@ -16,8 +16,12 @@ export default function AdThumb({ src, label }: { src: string | null; label: str
     if (img && img.complete && img.naturalWidth === 0) setBroken(true);
   }, [src]);
   if (!src || broken) {
-    return <div className="w-full h-full grid place-items-center bg-bg-2 mono-label">{label}</div>;
+    return (
+      <div className="cam-fill grid place-items-center bg-bg-3">
+        <span className="label">{label}</span>
+      </div>
+    );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img ref={ref} src={src} alt="" loading="lazy" referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={() => setBroken(true)} />;
+  return <img ref={ref} src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />;
 }

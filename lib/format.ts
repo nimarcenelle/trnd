@@ -26,3 +26,5 @@ const SCAN_STALE_MS = 10 * 60_000;
 export function isScanning(brand: Pick<Brand, "scan_status" | "scan_started_at">, now = Date.now()): boolean {
   return brand.scan_status === "running" && Boolean(brand.scan_started_at) && now - Date.parse(brand.scan_started_at!) < SCAN_STALE_MS;
 }
+
+export const withinDays = (iso: string, days: number, now = Date.now()) => now - Date.parse(iso) < days * 86_400_000;

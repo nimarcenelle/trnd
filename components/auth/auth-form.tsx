@@ -31,7 +31,7 @@ export default function AuthForm({ mode, site }: { mode: "login" | "signup"; sit
           <div className="flex justify-between items-baseline">
             <label htmlFor="password">Password</label>
             {mode === "login" && (
-              <Link className="text-[12px] text-ink-faint" href="/forgot">
+              <Link className="text-[12px] text-ink-3 hover:text-ink normal-case tracking-normal font-body" href="/forgot">
                 Forgot password?
               </Link>
             )}
@@ -48,23 +48,23 @@ export default function AuthForm({ mode, site }: { mode: "login" | "signup"; sit
         </div>
         {state.error && <p className="form-error">{state.error}</p>}
         {state.notice && (
-          <p className="font-mono text-[11.5px] text-mint leading-[1.5]">
+          <p className="text-[13.5px] text-mint leading-[1.5] mb-4">
             {state.notice}
           </p>
         )}
         <button
           type="submit"
-          className="btn btn-primary w-full justify-center"
+          className="btn btn-primary btn-lg w-full"
           disabled={pending}
          
         >
           {pending ? "One moment…" : mode === "login" ? "Sign in" : "Create account"}
         </button>
         {mode === "signup" && (
-          <p className="text-[11.5px] text-ink-faint mx-0 mt-3 mb-0 text-center leading-[1.5]">
+          <p className="text-[11.5px] text-ink-3 mx-0 mt-3 mb-0 text-center leading-[1.5]">
             By creating an account you agree to the{" "}
-            <Link className="text-ink-faint underline" href="/terms">Terms</Link> and{" "}
-            <Link className="text-ink-faint underline" href="/privacy">Privacy Policy</Link>.
+            <Link className="text-ink-3 underline" href="/terms">Terms</Link> and{" "}
+            <Link className="text-ink-3 underline" href="/privacy">Privacy Policy</Link>.
           </p>
         )}
       </form>
@@ -74,7 +74,7 @@ export default function AuthForm({ mode, site }: { mode: "login" | "signup"; sit
           <input type="hidden" name="email" id="magic-email" />
           <button
             type="submit"
-            className="btn btn-ghost w-full justify-center"
+            className="btn btn-ghost w-full"
             disabled={magicPending}
            
             onClick={(e) => {
@@ -86,21 +86,21 @@ export default function AuthForm({ mode, site }: { mode: "login" | "signup"; sit
           </button>
           {magicState.error && <p className="form-error mt-[10px]">{magicState.error}</p>}
           {magicState.notice && (
-            <p className="font-mono text-[11px] text-mint mt-[10px]">
+            <p className="text-[13px] text-mint mt-[10px]">
               {magicState.notice}
             </p>
           )}
         </form>
       )}
 
-      <p className="text-[13.5px] text-ink-soft mt-[22px] text-center">
+      <p className="text-[13.5px] text-ink-2 mt-[22px] text-center">
         {mode === "login" ? (
           <>
-            New to TRND? <Link className="text-amber" href="/signup">Create an account</Link>
+            New to TRND? <Link className="text-mint" href="/signup">Create an account</Link>
           </>
         ) : (
           <>
-            Already have an account? <Link className="text-amber" href="/login">Sign in</Link>
+            Already have an account? <Link className="text-mint" href="/login">Sign in</Link>
           </>
         )}
       </p>

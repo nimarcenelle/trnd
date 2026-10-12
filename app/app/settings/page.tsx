@@ -12,6 +12,18 @@ import { isStripeConfigured } from "@/lib/env";
 
 export const metadata = { title: "Settings — TRND" };
 
+function Section({ id, title, sub, children }: { id?: string; title: string; sub?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section id={id} className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)] py-10 border-t border-line first:border-t-0 first:pt-0">
+      <div>
+        <h2 className="disp text-[18px]">{title}</h2>
+        {sub && <p className="text-[13.5px] text-ink-3 mt-2 leading-[1.55]">{sub}</p>}
+      </div>
+      <div className="min-w-0">{children}</div>
+    </section>
+  );
+}
+
 export default async function SettingsPage({ searchParams }: PageProps<"/app/settings">) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -21,52 +33,64 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   const plan = planState(brand);
 
   return (
-    <div className="max-w-[760px]">
-      <h1 className="h-disp text-[30px] mt-0 mb-1">Rivals &amp; settings</h1>
-      <p className="m-0 text-ink-soft text-[14px]">
-        {brand.name} · <a className="underline" href="/app/setup?again=1">{brand.url}</a>
-      </p>
+    <div className="max-w-[1000px]">
+      <span className="label">Settings</span>
+      <h1 className="disp text-[clamp(30px,4vw,44px)] mt-3 mb-12">Rivals &amp; settings</h1>
 
-      <h2 className="h-disp text-[20px] mt-10 mb-1">Rivals watched</h2>
-      <p className="mt-0 mb-4 text-ink-soft text-[14px]">
-        {rivals.length} of {MAX_RIVALS}. A new rival is read on the next scan.
-      </p>
-      <div className="card mb-4">
-        <RivalList rivals={rivals} />
-      </div>
-      <div className="card">
-        <AddRivalForm />
-      </div>
-
-      <h2 id="billing" className="h-disp text-[20px] mt-12 mb-3">
-        Plan
-      </h2>
-      <div className="card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          {plan.paid ? (
-            <b>TRND · {PRICE_LABEL}</b>
-          ) : plan.locked ? (
-            <b>Trial ended</b>
-          ) : (
-            <b>
-              Free trial · {plan.trialDaysLeft} day{plan.trialDaysLeft === 1 ? "" : "s"} left
-            </b>
-          )}
-          {brand.plan_status === "past_due" && <p className="m-0 text-red text-[14px]">Your last payment failed. Update your card to keep scans running.</p>}
-          {billing === "success" && <p className="m-0 text-mint text-[14px]">Thanks. Your plan is active.</p>}
-          {!isStripeConfigured && <p className="m-0 text-ink-faint text-[13px]">Billing isn&apos;t connected on this deployment.</p>}
+      <Section title="Your brand" sub="What TRND compares every rival against.">
+        <div className="panel p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="font-semibold">{brand.name}</div>
+            <div className="text-[13px] text-ink-3">{brand.url}</div>
+            {brand.summary && <p className="text-[14px] text-ink-2 mt-3 leading-[1.6]">{brand.summary}</p>}
+          </div>
+          <a className="btn btn-ghost btn-sm shrink-0" href="/app/setup?again=1">
+            Change site
+          </a>
         </div>
-        {isStripeConfigured &&
-          (brand.stripe_customer_id ? (
-            <form action={billingPortalAction}>
-              <SubmitButton className="btn btn-ghost">Manage billing</SubmitButton>
-            </form>
-          ) : (
-            <form action={checkoutAction}>
-              <SubmitButton pending="Opening Stripe…">Subscribe · {PRICE_LABEL}</SubmitButton>
-            </form>
-          ))}
-      </div>
+      </Section>
+
+      <Section
+        title="Rivals watched"
+        sub={
+          <>
+            {rivals.length} of {MAX_RIVALS}. A new rival is read on the next scan.
+          </>
+        }
+      >
+        <div className="panel">
+          <RivalList rivals={rivals} />
+          <div className="border-t border-line p-4 sm:p-5 bg-bg-2/50 rounded-b-xl">
+            <AddRivalForm />
+          </div>
+        </div>
+      </Section>
+
+      <Section id="billing" title="Plan" sub="One plan, cancel anytime.">
+        <div className="panel p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <i className={`dot ${plan.locked ? "dot-rec" : ""}`} />
+              <span className="font-semibold">
+                {plan.paid ? `TRND · ${PRICE_LABEL}` : plan.locked ? "Trial ended" : `Free trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left`}
+              </span>
+            </div>
+            {brand.plan_status === "past_due" && <p className="text-rec text-[14px] mt-2">Your last payment failed. Update your card to keep scans running.</p>}
+            {billing === "success" && <p className="text-mint text-[14px] mt-2">Thanks. Your plan is active.</p>}
+            {!isStripeConfigured && <p className="text-ink-3 text-[13px] mt-2">Billing isn&apos;t connected on this deployment.</p>}
+          </div>
+          {isStripeConfigured &&
+            (brand.stripe_customer_id ? (
+              <form action={billingPortalAction}>
+                <SubmitButton className="btn btn-ghost">Manage billing</SubmitButton>
+              </form>
+            ) : (
+              <form action={checkoutAction}>
+                <SubmitButton pending="Opening Stripe…">Subscribe · {PRICE_LABEL}</SubmitButton>
+              </form>
+            ))}
+        </div>
+      </Section>
     </div>
   );
 }

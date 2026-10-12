@@ -3,7 +3,7 @@ import { ImageResponse } from "next/og";
 /**
  * The link-preview card, generated at build so it can never drift from the
  * live slogan again (the old static public/og.png shipped a retired one).
- * Colors are the light-theme tokens from globals.css, hard-coded because
+ * Colors are the dark-theme tokens from globals.css, hard-coded because
  * this renders outside CSS.
  */
 
@@ -11,11 +11,11 @@ export const alt = "TRND: Ad intelligence. Always-on surveillance for paid ads."
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const BG = "#f6f4ee";
-const INK = "#23201a";
-const INK_FAINT = "#6f6759";
-const GOLD = "#b57c07";
-const MINT = "#1ea7ae";
+const BG = "#0d0b09";
+const INK = "#f3eee6";
+const INK_FAINT = "#8a8176";
+const GOLD = "#62d6c1";
+const MINT = "#62d6c1";
 
 export default function Image() {
   return new ImageResponse(
@@ -28,7 +28,7 @@ export default function Image() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "72px 84px",
-          background: `linear-gradient(160deg, #ffffff 0%, ${BG} 55%, #eeebe1 100%)`,
+          background: `linear-gradient(160deg, #1c1916 0%, ${BG} 60%, #0a0908 100%)`,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
@@ -42,7 +42,7 @@ export default function Image() {
           <div style={{ fontSize: 74, fontWeight: 700, color: INK, lineHeight: 1.15, display: "flex" }}>
             Cheat off your competitors.
           </div>
-          <div style={{ fontSize: 58, fontWeight: 400, fontStyle: "italic", color: GOLD, lineHeight: 1.2, display: "flex" }}>
+          <div style={{ fontSize: 58, fontWeight: 400, color: GOLD, lineHeight: 1.2, display: "flex" }}>
             Always-on surveillance for paid ads.
           </div>
         </div>

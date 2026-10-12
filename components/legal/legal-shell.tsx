@@ -27,7 +27,7 @@ export default function LegalShell({
         <p className="mono-label mb-[34px]">Last updated {updated}</p>
         <div className="legal-body">{children}</div>
         <p className="mt-[44px] text-[13px] text-ink-faint">
-          Questions? Write to us via the <Link className="text-amber" href="/#demo">contact form</Link>. See also{" "}
+          Questions? Write to <a className="text-amber" href="mailto:hello@usetrnd.com">hello@usetrnd.com</a>. See also{" "}
           <Link className="text-amber" href="/terms">Terms</Link> ·{" "}
           <Link className="text-amber" href="/privacy">Privacy</Link>.
         </p>

@@ -12,7 +12,7 @@ import {
 
 const initial: AuthFormState = {};
 
-export default function AuthForm({ mode, invite = false, site }: { mode: "login" | "signup"; invite?: boolean; site?: string }) {
+export default function AuthForm({ mode, site }: { mode: "login" | "signup"; site?: string }) {
   const [state, formAction, pending] = useActionState(
     mode === "login" ? signInAction : signUpAction,
     initial,
@@ -23,15 +23,9 @@ export default function AuthForm({ mode, invite = false, site }: { mode: "login"
     <div>
       <form action={formAction}>
         {site ? <input type="hidden" name="site" value={site} /> : null}
-        {mode === "signup" && (
-          <div className="field">
-            <label htmlFor="full_name">Full name</label>
-            <input id="full_name" name="full_name" type="text" placeholder="Jordan Lee" autoComplete="name" required />
-          </div>
-        )}
         <div className="field">
           <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" placeholder="jordan@yourbusiness.com" autoComplete="email" required />
+          <input id="email" name="email" type="email" placeholder="you@yourbrand.com" autoComplete="email" required />
         </div>
         <div className="field">
           <div className="flex justify-between items-baseline">
@@ -52,12 +46,6 @@ export default function AuthForm({ mode, invite = false, site }: { mode: "login"
             minLength={mode === "signup" ? 8 : undefined}
           />
         </div>
-        {mode === "signup" && invite && (
-          <div className="field">
-            <label htmlFor="invite_code">Invite code</label>
-            <input id="invite_code" name="invite_code" type="text" placeholder="From the email that accepted your application" autoComplete="off" required />
-          </div>
-        )}
         {state.error && <p className="form-error">{state.error}</p>}
         {state.notice && (
           <p className="font-mono text-[11.5px] text-mint leading-[1.5]">
@@ -108,11 +96,11 @@ export default function AuthForm({ mode, invite = false, site }: { mode: "login"
       <p className="text-[13.5px] text-ink-soft mt-[22px] text-center">
         {mode === "login" ? (
           <>
-            New to TRND? <Link className="text-(--amber-text)" href="/signup">Create an account</Link>
+            New to TRND? <Link className="text-amber" href="/signup">Create an account</Link>
           </>
         ) : (
           <>
-            Already have an account? <Link className="text-(--amber-text)" href="/login">Sign in</Link>
+            Already have an account? <Link className="text-amber" href="/login">Sign in</Link>
           </>
         )}
       </p>

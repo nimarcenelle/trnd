@@ -8,10 +8,10 @@ export const metadata = { title: "Sign in — TRND" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const user = await getSessionUser();
-  if (user) redirect("/app/rivals");
+  if (user) redirect("/app");
   const { error } = await searchParams;
   return (
-    <AuthShell title="Welcome back." sub="Sign in to see this week's recommendation.">
+    <AuthShell title="Welcome back." sub="Sign in to see what your rivals are running.">
       {error === "auth" && (
         <p className="form-error mt-0">
           That sign-in link didn&apos;t work or has expired — try again below.

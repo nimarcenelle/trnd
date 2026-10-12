@@ -1553,6 +1553,38 @@ a.rd-ad:hover {
   margin-top: 24px;
 }
 
+/* ---------- the site refused us: go on from a line ---------- */
+.rd-about {
+  display: grid;
+  gap: 12px;
+}
+.rd-about h2 {
+  margin: 0;
+  font-weight: 800;
+  font-size: clamp(22px, 2.6vw, 30px);
+  letter-spacing: -0.03em;
+}
+.rd-about textarea {
+  width: 100%;
+  min-height: 92px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--rd-stroke-2);
+  background: var(--rd-sunk);
+  font: inherit;
+  font-size: 15px;
+  color: var(--rd-ink);
+  resize: vertical;
+  outline: none;
+}
+.rd-about textarea:focus {
+  border-color: var(--rd-accent);
+  box-shadow: 0 0 0 4px var(--rd-accent-soft);
+}
+.rd-about .rd-btn {
+  justify-self: start;
+}
+
 /* ---------- once a read runs, the page is the read ---------- */
 .rd.is-reading .rd-sample,
 .rd.is-reading .rd-figures,

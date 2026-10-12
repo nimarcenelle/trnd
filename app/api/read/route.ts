@@ -42,19 +42,21 @@ export async function POST(req: Request): Promise<Response> {
   if (origin && host && new URL(origin).host !== host) {
     return Response.json({ type: "error", reason: "Bad origin." }, { status: 403 });
   }
-  let body: { website?: string };
+  let body: { website?: string; about?: string };
   try {
-    body = (await req.json()) as { website?: string };
+    body = (await req.json()) as { website?: string; about?: string };
   } catch {
     return Response.json({ type: "error", reason: "Bad request body." }, { status: 400 });
   }
   const website = String(body.website ?? "").trim().slice(0, 300);
+  // What the owner typed when their site refused us: the read goes on from it.
+  const about = String(body.about ?? "").trim().slice(0, 2000);
   if (!website) return Response.json({ type: "error", reason: "Paste your store's address." }, { status: 400 });
 
   const now = Date.now();
   const live = isReadLive();
   const domain = brandDomain(website);
-  const cached = live && domain ? cache.get(domain) : undefined;
+  const cached = live && domain && !about ? cache.get(domain) : undefined;
   const replay = cached && now - cached.at < CACHE_MS ? cached.events : null;
   if (!replay && live && overLimit(clientKey(req), now)) {
     return Response.json({ type: "error", reason: "That's a few reads in an hour. Try again later, or sign up to keep going." }, { status: 429 });
@@ -70,10 +72,15 @@ export async function POST(req: Request): Promise<Response> {
           return;
         }
         const events: ReadEvent[] = [];
-        await runCategoryRead(website, (e) => {
-          events.push(e);
-          send(e);
-        });
+        await runCategoryRead(
+          website,
+          (e) => {
+            events.push(e);
+            send(e);
+          },
+          {},
+          { about },
+        );
         // Only a finished live read is worth replaying; an error or a read
         // whose ads all failed is tried fresh next time.
         const done = events.some((e) => e.type === "done");

@@ -34,6 +34,8 @@ interface ReadState {
   brief: ReadBrief | null;
   example: boolean;
   error: string | null;
+  /** The site refused us: the page asks what it sells and reads on from that. */
+  blocked: boolean;
 }
 
 const EMPTY: ReadState = {
@@ -49,6 +51,7 @@ const EMPTY: ReadState = {
   brief: null,
   example: false,
   error: null,
+  blocked: false,
 };
 
 function reduce(s: ReadState, e: ReadEvent): ReadState {
@@ -72,7 +75,7 @@ function reduce(s: ReadState, e: ReadEvent): ReadState {
     case "done":
       return { ...s, status: null, example: e.example };
     case "error":
-      return { ...s, error: e.reason, status: null };
+      return { ...s, error: e.reason, status: null, blocked: e.kind === "site_blocked" };
   }
 }
 
@@ -101,9 +104,10 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
   const [phase, setPhase] = useState<Phase>("idle");
   const [read, setRead] = useState<ReadState>(EMPTY);
   const [applying, setApplying] = useState(false);
+  const [about, setAbout] = useState("");
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  async function start(e: React.FormEvent) {
+  async function start(e: React.FormEvent, withAbout?: string) {
     e.preventDefault();
     if (phase === "running") return;
     if (!website.trim()) {
@@ -132,7 +136,7 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
       const res = await fetch("/api/read", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ website }),
+        body: JSON.stringify(withAbout ? { website, about: withAbout } : { website }),
       });
       if (!res.body || !res.headers.get("content-type")?.includes("ndjson")) {
         const body = (await res.json().catch(() => null)) as { reason?: string } | null;
@@ -222,6 +226,28 @@ export default function CategoryRead({ gated, sample }: { gated: boolean; sample
               </p>
             ) : null}
             {read.error ? <div className="rd-alert rd-alert--error">{read.error}</div> : null}
+            {read.blocked && phase === "error" ? (
+              <form className="rd-panel rd-about rd-in" onSubmit={(e) => start(e, about)}>
+                <span className="rd-kicker rd-kicker--gold">Go on without the site</span>
+                <h2>Tell us what you sell, and to whom.</h2>
+                <p className="rd-soft">One or two lines is enough: the product, the price, the customer. We name your competitors from that and read their ads.</p>
+                <label htmlFor="rd-about" className="sr-only">
+                  What you sell, and to whom
+                </label>
+                <textarea
+                  id="rd-about"
+                  rows={3}
+                  value={about}
+                  onChange={(e) => setAbout(e.target.value)}
+                  placeholder="e.g. Vitamin C shower filters, $68, for women with dry hair and hard water."
+                  minLength={12}
+                  required
+                />
+                <button type="submit" className="rd-btn rd-btn--gold" disabled={about.trim().length < 12}>
+                  Read with that
+                </button>
+              </form>
+            ) : null}
             {read.example ? (
               <div className="rd-alert">
                 <b>Example read.</b> This deployment has no live keys, so this is an invented brand and invented rivals run through the real

@@ -120,12 +120,15 @@ export async function fetchSiteHtml(url: string): Promise<string> {
   if (first.html && !looksBlocked(first.html)) return first.html;
 
   const refused = first.html ? true : isRefusal(first.error);
+  let readerFailure: string | null = null;
   if (refused) {
     try {
       const rendered = await fetchViaReader(url, "html");
       if (!looksBlocked(rendered)) return rendered;
+      readerFailure = "the reader saw the bot-protection page too";
     } catch (err) {
-      console.warn(`[import] reader fallback failed for ${url}:`, (err as Error).message);
+      readerFailure = (err as Error).message;
+      console.warn(`[import] reader fallback failed for ${url}:`, readerFailure);
     }
   }
 
@@ -135,6 +138,8 @@ export async function fetchSiteHtml(url: string): Promise<string> {
   if (second.html && !looksBlocked(second.html)) return second.html;
 
   if (first.html) return first.html;
+  // Say what happened in full: the refusal, and that the rendered read failed too.
+  if (readerFailure && first.error instanceof Error) throw new Error(`${first.error.message}; the site's bot protection refused us and the rendered read failed (${readerFailure})`);
   throw first.error;
 }
 

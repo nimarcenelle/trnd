@@ -1,6 +1,7 @@
 import { proposeCompetingBrands, type ProposedBrand } from "@/lib/ai/rivals";
 import type { Business, Service } from "@/lib/db/types";
 import { isApifyConfigured, isModelConfigured } from "@/lib/env";
+import { isRefusal } from "@/lib/import/reader";
 import { normalizeUrl } from "@/lib/import/website";
 import { brandDomain, isMarketplace } from "@/lib/intel/discover-brands";
 import { readRivalSite } from "@/lib/intel/direct";
@@ -47,7 +48,7 @@ export type ReadEvent =
   | { type: "gap"; gap: Gap }
   | { type: "brief"; brief: ReadBrief }
   | { type: "done"; example: boolean }
-  | { type: "error"; reason: string };
+  | { type: "error"; reason: string; kind?: "site_blocked" };
 
 /** Rivals read: the top ten, the same as a signed-up brand tracks. Their
  * Ad Library reads run side by side, so ten take about as long as four. */
@@ -169,7 +170,20 @@ export function rivalCandidates(proposed: ProposedBrand[], own: { name: string; 
   return out.slice(0, RIVAL_CANDIDATES);
 }
 
-export async function runCategoryRead(website: string, emit: (e: ReadEvent) => void, deps: ReadDeps = {}): Promise<void> {
+/** A site the read could not open, stood in for by what its owner typed: what they sell, to whom. */
+export function siteFromAbout(url: string, about: string): ProspectSite {
+  const host = new URL(url).hostname.replace(/^www\./, "");
+  const label = host.split(".")[0];
+  const name = label.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return { name, category: "Consumer brand", city: "", region: null, website: url, priceBand: null, voiceHint: null, services: [], text: about.trim().slice(0, 2000) };
+}
+
+export async function runCategoryRead(
+  website: string,
+  emit: (e: ReadEvent) => void,
+  deps: ReadDeps = {},
+  opts: { about?: string } = {},
+): Promise<void> {
   const now = (deps.now ?? (() => new Date()))();
   const url = normalizeUrl(website);
   if (!url) {
@@ -194,8 +208,22 @@ export async function runCategoryRead(website: string, emit: (e: ReadEvent) => v
     site = await readSite(url, (label) => emit({ type: "status", label }));
   } catch (err) {
     console.warn("[read] site read failed:", (err as Error).message);
-    emit({ type: "error", reason: `We couldn't read that site (${failReason(err)}). Check the address, or try your store's homepage.` });
-    return;
+    const about = opts.about?.trim() ?? "";
+    if (about.length >= 12) {
+      // The owner told us what the site would have: the read goes on from that.
+      site = siteFromAbout(url, about);
+      emit({ type: "status", label: "Going on from what you told us…" });
+    } else {
+      const blocked = isRefusal(err) || /bot protection/i.test(failReason(err));
+      emit({
+        type: "error",
+        kind: blocked ? "site_blocked" : undefined,
+        reason: blocked
+          ? `Your site's bot protection wouldn't let us in (${failReason(err)}).`
+          : `We couldn't read that site (${failReason(err)}). Check the address, or try your store's homepage.`,
+      });
+      return;
+    }
   }
   const domain = brandDomain(url) ?? url;
   emit({ type: "brand", brand: { name: site.name, domain, category: site.category, products: site.services.slice(0, 8) } });

@@ -9,7 +9,7 @@ export default function AdCard({ ad, rivalName, badge }: { ad: Ad; rivalName?: s
     <a href={libraryLink(ad.archive_id)} target="_blank" rel="noreferrer" className="card p-0 overflow-hidden flex flex-col hover:border-amber transition-colors">
       <div className="aspect-square relative">
         <AdThumb src={ad.image_url} label={ad.format} />
-        <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap">
+        <div className="on-media absolute top-2 left-2 flex gap-1.5 flex-wrap">
           {badge}
           {ad.format === "video" && <span className="pill">▶ video</span>}
           {ad.variants > 1 && <span className="pill">{ad.variants} variants</span>}

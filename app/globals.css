@@ -77,9 +77,12 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
-a {
-  color: inherit;
-  text-decoration: none;
+/* In a layer, so component classes like .btn-primary can set a link's color. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 @layer components {
@@ -198,6 +201,11 @@ a {
     border-radius: 999px;
     background: var(--bg-2);
     color: var(--ink-soft);
+  }
+  /* Pills over a creative need a solid backing to stay readable. */
+  .on-media .pill {
+    background: var(--bg-1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   }
   .pill-new {
     background: var(--mint-soft);

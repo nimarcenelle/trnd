@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { SideLinks, TopTabs, type NavItem } from "@/components/app/side-nav";
+import Avatar from "@/components/app/avatar";
+import { SideNav, TopTabs, type RivalLink } from "@/components/app/side-nav";
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
 import { signOutAction } from "@/lib/auth/actions";
@@ -17,62 +18,45 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
   const plan = brand ? planState(brand) : null;
   const [rivals, live] = brand ? await Promise.all([listRivals(brand.id), listAds(brand.id, { activeOnly: true })]) : [[], []];
   const scanning = brand ? isScanning(brand) : false;
-
-  const main: NavItem[] = brand
-    ? [
-        { href: "/app", label: "Briefing" },
-        { href: "/app/settings", label: "Rivals & settings" },
-      ]
-    : [{ href: "/app/setup", label: "Setup" }];
-  const rivalLinks: NavItem[] = rivals.map((r) => ({
-    href: `/app/rivals/${r.id}`,
-    label: r.name,
-    meta: String(live.filter((a) => a.rival_id === r.id).length),
-    alert: Boolean(r.last_error),
+  const links: RivalLink[] = rivals.map((r) => ({
+    id: r.id,
+    name: r.name,
+    live: live.filter((a) => a.rival_id === r.id).length,
+    error: Boolean(r.last_error),
   }));
-
-  const status = brand && (
-    <div className="flex items-center gap-2 label !text-[10px]">
-      <i className={`dot ${scanning ? "dot-rec" : "pulse"}`} />
-      {scanning ? "Scanning now" : brand.last_scan_at ? `Watching · ${ago(brand.last_scan_at)}` : "Not watching yet"}
-    </div>
-  );
+  const setup = !brand || (!brand.last_scan_at && !scanning);
 
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[252px_minmax(0,1fr)]">
-      <aside className="hidden lg:flex flex-col sticky top-0 h-dvh border-r border-line bg-bg-1/60 px-3 py-5">
-        <div className="px-2.5">
-          <Brand href="/app" live />
+    <div className="min-h-dvh lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
+      <aside className="hidden lg:flex flex-col sticky top-0 h-dvh border-r border-line bg-subtle px-3 py-4">
+        <div className="px-2.5 h-8 flex items-center">
+          <Brand href="/app" />
         </div>
         {brand && (
-          <div className="mt-7 mx-1 inset px-3 py-2.5">
-            <div className="label !text-[10px]">Watching for</div>
-            <div className="font-semibold truncate mt-0.5">{brand.name}</div>
-            <div className="text-[12px] text-ink-3 truncate">{brand.url.replace(/^https?:\/\//, "")}</div>
+          <div className="mt-5 flex items-center gap-2.5 px-2.5">
+            <Avatar name={brand.name} size={28} />
+            <div className="min-w-0">
+              <div className="text-[13.5px] font-semibold truncate">{brand.name}</div>
+              <div className="text-[12px] text-ink-3 truncate">{brand.url.replace(/^https?:\/\/(www\.)?/, "")}</div>
+            </div>
           </div>
         )}
-        <div className="mt-6">
-          <SideLinks items={main} />
+        <div className="mt-6 min-h-0 overflow-y-auto">
+          <SideNav rivals={links} setup={setup} />
         </div>
-        {rivalLinks.length > 0 && (
-          <div className="mt-7 min-h-0 flex flex-col">
-            <div className="flex justify-between px-2.5 mb-2 label !text-[10px]">
-              <span>Rivals</span>
-              <span>Live ads</span>
+        <div className="mt-auto pt-4 border-t border-line flex flex-col gap-3">
+          {brand && (
+            <div className="px-2.5 flex items-center gap-2 text-[12px] text-ink-2">
+              {scanning ? <span className="spinner !w-3 !h-3" /> : <span className={brand.last_scan_at ? "live-dot !w-1.5 !h-1.5" : "w-1.5 h-1.5 rounded-full bg-line-strong"} />}
+              {scanning ? "Scanning now" : brand.last_scan_at ? `Watching · scanned ${ago(brand.last_scan_at)}` : "Not watching yet"}
             </div>
-            <div className="overflow-y-auto">
-              <SideLinks items={rivalLinks} />
-            </div>
-          </div>
-        )}
-        <div className="mt-auto pt-6 px-2.5 flex flex-col gap-4">
-          {status}
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] text-ink-3 truncate">{user.email}</span>
-            <div className="flex items-center gap-1">
+          )}
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[12px] text-ink-3 truncate px-1.5">{user.email}</span>
+            <div className="flex items-center">
               <ThemeToggle />
               <form action={signOutAction}>
-                <button className="btn btn-quiet btn-sm" type="submit" title="Sign out">
+                <button className="btn btn-ghost btn-sm" type="submit">
                   Sign out
                 </button>
               </form>
@@ -82,39 +66,38 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
       </aside>
 
       <div className="min-w-0 flex flex-col">
-        <header className="lg:hidden sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
-          <div className="flex items-center justify-between px-4 h-14">
-            <Brand href="/app" live />
-            <div className="flex items-center gap-1">
+        <header className="lg:hidden sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur">
+          <div className="flex items-center justify-between px-4 h-12">
+            <Brand href="/app" />
+            <div className="flex items-center">
               <ThemeToggle />
               <form action={signOutAction}>
-                <button className="btn btn-quiet btn-sm" type="submit">
+                <button className="btn btn-ghost btn-sm" type="submit">
                   Sign out
                 </button>
               </form>
             </div>
           </div>
-          {brand && <TopTabs items={[...main, ...rivalLinks]} />}
+          {!setup && <TopTabs rivals={links} />}
         </header>
 
         {plan?.locked && (
-          <div className="border-b border-line bg-rec/10 text-[14px] py-2.5 px-5 sm:px-8 lg:px-12">
-            <b>Your trial has ended.</b> Scans are paused.{" "}
-            <Link className="underline text-ink" href="/app/settings#billing">
-              Choose a plan
-            </Link>{" "}
-            to switch the cameras back on.
-          </div>
-        )}
-        {plan && !plan.locked && !plan.paid && plan.trialDaysLeft <= 5 && (
-          <div className="border-b border-line bg-amber/10 text-[14px] py-2.5 px-5 sm:px-8 lg:px-12">
-            Trial: {plan.trialDaysLeft} day{plan.trialDaysLeft === 1 ? "" : "s"} left.{" "}
-            <Link className="underline" href="/app/settings#billing">
+          <div className="border-b border-line bg-neg-bg text-neg text-[13px] py-2 px-5 sm:px-8 lg:px-10">
+            Your trial has ended and scans are paused.{" "}
+            <Link className="underline font-medium" href="/app/settings#billing">
               Choose a plan
             </Link>
           </div>
         )}
-        <main className="flex-1 w-full max-w-[1240px] px-5 sm:px-8 lg:px-12 py-8 lg:py-12">{children}</main>
+        {plan && !plan.locked && !plan.paid && plan.trialDaysLeft <= 5 && (
+          <div className="border-b border-line bg-warn-bg text-warn text-[13px] py-2 px-5 sm:px-8 lg:px-10">
+            {plan.trialDaysLeft} day{plan.trialDaysLeft === 1 ? "" : "s"} left in your trial.{" "}
+            <Link className="underline font-medium" href="/app/settings#billing">
+              Choose a plan
+            </Link>
+          </div>
+        )}
+        <main className="flex-1 w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 py-7 lg:py-9">{children}</main>
       </div>
     </div>
   );

@@ -28,3 +28,6 @@ export function isScanning(brand: Pick<Brand, "scan_status" | "scan_started_at">
 }
 
 export const withinDays = (iso: string, days: number, now = Date.now()) => now - Date.parse(iso) < days * 86_400_000;
+
+/** "ugc testimonial" → "UGC testimonial": a model-written tag, shown in sentence case. */
+export const tagLabel = (t: string) => (t.charAt(0).toUpperCase() + t.slice(1)).replace(/\bugc\b/gi, "UGC").replace(/\bdco\b/gi, "DCO");

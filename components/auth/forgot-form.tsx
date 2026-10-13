@@ -19,7 +19,7 @@ export default function ForgotForm() {
         </div>
         {state.error && <p className="form-error">{state.error}</p>}
         {state.notice && (
-          <p className="text-[13.5px] text-mint mb-4">
+          <p className="text-[13.5px] text-pos mb-4">
             {state.notice}
           </p>
         )}
@@ -28,7 +28,7 @@ export default function ForgotForm() {
         </button>
       </form>
       <p className="text-[13.5px] text-ink-2 mt-[22px] text-center">
-        Remembered it? <Link className="text-mint" href="/login">Sign in</Link>
+        Remembered it? <Link className="text-ink font-medium hover:underline" href="/login">Sign in</Link>
       </p>
     </div>
   );

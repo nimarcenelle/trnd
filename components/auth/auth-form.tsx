@@ -31,7 +31,7 @@ export default function AuthForm({ mode, site }: { mode: "login" | "signup"; sit
           <div className="flex justify-between items-baseline">
             <label htmlFor="password">Password</label>
             {mode === "login" && (
-              <Link className="text-[12px] text-ink-3 hover:text-ink normal-case tracking-normal font-body" href="/forgot">
+              <Link className="text-[12.5px] text-ink-3 hover:text-ink" href="/forgot">
                 Forgot password?
               </Link>
             )}
@@ -48,7 +48,7 @@ export default function AuthForm({ mode, site }: { mode: "login" | "signup"; sit
         </div>
         {state.error && <p className="form-error">{state.error}</p>}
         {state.notice && (
-          <p className="text-[13.5px] text-mint leading-[1.5] mb-4">
+          <p className="text-[13.5px] text-pos leading-[1.5] mb-4">
             {state.notice}
           </p>
         )}
@@ -74,7 +74,7 @@ export default function AuthForm({ mode, site }: { mode: "login" | "signup"; sit
           <input type="hidden" name="email" id="magic-email" />
           <button
             type="submit"
-            className="btn btn-ghost w-full"
+            className="btn btn-secondary w-full"
             disabled={magicPending}
            
             onClick={(e) => {
@@ -86,21 +86,21 @@ export default function AuthForm({ mode, site }: { mode: "login" | "signup"; sit
           </button>
           {magicState.error && <p className="form-error mt-[10px]">{magicState.error}</p>}
           {magicState.notice && (
-            <p className="text-[13px] text-mint mt-[10px]">
+            <p className="text-[13px] text-pos mt-[10px]">
               {magicState.notice}
             </p>
           )}
         </form>
       )}
 
-      <p className="text-[13.5px] text-ink-2 mt-[22px] text-center">
+      <p className="text-[13.5px] text-ink-2 mt-5 text-center">
         {mode === "login" ? (
           <>
-            New to TRND? <Link className="text-mint" href="/signup">Create an account</Link>
+            New to TRND? <Link className="text-ink font-medium hover:underline" href="/signup">Create an account</Link>
           </>
         ) : (
           <>
-            Already have an account? <Link className="text-mint" href="/login">Sign in</Link>
+            Already have an account? <Link className="text-ink font-medium hover:underline" href="/login">Sign in</Link>
           </>
         )}
       </p>

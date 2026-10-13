@@ -12,7 +12,7 @@ export default async function ResetPage() {
   const user = await getSessionUser();
   if (!user) redirect("/forgot");
   return (
-    <AuthShell title="Set a new password." sub={`Signed in as ${user.email} via your recovery link.`}>
+    <AuthShell title="Set a new password" sub={`Signed in as ${user.email} via your recovery link.`}>
       <ResetForm />
     </AuthShell>
   );

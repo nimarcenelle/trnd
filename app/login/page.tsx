@@ -11,7 +11,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (user) redirect("/app");
   const { error } = await searchParams;
   return (
-    <AuthShell title="Welcome back." sub="Sign in to see what your rivals are running.">
+    <AuthShell title="Welcome back" sub="Sign in to see what your competitors are running.">
       {error === "auth" && (
         <p className="form-error mt-0">
           That sign-in link didn&apos;t work or has expired — try again below.

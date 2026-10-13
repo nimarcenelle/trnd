@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * The ad's creative. Ad Library media URLs are signed and expire after a few
+ * An ad's creative. Ad Library media URLs are signed and expire after a few
  * days, so a broken image falls back to a quiet placeholder; the link to the
  * library always works.
  */
@@ -17,11 +17,11 @@ export default function AdThumb({ src, label }: { src: string | null; label: str
   }, [src]);
   if (!src || broken) {
     return (
-      <div className="cam-fill grid place-items-center bg-bg-3">
-        <span className="label">{label}</span>
+      <div className="w-full h-full grid place-items-center bg-muted">
+        <span className="text-[11px] font-medium text-ink-3 capitalize">{label}</span>
       </div>
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img ref={ref} src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />;
+  return <img ref={ref} src={src} alt="" loading="lazy" referrerPolicy="no-referrer" className="block w-full h-full object-cover" onError={() => setBroken(true)} />;
 }

@@ -14,8 +14,8 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
   if (user) redirect(store ? `/app/setup?url=${encodeURIComponent(store)}` : "/app");
   return (
     <AuthShell
-      title={store ? `Point the cameras at ${store}'s rivals.` : "Create your account."}
-      sub="TRND finds your competitors, reads every Meta ad they run, and tells you what's working, then watches for changes every day."
+      title={store ? `See what ${store}'s competitors are running` : "Create your account"}
+      sub="Free for 14 days. Your first report is ready a few minutes after you sign up."
     >
       <AuthForm mode="signup" site={store || undefined} />
     </AuthShell>

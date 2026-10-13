@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import AdCard from "@/components/app/ad-card";
+import Avatar from "@/components/app/avatar";
 import { AngleBars, LaunchBars } from "@/components/app/charts";
+import { IconArrowUpRight } from "@/components/icons";
 import { getSessionUser } from "@/lib/auth/session";
 import { getBrand, listAds, listReports, listRivals } from "@/lib/data";
 import { PROVEN_DAYS } from "@/lib/diff";
@@ -10,124 +13,116 @@ import { angleMix, weeklyLaunches } from "@/lib/stats";
 
 export const metadata = { title: "Rival — TRND" };
 
-/** Everything one rival runs: the read, the cadence, the angle mix, every ad. */
-export default async function RivalPage({ params }: PageProps<"/app/rivals/[id]">) {
-  const { id } = await params;
+/** Everything one rival runs: their strategy, cadence, angle mix and every ad. */
+export default async function RivalPage({ params, searchParams }: PageProps<"/app/rivals/[id]">) {
+  const [{ id }, { view }] = await Promise.all([params, searchParams]);
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const brand = await getBrand(user.id);
   if (!brand) redirect("/app/setup");
-  const rivals = await listRivals(brand.id);
-  const index = rivals.findIndex((r) => r.id === id);
-  const rival = rivals[index];
+  const rival = (await listRivals(brand.id)).find((r) => r.id === id);
   if (!rival) notFound();
 
   const [ads, [latest]] = await Promise.all([listAds(brand.id, { rivalId: rival.id }), listReports(brand.id, 1)]);
   const byDays = (a: (typeof ads)[number]) => daysRunningOf(a) ?? -1;
   const live = ads.filter((a) => a.active).sort((a, b) => byDays(b) - byDays(a));
-  const killed = ads.filter((a) => !a.active).sort((a, b) => Date.parse(b.stopped_at ?? "") - Date.parse(a.stopped_at ?? ""));
+  const stopped = ads.filter((a) => !a.active).sort((a, b) => Date.parse(b.stopped_at ?? "") - Date.parse(a.stopped_at ?? ""));
   const proven = live.filter((a) => byDays(a) >= PROVEN_DAYS).length;
   const read = latest?.body.rivals.find((r) => r.name.toLowerCase() === rival.name.toLowerCase());
-  const libraryUrl = rival.page_id
-    ? `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id=${rival.page_id}`
-    : null;
+  const showStopped = view === "stopped";
+  const shown = showStopped ? stopped : live;
+  const libraryUrl = rival.page_id ? `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id=${rival.page_id}` : null;
+  const tab = (active: boolean) =>
+    `h-8 px-3 inline-flex items-center gap-1.5 rounded-md text-[13px] font-medium ${active ? "bg-bg text-ink shadow-[0_0_0_1px_var(--line),var(--shadow-sm)]" : "text-ink-2 hover:text-ink"}`;
 
   return (
     <div>
-      <div className="flex items-center gap-3 label">
-        <span className="flex items-center gap-2">
-          <i className="dot dot-rec" /> Cam {String(index + 1).padStart(2, "0")}
-        </span>
-        <span className="text-line-2">/</span>
-        <span>Read {ago(rival.last_scraped_at)}</span>
-      </div>
-      <div className="mt-4 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="disp text-[clamp(32px,4.5vw,52px)]">{rival.name}</h1>
-          {rival.website && <p className="text-ink-3 mt-2 text-[14px]">{rival.website}</p>}
+      <Link href="/app" className="caption hover:text-ink">
+        ← Briefing
+      </Link>
+      <header className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <Avatar name={rival.name} size={44} />
+          <div>
+            <h1 className="heading text-[22px]">{rival.name}</h1>
+            <p className="text-[13px] text-ink-3 mt-0.5">
+              {rival.website ?? rival.page_name ?? "Facebook Page"} · read {ago(rival.last_scraped_at)}
+            </p>
+          </div>
         </div>
         {libraryUrl && (
-          <a className="btn btn-ghost btn-sm" href={libraryUrl} target="_blank" rel="noreferrer">
-            Open in Ad Library ↗
+          <a className="btn btn-secondary" href={libraryUrl} target="_blank" rel="noreferrer">
+            View in Ad Library <IconArrowUpRight />
           </a>
         )}
-      </div>
-      {rival.last_error && (
-        <div className="panel mt-6 px-5 py-4 text-[14px]">
-          <span className="label text-rec mr-2">Can&apos;t read</span>
-          {rival.last_error}
-        </div>
-      )}
+      </header>
 
-      <div className="mt-8 grid grid-cols-3 gap-px bg-line rounded-xl overflow-hidden border border-line">
-        <div className="bg-bg-1 px-5 py-4">
-          <div className="num text-[32px] leading-none">{live.length}</div>
-          <div className="label !text-[10px] mt-2">Live ads</div>
+      {rival.last_error && <div className="mt-6 rounded-xl border border-neg/30 bg-neg-bg px-5 py-4 text-[13.5px] text-neg">{rival.last_error}</div>}
+
+      <div className="mt-6 grid grid-cols-3 gap-3">
+        <div className="card px-4 py-3.5">
+          <div className="text-[13px] text-ink-2">Live ads</div>
+          <div className="text-[26px] font-semibold tracking-tight tnum mt-1">{live.length}</div>
         </div>
-        <div className="bg-bg-1 px-5 py-4">
-          <div className="num text-[32px] leading-none text-amber">{proven}</div>
-          <div className="label !text-[10px] mt-2">Live {PROVEN_DAYS}+ days</div>
+        <div className="card px-4 py-3.5">
+          <div className="text-[13px] text-ink-2">Running {PROVEN_DAYS}+ days</div>
+          <div className="text-[26px] font-semibold tracking-tight tnum mt-1">{proven}</div>
         </div>
-        <div className="bg-bg-1 px-5 py-4">
-          <div className="num text-[32px] leading-none text-rec">{killed.length}</div>
-          <div className="label !text-[10px] mt-2">Killed since watching</div>
+        <div className="card px-4 py-3.5">
+          <div className="text-[13px] text-ink-2">Stopped since watching</div>
+          <div className="text-[26px] font-semibold tracking-tight tnum mt-1">{stopped.length}</div>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="panel p-5 sm:p-6">
-          <span className="label">Their strategy</span>
-          <p className="text-[15px] leading-[1.6] mt-3">{read?.strategy ?? "Written with the next report."}</p>
+      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="card p-5">
+          <h2 className="text-[13px] font-medium text-ink-2">Strategy</h2>
+          <p className="text-[14px] leading-[1.65] mt-2">{read?.strategy ?? "Written with the next report."}</p>
           {read?.watch_for && (
             <>
-              <span className="label block mt-5">Watch for</span>
-              <p className="text-[14px] text-ink-2 leading-[1.6] mt-2">{read.watch_for}</p>
+              <h2 className="text-[13px] font-medium text-ink-2 mt-4">What to watch for</h2>
+              <p className="text-[13.5px] text-ink-2 leading-[1.6] mt-1.5">{read.watch_for}</p>
             </>
           )}
         </div>
-        <div className="panel p-5 sm:p-6">
-          <span className="label">Launches per week</span>
-          <div className="mt-5">
-            <LaunchBars counts={weeklyLaunches(ads, 12)} height={96} />
+        <div className="card p-5 flex flex-col">
+          <h2 className="text-[13px] font-medium text-ink-2">New ads per week</h2>
+          <div className="mt-auto pt-6">
+            <LaunchBars counts={weeklyLaunches(ads, 12)} height={88} width={300} />
+            <div className="flex justify-between caption mt-2">
+              <span>12 weeks ago</span>
+              <span>This week</span>
+            </div>
           </div>
         </div>
-        <div className="panel p-5 sm:p-6">
-          <span className="label">Angles in live ads</span>
-          <div className="mt-5">
-            <AngleBars rows={angleMix(ads, 5)} />
-          </div>
+        <div className="card p-5">
+          <h2 className="text-[13px] font-medium text-ink-2 mb-4">Angles in live ads</h2>
+          <AngleBars rows={angleMix(ads, 5)} />
         </div>
       </div>
 
-      <section className="mt-14">
-        <div className="flex items-baseline justify-between gap-4 mb-5">
-          <h2 className="disp text-[22px]">Live now</h2>
-          <span className="label">Longest-running first</span>
+      <section className="mt-10">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="inline-flex p-1 rounded-lg bg-muted">
+            <Link href={`/app/rivals/${rival.id}`} className={tab(!showStopped)}>
+              Active <span className="text-ink-3 tnum">{live.length}</span>
+            </Link>
+            <Link href={`/app/rivals/${rival.id}?view=stopped`} className={tab(showStopped)}>
+              Stopped <span className="text-ink-3 tnum">{stopped.length}</span>
+            </Link>
+          </div>
+          <span className="caption hidden sm:block">{showStopped ? "Most recently stopped first" : "Longest running first"}</span>
         </div>
-        {live.length ? (
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-            {live.map((a) => (
-              <AdCard key={a.id} ad={a} />
+        {shown.length ? (
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+            {shown.slice(0, 60).map((a) => (
+              <AdCard key={a.id} ad={a} rivalName={rival.name} />
             ))}
           </div>
         ) : (
-          <div className="panel p-6 text-ink-2">No live ads right now.</div>
+          <div className="card p-8 text-center text-[13.5px] text-ink-2">{showStopped ? "No stopped ads yet." : "No active ads right now."}</div>
         )}
       </section>
-
-      {killed.length > 0 && (
-        <section className="mt-14">
-          <div className="flex items-baseline justify-between gap-4 mb-5">
-            <h2 className="disp text-[22px]">Killed</h2>
-            <span className="label">Most recent first</span>
-          </div>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-            {killed.slice(0, 24).map((a) => (
-              <AdCard key={a.id} ad={a} />
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

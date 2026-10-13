@@ -1,53 +1,33 @@
 import type { Metadata, Viewport } from "next";
 
-// Self-hosted fonts (shipped with the app — no font CDN dependency at all).
-//
-// Three families doing three jobs, which is the point: Instrument Sans sets
-// display and body (the headline weight the concept calls for), IBM Plex
-// Mono sets the small-caps label rows — "#1 THIS WEEK · YOUR AREA",
-// "OPPORTUNITY GRADE" — that give the product its instrument-panel voice.
-// Every --font-* var used to resolve to Inter, so "mono" and "display" were
-// decorative names for the same face and nothing on screen could be keyed
-// to a role.
-import "@fontsource/instrument-sans/400.css";
-import "@fontsource/instrument-sans/500.css";
-import "@fontsource/instrument-sans/600.css";
-import "@fontsource/instrument-sans/700.css";
-import "@fontsource/ibm-plex-mono/400.css";
-import "@fontsource/ibm-plex-mono/500.css";
-import "@fontsource/ibm-plex-mono/600.css";
+// One typeface, self-hosted: Inter with its optical-size axis, so headlines
+// and 12px table text are each drawn for their size.
+import "@fontsource-variable/inter/opsz.css";
 
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://usetrnd.com";
-const TITLE = "TRND: Ad intelligence. Always-on surveillance for paid ads.";
+const TITLE = "TRND: Competitor ad intelligence for Meta";
 const DESCRIPTION =
-  "Cheat off your competitors. TRND watches every competitor's Meta ads every day: what they launched, what they killed, what they keep paying for, and what you're missing.";
+  "TRND tracks every Meta ad your competitors run, shows you which ones they keep paying for, and tells you what changed every morning.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: TITLE,
   description: DESCRIPTION,
-  // og:image / twitter:image come from app/opengraph-image.tsx (generated at
-  // build, always in step with the slogan) — no listing here, or the stale
-  // static file would win.
-  openGraph: {
-    title: TITLE,
-    description: DESCRIPTION,
-    url: "/",
-    siteName: "TRND",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: TITLE,
-    description: DESCRIPTION,
-  },
+  // og:image comes from app/opengraph-image.tsx.
+  openGraph: { title: TITLE, description: DESCRIPTION, url: "/", siteName: "TRND", type: "website" },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
-export const viewport: Viewport = { themeColor: "#0d0b09" };
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0b0c" },
+  ],
+};
 
-/** Applies a saved theme override before first paint so there is no flash. */
+/** Applies a saved theme before first paint so there is no flash. */
 const themeInit = `try{var t=localStorage.getItem("trnd-theme");if(t==="dark"||t==="light"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -55,13 +35,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
-        {/* The display face and the wordmark's: Archivo and Jost, loaded once for every surface. */}
+        {/* Jost draws the TRND wordmark only. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Jost:wght@400;500&display=swap"
-        />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500&display=swap" />
       </head>
       <body>{children}</body>
     </html>

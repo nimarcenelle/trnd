@@ -12,23 +12,19 @@ export const metadata = { title: "Set up — TRND" };
 // Reading the site and naming rivals is one model call; the first scan runs after the response.
 export const maxDuration = 300;
 
-function Steps({ at }: { at: 1 | 2 }) {
-  const steps = ["Your site", "Your rivals", "Watching"];
+function Step({ n }: { n: 1 | 2 }) {
   return (
-    <ol className="list-none p-0 m-0 grid grid-cols-3 gap-2 max-w-[520px]">
-      {steps.map((s, i) => (
-        <li key={s} className="flex flex-col gap-2">
-          <span className={`h-[3px] rounded-full ${i + 1 <= at ? "bg-mint" : "bg-bg-3"}`} />
-          <span className={`label !text-[10px] ${i + 1 === at ? "!text-ink" : ""}`}>
-            {String(i + 1).padStart(2, "0")} {s}
-          </span>
-        </li>
-      ))}
-    </ol>
+    <div className="flex items-center gap-3">
+      <span className="caption">Step {n} of 2</span>
+      <div className="flex gap-1">
+        <span className="w-6 h-1 rounded-full bg-ink" />
+        <span className={`w-6 h-1 rounded-full ${n === 2 ? "bg-ink" : "bg-line-strong"}`} />
+      </div>
+    </div>
   );
 }
 
-/** Two steps: the site, then the rivals to confirm before the first scan. */
+/** Two steps: the site, then the competitors to confirm before the first scan. */
 export default async function SetupPage({ searchParams }: PageProps<"/app/setup">) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -37,11 +33,11 @@ export default async function SetupPage({ searchParams }: PageProps<"/app/setup"
 
   if (!brand || again) {
     return (
-      <div className="max-w-[680px] mx-auto lg:mx-0 lg:mt-6">
-        <Steps at={1} />
-        <h1 className="disp text-[clamp(32px,4.5vw,48px)] mt-10">What&apos;s your website?</h1>
-        <p className="text-[17px] text-ink-2 mt-4 mb-9 leading-[1.6] max-w-[560px]">
-          TRND reads it, works out what you sell, and names the competitors running Meta ads to your customer. About 30 seconds.
+      <div className="max-w-[520px] mx-auto pt-6 sm:pt-16">
+        <Step n={1} />
+        <h1 className="heading text-[26px] mt-5">What&apos;s your website?</h1>
+        <p className="text-[15px] text-ink-2 mt-2 mb-7 leading-[1.6]">
+          We&apos;ll read it to understand what you sell, then find the competitors running Meta ads to the same customers.
         </p>
         <UrlForm defaultUrl={typeof url === "string" ? url : brand?.url} />
       </div>
@@ -51,33 +47,35 @@ export default async function SetupPage({ searchParams }: PageProps<"/app/setup"
 
   const rivals = await listRivals(brand.id);
   return (
-    <div className="max-w-[820px] mx-auto lg:mx-0 lg:mt-6">
-      <Steps at={2} />
-      <h1 className="disp text-[clamp(30px,4.2vw,46px)] mt-10">We found {rivals.length} rivals for {brand.name}.</h1>
+    <div className="max-w-[680px] mx-auto pt-6 sm:pt-12">
+      <Step n={2} />
+      <h1 className="heading text-[26px] mt-5">Confirm your competitors</h1>
+      <p className="text-[15px] text-ink-2 mt-2 leading-[1.6]">
+        We found {rivals.length} brands competing with {brand.name}. Remove any that aren&apos;t a fit and add any we missed.
+      </p>
       {brand.summary && (
-        <div className="inset px-4 py-3 mt-6 flex gap-3 text-[14px] leading-[1.6]">
-          <span className="label !text-[10px] pt-[3px] shrink-0">Your brand</span>
-          <span className="text-ink-2">{brand.summary}</span>
+        <div className="well px-4 py-3 mt-5 text-[13px] text-ink-2 leading-[1.6]">
+          <span className="font-medium text-ink">{brand.name}: </span>
+          {brand.summary}
         </div>
       )}
-      <p className="text-[16px] text-ink-2 mt-6 leading-[1.6]">Remove any that aren&apos;t real competitors and add any we missed. Then TRND reads every ad they&apos;re running.</p>
 
-      <div className="panel mt-8">
+      <div className="card mt-5">
         <RivalList rivals={rivals} />
-        <div className="border-t border-line p-4 sm:p-5 bg-bg-2/50 rounded-b-xl">
+        <div className="border-t border-line p-4 bg-subtle rounded-b-xl">
           <AddRivalForm />
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <a className="text-[13px] text-ink-3 hover:text-ink" href="/app/setup?again=1">
+          Use a different website
+        </a>
         <form action={scanNowAction}>
           <SubmitButton className="btn btn-primary btn-lg" pending="Starting…">
-            <i className="dot dot-rec" /> Start watching {rivals.length} rivals
+            Start tracking {rivals.length} competitors
           </SubmitButton>
         </form>
-        <a className="text-[14px] text-ink-3 hover:text-ink" href="/app/setup?again=1">
-          Wrong site? Start over
-        </a>
       </div>
     </div>
   );

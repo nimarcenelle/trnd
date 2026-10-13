@@ -46,3 +46,6 @@ next-env.d.ts
 test-results/
 playwright-report/
 .demo-data-e2e/
+
+# one-off reports from pnpm run:once
+/runs/

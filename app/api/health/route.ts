@@ -1,116 +1,20 @@
-import {
-  env,
-  isApifyConfigured,
-  isDataForSeoConfigured,
-  isEmailConfigured,
-  isModelConfigured,
-  isMetaAdsConfigured,
-  isStripeConfigured,
-  isSupabaseConfigured,
-} from "@/lib/env";
-import { summarizeUsage } from "@/lib/ai/usage";
-import { summarizeProviderUsage } from "@/lib/usage/providers";
+import { env, isEmailConfigured, isModelConfigured, isStripeConfigured } from "@/lib/env";
 
-/**
- * Ops probe for uptime monitors and deploy checks. No auth, no secrets —
- * only which integration mode each subsystem is running in, and whether
- * the keys a paying customer's week depends on are present.
- */
+/** Which integrations are configured. Presence only, never values. */
 export async function GET(): Promise<Response> {
-  let database: "supabase" | "demo-store" | "error" = isSupabaseConfigured ? "supabase" : "demo-store";
-  if (!isSupabaseConfigured) {
-    try {
-      const { loadStore } = await import("@/lib/db/demo/store");
-      loadStore();
-    } catch {
-      database = "error";
-    }
-  }
-  // One trivial query, timed: the function-to-database round trip is the
-  // unit every page pays several times over, so it belongs on the probe.
-  let dbRttMs: number | null = null;
-  if (isSupabaseConfigured) {
-    try {
-      const { createAdminSupabase } = await import("@/lib/db/supabase/admin-client");
-      const started = Date.now();
-      await createAdminSupabase().from("businesses").select("id").limit(1);
-      dbRttMs = Date.now() - started;
-    } catch {
-      dbRttMs = null;
-    }
-  }
-  // The paid reader's meter. Apify stops every run at its plan's monthly
-  // cap, and the readers treat a refused run as "nothing to show", so a
-  // spent cap is a silent outage: the Starter plan's $25 was reached on
-  // day two of a cycle with two signups a day. Presence and share only.
-  let apifyUsage: { usd: number; capUsd: number; share: number } | null = null;
-  if (isApifyConfigured) {
-    try {
-      const res = await fetch(`https://api.apify.com/v2/users/me/limits?token=${encodeURIComponent(env.apifyToken)}`, {
-        signal: AbortSignal.timeout(4_000),
-        cache: "no-store",
-      });
-      const data = (await res.json()) as { data?: { limits?: { maxMonthlyUsageUsd?: number }; current?: { monthlyUsageUsd?: number } } };
-      const usd = data.data?.current?.monthlyUsageUsd;
-      const capUsd = data.data?.limits?.maxMonthlyUsageUsd;
-      if (typeof usd === "number" && typeof capUsd === "number" && capUsd > 0) {
-        apifyUsage = { usd: Math.round(usd * 100) / 100, capUsd, share: Math.round((usd / capUsd) * 100) / 100 };
-      }
-    } catch {
-      apifyUsage = null;
-    }
-  }
-  // Model spend, last 24 hours, by the job that made the calls.
-  let aiUsage24h: ReturnType<typeof summarizeUsage> | null = null;
-  if (isSupabaseConfigured && isModelConfigured) {
-    try {
-      const { getAdminRepo } = await import("@/lib/db/admin");
-      aiUsage24h = summarizeUsage(await getAdminRepo().listAiUsage({ sinceHours: 24 }));
-    } catch {
-      aiUsage24h = null;
-    }
-  }
-  // Paid calls outside the model, last 24 hours, estimated from public
-  // rates and labeled as such. A real invoice is the only billed figure.
-  let providerUsage24h: ReturnType<typeof summarizeProviderUsage> | null = null;
-  if (isSupabaseConfigured) {
-    try {
-      const { getAdminRepo } = await import("@/lib/db/admin");
-      providerUsage24h = summarizeProviderUsage(await getAdminRepo().listProviderUsage({ sinceHours: 24 }));
-    } catch {
-      providerUsage24h = null;
-    }
-  }
-  const warnings: string[] = [];
-  if (apifyUsage && apifyUsage.share >= 0.9) {
-    warnings.push(`Apify at $${apifyUsage.usd} of its $${apifyUsage.capUsd} monthly cap: social, TikTok and rival-ad reads stop at the cap.`);
-  }
-  const body = {
-    ok: database !== "error",
-    dbRttMs,
-    time: new Date().toISOString(),
-    warnings,
-    apifyUsage,
-    aiUsage24h,
-    providerUsage24h,
-    mode: {
-      database,
-      generation: isModelConfigured ? "openai" : "template",
-      billing: isStripeConfigured ? (env.stripeSecretKey.startsWith("sk_live_") ? "stripe-live" : "stripe-test") : "off",
+  return Response.json(
+    {
+      ok: true,
+      time: new Date().toISOString(),
+      keys: {
+        supabase: Boolean(env.supabaseUrl && env.supabaseServiceRoleKey),
+        openai: isModelConfigured,
+        apifyFallback: Boolean(env.apifyToken),
+        stripe: isStripeConfigured,
+        email: isEmailConfigured,
+        cron: Boolean(env.cronSecret),
+      },
     },
-    /** Presence only, never values: what a customer's week and receipt need. */
-    keys: {
-      stripePriceBaseline: Boolean(env.stripePriceBaseline),
-      stripeWebhook: Boolean(env.stripeWebhookSecret),
-      email: isEmailConfigured,
-      apify: isApifyConfigured,
-      dataForSeo: isDataForSeoConfigured,
-      metaAds: isMetaAdsConfigured,
-      cron: Boolean(env.cronSecret),
-    },
-  };
-  return Response.json(body, {
-    status: body.ok ? 200 : 503,
-    headers: { "cache-control": "no-store" },
-  });
+    { headers: { "cache-control": "no-store" } },
+  );
 }

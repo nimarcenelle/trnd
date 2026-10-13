@@ -12,7 +12,7 @@ import {
 
 const initial: AuthFormState = {};
 
-export default function AuthForm({ mode, invite = false, site }: { mode: "login" | "signup"; invite?: boolean; site?: string }) {
+export default function AuthForm({ mode, site }: { mode: "login" | "signup"; site?: string }) {
   const [state, formAction, pending] = useActionState(
     mode === "login" ? signInAction : signUpAction,
     initial,
@@ -23,21 +23,15 @@ export default function AuthForm({ mode, invite = false, site }: { mode: "login"
     <div>
       <form action={formAction}>
         {site ? <input type="hidden" name="site" value={site} /> : null}
-        {mode === "signup" && (
-          <div className="field">
-            <label htmlFor="full_name">Full name</label>
-            <input id="full_name" name="full_name" type="text" placeholder="Jordan Lee" autoComplete="name" required />
-          </div>
-        )}
         <div className="field">
           <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" placeholder="jordan@yourbusiness.com" autoComplete="email" required />
+          <input id="email" name="email" type="email" placeholder="you@yourbrand.com" autoComplete="email" required />
         </div>
         <div className="field">
           <div className="flex justify-between items-baseline">
             <label htmlFor="password">Password</label>
             {mode === "login" && (
-              <Link className="text-[12px] text-ink-faint" href="/forgot">
+              <Link className="text-[12.5px] text-ink-3 hover:text-ink" href="/forgot">
                 Forgot password?
               </Link>
             )}
@@ -52,31 +46,25 @@ export default function AuthForm({ mode, invite = false, site }: { mode: "login"
             minLength={mode === "signup" ? 8 : undefined}
           />
         </div>
-        {mode === "signup" && invite && (
-          <div className="field">
-            <label htmlFor="invite_code">Invite code</label>
-            <input id="invite_code" name="invite_code" type="text" placeholder="From the email that accepted your application" autoComplete="off" required />
-          </div>
-        )}
         {state.error && <p className="form-error">{state.error}</p>}
         {state.notice && (
-          <p className="font-mono text-[11.5px] text-mint leading-[1.5]">
+          <p className="text-[13.5px] text-pos leading-[1.5] mb-4">
             {state.notice}
           </p>
         )}
         <button
           type="submit"
-          className="btn btn-primary w-full justify-center"
+          className="btn btn-primary btn-lg w-full"
           disabled={pending}
          
         >
           {pending ? "One moment…" : mode === "login" ? "Sign in" : "Create account"}
         </button>
         {mode === "signup" && (
-          <p className="text-[11.5px] text-ink-faint mx-0 mt-3 mb-0 text-center leading-[1.5]">
+          <p className="text-[11.5px] text-ink-3 mx-0 mt-3 mb-0 text-center leading-[1.5]">
             By creating an account you agree to the{" "}
-            <Link className="text-ink-faint underline" href="/terms">Terms</Link> and{" "}
-            <Link className="text-ink-faint underline" href="/privacy">Privacy Policy</Link>.
+            <Link className="text-ink-3 underline" href="/terms">Terms</Link> and{" "}
+            <Link className="text-ink-3 underline" href="/privacy">Privacy Policy</Link>.
           </p>
         )}
       </form>
@@ -86,7 +74,7 @@ export default function AuthForm({ mode, invite = false, site }: { mode: "login"
           <input type="hidden" name="email" id="magic-email" />
           <button
             type="submit"
-            className="btn btn-ghost w-full justify-center"
+            className="btn btn-secondary w-full"
             disabled={magicPending}
            
             onClick={(e) => {
@@ -98,21 +86,21 @@ export default function AuthForm({ mode, invite = false, site }: { mode: "login"
           </button>
           {magicState.error && <p className="form-error mt-[10px]">{magicState.error}</p>}
           {magicState.notice && (
-            <p className="font-mono text-[11px] text-mint mt-[10px]">
+            <p className="text-[13px] text-pos mt-[10px]">
               {magicState.notice}
             </p>
           )}
         </form>
       )}
 
-      <p className="text-[13.5px] text-ink-soft mt-[22px] text-center">
+      <p className="text-[13.5px] text-ink-2 mt-5 text-center">
         {mode === "login" ? (
           <>
-            New to TRND? <Link className="text-(--amber-text)" href="/signup">Create an account</Link>
+            New to TRND? <Link className="text-ink font-medium hover:underline" href="/signup">Create an account</Link>
           </>
         ) : (
           <>
-            Already have an account? <Link className="text-(--amber-text)" href="/login">Sign in</Link>
+            Already have an account? <Link className="text-ink font-medium hover:underline" href="/login">Sign in</Link>
           </>
         )}
       </p>

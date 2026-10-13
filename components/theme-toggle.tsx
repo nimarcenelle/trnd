@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * Warm light is the brand default. Choosing dark sets [data-theme="dark"] on
+ * Light is the default. Choosing dark sets [data-theme="dark"] on
  * <html>; the choice persists in localStorage and is applied pre-paint by
  * the inline script in app/layout.tsx. Icon visibility itself is pure CSS
  * (--sun-d / --moon-d), so this component only tracks state for a11y labels.

@@ -1,299 +1,311 @@
 import Link from "next/link";
 
+import AdPreview from "@/components/app/ad-preview";
+import Avatar from "@/components/app/avatar";
+import Brief from "@/components/app/brief";
 import Brand from "@/components/brand";
-import FullLanding from "@/components/landing/full-landing";
-import CameraWall from "@/components/read/camera-wall";
-import CategoryRead from "@/components/read/category-read";
-import { AdCard, GapCard, OpeningMix } from "@/components/read/parts";
-import { PLAN_TIERS } from "@/lib/billing";
-import { getAdminRepo } from "@/lib/db/admin";
-import { isPilotGated } from "@/lib/env";
-import { FOCUS_MODE } from "@/lib/focus";
-import { EXAMPLE_BRAND, EXAMPLE_RIVALS, exampleAds } from "@/lib/read/example";
-import { findGap, summarizeAdvertiser } from "@/lib/read/gap";
-import { OPENING_PHRASE } from "@/lib/read/labels";
-import { buildMarketPulse, type MarketPulse } from "@/lib/read/market";
-
-import "./landing.css";
-import "./read.css";
-
-// The pitch: cheat off your competitors, because the Ad Library is public
-// and their long-running ads are what they already paid to learn. It never
-// means copying: the brief is written in the brand's own voice.
-// The page is one input: a store's address, and a minute later the
-// brand's category read back to it (lib/read/run.ts). Under the input sits
-// a sample read, so a visitor sees what they get before they type: a real
-// category from the week's reads with every brand renamed when there is one
-// (lib/read/market.ts), the invented example when there isn't. A strip of
-// the week's real numbers runs under the nav, and hides when there are none. Every claim on the page is
-// counted from a site and the public Ad Library, and says what it can't
-// know. The full pitch page is kept behind FOCUS_MODE.
-
-/** Rebuilt hourly: the pulse sums every brand's reads, and a visit never waits on it. */
-export const revalidate = 3600;
-
-const PULSE_BUDGET_MS = 8000;
-const PULSE_TOTALS_MIN = 100;
-
-async function loadPulse(): Promise<MarketPulse | null> {
-  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), PULSE_BUDGET_MS));
-  try {
-    return await Promise.race([buildMarketPulse(getAdminRepo()).catch(() => null), timeout]);
-  } catch (err) {
-    // No admin credentials at build time: the page renders without the pulse.
-    console.warn("[landing] market pulse unavailable:", (err as Error).message);
-    return null;
-  }
-}
-
-const fmt = (n: number) => n.toLocaleString("en-US");
-
-function MarketStrip({ pulse }: { pulse: MarketPulse }) {
-  // The totals undersell until there are enough of them; the per-category
-  // reads stand on their own from the first category.
-  const totals =
-    pulse.ads >= PULSE_TOTALS_MIN
-      ? [`This week: ${fmt(pulse.ads)} live ads from ${fmt(pulse.brands)} brands read`, `${fmt(pulse.stillRunning)} still running past three weeks`]
-      : [];
-  const items = [
-    ...totals,
-    ...pulse.categories.slice(0, 8).flatMap((c) => [
-      `${c.category}: longest-running ad ${c.longestDays ?? "?"} days`,
-      ...(c.topOpening && c.topShare >= 0.3 ? [`${c.category}: ${Math.round(c.topShare * 100)}% of long runners ${OPENING_PHRASE[c.topOpening]}`] : []),
-    ]),
-  ];
-  const row = (hidden: boolean) => (
-    <div className="rd-strip__row" aria-hidden={hidden || undefined}>
-      {items.map((t, i) => (
-        <span key={i}>
-          <i aria-hidden="true" />
-          {t}
-        </span>
-      ))}
-    </div>
-  );
-  return (
-    <div className="rd-strip" role="region" aria-label="This week's reads, summed across every brand">
-      <span className="rd-strip__label">Rec</span>
-      <div className="rd-strip__track">
-        {row(false)}
-        {row(true)}
-      </div>
-    </div>
-  );
-}
-
-/** The sample's data: a real anonymized category when the pulse has one, the invented example when not. */
-function sampleData(pulse: MarketPulse | null) {
-  const real = pulse?.sample ?? null;
-  if (real) {
-    const { own, rivals, gap } = real;
-    return {
-      real: true,
-      own,
-      rivals,
-      gap,
-      category: real.category,
-      title: `trnd · competitive read · ${real.category.toLowerCase()}`,
-      note: `A real read from ${real.category.toLowerCase()} this week, one brand against ${rivals.length} of its rivals, every name hidden. Yours reads your store and your real rivals.`,
-    };
-  }
-  const ads = exampleAds();
-  const own = summarizeAdvertiser(EXAMPLE_BRAND.name, EXAMPLE_BRAND.domain, ads[EXAMPLE_BRAND.name] ?? []);
-  const rivals = EXAMPLE_RIVALS.map((r) => summarizeAdvertiser(r.name, r.domain, ads[r.name] ?? []));
-  return {
-    real: false,
-    own,
-    rivals,
-    gap: findGap(own, rivals),
-    category: EXAMPLE_BRAND.category,
-    title: `trnd · competitive read · ${EXAMPLE_BRAND.domain}`,
-    note: "A sample read of an invented shower-filter brand. Yours reads your store and your real rivals.",
-  };
-}
-
-function SampleRead({ pulse }: { pulse: MarketPulse | null }) {
-  const { real, own, rivals, gap, title, note } = sampleData(pulse);
-  const shown = rivals
-    .map((r) => ({ name: r.name, ad: r.top.find((a) => a.opening === gap.opening && a.text) ?? r.top[0] }))
-    .filter((s) => s.ad)
-    .slice(0, 2);
-  return (
-    <div className="rd-sample" aria-label={real ? "A real read with every brand's name hidden" : "A sample read of an invented brand"}>
-      <p className="rd-kicker rd-sample__kicker">What a read looks like</p>
-      <div className="rd-window">
-        <div className="rd-window__bar" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-          <span>{title}</span>
-          <em>{real ? "Live · names hidden" : "Sample"}</em>
-        </div>
-        <div className="rd-window__body">
-          <GapCard gap={gap} />
-          <div className="rd-sample__side">
-            <div className="rd-panel rd-panel--tight">
-              <span className="rd-kicker">How the ads open</span>
-              <OpeningMix own={own} rivals={rivals} highlight={gap.opening} />
-            </div>
-            {shown.map((s) => (s.ad ? <AdCard key={s.name} ad={s.ad} advertiser={s.name} /> : null))}
-          </div>
-        </div>
-      </div>
-      <p className="rd-fine rd-sample__note">{note}</p>
-    </div>
-  );
-}
+import { IconCheck } from "@/components/icons";
+import SampleCreative from "@/components/sample/creative";
+import { SAMPLE_ADS, type SampleAd } from "@/components/sample/market";
+import ProductShot from "@/components/sample/product-shot";
+import SiteNav from "@/components/site-nav";
+import UrlStart from "@/components/url-start";
+import { PRICE_LABEL } from "@/lib/billing";
 
 const STEPS = [
+  { title: "Enter your website", body: "TRND reads it, works out what you sell and who buys it, and finds the brands competing for the same customers." },
+  { title: "See every ad they run", body: "Every active ad your competitors run on Facebook and Instagram, with the copy, the creative, the offer and the date it started." },
+  { title: "Get a briefing every morning", body: "What changed overnight, what it means for you, and the ads worth making next, in your inbox and your dashboard." },
+];
+
+const INCLUDED = ["Up to 10 competitors, checked daily", "Every active ad, analyzed", "Daily change alerts by email", "Ad ideas with creative briefs", "Cancel anytime"];
+
+const FAQ = [
   {
-    n: "01",
-    h: "Paste your site",
-    p: "We read what you sell and who you sell it to, find your socials and your live ads, and name the ten brands running Meta ads to your customers. Every one checked to exist.",
+    q: "Where does the data come from?",
+    a: "Meta's public Ad Library, which lists every active ad running on Facebook, Instagram, Messenger and Audience Network. TRND reads it for your competitors every day and keeps the history Meta doesn't.",
   },
   {
-    n: "02",
-    h: "Cameras on, every day",
-    p: "Each competitor's ads are read daily and sorted by how long they've survived on a real budget. Losers get switched off. What's left is what they keep paying for.",
+    q: "How do you know which ads are working?",
+    a: "Meta doesn't publish spend or results for commercial ads. What it does show is when each ad started. An ad still running after weeks is one a competitor keeps paying for, and several versions of the same idea means they're scaling it. TRND reads those signals across every competitor at once, and never claims more than they show.",
   },
   {
-    n: "03",
-    h: "The gap, the test, the score",
-    p: "What they launched and killed, the opening they lean on that you don't, a brief in your voice to fill it, and the score once it's live. Never a copy of theirs.",
+    q: "How are my competitors chosen?",
+    a: "TRND suggests them from your website, and you confirm the list before anything is tracked. Add or remove competitors any time.",
+  },
+  {
+    q: "Do I need to connect my ad account?",
+    a: "No. TRND only reads public ads. Nothing touches your Meta account.",
   },
 ];
 
-const FIGURES = [
-  { v: "~60s", l: "from URL to your first read" },
-  { v: "10", l: "competitors on camera, named for you" },
-  { v: "Daily", l: "every ad of theirs, read again" },
-  { v: "0", l: "logins or ad accounts to start" },
-];
-
-export default async function Home() {
-  if (!FOCUS_MODE) return <FullLanding />;
-  const pulse = await loadPulse();
-  const showStrip = pulse !== null && pulse.categories.length > 0;
-  const wall = sampleData(pulse);
+function SampleAdCard({ ad, i }: { ad: SampleAd; i: number }) {
+  const status =
+    ad.status === "new" ? (
+      <span className="badge badge-pos">
+        <span className="status-dot" />
+        New
+      </span>
+    ) : ad.days >= 21 ? (
+      <span className="badge badge-warn">
+        <span className="status-dot" />
+        Proven
+      </span>
+    ) : (
+      <span className="badge badge-pos">
+        <span className="status-dot" />
+        Active
+      </span>
+    );
   return (
-    <div className="rd">
-      <div className="rd-atmos" aria-hidden="true" />
+    <div className="card overflow-hidden">
+      <div className="flex items-center justify-between px-3.5 h-11 border-b border-line">
+        {status}
+        <span className="text-[12px] text-ink-3 tnum">
+          {ad.days} days{ad.versions > 1 ? ` · ${ad.versions} versions` : ""}
+        </span>
+      </div>
+      <AdPreview page={ad.rival} body={ad.body} title={ad.title} cta={ad.cta} domain={ad.domain} media={<SampleCreative spec={ad.creative} id={`card-${i}`} />} />
+      <div className="px-3.5 py-3 border-t border-line flex gap-1.5">
+        <span className="badge badge-outline">{ad.angle}</span>
+        {ad.offer && <span className="badge badge-outline">{ad.offer}</span>}
+      </div>
+    </div>
+  );
+}
 
-      <nav className="rd-nav">
-        <Brand href={null} live />
-        <div className="rd-nav__links">
-          <a href="#how">How it works</a>
-          <a href="#pricing">Pricing</a>
-        </div>
-        <div className="rd-nav__right">
-          <Link href="/login" className="rd-nav__signin">
-            Sign in
-          </Link>
-          <a href="#read" className="rd-btn rd-btn--ghost rd-btn--sm">
-            Free read
-          </a>
-        </div>
-      </nav>
-      {showStrip ? <MarketStrip pulse={pulse} /> : null}
-
-      <main>
-        <header className="rd-hero" id="read">
-          <div className="rd-hero__grid">
-            <div className="rd-hero__copy">
-              <span className="rd-pill">
-                <i aria-hidden="true" /> Live · watching Meta ads 24/7
-              </span>
-              <h1>Always-on surveillance for paid ads.</h1>
-              <p className="rd-hero__sub">
-                TRND puts cameras on your competitors&rsquo; Facebook and Instagram ads. Every launch, clone, scale-up and shutdown pings you
-                the moment it happens, with what it means for your business and what to run next. Paste your store for a free read.
-              </p>
-              <CategoryRead gated={isPilotGated} />
-            </div>
-            <CameraWall rivals={wall.rivals} own={wall.own} category={wall.category} />
-          </div>
-          <SampleRead pulse={pulse} />
-        </header>
-
-        <section className="rd-figures">
-          {FIGURES.map((f) => (
-            <div key={f.l}>
-              <b>{f.v}</b>
-              <span>{f.l}</span>
-            </div>
+function Feature({ kicker, title, body, points, visual, flip = false }: { kicker: string; title: string; body: string; points: string[]; visual: React.ReactNode; flip?: boolean }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:gap-16 lg:grid-cols-2 items-center">
+      <div className={flip ? "lg:order-2" : ""}>
+        <p className="kicker">{kicker}</p>
+        <h3 className="display text-[30px] sm:text-[34px] mt-3">{title}</h3>
+        <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[480px]">{body}</p>
+        <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-2.5">
+          {points.map((p) => (
+            <li key={p} className="flex gap-2.5 text-[14.5px]">
+              <IconCheck className="text-brand mt-[3px] shrink-0" />
+              {p}
+            </li>
           ))}
-        </section>
+        </ul>
+      </div>
+      <div className={flip ? "lg:order-1" : ""}>{visual}</div>
+    </div>
+  );
+}
 
-        <section className="rd-section" id="how">
-          <span className="rd-kicker rd-kicker--gold">How it works</span>
-          <h2 className="rd-h2">
-            They ran the tests. <em>You read the answers.</em>
-          </h2>
-          <div className="rd-steps">
-            {STEPS.map((s) => (
-              <div key={s.n} className="rd-step">
-                <span className="rd-step__n">{s.n}</span>
-                <h3>{s.h}</h3>
-                <p>{s.p}</p>
-              </div>
-            ))}
+export default function Home() {
+  const [clearwell, tidewell, marlow, fenn] = SAMPLE_ADS;
+  return (
+    <div className="min-h-dvh flex flex-col">
+      <SiteNav />
+
+      <section className="relative">
+        <div className="absolute inset-x-0 bottom-0 h-[55%] bg-subtle border-t border-line" aria-hidden />
+        <div className="wrap relative pt-20 sm:pt-28 pb-16 sm:pb-24 flex flex-col items-center text-center">
+          <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full border border-line bg-bg text-[12.5px] text-ink-2 shadow-[var(--shadow-sm)]">
+            <span className="live-dot !w-1.5 !h-1.5" /> Competitor ad tracking for Meta
+          </span>
+          <h1 className="display text-[40px] sm:text-[56px] lg:text-[64px] mt-6 max-w-[860px]">See every ad your competitors run, and what&apos;s working.</h1>
+          <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[620px]">
+            TRND tracks your competitors&apos; Facebook and Instagram ads every day, shows you which ones they keep paying for, and tells you what changed.
+          </p>
+          <div className="mt-8 w-full flex justify-center">
+            <UrlStart />
           </div>
-          <div className="rd-honest">
-            <span className="rd-honest__stamp">The fine print</span>
-            <p style={{ margin: 0 }}>
-              <b>It&rsquo;s all public, and it&rsquo;s all yours.</b> Every ad we read is in the Meta Ad Library, open to anyone. We never copy
-              an ad: we show you what&rsquo;s working for them and write a test that&rsquo;s yours. And we&rsquo;ll say it plainly: an ad still
-              running after three weeks is one its brand keeps paying for. That&rsquo;s a strong hint, not proof, and every read says so.
+          <p className="caption mt-3">Free for 14 days. No credit card required.</p>
+          <div className="mt-14 sm:mt-16 w-full max-w-[1080px]">
+            <ProductShot />
+          </div>
+        </div>
+      </section>
+
+      <section id="how" className="border-t border-line">
+        <div className="wrap py-20 sm:py-28">
+          <p className="kicker">How it works</p>
+          <h2 className="display text-[30px] sm:text-[38px] mt-3 max-w-[640px]">Set up in two minutes. Informed every morning after.</h2>
+          <ol className="list-none p-0 m-0 mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="border-t border-line pt-6">
+                <span className="text-[13px] font-medium text-ink-3 tnum">0{i + 1}</span>
+                <h3 className="heading text-[17px] mt-3">{s.title}</h3>
+                <p className="text-[14.5px] text-ink-2 leading-[1.65] mt-2">{s.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section id="features" className="border-t border-line bg-subtle">
+        <div className="wrap py-20 sm:py-28 flex flex-col gap-24 sm:gap-32">
+          <Feature
+            kicker="What's working"
+            title="Know which ads they keep paying for."
+            body="An ad that's still running after months is one a competitor keeps funding. TRND sorts every competitor ad by how long it has run and tags its angle, hook and offer, so the winners are obvious."
+            points={["Every active ad, longest-running first", "Angle, hook and offer on every ad", "The patterns the long-running ads share"]}
+            visual={
+              <div className="grid grid-cols-2 gap-4 max-w-[560px] lg:ml-auto">
+                <SampleAdCard ad={fenn} i={0} />
+                <div className="pt-10">
+                  <SampleAdCard ad={clearwell} i={1} />
+                </div>
+              </div>
+            }
+          />
+          <Feature
+            flip
+            kicker="What changed"
+            title="Know the moment they make a move."
+            body="New launches, ads they stopped, and ads that just proved themselves. TRND checks every day and emails you only when something changed, with what it means for your brand."
+            points={["Daily checks on every competitor", "New, stopped and newly proven ads", "An email when there's something worth knowing"]}
+            visual={
+              <div className="card overflow-hidden max-w-[520px]">
+                <div className="px-5 py-4 border-b border-line">
+                  <div className="text-[12px] text-ink-3">From TRND · 7:02 AM</div>
+                  <div className="text-[15px] font-semibold mt-1 leading-snug">Tidewell launched a 3-for-$79 refill bundle</div>
+                </div>
+                <div className="divide-y divide-line">
+                  {[
+                    { ad: tidewell, badge: "badge badge-pos", label: "New", line: "Year-supply bundle, 3 filters for $79" },
+                    { ad: fenn, badge: "badge badge-warn", label: "Proven", line: "“Your shampoo isn't the problem” passed 128 days" },
+                    { ad: marlow, badge: "badge badge-neg", label: "Stopped", line: "Two discount ads stopped after under 30 days" },
+                  ].map(({ ad, badge, label, line }, i) => (
+                    <div key={i} className="flex items-center gap-3 px-5 py-3.5">
+                      <div className="w-11 h-11 rounded-md overflow-hidden border border-line shrink-0">
+                        <SampleCreative spec={ad.creative} id={`mail-${i}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[13.5px] font-semibold">{ad.rival}</span>
+                          <span className={badge}>{label}</span>
+                        </div>
+                        <div className="text-[13px] text-ink-2 truncate mt-0.5">{line}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            }
+          />
+          <Feature
+            kicker="What to make next"
+            title="Turn their winners into your next ads."
+            body="Every report ends with ad ideas modeled on what's working for your competitors, written for your brand, with a brief a creator can shoot from."
+            points={["Ideas grounded in the ads that prove them", "A hook, format and shot list for each", "Written in your voice, not theirs"]}
+            visual={
+              <div className="card p-6 max-w-[520px] lg:ml-auto">
+                <div className="caption">Idea 1</div>
+                <div className="text-[17px] font-semibold mt-1">The &ldquo;it was my water&rdquo; review, Halo version</div>
+                <p className="text-[13.5px] text-ink-2 leading-[1.6] mt-2">
+                  Clearwell&apos;s review ad has run 94 days across 6 versions. Lead with the problem, not the product.
+                </p>
+                <div className="well p-4 mt-4">
+                  <Brief text={"Hook: I spent $400 on hair masks. The problem was my shower.\nFormat: 9:16 selfie video, 20 to 30 seconds\nShow: hair close-up, the 30-second install, week three\nOffer: none, run as evergreen proof"} />
+                </div>
+                <div className="flex items-center gap-2.5 mt-4">
+                  <span className="caption">Modeled on</span>
+                  <div className="w-9 h-9 rounded-md overflow-hidden border border-line">
+                    <SampleCreative spec={clearwell.creative} id="brief-0" />
+                  </div>
+                  <div className="w-9 h-9 rounded-md overflow-hidden border border-line">
+                    <SampleCreative spec={fenn.creative} id="brief-1" />
+                  </div>
+                </div>
+              </div>
+            }
+          />
+        </div>
+      </section>
+
+      <section id="pricing" className="border-t border-line">
+        <div className="wrap py-20 sm:py-28">
+          <div className="text-center">
+            <p className="kicker">Pricing</p>
+            <h2 className="display text-[30px] sm:text-[38px] mt-3">One plan, everything included.</h2>
+            <p className="text-[16px] text-ink-2 mt-3">Try it free for 14 days. No credit card required.</p>
+          </div>
+          <div className="card mt-12 max-w-[440px] mx-auto p-8 shadow-[var(--shadow-md)]">
+            <div className="text-[14px] font-semibold">TRND</div>
+            <div className="mt-3 flex items-baseline gap-1.5">
+              <span className="display text-[44px] tnum">{PRICE_LABEL.replace("/mo", "")}</span>
+              <span className="text-ink-3 text-[14px]">per month</span>
+            </div>
+            <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3">
+              {INCLUDED.map((f) => (
+                <li key={f} className="flex gap-2.5 text-[14px]">
+                  <IconCheck className="text-brand mt-[3px] shrink-0" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <Link href="/signup" className="btn btn-primary btn-lg w-full mt-8">
+              Start free trial
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" className="border-t border-line bg-subtle">
+        <div className="wrap py-20 sm:py-28 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+          <div>
+            <p className="kicker">FAQ</p>
+            <h2 className="display text-[30px] sm:text-[38px] mt-3">Questions</h2>
+            <p className="text-[15px] text-ink-2 mt-3">
+              Anything else?{" "}
+              <a className="text-ink underline" href="mailto:hello@usetrnd.com">
+                hello@usetrnd.com
+              </a>
             </p>
           </div>
-        </section>
-
-        <section className="rd-section" id="pricing">
-          <span className="rd-kicker rd-kicker--gold">After the free read</span>
-          <h2 className="rd-h2">
-            Three tests every Monday. <em>A record of what won.</em>
-          </h2>
-          <div className="rd-plans">
-            {PLAN_TIERS.map((t) => (
-              <div key={t.id} className={`rd-plan${t.featured ? " rd-plan--featured" : ""}`}>
-                {t.badge ? <span className="rd-plan__badge">{t.badge}</span> : null}
-                <h3>{t.name}</h3>
-                <p className="rd-plan__price">
-                  {t.price.replace("/mo", "")}
-                  <span>/month</span>
-                </p>
-                <p className="rd-soft">{t.who}</p>
-                <ul>
-                  {t.meter.map((m) => (
-                    <li key={m}>{m}</li>
-                  ))}
-                </ul>
-                <a href="#read" className={`rd-btn ${t.featured ? "rd-btn--gold" : "rd-btn--ghost"}`}>
-                  Start with a free read
-                </a>
-              </div>
+          <div className="card divide-y divide-line">
+            {FAQ.map((f) => (
+              <details key={f.q} className="group px-6 py-5">
+                <summary className="flex items-center justify-between gap-4 text-[15px] font-medium">
+                  {f.q}
+                  <span className="text-ink-3 text-[18px] leading-none transition-transform group-open:rotate-45">+</span>
+                </summary>
+                <p className="text-[14.5px] text-ink-2 leading-[1.7] mt-3">{f.a}</p>
+              </details>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="rd-final">
-          <span className="rd-pill">
-            <i aria-hidden="true" /> Your market is running ads right now
-          </span>
-          <h2 className="rd-h2">Switch the cameras on.</h2>
-          <a href="#read" className="rd-btn rd-btn--gold rd-btn--lg">
-            Switch the cameras on
-          </a>
-        </section>
-      </main>
+      <section className="border-t border-line">
+        <div className="wrap py-20 sm:py-28 flex flex-col items-center text-center">
+          <div className="flex -space-x-2">
+            {["Clearwell", "Tidewell", "Marlow", "Fenn"].map((n) => (
+              <span key={n} className="rounded-full ring-2 ring-bg">
+                <Avatar name={n} size={32} />
+              </span>
+            ))}
+          </div>
+          <h2 className="display text-[30px] sm:text-[40px] mt-6 max-w-[640px]">See what your competitors are running today.</h2>
+          <div className="mt-8 w-full flex justify-center">
+            <UrlStart cta="Start free trial" />
+          </div>
+        </div>
+      </section>
 
-      <footer className="rd-footer">
-        <Brand href={null} size={14} />
-        <span>Ad intelligence. Always-on surveillance for paid ads.</span>
-        <span className="rd-footer__links">
-          <Link href="/terms">Terms</Link>
-          <Link href="/privacy">Privacy</Link>
-        </span>
+      <footer className="border-t border-line">
+        <div className="wrap py-8 flex flex-col sm:flex-row gap-4 justify-between sm:items-center text-[13px] text-ink-3">
+          <div className="flex items-center gap-4">
+            <Brand size={12} />
+            <span>© {new Date().getFullYear()} TRND</span>
+          </div>
+          <div className="flex gap-6">
+            <Link href="/terms" className="hover:text-ink">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:text-ink">
+              Privacy
+            </Link>
+            <a href="mailto:hello@usetrnd.com" className="hover:text-ink">
+              Contact
+            </a>
+          </div>
+        </div>
       </footer>
     </div>
   );

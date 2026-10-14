@@ -15,7 +15,7 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
   return (
     <AuthShell
       title={store ? `See what ${store}'s competitors are running` : "Create your account"}
-      sub="Free for 14 days. Your first report is ready a few minutes after you sign up."
+      sub="14 days free on every plan. Your first report is ready a few minutes after you start."
     >
       <AuthForm mode="signup" site={store || undefined} />
     </AuthShell>

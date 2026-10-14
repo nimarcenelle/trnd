@@ -21,6 +21,8 @@ export const env = {
   stripePriceStarter: process.env.STRIPE_PRICE_STARTER ?? "",
   /** STRIPE_PRICE is the old single plan's price, still read as Growth so a live deploy keeps billing. */
   stripePriceGrowth: process.env.STRIPE_PRICE_GROWTH || process.env.STRIPE_PRICE || "",
+  /** Free reports started from the home page per day, across all visitors (each is a few model calls). */
+  previewDailyLimit: Math.max(0, Number(process.env.PREVIEW_DAILY_LIMIT) || 40),
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM || "TRND <reports@usetrnd.com>",
   /** The domain competitors' marketing emails are received on, e.g. "in.usetrnd.com". */

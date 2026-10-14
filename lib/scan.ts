@@ -15,6 +15,7 @@ import { crossedProven } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { isModelConfigured } from "@/lib/env";
 import { NO_PAGE_NOTE } from "@/lib/format";
+import { pool } from "@/lib/pool";
 import { subscribeOnce } from "@/lib/inbox/store";
 import { checkSite } from "@/lib/sitewatch/watch";
 import { followerGrowth, refreshSocial } from "@/lib/social/store";
@@ -251,21 +252,6 @@ async function tagUntaggedEmails(sb: SupabaseClient, brandId: string, nameOf: Ma
     const tags = await tagEmails(batch.map((e) => ({ ...e, rival: nameOf.get(e.rival_id) ?? "?", earlier: earlier(e.rival_id) })));
     await Promise.all(tags.map((t) => sb.from("emails").update({ kind: t.kind, offer: t.offer, theme: t.theme, is_repeat: t.is_repeat }).eq("id", t.id).eq("brand_id", brandId)));
   }
-}
-
-/** Run `fn` over `items`, `n` at a time. */
-async function pool<T, R>(items: T[], n: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(n, items.length) }, async () => {
-      while (next < items.length) {
-        const i = next++;
-        out[i] = await fn(items[i]);
-      }
-    }),
-  );
-  return out;
 }
 
 /** Mark the brand as scanning and run a full scan after the response is sent. */

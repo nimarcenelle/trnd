@@ -46,8 +46,21 @@ get ahead, win the choice, counter, or ignore, each with a campaign brief.
      brief (angle, hook, offer, creative, format, audience, experiment), ranked by relevance, urgency, differentiation,
      feasibility and confidence. Evidence links to the ads, website changes and emails behind it. Plus where you stand.
    - `/app/timeline` is every competitor move across the three channels, day by day.
-3. **Monitor**. Vercel Cron hits `/api/cron/scan` daily, which fans out one invocation per due brand. A scan that finds
-   changes writes an update report and emails the owner.
+3. **Monitor**. Vercel Cron hits `/api/cron/scan` daily, which fans out one invocation per due brand (Growth daily,
+   Starter weekly). A scan that finds changes writes an update report and emails the owner.
+
+## Plans and the free report
+
+- **Plans** (`lib/billing`): Starter ($149, 3 competitors, weekly) and Growth ($399, 10 competitors, daily, Instagram
+  and TikTok); Agency is sold by email. After confirming competitors, a new brand picks a plan (`/app/plan`) and starts
+  a 14-day trial in Stripe Checkout with a card on file. `/app/start` reads the subscription back, turns the plan on and
+  starts the first scan. Starter scans the first 3 competitors on the list; the rest are kept and marked. Brands that
+  began on the old card-free trial keep their remaining days. For "Move to Growth" to work, allow plan switching
+  between both prices in Stripe's customer portal settings.
+- **Free report** (`/report`, `lib/preview.ts`): the home page box posts to `/api/preview`, which runs the same pipeline
+  as `run:once` (`lib/pipeline.ts`) on the site and its 5 closest competitors and stores it in `previews`. The page at
+  `/report/<id>` shows two opportunities in full and the rest as titles, with the trial as the next step. One report per
+  site per week, 3 per visitor per day, `PREVIEW_DAILY_LIMIT` (default 40) in all.
 
 ## The scraper
 
@@ -81,9 +94,9 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql` and `0104_ad_scores.sql`, safe to re-run). They create
+`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql`, `0104_ad_scores.sql` and `0105_previews.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
-`site_snapshots`, `site_changes` and `emails`, and leave the old
+`site_snapshots`, `site_changes`, `emails` and `previews`, and leave the old
 product's tables alone (drop them when convenient).
 
 ### Competitor emails
@@ -104,6 +117,9 @@ lib/inbox/           parse (pure), verify (webhook signatures), subscribe (newsl
 lib/timeline.ts      one feed across ads, sites and emails
 lib/ai/              openai (one structured-output call), analyze (rivals, tags, report)
 lib/scan.ts          one brand's scan: scrape → diff → tag → report → email
+lib/pipeline.ts      one read with no database (run:once, the free report)
+lib/preview.ts       the free report: limits, storage
+lib/billing/         plans, trial and lock rules; Stripe
 lib/diff.ts          days running, the proven line
 lib/score.ts         the conversion score, topics and hooks by score
 lib/actions.ts       server actions

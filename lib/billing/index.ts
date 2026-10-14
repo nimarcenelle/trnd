@@ -52,7 +52,7 @@ export const TRIAL_DAYS = 14;
 /** Agencies get several brands and reports for their clients; sold by email for now. */
 export const AGENCY = {
   name: "Agency",
-  price: "From $1,200",
+  price: "$1,200+",
   blurb: "Several brands, one account, reports you can send to clients.",
   features: ["Every brand you manage", "10 competitors per brand, daily", "Reports with your name on them", "A direct line to us"],
   contact: "mailto:hello@usetrnd.com?subject=TRND%20for%20agencies",

@@ -8,6 +8,7 @@ import SampleCreative from "@/components/sample/creative";
 import { SAMPLE_ADS, type SampleAd } from "@/components/sample/market";
 import ProductShot from "@/components/sample/product-shot";
 import SiteNav from "@/components/site-nav";
+import PreviewStart from "@/components/preview-start";
 import UrlStart from "@/components/url-start";
 import PlanCard from "@/components/billing/plan-card";
 import { AGENCY, PLANS, TRIAL_DAYS } from "@/lib/billing";
@@ -111,9 +112,9 @@ export default function Home() {
             Your competitors are constantly changing what they sell, what they say, and how they advertise. TRND watches every move they make, then shows you where your business can get ahead, stand out, or fight back.
           </p>
           <div className="mt-8 w-full flex justify-center">
-            <UrlStart />
+            <PreviewStart />
           </div>
-          <p className="caption mt-3">Free for 14 days. No credit card required.</p>
+          <p className="caption mt-3">Free, no account. Your closest competitors&apos; live ads and your next moves, in about three minutes.</p>
           <div className="mt-14 sm:mt-16 w-full max-w-[1080px]">
             <ProductShot />
           </div>

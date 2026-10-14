@@ -11,15 +11,11 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 
-import { findPage } from "@/lib/adlibrary/resolve";
-import { scrapeAds } from "@/lib/adlibrary/scrape";
-import { discoverRivals, tagAds, writeReport, type SocialLine } from "@/lib/ai/analyze";
-import type { Ad } from "@/lib/db/types";
 import { daysRunning } from "@/lib/diff";
 import { env } from "@/lib/env";
 import { libraryLink } from "@/lib/format";
-import { engagementRate, postsPerWeek, readSocial } from "@/lib/social/read";
-import { normalizeUrl, readSitePage } from "@/lib/site";
+import { runPipeline } from "@/lib/pipeline";
+import { normalizeUrl } from "@/lib/site";
 
 const today = new Date().toISOString().slice(0, 10);
 const log = (...a: unknown[]) => console.log("·", ...a);
@@ -29,95 +25,9 @@ async function main() {
   if (!url) throw new Error("usage: pnpm run:once yourbrand.com");
   if (!env.openaiApiKey) throw new Error("OPENAI_API_KEY is not set (shell or .env.local).");
 
-  log(`reading ${url}`);
-  const site = await readSitePage(url);
-  const found = await discoverRivals(url, site.text);
+  const { found, companies: rivals, report } = await runPipeline(url, { social: true, onStage: (s) => log(s) });
   log(`${found.name}: ${found.category} · ${found.profile.price_point} · ${found.profile.audience}`);
-  log(`rivals: ${found.rivals.map((r) => r.name).join(", ")}`);
-
-  const rivals: { name: string; website: string; pageName: string | null; error: string | null; ads: Ad[]; self?: boolean }[] = [];
-  const companies = [{ name: found.name, website: new URL(url).hostname, reason: "you", self: true }, ...found.rivals.map((r) => ({ ...r, self: false }))];
-  for (const r of companies) {
-    try {
-      const hit = await findPage({ name: r.name, website: r.website, category: found.category });
-      const page = hit.page;
-      if (!page) {
-        log(`${r.name}: no Facebook Page running ads (searched ${"tried" in hit ? hit.tried.join(", ") : ""})`);
-        rivals.push({ name: r.name, website: r.website, pageName: null, error: "no Page found", ads: [], self: r.self });
-        continue;
-      }
-      const { ads, via, complete } = await scrapeAds({ pageId: page.pageId });
-      log(`${r.name} → ${page.pageName} (found by ${"via" in hit ? hit.via : "?"}): ${ads.length} live ads via ${via}${complete ? "" : " (partial)"}`);
-      rivals.push({
-        name: r.name,
-        website: r.website,
-        pageName: page.pageName,
-        error: null,
-        self: r.self,
-        ads: ads.map((a) => ({
-          id: a.archiveId,
-          brand_id: "",
-          rival_id: r.name,
-          archive_id: a.archiveId,
-          page_name: a.pageName,
-          body: a.body,
-          title: a.title,
-          cta: a.cta,
-          link_url: a.linkUrl,
-          format: a.format,
-          image_url: a.imageUrl,
-          video_url: a.videoUrl,
-          platforms: a.platforms,
-          variants: a.variants,
-          started_at: a.startedAt,
-          active: true,
-          first_seen_at: "",
-          last_seen_at: "",
-          stopped_at: null,
-          angle: null,
-          hook: null,
-          offer: null,
-        })),
-      });
-    } catch (err) {
-      log(`${r.name}: ${(err as Error).message}`);
-      rivals.push({ name: r.name, website: r.website, pageName: null, error: (err as Error).message, ads: [], self: r.self });
-    }
-  }
-
-  const all = rivals.flatMap((r) => r.ads);
-  if (!all.length) throw new Error("No rival ads were read, so there is nothing to analyze. See the lines above.");
-  log(`tagging ${all.length} ads`);
-  for (let i = 0; i < all.length; i += 60) {
-    const tags = await tagAds(all.slice(i, i + 60));
-    for (const t of tags) {
-      const ad = all.find((a) => a.id === t.id);
-      if (ad) Object.assign(ad, { angle: t.angle, hook: t.hook, offer: t.offer });
-    }
-  }
-
-  // Organic social, for the brand only (rival handles come from their sites in the app).
-  let social: SocialLine[] = [];
-  if (env.apifyToken && (site.socials.instagram || site.socials.tiktok)) {
-    log(`reading social: ${[site.socials.instagram, site.socials.tiktok].filter(Boolean).join(", ")}`);
-    const reads = await readSocial({ instagram: site.socials.instagram ? [site.socials.instagram] : [], tiktok: site.socials.tiktok ? [site.socials.tiktok] : [] });
-    social = reads.map((s) => ({
-      name: `${found.name} (you)`,
-      growth: null,
-      profile: { platform: s.platform, handle: s.handle, followers: s.followers, posts_per_week: postsPerWeek(s.recent), engagement_rate: engagementRate(s.recent, s.followers), recent: s.recent },
-    }));
-  }
-
-  log("writing the report");
-  const own = rivals.find((r) => r.self)?.ads ?? [];
-  const report = await writeReport({
-    brand: { name: found.name, url, summary: found.summary, category: found.category, profile: found.profile },
-    own,
-    rivals: rivals.filter((r) => !r.self).map((r) => ({ name: r.name, ads: r.ads })),
-    social,
-    changes: null,
-    today,
-  });
+  for (const r of rivals) log(`${r.name}${r.pageName ? ` → ${r.pageName}` : ""}: ${r.error ?? `${r.ads.length} live ads`}`);
 
   const md = [
     `# ${found.name}: rival ad report (${today})`,

@@ -164,6 +164,7 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
   }
 
   await sb.from("rivals").update({ last_scraped_at: now, last_error: null }).eq("id", rival.id);
+  rival.last_error = null;
   await recordHealth(sb, rival, "ads", { ok: true, count: scraped.length, via, note: complete ? null : "Partial read: some ads couldn't be fetched, so none were marked stopped" });
   if (baseline) return { ...none, remapped };
 
@@ -254,6 +255,16 @@ async function tagUntaggedEmails(sb: SupabaseClient, brandId: string, nameOf: Ma
   }
 }
 
+/**
+ * Why a company's ads weren't read on this scan, or null when they were. A
+ * failed read or a Page we couldn't find is unknown, not "runs no ads".
+ */
+function unreadReason(rival: Rival): string | null {
+  if (!rival.page_id) return "we couldn't find its Facebook Page";
+  if (rival.last_error) return `the read failed: ${rival.last_error}`;
+  return null;
+}
+
 /** Run `fn` over `items`, `n` at a time. */
 async function pool<T, R>(items: T[], n: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
@@ -309,6 +320,7 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean }
         const message = (err as Error).message.slice(0, 300);
         console.warn(`[scan] ${rival.name}:`, message);
         await sb.from("rivals").update({ last_error: message }).eq("id", rival.id);
+        rival.last_error = message;
         await recordHealth(sb, rival, "ads", { ok: false, note: message });
         return { launched: [], stopped: [], proven: [] } satisfies RivalChanges;
       }
@@ -370,8 +382,9 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean }
         const body = await writeReport({
           brand,
           own: self ? ads.filter((a) => a.rival_id === self.id) : [],
+          ownUnread: self ? unreadReason(self) : null,
           results: ((await sb.from("own_ad_results").select("*").eq("brand_id", brandId)).data ?? []) as OwnAdResult[],
-          rivals: rivals.map((r) => ({ name: r.name, ads: ads.filter((a) => a.rival_id === r.id) })),
+          rivals: rivals.map((r) => ({ name: r.name, ads: ads.filter((a) => a.rival_id === r.id), unread: unreadReason(r) })),
           social,
           site,
           emails,

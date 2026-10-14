@@ -125,6 +125,13 @@ describe("report", () => {
     expect(withOwn).toContain("hard water (83, you don't)");
   });
 
+  it("never reports an unread company as running no ads", () => {
+    const prompt = reportPrompt({ ...input, ownUnread: "we couldn't find its Facebook Page", rivals: [...input.rivals, { name: "Ghost", ads: [], unread: "the read failed: login wall" }] });
+    expect(prompt).toContain("Mine's own Meta ads: NOT READ (we couldn't find its Facebook Page)");
+    expect(prompt).not.toContain("none running");
+    expect(prompt).toContain("## Ghost: ads NOT READ (the read failed: login wall)");
+  });
+
   it("reads website changes and emails as signals, marking what is new", () => {
     const prompt = reportPrompt({
       ...input,

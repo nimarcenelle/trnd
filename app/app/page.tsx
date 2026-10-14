@@ -362,7 +362,11 @@ export default async function Briefing() {
                       <Link href={href} className="flex items-center gap-2.5 font-medium">
                         <Avatar name={r.name} size={24} />
                         {r.name}
-                        {isNoPageNote(r.last_error) ? <span className="badge">No ads</span> : r.last_error && <span className="badge badge-neg">Can&apos;t read</span>}
+                        {isNoPageNote(r.last_error) ? <span className="badge">No ads</span> : r.last_error && (
+                          <span className="badge badge-neg" title={r.last_error}>
+                            Can&apos;t read
+                          </span>
+                        )}
                       </Link>
                     </td>
                     <td className="text-right tnum">{theirs.filter((a) => a.active).length}</td>

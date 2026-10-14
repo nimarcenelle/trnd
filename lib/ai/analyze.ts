@@ -303,7 +303,10 @@ export interface ReportInput {
   results?: Pick<OwnAdResult, "ad_name" | "body" | "spend" | "ctr" | "results" | "result_type" | "cost_per_result" | "roas">[];
   /** The brand's own active Meta ads. */
   own?: Ad[];
-  rivals: (Pick<Rival, "name"> & { ads: Ad[] })[];
+  /** Why the brand's own ads weren't read, when they weren't: never to be reported as "runs no ads". */
+  ownUnread?: string | null;
+  /** `unread`: why this company's ads couldn't be read this time. */
+  rivals: (Pick<Rival, "name"> & { ads: Ad[]; unread?: string | null })[];
   social?: SocialLine[];
   /** Material website changes, recent first. `fresh`: found since the last report. */
   site?: (SiteChange & { rival: string; fresh: boolean })[];
@@ -399,13 +402,16 @@ function socialBlock(lines: SocialLine[]): string {
 export function reportPrompt(input: ReportInput): string {
   const { brand, rivals, changes, today } = input;
   const own = (input.own ?? []).filter((a) => a.active).sort((a, b) => (daysRunning(b, today) ?? 0) - (daysRunning(a, today) ?? 0));
-  const ownBlock = `\n\n# ${brand.name}'s own active Meta ads (${own.length})\n${own.slice(0, 20).map((a) => adLine(a, today)).join("\n") || "(none running: say so, and what that costs them)"}`;
+  const ownBlock = input.ownUnread && !own.length
+    ? `\n\n# ${brand.name}'s own Meta ads: NOT READ (${input.ownUnread}). We don't know what ${brand.name} runs. Never say it runs no ads or has no presence on Meta; leave its own ads out of the comparison.`
+    : `\n\n# ${brand.name}'s own active Meta ads (${own.length})\n${own.slice(0, 20).map((a) => adLine(a, today)).join("\n") || "(none running: say so, and what that costs them)"}`;
   const social = input.social?.length ? `\n\n# Organic social (Instagram and TikTok)\n${socialBlock(input.social)}` : "";
   const results = input.results?.length ? `\n\n# ${brand.name}'s own past ad results (from its Ads Manager)\n${resultsBlock(input.results)}` : "";
   const rivalBlocks = rivals
     .map((r) => {
       const active = r.ads.filter((a) => a.active);
       const sorted = [...active].sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || (daysRunning(b, today) ?? 0) - (daysRunning(a, today) ?? 0));
+      if (r.unread && !active.length) return `## ${r.name}: ads NOT READ (${r.unread}). Unknown, not zero: draw no conclusions about their ads.`;
       return `## ${r.name}: ${active.length} active ads\n${sorted.slice(0, 25).map((a) => adLine(a, today)).join("\n") || "(no active ads)"}`;
     })
     .join("\n\n");

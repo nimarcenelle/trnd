@@ -5,9 +5,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { findPage, pageLooksRight } from "@/lib/adlibrary/resolve";
 import type { ScrapedAd } from "@/lib/adlibrary/parse";
 import { scrapeAds } from "@/lib/adlibrary/scrape";
-import { tagAds, tagEmails, writeReport } from "@/lib/ai/analyze";
+import { commentSentiment, tagAds, tagEmails, writeReport } from "@/lib/ai/analyze";
 import { adminSupabase } from "@/lib/db/supabase";
-import type { Ad, Brand, OwnAdResult, Rival, RivalEmail, SiteChange } from "@/lib/db/types";
+import type { Ad, Brand, OwnAdResult, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
+import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/score";
 import { crossedProven } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { isModelConfigured } from "@/lib/env";
@@ -140,6 +141,13 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
       .select("*");
     if (upsertError) throw new Error(upsertError.message);
     upserted = data as Ad[];
+    // The read comes back sorted by impressions: each ad's place in it is its reach rank.
+    // A separate write, so a database without 0104 yet still scans.
+    const { error: rankError } = await sb.from("ads").upsert(
+      scraped.map((a, i) => ({ brand_id: brand.id, rival_id: rival.id, archive_id: a.archiveId, impression_rank: i, rank_total: scraped.length })),
+      { onConflict: "rival_id,archive_id" },
+    );
+    if (rankError) console.warn("[scan] impression rank not saved (run supabase/migrations/0104_ad_scores.sql):", rankError.message);
   }
 
   // An ad missing from a complete read has stopped. From an incomplete read
@@ -168,11 +176,64 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
 
 /** Tag every active ad the model has not read yet. */
 async function tagUntagged(sb: SupabaseClient, brandId: string) {
-  const { data } = await sb.from("ads").select("id, body, title, cta, format").eq("brand_id", brandId).eq("active", true).is("angle", null).limit(300);
+  const base = () => sb.from("ads").select("id, body, title, cta, format").eq("brand_id", brandId).eq("active", true);
+  // Ads tagged before topics existed get a topic too; without the topic column, angle alone decides.
+  const withTopic = await base().or("angle.is.null,topic.is.null").limit(300);
+  const hasTopic = !withTopic.error;
+  const data = hasTopic ? withTopic.data : (await base().is("angle", null).limit(300)).data;
   const ads = (data ?? []) as Pick<Ad, "id" | "body" | "title" | "cta" | "format">[];
   for (let i = 0; i < ads.length; i += 60) {
     const tags = await tagAds(ads.slice(i, i + 60));
-    await Promise.all(tags.map((t) => sb.from("ads").update({ angle: t.angle, hook: t.hook, offer: t.offer }).eq("id", t.id).eq("brand_id", brandId)));
+    await Promise.all(
+      tags.map((t) => sb.from("ads").update({ angle: t.angle, hook: t.hook, offer: t.offer, ...(hasTopic ? { topic: t.topic } : {}) }).eq("id", t.id).eq("brand_id", brandId)),
+    );
+  }
+}
+
+/**
+ * Score every live ad (and those stopped in the last 30 days): match it to
+ * the organic post it also runs as, read that post's comments for sentiment
+ * once, and blend it all into the conversion score (lib/score.ts).
+ */
+async function scoreAds(sb: SupabaseClient, brandId: string, profiles: SocialProfile[]) {
+  const monthAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const { data, error } = await sb.from("ads").select("*").eq("brand_id", brandId).or(`active.eq.true,stopped_at.gte.${monthAgo}`).limit(2000);
+  if (error || !data?.length) return;
+  const ads = data as Ad[];
+  if (!("score" in ads[0])) return; // 0104 not run yet
+  const pools = new Map<string, PostPool[]>();
+  for (const p of profiles) {
+    if (p.error || !p.recent?.length) continue;
+    pools.set(p.rival_id, [...(pools.get(p.rival_id) ?? []), { platform: p.platform, posts: p.recent }]);
+  }
+
+  // Engagement: a fresh match each scan (the numbers move), keeping the sentiment already read for the same post.
+  const needSentiment: { id: string; comments: string[] }[] = [];
+  for (const ad of ads) {
+    const match = matchPost(ad, pools.get(ad.rival_id) ?? []);
+    if (match && ad.engagement?.url === match.url) match.sentiment = ad.engagement.sentiment;
+    ad.engagement = match;
+    if (match && match.sentiment === null) {
+      const post = pools.get(ad.rival_id)?.flatMap((p) => p.posts).find((p) => p.url === match.url);
+      if (post?.top_comments?.length) needSentiment.push({ id: ad.id, comments: post.top_comments });
+    }
+  }
+  if (needSentiment.length && isModelConfigured) {
+    const read = await commentSentiment(needSentiment.slice(0, 60)).catch((e) => (console.warn("[scan] sentiment:", (e as Error).message), []));
+    const byId = new Map(read.map((r) => [r.id, r.sentiment]));
+    for (const ad of ads) if (ad.engagement && byId.has(ad.id)) ad.engagement.sentiment = byId.get(ad.id)!;
+  }
+
+  const t = today();
+  const byRival = new Map<string, Ad[]>();
+  for (const ad of ads) byRival.set(ad.rival_id, [...(byRival.get(ad.rival_id) ?? []), ad]);
+  const rows = ads.map((ad) => {
+    const { score, parts } = conversionScore({ ad, versions: versionsOf(ad, byRival.get(ad.rival_id) ?? []), today: t });
+    return { brand_id: brandId, rival_id: ad.rival_id, archive_id: ad.archive_id, engagement: ad.engagement, score, score_parts: parts };
+  });
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error: e } = await sb.from("ads").upsert(rows.slice(i, i + 200), { onConflict: "rival_id,archive_id" });
+    if (e) console.warn("[scan] scores not saved:", e.message);
   }
 }
 
@@ -266,6 +327,7 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean }
     await tagUntagged(sb, brandId);
     await tagUntaggedEmails(sb, brandId, nameOf).catch((err) => console.warn("[scan] email tags:", (err as Error).message));
     const profiles = await socialRun;
+    await scoreAds(sb, brandId, profiles).catch((err) => console.warn("[scan] score:", (err as Error).message));
     const growth = await followerGrowth(sb, profiles.map((p) => p.id));
     const social: SocialLine[] = profiles
       .filter((p) => !p.error && p.followers !== null)

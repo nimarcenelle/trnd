@@ -4,7 +4,7 @@ import type { Growth } from "@/lib/social/read";
 
 import { IconArrowUpRight } from "@/components/icons";
 
-const LABEL = { instagram: "Instagram", tiktok: "TikTok" } as const;
+const LABEL = { instagram: "Instagram", tiktok: "TikTok", facebook: "Facebook" } as const;
 
 /** One company's presence on one platform: size, growth, cadence, engagement and its best recent posts. */
 export default function SocialCard({ profile, growth }: { profile: SocialProfile; growth?: Growth | null }) {

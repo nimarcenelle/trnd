@@ -6,7 +6,10 @@ import type { Platform, Rival, SocialProfile } from "@/lib/db/types";
 import { env } from "@/lib/env";
 import { readSitePage } from "@/lib/site";
 
-import { engagementRate, growthBy, normHandle, postsPerWeek, readSocial, type Growth, type Snapshot } from "./read";
+import { engagementRate, growthBy, normHandle, postsPerWeek, readFacebook, readSocial, type Growth, type Snapshot } from "./read";
+
+/** Facebook posts are read for ad engagement, every few days rather than daily. */
+const FACEBOOK_EVERY_MS = 3 * 86_400_000;
 
 /**
  * The social half of a scan: find each company's Instagram and TikTok handles
@@ -38,12 +41,22 @@ export async function refreshSocial(sb: SupabaseClient, brandId: string, rivals:
     if (r.instagram) owner.set(`instagram:${normHandle(r.instagram)}`, r);
     if (r.tiktok) owner.set(`tiktok:${normHandle(r.tiktok)}`, r);
   }
+
+  // Facebook Pages whose posts are due for a re-read.
+  const { data: fbRows } = await sb.from("social_profiles").select("rival_id, fetched_at").eq("brand_id", brandId).eq("platform", "facebook");
+  const fbFetched = new Map((fbRows ?? []).map((r) => [r.rival_id as string, r.fetched_at as string | null]));
+  const fbDue = rivals.filter((r) => r.page_id && !(Date.now() - Date.parse(fbFetched.get(r.id) ?? "1970-01-01") < FACEBOOK_EVERY_MS));
+  for (const r of fbDue) owner.set(`facebook:${r.page_id}`, r);
   if (!owner.size) return [];
 
-  const reads = await readSocial({
-    instagram: rivals.flatMap((r) => (r.instagram ? [r.instagram] : [])),
-    tiktok: rivals.flatMap((r) => (r.tiktok ? [r.tiktok] : [])),
-  });
+  const [social, facebook] = await Promise.all([
+    readSocial({
+      instagram: rivals.flatMap((r) => (r.instagram ? [r.instagram] : [])),
+      tiktok: rivals.flatMap((r) => (r.tiktok ? [r.tiktok] : [])),
+    }),
+    readFacebook(fbDue.map((r) => r.page_id!)),
+  ]);
+  const reads = [...social, ...facebook];
   const now = new Date().toISOString();
   const today = now.slice(0, 10);
   const seen = new Set<string>();
@@ -86,7 +99,7 @@ export async function refreshSocial(sb: SupabaseClient, brandId: string, rivals:
 
   // A handle the actor returned nothing for is worth saying so on the page.
   for (const [key, rival] of owner) {
-    if (seen.has(key)) continue;
+    if (seen.has(key) || key.startsWith("facebook:")) continue;
     const [platform, handle] = key.split(":") as [Platform, string];
     await sb
       .from("social_profiles")

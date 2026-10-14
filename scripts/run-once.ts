@@ -11,7 +11,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 
-import { pickRivalPage } from "@/lib/adlibrary/match";
+import { findPage } from "@/lib/adlibrary/resolve";
 import { scrapeAds } from "@/lib/adlibrary/scrape";
 import { discoverRivals, tagAds, writeReport, type SocialLine } from "@/lib/ai/analyze";
 import type { Ad } from "@/lib/db/types";
@@ -39,15 +39,15 @@ async function main() {
   const companies = [{ name: found.name, website: new URL(url).hostname, reason: "you", self: true }, ...found.rivals.map((r) => ({ ...r, self: false }))];
   for (const r of companies) {
     try {
-      const search = await scrapeAds({ query: r.name }, 60);
-      const page = pickRivalPage({ name: r.name, website: r.website }, search.ads);
+      const hit = await findPage({ name: r.name, website: r.website, category: found.category });
+      const page = hit.page;
       if (!page) {
-        log(`${r.name}: no matching Facebook Page (${search.ads.length} keyword results via ${search.via})`);
+        log(`${r.name}: no Facebook Page running ads (searched ${"tried" in hit ? hit.tried.join(", ") : ""})`);
         rivals.push({ name: r.name, website: r.website, pageName: null, error: "no Page found", ads: [], self: r.self });
         continue;
       }
       const { ads, via, complete } = await scrapeAds({ pageId: page.pageId });
-      log(`${r.name} → ${page.pageName}: ${ads.length} live ads via ${via}${complete ? "" : " (partial)"}`);
+      log(`${r.name} → ${page.pageName} (found by ${"via" in hit ? hit.via : "?"}): ${ads.length} live ads via ${via}${complete ? "" : " (partial)"}`);
       rivals.push({
         name: r.name,
         website: r.website,

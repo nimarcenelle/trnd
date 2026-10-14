@@ -208,3 +208,9 @@ alter table public.own_ad_results enable row level security;
 drop policy if exists own_ad_results_owner_read on public.own_ad_results;
 create policy own_ad_results_owner_read on public.own_ad_results for select
   using (exists (select 1 from public.brands b where b.id = brand_id and b.owner_id = auth.uid()));
+
+-- 0102_page_source.sql
+-- How a rival's Facebook Page was settled: 'checked' (found and confirmed
+-- against its ads) or 'owner' (pasted by the owner). Null means matched before
+-- this column existed, so the next scan checks it once. Safe to re-run.
+alter table public.rivals add column if not exists page_source text;

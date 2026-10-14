@@ -19,7 +19,7 @@ import { engagementRate, growthBy, normHandle, postsPerWeek, readSocial, type Gr
 async function discoverHandles(sb: SupabaseClient, rival: Rival): Promise<void> {
   if (rival.socials_checked_at || !rival.website || (rival.instagram && rival.tiktok)) return;
   const url = /^https?:\/\//.test(rival.website) ? rival.website : `https://${rival.website}`;
-  const found = await readSitePage(url).then((r) => r.socials).catch(() => ({ instagram: null, tiktok: null }));
+  const found = await readSitePage(url).then((r) => r.socials).catch(() => ({ instagram: null, tiktok: null, facebook: null }));
   const patch = {
     instagram: rival.instagram ?? (found.instagram ? normHandle(found.instagram) : null),
     tiktok: rival.tiktok ?? (found.tiktok ? normHandle(found.tiktok) : null),

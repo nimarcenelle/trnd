@@ -6,7 +6,8 @@ import type { ScrapedAd } from "./parse";
  * in the ad's link, or failing that by name. The name match is strict (the
  * same company once generic words are gone, never a substring), because a
  * substring match once filed "Roz Strategies" under a haircare brand called
- * Roz.
+ * Roz. A name match alone is never sure: a Romanian shapewear Page called
+ * Jolie is not Jolie the showerhead brand.
  */
 
 const GENERIC = new Set([
@@ -46,7 +47,7 @@ export function domainOf(url: string | null | undefined): string | null {
  * Meta wraps outbound links in l.facebook.com/l.php?u=..., so unwrap before
  * comparing domains.
  */
-function linkDomain(link: string | null): string | null {
+export function linkDomain(link: string | null): string | null {
   if (!link) return null;
   try {
     const u = new URL(link);
@@ -63,19 +64,69 @@ export interface PageMatch {
   pageName: string;
 }
 
-/** The rival's own Page among a keyword search's ads, or null when none is clearly theirs. */
-export function pickRivalPage(rival: { name: string; website: string | null }, ads: ScrapedAd[]): PageMatch | null {
+export interface RivalRef {
+  name: string;
+  website: string | null;
+  /** Other names the Page may go by (from the model). */
+  aliases?: string[];
+  /** The Page handle or id the rival's site links to. */
+  facebook?: string | null;
+}
+
+export interface PageCandidate extends PageMatch {
+  pageUrl: string | null;
+  points: number;
+  ads: ScrapedAd[];
+}
+
+/** "https://www.facebook.com/Brand/" → "brand"; "…/profile.php?id=12" → "12". */
+export function facebookHandle(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+    if (!/(^|\.)(facebook|fb)\.com$/i.test(u.hostname)) return null;
+    const id = u.searchParams.get("id");
+    if (id && /^\d+$/.test(id)) return id;
+    const parts = u.pathname.split("/").filter(Boolean);
+    if (parts[0] === "people" || parts[0] === "pages") return parts.find((p) => /^\d+$/.test(p)) ?? null;
+    if (parts[0] === "pg") return parts[1]?.toLowerCase() ?? null;
+    return parts[0]?.toLowerCase() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every Page in a keyword search's ads, scored for how surely it is the rival:
+ * its site links to the Page (+3 per ad), the ad links to the rival's domain
+ * (+3), or the Page has the rival's name or an alias (+2). Pages that score
+ * nothing are kept at 0 so the model can still look at them.
+ */
+export function scorePages(rival: RivalRef, ads: ScrapedAd[]): PageCandidate[] {
   const site = domainOf(rival.website);
-  const score = new Map<string, { name: string; points: number }>();
+  const fb = rival.facebook?.toLowerCase() ?? null;
+  const names = [rival.name, ...(rival.aliases ?? [])];
+  const pages = new Map<string, PageCandidate>();
   for (const ad of ads) {
     if (!ad.pageId) continue;
     let points = 0;
+    if (fb && (fb === ad.pageId || fb === facebookHandle(ad.pageUrl))) points += 3;
     if (site && linkDomain(ad.linkUrl) === site) points += 3;
-    if (ad.pageName && sameName(ad.pageName, rival.name)) points += 2;
-    if (!points) continue;
-    const prev = score.get(ad.pageId);
-    score.set(ad.pageId, { name: ad.pageName ?? prev?.name ?? rival.name, points: (prev?.points ?? 0) + points });
+    if (ad.pageName && names.some((n) => sameName(ad.pageName!, n))) points += 2;
+    const page = pages.get(ad.pageId) ?? { pageId: ad.pageId, pageName: ad.pageName ?? rival.name, pageUrl: ad.pageUrl, points: 0, ads: [] };
+    page.points += points;
+    page.pageUrl ??= ad.pageUrl;
+    page.ads.push(ad);
+    pages.set(ad.pageId, page);
   }
-  const best = [...score.entries()].sort((a, b) => b[1].points - a[1].points)[0];
-  return best ? { pageId: best[0], pageName: best[1].name } : null;
+  return [...pages.values()].sort((a, b) => b.points - a.points || b.ads.length - a.ads.length);
+}
+
+/** Points that make a Page surely the rival's: its site links to it, or its ads link to the rival's site. A shared name alone is not enough. */
+export const SURE_POINTS = 3;
+
+/** The rival's own Page among a keyword search's ads, or null when none is surely theirs (the model then looks). */
+export function pickRivalPage(rival: RivalRef, ads: ScrapedAd[]): PageMatch | null {
+  const best = scorePages(rival, ads)[0];
+  return best && best.points >= SURE_POINTS ? { pageId: best.pageId, pageName: best.pageName } : null;
 }

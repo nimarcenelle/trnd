@@ -1,5 +1,6 @@
 import { removeRivalAction } from "@/lib/actions";
 import type { Rival } from "@/lib/db/types";
+import { isNoPageNote } from "@/lib/format";
 
 import Avatar from "./avatar";
 import HandlesForm from "./handles-form";
@@ -20,7 +21,7 @@ export default function RivalList({ rivals, social = false }: { rivals: Rival[];
               {r.source === "owner" && <span className="badge">Added by you</span>}
             </div>
             {r.reason && <p className="text-[13px] text-ink-2 mt-0.5 leading-[1.5]">{r.reason}</p>}
-            {r.last_error && <p className="text-[12.5px] text-neg mt-1">{r.last_error}</p>}
+            {r.last_error && <p className={`text-[12.5px] mt-1 ${isNoPageNote(r.last_error) ? "text-ink-3" : "text-neg"}`}>{r.last_error}</p>}
             {social && (
               <details className="mt-1.5 group">
                 <summary className="text-[12.5px] text-ink-3 hover:text-ink">

@@ -9,8 +9,11 @@ watches for changes every day.
 1. **Setup** (`/app/setup`). The site is read (`lib/site.ts`). One model call names the brand and its 8 most likely rivals
    (`discoverRivals`, `lib/ai/analyze.ts`). The owner edits the list, then starts watching.
 2. **Scan** (`lib/scan.ts`). For each rival:
-   - The first scan searches the Ad Library for the rival's name and picks its Facebook Page by website domain or exact
-     name (`lib/adlibrary/match.ts`).
+   - The first scan finds the rival's Facebook Page (`lib/adlibrary/resolve.ts`): the Page their site links to; else an
+     Ad Library search (name, domain, Page handle) for ads linking to their site; else the model looks at every
+     advertiser found and picks one or none, and names other handles and names to try. A shared name alone never
+     settles it. Pages matched before this are checked once against their ads and replaced if they are someone
+     else's. The owner can paste the right Page on the rival's page. No Page found reads "not running Meta ads".
    - Every scan reads that Page's active ads (`lib/adlibrary/scrape.ts`) and diffs them against what is stored. New ads
      are **launched**. Ads missing from a complete read are **stopped**. Ads crossing 21 days live are **proven**
      (`lib/diff.ts`).
@@ -61,7 +64,7 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql`, safe to re-run). They create
+`0101_brand_intel.sql` then `0102_page_source.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles` and `social_snapshots`, and leave the old
 product's tables alone (drop them when convenient).
 
@@ -69,7 +72,7 @@ product's tables alone (drop them when convenient).
 
 ```
 app/                 landing, auth, /app (dashboard, setup, rivals/[id], settings), api/cron/scan, api/stripe/webhook
-lib/adlibrary/       scrape (network), parse (pure), match (pure)
+lib/adlibrary/       scrape (network), parse (pure), match (pure), facebook (Page id lookup), resolve (finding the Page)
 lib/ai/              openai (one structured-output call), analyze (rivals, tags, report)
 lib/scan.ts          one brand's scan: scrape → diff → tag → report → email
 lib/diff.ts          days running, the proven line
@@ -77,4 +80,4 @@ lib/actions.ts       server actions
 lib/data.ts          page reads (RLS)
 ```
 
-`pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`.
+`pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`. The look and voice are in `BRAND.md`.

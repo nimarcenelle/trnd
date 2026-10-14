@@ -53,6 +53,8 @@ async function get(url: string, headers: Record<string, string> = {}): Promise<s
 export interface Socials {
   instagram: string | null;
   tiktok: string | null;
+  /** A Facebook Page handle ("brand") or numeric id, from a facebook.com link. */
+  facebook: string | null;
 }
 
 const IG_RESERVED = new Set(["p", "reel", "reels", "explore", "accounts", "stories", "tv", "about", "developer", "legal", "direct"]);
@@ -68,20 +70,42 @@ export function extractSocials(html: string): Socials {
     }
   }
   const tiktok = html.match(/tiktok\.com\/@([A-Za-z0-9._]{2,30})/)?.[1]?.replace(/\.+$/, "") ?? null;
-  return { instagram, tiktok };
+  return { instagram, tiktok, facebook: facebookRef(html) };
+}
+
+const FB_RESERVED = new Set([
+  "sharer", "sharer.php", "share", "share.php", "dialog", "plugins", "tr", "login", "home.php", "groups", "events",
+  "watch", "help", "policies", "privacy", "legal", "business", "ads", "marketplace", "gaming", "hashtag", "l.php", "photo.php",
+  "photo", "photos", "story.php", "permalink.php", "video.php", "people", "pages", "pg",
+]);
+
+/** The first facebook.com Page link in some HTML or text: its handle, or its numeric id. */
+export function facebookRef(html: string): string | null {
+  for (const m of html.matchAll(/(?:facebook|fb)\.com\/(profile\.php\?id=(\d+)|people\/[^/"'\s]+\/(\d+)|pages\/[^/"'\s]+\/(\d+)|pg\/([A-Za-z0-9.\-]{2,80})|([A-Za-z0-9.\-]{2,80}))/gi)) {
+    const id = m[2] ?? m[3] ?? m[4];
+    if (id) return id;
+    const handle = (m[5] ?? m[6] ?? "").replace(/\.+$/, "");
+    // xmlns="http://www.facebook.com/2008/fbml" is not a Page.
+    if (handle && !/^\d{1,4}$/.test(handle) && !FB_RESERVED.has(handle.toLowerCase())) return handle;
+  }
+  return null;
 }
 
 /** The site as text, plus the social handles it links to. */
 export async function readSitePage(url: string): Promise<{ text: string; socials: Socials }> {
   const html = await get(url);
   let text = html ? htmlToText(html) : "";
-  let socials = html ? extractSocials(html) : { instagram: null, tiktok: null };
-  if (text.length < 600 || (!socials.instagram && !socials.tiktok)) {
+  let socials: Socials = html ? extractSocials(html) : { instagram: null, tiktok: null, facebook: null };
+  if (text.length < 600 || (!socials.instagram && !socials.tiktok && !socials.facebook)) {
     const rendered = await get(`https://r.jina.ai/${url}`, { accept: "text/plain" });
     if (rendered) {
       if (rendered.length > text.length && text.length < 600) text = rendered.replace(/\s+/g, " ");
       const more = extractSocials(rendered);
-      socials = { instagram: socials.instagram ?? more.instagram, tiktok: socials.tiktok ?? more.tiktok };
+      socials = {
+        instagram: socials.instagram ?? more.instagram,
+        tiktok: socials.tiktok ?? more.tiktok,
+        facebook: socials.facebook ?? more.facebook,
+      };
     }
   }
   if (!text) throw new Error(`Could not read ${url}`);

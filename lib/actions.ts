@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import { pageFromInput } from "@/lib/adlibrary/resolve";
 import { discoverRivals, ProfileSchema } from "@/lib/ai/analyze";
 import { getSessionUser } from "@/lib/auth/session";
 import { getBrand } from "@/lib/data";
@@ -107,6 +108,37 @@ export async function updateHandlesAction(formData: FormData): Promise<void> {
     .eq("id", String(formData.get("id")))
     .eq("brand_id", brand.id);
   revalidatePath("/app", "layout");
+}
+
+/**
+ * The owner names a company's Facebook Page (or corrects the one we found).
+ * The ads read from the old Page go, the new Page's first read is a baseline,
+ * and a scan starts.
+ */
+export async function setPageAction(_prev: FormState & { saved?: boolean }, formData: FormData): Promise<FormState & { saved?: boolean }> {
+  const { brand } = await requireBrand();
+  const id = String(formData.get("id") ?? "");
+  const sb = adminSupabase();
+  const { data: rival } = await sb.from("rivals").select("id, name, page_id").eq("id", id).eq("brand_id", brand.id).maybeSingle<{ id: string; name: string; page_id: string | null }>();
+  if (!rival) return { error: "That company is no longer on your list." };
+  const page = await pageFromInput(String(formData.get("page") ?? "").slice(0, 500));
+  if (!page) return { error: "We couldn't find that Page. Paste its facebook.com link or its Ad Library link." };
+  if (page.pageId !== rival.page_id) {
+    await sb.from("ads").delete().eq("rival_id", rival.id);
+    const { error } = await sb
+      .from("rivals")
+      .update({ page_id: page.pageId, page_name: page.pageName || rival.name, last_scraped_at: null, last_error: null })
+      .eq("id", rival.id);
+    if (error) return { error: error.message };
+  }
+  // Separate so it works before 0102_page_source.sql has run.
+  await sb.from("rivals").update({ page_source: "owner" }).eq("id", rival.id);
+  if (!isScanning(brand)) {
+    await sb.from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
+    after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
+  }
+  revalidatePath("/app", "layout");
+  return { saved: true };
 }
 
 /** The owner's corrections to the brand profile every report is written against. */

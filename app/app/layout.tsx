@@ -9,7 +9,7 @@ import { signOutAction } from "@/lib/auth/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
 import { getBrand, listAds, listRivals } from "@/lib/data";
-import { ago, isScanning } from "@/lib/format";
+import { ago, isNoPageNote, isScanning } from "@/lib/format";
 
 export default async function AppLayout({ children }: LayoutProps<"/app">) {
   const user = await getSessionUser();
@@ -22,7 +22,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
     id: r.id,
     name: r.name,
     live: live.filter((a) => a.rival_id === r.id).length,
-    error: Boolean(r.last_error),
+    error: Boolean(r.last_error) && !isNoPageNote(r.last_error),
   }));
   const setup = !brand || (!brand.last_scan_at && !scanning);
 

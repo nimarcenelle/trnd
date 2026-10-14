@@ -16,7 +16,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
 import { getBrand, getSelf, listAds, listChanges, listReports, listRivals, listSocial } from "@/lib/data";
 import type { Ad, ChangeKind, Report } from "@/lib/db/types";
-import { ago, compact, daysRunningOf, isScanning, libraryLink, todayIso, withinDays } from "@/lib/format";
+import { ago, compact, daysRunningOf, isNoPageNote, isScanning, libraryLink, todayIso, withinDays } from "@/lib/format";
 import { weeklyLaunches } from "@/lib/stats";
 import { adStage } from "@/lib/diff";
 
@@ -279,7 +279,7 @@ export default async function Briefing() {
                       <Link href={href} className="flex items-center gap-2.5 font-medium">
                         <Avatar name={r.name} size={24} />
                         {r.name}
-                        {r.last_error && <span className="badge badge-neg">Can&apos;t read</span>}
+                        {isNoPageNote(r.last_error) ? <span className="badge">No ads</span> : r.last_error && <span className="badge badge-neg">Can&apos;t read</span>}
                       </Link>
                     </td>
                     <td className="text-right tnum">{theirs.filter((a) => a.active).length}</td>

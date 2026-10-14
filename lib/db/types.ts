@@ -32,6 +32,8 @@ export interface Rival {
   reason: string | null;
   page_id: string | null;
   page_name: string | null;
+  /** How the Page was settled: confirmed against its ads, or pasted by the owner. Null: not yet confirmed. */
+  page_source?: "checked" | "owner" | null;
   source: "ai" | "owner";
   /** The brand itself, watched like a rival so its own ads are read too. */
   is_self: boolean;

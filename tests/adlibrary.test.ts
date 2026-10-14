@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { domainOf, nameCore, pickRivalPage, sameName } from "@/lib/adlibrary/match";
+import { pageFromHtml } from "@/lib/adlibrary/facebook";
+import { domainOf, facebookHandle, nameCore, pickRivalPage, sameName, scorePages } from "@/lib/adlibrary/match";
 import { graphqlBlocks, jsonBlocks, looksBlocked, pageTokens, parsePayloads, toScrapedAd } from "@/lib/adlibrary/parse";
 import { libraryUrl } from "@/lib/adlibrary/scrape";
+import { facebookRef } from "@/lib/site";
 
 /** An ad node in the shape the Ad Library ships it (search_results_connection → edges → collated_results). */
 function adNode(id: string, over: Record<string, unknown> = {}, snap: Record<string, unknown> = {}) {
@@ -157,5 +159,38 @@ describe("libraryUrl", () => {
     expect(u.searchParams.get("country")).toBe("ALL");
     expect(u.searchParams.get("sort_data[mode]")).toBe("total_impressions");
     expect(new URL(libraryUrl({ query: "glow labs" })).searchParams.get("q")).toBe("glow labs");
+  });
+});
+
+describe("finding the right Page", () => {
+  it("never takes a Page on its name alone", () => {
+    const ads = [
+      toScrapedAd(adNode("1", { page_id: "777", page_name: "Jolie" }, { link_url: "https://myjolie.ro/body", page_profile_uri: "https://www.facebook.com/myjolie.ro/" }))!,
+    ];
+    const rival = { name: "Jolie", website: "jolieskin.co" };
+    expect(scorePages(rival, ads)[0]).toMatchObject({ pageId: "777", points: 2, pageUrl: "https://www.facebook.com/myjolie.ro/" });
+    expect(pickRivalPage(rival, ads)).toBeNull();
+  });
+
+  it("is sure of a Page the company's site links to", () => {
+    const ads = [toScrapedAd(adNode("1", { page_id: "555", page_name: "Jolie Skin Co" }, { link_url: "https://amazon.com/x", page_profile_uri: "https://www.facebook.com/JolieSkinCo/" }))!];
+    expect(pickRivalPage({ name: "Jolie", website: "jolieskin.co", facebook: "jolieskinco" }, ads)).toEqual({ pageId: "555", pageName: "Jolie Skin Co" });
+  });
+
+  it("reads Facebook links off a site and out of URLs", () => {
+    expect(facebookRef('<a href="https://www.facebook.com/sharer/sharer.php?u=x">share</a><a href="https://facebook.com/JolieSkinCo">fb</a>')).toBe("JolieSkinCo");
+    expect(facebookRef('<a href="https://www.facebook.com/profile.php?id=100064123456">fb</a>')).toBe("100064123456");
+    expect(facebookRef('<a href="https://www.facebook.com/people/Afina/100089999999/">fb</a>')).toBe("100089999999");
+    expect(facebookRef("<footer>no links</footer>")).toBeNull();
+    expect(facebookHandle("https://www.facebook.com/JolieSkinCo/")).toBe("jolieskinco");
+    expect(facebookHandle("https://m.facebook.com/profile.php?id=123456")).toBe("123456");
+    expect(facebookHandle("https://jolieskin.co")).toBeNull();
+  });
+
+  it("finds a Page's id in its facebook.com HTML", () => {
+    const html = `<meta property="og:title" content="Jolie &amp; Co" /><meta property="al:android:url" content="fb://page/?id=1234567890" />`;
+    expect(pageFromHtml(html)).toEqual({ pageId: "1234567890", pageName: "Jolie & Co" });
+    expect(pageFromHtml('{"delegate_page":{"is_business_page_active":true,"id":"222333444"}} fb://profile/999888777')?.pageId).toBe("222333444");
+    expect(pageFromHtml("<html>login</html>")).toBeNull();
   });
 });

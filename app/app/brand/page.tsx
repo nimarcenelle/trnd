@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import AdCard from "@/components/app/ad-card";
 import Avatar from "@/components/app/avatar";
 import HandlesForm from "@/components/app/handles-form";
+import PageForm from "@/components/app/page-form";
 import { YouVsThem } from "@/components/app/landscape";
 import ObjectivesForm from "@/components/app/objectives-form";
 import { GOALS } from "@/lib/goals";
@@ -16,7 +17,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getBrand, getSelf, listAds, listReports, listResults, listSnapshots, listSocial } from "@/lib/data";
 import type { BrandProfile } from "@/lib/db/types";
 import { PROVEN_DAYS } from "@/lib/diff";
-import { daysRunningOf } from "@/lib/format";
+import { daysRunningOf, isNoPageNote } from "@/lib/format";
 import { growthBy } from "@/lib/social/read";
 
 export const metadata = { title: "Your brand — TRND" };
@@ -177,6 +178,16 @@ export default async function BrandPage() {
 
       <section className="mt-10">
         <h2 className="heading text-[15px] mb-3">Your Meta ads</h2>
+        {self && (
+          <details className="mb-3" open={!self.page_id && Boolean(self.last_error)}>
+            <summary className="caption hover:text-ink cursor-pointer">
+              {self.page_id ? `Reading your Facebook Page “${self.page_name ?? self.page_id}”. Wrong Page?` : "Set your Facebook Page"}
+            </summary>
+            <div className="mt-2 max-w-[560px]">
+              <PageForm rivalId={self.id} />
+            </div>
+          </details>
+        )}
         <div className="grid grid-cols-3 gap-3">
           <div className="card px-4 py-3.5">
             <div className="text-[13px] text-ink-2">Live ads</div>
@@ -203,9 +214,11 @@ export default async function BrandPage() {
         ) : (
           <div className="card p-6 mt-4 text-[13.5px] text-ink-2">
             {self?.last_scraped_at
-              ? "No active Meta ads found for your brand. If you do run ads, check that your brand name matches your Facebook Page."
-              : "Your own ads are read on the next scan."}
-            {self?.last_error && <span className="block text-neg mt-1">{self.last_error}</span>}
+              ? "No active Meta ads found for your brand. If you do run ads, paste your Facebook Page above."
+              : isNoPageNote(self?.last_error)
+                ? "We couldn't find a Facebook Page running ads for your brand. If you run ads, paste your Page above."
+                : "Your own ads are read on the next scan."}
+            {self?.last_error && !isNoPageNote(self.last_error) && <span className="block text-neg mt-1">{self.last_error}</span>}
           </div>
         )}
       </section>

@@ -7,11 +7,12 @@ import { AngleBars, LaunchBars } from "@/components/app/charts";
 import { IconArrowUpRight } from "@/components/icons";
 import { getSessionUser } from "@/lib/auth/session";
 import HandlesForm from "@/components/app/handles-form";
+import PageForm from "@/components/app/page-form";
 import SocialCard from "@/components/app/social-card";
 import { getBrand, listAds, listReports, listRivals, listSnapshots, listSocial } from "@/lib/data";
 import { growthBy } from "@/lib/social/read";
 import { adStage, TESTING_DAYS } from "@/lib/diff";
-import { ago, daysRunningOf, todayIso } from "@/lib/format";
+import { ago, daysRunningOf, isNoPageNote, noPageSearched, todayIso } from "@/lib/format";
 import { angleMix, weeklyLaunches } from "@/lib/stats";
 
 export const metadata = { title: "Rival — TRND" };
@@ -62,7 +63,31 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
         )}
       </header>
 
-      {rival.last_error && <div className="mt-6 rounded-xl border border-neg/30 bg-neg-bg px-5 py-4 text-[13.5px] text-neg">{rival.last_error}</div>}
+      {rival.page_id && (
+        <details className="mt-3">
+          <summary className="caption hover:text-ink cursor-pointer">
+            Reading the Facebook Page “{rival.page_name ?? rival.page_id}”. Wrong Page?
+          </summary>
+          <div className="mt-2 max-w-[560px]">
+            <PageForm rivalId={rival.id} />
+          </div>
+        </details>
+      )}
+
+      {isNoPageNote(rival.last_error) ? (
+        <div className="card mt-6 px-5 py-4">
+          <p className="text-[14px] font-semibold">No Meta ads found for {rival.name}</p>
+          <p className="text-[13px] text-ink-2 mt-1 leading-[1.55]">
+            We checked their site for a Facebook link, searched the Ad Library under every name they might advertise as, and had
+            the model look through every advertiser that came up{noPageSearched(rival.last_error) ? ` (${noPageSearched(rival.last_error)})` : ""}. Most likely they are not running ads right now; we check again every day. If you know their Page, paste it.
+          </p>
+          <div className="mt-3 max-w-[560px]">
+            <PageForm rivalId={rival.id} />
+          </div>
+        </div>
+      ) : (
+        rival.last_error && <div className="mt-6 rounded-xl border border-neg/30 bg-neg-bg px-5 py-4 text-[13.5px] text-neg">{rival.last_error}</div>
+      )}
 
       <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[

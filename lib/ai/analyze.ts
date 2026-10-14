@@ -76,6 +76,68 @@ Return:
   });
 }
 
+/* --------------------------- find a rival's Page -------------------------- */
+
+const PageHuntSchema = z.object({
+  /** The candidate that is the company, by its id, or "" when none is. */
+  page_id: z.string(),
+  why: z.string(),
+  /** Facebook Page handles or URLs the company probably uses. */
+  facebook_pages: z.array(z.string()),
+  /** Other names to search the Ad Library for. */
+  search_terms: z.array(z.string()),
+});
+export type PageHunt = z.infer<typeof PageHuntSchema>;
+
+export interface PageCandidateLine {
+  pageId: string;
+  pageName: string;
+  pageUrl: string | null;
+  samples: { body: string | null; title: string | null; link: string | null }[];
+}
+
+/**
+ * When the Ad Library search does not plainly show the company's Page: pick
+ * it out of the advertisers the searches turned up, or say what else to try
+ * (the Page's handle, the name it advertises under, a sub-brand).
+ */
+export async function huntPage(
+  company: { name: string; website: string | null; category?: string | null },
+  candidates: PageCandidateLine[],
+  tried: string[],
+): Promise<PageHunt> {
+  const list = candidates.length
+    ? candidates
+        .map((c) =>
+          [
+            `[${c.pageId}] ${c.pageName}${c.pageUrl ? ` (${c.pageUrl})` : ""}`,
+            ...c.samples.map((a) => `   - ${[a.title, (a.body ?? "").slice(0, 200).replace(/\s+/g, " "), a.link ? `→ ${a.link}` : ""].filter(Boolean).join(" · ")}`),
+          ].join("\n"),
+        )
+        .join("\n")
+    : "(none: the searches found no advertisers)";
+  return generateJson({
+    system: SYSTEM,
+    schema: PageHuntSchema,
+    effort: "low",
+    prompt: `We need the Facebook Page that ${company.name}${company.website ? ` (${company.website})` : ""}${company.category ? `, a ${company.category} brand,` : ""} runs its Meta ads from.
+Ad Library searches already tried: ${tried.map((t) => `"${t}"`).join(", ") || "none"}.
+
+Advertisers those searches found, with a few of their ads:
+${list}
+
+Return:
+- page_id: the id of the candidate that is ${company.name} itself (its own brand Page, not a reseller, reviewer, affiliate,
+  marketplace or a different company with a similar name), exactly as shown in brackets. Judge by the Page name, the
+  Page address, the products and the sites the ads link to. "" when no candidate is clearly theirs.
+- why: one line.
+- facebook_pages: if page_id is "", up to 3 Facebook Page handles or facebook.com URLs ${company.name} most likely uses,
+  most likely first (e.g. "brandofficial"). Only ones you have reason to believe exist. Else [].
+- search_terms: if page_id is "", up to 3 other names to search the Ad Library for: the name the Page advertises under,
+  the parent company, the flagship product, the domain without ".com". None already tried. Else [].`,
+  });
+}
+
 /* ------------------------------- tag the ads ------------------------------ */
 
 const TagSchema = z.object({

@@ -12,7 +12,7 @@ import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/sco
 import { crossedProven } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { isModelConfigured } from "@/lib/env";
-import { NO_PAGE_NOTE } from "@/lib/format";
+import { isNoPageNote, NO_PAGE_NOTE } from "@/lib/format";
 import { recordHealth } from "@/lib/health";
 import { subscribeOnce } from "@/lib/inbox/store";
 import { checkSite } from "@/lib/sitewatch/watch";
@@ -123,6 +123,7 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
       // Not marked scraped: the first read that finds the Page is still its baseline.
       .update({ last_error: `${NO_PAGE_NOTE}.${searched}` })
       .eq("id", rival.id);
+    rival.last_error = `${NO_PAGE_NOTE}.${searched}`;
     await recordHealth(sb, rival, "ads", { ok: true, count: 0, note: "No Facebook Page running ads found" });
     return { ...none, remapped };
   }
@@ -333,6 +334,14 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean }
     const adChanges = changes.launched.length + changes.stopped.length + changes.proven.length;
     const remapped = results.some((r) => r.remapped);
     await sideRun;
+
+    // Every read failed: say why on the Briefing instead of writing a report about nothing.
+    const failed = all.filter((r) => r.last_error && !isNoPageNote(r.last_error));
+    if (all.length && failed.length === all.length) {
+      const reason = failed[0].last_error!;
+      await sb.from("brands").update({ scan_status: "error", scan_error: `No company's ads could be read. ${reason}`, last_scan_at: new Date().toISOString() }).eq("id", brandId);
+      return { changes: 0, report: false };
+    }
 
     if (!isModelConfigured) {
       await sb.from("brands").update({ scan_status: "error", scan_error: "OPENAI_API_KEY is not set: ads were read but not analyzed.", last_scan_at: new Date().toISOString() }).eq("id", brandId);

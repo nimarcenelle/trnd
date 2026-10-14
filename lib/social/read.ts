@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { assertApifyUp, noteApifyStatus } from "@/lib/apify";
 import { NoRetry, withRetry } from "@/lib/retry";
 import type { Platform, SocialPost } from "@/lib/db/types";
 
@@ -195,6 +196,7 @@ export function growthBy(rows: Snapshot[]): Map<string, Growth> {
 async function runActor(actor: string, input: Obj): Promise<Obj[]> {
   const url = `https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`;
   return withRetry(async () => {
+    assertApifyUp();
     const res = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -202,6 +204,7 @@ async function runActor(actor: string, input: Obj): Promise<Obj[]> {
       signal: AbortSignal.timeout(200_000),
       cache: "no-store",
     });
+    noteApifyStatus(res.status);
     // A 4xx (bad input, no credit) won't change on a second try.
     if (res.status >= 400 && res.status < 500) throw new NoRetry(`Apify ${actor} answered ${res.status}`);
     if (!res.ok) throw new Error(`Apify ${actor} answered ${res.status}`);

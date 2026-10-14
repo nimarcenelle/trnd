@@ -1,3 +1,4 @@
+import { assertApifyUp, noteApifyStatus } from "@/lib/apify";
 import { env } from "@/lib/env";
 import { fetchRetry } from "@/lib/retry";
 
@@ -164,6 +165,7 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
 /** The same search through the Apify Ad Library actor; its items share Meta's shape. */
 async function fromApify(search: Search, limit: number): Promise<ScrapeResult> {
   const url = `https://api.apify.com/v2/acts/${env.apifyAdLibraryActor}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`;
+  assertApifyUp();
   const res = await fetchRetry(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -171,18 +173,34 @@ async function fromApify(search: Search, limit: number): Promise<ScrapeResult> {
     timeoutMs: 240_000,
     cache: "no-store",
   });
+  noteApifyStatus(res.status);
   if (!res.ok) throw new Error(`Apify Ad Library actor answered ${res.status}`);
   const items = (await res.json()) as unknown[];
   const { ads } = parsePayloads([items]);
   return { ads: ads.slice(0, limit), complete: ads.length < limit, via: "apify" };
 }
 
-/** Active ads for a Page, or for a keyword, most impressions first. */
-export async function scrapeAds(search: Search, limit = env.adsPerRival): Promise<ScrapeResult> {
+/** When Meta last walled the direct read: for a while after, go straight to the backup. */
+let blockedUntil = 0;
+const BLOCK_PAUSE_MS = 10 * 60_000;
+
+/**
+ * Active ads for a Page, or for a keyword, most impressions first. `backup:
+ * false` never falls back to Apify (for searches that are nice to have, not
+ * worth paying for).
+ */
+export async function scrapeAds(search: Search, limit = env.adsPerRival, opts: { backup?: boolean } = {}): Promise<ScrapeResult> {
+  const backup = opts.backup !== false && Boolean(env.apifyToken);
+  if (Date.now() < blockedUntil && backup) return fromApify(search, limit);
   try {
     return await fromLibrary(search, limit);
   } catch (err) {
-    if (!env.apifyToken) throw err;
+    if (err instanceof ScrapeBlockedError) blockedUntil = Date.now() + BLOCK_PAUSE_MS;
+    if (!backup) {
+      throw err instanceof ScrapeBlockedError && !env.apifyToken
+        ? new ScrapeBlockedError("Meta blocked the direct read of the Ad Library, and there's no backup reader (set APIFY_TOKEN).")
+        : err;
+    }
     console.warn("[adlibrary] direct read failed, trying Apify:", (err as Error).message);
     return fromApify(search, limit);
   }

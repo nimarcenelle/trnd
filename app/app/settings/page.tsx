@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Avatar from "@/components/app/avatar";
 import { AddRivalForm } from "@/components/app/forms";
 import RivalList from "@/components/app/rival-list";
+import { isInboxConfigured } from "@/lib/env";
 import SubmitButton from "@/components/app/submit-button";
 import { billingPortalAction, checkoutAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
@@ -54,7 +55,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
 
       <Section title="Competitors" sub={`${rivals.length} of ${MAX_RIVALS}. New competitors are read on the next scan.`}>
         <div className="card">
-          <RivalList rivals={rivals} social />
+          <RivalList rivals={rivals} social inbox={isInboxConfigured} />
           <div className="border-t border-line p-4 bg-subtle rounded-b-xl">
             <AddRivalForm />
           </div>

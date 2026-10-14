@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { NoRetry, withRetry } from "@/lib/retry";
 import type { Platform, SocialPost } from "@/lib/db/types";
 
 /**
@@ -193,16 +194,20 @@ export function growthBy(rows: Snapshot[]): Map<string, Growth> {
 
 async function runActor(actor: string, input: Obj): Promise<Obj[]> {
   const url = `https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(input),
-    signal: AbortSignal.timeout(200_000),
-    cache: "no-store",
+  return withRetry(async () => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+      signal: AbortSignal.timeout(200_000),
+      cache: "no-store",
+    });
+    // A 4xx (bad input, no credit) won't change on a second try.
+    if (res.status >= 400 && res.status < 500) throw new NoRetry(`Apify ${actor} answered ${res.status}`);
+    if (!res.ok) throw new Error(`Apify ${actor} answered ${res.status}`);
+    const items = (await res.json()) as unknown;
+    return Array.isArray(items) ? items.filter(isObj) : [];
   });
-  if (!res.ok) throw new Error(`Apify ${actor} answered ${res.status}`);
-  const items = (await res.json()) as unknown;
-  return Array.isArray(items) ? items.filter(isObj) : [];
 }
 
 /** Every profile asked for, in one actor run per platform. */

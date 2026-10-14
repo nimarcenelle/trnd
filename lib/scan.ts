@@ -13,6 +13,7 @@ import { crossedProven } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { isModelConfigured } from "@/lib/env";
 import { NO_PAGE_NOTE } from "@/lib/format";
+import { recordHealth } from "@/lib/health";
 import { subscribeOnce } from "@/lib/inbox/store";
 import { checkSite } from "@/lib/sitewatch/watch";
 import { followerGrowth, refreshSocial } from "@/lib/social/store";
@@ -122,10 +123,11 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
       // Not marked scraped: the first read that finds the Page is still its baseline.
       .update({ last_error: `${NO_PAGE_NOTE}.${searched}` })
       .eq("id", rival.id);
+    await recordHealth(sb, rival, "ads", { ok: true, count: 0, note: "No Facebook Page running ads found" });
     return { ...none, remapped };
   }
 
-  const { ads: scraped, complete } = read;
+  const { ads: scraped, complete, via } = read;
   const baseline = !rival.last_scraped_at;
 
   const { data: existingRows, error } = await sb.from("ads").select("*").eq("rival_id", rival.id);
@@ -162,6 +164,7 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
   }
 
   await sb.from("rivals").update({ last_scraped_at: now, last_error: null }).eq("id", rival.id);
+  await recordHealth(sb, rival, "ads", { ok: true, count: scraped.length, via, note: complete ? null : "Partial read: some ads couldn't be fetched, so none were marked stopped" });
   if (baseline) return { ...none, remapped };
 
   const launched = upserted.filter((a) => !existing.has(a.archive_id));
@@ -306,6 +309,7 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean }
         const message = (err as Error).message.slice(0, 300);
         console.warn(`[scan] ${rival.name}:`, message);
         await sb.from("rivals").update({ last_error: message }).eq("id", rival.id);
+        await recordHealth(sb, rival, "ads", { ok: false, note: message });
         return { launched: [], stopped: [], proven: [] } satisfies RivalChanges;
       }
     });

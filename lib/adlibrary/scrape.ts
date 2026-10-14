@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { fetchRetry } from "@/lib/retry";
 
 import { graphqlBlocks, jsonBlocks, looksBlocked, pageTokens, parsePayloads, type ScrapedAd } from "./parse";
 
@@ -58,7 +59,7 @@ function cookieHeader(res: Response): string {
 }
 
 async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult> {
-  const res = await fetch(libraryUrl(search), {
+  const res = await fetchRetry(libraryUrl(search), {
     headers: {
       "user-agent": UA,
       accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -68,7 +69,7 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
       "sec-fetch-site": "none",
     },
     redirect: "follow",
-    signal: AbortSignal.timeout(25_000),
+    timeoutMs: 25_000,
     cache: "no-store",
   });
   const html = await res.text();
@@ -128,7 +129,7 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
     });
     let page;
     try {
-      const r = await fetch(GRAPHQL, {
+      const r = await fetchRetry(GRAPHQL, {
         method: "POST",
         headers: {
           "user-agent": UA,
@@ -140,7 +141,7 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
           ...(cookies ? { cookie: cookies } : {}),
         },
         body,
-        signal: AbortSignal.timeout(20_000),
+        timeoutMs: 20_000,
         cache: "no-store",
       });
       if (!r.ok) break;
@@ -163,11 +164,11 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
 /** The same search through the Apify Ad Library actor; its items share Meta's shape. */
 async function fromApify(search: Search, limit: number): Promise<ScrapeResult> {
   const url = `https://api.apify.com/v2/acts/${env.apifyAdLibraryActor}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`;
-  const res = await fetch(url, {
+  const res = await fetchRetry(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ urls: [{ url: libraryUrl(search) }], count: limit, "scrapePageAds.activeStatus": "active" }),
-    signal: AbortSignal.timeout(240_000),
+    timeoutMs: 240_000,
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Apify Ad Library actor answered ${res.status}`);

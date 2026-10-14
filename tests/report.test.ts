@@ -109,7 +109,7 @@ describe("report", () => {
   });
 
   it("leads with the conversion ranking, topics and hooks, and asks for one plain headline", () => {
-    const scored = [90, 75, 60, 30].map((score, i) => ad({ archive_id: `S${i}`, score, topic: i < 2 ? "hard water" : "price", hook: `hook ${i}` }));
+    const scored = [90, 75, 60, 30].map((score, i) => ad({ id: `s${i}`, archive_id: `S${i}`, score, topic: i < 2 ? "hard water" : "price", hook: `hook ${i}` }));
     const prompt = reportPrompt({ ...input, rivals: [{ name: "Rival", ads: scored }] });
     expect(prompt).toContain("# Conversion ranking");
     expect(prompt).toContain("- 90 · Rival · [S0] · topic: hard water · hook: \"hook 0\"");
@@ -117,6 +117,12 @@ describe("report", () => {
     expect(prompt.indexOf("# Conversion ranking")).toBeLessThan(prompt.indexOf("# Active Meta ads"));
     expect(prompt).toContain("ONE story");
     expect(reportPrompt(input)).not.toContain("# Conversion ranking");
+    const withOwn = reportPrompt({ ...input, rivals: [{ name: "Rival", ads: scored }], own: [ad({ id: "own", archive_id: "OWN", rival_id: "self", score: 70, topic: "price" })] });
+    expect(withOwn).toContain("# Where Mine stands on the conversion score");
+    expect(withOwn).toContain("- #1 Mine (you): 70");
+    expect(withOwn).toContain("- #2 Rival: 64");
+    expect(withOwn).toContain("Mine's best ad ranks #3 of 5 ads");
+    expect(withOwn).toContain("hard water (83, you don't)");
   });
 
   it("reads website changes and emails as signals, marking what is new", () => {

@@ -47,7 +47,24 @@ export interface Rival {
   email_status?: EmailStatus | null;
   email_note?: string | null;
   site_checked_at?: string | null;
+  /** What the last pull from each source found. */
+  health?: RivalHealth | null;
   created_at: string;
+}
+
+export interface SourceHealth {
+  at: string;
+  ok: boolean;
+  /** Ads read, or products in the catalog. */
+  count?: number | null;
+  /** "library" or "apify" for ads. */
+  via?: string | null;
+  note?: string | null;
+}
+
+export interface RivalHealth {
+  ads?: SourceHealth;
+  site?: SourceHealth;
 }
 
 export type EmailStatus = "subscribed" | "manual" | "receiving";
@@ -138,7 +155,8 @@ export interface ReportBody {
    * Patterns across ads, sites and emails. Evidence holds ad archive ids,
    * "site:<site_changes.id>" and "email:<emails.id>".
    */
-  insights: { title: string; detail: string; evidence: string[]; status?: "new" | "ongoing" | "repeated" }[];
+  /** `line`: the one-sentence version shown in the feed; absent on older reports. */
+  insights: { title: string; line?: string; detail: string; evidence: string[]; status?: "new" | "ongoing" | "repeated" }[];
   /** What to do about each competitor move, ranked. Absent on reports written before the opportunity engine. */
   opportunities?: Opportunity[];
   /** Older reports: ads to make next. */
@@ -158,6 +176,8 @@ export type Level = "high" | "medium" | "low";
 export interface Opportunity {
   type: OpportunityType;
   title: string;
+  /** One sentence for the feed: what to do and the number behind it. Absent on older reports. */
+  punch?: string;
   competitors: string[];
   /** What was observed, across channels. */
   signal: string;

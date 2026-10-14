@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Rival } from "@/lib/db/types";
+import { recordHealth } from "@/lib/health";
 import { get } from "@/lib/site";
 
 import { diffSnapshots, shopifyProducts, snapshotFrom, type SiteDiff, type SiteSnapshot } from "./snapshot";
@@ -47,6 +48,7 @@ export async function checkSite(sb: SupabaseClient, brandId: string, rival: Riva
   const now = new Date().toISOString();
   if (!read) {
     await sb.from("rivals").update({ site_checked_at: now }).eq("id", rival.id);
+    await recordHealth(sb, rival, "site", { ok: false, note: "Their site didn't load for us, after a retry and a rendered read" });
     return [];
   }
   const { data: last } = await sb
@@ -68,5 +70,10 @@ export async function checkSite(sb: SupabaseClient, brandId: string, rival: Riva
     await sb.from("site_changes").insert(diffs.map((d) => ({ ...d, url: d.url ?? read.url, brand_id: brandId, rival_id: rival.id, detected_at: now })));
   }
   await sb.from("rivals").update({ site_checked_at: now }).eq("id", rival.id);
+  await recordHealth(sb, rival, "site", {
+    ok: true,
+    count: read.snapshot.products.length,
+    note: read.snapshot.catalog ? null : read.snapshot.products.length ? "No full catalog: product drops can't be told apart from page changes" : "No product catalog found: watching messaging and promotions",
+  });
   return diffs;
 }

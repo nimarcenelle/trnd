@@ -3,11 +3,12 @@ import type { Rival } from "@/lib/db/types";
 import { isNoPageNote } from "@/lib/format";
 
 import Avatar from "./avatar";
+import DataStatus from "./data-status";
 import HandlesForm from "./handles-form";
 import SubmitButton from "./submit-button";
 
 /** The rivals being watched, each removable. */
-export default function RivalList({ rivals, social = false }: { rivals: Rival[]; social?: boolean }) {
+export default function RivalList({ rivals, social = false, inbox = false }: { rivals: Rival[]; social?: boolean; inbox?: boolean }) {
   if (!rivals.length) return <p className="p-5 text-[13.5px] text-ink-2">No competitors yet. Add one below.</p>;
   return (
     <ul className="list-none p-0 m-0 divide-y divide-line">
@@ -19,10 +20,11 @@ export default function RivalList({ rivals, social = false }: { rivals: Rival[];
               <span className="text-[14px] font-semibold">{r.name}</span>
               {r.website && <span className="text-[12.5px] text-ink-3">{r.website}</span>}
               {r.source === "owner" && <span className="badge">Added by you</span>}
-              {r.email_status === "receiving" && <span className="badge badge-pos">Emails arriving</span>}
-              {r.email_status === "manual" && <span className="badge badge-warn">Email signup needs you</span>}
             </div>
             {r.reason && <p className="text-[13px] text-ink-2 mt-0.5 leading-[1.5]">{r.reason}</p>}
+            <div className="mt-2">
+              <DataStatus rival={r} inbox={inbox} />
+            </div>
             {r.last_error && <p className={`text-[12.5px] mt-1 ${isNoPageNote(r.last_error) ? "text-ink-3" : "text-neg"}`}>{r.last_error}</p>}
             {social && (
               <details className="mt-1.5 group">

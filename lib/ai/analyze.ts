@@ -6,6 +6,7 @@ import { MAX_RIVALS } from "@/lib/db/types";
 import type { Ad, Brand, BrandProfile, EmailKind, Landscape, Objectives, Opportunity, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { rankResults } from "@/lib/results";
 import { topHooks, topicsByScore } from "@/lib/score";
+import { standing } from "@/lib/standing";
 
 import { adStage, daysRunning, PROVEN_DAYS, SCALING_DAYS, SCALING_VERSIONS, TESTING_DAYS } from "@/lib/diff";
 
@@ -260,6 +261,7 @@ const score = z.number().int().min(1).max(5);
 const OpportunitySchema = z.object({
   type: z.enum(["get_ahead", "win_choice", "counter", "ignore"]),
   title: z.string(),
+  punch: z.string(),
   competitors: z.array(z.string()),
   signal: z.string(),
   intent: z.string(),
@@ -283,7 +285,7 @@ const OpportunitySchema = z.object({
 const ReportSchema = z.object({
   headline: z.string(),
   summary: z.string(),
-  insights: z.array(z.object({ title: z.string(), detail: z.string(), status: z.enum(["new", "ongoing", "repeated"]), evidence: z.array(z.string()) })),
+  insights: z.array(z.object({ title: z.string(), line: z.string(), detail: z.string(), status: z.enum(["new", "ongoing", "repeated"]), evidence: z.array(z.string()) })),
   opportunities: z.array(OpportunitySchema),
   rivals: z.array(z.object({ name: z.string(), strategy: z.string(), watch_for: z.string() })),
   landscape: LandscapeSchema,
@@ -435,6 +437,18 @@ ${topicsByScore(scored).map((t) => `- ${t.topic}: ${t.ads} ads, average score ${
 Hooks of the highest-scoring ads:
 ${topHooks(scored).map((a) => `- "${a.hook}" (${a.rival}, ${a.score})`).join("\n")}`
     : "";
+  const stand = standing({
+    companies: [{ id: "you", name: brand.name, you: true }, ...rivals.map((r) => ({ id: `r:${r.name}`, name: r.name, you: false }))],
+    ads: [...(input.own ?? []).map((a) => ({ ...a, rival_id: "you" })), ...rivals.flatMap((r) => r.ads.map((a) => ({ ...a, rival_id: `r:${r.name}` })))],
+  });
+  const standingText =
+    ranking && stand.you
+      ? `\n\n# Where ${brand.name} stands on the conversion score
+Brands by the average score of their 5 best live ads:
+${stand.brands.map((b) => `- ${b.rank ? `#${b.rank}` : "unranked"} ${b.name}${b.you ? " (you)" : ""}: ${b.strength ?? "no scored ads"}${b.best ? ` · best ad ${b.best.score}${b.best.hook ? ` "${b.best.hook}"` : ""}` : ""}`).join("\n")}
+${brand.name}'s best ad ranks ${stand.bestAdRank ? `#${stand.bestAdRank} of ${stand.totalAds}` : "nowhere (no scored live ads)"} ads in the market.
+Topics that score for competitors: ${stand.topics.map((t) => `${t.topic} (${t.avgScore}, ${t.yours ? "you run it" : "you don't"})`).join("; ") || "none yet"}.`
+      : "";
   const siteText = site.size ? `\n\n# Competitor website changes (homepage, catalog, prices, promotions)\n${siteBlock(site)}` : "";
   const emailText = emails.size ? `\n\n# Competitor marketing emails (sent to subscribers)\n${emailBlock(emails)}` : "";
   const fresh = Boolean(changes) || [...site.values()].some((c) => c.fresh) || [...emails.values()].some((e) => e.fresh);
@@ -447,7 +461,7 @@ Three signal streams on its competitors follow: their active Meta ads (where the
 (what they sell and how), and their marketing emails (what they push to customers directly). Every line starts with a
 ref: an ad's archive id, S# for a website change, E# for an email. Lines marked NEW arrived since the last report.
 
-${ranking ? `${ranking}\n\n` : ""}# Active Meta ads, highest score first
+${ranking ? `${ranking}${standingText}\n\n` : ""}# Active Meta ads, highest score first
 Each ad is marked testing (under ${TESTING_DAYS} days), scaling (past ${TESTING_DAYS} days with ${SCALING_VERSIONS}+ versions, or past ${SCALING_DAYS} days), or running.
 ${rivalBlocks}${siteText}${emailText}${ownBlock}${results}${social}${changeBlock}
 
@@ -462,18 +476,22 @@ and its goal.
   e.g. "AquaBliss is selling hard on price. Answer with proof of results, not a discount."
 - summary: 2-3 short sentences, under 60 words, that explain the headline: what they did and why it matters to
   ${brand.name}. Leave every other move to the insights and opportunities.
-- insights: 3-6 patterns the brand would not otherwise know, grouping related signals across channels. status: new (a
-  push that started recently), ongoing (sustained), or repeated (the same message or offer again). Evidence: the refs.${
+The report is read as a feed: every item is one punchy line first, with the detail a tap away. Fewer, sharper items.
+- insights: 3-4 patterns the brand would not otherwise know, grouping related signals across channels. title: at most
+  8 words. line: one sentence, at most 20 words, with the number that proves it (a score, days, a price, a count).
+  detail: 2-3 sentences for whoever taps in. status: new (a push that started recently), ongoing (sustained), or
+  repeated (the same message or offer again). Evidence: the refs.${
     fresh ? " Lead with what the new signals mean." : ""
   }
-- opportunities: 4-6 decisions, most important first, each one competitor move (or several connected ones) judged for
+- opportunities: 3-5 decisions, most important first, each one competitor move (or several connected ones) judged for
   ${brand.name}. type:
   - get_ahead: early signals suggest an opening; move before the market crowds it.
   - win_choice: competitors cluster around the same message; name an authentic strength ${brand.name} can lead with to stand out.
   - counter: a competitor's push threatens ${brand.name}'s position; a differentiated response, never a reflex copy.
   - ignore: it doesn't fit ${brand.name}'s customers, brand or economics; say why and save the money. Include at least one
     when anything notable doesn't fit.
-  For each: title (the decision in a few words); competitors; signal (what was observed, across channels, with dates or
+  For each: title (the decision, at most 9 words); punch (one sentence, at most 20 words: what to do and the number
+  behind it, tied to ${brand.name}'s own score or ads where the standing shows a gap); competitors; signal (what was observed, across channels, with dates or
   days running); intent (what they seem to be trying to do, hedged); fit (why it matters or doesn't for ${brand.name},
   against its profile, goal, constraints and past results); urgency and confidence (high, medium, low); scores 1-5 for
   relevance to its customers, urgency, differentiation potential, feasibility for this brand, and confidence; the
@@ -516,6 +534,7 @@ export async function writeReport(input: ReportInput): Promise<ReportBody & { la
     .map((o): Opportunity => ({
       type: o.type,
       title: o.title,
+      punch: o.punch,
       competitors: o.competitors,
       signal: o.signal,
       intent: o.intent,

@@ -312,3 +312,9 @@ alter table public.ads add column if not exists engagement jsonb;
 alter table public.ads add column if not exists score int;
 alter table public.ads add column if not exists score_parts jsonb;
 create index if not exists ads_score_idx on public.ads (brand_id, score desc);
+
+-- 0105_rival_health.sql
+-- What the last pull from each source found for a rival, so the app can say
+-- plainly what was read, when, and what failed:
+-- { ads: { at, ok, count, via, note }, site: { at, ok, count, note } }. Safe to re-run.
+alter table public.rivals add column if not exists health jsonb;

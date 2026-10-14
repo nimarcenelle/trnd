@@ -47,3 +47,8 @@ export const IconArrowRight = (p: P) => (
     <path d="M3 8h10M9 4l4 4-4 4" />
   </svg>
 );
+export const IconBrand = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <path d="M8 1.75 9.6 5.1l3.65.45-2.7 2.5.72 3.6L8 9.85l-3.27 1.8.72-3.6-2.7-2.5L6.4 5.1Z" />
+  </svg>
+);

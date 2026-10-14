@@ -21,3 +21,23 @@ export function crossedProven<T extends Pick<Ad, "started_at" | "stopped_at" | "
     return nowDays !== null && thenDays !== null && nowDays >= PROVEN_DAYS && thenDays < PROVEN_DAYS;
   });
 }
+
+/**
+ * Where an ad is in a rival's process, from the only signals the Ad Library
+ * gives: age and versions. Under two weeks it is a test. Past two weeks with
+ * three or more versions, or past a month at all, it is being scaled: they
+ * keep funding it and making more of it. In between it is simply running.
+ */
+export type Stage = "testing" | "scaling" | "running" | "stopped";
+
+export const TESTING_DAYS = 14;
+export const SCALING_DAYS = 30;
+export const SCALING_VERSIONS = 3;
+
+export function adStage(ad: Pick<Ad, "active" | "started_at" | "stopped_at" | "variants">, today: string): Stage {
+  if (!ad.active) return "stopped";
+  const days = daysRunning(ad, today) ?? 0;
+  if (days < TESTING_DAYS) return "testing";
+  if (ad.variants >= SCALING_VERSIONS || days >= SCALING_DAYS) return "scaling";
+  return "running";
+}

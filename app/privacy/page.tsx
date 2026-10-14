@@ -13,15 +13,16 @@ export default function PrivacyPage() {
 
       <h2>What we read from public sources</h2>
       <p>
-        Your public website, to say what you sell and who you compete with, and the active ads of the competitors you watch, from
-        Meta&apos;s public Ad Library. Nothing is watched until you confirm the competitor list.
+        Your public website, to say what you sell and who you compete with; the active ads of your brand and the competitors you
+        watch, from Meta&apos;s public Ad Library; and public Instagram and TikTok profile and post counts for the same companies.
+        Nothing is watched until you confirm the competitor list.
       </p>
 
       <h2>Who else handles it</h2>
       <p>
         Supabase stores your account and data. OpenAI receives your website text and your competitors&apos; public ads to name
         competitors and write reports; it does not train on API data. Stripe handles billing, Resend sends our emails, and Vercel
-        hosts the app. If Meta blocks our direct read, Apify may fetch the same public Ad Library pages for us. We don&apos;t sell
+        hosts the app. Apify fetches public Instagram and TikTok profiles for us, and the same public Ad Library pages if Meta blocks our direct read. We don&apos;t sell
         your data.
       </p>
 

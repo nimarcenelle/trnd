@@ -50,13 +50,44 @@ async function get(url: string, headers: Record<string, string> = {}): Promise<s
   }
 }
 
-export async function readSite(url: string): Promise<string> {
+export interface Socials {
+  instagram: string | null;
+  tiktok: string | null;
+}
+
+const IG_RESERVED = new Set(["p", "reel", "reels", "explore", "accounts", "stories", "tv", "about", "developer", "legal", "direct"]);
+
+/** The brand's own Instagram and TikTok handles, from the links on its site (usually the footer). */
+export function extractSocials(html: string): Socials {
+  let instagram: string | null = null;
+  for (const m of html.matchAll(/instagram\.com\/([A-Za-z0-9._]{2,30})/g)) {
+    const h = m[1].replace(/\.+$/, "");
+    if (!IG_RESERVED.has(h.toLowerCase())) {
+      instagram = h;
+      break;
+    }
+  }
+  const tiktok = html.match(/tiktok\.com\/@([A-Za-z0-9._]{2,30})/)?.[1]?.replace(/\.+$/, "") ?? null;
+  return { instagram, tiktok };
+}
+
+/** The site as text, plus the social handles it links to. */
+export async function readSitePage(url: string): Promise<{ text: string; socials: Socials }> {
   const html = await get(url);
   let text = html ? htmlToText(html) : "";
-  if (text.length < 600) {
+  let socials = html ? extractSocials(html) : { instagram: null, tiktok: null };
+  if (text.length < 600 || (!socials.instagram && !socials.tiktok)) {
     const rendered = await get(`https://r.jina.ai/${url}`, { accept: "text/plain" });
-    if (rendered && rendered.length > text.length) text = rendered.replace(/\s+/g, " ");
+    if (rendered) {
+      if (rendered.length > text.length && text.length < 600) text = rendered.replace(/\s+/g, " ");
+      const more = extractSocials(rendered);
+      socials = { instagram: socials.instagram ?? more.instagram, tiktok: socials.tiktok ?? more.tiktok };
+    }
   }
   if (!text) throw new Error(`Could not read ${url}`);
-  return text.slice(0, MAX_CHARS);
+  return { text: text.slice(0, MAX_CHARS), socials };
+}
+
+export async function readSite(url: string): Promise<string> {
+  return (await readSitePage(url)).text;
 }

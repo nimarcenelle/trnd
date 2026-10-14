@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import AdPreview from "@/components/app/ad-preview";
 import Avatar from "@/components/app/avatar";
-import Brief from "@/components/app/brief";
 import Brand from "@/components/brand";
 import { IconCheck } from "@/components/icons";
 import SampleCreative from "@/components/sample/creative";
@@ -18,12 +17,19 @@ const STEPS = [
   { title: "Get a briefing every morning", body: "What changed overnight, what it means for you, and the ads worth making next, in your inbox and your dashboard." },
 ];
 
-const INCLUDED = ["Up to 10 competitors, checked daily", "Every active ad, analyzed", "Daily change alerts by email", "Ad ideas with creative briefs", "Cancel anytime"];
+const INCLUDED = [
+  "Up to 10 competitors, checked daily",
+  "Every active Meta ad, analyzed",
+  "Instagram and TikTok tracking",
+  "Your brand profile and positioning",
+  "Daily change alerts by email",
+  "Ad ideas with creative briefs",
+];
 
 const FAQ = [
   {
     q: "Where does the data come from?",
-    a: "Meta's public Ad Library, which lists every active ad running on Facebook, Instagram, Messenger and Audience Network. TRND reads it for your competitors every day and keeps the history Meta doesn't.",
+    a: "Ads come from Meta's public Ad Library, which lists every active ad running on Facebook, Instagram, Messenger and Audience Network. Social numbers come from public Instagram and TikTok profiles. TRND reads both for you and your competitors every day, and keeps the history the platforms don't.",
   },
   {
     q: "How do you know which ads are working?",
@@ -35,7 +41,7 @@ const FAQ = [
   },
   {
     q: "Do I need to connect my ad account?",
-    a: "No. TRND only reads public ads. Nothing touches your Meta account.",
+    a: "No. TRND reads public ads, so nothing touches your Meta account. If you want advice tuned to what has worked for you, upload an Ads Manager export (CSV) on the Your brand page.",
   },
 ];
 
@@ -105,11 +111,11 @@ export default function Home() {
         <div className="absolute inset-x-0 bottom-0 h-[55%] bg-subtle border-t border-line" aria-hidden />
         <div className="wrap relative pt-20 sm:pt-28 pb-16 sm:pb-24 flex flex-col items-center text-center">
           <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full border border-line bg-bg text-[12.5px] text-ink-2 shadow-[var(--shadow-sm)]">
-            <span className="live-dot !w-1.5 !h-1.5" /> Competitor ad tracking for Meta
+            <span className="live-dot !w-1.5 !h-1.5" /> Always-on surveillance for paid social
           </span>
           <h1 className="display text-[40px] sm:text-[56px] lg:text-[64px] mt-6 max-w-[860px]">See every ad your competitors run, and what&apos;s working.</h1>
           <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[620px]">
-            TRND tracks your competitors&apos; Facebook and Instagram ads every day, shows you which ones they keep paying for, and tells you what changed.
+            TRND tracks your competitors&apos; Meta ads and social accounts every day, shows you which ads they keep paying for and where you stand, and tells you what changed.
           </p>
           <div className="mt-8 w-full flex justify-center">
             <UrlStart />
@@ -189,10 +195,52 @@ export default function Home() {
             }
           />
           <Feature
+            flip
+            kicker="Where you stand"
+            title="See yourself the way the market does."
+            body="TRND profiles your brand from your site and your own ads, then puts you next to every competitor: price, audience, message, ad volume and social reach. You see what only you do, what they all do that you don't, and the lanes nobody has taken."
+            points={["Your brand profile, which you can correct", "Your ads and social, side by side with theirs", "Gaps you could own, named specifically"]}
+            visual={
+              <div className="card p-5 max-w-[520px]">
+                <div className="caption">You vs. your competitors</div>
+                <div className="grid grid-cols-3 gap-3 mt-3">
+                  {[
+                    { t: "Only you", c: "text-pos", items: ["Built-in refill subscription", "Vitamin C claim"] },
+                    { t: "Only them", c: "text-neg", items: ["Customer testimonials", "Video ads"] },
+                    { t: "Open lanes", c: "text-warn", items: ["Before/after for skin", "Renters, no-tools install"] },
+                  ].map((col) => (
+                    <div key={col.t}>
+                      <div className={`text-[12.5px] font-semibold ${col.c}`}>{col.t}</div>
+                      <ul className="list-disc pl-4 m-0 mt-2 flex flex-col gap-1 text-[12.5px] text-ink-2 leading-[1.45]">
+                        {col.items.map((x) => (
+                          <li key={x}>{x}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-5 border-t border-line pt-4 grid grid-cols-3 gap-3 text-[12.5px]">
+                  {[
+                    ["Halo (you)", "8.4K", "2 ads"],
+                    ["Clearwell", "46.2K", "14 ads"],
+                    ["Fenn", "15.9K", "8 ads"],
+                  ].map(([n, f, a]) => (
+                    <div key={n}>
+                      <div className="font-medium">{n}</div>
+                      <div className="text-ink-3 tnum">
+                        {f} followers · {a}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            }
+          />
+          <Feature
             kicker="What to make next"
             title="Turn their winners into your next ads."
-            body="Every report ends with ad ideas modeled on what's working for your competitors, written for your brand, with a brief a creator can shoot from."
-            points={["Ideas grounded in the ads that prove them", "A hook, format and shot list for each", "Written in your voice, not theirs"]}
+            body="TRND judges every competitor move against your brand, goals and past results: copy it, adapt it, or skip it. Then it turns the keepers into ads you can make, with a brief a creator can shoot from."
+            points={["Copy, adapt or skip, with the reason", "Hook, format, creative, offer and audience for each idea", "Grounded in the ads that prove them"]}
             visual={
               <div className="card p-6 max-w-[520px] lg:ml-auto">
                 <div className="caption">Idea 1</div>
@@ -200,9 +248,20 @@ export default function Home() {
                 <p className="text-[13.5px] text-ink-2 leading-[1.6] mt-2">
                   Clearwell&apos;s review ad has run 94 days across 6 versions. Lead with the problem, not the product.
                 </p>
-                <div className="well p-4 mt-4">
-                  <Brief text={"Hook: I spent $400 on hair masks. The problem was my shower.\nFormat: 9:16 selfie video, 20 to 30 seconds\nShow: hair close-up, the 30-second install, week three\nOffer: none, run as evergreen proof"} />
-                </div>
+                <blockquote className="m-0 mt-4 border-l-2 border-ink pl-3 text-[15px] font-medium leading-[1.45]">&ldquo;I spent $400 on hair masks. The problem was my shower.&rdquo;</blockquote>
+                <dl className="m-0 mt-4 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-2 text-[13px] leading-[1.5]">
+                  {[
+                    ["Format", "9:16 selfie video, 20 to 30 seconds"],
+                    ["Creative", "Hair close-up, the 30-second install, week three"],
+                    ["Offer", "Free first refill"],
+                    ["Audience", "Women 25-45 who've tried every hair mask"],
+                  ].map(([k, v]) => (
+                    <div key={k} className="contents">
+                      <dt className="text-ink-3">{k}</dt>
+                      <dd className="m-0 text-ink-2">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
                 <div className="flex items-center gap-2.5 mt-4">
                   <span className="caption">Modeled on</span>
                   <div className="w-9 h-9 rounded-md overflow-hidden border border-line">

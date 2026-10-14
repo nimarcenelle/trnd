@@ -9,7 +9,7 @@ import "./globals.css";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://usetrnd.com";
 const TITLE = "TRND: Competitor ad intelligence for Meta";
 const DESCRIPTION =
-  "TRND tracks every Meta ad your competitors run, shows you which ones they keep paying for, and tells you what changed every morning.";
+  "TRND tracks your competitors' Meta ads and social accounts every day, shows you which ads they keep paying for and where you stand, and tells you what changed.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

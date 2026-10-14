@@ -1,7 +1,8 @@
 # TRND
 
-Always-on surveillance for paid social. Enter your website; TRND names your competitors, reads every Meta ad they run,
-tells you what's working, and watches for changes every day.
+Always-on surveillance for paid social. Enter your website; TRND profiles your brand, names your competitors, reads
+every Meta ad you and they run plus everyone's Instagram and TikTok, tells you what's working and where you stand, and
+watches for changes every day.
 
 ## How it works
 
@@ -15,6 +16,16 @@ tells you what's working, and watches for changes every day.
      (`lib/diff.ts`).
    - New ads are tagged with angle, hook and offer, and the model writes a report: insights with the ads that show them,
      three ads to make next, and a line on each rival's strategy.
+   - The brand itself is a rival row with `is_self = true`, so its own ads go through the same scan; its profile
+     (`brands.profile`: price, audience, promises, proof, offers, tone, differentiators) is editable on `/app/brand`.
+   - Instagram and TikTok handles come from each company's site links (or the owner), are read through Apify
+     (`lib/social/`), and get a daily follower snapshot for growth. Skipped without `APIFY_TOKEN`.
+   - The owner sets goals (`brands.objectives`: goal, budget, target cost, focus) and can upload an Ads Manager CSV
+     (`own_ad_results`, parsed by `lib/results.ts`), so advice is judged against what they want and what has worked.
+   - Every ad is staged from age and versions (`adStage`, `lib/diff.ts`): testing, scaling, running or stopped.
+   - The report follows four steps: competitor insights; where you stand (price tier, audience, message, strength,
+     only you / only them / open lanes); should you copy it (each competitor move judged copy, adapt or skip, with why
+     and how); and ads to make next (hook, format, creative, offer, audience, rationale).
 3. **Monitor**. Vercel Cron hits `/api/cron/scan` daily, which fans out one invocation per due brand. A scan that finds
    changes writes an update report and emails the owner.
 
@@ -49,8 +60,10 @@ cp .env.example .env.local   # fill in Supabase + OpenAI at minimum
 pnpm dev
 ```
 
-Run `supabase/migrations/0100_surveillance.sql` in the Supabase SQL editor once. It creates `brands`, `rivals`, `ads`,
-`ad_changes` and `reports`, and leaves the old product's tables alone (drop them when convenient).
+Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
+`0101_brand_intel.sql`, safe to re-run). They create
+`brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles` and `social_snapshots`, and leave the old
+product's tables alone (drop them when convenient).
 
 ## Layout
 

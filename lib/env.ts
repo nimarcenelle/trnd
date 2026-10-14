@@ -21,8 +21,13 @@ export const env = {
   stripePrice: process.env.STRIPE_PRICE ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM || "TRND <reports@usetrnd.com>",
+  /** The domain competitors' marketing emails are received on, e.g. "in.usetrnd.com". */
+  inboundDomain: (process.env.INBOUND_DOMAIN ?? "").trim().toLowerCase(),
+  /** Resend's webhook signing secret (whsec_…), or a shared secret any other service sends as ?secret= or x-trnd-secret. */
+  inboundSecret: process.env.INBOUND_SECRET ?? "",
 };
 
 export const isModelConfigured = Boolean(env.openaiApiKey);
 export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePrice);
 export const isEmailConfigured = Boolean(env.resendApiKey);
+export const isInboxConfigured = Boolean(env.inboundDomain && env.inboundSecret);

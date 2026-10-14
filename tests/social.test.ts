@@ -8,10 +8,10 @@ describe("extractSocials", () => {
     const html = `<a href="https://www.instagram.com/p/Cx1/">post</a>
       <a href="https://instagram.com/halo.shower/">IG</a>
       <a href="https://www.tiktok.com/@haloshower?lang=en">TT</a>`;
-    expect(extractSocials(html)).toEqual({ instagram: "halo.shower", tiktok: "haloshower" });
+    expect(extractSocials(html)).toEqual({ instagram: "halo.shower", tiktok: "haloshower", facebook: null });
   });
   it("returns nulls when the site links neither", () => {
-    expect(extractSocials("<footer>© Halo</footer>")).toEqual({ instagram: null, tiktok: null });
+    expect(extractSocials("<footer>© Halo</footer>")).toEqual({ instagram: null, tiktok: null, facebook: null });
   });
 });
 

@@ -1,7 +1,6 @@
 import Avatar from "@/components/app/avatar";
-import { LaunchBars } from "@/components/app/charts";
 import Brand from "@/components/brand";
-import { IconBriefing, IconRefresh, IconSettings } from "@/components/icons";
+import { IconBriefing, IconGlobe, IconMail, IconRefresh, IconSettings, IconTimeline } from "@/components/icons";
 
 import SampleCreative from "./creative";
 import { SAMPLE_ADS, SAMPLE_RIVALS } from "./market";
@@ -11,12 +10,17 @@ import { SAMPLE_ADS, SAMPLE_RIVALS } from "./market";
  * window, drawn from the same components as the app with the invented market.
  */
 export default function ProductShot() {
-  const [clearwell, tidewell, marlow, fenn] = SAMPLE_ADS;
+  const [, tidewell, , fenn] = SAMPLE_ADS;
   const activity = [
-    { ad: tidewell, label: "New", cls: "badge badge-pos", when: "2h" },
-    { ad: fenn, label: "Proven", cls: "badge badge-warn", when: "5h" },
-    { ad: clearwell, label: "New", cls: "badge badge-pos", when: "1d" },
-    { ad: marlow, label: "Stopped", cls: "badge badge-neg", when: "1d" },
+    { rival: "Tidewell", icon: <SampleCreative spec={tidewell.creative} id="shot-0" />, label: "New ad", cls: "badge badge-pos", when: "2h", line: tidewell.title },
+    { rival: "Tidewell", icon: <IconMail />, label: "Promo email", cls: "badge badge-warn", when: "5h", line: "A year of clean water for $79" },
+    { rival: "Tidewell", icon: <IconGlobe />, label: "New message", cls: "badge badge-info", when: "1d", line: "“Clean water, half the price”" },
+    { rival: "Fenn", icon: <SampleCreative spec={fenn.creative} id="shot-1" />, label: "Proven ad", cls: "badge badge-warn", when: "1d", line: fenn.title },
+    { rival: "Clearwell", icon: <IconGlobe />, label: "Sale", cls: "badge badge-warn", when: "2d", line: "Showerhead $135 → $108" },
+  ];
+  const moves = [
+    { label: "Counter", cls: "badge badge-warn", title: "Answer Tidewell's price push with cost per month, not a discount", hook: "Cheaper filters, twice the refills. Do the math." },
+    { label: "Get ahead", cls: "badge badge-pos", title: "Own before/after for skin before Fenn gets there", hook: "Day 1 vs day 21. Same moisturizer. Different water." },
   ];
   return (
     <div className="rounded-[14px] border border-line-strong bg-bg shadow-[var(--shadow-lg)] overflow-hidden text-left select-none" aria-hidden="true">
@@ -38,6 +42,9 @@ export default function ProductShot() {
           <div className="flex flex-col gap-0.5">
             <span className="nav-item !h-7 !text-[12.5px]" aria-current="page">
               <IconBriefing /> Briefing
+            </span>
+            <span className="nav-item !h-7 !text-[12.5px]">
+              <IconTimeline /> Timeline
             </span>
             <span className="nav-item !h-7 !text-[12.5px]">
               <IconSettings /> Rivals &amp; settings
@@ -69,20 +76,19 @@ export default function ProductShot() {
           <div className="card mt-4 p-4">
             <span className="badge !h-5 !text-[11px]">Since the last scan</span>
             <div className="heading text-[15px] leading-[1.35] mt-2">
-              Tidewell launched a 3-for-$79 refill bundle: the same price as your filter, aimed at your subscription.
+              Tidewell looks to be making an affordability push: a new homepage, a bundle email and savings ads in one week.
             </div>
             <p className="text-[12px] text-ink-2 leading-[1.6] mt-1.5 hidden sm:block">
-              The ads that keep running open on a problem (breakage, dry skin), not the product. Fenn&apos;s statement ad just passed 128 days, and Marlow
-              stopped two promos.
+              It goes straight at your refill subscription. Matching $79 breaks your margin; your cartridge lasting twice as long doesn&apos;t.
             </p>
           </div>
 
           <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
             {[
               ["Live ads", "37", ""],
-              ["New ads", "6", "text-pos"],
-              ["Stopped ads", "3", "text-neg"],
-              ["Newly proven", "1", "text-warn"],
+              ["Ad moves", "9", "text-pos"],
+              ["Website changes", "5", "text-warn"],
+              ["Competitor emails", "12", ""],
             ].map(([l, v, c]) => (
               <div key={l} className="card px-3 py-2.5">
                 <div className="text-[11px] text-ink-2">{l}</div>
@@ -92,48 +98,26 @@ export default function ProductShot() {
           </div>
 
           <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-            <div className="card overflow-hidden">
-              <table className="table !text-[12px]">
-                <thead>
-                  <tr>
-                    <th className="!py-2 !px-3">Rival</th>
-                    <th className="!py-2 !px-3 !text-right">Live</th>
-                    <th className="!py-2 !px-3 !text-right">New</th>
-                    <th className="!py-2 !px-3 hidden sm:table-cell">Launches</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {SAMPLE_RIVALS.map((r) => (
-                    <tr key={r.name}>
-                      <td className="!py-2 !px-3">
-                        <span className="flex items-center gap-2 font-medium">
-                          <Avatar name={r.name} size={18} />
-                          {r.name}
-                        </span>
-                      </td>
-                      <td className="!py-2 !px-3 text-right tnum">{r.live}</td>
-                      <td className={`!py-2 !px-3 text-right tnum ${r.new7 ? "text-pos font-medium" : "text-ink-3"}`}>{r.new7}</td>
-                      <td className="!py-2 !px-3 hidden sm:table-cell">
-                        <LaunchBars counts={r.cadence} height={18} width={84} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex flex-col gap-2">
+              {moves.map((m) => (
+                <div key={m.title} className="card p-3.5">
+                  <span className={`${m.cls} !h-5 !text-[11px]`}>{m.label}</span>
+                  <div className="text-[13px] font-semibold leading-snug mt-2">{m.title}</div>
+                  <div className="mt-2 border-l-2 border-ink pl-2.5 text-[12px] font-medium leading-[1.45]">&ldquo;{m.hook}&rdquo;</div>
+                </div>
+              ))}
             </div>
             <div className="card divide-y divide-line">
-              {activity.map(({ ad, label, cls, when }, i) => (
+              {activity.map(({ rival, icon, label, cls, when, line }, i) => (
                 <div key={i} className="flex items-center gap-2.5 px-3 py-2">
-                  <div className="w-8 h-8 rounded overflow-hidden border border-line shrink-0">
-                    <SampleCreative spec={ad.creative} id={`shot-${i}`} />
-                  </div>
+                  <div className="w-8 h-8 rounded overflow-hidden border border-line shrink-0 grid place-items-center bg-subtle text-ink-2">{icon}</div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[12px] font-semibold">{ad.rival}</span>
+                      <span className="text-[12px] font-semibold">{rival}</span>
                       <span className={`${cls} !h-[18px] !px-1.5 !text-[10.5px]`}>{label}</span>
                       <span className="ml-auto text-[10.5px] text-ink-3">{when}</span>
                     </div>
-                    <div className="text-[11px] text-ink-2 truncate">{ad.title}</div>
+                    <div className="text-[11px] text-ink-2 truncate">{line}</div>
                   </div>
                 </div>
               ))}

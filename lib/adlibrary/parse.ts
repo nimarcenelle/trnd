@@ -15,6 +15,8 @@ export interface ScrapedAd {
   archiveId: string;
   pageId: string | null;
   pageName: string | null;
+  /** The Page's facebook.com address, e.g. "https://www.facebook.com/brand/". */
+  pageUrl: string | null;
   body: string | null;
   title: string | null;
   cta: string | null;
@@ -161,6 +163,7 @@ export function toScrapedAd(o: Obj): ScrapedAd | null {
     archiveId,
     pageId: str(o.page_id ?? snap.page_id),
     pageName: str(o.page_name ?? snap.page_name),
+    pageUrl: str(snap.page_profile_uri ?? o.page_profile_uri),
     body: body ? body.slice(0, 2000) : null,
     title: str(snap.title) ?? (first ? str(first.title) : null),
     cta: str(snap.cta_text) ?? (first ? str(first.cta_text) : null),

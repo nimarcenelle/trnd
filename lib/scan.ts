@@ -2,15 +2,18 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { pickRivalPage } from "@/lib/adlibrary/match";
+import { findPage, pageLooksRight } from "@/lib/adlibrary/resolve";
 import type { ScrapedAd } from "@/lib/adlibrary/parse";
 import { scrapeAds } from "@/lib/adlibrary/scrape";
-import { tagAds, writeReport } from "@/lib/ai/analyze";
+import { tagAds, tagEmails, writeReport } from "@/lib/ai/analyze";
 import { adminSupabase } from "@/lib/db/supabase";
-import type { Ad, Brand, OwnAdResult, Rival } from "@/lib/db/types";
+import type { Ad, Brand, OwnAdResult, Rival, RivalEmail, SiteChange } from "@/lib/db/types";
 import { crossedProven } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { isModelConfigured } from "@/lib/env";
+import { NO_PAGE_NOTE } from "@/lib/format";
+import { subscribeOnce } from "@/lib/inbox/store";
+import { checkSite } from "@/lib/sitewatch/watch";
 import { followerGrowth, refreshSocial } from "@/lib/social/store";
 import type { SocialLine } from "@/lib/ai/analyze";
 
@@ -26,20 +29,43 @@ export interface RivalChanges {
   launched: Ad[];
   stopped: Ad[];
   proven: Ad[];
+  /** The Page we held was not theirs and was replaced, so the last report is wrong. */
+  remapped?: boolean;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-/** Find the rival's Page by searching its name, the first time only. */
-async function resolvePage(sb: SupabaseClient, rival: Rival): Promise<string | null> {
-  if (rival.page_id) return rival.page_id;
-  const { ads } = await scrapeAds({ query: rival.name }, 60);
-  const match = pickRivalPage(rival, ads);
-  if (!match) return null;
-  await sb.from("rivals").update({ page_id: match.pageId, page_name: match.pageName }).eq("id", rival.id);
-  rival.page_id = match.pageId;
-  rival.page_name = match.pageName;
-  return match.pageId;
+/** Find the rival's Page (site link, Ad Library search, then the model), the first time only. */
+async function resolvePage(sb: SupabaseClient, brand: Brand, rival: Rival, exclude: string[] = []): Promise<{ pageId: string | null; tried: string[] }> {
+  if (rival.page_id) return { pageId: rival.page_id, tried: [] };
+  const found = await findPage({ name: rival.name, website: rival.website, category: brand.category }, { exclude });
+  if (!found.page) return { pageId: null, tried: found.tried };
+  await sb.from("rivals").update({ page_id: found.page.pageId, page_name: found.page.pageName }).eq("id", rival.id);
+  rival.page_id = found.page.pageId;
+  rival.page_name = found.page.pageName;
+  // Found by the site's own link, an ad linking to the rival's site, or the model's look at the ads: confirmed.
+  await markPage(sb, rival, "checked");
+  return { pageId: found.page.pageId, tried: [] };
+}
+
+/**
+ * Record how the Page was settled. A separate write, and a failed one is
+ * ignored, so scans keep working on a database without the column yet.
+ */
+async function markPage(sb: SupabaseClient, rival: Rival, source: "checked" | "owner" | null) {
+  rival.page_source = source;
+  const { error } = await sb.from("rivals").update({ page_source: source }).eq("id", rival.id);
+  if (error) console.warn("[scan] page_source not saved (run supabase/migrations/0102_page_source.sql):", error.message);
+}
+
+/** Forget a Page that turned out not to be the rival's, with every ad read from it. */
+async function dropPage(sb: SupabaseClient, rival: Rival) {
+  await sb.from("ads").delete().eq("rival_id", rival.id);
+  await sb.from("rivals").update({ page_id: null, page_name: null, last_scraped_at: null }).eq("id", rival.id);
+  rival.page_id = null;
+  rival.page_name = null;
+  rival.last_scraped_at = null;
+  await markPage(sb, rival, null);
 }
 
 function row(brandId: string, rivalId: string, ad: ScrapedAd, now: string) {
@@ -67,17 +93,38 @@ function row(brandId: string, rivalId: string, ad: ScrapedAd, now: string) {
 export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival): Promise<RivalChanges> {
   const none: RivalChanges = { launched: [], stopped: [], proven: [] };
   const now = new Date().toISOString();
-  const pageId = await resolvePage(sb, rival);
-  if (!pageId) {
+  const company = { name: rival.name, website: rival.website, category: brand.category };
+  let remapped = false;
+  let { pageId, tried } = await resolvePage(sb, brand, rival);
+  let read = pageId ? await scrapeAds({ pageId }) : null;
+
+  // A Page matched before pages were confirmed may be someone else's (a Page
+  // that only shares the name). Check it once against its ads and look again
+  // if it is not theirs.
+  if (pageId && read && !rival.page_source) {
+    const wrong = pageId;
+    if (await pageLooksRight(company, { pageId: wrong, pageName: rival.page_name ?? rival.name }, read.ads)) {
+      await markPage(sb, rival, "checked");
+    } else {
+      console.warn(`[scan] ${rival.name}: Page ${rival.page_name} (${wrong}) is not theirs, looking again`);
+      await dropPage(sb, rival);
+      remapped = true;
+      ({ pageId, tried } = await resolvePage(sb, brand, rival, [wrong]));
+      read = pageId ? await scrapeAds({ pageId }) : null;
+    }
+  }
+
+  if (!pageId || !read) {
+    const searched = tried.length ? ` Searched: ${tried.map((t) => `"${t}"`).join(", ")}.` : "";
     await sb
       .from("rivals")
       // Not marked scraped: the first read that finds the Page is still its baseline.
-      .update({ last_error: `No Facebook Page running ads under "${rival.name}" was found. Check the name or website.` })
+      .update({ last_error: `${NO_PAGE_NOTE}.${searched}` })
       .eq("id", rival.id);
-    return none;
+    return { ...none, remapped };
   }
 
-  const { ads: scraped, complete } = await scrapeAds({ pageId });
+  const { ads: scraped, complete } = read;
   const baseline = !rival.last_scraped_at;
 
   const { data: existingRows, error } = await sb.from("ads").select("*").eq("rival_id", rival.id);
@@ -107,12 +154,12 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
   }
 
   await sb.from("rivals").update({ last_scraped_at: now, last_error: null }).eq("id", rival.id);
-  if (baseline) return none;
+  if (baseline) return { ...none, remapped };
 
   const launched = upserted.filter((a) => !existing.has(a.archive_id));
   const proven = crossedProven(upserted, rival.last_scraped_at, now.slice(0, 10));
   const changes: RivalChanges = { launched, stopped, proven };
-  const rowsOf = (kind: keyof RivalChanges) =>
+  const rowsOf = (kind: "launched" | "stopped" | "proven") =>
     changes[kind].map((a) => ({ brand_id: brand.id, rival_id: rival.id, ad_id: a.id, kind, detected_at: now }));
   const changeRows = [...rowsOf("launched"), ...rowsOf("stopped"), ...rowsOf("proven")];
   if (changeRows.length) await sb.from("ad_changes").insert(changeRows);
@@ -126,6 +173,20 @@ async function tagUntagged(sb: SupabaseClient, brandId: string) {
   for (let i = 0; i < ads.length; i += 60) {
     const tags = await tagAds(ads.slice(i, i + 60));
     await Promise.all(tags.map((t) => sb.from("ads").update({ angle: t.angle, hook: t.hook, offer: t.offer }).eq("id", t.id).eq("brand_id", brandId)));
+  }
+}
+
+/** Kind, offer and theme for every email not yet read, judged against what that rival sent before. */
+async function tagUntaggedEmails(sb: SupabaseClient, brandId: string, nameOf: Map<string, string>) {
+  const { data, error } = await sb.from("emails").select("id, rival_id, subject, preview, received_at").eq("brand_id", brandId).is("kind", null).order("received_at").limit(120);
+  if (error || !data?.length) return;
+  const { data: earlierRows } = await sb.from("emails").select("rival_id, subject").eq("brand_id", brandId).not("kind", "is", null).order("received_at", { ascending: false }).limit(400);
+  const earlier = (rivalId: string) => (earlierRows ?? []).filter((e) => e.rival_id === rivalId).map((e) => e.subject as string);
+  const rows = data as Pick<RivalEmail, "id" | "rival_id" | "subject" | "preview" | "received_at">[];
+  for (let i = 0; i < rows.length; i += 40) {
+    const batch = rows.slice(i, i + 40);
+    const tags = await tagEmails(batch.map((e) => ({ ...e, rival: nameOf.get(e.rival_id) ?? "?", earlier: earlier(e.rival_id) })));
+    await Promise.all(tags.map((t) => sb.from("emails").update({ kind: t.kind, offer: t.offer, theme: t.theme, is_repeat: t.is_repeat }).eq("id", t.id).eq("brand_id", brandId)));
   }
 }
 
@@ -170,6 +231,13 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean }
       console.warn("[scan] social:", (err as Error).message);
       return [];
     });
+    // Websites and inboxes, beside the ads. Either failing never fails the scan.
+    const sideRun = pool(rivals, 3, async (rival) => {
+      await Promise.all([
+        checkSite(sb, brandId, rival).catch((err) => console.warn(`[scan] ${rival.name} site:`, (err as Error).message)),
+        subscribeOnce(sb, rival).catch((err) => console.warn(`[scan] ${rival.name} signup:`, (err as Error).message)),
+      ]);
+    });
     const results = await pool(all, 3, async (rival) => {
       try {
         return await scanRival(sb, brand, rival);
@@ -185,41 +253,72 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean }
       stopped: results.flatMap((r) => r.stopped),
       proven: results.flatMap((r) => r.proven),
     };
-    const changeCount = changes.launched.length + changes.stopped.length + changes.proven.length;
+    const adChanges = changes.launched.length + changes.stopped.length + changes.proven.length;
+    const remapped = results.some((r) => r.remapped);
+    await sideRun;
 
     if (!isModelConfigured) {
       await sb.from("brands").update({ scan_status: "error", scan_error: "OPENAI_API_KEY is not set: ads were read but not analyzed.", last_scan_at: new Date().toISOString() }).eq("id", brandId);
-      return { changes: changeCount, report: false };
+      return { changes: adChanges, report: false };
     }
 
+    const nameOf = new Map(all.map((r) => [r.id, r.is_self ? `${brand.name} (you)` : r.name]));
     await tagUntagged(sb, brandId);
+    await tagUntaggedEmails(sb, brandId, nameOf).catch((err) => console.warn("[scan] email tags:", (err as Error).message));
     const profiles = await socialRun;
     const growth = await followerGrowth(sb, profiles.map((p) => p.id));
-    const nameOf = new Map(all.map((r) => [r.id, r.is_self ? `${brand.name} (you)` : r.name]));
     const social: SocialLine[] = profiles
       .filter((p) => !p.error && p.followers !== null)
       .map((p) => ({ name: nameOf.get(p.rival_id) ?? "?", profile: p, growth: growth.get(p.id) ?? null }));
 
-    const { count: reportCount } = await sb.from("reports").select("id", { count: "exact", head: true }).eq("brand_id", brandId);
-    const isBaseline = !reportCount;
+    const { data: lastReport } = await sb.from("reports").select("created_at").eq("brand_id", brandId).order("created_at", { ascending: false }).limit(1).maybeSingle<{ created_at: string }>();
+    const isBaseline = !lastReport;
+    const since = lastReport?.created_at ?? "1970-01-01";
+    const monthAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    // The other two streams; reads fail quietly on a database without 0103 yet.
+    const { data: siteRows } = await sb.from("site_changes").select("*").eq("brand_id", brandId).gte("detected_at", monthAgo).order("detected_at", { ascending: false }).limit(60);
+    const { data: emailRows } = await sb
+      .from("emails")
+      .select("id, rival_id, subject, preview, received_at, kind, offer, theme, is_repeat")
+      .eq("brand_id", brandId)
+      .gte("received_at", monthAgo)
+      // Keep untagged emails (kind null); `neq` alone would drop them.
+      .or("kind.is.null,kind.neq.confirmation")
+      .order("received_at", { ascending: false })
+      .limit(60);
+    const site = ((siteRows ?? []) as SiteChange[]).map((c) => ({ ...c, rival: nameOf.get(c.rival_id) ?? "?", fresh: c.detected_at > since }));
+    const emails = ((emailRows ?? []) as (Pick<RivalEmail, "id" | "rival_id" | "subject" | "preview" | "received_at" | "kind" | "offer" | "theme" | "is_repeat">)[]).map((e) => ({
+      ...e,
+      rival: nameOf.get(e.rival_id) ?? "?",
+      fresh: e.received_at > since,
+    }));
+    const changeCount = adChanges + site.filter((c) => c.fresh).length + emails.filter((e) => e.fresh).length;
     let reported = false;
-    if (isBaseline || changeCount > 0 || opts.forceReport) {
+    if (isBaseline || changeCount > 0 || remapped || opts.forceReport) {
       const { data: adRows } = await sb.from("ads").select("*").eq("brand_id", brandId).eq("active", true);
       const ads = (adRows ?? []) as Ad[];
       // Re-read the changed ads so the report sees their fresh tags.
       const byId = new Map(ads.map((a) => [a.id, a]));
       const fresh = (list: Ad[]) => list.map((a) => byId.get(a.id) ?? a);
-      if (ads.length) {
+      if (ads.length || site.length || emails.length) {
         const body = await writeReport({
           brand,
           own: self ? ads.filter((a) => a.rival_id === self.id) : [],
           results: ((await sb.from("own_ad_results").select("*").eq("brand_id", brandId)).data ?? []) as OwnAdResult[],
           rivals: rivals.map((r) => ({ name: r.name, ads: ads.filter((a) => a.rival_id === r.id) })),
           social,
+          site,
+          emails,
           changes: isBaseline ? null : { launched: fresh(changes.launched), stopped: changes.stopped, proven: fresh(changes.proven) },
           today: today(),
         });
-        body.changes = { launched: changes.launched.length, stopped: changes.stopped.length, proven: changes.proven.length };
+        body.changes = {
+          launched: changes.launched.length,
+          stopped: changes.stopped.length,
+          proven: changes.proven.length,
+          site: site.filter((c) => c.fresh).length,
+          emails: emails.filter((e) => e.fresh).length,
+        };
         await sb.from("reports").insert({ brand_id: brandId, kind: isBaseline ? "baseline" : "update", body });
         reported = true;
         if (!isBaseline) await sendReportEmail(sb, brand, body).catch((err) => console.warn("[scan] email failed:", (err as Error).message));

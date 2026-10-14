@@ -47,3 +47,9 @@ export const profileUrl = (platform: "instagram" | "tiktok", handle: string) =>
 
 /** Today as yyyy-mm-dd (UTC), the date the stage and day counts are measured to. */
 export const todayIso = (now = Date.now()) => new Date(now).toISOString().slice(0, 10);
+
+/** The note a rival carries when no Page running Meta ads could be found: not an error, a fact. */
+export const NO_PAGE_NOTE = "Not running Meta ads under any Page we could find";
+export const isNoPageNote = (note: string | null | undefined) => Boolean(note?.startsWith(NO_PAGE_NOTE));
+/** What the search behind a NO_PAGE_NOTE tried, e.g. `"Afina", "afina.com"`, or null. */
+export const noPageSearched = (note: string | null | undefined) => note?.split(" Searched: ")[1]?.replace(/\.$/, "") ?? null;

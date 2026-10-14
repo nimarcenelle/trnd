@@ -32,6 +32,8 @@ export interface Rival {
   reason: string | null;
   page_id: string | null;
   page_name: string | null;
+  /** How the Page was settled: confirmed against its ads, or pasted by the owner. Null: not yet confirmed. */
+  page_source?: "checked" | "owner" | null;
   source: "ai" | "owner";
   /** The brand itself, watched like a rival so its own ads are read too. */
   is_self: boolean;
@@ -40,8 +42,15 @@ export interface Rival {
   socials_checked_at: string | null;
   last_scraped_at: string | null;
   last_error: string | null;
+  /** Its inbound email address is <slug>-<inbox_token>@INBOUND_DOMAIN. */
+  inbox_token?: string | null;
+  email_status?: EmailStatus | null;
+  email_note?: string | null;
+  site_checked_at?: string | null;
   created_at: string;
 }
+
+export type EmailStatus = "subscribed" | "manual" | "receiving";
 
 export type AdFormat = "video" | "image" | "carousel" | "dco" | "unknown";
 
@@ -93,14 +102,43 @@ export interface Report {
 export interface ReportBody {
   headline: string;
   summary: string;
-  insights: { title: string; detail: string; evidence: string[] }[];
-  plays: Play[];
+  /**
+   * Patterns across ads, sites and emails. Evidence holds ad archive ids,
+   * "site:<site_changes.id>" and "email:<emails.id>".
+   */
+  insights: { title: string; detail: string; evidence: string[]; status?: "new" | "ongoing" | "repeated" }[];
+  /** What to do about each competitor move, ranked. Absent on reports written before the opportunity engine. */
+  opportunities?: Opportunity[];
+  /** Older reports: ads to make next. */
+  plays?: Play[];
   /** Each notable competitor move, judged for this brand: copy it, adapt it, or skip it. */
   translations?: Translation[];
   rivals: { name: string; strategy: string; watch_for: string }[];
   /** Where the brand sits against each rival; absent on reports written before it existed. */
   landscape?: Landscape;
-  changes?: { launched: number; stopped: number; proven: number };
+  changes?: { launched: number; stopped: number; proven: number; site?: number; emails?: number };
+}
+
+export type OpportunityType = "get_ahead" | "win_choice" | "counter" | "ignore";
+export type Level = "high" | "medium" | "low";
+
+/** A competitor move (or several, connected), read through the brand's business, with what to do about it. */
+export interface Opportunity {
+  type: OpportunityType;
+  title: string;
+  competitors: string[];
+  /** What was observed, across channels. */
+  signal: string;
+  /** What the competitor seems to be trying to do. Inferred, never certain. */
+  intent: string;
+  /** Why it does or doesn't matter for this brand: its customers, strengths, economics, goal. */
+  fit: string;
+  urgency: Level;
+  confidence: Level;
+  recommendation: string;
+  /** The campaign to run; empty strings for "ignore". */
+  brief: { angle: string; hook: string; offer: string; creative: string; format: string; audience: string; experiment: string };
+  evidence: string[];
 }
 
 /** An ad to make next. Older reports carry only `brief`; newer ones the structured fields. */
@@ -139,6 +177,7 @@ export interface Objectives {
   monthly_budget: string;
   target_cost: string;
   focus: string;
+  /** Constraints and anything else to know: discount limits, timing, what they won't do. */
   notes: string;
 }
 
@@ -208,4 +247,47 @@ export interface SocialSnapshot {
   profile_id: string;
   followers: number;
   captured_on: string;
+}
+
+export type SiteChangeKind =
+  | "new_product"
+  | "dropped_product"
+  | "price_up"
+  | "price_down"
+  | "sale_started"
+  | "sale_ended"
+  | "promo_added"
+  | "promo_removed"
+  | "message_changed";
+
+export interface SiteChange {
+  id: string;
+  brand_id: string;
+  rival_id: string;
+  kind: SiteChangeKind;
+  title: string;
+  before: string | null;
+  after: string | null;
+  url: string | null;
+  detected_at: string;
+}
+
+export type EmailKind = "promo" | "launch" | "newsletter" | "content" | "retention" | "announcement" | "confirmation" | "other";
+
+export interface RivalEmail {
+  id: string;
+  brand_id: string;
+  rival_id: string;
+  message_id: string | null;
+  from_address: string | null;
+  from_name: string | null;
+  subject: string;
+  preview: string | null;
+  body: string | null;
+  links: { text: string; url: string }[];
+  received_at: string;
+  kind: EmailKind | null;
+  offer: string | null;
+  theme: string | null;
+  is_repeat: boolean | null;
 }

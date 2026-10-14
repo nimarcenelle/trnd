@@ -38,7 +38,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       <h1 className="heading text-[22px]">Rivals &amp; settings</h1>
       <p className="text-[13px] text-ink-3 mt-0.5 mb-8">Who you watch, and your plan.</p>
 
-      <Section title="Your brand" sub="What every competitor is compared against.">
+      <Section title="Business DNA" sub="What every competitor is compared against.">
         <div className="card p-4 flex items-start gap-3">
           <Avatar name={brand.name} size={36} />
           <div className="min-w-0 flex-1">

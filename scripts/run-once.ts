@@ -11,7 +11,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 
-import { pickRivalPage } from "@/lib/adlibrary/match";
+import { findPage } from "@/lib/adlibrary/resolve";
 import { scrapeAds } from "@/lib/adlibrary/scrape";
 import { discoverRivals, tagAds, writeReport, type SocialLine } from "@/lib/ai/analyze";
 import type { Ad } from "@/lib/db/types";
@@ -39,15 +39,15 @@ async function main() {
   const companies = [{ name: found.name, website: new URL(url).hostname, reason: "you", self: true }, ...found.rivals.map((r) => ({ ...r, self: false }))];
   for (const r of companies) {
     try {
-      const search = await scrapeAds({ query: r.name }, 60);
-      const page = pickRivalPage({ name: r.name, website: r.website }, search.ads);
+      const hit = await findPage({ name: r.name, website: r.website, category: found.category });
+      const page = hit.page;
       if (!page) {
-        log(`${r.name}: no matching Facebook Page (${search.ads.length} keyword results via ${search.via})`);
+        log(`${r.name}: no Facebook Page running ads (searched ${"tried" in hit ? hit.tried.join(", ") : ""})`);
         rivals.push({ name: r.name, website: r.website, pageName: null, error: "no Page found", ads: [], self: r.self });
         continue;
       }
       const { ads, via, complete } = await scrapeAds({ pageId: page.pageId });
-      log(`${r.name} → ${page.pageName}: ${ads.length} live ads via ${via}${complete ? "" : " (partial)"}`);
+      log(`${r.name} → ${page.pageName} (found by ${"via" in hit ? hit.via : "?"}): ${ads.length} live ads via ${via}${complete ? "" : " (partial)"}`);
       rivals.push({
         name: r.name,
         website: r.website,
@@ -126,19 +126,21 @@ async function main() {
     `## ${report.headline}`,
     report.summary,
     `## What you wouldn't otherwise know`,
-    ...report.insights.map((i, n) => `${n + 1}. **${i.title}** ${i.detail}\n   Evidence: ${i.evidence.map(libraryLink).join(" ") || "none"}`),
+    ...report.insights.map((i, n) => `${n + 1}. **${i.title}** ${i.detail}\n   Evidence: ${i.evidence.map((id) => (/^\d+$/.test(id) ? libraryLink(id) : id)).join(" ") || "none"}`),
     `## Where you stand`,
     report.landscape.summary,
     ...report.landscape.positions.map((p) => `- **${p.name}** (${p.price_tier}): ${p.audience}. Message: ${p.message}. Strength: ${p.strength}`),
     `Only you: ${report.landscape.you_vs_them.only_you.join("; ") || "none"}`,
     `Only them: ${report.landscape.you_vs_them.only_them.join("; ") || "none"}`,
     `Open lanes: ${report.landscape.you_vs_them.open_lanes.join("; ") || "none"}`,
-    `## Should you copy it?`,
-    ...report.translations.map((t) => `- **${t.verdict.toUpperCase()}** ${t.competitor}: ${t.move}. ${t.why} → ${t.adapt}`),
-    `## Ads to make next`,
-    ...report.plays.map(
-      (p, n) =>
-        `### ${n + 1}. ${p.title}\nHook: "${p.hook}"\nFormat: ${p.format}\nCreative: ${p.creative}\nOffer: ${p.offer}\nAudience: ${p.audience}\n\nWhy: ${p.why}\n\nModeled on: ${p.inspired_by.map(libraryLink).join(" ")}`,
+    `## What to do next`,
+    ...report.opportunities.map(
+      (o, n) =>
+        `### ${n + 1}. ${o.type.replace("_", " ").toUpperCase()}: ${o.title}\nCompetitors: ${o.competitors.join(", ")} · urgency ${o.urgency} · confidence ${o.confidence}\n\nWhat we saw: ${o.signal}\n\nLikely intent: ${o.intent}\n\nFor you: ${o.fit}\n\n**${o.recommendation}**${
+          o.brief.hook
+            ? `\n\nHook: "${o.brief.hook}"\nAngle: ${o.brief.angle}\nOffer: ${o.brief.offer}\nFormat: ${o.brief.format}\nCreative: ${o.brief.creative}\nAudience: ${o.brief.audience}\nTest: ${o.brief.experiment}`
+            : ""
+        }\n\nSignals: ${o.evidence.map((id) => (/^\d+$/.test(id) ? libraryLink(id) : id)).join(" ")}`,
     ),
     `## Rivals`,
     ...rivals.map((r) => {

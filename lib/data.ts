@@ -3,7 +3,8 @@ import "server-only";
 import { cache } from "react";
 
 import { createServerSupabase } from "@/lib/db/supabase";
-import type { Ad, AdChange, Brand, OwnAdResult, Report, Rival, SocialProfile } from "@/lib/db/types";
+import type { Ad, AdChange, Brand, OwnAdResult, Report, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
+import type { SiteSnapshot } from "@/lib/sitewatch/snapshot";
 
 /** Reads for the pages, as the signed-in user (RLS keeps them to their own brand). */
 
@@ -73,4 +74,31 @@ export async function listResults(brandId: string): Promise<OwnAdResult[]> {
   const sb = await createServerSupabase();
   const { data } = await sb.from("own_ad_results").select("*").eq("brand_id", brandId).order("spend", { ascending: false, nullsFirst: false }).limit(2000);
   return (data ?? []) as OwnAdResult[];
+}
+
+/** Material changes on competitors' websites. Empty before 0103_signals.sql has run. */
+export async function listSiteChanges(brandId: string, opts: { rivalId?: string; days?: number } = {}): Promise<SiteChange[]> {
+  const sb = await createServerSupabase();
+  const since = new Date(Date.now() - (opts.days ?? 30) * 86_400_000).toISOString();
+  let q = sb.from("site_changes").select("*").eq("brand_id", brandId).gte("detected_at", since);
+  if (opts.rivalId) q = q.eq("rival_id", opts.rivalId);
+  const { data } = await q.order("detected_at", { ascending: false }).limit(300);
+  return (data ?? []) as SiteChange[];
+}
+
+/** Competitors' marketing emails, newest first, without the signup confirmations. */
+export async function listEmails(brandId: string, opts: { rivalId?: string; days?: number } = {}): Promise<RivalEmail[]> {
+  const sb = await createServerSupabase();
+  const since = new Date(Date.now() - (opts.days ?? 60) * 86_400_000).toISOString();
+  let q = sb.from("emails").select("*").eq("brand_id", brandId).gte("received_at", since).or("kind.is.null,kind.neq.confirmation");
+  if (opts.rivalId) q = q.eq("rival_id", opts.rivalId);
+  const { data } = await q.order("received_at", { ascending: false }).limit(300);
+  return (data ?? []) as RivalEmail[];
+}
+
+/** The latest snapshot of a rival's website, or null. */
+export async function getSiteSnapshot(rivalId: string): Promise<{ url: string; data: SiteSnapshot; captured_at: string } | null> {
+  const sb = await createServerSupabase();
+  const { data } = await sb.from("site_snapshots").select("url, data, captured_at").eq("rival_id", rivalId).order("captured_at", { ascending: false }).limit(1).maybeSingle();
+  return (data as { url: string; data: SiteSnapshot; captured_at: string } | null) ?? null;
 }

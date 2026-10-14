@@ -20,8 +20,12 @@ watches for changes every day.
      (`brands.profile`: price, audience, promises, proof, offers, tone, differentiators) is editable on `/app/brand`.
    - Instagram and TikTok handles come from each company's site links (or the owner), are read through Apify
      (`lib/social/`), and get a daily follower snapshot for growth. Skipped without `APIFY_TOKEN`.
-   - The report adds a landscape: each company's price tier, audience, message and strength, and what only you do,
-     what only they do, and the open lanes.
+   - The owner sets goals (`brands.objectives`: goal, budget, target cost, focus) and can upload an Ads Manager CSV
+     (`own_ad_results`, parsed by `lib/results.ts`), so advice is judged against what they want and what has worked.
+   - Every ad is staged from age and versions (`adStage`, `lib/diff.ts`): testing, scaling, running or stopped.
+   - The report follows four steps: competitor insights; where you stand (price tier, audience, message, strength,
+     only you / only them / open lanes); should you copy it (each competitor move judged copy, adapt or skip, with why
+     and how); and ads to make next (hook, format, creative, offer, audience, rationale).
 3. **Monitor**. Vercel Cron hits `/api/cron/scan` daily, which fans out one invocation per due brand. A scan that finds
    changes writes an update report and emails the owner.
 

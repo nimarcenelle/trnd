@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import AdPreview from "@/components/app/ad-preview";
 import Avatar from "@/components/app/avatar";
-import Brief from "@/components/app/brief";
 import Brand from "@/components/brand";
 import { IconCheck } from "@/components/icons";
 import SampleCreative from "@/components/sample/creative";
@@ -42,7 +41,7 @@ const FAQ = [
   },
   {
     q: "Do I need to connect my ad account?",
-    a: "No. TRND only reads public ads. Nothing touches your Meta account.",
+    a: "No. TRND reads public ads, so nothing touches your Meta account. If you want advice tuned to what has worked for you, upload an Ads Manager export (CSV) on the Your brand page.",
   },
 ];
 
@@ -240,8 +239,8 @@ export default function Home() {
           <Feature
             kicker="What to make next"
             title="Turn their winners into your next ads."
-            body="Every report ends with ad ideas modeled on what's working for your competitors, written for your brand, with a brief a creator can shoot from."
-            points={["Ideas grounded in the ads that prove them", "A hook, format and shot list for each", "Written in your voice, not theirs"]}
+            body="TRND judges every competitor move against your brand, goals and past results: copy it, adapt it, or skip it. Then it turns the keepers into ads you can make, with a brief a creator can shoot from."
+            points={["Copy, adapt or skip, with the reason", "Hook, format, creative, offer and audience for each idea", "Grounded in the ads that prove them"]}
             visual={
               <div className="card p-6 max-w-[520px] lg:ml-auto">
                 <div className="caption">Idea 1</div>
@@ -249,9 +248,20 @@ export default function Home() {
                 <p className="text-[13.5px] text-ink-2 leading-[1.6] mt-2">
                   Clearwell&apos;s review ad has run 94 days across 6 versions. Lead with the problem, not the product.
                 </p>
-                <div className="well p-4 mt-4">
-                  <Brief text={"Hook: I spent $400 on hair masks. The problem was my shower.\nFormat: 9:16 selfie video, 20 to 30 seconds\nShow: hair close-up, the 30-second install, week three\nOffer: none, run as evergreen proof"} />
-                </div>
+                <blockquote className="m-0 mt-4 border-l-2 border-ink pl-3 text-[15px] font-medium leading-[1.45]">&ldquo;I spent $400 on hair masks. The problem was my shower.&rdquo;</blockquote>
+                <dl className="m-0 mt-4 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-2 text-[13px] leading-[1.5]">
+                  {[
+                    ["Format", "9:16 selfie video, 20 to 30 seconds"],
+                    ["Creative", "Hair close-up, the 30-second install, week three"],
+                    ["Offer", "Free first refill"],
+                    ["Audience", "Women 25-45 who've tried every hair mask"],
+                  ].map(([k, v]) => (
+                    <div key={k} className="contents">
+                      <dt className="text-ink-3">{k}</dt>
+                      <dd className="m-0 text-ink-2">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
                 <div className="flex items-center gap-2.5 mt-4">
                   <span className="caption">Modeled on</span>
                   <div className="w-9 h-9 rounded-md overflow-hidden border border-line">

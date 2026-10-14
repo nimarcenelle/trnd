@@ -133,8 +133,13 @@ async function main() {
     `Only you: ${report.landscape.you_vs_them.only_you.join("; ") || "none"}`,
     `Only them: ${report.landscape.you_vs_them.only_them.join("; ") || "none"}`,
     `Open lanes: ${report.landscape.you_vs_them.open_lanes.join("; ") || "none"}`,
+    `## Should you copy it?`,
+    ...report.translations.map((t) => `- **${t.verdict.toUpperCase()}** ${t.competitor}: ${t.move}. ${t.why} → ${t.adapt}`),
     `## Ads to make next`,
-    ...report.plays.map((p, n) => `### ${n + 1}. ${p.title}\n${p.why}\n\n${p.brief}\n\nModeled on: ${p.inspired_by.map(libraryLink).join(" ")}`),
+    ...report.plays.map(
+      (p, n) =>
+        `### ${n + 1}. ${p.title}\nHook: "${p.hook}"\nFormat: ${p.format}\nCreative: ${p.creative}\nOffer: ${p.offer}\nAudience: ${p.audience}\n\nWhy: ${p.why}\n\nModeled on: ${p.inspired_by.map(libraryLink).join(" ")}`,
+    ),
     `## Rivals`,
     ...rivals.map((r) => {
       const read = report.rivals.find((x) => x.name.toLowerCase() === r.name.toLowerCase());

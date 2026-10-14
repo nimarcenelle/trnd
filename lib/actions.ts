@@ -12,6 +12,7 @@ import { MAX_RIVALS } from "@/lib/db/types";
 import { isModelConfigured, isStripeConfigured } from "@/lib/env";
 import { isScanning } from "@/lib/format";
 import { scanBrand } from "@/lib/scan";
+import { parseAdsExport } from "@/lib/results";
 import { normHandle } from "@/lib/social/read";
 import { normalizeUrl, readSitePage } from "@/lib/site";
 
@@ -141,7 +142,7 @@ export async function scanNowAction(): Promise<void> {
   const { brand } = await requireBrand();
   if (!isScanning(brand)) {
     await adminSupabase().from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
-    after(() => scanBrand(brand.id).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
+    after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
   }
   redirect("/app");
 }
@@ -158,4 +159,46 @@ export async function billingPortalAction(): Promise<void> {
   if (!isStripeConfigured || !brand.stripe_customer_id) redirect("/app/settings");
   const { createPortalSession } = await import("@/lib/billing/stripe");
   redirect(await createPortalSession(brand.stripe_customer_id));
+}
+
+const GOALS = ["new_customers", "subscriptions", "launch", "retention", "awareness"] as const;
+
+/** What the brand is trying to do right now. */
+export async function updateObjectivesAction(_prev: FormState & { saved?: boolean }, formData: FormData): Promise<FormState & { saved?: boolean }> {
+  const { brand } = await requireBrand();
+  const text = (k: string, max = 200) => String(formData.get(k) ?? "").trim().slice(0, max);
+  const goal = text("goal");
+  if (!(GOALS as readonly string[]).includes(goal)) return { error: "Pick a goal." };
+  const objectives = { goal, monthly_budget: text("monthly_budget"), target_cost: text("target_cost"), focus: text("focus"), notes: text("notes", 600) };
+  const { error } = await adminSupabase().from("brands").update({ objectives }).eq("id", brand.id);
+  if (error) return { error: error.message };
+  revalidatePath("/app", "layout");
+  return { saved: true };
+}
+
+/** An Ads Manager export (CSV): replaces the brand's past results. */
+export async function uploadResultsAction(_prev: FormState & { count?: number }, formData: FormData): Promise<FormState & { count?: number }> {
+  const { brand } = await requireBrand();
+  const file = formData.get("file");
+  if (!(file instanceof File) || !file.size) return { error: "Choose a CSV exported from Ads Manager." };
+  if (file.size > 4_000_000) return { error: "That file is over 4 MB. Export fewer columns or a shorter date range." };
+  let rows;
+  try {
+    rows = parseAdsExport(await file.text());
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+  if (!rows.length) return { error: "No ads found in that file. Export at the Ads level, with Ad name as a column." };
+  const sb = adminSupabase();
+  await sb.from("own_ad_results").delete().eq("brand_id", brand.id);
+  const { error } = await sb.from("own_ad_results").insert(rows.slice(0, 2000).map((r) => ({ ...r, brand_id: brand.id })));
+  if (error) return { error: error.message };
+  revalidatePath("/app", "layout");
+  return { count: rows.length };
+}
+
+export async function clearResultsAction(): Promise<void> {
+  const { brand } = await requireBrand();
+  await adminSupabase().from("own_ad_results").delete().eq("brand_id", brand.id);
+  revalidatePath("/app", "layout");
 }

@@ -10,8 +10,8 @@ import HandlesForm from "@/components/app/handles-form";
 import SocialCard from "@/components/app/social-card";
 import { getBrand, listAds, listReports, listRivals, listSnapshots, listSocial } from "@/lib/data";
 import { growthBy } from "@/lib/social/read";
-import { PROVEN_DAYS } from "@/lib/diff";
-import { ago, daysRunningOf } from "@/lib/format";
+import { adStage, TESTING_DAYS } from "@/lib/diff";
+import { ago, daysRunningOf, todayIso } from "@/lib/format";
 import { angleMix, weeklyLaunches } from "@/lib/stats";
 
 export const metadata = { title: "Rival — TRND" };
@@ -32,7 +32,7 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
   const byDays = (a: (typeof ads)[number]) => daysRunningOf(a) ?? -1;
   const live = ads.filter((a) => a.active).sort((a, b) => byDays(b) - byDays(a));
   const stopped = ads.filter((a) => !a.active).sort((a, b) => Date.parse(b.stopped_at ?? "") - Date.parse(a.stopped_at ?? ""));
-  const proven = live.filter((a) => byDays(a) >= PROVEN_DAYS).length;
+  const today = todayIso();
   const read = latest?.body.rivals.find((r) => r.name.toLowerCase() === rival.name.toLowerCase());
   const showStopped = view === "stopped";
   const shown = showStopped ? stopped : live;
@@ -64,19 +64,19 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
 
       {rival.last_error && <div className="mt-6 rounded-xl border border-neg/30 bg-neg-bg px-5 py-4 text-[13.5px] text-neg">{rival.last_error}</div>}
 
-      <div className="mt-6 grid grid-cols-3 gap-3">
-        <div className="card px-4 py-3.5">
-          <div className="text-[13px] text-ink-2">Live ads</div>
-          <div className="text-[26px] font-semibold tracking-tight tnum mt-1">{live.length}</div>
-        </div>
-        <div className="card px-4 py-3.5">
-          <div className="text-[13px] text-ink-2">Running {PROVEN_DAYS}+ days</div>
-          <div className="text-[26px] font-semibold tracking-tight tnum mt-1">{proven}</div>
-        </div>
-        <div className="card px-4 py-3.5">
-          <div className="text-[13px] text-ink-2">Stopped since watching</div>
-          <div className="text-[26px] font-semibold tracking-tight tnum mt-1">{stopped.length}</div>
-        </div>
+      <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          ["Live ads", live.length, "", "Running now"],
+          ["Testing", live.filter((a) => adStage(a, today) === "testing").length, "text-brand", `Live under ${TESTING_DAYS} days`],
+          ["Scaling", live.filter((a) => adStage(a, today) === "scaling").length, "text-pos", "Kept and expanded"],
+          ["Stopped", stopped.length, stopped.length ? "text-neg" : "", "Since we started watching"],
+        ].map(([label, n, tone, hint]) => (
+          <div key={label as string} className="card px-4 py-3.5">
+            <div className="text-[13px] text-ink-2">{label}</div>
+            <div className={`text-[26px] font-semibold tracking-tight tnum mt-1 ${tone}`}>{n}</div>
+            <div className="caption mt-0.5">{hint}</div>
+          </div>
+        ))}
       </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">

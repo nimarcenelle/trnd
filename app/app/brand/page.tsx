@@ -4,10 +4,16 @@ import AdCard from "@/components/app/ad-card";
 import Avatar from "@/components/app/avatar";
 import HandlesForm from "@/components/app/handles-form";
 import { YouVsThem } from "@/components/app/landscape";
+import ObjectivesForm from "@/components/app/objectives-form";
+import { GOALS } from "@/lib/goals";
 import ProfileForm from "@/components/app/profile-form";
+import ResultsTable from "@/components/app/results-table";
+import ResultsUpload from "@/components/app/results-upload";
+import SubmitButton from "@/components/app/submit-button";
+import { clearResultsAction } from "@/lib/actions";
 import SocialCard from "@/components/app/social-card";
 import { getSessionUser } from "@/lib/auth/session";
-import { getBrand, getSelf, listAds, listReports, listSnapshots, listSocial } from "@/lib/data";
+import { getBrand, getSelf, listAds, listReports, listResults, listSnapshots, listSocial } from "@/lib/data";
 import type { BrandProfile } from "@/lib/db/types";
 import { PROVEN_DAYS } from "@/lib/diff";
 import { daysRunningOf } from "@/lib/format";
@@ -71,7 +77,8 @@ export default async function BrandPage() {
   if (!user) redirect("/login");
   const brand = await getBrand(user.id);
   if (!brand) redirect("/app/setup");
-  const [self, [latest], social, all] = await Promise.all([getSelf(brand.id), listReports(brand.id, 1), listSocial(brand.id), listAds(brand.id)]);
+  const [self, [latest], social, all, results] = await Promise.all([getSelf(brand.id), listReports(brand.id, 1), listSocial(brand.id), listAds(brand.id), listResults(brand.id)]);
+  const goal = GOALS.find((g) => g.value === brand.objectives?.goal);
   const mine = self ? all.filter((a) => a.rival_id === self.id) : [];
   const theirs = all.filter((a) => a.active && (!self || a.rival_id !== self.id));
   const live = mine.filter((a) => a.active).sort((a, b) => (daysRunningOf(b) ?? 0) - (daysRunningOf(a) ?? 0));
@@ -100,6 +107,55 @@ export default async function BrandPage() {
           <YouVsThem landscape={latest.body.landscape} />
         </section>
       )}
+
+      <section id="goals" className="mt-10 scroll-mt-6">
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="heading text-[15px]">Goals</h2>
+          <span className="caption">Decides which competitor moves are worth copying</span>
+        </div>
+        <div className="card p-5 sm:p-6">
+          {goal ? (
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mb-6">
+              <div>
+                <div className="caption">Goal</div>
+                <div className="text-[15px] font-semibold mt-0.5">{goal.label}</div>
+              </div>
+              {brand.objectives?.monthly_budget && (
+                <div>
+                  <div className="caption">Monthly budget</div>
+                  <div className="text-[15px] font-semibold mt-0.5 tnum">{brand.objectives.monthly_budget}</div>
+                </div>
+              )}
+              {brand.objectives?.target_cost && (
+                <div>
+                  <div className="caption">Target cost</div>
+                  <div className="text-[15px] font-semibold mt-0.5 tnum">{brand.objectives.target_cost}</div>
+                </div>
+              )}
+              {brand.objectives?.focus && (
+                <div>
+                  <div className="caption">Focus</div>
+                  <div className="text-[15px] font-semibold mt-0.5">{brand.objectives.focus}</div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-[13.5px] text-ink-2 mb-5">Tell TRND what you&apos;re trying to do. Every recommendation is judged against it.</p>
+          )}
+          {goal ? (
+            <details className="border-t border-line pt-4 group">
+              <summary className="text-[13.5px] font-medium inline-flex items-center gap-1.5">
+                <span className="transition-transform group-open:rotate-90">›</span> Edit goals
+              </summary>
+              <div className="mt-5">
+                <ObjectivesForm objectives={brand.objectives} />
+              </div>
+            </details>
+          ) : (
+            <ObjectivesForm objectives={brand.objectives} />
+          )}
+        </div>
+      </section>
 
       <section className="mt-10">
         <div className="flex items-baseline justify-between mb-3">
@@ -152,6 +208,35 @@ export default async function BrandPage() {
             {self?.last_error && <span className="block text-neg mt-1">{self.last_error}</span>}
           </div>
         )}
+      </section>
+
+      <section id="results" className="mt-10 scroll-mt-6">
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="heading text-[15px]">Past ad performance</h2>
+          <span className="caption">From your Ads Manager</span>
+        </div>
+        {results.length > 0 && <ResultsTable rows={results} />}
+        <div className={`card p-5 ${results.length ? "mt-3" : ""}`}>
+          {!results.length && (
+            <div className="mb-4">
+              <p className="text-[13.5px] font-medium">Show TRND what has worked for you</p>
+              <p className="text-[13px] text-ink-2 mt-1 leading-[1.6] max-w-[680px]">
+                In Ads Manager, open the Ads tab, pick a date range (the last 90 days works well), then Reports → Export table data → CSV. Include Ad name,
+                Amount spent, CTR, Results and Cost per result. TRND uses it to judge which competitor ideas fit you.
+              </p>
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <ResultsUpload hasResults={results.length > 0} />
+            {results.length > 0 && (
+              <form action={clearResultsAction}>
+                <SubmitButton className="btn btn-ghost btn-sm" pending="Removing…">
+                  Remove results
+                </SubmitButton>
+              </form>
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="mt-10">

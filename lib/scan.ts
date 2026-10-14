@@ -7,7 +7,7 @@ import type { ScrapedAd } from "@/lib/adlibrary/parse";
 import { scrapeAds } from "@/lib/adlibrary/scrape";
 import { tagAds, writeReport } from "@/lib/ai/analyze";
 import { adminSupabase } from "@/lib/db/supabase";
-import type { Ad, Brand, Rival } from "@/lib/db/types";
+import type { Ad, Brand, OwnAdResult, Rival } from "@/lib/db/types";
 import { crossedProven } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { isModelConfigured } from "@/lib/env";
@@ -144,7 +144,8 @@ async function pool<T, R>(items: T[], n: number, fn: (item: T) => Promise<R>): P
   return out;
 }
 
-export async function scanBrand(brandId: string): Promise<{ changes: number; report: boolean }> {
+/** `forceReport`: write a report even when nothing changed (a manual scan, after the owner edited their context). */
+export async function scanBrand(brandId: string, opts: { forceReport?: boolean } = {}): Promise<{ changes: number; report: boolean }> {
   const sb = adminSupabase();
   const { data: brand } = await sb.from("brands").select("*").eq("id", brandId).single<Brand>();
   if (!brand) throw new Error(`brand ${brandId} not found`);
@@ -202,7 +203,7 @@ export async function scanBrand(brandId: string): Promise<{ changes: number; rep
     const { count: reportCount } = await sb.from("reports").select("id", { count: "exact", head: true }).eq("brand_id", brandId);
     const isBaseline = !reportCount;
     let reported = false;
-    if (isBaseline || changeCount > 0) {
+    if (isBaseline || changeCount > 0 || opts.forceReport) {
       const { data: adRows } = await sb.from("ads").select("*").eq("brand_id", brandId).eq("active", true);
       const ads = (adRows ?? []) as Ad[];
       // Re-read the changed ads so the report sees their fresh tags.
@@ -212,6 +213,7 @@ export async function scanBrand(brandId: string): Promise<{ changes: number; rep
         const body = await writeReport({
           brand,
           own: self ? ads.filter((a) => a.rival_id === self.id) : [],
+          results: ((await sb.from("own_ad_results").select("*").eq("brand_id", brandId)).data ?? []) as OwnAdResult[],
           rivals: rivals.map((r) => ({ name: r.name, ads: ads.filter((a) => a.rival_id === r.id) })),
           social,
           changes: isBaseline ? null : { launched: fresh(changes.launched), stopped: changes.stopped, proven: fresh(changes.proven) },

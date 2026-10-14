@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 import AdThumb from "@/components/app/ad-thumb";
 import AutoRefresh from "@/components/app/auto-refresh";
 import Avatar from "@/components/app/avatar";
-import Brief from "@/components/app/brief";
 import { LaunchBars } from "@/components/app/charts";
 import Evidence from "@/components/app/evidence";
+import PlayCard from "@/components/app/play-card";
+import Translations from "@/components/app/translations";
 import { LandscapeTable, YouVsThem, type LandscapeStats } from "@/components/app/landscape";
 import SubmitButton from "@/components/app/submit-button";
 import { IconRefresh } from "@/components/icons";
@@ -15,8 +16,9 @@ import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
 import { getBrand, getSelf, listAds, listChanges, listReports, listRivals, listSocial } from "@/lib/data";
 import type { Ad, ChangeKind, Report } from "@/lib/db/types";
-import { ago, compact, daysRunningOf, isScanning, libraryLink, withinDays } from "@/lib/format";
+import { ago, compact, daysRunningOf, isScanning, libraryLink, todayIso, withinDays } from "@/lib/format";
 import { weeklyLaunches } from "@/lib/stats";
+import { adStage } from "@/lib/diff";
 
 export const metadata = { title: "Briefing — TRND" };
 // "Scan now" runs the scan after the response, inside this route's time limit.
@@ -73,17 +75,7 @@ function Plays({ report, ads }: { report: Report; ads: Map<string, Ad> }) {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-3">
       {report.body.plays.map((p, n) => (
-        <article key={n} className="card p-5 flex flex-col">
-          <span className="caption">Idea {n + 1}</span>
-          <h3 className="text-[15px] font-semibold leading-snug mt-1">{p.title}</h3>
-          <p className="text-[13px] text-ink-2 leading-[1.6] mt-2">{p.why}</p>
-          <div className="well p-3.5 mt-4">
-            <Brief text={p.brief} />
-          </div>
-          <div className="mt-auto">
-            <Evidence ids={p.inspired_by} ads={ads} label="Modeled on" />
-          </div>
-        </article>
+        <PlayCard key={n} play={p} n={n + 1} ads={ads} />
       ))}
     </div>
   );
@@ -117,6 +109,7 @@ export default async function Briefing() {
     return { liveAds: live.length, longest: Math.max(0, ...live.map((a) => daysRunningOf(a) ?? 0)), instagram: followers(r.id, "instagram"), tiktok: followers(r.id, "tiktok") };
   };
   const hasSocial = social.some((p) => !p.error && p.followers !== null);
+  const today = todayIso();
   const [latest, ...older] = reports;
   const running = isScanning(brand);
   const locked = planState(brand).locked;
@@ -152,6 +145,15 @@ export default async function Briefing() {
         )}
       </header>
 
+      {!brand.objectives && (
+        <Link href="/app/brand#goals" className="card mt-6 px-5 py-4 flex items-center justify-between gap-4 hover:shadow-[var(--shadow-md)] transition-shadow">
+          <span>
+            <span className="text-[13.5px] font-semibold">Tell TRND what you&apos;re trying to do</span>
+            <span className="block text-[13px] text-ink-2 mt-0.5">Set your goal, budget and target cost, and every recommendation is judged against them.</span>
+          </span>
+          <span className="btn btn-secondary btn-sm shrink-0">Set goals</span>
+        </Link>
+      )}
       {running && (
         <div className="card mt-6 px-5 py-4 flex items-center gap-3 text-[13.5px]">
           <span className="spinner" />
@@ -224,7 +226,7 @@ export default async function Briefing() {
       )}
 
       {latest?.body.landscape && (
-        <Section title="Where you stand" aside="Positioning from your competitors' ads and your profile">
+        <Section title="Where you stand" aside="Your profile against every competitor">
           <p className="text-[13.5px] text-ink-2 leading-[1.6] mb-3 max-w-[820px]">{latest.body.landscape.summary}</p>
           <LandscapeTable landscape={latest.body.landscape} you={brand.name} stats={statsFor} />
           <div className="mt-3">
@@ -233,19 +235,31 @@ export default async function Briefing() {
         </Section>
       )}
 
+      {latest && (
+        <Section title="Should you copy it?" aside="Their moves, judged against your brand and goals">
+          {latest.body.translations?.length ? (
+            <Translations items={latest.body.translations} ads={byArchive} />
+          ) : (
+            <div className="card p-5 text-[13.5px] text-ink-2">Written with the next report. Run a scan to get it now.</div>
+          )}
+        </Section>
+      )}
+
       {latest && latest.body.plays.length > 0 && (
-        <Section title="Ads to make next" aside="Modeled on what's working for your rivals">
+        <Section title="Ads to make next" aside="Built from what's worth copying">
           <Plays report={latest} ads={byArchive} />
         </Section>
       )}
 
       <Section title="Rivals">
         <div className="card overflow-x-auto">
-          <table className="table min-w-[760px]">
+          <table className="table min-w-[920px]">
             <thead>
               <tr>
                 <th>Rival</th>
                 <th className="!text-right">Live ads</th>
+                <th className="!text-right" title="Live under 14 days">Testing</th>
+                <th className="!text-right" title="14+ days with 3+ versions, or 30+ days">Scaling</th>
                 <th className="!text-right">New · 7d</th>
                 <th className="!text-right">Stopped · 7d</th>
                 <th className="!text-right">Longest running</th>
@@ -269,6 +283,8 @@ export default async function Briefing() {
                       </Link>
                     </td>
                     <td className="text-right tnum">{theirs.filter((a) => a.active).length}</td>
+                    <td className="text-right tnum text-ink-2">{theirs.filter((a) => adStage(a, today) === "testing").length}</td>
+                    <td className="text-right tnum font-medium">{theirs.filter((a) => adStage(a, today) === "scaling").length}</td>
                     <td className={`text-right tnum ${week("launched", r.id) ? "text-pos font-medium" : "text-ink-3"}`}>{week("launched", r.id)}</td>
                     <td className={`text-right tnum ${week("stopped", r.id) ? "text-neg font-medium" : "text-ink-3"}`}>{week("stopped", r.id)}</td>
                     <td className="text-right tnum">{longest ? `${longest} days` : "—"}</td>

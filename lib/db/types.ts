@@ -11,6 +11,7 @@ export interface Brand {
   summary: string | null;
   category: string | null;
   profile: BrandProfile | null;
+  objectives: Objectives | null;
   plan: string;
   plan_status: "active" | "past_due" | "canceled";
   trial_ends_at: string;
@@ -93,11 +94,35 @@ export interface ReportBody {
   headline: string;
   summary: string;
   insights: { title: string; detail: string; evidence: string[] }[];
-  plays: { title: string; why: string; brief: string; inspired_by: string[] }[];
+  plays: Play[];
+  /** Each notable competitor move, judged for this brand: copy it, adapt it, or skip it. */
+  translations?: Translation[];
   rivals: { name: string; strategy: string; watch_for: string }[];
   /** Where the brand sits against each rival; absent on reports written before it existed. */
   landscape?: Landscape;
   changes?: { launched: number; stopped: number; proven: number };
+}
+
+/** An ad to make next. Older reports carry only `brief`; newer ones the structured fields. */
+export interface Play {
+  title: string;
+  why: string;
+  brief?: string;
+  hook?: string;
+  format?: string;
+  creative?: string;
+  offer?: string;
+  audience?: string;
+  inspired_by: string[];
+}
+
+export interface Translation {
+  competitor: string;
+  move: string;
+  verdict: "copy" | "adapt" | "skip";
+  why: string;
+  adapt: string;
+  evidence: string[];
 }
 
 export interface Landscape {
@@ -106,6 +131,34 @@ export interface Landscape {
   positions: { name: string; price_tier: "budget" | "mid" | "premium" | "unknown"; audience: string; message: string; strength: string }[];
   /** What the brand does that rivals don't, and the reverse. */
   you_vs_them: { only_you: string[]; only_them: string[]; open_lanes: string[] };
+}
+
+/** What the brand is trying to do right now, set by the owner. */
+export interface Objectives {
+  goal: "new_customers" | "subscriptions" | "launch" | "retention" | "awareness";
+  monthly_budget: string;
+  target_cost: string;
+  focus: string;
+  notes: string;
+}
+
+/** One row of the owner's Ads Manager export. */
+export interface OwnAdResult {
+  id: string;
+  brand_id: string;
+  ad_name: string;
+  body: string | null;
+  spend: number | null;
+  impressions: number | null;
+  clicks: number | null;
+  ctr: number | null;
+  results: number | null;
+  result_type: string | null;
+  cost_per_result: number | null;
+  roas: number | null;
+  period_start: string | null;
+  period_end: string | null;
+  uploaded_at: string;
 }
 
 /** What the brand sells, to whom and how: read off the site, corrected by the owner. */

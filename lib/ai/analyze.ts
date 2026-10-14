@@ -2,9 +2,10 @@ import "server-only";
 
 import { z } from "zod";
 
-import type { Ad, Brand, BrandProfile, Landscape, ReportBody, Rival, SocialProfile } from "@/lib/db/types";
+import type { Ad, Brand, BrandProfile, Landscape, Objectives, OwnAdResult, ReportBody, Rival, SocialProfile } from "@/lib/db/types";
+import { rankResults } from "@/lib/results";
 
-import { daysRunning, PROVEN_DAYS } from "@/lib/diff";
+import { adStage, daysRunning, PROVEN_DAYS, SCALING_DAYS, SCALING_VERSIONS, TESTING_DAYS } from "@/lib/diff";
 
 import { generateJson } from "./openai";
 
@@ -120,7 +121,28 @@ const ReportSchema = z.object({
   headline: z.string(),
   summary: z.string(),
   insights: z.array(z.object({ title: z.string(), detail: z.string(), evidence: z.array(z.string()) })),
-  plays: z.array(z.object({ title: z.string(), why: z.string(), brief: z.string(), inspired_by: z.array(z.string()) })),
+  translations: z.array(
+    z.object({
+      competitor: z.string(),
+      move: z.string(),
+      verdict: z.enum(["copy", "adapt", "skip"]),
+      why: z.string(),
+      adapt: z.string(),
+      evidence: z.array(z.string()),
+    }),
+  ),
+  plays: z.array(
+    z.object({
+      title: z.string(),
+      why: z.string(),
+      hook: z.string(),
+      format: z.string(),
+      creative: z.string(),
+      offer: z.string(),
+      audience: z.string(),
+      inspired_by: z.array(z.string()),
+    }),
+  ),
   rivals: z.array(z.object({ name: z.string(), strategy: z.string(), watch_for: z.string() })),
   landscape: LandscapeSchema,
 });
@@ -132,7 +154,9 @@ export interface SocialLine {
 }
 
 export interface ReportInput {
-  brand: Pick<Brand, "name" | "url" | "summary" | "category"> & { profile?: BrandProfile | null };
+  brand: Pick<Brand, "name" | "url" | "summary" | "category"> & { profile?: BrandProfile | null; objectives?: Objectives | null };
+  /** The brand's own results from its Ads Manager export. */
+  results?: Pick<OwnAdResult, "ad_name" | "body" | "spend" | "ctr" | "results" | "result_type" | "cost_per_result" | "roas">[];
   /** The brand's own active Meta ads. */
   own?: Ad[];
   rivals: (Pick<Rival, "name"> & { ads: Ad[] })[];
@@ -146,6 +170,7 @@ function adLine(ad: Ad, today: string): string {
   const parts = [
     `[${ad.archive_id}]`,
     days === null ? "start unknown" : `${days}d running`,
+    adStage(ad, today),
     ad.format,
     ad.variants > 1 ? `${ad.variants} variants` : null,
     ad.angle ? `angle: ${ad.angle}` : null,
@@ -161,6 +186,29 @@ function profileBlock(p: BrandProfile): string {
   return `What it sells: ${p.what_it_sells}. Price: ${p.price_point} (${p.price_tier}). Audience: ${p.audience}.
 Promises: ${list(p.value_props)}. Proof: ${list(p.proof_points)}. Offers: ${list(p.offers)}.
 Tone: ${p.tone}. Claims to be different because: ${list(p.differentiators)}.`;
+}
+
+const GOAL: Record<Objectives["goal"], string> = {
+  new_customers: "win new customers",
+  subscriptions: "grow subscriptions",
+  launch: "launch a new product",
+  retention: "bring past customers back",
+  awareness: "build awareness",
+};
+
+function objectivesBlock(o: Objectives): string {
+  return `Right now the brand wants to ${GOAL[o.goal]}.${o.focus ? ` Focus: ${o.focus}.` : ""}${o.monthly_budget ? ` Monthly ad budget: ${o.monthly_budget}.` : ""}${
+    o.target_cost ? ` Target cost per result: ${o.target_cost}.` : ""
+  }${o.notes ? ` Notes: ${o.notes}` : ""}`;
+}
+
+function resultsBlock(rows: NonNullable<ReportInput["results"]>): string {
+  const { best, worst } = rankResults(rows);
+  const line = (r: (typeof rows)[number]) =>
+    `- "${r.ad_name}"${r.body ? ` ("${r.body.slice(0, 120).replace(/\s+/g, " ")}")` : ""}: spent ${r.spend ?? "?"}, ${r.results ?? "?"} ${r.result_type ?? "results"} at ${
+      r.cost_per_result ?? "?"
+    } each${r.ctr !== null ? `, CTR ${r.ctr}%` : ""}${r.roas !== null ? `, ROAS ${r.roas}` : ""}`;
+  return `Best by cost per result:\n${best.map(line).join("\n") || "none with enough spend"}\nWorst:\n${worst.map(line).join("\n") || "none"}`;
 }
 
 function socialBlock(lines: SocialLine[]): string {
@@ -180,6 +228,7 @@ export function reportPrompt(input: ReportInput): string {
   const own = (input.own ?? []).filter((a) => a.active).sort((a, b) => (daysRunning(b, today) ?? 0) - (daysRunning(a, today) ?? 0));
   const ownBlock = `\n\n# ${brand.name}'s own active Meta ads (${own.length})\n${own.slice(0, 20).map((a) => adLine(a, today)).join("\n") || "(none running: say so, and what that costs them)"}`;
   const social = input.social?.length ? `\n\n# Organic social (Instagram and TikTok)\n${socialBlock(input.social)}` : "";
+  const results = input.results?.length ? `\n\n# ${brand.name}'s own past ad results (from its Ads Manager)\n${resultsBlock(input.results)}` : "";
   const rivalBlocks = rivals
     .map((r) => {
       const active = r.ads.filter((a) => a.active);
@@ -199,9 +248,11 @@ ${changes.proven.map((a) => adLine(a, today)).join("\n") || "none"}`
 
   return `Today is ${today}. The brand: ${brand.name} (${brand.url}), ${brand.category ?? ""}. ${brand.summary ?? ""}
 ${brand.profile ? profileBlock(brand.profile) : ""}
+${brand.objectives ? objectivesBlock(brand.objectives) : ""}
 
 Below are the active Meta ads of its competitors, longest-running first. Each line starts with the ad's archive id.
-${rivalBlocks}${ownBlock}${social}${changeBlock}
+Each ad is marked testing (under ${TESTING_DAYS} days), scaling (past ${TESTING_DAYS} days with ${SCALING_VERSIONS}+ versions, or past ${SCALING_DAYS} days), or running.
+${rivalBlocks}${ownBlock}${results}${social}${changeBlock}
 
 Write the report the brand's founder reads.
 - headline: one sentence, the single most useful thing to know${changes ? " about what changed" : ""}.
@@ -209,9 +260,14 @@ Write the report the brand's founder reads.
 - insights: 3-6 things the brand would not otherwise know (which angles and formats the long-running ads share,
   what offers rivals lean on, who is scaling up or going quiet, what nobody is doing). Each with the archive ids
   that show it in evidence.${changes ? " Lead with what the changes mean." : ""}
-- plays: 3 ads the brand should make next, each modeled on what is working for rivals but in the brand's own
-  voice: a title, why it should work (citing the evidence), a brief a creator could shoot from (hook, format,
-  what is shown, the offer), and the archive ids that inspired it.
+- translations: 4-6 of the competitor moves that matter most (an angle, offer, format or hook being tested or
+  scaled). For each: the competitor, the move in one line, a verdict for ${brand.name} (copy: it fits as is; adapt:
+  the idea fits but must change; skip: it doesn't fit this brand), why (judged against the brand's profile, objectives
+  and past results), how to adapt it (or why to stay away), and the archive ids that show the move.
+- plays: 3 ads the brand should make next, built from the copy and adapt verdicts and serving its objective, in its
+  own voice. For each: a title; why it should work, citing the evidence; the hook, word for word; the format (e.g.
+  "9:16 UGC video, 20s"); the creative (what is shown, shot by shot or frame by frame); the offer, or "none"; the
+  audience it is for; and the archive ids that inspired it.
 - rivals: one entry per competitor above that has ads: their strategy in one or two sentences, and what to watch for next.
 - landscape: where ${brand.name} sits in this market.
   - summary: two sentences on how the market is positioned and where ${brand.name} fits.
@@ -223,11 +279,12 @@ Compare ${brand.name}'s own ads and social with its competitors' throughout: an 
 ${brand.name} beats one that only describes the market. Use only archive ids that appear above.`;
 }
 
-export async function writeReport(input: ReportInput): Promise<ReportBody & { landscape: Landscape }> {
+export async function writeReport(input: ReportInput): Promise<ReportBody & { landscape: Landscape; translations: NonNullable<ReportBody["translations"]> }> {
   const body = await generateJson({ system: SYSTEM, schema: ReportSchema, prompt: reportPrompt(input) });
   const known = new Set([...input.rivals.flatMap((r) => r.ads.map((a) => a.archive_id)), ...(input.own ?? []).map((a) => a.archive_id)]);
   // Drop any id the model made up, so every evidence link opens a real ad.
   for (const i of body.insights) i.evidence = i.evidence.filter((id) => known.has(id));
   for (const p of body.plays) p.inspired_by = p.inspired_by.filter((id) => known.has(id));
+  for (const t of body.translations) t.evidence = t.evidence.filter((id) => known.has(id));
   return body;
 }

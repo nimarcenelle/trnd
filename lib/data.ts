@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { createServerSupabase } from "@/lib/db/supabase";
-import type { Ad, AdChange, Brand, Report, Rival, SocialProfile } from "@/lib/db/types";
+import type { Ad, AdChange, Brand, OwnAdResult, Report, Rival, SocialProfile } from "@/lib/db/types";
 
 /** Reads for the pages, as the signed-in user (RLS keeps them to their own brand). */
 
@@ -67,4 +67,10 @@ export async function listChanges(brandId: string, sinceDays = 14): Promise<(AdC
     .order("detected_at", { ascending: false })
     .limit(200);
   return (data ?? []) as (AdChange & { ad: Ad | null })[];
+}
+
+export async function listResults(brandId: string): Promise<OwnAdResult[]> {
+  const sb = await createServerSupabase();
+  const { data } = await sb.from("own_ad_results").select("*").eq("brand_id", brandId).order("spend", { ascending: false, nullsFirst: false }).limit(2000);
+  return (data ?? []) as OwnAdResult[];
 }

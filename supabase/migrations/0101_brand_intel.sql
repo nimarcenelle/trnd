@@ -1,4 +1,4 @@
--- Brand intelligence and organic social. Safe to re-run.
+-- Brand intelligence, objectives, past ad results and organic social. Safe to re-run.
 --
 -- The brand itself is now watched like a rival: one rivals row per brand with
 -- is_self = true, so its own Meta ads go through the same scan, diff and tags.
@@ -56,3 +56,31 @@ create policy social_snapshots_owner_read on public.social_snapshots for select
     select 1 from public.social_profiles p join public.brands b on b.id = p.brand_id
     where p.id = profile_id and b.owner_id = auth.uid()
   ));
+
+-- What the brand is trying to do right now (goal, budget, target cost), set by the owner.
+alter table public.brands add column if not exists objectives jsonb;
+
+-- The brand's own ad results, from an Ads Manager export the owner uploads.
+-- Each upload replaces the previous one.
+create table if not exists public.own_ad_results (
+  id uuid primary key default gen_random_uuid(),
+  brand_id uuid not null references public.brands(id) on delete cascade,
+  ad_name text not null,
+  body text,
+  spend numeric,
+  impressions numeric,
+  clicks numeric,
+  ctr numeric, -- percent, as Ads Manager reports it
+  results numeric,
+  result_type text,
+  cost_per_result numeric,
+  roas numeric,
+  period_start date,
+  period_end date,
+  uploaded_at timestamptz not null default now()
+);
+create index if not exists own_ad_results_brand_idx on public.own_ad_results (brand_id);
+alter table public.own_ad_results enable row level security;
+drop policy if exists own_ad_results_owner_read on public.own_ad_results;
+create policy own_ad_results_owner_read on public.own_ad_results for select
+  using (exists (select 1 from public.brands b where b.id = brand_id and b.owner_id = auth.uid()));

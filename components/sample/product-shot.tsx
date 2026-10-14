@@ -1,6 +1,6 @@
 import Avatar from "@/components/app/avatar";
 import Brand from "@/components/brand";
-import { IconBriefing, IconGlobe, IconMail, IconRefresh, IconSettings, IconTimeline } from "@/components/icons";
+import { IconBriefing, IconRefresh, IconSettings, IconTimeline } from "@/components/icons";
 
 import SampleCreative from "./creative";
 import { SAMPLE_ADS, SAMPLE_RIVALS } from "./market";
@@ -13,10 +13,10 @@ export default function ProductShot() {
   const [, tidewell, , fenn] = SAMPLE_ADS;
   const activity = [
     { rival: "Tidewell", icon: <SampleCreative spec={tidewell.creative} id="shot-0" />, label: "New ad", cls: "badge badge-pos", when: "2h", line: tidewell.title },
-    { rival: "Tidewell", icon: <IconMail />, label: "Promo email", cls: "badge badge-warn", when: "5h", line: "A year of clean water for $79" },
-    { rival: "Tidewell", icon: <IconGlobe />, label: "New message", cls: "badge badge-info", when: "1d", line: "“Clean water, half the price”" },
+    { rival: "Tidewell", icon: <Avatar name="Tidewell" size={20} />, label: "New offer", cls: "badge badge-warn", when: "5h", line: "A year of clean water for $79" },
+    { rival: "Tidewell", icon: <Avatar name="Tidewell" size={20} />, label: "New message", cls: "badge badge-info", when: "1d", line: "“Clean water, half the price”" },
     { rival: "Fenn", icon: <SampleCreative spec={fenn.creative} id="shot-1" />, label: "Proven ad", cls: "badge badge-warn", when: "1d", line: fenn.title },
-    { rival: "Clearwell", icon: <IconGlobe />, label: "Sale", cls: "badge badge-warn", when: "2d", line: "Showerhead $135 → $108" },
+    { rival: "Clearwell", icon: <Avatar name="Clearwell" size={20} />, label: "Sale", cls: "badge badge-warn", when: "2d", line: "Showerhead $135 → $108" },
   ];
   const moves = [
     { label: "Counter", cls: "badge badge-warn", title: "Answer Tidewell's price push with cost per month, not a discount", hook: "Cheaper filters, twice the refills. Do the math." },
@@ -76,7 +76,7 @@ export default function ProductShot() {
           <div className="card mt-4 p-4">
             <span className="badge !h-5 !text-[11px]">Since the last scan</span>
             <div className="heading text-[15px] leading-[1.35] mt-2">
-              Tidewell looks to be making an affordability push: a new homepage, a bundle email and savings ads in one week.
+              Tidewell is selling hard on price. Answer with cost per month, not a discount.
             </div>
             <p className="text-[12px] text-ink-2 leading-[1.6] mt-1.5 hidden sm:block">
               It goes straight at your refill subscription. Matching $79 breaks your margin; your cartridge lasting twice as long doesn&apos;t.
@@ -86,9 +86,9 @@ export default function ProductShot() {
           <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
             {[
               ["Live ads", "37", ""],
-              ["Ad moves", "9", "text-pos"],
-              ["Website changes", "5", "text-warn"],
-              ["Competitor emails", "12", ""],
+              ["New moves", "9", "text-pos"],
+              ["New offers", "5", "text-warn"],
+              ["Price changes", "2", ""],
             ].map(([l, v, c]) => (
               <div key={l} className="card px-3 py-2.5">
                 <div className="text-[11px] text-ink-2">{l}</div>

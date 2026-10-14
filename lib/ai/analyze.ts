@@ -2,7 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
-import type { Ad, Brand, BrandProfile, Landscape, Objectives, OwnAdResult, ReportBody, Rival, SocialProfile } from "@/lib/db/types";
+import type { Ad, Brand, BrandProfile, EmailKind, Landscape, Objectives, Opportunity, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { rankResults } from "@/lib/results";
 
 import { adStage, daysRunning, PROVEN_DAYS, SCALING_DAYS, SCALING_VERSIONS, TESTING_DAYS } from "@/lib/diff";
@@ -18,7 +18,9 @@ import { generateJson } from "./openai";
 const SYSTEM = `You are TRND, a paid-social strategist who watches a brand's competitors' Meta ads and social accounts for them.
 You are concrete and specific. You name the rival and quote the ad. You never invent numbers: the Ad Library shows
 no spend, impressions or results for commercial ads, so "still running after N days" and "N variants" are the
-strongest evidence you have. Say "still running after 60 days", never "their best performer".`;
+strongest evidence you have. Say "still running after 60 days", never "their best performer". You also read their websites and
+the marketing emails they send subscribers. What a competitor intends is inferred from public signals, never known: say
+"looks like", "suggests", and match your confidence to the evidence.`;
 
 /* ------------------------------ site → rivals ----------------------------- */
 
@@ -171,6 +173,49 @@ ${lines}`,
   return tags;
 }
 
+/* ------------------------------ tag the emails ----------------------------- */
+
+const EMAIL_KINDS = ["promo", "launch", "newsletter", "content", "retention", "announcement", "confirmation", "other"] as const satisfies readonly EmailKind[];
+
+const EmailTagSchema = z.object({
+  emails: z.array(z.object({ id: z.string(), kind: z.enum(EMAIL_KINDS), offer: z.string(), theme: z.string(), is_repeat: z.boolean() })),
+});
+
+export interface EmailTag {
+  id: string;
+  kind: EmailKind;
+  offer: string;
+  theme: string;
+  is_repeat: boolean;
+}
+
+/**
+ * Kind, offer and theme for each competitor email, and whether it repeats
+ * something they already sent (the same offer or message again) or is new.
+ */
+export async function tagEmails(
+  emails: (Pick<RivalEmail, "id" | "subject" | "preview"> & { rival: string; earlier: string[] })[],
+): Promise<EmailTag[]> {
+  if (!emails.length) return [];
+  const lines = emails
+    .map((e) => `[${e.id}] ${e.rival} · "${e.subject}" · ${(e.preview ?? "").slice(0, 300).replace(/\s+/g, " ")}${e.earlier.length ? `\n   their earlier subjects: ${e.earlier.slice(0, 8).map((x) => `"${x}"`).join(", ")}` : ""}`)
+    .join("\n");
+  const { emails: tags } = await generateJson({
+    system: SYSTEM,
+    schema: EmailTagSchema,
+    effort: "low",
+    prompt: `Tag each competitor marketing email below. Return one entry per email, with its id exactly as given.
+- kind: promo (a discount or sale), launch (a new product or collection), newsletter, content (education, stories), retention
+  (win-back, replenishment, loyalty), announcement (news, policy, events), confirmation (a signup confirmation or welcome), other.
+- offer: the offer or incentive in 2-8 words (e.g. "25% off sitewide", "free gift over $60", "bundle and save"), or "none".
+- theme: what the email is about in 2-6 words (e.g. "summer skin routine", "new travel size", "hard water education").
+- is_repeat: true when it repeats an offer or message from their earlier subjects; false when it is a new push.
+
+${lines}`,
+  });
+  return tags;
+}
+
 /* -------------------------------- the report ------------------------------ */
 
 const LandscapeSchema = z.object({
@@ -179,32 +224,37 @@ const LandscapeSchema = z.object({
   you_vs_them: z.object({ only_you: z.array(z.string()), only_them: z.array(z.string()), open_lanes: z.array(z.string()) }),
 });
 
+const LEVEL = z.enum(["high", "medium", "low"]);
+const score = z.number().int().min(1).max(5);
+
+const OpportunitySchema = z.object({
+  type: z.enum(["get_ahead", "win_choice", "counter", "ignore"]),
+  title: z.string(),
+  competitors: z.array(z.string()),
+  signal: z.string(),
+  intent: z.string(),
+  fit: z.string(),
+  urgency: LEVEL,
+  confidence: LEVEL,
+  scores: z.object({ relevance: score, urgency: score, differentiation: score, feasibility: score, confidence: score }),
+  recommendation: z.string(),
+  brief: z.object({
+    angle: z.string(),
+    hook: z.string(),
+    offer: z.string(),
+    creative: z.string(),
+    format: z.string(),
+    audience: z.string(),
+    experiment: z.string(),
+  }),
+  evidence: z.array(z.string()),
+});
+
 const ReportSchema = z.object({
   headline: z.string(),
   summary: z.string(),
-  insights: z.array(z.object({ title: z.string(), detail: z.string(), evidence: z.array(z.string()) })),
-  translations: z.array(
-    z.object({
-      competitor: z.string(),
-      move: z.string(),
-      verdict: z.enum(["copy", "adapt", "skip"]),
-      why: z.string(),
-      adapt: z.string(),
-      evidence: z.array(z.string()),
-    }),
-  ),
-  plays: z.array(
-    z.object({
-      title: z.string(),
-      why: z.string(),
-      hook: z.string(),
-      format: z.string(),
-      creative: z.string(),
-      offer: z.string(),
-      audience: z.string(),
-      inspired_by: z.array(z.string()),
-    }),
-  ),
+  insights: z.array(z.object({ title: z.string(), detail: z.string(), status: z.enum(["new", "ongoing", "repeated"]), evidence: z.array(z.string()) })),
+  opportunities: z.array(OpportunitySchema),
   rivals: z.array(z.object({ name: z.string(), strategy: z.string(), watch_for: z.string() })),
   landscape: LandscapeSchema,
 });
@@ -223,8 +273,36 @@ export interface ReportInput {
   own?: Ad[];
   rivals: (Pick<Rival, "name"> & { ads: Ad[] })[];
   social?: SocialLine[];
+  /** Material website changes, recent first. `fresh`: found since the last report. */
+  site?: (SiteChange & { rival: string; fresh: boolean })[];
+  /** Competitor marketing emails, recent first. `fresh`: received since the last report. */
+  emails?: (Pick<RivalEmail, "id" | "subject" | "preview" | "received_at" | "kind" | "offer" | "theme" | "is_repeat"> & { rival: string; fresh: boolean })[];
   changes: { launched: Ad[]; stopped: Ad[]; proven: Ad[] } | null;
   today: string;
+}
+
+/** Short refs for the prompt (S1, E1), mapped back to "site:<id>" and "email:<id>" in the report. */
+function refsOf(input: ReportInput) {
+  const site = new Map((input.site ?? []).map((c, i) => [`S${i + 1}`, c]));
+  const emails = new Map((input.emails ?? []).map((e, i) => [`E${i + 1}`, e]));
+  return { site, emails };
+}
+
+function siteBlock(site: Map<string, NonNullable<ReportInput["site"]>[number]>): string {
+  return [...site]
+    .map(([ref, c]) => `[${ref}] ${c.detected_at.slice(0, 10)} · ${c.rival} · ${c.title}${c.before || c.after ? ` (${c.before ?? "–"} → ${c.after ?? "–"})` : ""}${c.fresh ? " · NEW" : ""}`)
+    .join("\n");
+}
+
+function emailBlock(emails: Map<string, NonNullable<ReportInput["emails"]>[number]>): string {
+  return [...emails]
+    .map(
+      ([ref, e]) =>
+        `[${ref}] ${e.received_at.slice(0, 10)} · ${e.rival} · ${e.kind ?? "email"}${e.offer && e.offer !== "none" ? ` · offer: ${e.offer}` : ""}${e.theme ? ` · theme: ${e.theme}` : ""}${
+          e.is_repeat ? " · repeat" : e.is_repeat === false ? " · new push" : ""
+        } · "${e.subject}" · ${(e.preview ?? "").slice(0, 160).replace(/\s+/g, " ")}${e.fresh ? " · NEW" : ""}`,
+    )
+    .join("\n");
 }
 
 function adLine(ad: Ad, today: string): string {
@@ -308,45 +386,92 @@ Crossed ${PROVEN_DAYS} days still running (${changes.proven.length}):
 ${changes.proven.map((a) => adLine(a, today)).join("\n") || "none"}`
     : "";
 
+  const { site, emails } = refsOf(input);
+  const siteText = site.size ? `\n\n# Competitor website changes (homepage, catalog, prices, promotions)\n${siteBlock(site)}` : "";
+  const emailText = emails.size ? `\n\n# Competitor marketing emails (sent to subscribers)\n${emailBlock(emails)}` : "";
+  const fresh = Boolean(changes) || [...site.values()].some((c) => c.fresh) || [...emails.values()].some((e) => e.fresh);
+
   return `Today is ${today}. The brand: ${brand.name} (${brand.url}), ${brand.category ?? ""}. ${brand.summary ?? ""}
 ${brand.profile ? profileBlock(brand.profile) : ""}
 ${brand.objectives ? objectivesBlock(brand.objectives) : ""}
 
-Below are the active Meta ads of its competitors, longest-running first. Each line starts with the ad's archive id.
-Each ad is marked testing (under ${TESTING_DAYS} days), scaling (past ${TESTING_DAYS} days with ${SCALING_VERSIONS}+ versions, or past ${SCALING_DAYS} days), or running.
-${rivalBlocks}${ownBlock}${results}${social}${changeBlock}
+Three signal streams on its competitors follow: their active Meta ads (where they fight for attention), their websites
+(what they sell and how), and their marketing emails (what they push to customers directly). Every line starts with a
+ref: an ad's archive id, S# for a website change, E# for an email. Lines marked NEW arrived since the last report.
 
-Write the report the brand's founder reads.
-- headline: one sentence, the single most useful thing to know${changes ? " about what changed" : ""}.
-- summary: 3-4 sentences on what the market is doing on Meta right now.
-- insights: 3-6 things the brand would not otherwise know (which angles and formats the long-running ads share,
-  what offers rivals lean on, who is scaling up or going quiet, what nobody is doing). Each with the archive ids
-  that show it in evidence.${changes ? " Lead with what the changes mean." : ""}
-- translations: 4-6 of the competitor moves that matter most (an angle, offer, format or hook being tested or
-  scaled). For each: the competitor, the move in one line, a verdict for ${brand.name} (copy: it fits as is; adapt:
-  the idea fits but must change; skip: it doesn't fit this brand), why (judged against the brand's profile, objectives
-  and past results), how to adapt it (or why to stay away), and the archive ids that show the move.
-- plays: 3 ads the brand should make next, built from the copy and adapt verdicts and serving its objective, in its
-  own voice. For each: a title; why it should work, citing the evidence; the hook, word for word; the format (e.g.
-  "9:16 UGC video, 20s"); the creative (what is shown, shot by shot or frame by frame); the offer, or "none"; the
-  audience it is for; and the archive ids that inspired it.
-- rivals: one entry per competitor above that has ads: their strategy in one or two sentences, and what to watch for next.
+# Active Meta ads, longest-running first
+Each ad is marked testing (under ${TESTING_DAYS} days), scaling (past ${TESTING_DAYS} days with ${SCALING_VERSIONS}+ versions, or past ${SCALING_DAYS} days), or running.
+${rivalBlocks}${siteText}${emailText}${ownBlock}${results}${social}${changeBlock}
+
+Write the report the brand's founder reads. The value is in connecting signals: a new value-focused homepage, a
+discounted email bundle and several savings-themed ads together suggest a coordinated affordability push, not three
+unrelated events. Read everything through ${brand.name}'s business: what it sells, to whom, its strengths, its economics
+and its goal.
+- headline: one sentence, the single most useful thing to know${fresh ? " about what changed" : ""}.
+- summary: 3-4 sentences on what the market is doing across ads, sites and email right now.
+- insights: 3-6 patterns the brand would not otherwise know, grouping related signals across channels. status: new (a
+  push that started recently), ongoing (sustained), or repeated (the same message or offer again). Evidence: the refs.${
+    fresh ? " Lead with what the new signals mean." : ""
+  }
+- opportunities: 4-6 decisions, most important first, each one competitor move (or several connected ones) judged for
+  ${brand.name}. type:
+  - get_ahead: early signals suggest an opening; move before the market crowds it.
+  - win_choice: competitors cluster around the same message; name an authentic strength ${brand.name} can lead with to stand out.
+  - counter: a competitor's push threatens ${brand.name}'s position; a differentiated response, never a reflex copy.
+  - ignore: it doesn't fit ${brand.name}'s customers, brand or economics; say why and save the money. Include at least one
+    when anything notable doesn't fit.
+  For each: title (the decision in a few words); competitors; signal (what was observed, across channels, with dates or
+  days running); intent (what they seem to be trying to do, hedged); fit (why it matters or doesn't for ${brand.name},
+  against its profile, goal, constraints and past results); urgency and confidence (high, medium, low); scores 1-5 for
+  relevance to its customers, urgency, differentiation potential, feasibility for this brand, and confidence; the
+  recommendation in one or two sentences; and a brief, ready to test, in ${brand.name}'s voice: angle, hook (word for
+  word), offer (or "none"), creative (what is shown, shot by shot or frame by frame), format (e.g. "9:16 UGC video,
+  20s" or "email + landing page"), audience, and experiment (what to test against what, and how to tell it worked). For
+  ignore, leave the brief's fields empty. Evidence: the refs.
+- rivals: one entry per competitor above with any signal: their strategy in one or two sentences, and what to watch for next.
 - landscape: where ${brand.name} sits in this market.
   - summary: two sentences on how the market is positioned and where ${brand.name} fits.
   - positions: one row for ${brand.name} first, then one per competitor: price_tier, the audience it targets, its main
-    message in its ads, and its strength (what it does best on paid or organic social).
+    message, and its strength (what it does best across ads, site, email and social).
   - you_vs_them: only_you (angles, offers or claims ${brand.name} uses that no competitor does), only_them (what
     competitors lean on that ${brand.name} doesn't), and open_lanes (angles or audiences nobody is using well).
-Compare ${brand.name}'s own ads and social with its competitors' throughout: an insight that says what this means for
-${brand.name} beats one that only describes the market. Use only archive ids that appear above.`;
+Ad repetition and longevity are imperfect proxies, not proof of performance; emails are only what subscribers see. Use
+only refs that appear above.`;
 }
 
-export async function writeReport(input: ReportInput): Promise<ReportBody & { landscape: Landscape; translations: NonNullable<ReportBody["translations"]> }> {
+const rank = (o: z.infer<typeof OpportunitySchema>) =>
+  o.type === "ignore" ? -1 : o.scores.relevance + o.scores.urgency + o.scores.differentiation + o.scores.feasibility + o.scores.confidence;
+
+export async function writeReport(input: ReportInput): Promise<ReportBody & { landscape: Landscape; opportunities: Opportunity[] }> {
   const body = await generateJson({ system: SYSTEM, schema: ReportSchema, prompt: reportPrompt(input) });
-  const known = new Set([...input.rivals.flatMap((r) => r.ads.map((a) => a.archive_id)), ...(input.own ?? []).map((a) => a.archive_id)]);
-  // Drop any id the model made up, so every evidence link opens a real ad.
-  for (const i of body.insights) i.evidence = i.evidence.filter((id) => known.has(id));
-  for (const p of body.plays) p.inspired_by = p.inspired_by.filter((id) => known.has(id));
-  for (const t of body.translations) t.evidence = t.evidence.filter((id) => known.has(id));
-  return body;
+  const { site, emails } = refsOf(input);
+  const ads = new Set([...input.rivals.flatMap((r) => r.ads.map((a) => a.archive_id)), ...(input.own ?? []).map((a) => a.archive_id)]);
+  // Turn prompt refs into stored ids, and drop any the model made up, so every evidence link opens something real.
+  const resolve = (refs: string[]) =>
+    refs.flatMap((r) => {
+      const ref = r.trim().replace(/^\[|\]$/g, "");
+      if (ads.has(ref)) return [ref];
+      const s = site.get(ref.toUpperCase());
+      if (s) return [`site:${s.id}`];
+      const e = emails.get(ref.toUpperCase());
+      if (e) return [`email:${e.id}`];
+      return [];
+    });
+  const insights = body.insights.map((i) => ({ ...i, evidence: resolve(i.evidence) }));
+  const opportunities = [...body.opportunities]
+    .sort((a, b) => rank(b) - rank(a))
+    .map((o): Opportunity => ({
+      type: o.type,
+      title: o.title,
+      competitors: o.competitors,
+      signal: o.signal,
+      intent: o.intent,
+      fit: o.fit,
+      urgency: o.urgency,
+      confidence: o.confidence,
+      recommendation: o.recommendation,
+      brief: o.brief,
+      evidence: resolve(o.evidence),
+    }));
+  return { ...body, insights, opportunities };
 }

@@ -1,12 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
 
+const opp = {
+  type: "counter",
+  title: "",
+  competitors: ["Rival"],
+  signal: "s",
+  intent: "i",
+  fit: "f",
+  urgency: "high",
+  confidence: "medium",
+  recommendation: "r",
+  brief: { angle: "", hook: "", offer: "", creative: "", format: "", audience: "", experiment: "" },
+  evidence: [] as string[],
+};
+
 vi.mock("@/lib/ai/openai", () => ({
   generateJson: vi.fn(async () => ({
     headline: "h",
     summary: "s",
-    insights: [{ title: "t", detail: "d", evidence: ["A1", "MADE-UP"] }],
-    plays: [{ title: "p", why: "w", hook: "h", format: "f", creative: "c", offer: "none", audience: "a", inspired_by: ["MADE-UP", "A1"] }],
-    translations: [{ competitor: "Rival", move: "m", verdict: "adapt", why: "w", adapt: "a", evidence: ["A1", "NOPE"] }],
+    insights: [{ title: "t", detail: "d", status: "new", evidence: ["A1", "MADE-UP", "S1", "E1", "E9"] }],
+    opportunities: [
+      { ...opp, type: "ignore", title: "skip it", scores: { relevance: 5, urgency: 5, differentiation: 5, feasibility: 5, confidence: 5 } },
+      { ...opp, title: "low", evidence: ["NOPE", "A1"], scores: { relevance: 2, urgency: 2, differentiation: 2, feasibility: 2, confidence: 2 } },
+      { ...opp, title: "high", evidence: ["[S1]"], scores: { relevance: 5, urgency: 4, differentiation: 4, feasibility: 4, confidence: 3 } },
+    ],
     rivals: [],
     landscape: { summary: "s", positions: [], you_vs_them: { only_you: [], only_them: [], open_lanes: [] } },
   })),
@@ -74,7 +91,8 @@ describe("report", () => {
     expect(prompt).toContain("Price: $79 (mid)");
     expect(prompt).toContain("@rival): 12000 followers, +1000 followers in 30d, 3 posts/week, engagement 2.10%");
     expect(prompt).toContain("landscape:");
-    expect(prompt).toContain("translations:");
+    expect(prompt).toContain("opportunities:");
+    expect(prompt).toContain("win_choice");
   });
 
   it("judges against the brand's goals and its own past results", () => {
@@ -90,10 +108,27 @@ describe("report", () => {
     expect(prompt).toContain(`"UGC hair" ("My hair stopped breaking"): spent 4000, 200 purchases at 20 each, CTR 1.9%, ROAS 3.1`);
   });
 
-  it("drops archive ids the model made up", async () => {
-    const body = await writeReport(input);
-    expect(body.insights[0].evidence).toEqual(["A1"]);
-    expect(body.plays[0].inspired_by).toEqual(["A1"]);
-    expect(body.translations[0].evidence).toEqual(["A1"]);
+  it("reads website changes and emails as signals, marking what is new", () => {
+    const prompt = reportPrompt({
+      ...input,
+      site: [{ id: "sc1", brand_id: "b", rival_id: "r", kind: "price_down", title: "Price down: Filter", before: "$79", after: "$59", url: null, detected_at: "2026-10-11T00:00:00Z", rival: "Rival", fresh: true }],
+      emails: [{ id: "em1", subject: "Bundle & save 30%", preview: "Two filters", received_at: "2026-10-10T00:00:00Z", kind: "promo", offer: "30% off bundle", theme: "bundles", is_repeat: false, rival: "Rival", fresh: false }],
+    });
+    expect(prompt).toContain("[S1] 2026-10-11 · Rival · Price down: Filter ($79 → $59) · NEW");
+    expect(prompt).toContain('[E1] 2026-10-10 · Rival · promo · offer: 30% off bundle · theme: bundles · new push · "Bundle & save 30%"');
+    expect(prompt).toContain("connecting signals");
+  });
+
+  it("maps refs to stored ids, drops made-up ones, and ranks opportunities with ignore last", async () => {
+    const body = await writeReport({
+      ...input,
+      site: [{ id: "sc1", brand_id: "b", rival_id: "r", kind: "price_down", title: "t", before: null, after: null, url: null, detected_at: "2026-10-11T00:00:00Z", rival: "Rival", fresh: true }],
+      emails: [{ id: "em1", subject: "s", preview: null, received_at: "2026-10-10T00:00:00Z", kind: null, offer: null, theme: null, is_repeat: null, rival: "Rival", fresh: true }],
+    });
+    expect(body.insights[0].evidence).toEqual(["A1", "site:sc1", "email:em1"]);
+    expect(body.opportunities.map((o) => o.title)).toEqual(["high", "low", "skip it"]);
+    expect(body.opportunities[0].evidence).toEqual(["site:sc1"]);
+    expect(body.opportunities[1].evidence).toEqual(["A1"]);
+    expect("scores" in body.opportunities[0]).toBe(false);
   });
 });

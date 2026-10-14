@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import AdThumb from "@/components/app/ad-thumb";
 import AutoRefresh from "@/components/app/auto-refresh";
 import Avatar from "@/components/app/avatar";
 import { LaunchBars } from "@/components/app/charts";
-import Evidence from "@/components/app/evidence";
+import Evidence, { type SignalRef } from "@/components/app/evidence";
+import OpportunityCard, { OPPORTUNITY } from "@/components/app/opportunity-card";
 import PlayCard from "@/components/app/play-card";
+import Timeline from "@/components/app/timeline";
 import Translations from "@/components/app/translations";
 import { LandscapeTable, YouVsThem, type LandscapeStats } from "@/components/app/landscape";
 import SubmitButton from "@/components/app/submit-button";
@@ -14,21 +15,16 @@ import { IconRefresh } from "@/components/icons";
 import { scanNowAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
-import { getBrand, getSelf, listAds, listChanges, listReports, listRivals, listSocial } from "@/lib/data";
+import { getBrand, getSelf, listAds, listChanges, listEmails, listReports, listRivals, listSiteChanges, listSocial } from "@/lib/data";
 import type { Ad, ChangeKind, Report } from "@/lib/db/types";
-import { ago, compact, daysRunningOf, isNoPageNote, isScanning, libraryLink, todayIso, withinDays } from "@/lib/format";
+import { ago, compact, daysRunningOf, isNoPageNote, isScanning, todayIso, withinDays } from "@/lib/format";
+import { buildTimeline } from "@/lib/timeline";
 import { weeklyLaunches } from "@/lib/stats";
 import { adStage } from "@/lib/diff";
 
 export const metadata = { title: "Briefing — TRND" };
 // "Scan now" runs the scan after the response, inside this route's time limit.
 export const maxDuration = 300;
-
-const KIND: Record<ChangeKind, { label: string; cls: string; verb: string }> = {
-  launched: { label: "New", cls: "badge badge-pos", verb: "launched" },
-  stopped: { label: "Stopped", cls: "badge badge-neg", verb: "stopped" },
-  proven: { label: "Proven", cls: "badge badge-warn", verb: "passed 21 days with" },
-};
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
@@ -46,24 +42,29 @@ function Section({ title, aside, children }: { title: string; aside?: React.Reac
   return (
     <section className="mt-10">
       <div className="flex items-baseline justify-between gap-4 mb-3">
-        <h2 className="heading text-[15px]">{title}</h2>
-        {aside && <span className="caption">{aside}</span>}
+        <h2 className="heading text-[15px] shrink-0">{title}</h2>
+        {aside && <span className="caption text-right">{aside}</span>}
       </div>
       {children}
     </section>
   );
 }
 
-function Insights({ report, ads }: { report: Report; ads: Map<string, Ad> }) {
+const STATUS = { new: { label: "New push", cls: "badge badge-pos" }, ongoing: { label: "Ongoing", cls: "badge" }, repeated: { label: "Repeated", cls: "badge badge-outline" } } as const;
+
+function Insights({ report, ads, refs }: { report: Report; ads: Map<string, Ad>; refs: Map<string, SignalRef> }) {
   return (
     <ol className="list-none m-0 p-0 card divide-y divide-line">
       {report.body.insights.map((i, n) => (
         <li key={n} className="p-5 flex gap-4">
           <span className="w-6 h-6 rounded-full bg-muted text-ink-2 text-[12px] font-semibold grid place-items-center shrink-0 tnum">{n + 1}</span>
           <div className="min-w-0">
-            <h3 className="text-[14.5px] font-semibold leading-snug">{i.title}</h3>
+            <div className="flex items-start gap-2 justify-between">
+              <h3 className="text-[14.5px] font-semibold leading-snug">{i.title}</h3>
+              {i.status && <span className={`${STATUS[i.status].cls} shrink-0`}>{STATUS[i.status].label}</span>}
+            </div>
             <p className="text-[13.5px] text-ink-2 leading-[1.6] mt-1">{i.detail}</p>
-            <Evidence ids={i.evidence} ads={ads} />
+            <Evidence ids={i.evidence} ads={ads} refs={refs} />
           </div>
         </li>
       ))}
@@ -74,7 +75,7 @@ function Insights({ report, ads }: { report: Report; ads: Map<string, Ad> }) {
 function Plays({ report, ads }: { report: Report; ads: Map<string, Ad> }) {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-3">
-      {report.body.plays.map((p, n) => (
+      {(report.body.plays ?? []).map((p, n) => (
         <PlayCard key={n} play={p} n={n + 1} ads={ads} />
       ))}
     </div>
@@ -88,13 +89,20 @@ export default async function Briefing() {
   if (!brand) redirect("/app/setup");
   if (!brand.last_scan_at && !isScanning(brand) && brand.scan_status !== "error") redirect("/app/setup");
 
-  const [rivals, allAds, reports, changes, self, social] = await Promise.all([
+  const [rivals, allAds, reports, changes, self, social, siteChanges, emails] = await Promise.all([
     listRivals(brand.id),
     listAds(brand.id),
     listReports(brand.id),
     listChanges(brand.id),
     getSelf(brand.id),
     listSocial(brand.id),
+    listSiteChanges(brand.id, { days: 60 }),
+    listEmails(brand.id, { days: 60 }),
+  ]);
+  const emailHref = (e: { id: string; rival_id: string }) => `/app/rivals/${e.rival_id}?view=emails#${e.id}`;
+  const refs = new Map<string, SignalRef>([
+    ...siteChanges.map((c) => [`site:${c.id}`, { kind: "site" as const, title: c.title, href: c.url }] as const),
+    ...emails.map((e) => [`email:${e.id}`, { kind: "email" as const, title: e.subject, href: emailHref(e) }] as const),
   ]);
   const byArchive = new Map(allAds.map((a) => [a.archive_id, a]));
   // Competitors' ads only; the brand's own are on its page and in the landscape.
@@ -116,6 +124,14 @@ export default async function Briefing() {
   const live = ads.filter((a) => a.active);
   const week = (k: ChangeKind, rivalId?: string) =>
     changes.filter((c) => c.kind === k && withinDays(c.detected_at, 7) && (!rivalId || c.rival_id === rivalId)).length;
+  const siteWeek = (rivalId?: string) => siteChanges.filter((c) => withinDays(c.detected_at, 7) && (!rivalId || c.rival_id === rivalId)).length;
+  const emailMonth = (rivalId?: string) => emails.filter((e) => withinDays(e.received_at, 30) && (!rivalId || e.rival_id === rivalId)).length;
+  const feed = buildTimeline({ adChanges: changes, site: siteChanges.filter((c) => withinDays(c.detected_at, 14)), emails: emails.filter((e) => withinDays(e.received_at, 14)), emailHref }).filter(
+    (e) => !self || e.rivalId !== self.id,
+  );
+  const opportunities = latest?.body.opportunities ?? [];
+  const act = opportunities.filter((o) => o.type !== "ignore");
+  const skip = opportunities.filter((o) => o.type === "ignore");
 
   return (
     <div>
@@ -184,42 +200,54 @@ export default async function Briefing() {
 
       <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Kpi label="Live ads" value={live.length} hint={`Across ${rivals.length} rivals`} />
-        <Kpi label="New ads" value={week("launched")} hint="Last 7 days" tone={week("launched") ? "text-pos" : ""} />
-        <Kpi label="Stopped ads" value={week("stopped")} hint="Last 7 days" tone={week("stopped") ? "text-neg" : ""} />
-        <Kpi label="Newly proven" value={week("proven")} hint="Passed 21 days live" tone={week("proven") ? "text-warn" : ""} />
+        <Kpi label="Ad moves" value={week("launched") + week("stopped")} hint={`${week("launched")} new · ${week("stopped")} stopped · 7 days`} tone={week("launched") ? "text-pos" : ""} />
+        <Kpi label="Website changes" value={siteWeek()} hint="Products, prices, promos · 7 days" tone={siteWeek() ? "text-warn" : ""} />
+        <Kpi label="Competitor emails" value={emailMonth()} hint="Sent to subscribers · 30 days" />
       </div>
+
+      {act.length > 0 && (
+        <Section title="What to do next" aside="Competitor moves, judged against your business">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-2">
+            {act.map((o, n) => (
+              <OpportunityCard key={n} o={o} ads={byArchive} refs={refs} />
+            ))}
+          </div>
+          {skip.length > 0 && (
+            <div className="card mt-3 divide-y divide-line">
+              {skip.map((o, n) => (
+                <div key={n} className="px-5 py-3.5 flex flex-col sm:flex-row sm:items-baseline gap-1.5 sm:gap-4">
+                  <span className={`${OPPORTUNITY.ignore.cls} self-start`}>{OPPORTUNITY.ignore.label}</span>
+                  <div className="min-w-0">
+                    <span className="text-[13.5px] font-medium">{o.title}</span>
+                    <span className="text-[13px] text-ink-2"> · {o.fit}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="caption mt-3">
+            Intent is inferred from public signals. Ad longevity and email frequency hint at what works; they don&apos;t prove it.
+          </p>
+        </Section>
+      )}
 
       {latest && latest.body.insights.length > 0 && (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-x-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-          <Section title="Key insights" aside={`${latest.body.insights.length} findings`}>
-            <Insights report={latest} ads={byArchive} />
+          <Section title="Patterns" aside={`${latest.body.insights.length} across ads, sites and email`}>
+            <Insights report={latest} ads={byArchive} refs={refs} />
           </Section>
-          <Section title="Activity" aside="Last 14 days">
-            {changes.length ? (
-              <ul className="list-none m-0 p-0 card divide-y divide-line">
-                {changes
-                  .filter((c) => c.ad)
-                  .slice(0, 9)
-                  .map((c) => (
-                    <li key={c.id}>
-                      <a href={libraryLink(c.ad!.archive_id)} target="_blank" rel="noreferrer" className="flex gap-3 px-4 py-3 hover:bg-subtle transition-colors">
-                        <div className="w-10 h-10 rounded-md overflow-hidden border border-line shrink-0">
-                          <AdThumb src={c.ad!.image_url} label="Ad" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[13px] font-semibold truncate">{rivalName.get(c.rival_id)}</span>
-                            <span className={KIND[c.kind].cls}>{KIND[c.kind].label}</span>
-                            <span className="ml-auto caption shrink-0">{ago(c.detected_at)}</span>
-                          </div>
-                          <p className="text-[12.5px] text-ink-2 mt-0.5 truncate">{c.ad!.hook ?? c.ad!.body ?? ""}</p>
-                        </div>
-                      </a>
-                    </li>
-                  ))}
-              </ul>
+          <Section
+            title="Activity"
+            aside={
+              <Link href="/app/timeline" className="hover:text-ink">
+                Full timeline →
+              </Link>
+            }
+          >
+            {feed.length ? (
+              <Timeline events={feed.slice(0, 9)} rivalName={(id) => rivalName.get(id) ?? "?"} compact />
             ) : (
-              <div className="card p-5 text-[13.5px] text-ink-2">No changes yet. New, stopped and newly proven ads show up here as the daily scans find them.</div>
+              <div className="card p-5 text-[13.5px] text-ink-2">No changes yet. New and stopped ads, website changes and competitor emails show up here as the daily scans find them.</div>
             )}
           </Section>
         </div>
@@ -235,17 +263,17 @@ export default async function Briefing() {
         </Section>
       )}
 
-      {latest && (
+      {latest && !opportunities.length && (
         <Section title="Should you copy it?" aside="Their moves, judged against your brand and goals">
           {latest.body.translations?.length ? (
             <Translations items={latest.body.translations} ads={byArchive} />
           ) : (
-            <div className="card p-5 text-[13.5px] text-ink-2">Written with the next report. Run a scan to get it now.</div>
+            <div className="card p-5 text-[13.5px] text-ink-2">Your opportunities are written with the next report. Run a scan to get them now.</div>
           )}
         </Section>
       )}
 
-      {latest && latest.body.plays.length > 0 && (
+      {latest && !opportunities.length && Boolean(latest.body.plays?.length) && (
         <Section title="Ads to make next" aside="Built from what's worth copying">
           <Plays report={latest} ads={byArchive} />
         </Section>
@@ -253,7 +281,7 @@ export default async function Briefing() {
 
       <Section title="Rivals">
         <div className="card overflow-x-auto">
-          <table className="table min-w-[920px]">
+          <table className="table min-w-[1060px]">
             <thead>
               <tr>
                 <th>Rival</th>
@@ -263,6 +291,8 @@ export default async function Briefing() {
                 <th className="!text-right">New · 7d</th>
                 <th className="!text-right">Stopped · 7d</th>
                 <th className="!text-right">Longest running</th>
+                <th className="!text-right" title="Website changes in the last 7 days">Site · 7d</th>
+                <th className="!text-right" title="Marketing emails in the last 30 days">Emails · 30d</th>
                 {hasSocial && <th className="!text-right">Instagram</th>}
                 {hasSocial && <th className="!text-right">TikTok</th>}
                 <th>Launches · 10 wks</th>
@@ -288,6 +318,8 @@ export default async function Briefing() {
                     <td className={`text-right tnum ${week("launched", r.id) ? "text-pos font-medium" : "text-ink-3"}`}>{week("launched", r.id)}</td>
                     <td className={`text-right tnum ${week("stopped", r.id) ? "text-neg font-medium" : "text-ink-3"}`}>{week("stopped", r.id)}</td>
                     <td className="text-right tnum">{longest ? `${longest} days` : "—"}</td>
+                    <td className={`text-right tnum ${siteWeek(r.id) ? "text-warn font-medium" : "text-ink-3"}`}>{siteWeek(r.id)}</td>
+                    <td className={`text-right tnum ${emailMonth(r.id) ? "" : "text-ink-3"}`}>{emailMonth(r.id)}</td>
                     {hasSocial && <td className="text-right tnum">{compact(followers(r.id, "instagram"))}</td>}
                     {hasSocial && <td className="text-right tnum">{compact(followers(r.id, "tiktok"))}</td>}
                     <td>
@@ -315,7 +347,7 @@ export default async function Briefing() {
                   <p className="text-[13.5px] text-ink-2 leading-[1.7] max-w-[820px]">{r.body.summary}</p>
                   {r.body.insights.length > 0 && (
                     <div className="mt-4">
-                      <Insights report={r} ads={byArchive} />
+                      <Insights report={r} ads={byArchive} refs={refs} />
                     </div>
                   )}
                 </div>

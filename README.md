@@ -1,8 +1,9 @@
 # TRND
 
-Always-on surveillance for paid social. Enter your website; TRND profiles your brand, names your competitors, reads
-every Meta ad you and they run plus everyone's Instagram and TikTok, tells you what's working and where you stand, and
-watches for changes every day.
+Competitive intelligence that tells you what to do. TRND tracks what competitors sell, how they position it and what
+they push to customers, across three public channels (their Meta ads, their websites, their marketing emails), then
+reads it through your business (what you sell, to whom, your strengths, your goals) and recommends how to compete:
+get ahead, win the choice, counter, or ignore, each with a campaign brief.
 
 ## How it works
 
@@ -26,9 +27,19 @@ watches for changes every day.
    - The owner sets goals (`brands.objectives`: goal, budget, target cost, focus) and can upload an Ads Manager CSV
      (`own_ad_results`, parsed by `lib/results.ts`), so advice is judged against what they want and what has worked.
    - Every ad is staged from age and versions (`adStage`, `lib/diff.ts`): testing, scaling, running or stopped.
-   - The report follows four steps: competitor insights; where you stand (price tier, audience, message, strength,
-     only you / only them / open lanes); should you copy it (each competitor move judged copy, adapt or skip, with why
-     and how); and ads to make next (hook, format, creative, offer, audience, rationale).
+   - **Websites** (`lib/sitewatch/`): each scan snapshots every competitor's homepage (headlines, description,
+     announcement bar, offer lines, nav) and catalog (Shopify `products.json`, else JSON-LD), and records material
+     changes against the last snapshot: products added or dropped, price moves, sales, promotions, new headlines.
+   - **Emails** (`lib/inbox/`): every competitor gets an address, `<name>-<token>@INBOUND_DOMAIN`. The first scan signs
+     it up to their newsletter (their Klaviyo form, or the signup form on their homepage); when it can't, the rival's
+     Emails tab shows the address for the owner to sign up by hand. Mail arrives at `/api/inbound`, double opt-in links
+     are followed, and the model tags each email's kind, offer, theme and whether it repeats an earlier send.
+   - **The report** (the opportunity engine) connects signals across the three channels into patterns (new, ongoing,
+     repeated), then writes 4-6 opportunities, each classified get ahead / win the choice / counter / ignore, with
+     what was seen, the likely intent (hedged), why it fits or doesn't, urgency and confidence, a recommendation and a
+     brief (angle, hook, offer, creative, format, audience, experiment), ranked by relevance, urgency, differentiation,
+     feasibility and confidence. Evidence links to the ads, website changes and emails behind it. Plus where you stand.
+   - `/app/timeline` is every competitor move across the three channels, day by day.
 3. **Monitor**. Vercel Cron hits `/api/cron/scan` daily, which fans out one invocation per due brand. A scan that finds
    changes writes an update report and emails the owner.
 
@@ -64,15 +75,27 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql` then `0102_page_source.sql`, safe to re-run). They create
-`brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles` and `social_snapshots`, and leave the old
+`0101_brand_intel.sql`, `0102_page_source.sql` and `0103_signals.sql`, safe to re-run). They create
+`brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
+`site_snapshots`, `site_changes` and `emails`, and leave the old
 product's tables alone (drop them when convenient).
+
+### Competitor emails
+
+Set `INBOUND_DOMAIN` (e.g. `in.usetrnd.com`) and `INBOUND_SECRET`. With Resend: add the domain under Receiving (it
+gives you the MX records), add a webhook for `email.received` pointing at `https://<site>/api/inbound`, and use its
+signing secret (`whsec_…`) as `INBOUND_SECRET`; the body is fetched with `RESEND_API_KEY`. Any other inbound service
+(a Cloudflare Email Worker, Postmark) can post `{from, to, subject, text, html}` as JSON to
+`/api/inbound?secret=<INBOUND_SECRET>`. Without these, everything else runs and the Emails tabs say how to turn it on.
 
 ## Layout
 
 ```
-app/                 landing, auth, /app (dashboard, setup, rivals/[id], settings), api/cron/scan, api/stripe/webhook
+app/                 landing, auth, /app (briefing, timeline, brand, setup, rivals/[id], settings), api/cron/scan, api/inbound, api/stripe/webhook
 lib/adlibrary/       scrape (network), parse (pure), match (pure), facebook (Page id lookup), resolve (finding the Page)
+lib/sitewatch/       snapshot + diff (pure), watch (network + storage)
+lib/inbox/           parse (pure), verify (webhook signatures), subscribe (newsletter signup), store
+lib/timeline.ts      one feed across ads, sites and emails
 lib/ai/              openai (one structured-output call), analyze (rivals, tags, report)
 lib/scan.ts          one brand's scan: scrape → diff → tag → report → email
 lib/diff.ts          days running, the proven line

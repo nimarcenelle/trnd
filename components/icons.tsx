@@ -52,3 +52,29 @@ export const IconBrand = (p: P) => (
     <path d="M8 1.75 9.6 5.1l3.65.45-2.7 2.5.72 3.6L8 9.85l-3.27 1.8.72-3.6-2.7-2.5L6.4 5.1Z" />
   </svg>
 );
+export const IconTimeline = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <path d="M4 2.5v11" />
+    <circle cx="4" cy="4.5" r="1.25" />
+    <circle cx="4" cy="11.5" r="1.25" />
+    <path d="M7.5 4.5h6M7.5 11.5h4.5M7.5 8h5" />
+  </svg>
+);
+export const IconMail = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <rect x="2" y="3.5" width="12" height="9" rx="1.5" />
+    <path d="m2.5 4.5 5.5 4 5.5-4" />
+  </svg>
+);
+export const IconGlobe = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <circle cx="8" cy="8" r="5.75" />
+    <path d="M2.5 8h11M8 2.25c1.6 1.6 2.4 3.5 2.4 5.75S9.6 12.15 8 13.75M8 2.25C6.4 3.85 5.6 5.75 5.6 8s.8 4.15 2.4 5.75" />
+  </svg>
+);
+export const IconAd = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <path d="M2.5 6.5v3h2l4.5 3v-9l-4.5 3h-2Z" />
+    <path d="M11.5 5.5c.8.7 1.2 1.5 1.2 2.5s-.4 1.8-1.2 2.5" />
+  </svg>
+);

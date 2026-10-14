@@ -21,6 +21,8 @@ import { daysRunningOf, isNoPageNote } from "@/lib/format";
 import { growthBy } from "@/lib/social/read";
 
 export const metadata = { title: "Your brand — TRND" };
+// Pasting a Page starts a scan after the response, inside this route\'s time limit.
+export const maxDuration = 300;
 
 const TIER = { budget: "Budget", mid: "Mid-range", premium: "Premium", unknown: "Not sure" } as const;
 

@@ -3,7 +3,7 @@ import Link from "next/link";
 import AdPreview from "@/components/app/ad-preview";
 import Avatar from "@/components/app/avatar";
 import Brand from "@/components/brand";
-import { IconCheck } from "@/components/icons";
+import { IconAd, IconCheck, IconGlobe, IconMail } from "@/components/icons";
 import SampleCreative from "@/components/sample/creative";
 import { SAMPLE_ADS, type SampleAd } from "@/components/sample/market";
 import ProductShot from "@/components/sample/product-shot";
@@ -12,28 +12,54 @@ import UrlStart from "@/components/url-start";
 import { PRICE_LABEL } from "@/lib/billing";
 
 const STEPS = [
-  { title: "Enter your website", body: "TRND reads it, works out what you sell and who buys it, and finds the brands competing for the same customers." },
-  { title: "See every ad they run", body: "Every active ad your competitors run on Facebook and Instagram, with the copy, the creative, the offer and the date it started." },
-  { title: "Get a briefing every morning", body: "What changed overnight, what it means for you, and the ads worth making next, in your inbox and your dashboard." },
+  { title: "Tell us your business", body: "Enter your website. TRND learns what you sell, who you serve, how you're priced and what makes you different. Correct anything, and add your goals." },
+  { title: "We watch three channels", body: "Every day: the Meta ads your competitors run, the changes on their websites, and the marketing emails they send their subscribers." },
+  { title: "We connect the dots", body: "A new homepage, a bundle email and a run of savings ads aren't three events. TRND links the signals and reads them through your business." },
+  { title: "You get your next move", body: "Each move ranked: get ahead, win the choice, counter, or ignore. With a campaign brief ready to test: angle, hook, offer, creative and audience." },
+];
+
+const CHANNELS = [
+  {
+    icon: IconAd,
+    title: "Their ads",
+    body: "See the messages and creatives competitors push on Facebook and Instagram, how long each has run, and what they're scaling.",
+    sample: "Clearwell · 6 versions of one review ad, live 94 days",
+  },
+  {
+    icon: IconGlobe,
+    title: "Their websites",
+    body: "Catch changes in products, pricing, promotions and positioning the day they happen.",
+    sample: "Tidewell · New homepage headline: “Clean water, half the price”",
+  },
+  {
+    icon: IconMail,
+    title: "Their emails",
+    body: "Understand the offers, launches and messages they send straight to subscribers, and which ones they keep repeating.",
+    sample: "Marlow · “Bundle & save 30%”, third send this month",
+  },
 ];
 
 const INCLUDED = [
   "Up to 10 competitors, checked daily",
-  "Every active Meta ad, analyzed",
+  "Their Meta ads, websites and emails",
+  "Opportunities ranked for your business",
+  "Campaign briefs ready to test",
   "Instagram and TikTok tracking",
-  "Your brand profile and positioning",
-  "Daily change alerts by email",
-  "Ad ideas with creative briefs",
+  "An email when something changes",
 ];
 
 const FAQ = [
   {
     q: "Where does the data come from?",
-    a: "Ads come from Meta's public Ad Library, which lists every active ad running on Facebook, Instagram, Messenger and Audience Network. Social numbers come from public Instagram and TikTok profiles. TRND reads both for you and your competitors every day, and keeps the history the platforms don't.",
+    a: "Three public sources. Ads come from Meta's Ad Library, which lists every active ad on Facebook, Instagram, Messenger and Audience Network. Websites are read like any visitor reads them: homepage, products, prices and promotions. Emails are the newsletters competitors offer to anyone who signs up. TRND reads them every day and keeps the history.",
   },
   {
-    q: "How do you know which ads are working?",
-    a: "Meta doesn't publish spend or results for commercial ads. What it does show is when each ad started. An ad still running after weeks is one a competitor keeps paying for, and several versions of the same idea means they're scaling it. TRND reads those signals across every competitor at once, and never claims more than they show.",
+    q: "How do you get their emails?",
+    a: "Every competitor gets its own TRND inbox. We sign it up to their newsletter the way any visitor would; where a signup form needs a person, we give you the address to sign up yourself. You see what they send subscribers, not their private customer emails.",
+  },
+  {
+    q: "How do you know what's working for them?",
+    a: "We don't, exactly, and we say so. Meta doesn't publish competitors' spend or results. What it does show is when each ad started: an ad still running after weeks is one they keep paying for, and several versions of one idea means they're scaling it. The same goes for an offer they email again and again. TRND reads those signals, tells you how confident it is, and never claims more than they show.",
   },
   {
     q: "How are my competitors chosen?",
@@ -102,7 +128,7 @@ function Feature({ kicker, title, body, points, visual, flip = false }: { kicker
 }
 
 export default function Home() {
-  const [clearwell, tidewell, marlow, fenn] = SAMPLE_ADS;
+  const [clearwell, tidewell, , fenn] = SAMPLE_ADS;
   return (
     <div className="min-h-dvh flex flex-col">
       <SiteNav />
@@ -111,11 +137,11 @@ export default function Home() {
         <div className="absolute inset-x-0 bottom-0 h-[55%] bg-subtle border-t border-line" aria-hidden />
         <div className="wrap relative pt-20 sm:pt-28 pb-16 sm:pb-24 flex flex-col items-center text-center">
           <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full border border-line bg-bg text-[12.5px] text-ink-2 shadow-[var(--shadow-sm)]">
-            <span className="live-dot !w-1.5 !h-1.5" /> Always-on surveillance for paid social
+            <span className="live-dot !w-1.5 !h-1.5" /> Competitive intelligence for marketers
           </span>
-          <h1 className="display text-[40px] sm:text-[56px] lg:text-[64px] mt-6 max-w-[860px]">See every ad your competitors run, and what&apos;s working.</h1>
-          <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[620px]">
-            TRND tracks your competitors&apos; Meta ads and social accounts every day, shows you which ads they keep paying for and where you stand, and tells you what changed.
+          <h1 className="display text-[40px] sm:text-[56px] lg:text-[64px] mt-6 max-w-[900px]">Know what your competitors are doing. Know what to do next.</h1>
+          <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[660px]">
+            Your competitors are constantly changing what they sell, what they say, and how they advertise. TRND watches their ads, websites and marketing emails to uncover their next moves, then shows you where your business can get ahead, stand out, or fight back.
           </p>
           <div className="mt-8 w-full flex justify-center">
             <UrlStart />
@@ -130,8 +156,8 @@ export default function Home() {
       <section id="how" className="border-t border-line">
         <div className="wrap py-20 sm:py-28">
           <p className="kicker">How it works</p>
-          <h2 className="display text-[30px] sm:text-[38px] mt-3 max-w-[640px]">Set up in two minutes. Informed every morning after.</h2>
-          <ol className="list-none p-0 m-0 mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+          <h2 className="display text-[30px] sm:text-[38px] mt-3 max-w-[640px]">From competitor moves to your next campaign.</h2>
+          <ol className="list-none p-0 m-0 mt-12 grid gap-10 md:grid-cols-2 lg:grid-cols-4 md:gap-8">
             {STEPS.map((s, i) => (
               <li key={s.title} className="border-t border-line pt-6">
                 <span className="text-[13px] font-medium text-ink-3 tnum">0{i + 1}</span>
@@ -143,13 +169,32 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="features" className="border-t border-line bg-subtle">
+      <section id="channels" className="border-t border-line bg-subtle">
+        <div className="wrap py-20 sm:py-28">
+          <p className="kicker">Three channels</p>
+          <h2 className="display text-[30px] sm:text-[38px] mt-3 max-w-[640px]">Three channels. One competitive advantage.</h2>
+          <div className="mt-12 grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-3">
+            {CHANNELS.map(({ icon: Icon, title, body, sample }) => (
+              <div key={title} className="card p-6 flex flex-col">
+                <span className="w-9 h-9 rounded-lg border border-line bg-subtle grid place-items-center text-ink-2">
+                  <Icon />
+                </span>
+                <h3 className="heading text-[17px] mt-5">{title}</h3>
+                <p className="text-[14.5px] text-ink-2 leading-[1.65] mt-2">{body}</p>
+                <div className="well px-3.5 py-3 mt-5 text-[13px] text-ink-2">{sample}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="features" className="border-t border-line">
         <div className="wrap py-20 sm:py-28 flex flex-col gap-24 sm:gap-32">
           <Feature
-            kicker="What's working"
+            kicker="Their ads"
             title="Know which ads they keep paying for."
-            body="An ad that's still running after months is one a competitor keeps funding. TRND sorts every competitor ad by how long it has run and tags its angle, hook and offer, so the winners are obvious."
-            points={["Every active ad, longest-running first", "Angle, hook and offer on every ad", "The patterns the long-running ads share"]}
+            body="An ad that's still running after months is one a competitor keeps funding. TRND reads every competitor ad, tags its angle, hook and offer, and marks what they're testing and what they're scaling."
+            points={["Every active ad, longest-running first", "Testing vs. scaling, from age and versions", "The patterns the long-running ads share"]}
             visual={
               <div className="grid grid-cols-2 gap-4 max-w-[560px] lg:ml-auto">
                 <SampleAdCard ad={fenn} i={0} />
@@ -161,30 +206,31 @@ export default function Home() {
           />
           <Feature
             flip
-            kicker="What changed"
-            title="Know the moment they make a move."
-            body="New launches, ads they stopped, and ads that just proved themselves. TRND checks every day and emails you only when something changed, with what it means for your brand."
-            points={["Daily checks on every competitor", "New, stopped and newly proven ads", "An email when there's something worth knowing"]}
+            kicker="Connect the dots"
+            title="See the strategy, not just the moves."
+            body="One email is noise. A new homepage, a bundle email and a run of savings ads in the same week is a strategy. TRND groups related signals across channels, tells repeated messaging from new pushes, and emails you when it matters."
+            points={["One timeline across ads, websites and emails", "Related signals grouped into one pattern", "New pushes told apart from the same old offer"]}
             visual={
               <div className="card overflow-hidden max-w-[520px]">
                 <div className="px-5 py-4 border-b border-line">
-                  <div className="text-[12px] text-ink-3">From TRND · 7:02 AM</div>
-                  <div className="text-[15px] font-semibold mt-1 leading-snug">Tidewell launched a 3-for-$79 refill bundle</div>
+                  <div className="flex items-center gap-2">
+                    <span className="badge badge-pos">New push</span>
+                    <span className="text-[12px] text-ink-3">This week · 3 signals</span>
+                  </div>
+                  <div className="text-[15px] font-semibold mt-2 leading-snug">Tidewell looks to be making an affordability push</div>
                 </div>
                 <div className="divide-y divide-line">
                   {[
-                    { ad: tidewell, badge: "badge badge-pos", label: "New", line: "Year-supply bundle, 3 filters for $79" },
-                    { ad: fenn, badge: "badge badge-warn", label: "Proven", line: "“Your shampoo isn't the problem” passed 128 days" },
-                    { ad: marlow, badge: "badge badge-neg", label: "Stopped", line: "Two discount ads stopped after under 30 days" },
-                  ].map(({ ad, badge, label, line }, i) => (
+                    { icon: <IconGlobe />, tag: "New message", badge: "badge badge-info", line: "Homepage headline now “Clean water, half the price”" },
+                    { icon: <IconMail />, tag: "Promo email", badge: "badge badge-warn", line: "“3 filters for $79”, sent twice since Monday" },
+                    { icon: <SampleCreative spec={tidewell.creative} id="dots-0" />, tag: "New ads", badge: "badge badge-pos", line: "4 savings-themed ads launched in 6 days" },
+                  ].map(({ icon, tag, badge, line }, i) => (
                     <div key={i} className="flex items-center gap-3 px-5 py-3.5">
-                      <div className="w-11 h-11 rounded-md overflow-hidden border border-line shrink-0">
-                        <SampleCreative spec={ad.creative} id={`mail-${i}`} />
-                      </div>
+                      <div className="w-11 h-11 rounded-md overflow-hidden border border-line shrink-0 grid place-items-center bg-subtle text-ink-2">{icon}</div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-[13.5px] font-semibold">{ad.rival}</span>
-                          <span className={badge}>{label}</span>
+                          <span className="text-[13.5px] font-semibold">Tidewell</span>
+                          <span className={badge}>{tag}</span>
                         </div>
                         <div className="text-[13px] text-ink-2 truncate mt-0.5">{line}</div>
                       </div>
@@ -195,13 +241,12 @@ export default function Home() {
             }
           />
           <Feature
-            flip
-            kicker="Where you stand"
-            title="See yourself the way the market does."
-            body="TRND profiles your brand from your site and your own ads, then puts you next to every competitor: price, audience, message, ad volume and social reach. You see what only you do, what they all do that you don't, and the lanes nobody has taken."
-            points={["Your brand profile, which you can correct", "Your ads and social, side by side with theirs", "Gaps you could own, named specifically"]}
+            kicker="Built around your business"
+            title="Intelligence built around your business."
+            body="TRND learns what you sell, who you serve, what makes you different and what you want to achieve. Every competitor move is read through that, so the question it answers is yours: what is the smartest marketing move for my business right now?"
+            points={["Your business profile and goals, which you control", "Your ads and social, side by side with theirs", "Gaps in competitor positioning you could own"]}
             visual={
-              <div className="card p-5 max-w-[520px]">
+              <div className="card p-5 max-w-[520px] lg:ml-auto">
                 <div className="caption">You vs. your competitors</div>
                 <div className="grid grid-cols-3 gap-3 mt-3">
                   {[
@@ -237,24 +282,34 @@ export default function Home() {
             }
           />
           <Feature
-            kicker="What to make next"
-            title="Turn their winners into your next ads."
-            body="TRND judges every competitor move against your brand, goals and past results: copy it, adapt it, or skip it. Then it turns the keepers into ads you can make, with a brief a creator can shoot from."
-            points={["Copy, adapt or skip, with the reason", "Hook, format, creative, offer and audience for each idea", "Grounded in the ads that prove them"]}
+            flip
+            kicker="Your next move"
+            title="Get ahead, stand out, or fight back."
+            body="Every move is classified for you: get ahead of an opening, win the choice where everyone sounds the same, counter a threat with something only you can say, or ignore what doesn't fit. Each comes ranked by relevance, urgency and confidence, with a campaign brief ready to test."
+            points={["Get ahead · Win the choice · Counter · Ignore", "Ranked for your customers, economics and goals", "Angle, hook, offer, creative, audience and the test to run"]}
             visual={
-              <div className="card p-6 max-w-[520px] lg:ml-auto">
-                <div className="caption">Idea 1</div>
-                <div className="text-[17px] font-semibold mt-1">The &ldquo;it was my water&rdquo; review, Halo version</div>
-                <p className="text-[13.5px] text-ink-2 leading-[1.6] mt-2">
-                  Clearwell&apos;s review ad has run 94 days across 6 versions. Lead with the problem, not the product.
-                </p>
-                <blockquote className="m-0 mt-4 border-l-2 border-ink pl-3 text-[15px] font-medium leading-[1.45]">&ldquo;I spent $400 on hair masks. The problem was my shower.&rdquo;</blockquote>
+              <div className="card p-6 max-w-[520px]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="badge badge-warn">Counter</span>
+                  <span className="caption">Urgency high · Confidence medium</span>
+                </div>
+                <div className="text-[17px] font-semibold mt-3">Answer Tidewell&apos;s price push with proof, not a discount</div>
+                <dl className="m-0 mt-3 flex flex-col gap-2.5 text-[13.5px] leading-[1.6]">
+                  <div>
+                    <dt className="text-[12px] font-medium text-ink-3">What we saw</dt>
+                    <dd className="m-0">New “half the price” homepage, a 3-for-$79 email twice in a week, 4 savings ads.</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[12px] font-medium text-ink-3">For you</dt>
+                    <dd className="m-0 text-ink-2">Your margin can&apos;t match $79, but your filter lasts twice as long. Cost per month is your win.</dd>
+                  </div>
+                </dl>
+                <blockquote className="m-0 mt-4 border-l-2 border-ink pl-3 text-[15px] font-medium leading-[1.45]">&ldquo;Cheaper filters, twice the refills. Do the math.&rdquo;</blockquote>
                 <dl className="m-0 mt-4 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-2 text-[13px] leading-[1.5]">
                   {[
-                    ["Format", "9:16 selfie video, 20 to 30 seconds"],
-                    ["Creative", "Hair close-up, the 30-second install, week three"],
                     ["Offer", "Free first refill"],
-                    ["Audience", "Women 25-45 who've tried every hair mask"],
+                    ["Format", "Static comparison + 9:16 cost breakdown"],
+                    ["Test", "Cost-per-month vs. your best ad, 7 days"],
                   ].map(([k, v]) => (
                     <div key={k} className="contents">
                       <dt className="text-ink-3">{k}</dt>
@@ -262,15 +317,6 @@ export default function Home() {
                     </div>
                   ))}
                 </dl>
-                <div className="flex items-center gap-2.5 mt-4">
-                  <span className="caption">Modeled on</span>
-                  <div className="w-9 h-9 rounded-md overflow-hidden border border-line">
-                    <SampleCreative spec={clearwell.creative} id="brief-0" />
-                  </div>
-                  <div className="w-9 h-9 rounded-md overflow-hidden border border-line">
-                    <SampleCreative spec={fenn.creative} id="brief-1" />
-                  </div>
-                </div>
               </div>
             }
           />
@@ -340,7 +386,7 @@ export default function Home() {
               </span>
             ))}
           </div>
-          <h2 className="display text-[30px] sm:text-[40px] mt-6 max-w-[640px]">See what your competitors are running today.</h2>
+          <h2 className="display text-[30px] sm:text-[40px] mt-6 max-w-[680px]">Stop watching competitors. Start outmaneuvering them.</h2>
           <div className="mt-8 w-full flex justify-center">
             <UrlStart cta="Start free trial" />
           </div>

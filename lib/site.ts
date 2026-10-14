@@ -36,7 +36,8 @@ export function htmlToText(html: string): string {
   return [title.trim(), description.trim(), body].filter(Boolean).join("\n");
 }
 
-async function get(url: string, headers: Record<string, string> = {}): Promise<string | null> {
+/** A GET that answers null on any failure. */
+export async function get(url: string, headers: Record<string, string> = {}): Promise<string | null> {
   try {
     const res = await fetch(url, {
       headers: { "user-agent": UA, "accept-language": "en-US,en;q=0.9", ...headers },

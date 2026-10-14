@@ -19,6 +19,8 @@ export default function RivalList({ rivals, social = false }: { rivals: Rival[];
               <span className="text-[14px] font-semibold">{r.name}</span>
               {r.website && <span className="text-[12.5px] text-ink-3">{r.website}</span>}
               {r.source === "owner" && <span className="badge">Added by you</span>}
+              {r.email_status === "receiving" && <span className="badge badge-pos">Emails arriving</span>}
+              {r.email_status === "manual" && <span className="badge badge-warn">Email signup needs you</span>}
             </div>
             {r.reason && <p className="text-[13px] text-ink-2 mt-0.5 leading-[1.5]">{r.reason}</p>}
             {r.last_error && <p className={`text-[12.5px] mt-1 ${isNoPageNote(r.last_error) ? "text-ink-3" : "text-neg"}`}>{r.last_error}</p>}

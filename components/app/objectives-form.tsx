@@ -43,7 +43,7 @@ export default function ObjectivesForm({ objectives }: { objectives: Objectives 
         </label>
       </div>
       <label className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-medium">Anything else TRND should know</span>
+        <span className="text-[13px] font-medium">Constraints and anything else TRND should know</span>
         <textarea className="input !h-auto py-2 leading-[1.5] resize-y" rows={2} name="notes" defaultValue={objectives?.notes ?? ""} placeholder="We can't run discounts deeper than 15%. Holiday push starts Nov 15." />
       </label>
       <div className="flex items-center gap-3">

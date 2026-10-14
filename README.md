@@ -60,7 +60,8 @@ cp .env.example .env.local   # fill in Supabase + OpenAI at minimum
 pnpm dev
 ```
 
-Run `supabase/migrations/0100_surveillance.sql`, then `0101_brand_intel.sql`, in the Supabase SQL editor. They create
+Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
+`0101_brand_intel.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles` and `social_snapshots`, and leave the old
 product's tables alone (drop them when convenient).
 

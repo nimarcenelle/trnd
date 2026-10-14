@@ -7,7 +7,7 @@ get ahead, win the choice, counter, or ignore, each with a campaign brief.
 
 ## How it works
 
-1. **Setup** (`/app/setup`). The site is read (`lib/site.ts`). One model call names the brand and its 8 most likely rivals
+1. **Setup** (`/app/setup`). The site is read (`lib/site.ts`). One model call names the brand and its 10 most influential rivals
    (`discoverRivals`, `lib/ai/analyze.ts`). The owner edits the list, then starts watching.
 2. **Scan** (`lib/scan.ts`). For each rival:
    - The first scan finds the rival's Facebook Page (`lib/adlibrary/resolve.ts`): the Page their site links to; else an

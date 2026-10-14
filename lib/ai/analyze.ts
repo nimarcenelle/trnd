@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
+import { MAX_RIVALS } from "@/lib/db/types";
 import type { Ad, Brand, BrandProfile, EmailKind, Landscape, Objectives, Opportunity, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { rankResults } from "@/lib/results";
 
@@ -71,10 +72,12 @@ Return:
   - offers: current discounts, bundles, subscriptions or shipping offers.
   - tone: how it talks, in a few words.
   - differentiators: what it claims makes it different from alternatives.
-- rivals: the 8 direct competitors most likely to be running Meta ads to the same customer. Prefer DTC brands
-  of a similar size and price point over giant retailers and marketplaces (no Amazon, Walmart, Target). For each:
-  the brand name exactly as it appears on its Facebook Page, its website domain (e.g. "brand.com"), and one line
-  on why it competes for the same customer.`,
+- rivals: the ${MAX_RIVALS} most influential direct competitors for the same customer, most influential first.
+  Influence means how much of this customer's attention and spend a brand commands: market share, brand recognition,
+  how heavily it advertises on Meta, and its social following. Leading brands in the category belong here even when
+  bigger than this one. Leave out marketplaces and general retailers (no Amazon, Walmart, Target) and brands that
+  only overlap a little. For each: the brand name exactly as it appears on its Facebook Page, its website domain
+  (e.g. "brand.com"), and one line on why it competes for the same customer.`,
   });
 }
 

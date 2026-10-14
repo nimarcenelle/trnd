@@ -78,21 +78,3 @@ export const IconAd = (p: P) => (
     <path d="M11.5 5.5c.8.7 1.2 1.5 1.2 2.5s-.4 1.8-1.2 2.5" />
   </svg>
 );
-export const IconBolt = (p: P) => (
-  <svg {...base} {...p} aria-hidden="true">
-    <path d="M9 1.75 3.5 9h4L7 14.25 12.5 7h-4L9 1.75Z" />
-  </svg>
-);
-export const IconTarget = (p: P) => (
-  <svg {...base} {...p} aria-hidden="true">
-    <circle cx="8" cy="8" r="5.75" />
-    <circle cx="8" cy="8" r="3.25" />
-    <circle cx="8" cy="8" r="0.75" />
-  </svg>
-);
-export const IconShield = (p: P) => (
-  <svg {...base} {...p} aria-hidden="true">
-    <path d="M8 1.75 13 3.5v4c0 3.1-2.1 5.5-5 6.75C5.1 13 3 10.6 3 7.5v-4l5-1.75Z" />
-    <path d="m5.75 8 1.5 1.5 3-3" />
-  </svg>
-);

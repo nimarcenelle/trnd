@@ -3,7 +3,7 @@ import Link from "next/link";
 import AdPreview from "@/components/app/ad-preview";
 import Avatar from "@/components/app/avatar";
 import Brand from "@/components/brand";
-import { IconAd, IconCheck, IconGlobe, IconMail } from "@/components/icons";
+import { IconCheck } from "@/components/icons";
 import SampleCreative from "@/components/sample/creative";
 import { SAMPLE_ADS, type SampleAd } from "@/components/sample/market";
 import ProductShot from "@/components/sample/product-shot";
@@ -13,35 +13,14 @@ import { PRICE_LABEL } from "@/lib/billing";
 
 const STEPS = [
   { title: "Tell us your business", body: "Enter your website. TRND learns what you sell, who you serve, how you're priced and what makes you different. Correct anything, and add your goals." },
-  { title: "We watch three channels", body: "Every day: the Meta ads your competitors run, the changes on their websites, and the marketing emails they send their subscribers." },
-  { title: "We connect the dots", body: "A new homepage, a bundle email and a run of savings ads aren't three events. TRND links the signals and reads them through your business." },
+  { title: "We watch them every day", body: "TRND follows your competitors' public marketing daily: what they launch, what they promote, what they change and what they keep paying for." },
+  { title: "We connect the dots", body: "Moves rarely come alone. A new message, a bundle offer and a run of savings ads are one push, not three events. TRND links them and reads them through your business." },
   { title: "You get your next move", body: "Each move ranked: get ahead, win the choice, counter, or ignore. With a campaign brief ready to test: angle, hook, offer, creative and audience." },
-];
-
-const CHANNELS = [
-  {
-    icon: IconAd,
-    title: "Their ads",
-    body: "See the messages and creatives competitors push on Facebook and Instagram, how long each has run, and what they're scaling.",
-    sample: "Clearwell · 6 versions of one review ad, live 94 days",
-  },
-  {
-    icon: IconGlobe,
-    title: "Their websites",
-    body: "Catch changes in products, pricing, promotions and positioning the day they happen.",
-    sample: "Tidewell · New homepage headline: “Clean water, half the price”",
-  },
-  {
-    icon: IconMail,
-    title: "Their emails",
-    body: "Understand the offers, launches and messages they send straight to subscribers, and which ones they keep repeating.",
-    sample: "Marlow · “Bundle & save 30%”, third send this month",
-  },
 ];
 
 const INCLUDED = [
   "Up to 10 competitors, checked daily",
-  "Their Meta ads, websites and emails",
+  "Every public move, tracked daily",
   "Opportunities ranked for your business",
   "Campaign briefs ready to test",
   "Instagram and TikTok tracking",
@@ -51,15 +30,11 @@ const INCLUDED = [
 const FAQ = [
   {
     q: "Where does the data come from?",
-    a: "Three public sources. Ads come from Meta's Ad Library, which lists every active ad on Facebook, Instagram, Messenger and Audience Network. Websites are read like any visitor reads them: homepage, products, prices and promotions. Emails are the newsletters competitors offer to anyone who signs up. TRND reads them every day and keeps the history.",
-  },
-  {
-    q: "How do you get their emails?",
-    a: "Every competitor gets its own TRND inbox. We sign it up to their newsletter the way any visitor would; where a signup form needs a person, we give you the address to sign up yourself. You see what they send subscribers, not their private customer emails.",
+    a: "Public information only: what your competitors put out to win customers. TRND reads it every day, keeps the history, and never touches anything private.",
   },
   {
     q: "How do you know what's working for them?",
-    a: "We don't, exactly, and we say so. Meta doesn't publish competitors' spend or results. What it does show is when each ad started: an ad still running after weeks is one they keep paying for, and several versions of one idea means they're scaling it. The same goes for an offer they email again and again. TRND reads those signals, tells you how confident it is, and never claims more than they show.",
+    a: "We don't, exactly, and we say so. Competitors don't publish their results. What we can see is what they keep paying for and keep repeating: an ad still running after weeks, several versions of one idea, an offer pushed again and again. TRND reads those signals, tells you how confident it is, and never claims more than they show.",
   },
   {
     q: "How are my competitors chosen?",
@@ -141,7 +116,7 @@ export default function Home() {
           </span>
           <h1 className="display text-[40px] sm:text-[56px] lg:text-[64px] mt-6 max-w-[900px]">Know what your competitors are doing. Know what to do next.</h1>
           <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[660px]">
-            Your competitors are constantly changing what they sell, what they say, and how they advertise. TRND watches their ads, websites and marketing emails to uncover their next moves, then shows you where your business can get ahead, stand out, or fight back.
+            Your competitors are constantly changing what they sell, what they say, and how they advertise. TRND watches every move they make, then shows you where your business can get ahead, stand out, or fight back.
           </p>
           <div className="mt-8 w-full flex justify-center">
             <UrlStart />
@@ -169,29 +144,10 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="channels" className="border-t border-line bg-subtle">
-        <div className="wrap py-20 sm:py-28">
-          <p className="kicker">Three channels</p>
-          <h2 className="display text-[30px] sm:text-[38px] mt-3 max-w-[640px]">Three channels. One competitive advantage.</h2>
-          <div className="mt-12 grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-3">
-            {CHANNELS.map(({ icon: Icon, title, body, sample }) => (
-              <div key={title} className="card p-6 flex flex-col">
-                <span className="w-9 h-9 rounded-lg border border-line bg-subtle grid place-items-center text-ink-2">
-                  <Icon />
-                </span>
-                <h3 className="heading text-[17px] mt-5">{title}</h3>
-                <p className="text-[14.5px] text-ink-2 leading-[1.65] mt-2">{body}</p>
-                <div className="well px-3.5 py-3 mt-5 text-[13px] text-ink-2">{sample}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="features" className="border-t border-line">
+      <section id="features" className="border-t border-line bg-subtle">
         <div className="wrap py-20 sm:py-28 flex flex-col gap-24 sm:gap-32">
           <Feature
-            kicker="Their ads"
+            kicker="What's working"
             title="Know which ads they keep paying for."
             body="An ad that's still running after months is one a competitor keeps funding. TRND reads every competitor ad, tags its angle, hook and offer, and marks what they're testing and what they're scaling."
             points={["Every active ad, longest-running first", "Testing vs. scaling, from age and versions", "The patterns the long-running ads share"]}
@@ -208,8 +164,8 @@ export default function Home() {
             flip
             kicker="Connect the dots"
             title="See the strategy, not just the moves."
-            body="One email is noise. A new homepage, a bundle email and a run of savings ads in the same week is a strategy. TRND groups related signals across channels, tells repeated messaging from new pushes, and emails you when it matters."
-            points={["One timeline across ads, websites and emails", "Related signals grouped into one pattern", "New pushes told apart from the same old offer"]}
+            body="One move is noise. A new message, a bundle offer and a run of savings ads in the same week is a strategy. TRND groups related moves, tells repeated messaging from new pushes, and emails you when it matters."
+            points={["One timeline of every move they make", "Related moves grouped into one pattern", "New pushes told apart from the same old offer"]}
             visual={
               <div className="card overflow-hidden max-w-[520px]">
                 <div className="px-5 py-4 border-b border-line">
@@ -221,8 +177,8 @@ export default function Home() {
                 </div>
                 <div className="divide-y divide-line">
                   {[
-                    { icon: <IconGlobe />, tag: "New message", badge: "badge badge-info", line: "Homepage headline now “Clean water, half the price”" },
-                    { icon: <IconMail />, tag: "Promo email", badge: "badge badge-warn", line: "“3 filters for $79”, sent twice since Monday" },
+                    { icon: <Avatar name="Tidewell" size={24} />, tag: "New message", badge: "badge badge-info", line: "Now leading with “Clean water, half the price”" },
+                    { icon: <Avatar name="Tidewell" size={24} />, tag: "New offer", badge: "badge badge-warn", line: "“3 filters for $79”, pushed twice since Monday" },
                     { icon: <SampleCreative spec={tidewell.creative} id="dots-0" />, tag: "New ads", badge: "badge badge-pos", line: "4 savings-themed ads launched in 6 days" },
                   ].map(({ icon, tag, badge, line }, i) => (
                     <div key={i} className="flex items-center gap-3 px-5 py-3.5">
@@ -297,7 +253,7 @@ export default function Home() {
                 <dl className="m-0 mt-3 flex flex-col gap-2.5 text-[13.5px] leading-[1.6]">
                   <div>
                     <dt className="text-[12px] font-medium text-ink-3">What we saw</dt>
-                    <dd className="m-0">New “half the price” homepage, a 3-for-$79 email twice in a week, 4 savings ads.</dd>
+                    <dd className="m-0">A new “half the price” message, a 3-for-$79 bundle pushed twice in a week, 4 savings ads.</dd>
                   </div>
                   <div>
                     <dt className="text-[12px] font-medium text-ink-3">For you</dt>

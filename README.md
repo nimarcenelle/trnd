@@ -63,7 +63,10 @@ with Chrome's headers. When the wall still comes up, reads go, in order, to:
 1. **Meta's official Ad Library API** (`lib/adlibrary/api.ts`, `META_ACCESS_TOKEN`): free and never walled, but for
    commercial ads it only returns ads shown in the EU, without images. In return it gives each ad's EU reach, which
    ranks ads. Ads aren't marked stopped across a switch between the API and the full library.
-2. **Apify** (`APIFY_TOKEN`), paid, only when set. A 402 or a refused token switches it off for 15 minutes.
+2. **Apify** (`APIFY_TOKEN`), paid, only when set. A 402 or a refused token switches it off for 15 minutes. To keep
+   the bill down, a paid read takes the top `APIFY_ADS_PER_RIVAL` ads (25) and runs every `APIFY_EVERY_DAYS` (2) per
+   company (never-read and failing companies right away; free reads stay daily). Instagram/TikTok are read every
+   `SOCIAL_EVERY_DAYS` (2) and Facebook posts every `FACEBOOK_POSTS_EVERY_DAYS` (7).
 
 `/api/health?probe=<brand>&key=<CRON_SECRET>` runs one search from the deployment through the free readers and says
 which one worked.

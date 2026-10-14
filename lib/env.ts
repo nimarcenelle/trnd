@@ -15,6 +15,12 @@ export const env = {
   /** Meta's official Ad Library API: a user access token from developers.facebook.com/tools/ad-library. */
   metaAccessToken: process.env.META_ACCESS_TOKEN ?? "",
   metaApiVersion: process.env.META_API_VERSION || "v23.0",
+  /** Cost controls for the paid Apify reads: ads per company per paid read, and days between paid reads. */
+  apifyAdsPerRival: Math.min(200, Math.max(5, Number(process.env.APIFY_ADS_PER_RIVAL) || 25)),
+  apifyEveryDays: Math.max(1, Number(process.env.APIFY_EVERY_DAYS) || 2),
+  /** Days between Instagram/TikTok reads, and between Facebook post reads (all through Apify). */
+  socialEveryDays: Math.max(1, Number(process.env.SOCIAL_EVERY_DAYS) || 2),
+  facebookPostsEveryDays: Math.max(1, Number(process.env.FACEBOOK_POSTS_EVERY_DAYS) || 7),
   /** Ads read per rival per scan. */
   adsPerRival: Math.min(200, Math.max(10, Number(process.env.ADS_PER_RIVAL) || 50)),
   cronSecret: process.env.CRON_SECRET ?? "",

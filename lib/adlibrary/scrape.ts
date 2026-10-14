@@ -176,7 +176,9 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
 }
 
 /** The same search through the Apify Ad Library actor; its items share Meta's shape. */
-async function fromApify(search: Search, limit: number): Promise<ScrapeResult> {
+async function fromApify(search: Search, wanted: number): Promise<ScrapeResult> {
+  // Apify bills per ad: a paid read takes the top APIFY_ADS_PER_RIVAL by impressions, not the full free-read count.
+  const limit = Math.min(wanted, env.apifyAdsPerRival);
   const url = `https://api.apify.com/v2/acts/${env.apifyAdLibraryActor}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`;
   assertApifyUp();
   const res = await fetchRetry(url, {

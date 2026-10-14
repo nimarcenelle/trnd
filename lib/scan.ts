@@ -4,14 +4,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { findPage, pageLooksRight } from "@/lib/adlibrary/resolve";
 import type { ScrapedAd } from "@/lib/adlibrary/parse";
-import { scrapeAds } from "@/lib/adlibrary/scrape";
+import { scrapeAds, ScrapeBlockedError } from "@/lib/adlibrary/scrape";
 import { commentSentiment, tagAds, tagEmails, writeReport } from "@/lib/ai/analyze";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Ad, Brand, OwnAdResult, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/score";
 import { crossedProven } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
-import { isModelConfigured } from "@/lib/env";
+import { env, isModelConfigured } from "@/lib/env";
 import { isNoPageNote, NO_PAGE_NOTE } from "@/lib/format";
 import { recordHealth } from "@/lib/health";
 import { subscribeOnce } from "@/lib/inbox/store";
@@ -100,7 +100,23 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
   const lastView = viewOf(rival.health?.ads?.via);
   let remapped = false;
   let { pageId, tried } = await resolvePage(sb, brand, rival);
-  let read = pageId ? await scrapeAds({ pageId }) : null;
+  // Free reads run every scan. A paid (Apify) read runs only when this company is due one.
+  const paidDue = paidReadDue(rival);
+  const readAds = async (id: string) => {
+    try {
+      return await scrapeAds({ pageId: id }, undefined, { backup: paidDue });
+    } catch (err) {
+      if (!paidDue && err instanceof ScrapeBlockedError && env.apifyToken) return "skipped" as const;
+      throw err;
+    }
+  };
+  let first = pageId ? await readAds(pageId) : null;
+  if (first === "skipped") {
+    // Walled, and not due a paid read yet: keep what we have from the last read.
+    console.warn(`[scan] ${rival.name}: direct read walled; next paid read in under ${env.apifyEveryDays} days`);
+    return { ...none, remapped };
+  }
+  let read = first;
 
   // A Page matched before pages were confirmed may be someone else's (a Page
   // that only shares the name). Check it once against its ads and look again
@@ -114,7 +130,8 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
       await dropPage(sb, rival);
       remapped = true;
       ({ pageId, tried } = await resolvePage(sb, brand, rival, [wrong]));
-      read = pageId ? await scrapeAds({ pageId }) : null;
+      first = pageId ? await readAds(pageId) : null;
+      read = first === "skipped" ? null : first;
     }
   }
 
@@ -281,6 +298,16 @@ function unreadReason(rival: Rival): string | null {
   const ads = rival.health?.ads;
   if (ads?.via === "api" && !ads.count) return "only ads shown in the EU were visible, and it has none there";
   return null;
+}
+
+/**
+ * Whether a company is due a paid read: never read, its last read failed or
+ * came free, or its last paid read is APIFY_EVERY_DAYS old.
+ */
+function paidReadDue(rival: Rival): boolean {
+  const ads = rival.health?.ads;
+  if (!rival.last_scraped_at || !ads || !ads.ok || ads.via !== "apify") return true;
+  return Date.now() - Date.parse(ads.at) > env.apifyEveryDays * 86_400_000 - 3 * 3_600_000;
 }
 
 /** The library and Apify read the same full library; Meta's API sees only ads shown in the EU. */

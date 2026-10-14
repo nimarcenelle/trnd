@@ -17,7 +17,7 @@ export interface RivalLink {
 const MAIN = [
   { href: "/app", label: "Briefing", icon: IconBriefing },
   { href: "/app/timeline", label: "Timeline", icon: IconTimeline },
-  { href: "/app/brand", label: "Your brand", icon: IconBrand },
+  { href: "/app/brand", label: "Business DNA", icon: IconBrand },
   { href: "/app/settings", label: "Rivals & settings", icon: IconSettings },
 ];
 

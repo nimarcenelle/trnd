@@ -20,7 +20,7 @@ import { PROVEN_DAYS } from "@/lib/diff";
 import { daysRunningOf, isNoPageNote } from "@/lib/format";
 import { growthBy } from "@/lib/social/read";
 
-export const metadata = { title: "Your brand — TRND" };
+export const metadata = { title: "Business DNA — TRND" };
 // Pasting a Page starts a scan after the response, inside this route\'s time limit.
 export const maxDuration = 300;
 
@@ -96,7 +96,8 @@ export default async function BrandPage() {
       <header className="flex items-center gap-3.5">
         <Avatar name={brand.name} size={44} />
         <div>
-          <h1 className="heading text-[22px]">{brand.name}</h1>
+          <p className="caption">Business DNA</p>
+          <h1 className="heading text-[22px] mt-0.5">{brand.name}</h1>
           <p className="text-[13px] text-ink-3 mt-0.5">
             {brand.url.replace(/^https?:\/\/(www\.)?/, "")} · {brand.category}
           </p>

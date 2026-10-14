@@ -3,6 +3,7 @@ import Link from "next/link";
 import AdPreview from "@/components/app/ad-preview";
 import Avatar from "@/components/app/avatar";
 import Brand from "@/components/brand";
+import EngineDiagram from "@/components/engine-diagram";
 import { IconAd, IconCheck, IconGlobe, IconMail } from "@/components/icons";
 import SampleCreative from "@/components/sample/creative";
 import { SAMPLE_ADS, type SampleAd } from "@/components/sample/market";
@@ -67,7 +68,7 @@ const FAQ = [
   },
   {
     q: "Do I need to connect my ad account?",
-    a: "No. TRND reads public ads, so nothing touches your Meta account. If you want advice tuned to what has worked for you, upload an Ads Manager export (CSV) on the Your brand page.",
+    a: "No. TRND reads public ads, so nothing touches your Meta account. If you want advice tuned to what has worked for you, upload an Ads Manager export (CSV) on the Business DNA page.",
   },
 ];
 
@@ -157,7 +158,10 @@ export default function Home() {
         <div className="wrap py-20 sm:py-28">
           <p className="kicker">How it works</p>
           <h2 className="display text-[30px] sm:text-[38px] mt-3 max-w-[640px]">From competitor moves to your next campaign.</h2>
-          <ol className="list-none p-0 m-0 mt-12 grid gap-10 md:grid-cols-2 lg:grid-cols-4 md:gap-8">
+          <div className="mt-12">
+            <EngineDiagram />
+          </div>
+          <ol className="list-none p-0 m-0 mt-16 grid gap-10 md:grid-cols-2 lg:grid-cols-4 md:gap-8">
             {STEPS.map((s, i) => (
               <li key={s.title} className="border-t border-line pt-6">
                 <span className="text-[13px] font-medium text-ink-3 tnum">0{i + 1}</span>

@@ -2,6 +2,7 @@ import { domainOf } from "@/lib/adlibrary/match";
 import type { Ad } from "@/lib/db/types";
 import { adStage, SCALING_DAYS, SCALING_VERSIONS, TESTING_DAYS, type Stage } from "@/lib/diff";
 import { daysRunningOf, libraryLink, tagLabel, todayIso } from "@/lib/format";
+import { tierOf } from "@/lib/score";
 
 import AdPreview from "./ad-preview";
 import AdThumb from "./ad-thumb";
@@ -22,6 +23,29 @@ export const STAGE_BADGE: Record<Stage, AdBadge> = {
 };
 
 
+
+const PART_LABEL = { longevity: "how long it has run", engagement: "engagement on its organic post", reach: "reach rank", repetition: "versions running", sentiment: "comment sentiment" } as const;
+
+/** The conversion score, with what it was built from on hover. */
+export function ScoreBadge({ ad }: { ad: Ad }) {
+  const tier = tierOf(ad.score);
+  if (!tier || ad.score === null || ad.score === undefined) return null;
+  const parts = ad.score_parts;
+  const from = parts
+    ? (Object.keys(PART_LABEL) as (keyof typeof PART_LABEL)[])
+        .filter((k) => parts[k] !== null)
+        .map((k) => `${PART_LABEL[k]} ${Math.round((parts[k] as number) * 100)}`)
+        .join(", ")
+    : "";
+  const title = `Conversion score ${ad.score}/100: our estimate of how well this ad works for them.${from ? ` Built from ${from}.` : ""}${
+    parts && parts.engagement === null ? " No matching organic post, so no engagement in this one." : ""
+  }`;
+  return (
+    <span className={tier === "top" ? "badge badge-pos" : tier === "weak" ? "badge badge-outline" : "badge"} title={title}>
+      Score <span className="tnum font-semibold">{ad.score}</span>
+    </span>
+  );
+}
 
 /** One ad: where it is in their process, the ad as it appears in the feed, and what the model read off it. */
 export default function AdCard({ ad, rivalName, badge }: { ad: Ad; rivalName?: string; badge?: AdBadge }) {
@@ -48,10 +72,11 @@ export default function AdCard({ ad, rivalName, badge }: { ad: Ad; rivalName?: s
         domain={domainOf(ad.link_url)}
         media={<AdThumb src={ad.image_url} label={ad.format} />}
       />
-      {(ad.angle || offer || ad.hook) && (
+      {(ad.angle || offer || ad.hook || tierOf(ad.score)) && (
         <div className="px-3.5 py-3 border-t border-line flex flex-col gap-2 mt-auto">
           {ad.hook && <p className="text-[12.5px] text-ink-2 leading-snug">Hook: “{ad.hook}”</p>}
           <div className="flex flex-wrap gap-1.5">
+            <ScoreBadge ad={ad} />
             {ad.angle && <span className="badge badge-outline">{tagLabel(ad.angle)}</span>}
             {offer && <span className="badge badge-outline">{offer}</span>}
           </div>

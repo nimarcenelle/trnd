@@ -5,6 +5,7 @@ import { z } from "zod";
 import { MAX_RIVALS } from "@/lib/db/types";
 import type { Ad, Brand, BrandProfile, EmailKind, Landscape, Objectives, Opportunity, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { rankResults } from "@/lib/results";
+import { topHooks, topicsByScore } from "@/lib/score";
 
 import { adStage, daysRunning, PROVEN_DAYS, SCALING_DAYS, SCALING_VERSIONS, TESTING_DAYS } from "@/lib/diff";
 
@@ -21,7 +22,9 @@ You are concrete and specific. You name the rival and quote the ad. You never in
 no spend, impressions or results for commercial ads, so "still running after N days" and "N variants" are the
 strongest evidence you have. Say "still running after 60 days", never "their best performer". You also read their websites and
 the marketing emails they send subscribers. What a competitor intends is inferred from public signals, never known: say
-"looks like", "suggests", and match your confidence to the evidence.`;
+"looks like", "suggests", and match your confidence to the evidence.
+Write for a busy founder: short sentences, everyday words. No strategy jargon ("lane", "claim territory", "value
+argument", "positioning play"). One idea per sentence.`;
 
 /* ------------------------------ site → rivals ----------------------------- */
 
@@ -146,7 +149,7 @@ Return:
 /* ------------------------------- tag the ads ------------------------------ */
 
 const TagSchema = z.object({
-  ads: z.array(z.object({ id: z.string(), angle: z.string(), hook: z.string(), offer: z.string() })),
+  ads: z.array(z.object({ id: z.string(), angle: z.string(), hook: z.string(), offer: z.string(), topic: z.string() })),
 });
 
 export interface AdTag {
@@ -154,9 +157,10 @@ export interface AdTag {
   angle: string;
   hook: string;
   offer: string;
+  topic: string;
 }
 
-/** Angle, hook and offer for each ad, in one call per batch. */
+/** Angle, hook, offer and topic for each ad, in one call per batch. */
 export async function tagAds(ads: Pick<Ad, "id" | "body" | "title" | "cta" | "format">[]): Promise<AdTag[]> {
   if (!ads.length) return [];
   const lines = ads
@@ -170,10 +174,33 @@ export async function tagAds(ads: Pick<Ad, "id" | "body" | "title" | "cta" | "fo
 - angle: the persuasion angle in 2-4 words (e.g. "problem/solution", "founder story", "social proof", "us vs them", "ingredient education", "price anchor", "UGC testimonial").
 - hook: the opening line or idea that stops the scroll, 15 words max.
 - offer: the offer or incentive (e.g. "20% off first order", "free shipping", "bundle"), or "none".
+- topic: what the ad is about, the subject not the tactic, in 1-4 lowercase words, reusing the same wording for the
+  same subject across ads (e.g. "hair breakage", "hard water", "eczema", "filter refills", "bathroom design").
 
 ${lines}`,
   });
   return tags;
+}
+
+/* ---------------------------- comment sentiment ---------------------------- */
+
+const SentimentSchema = z.object({ items: z.array(z.object({ id: z.string(), sentiment: z.number().min(-1).max(1) })) });
+
+/** How commenters feel about each ad's organic post: -1 (negative) to 1 (positive). */
+export async function commentSentiment(items: { id: string; comments: string[] }[]): Promise<{ id: string; sentiment: number }[]> {
+  if (!items.length) return [];
+  const lines = items.map((i) => `[${i.id}]\n${i.comments.slice(0, 8).map((c) => `  - ${c.replace(/\s+/g, " ").slice(0, 200)}`).join("\n")}`).join("\n");
+  const { items: out } = await generateJson({
+    system: SYSTEM,
+    schema: SentimentSchema,
+    effort: "low",
+    prompt: `For each post below, read its comments and score how people feel about the product or offer: -1 (complaints,
+scam accusations, bad experiences), 0 (neutral, questions, tags of friends), 1 (praise, purchase intent, "need this").
+Return one entry per post, with its id exactly as given.
+
+${lines}`,
+  });
+  return out;
 }
 
 /* ------------------------------ tag the emails ----------------------------- */
@@ -312,6 +339,7 @@ function adLine(ad: Ad, today: string): string {
   const days = daysRunning(ad, today);
   const parts = [
     `[${ad.archive_id}]`,
+    ad.score !== null && ad.score !== undefined ? `score ${ad.score}` : null,
     days === null ? "start unknown" : `${days}d running`,
     adStage(ad, today),
     ad.format,
@@ -375,7 +403,7 @@ export function reportPrompt(input: ReportInput): string {
   const rivalBlocks = rivals
     .map((r) => {
       const active = r.ads.filter((a) => a.active);
-      const sorted = [...active].sort((a, b) => (daysRunning(b, today) ?? 0) - (daysRunning(a, today) ?? 0));
+      const sorted = [...active].sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || (daysRunning(b, today) ?? 0) - (daysRunning(a, today) ?? 0));
       return `## ${r.name}: ${active.length} active ads\n${sorted.slice(0, 25).map((a) => adLine(a, today)).join("\n") || "(no active ads)"}`;
     })
     .join("\n\n");
@@ -390,6 +418,23 @@ ${changes.proven.map((a) => adLine(a, today)).join("\n") || "none"}`
     : "";
 
   const { site, emails } = refsOf(input);
+  const scored = rivals.flatMap((r) => r.ads.filter((a) => a.active && a.score !== null && a.score !== undefined).map((a) => ({ ...a, rival: r.name })));
+  const byScore = [...scored].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const ranking = byScore.length >= 4
+    ? `\n\n# Conversion ranking: what is working for them (read this first)
+Each competitor ad has a conversion score, 0-100: a heuristic blending how long it has run, its reach rank, how many
+versions are running, and (when the ad also runs as an organic post) that post's likes, comments, shares and comment
+sentiment against the company's usual post. Highest first:
+${byScore.slice(0, 10).map((a) => `- ${a.score} · ${a.rival} · [${a.archive_id}]${a.topic ? ` · topic: ${a.topic}` : ""}${a.hook ? ` · hook: "${a.hook}"` : ""}${a.engagement ? ` · organic post: ${a.engagement.likes ?? 0} likes, ${a.engagement.comments ?? 0} comments, ${a.engagement.shares ?? 0} shares` : ""}`).join("\n")}
+Lowest:
+${byScore.slice(-5).reverse().map((a) => `- ${a.score} · ${a.rival} · [${a.archive_id}]${a.topic ? ` · topic: ${a.topic}` : ""}${a.hook ? ` · hook: "${a.hook}"` : ""}`).join("\n")}
+
+Topics that appear most among what works (weighted by score):
+${topicsByScore(scored).map((t) => `- ${t.topic}: ${t.ads} ads, average score ${t.avgScore}`).join("\n") || "(not tagged yet)"}
+
+Hooks of the highest-scoring ads:
+${topHooks(scored).map((a) => `- "${a.hook}" (${a.rival}, ${a.score})`).join("\n")}`
+    : "";
   const siteText = site.size ? `\n\n# Competitor website changes (homepage, catalog, prices, promotions)\n${siteBlock(site)}` : "";
   const emailText = emails.size ? `\n\n# Competitor marketing emails (sent to subscribers)\n${emailBlock(emails)}` : "";
   const fresh = Boolean(changes) || [...site.values()].some((c) => c.fresh) || [...emails.values()].some((e) => e.fresh);
@@ -402,16 +447,21 @@ Three signal streams on its competitors follow: their active Meta ads (where the
 (what they sell and how), and their marketing emails (what they push to customers directly). Every line starts with a
 ref: an ad's archive id, S# for a website change, E# for an email. Lines marked NEW arrived since the last report.
 
-# Active Meta ads, longest-running first
+${ranking ? `${ranking}\n\n` : ""}# Active Meta ads, highest score first
 Each ad is marked testing (under ${TESTING_DAYS} days), scaling (past ${TESTING_DAYS} days with ${SCALING_VERSIONS}+ versions, or past ${SCALING_DAYS} days), or running.
 ${rivalBlocks}${siteText}${emailText}${ownBlock}${results}${social}${changeBlock}
 
-Write the report the brand's founder reads. The value is in connecting signals: a new value-focused homepage, a
+Write the report the brand's founder reads.${ranking ? ` Start from the conversion ranking: the topics and hooks of the highest-scoring ads
+are what works in this market, so they shape the opportunities and every brief (borrow the topic and the shape of the
+hook, in ${brand.name}'s voice); the lowest-scoring patterns are what to avoid.` : ""} The value is in connecting signals: a new value-focused homepage, a
 discounted email bundle and several savings-themed ads together suggest a coordinated affordability push, not three
 unrelated events. Read everything through ${brand.name}'s business: what it sells, to whom, its strengths, its economics
 and its goal.
-- headline: one sentence, the single most useful thing to know${fresh ? " about what changed" : ""}.
-- summary: 3-4 sentences on what the market is doing across ads, sites and email right now.
+- headline: ONE story, at most 18 words: the single competitor move that matters most${fresh ? " in what changed" : ""} and
+  what ${brand.name} should do about it. Name one competitor, not two. Never join two different fights with "while" or "and".
+  e.g. "AquaBliss is selling hard on price. Answer with proof of results, not a discount."
+- summary: 2-3 short sentences, under 60 words, that explain the headline: what they did and why it matters to
+  ${brand.name}. Leave every other move to the insights and opportunities.
 - insights: 3-6 patterns the brand would not otherwise know, grouping related signals across channels. status: new (a
   push that started recently), ongoing (sustained), or repeated (the same message or offer again). Evidence: the refs.${
     fresh ? " Lead with what the new signals mean." : ""

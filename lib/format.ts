@@ -42,8 +42,8 @@ export function compact(n: number | null | undefined): string {
 
 export const percent = (f: number | null | undefined, digits = 1) => (f === null || f === undefined ? "—" : `${(f * 100).toFixed(digits)}%`);
 
-export const profileUrl = (platform: "instagram" | "tiktok", handle: string) =>
-  platform === "instagram" ? `https://www.instagram.com/${handle}/` : `https://www.tiktok.com/@${handle}`;
+export const profileUrl = (platform: "instagram" | "tiktok" | "facebook", handle: string) =>
+  platform === "instagram" ? `https://www.instagram.com/${handle}/` : platform === "facebook" ? `https://www.facebook.com/${handle}` : `https://www.tiktok.com/@${handle}`;
 
 /** Today as yyyy-mm-dd (UTC), the date the stage and day counts are measured to. */
 export const todayIso = (now = Date.now()) => new Date(now).toISOString().slice(0, 10);

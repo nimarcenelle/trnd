@@ -27,6 +27,12 @@ get ahead, win the choice, counter, or ignore, each with a campaign brief.
    - The owner sets goals (`brands.objectives`: goal, budget, target cost, focus) and can upload an Ads Manager CSV
      (`own_ad_results`, parsed by `lib/results.ts`), so advice is judged against what they want and what has worked.
    - Every ad is staged from age and versions (`adStage`, `lib/diff.ts`): testing, scaling, running or stopped.
+   - Every ad gets a **conversion score**, 0-100 (`lib/score.ts`): a heuristic for how well it works for the company
+     running it, blending longevity, engagement (likes, comments, shares on the organic Facebook, Instagram or TikTok
+     post the ad also runs as, against the company's usual post), reach rank (its place when the Ad Library sorts the
+     Page's ads by impressions), versions running and comment sentiment. Longevity and engagement lead; a missing
+     signal drops out and the confidence says so. The report starts from this ranking: the topics and hooks of the
+     top-scoring ads shape the opportunities and briefs.
    - **Websites** (`lib/sitewatch/`): each scan snapshots every competitor's homepage (headlines, description,
      announcement bar, offer lines, nav) and catalog (Shopify `products.json`, else JSON-LD), and records material
      changes against the last snapshot: products added or dropped, price moves, sales, promotions, new headlines.
@@ -75,7 +81,7 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql`, `0102_page_source.sql` and `0103_signals.sql`, safe to re-run). They create
+`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql` and `0104_ad_scores.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
 `site_snapshots`, `site_changes` and `emails`, and leave the old
 product's tables alone (drop them when convenient).
@@ -99,6 +105,7 @@ lib/timeline.ts      one feed across ads, sites and emails
 lib/ai/              openai (one structured-output call), analyze (rivals, tags, report)
 lib/scan.ts          one brand's scan: scrape → diff → tag → report → email
 lib/diff.ts          days running, the proven line
+lib/score.ts         the conversion score, topics and hooks by score
 lib/actions.ts       server actions
 lib/data.ts          page reads (RLS)
 ```

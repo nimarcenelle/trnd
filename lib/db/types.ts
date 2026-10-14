@@ -77,6 +77,38 @@ export interface Ad {
   angle: string | null;
   hook: string | null;
   offer: string | null;
+  /** Position among the Page's ads sorted by impressions on the last read (0 = most), and how many were read. */
+  impression_rank?: number | null;
+  rank_total?: number | null;
+  topic?: string | null;
+  engagement?: AdEngagement | null;
+  /** The conversion score, 0-100 (lib/score.ts). */
+  score?: number | null;
+  score_parts?: ScoreParts | null;
+}
+
+/** The organic post an ad also runs as, and how it did. */
+export interface AdEngagement {
+  platform: "facebook" | "instagram" | "tiktok";
+  url: string | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  views: number | null;
+  /** -1 (negative) to 1 (positive), from the post's comments; null when none were read. */
+  sentiment: number | null;
+  /** The company's median interactions per post on that platform, what this post is judged against. */
+  baseline: number | null;
+}
+
+/** Each signal 0-1 (null when unavailable), the blend's confidence, and the weights used. */
+export interface ScoreParts {
+  longevity: number | null;
+  reach: number | null;
+  repetition: number | null;
+  engagement: number | null;
+  sentiment: number | null;
+  confidence: "high" | "medium" | "low";
 }
 
 export type ChangeKind = "launched" | "stopped" | "proven";
@@ -213,7 +245,7 @@ export interface BrandProfile {
   differentiators: string[];
 }
 
-export type Platform = "instagram" | "tiktok";
+export type Platform = "instagram" | "tiktok" | "facebook";
 
 export interface SocialPost {
   url: string | null;
@@ -223,6 +255,9 @@ export interface SocialPost {
   comments: number | null;
   views: number | null;
   kind: string | null;
+  shares?: number | null;
+  /** A few comment texts, when the source gives them (for sentiment). */
+  top_comments?: string[];
 }
 
 export interface SocialProfile {

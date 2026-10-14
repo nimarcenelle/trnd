@@ -30,7 +30,8 @@ export async function getSelf(brandId: string): Promise<Rival | null> {
 
 export async function listSocial(brandId: string): Promise<SocialProfile[]> {
   const sb = await createServerSupabase();
-  const { data } = await sb.from("social_profiles").select("*").eq("brand_id", brandId);
+  // Facebook posts are read only to match ads to their engagement, not shown as a profile.
+  const { data } = await sb.from("social_profiles").select("*").eq("brand_id", brandId).neq("platform", "facebook");
   return (data ?? []) as SocialProfile[];
 }
 

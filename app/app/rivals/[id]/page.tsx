@@ -26,7 +26,7 @@ export const maxDuration = 300;
 
 /** Everything one rival runs: their strategy, cadence, angle mix and every ad. */
 export default async function RivalPage({ params, searchParams }: PageProps<"/app/rivals/[id]">) {
-  const [{ id }, { view }] = await Promise.all([params, searchParams]);
+  const [{ id }, { view, sort }] = await Promise.all([params, searchParams]);
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const brand = await getBrand(user.id);
@@ -46,7 +46,13 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
   const social = allSocial.filter((p) => p.rival_id === rival.id);
   const growth = growthBy(await listSnapshots(social.map((p) => p.id)));
   const byDays = (a: (typeof ads)[number]) => daysRunningOf(a) ?? -1;
-  const live = ads.filter((a) => a.active).sort((a, b) => byDays(b) - byDays(a));
+  // Best first by conversion score (longest running breaks ties, and orders ads not scored yet); ?sort=worst flips it.
+  const worst = sort === "worst";
+  const scoredAny = ads.some((a) => a.score !== null && a.score !== undefined);
+  const live = ads
+    .filter((a) => a.active)
+    .sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || byDays(b) - byDays(a));
+  if (worst) live.reverse();
   const stopped = ads.filter((a) => !a.active).sort((a, b) => Date.parse(b.stopped_at ?? "") - Date.parse(a.stopped_at ?? ""));
   const today = todayIso();
   const read = latest?.body.rivals.find((r) => r.name.toLowerCase() === rival.name.toLowerCase());
@@ -188,7 +194,24 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
             </Link>
           </div>
           <span className="caption hidden sm:block">
-            {showSite ? "Changes in the last 90 days" : showEmails ? "Newest first" : showStopped ? "Most recently stopped first" : "Longest running first"}
+            {showSite ? (
+              "Changes in the last 90 days"
+            ) : showEmails ? (
+              "Newest first"
+            ) : showStopped ? (
+              "Most recently stopped first"
+            ) : scoredAny ? (
+              <span className="inline-flex gap-3">
+                <Link href={`/app/rivals/${rival.id}#signals`} className={worst ? "hover:text-ink" : "text-ink font-medium"}>
+                  Best first
+                </Link>
+                <Link href={`/app/rivals/${rival.id}?sort=worst#signals`} className={worst ? "text-ink font-medium" : "hover:text-ink"}>
+                  Worst first
+                </Link>
+              </span>
+            ) : (
+              "Longest running first"
+            )}
           </span>
         </div>
         {showSite ? (

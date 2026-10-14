@@ -11,6 +11,9 @@ import type { Platform, SocialPost } from "@/lib/db/types";
 
 const IG_ACTOR = process.env.APIFY_INSTAGRAM_ACTOR || "apify~instagram-profile-scraper";
 const TT_ACTOR = process.env.APIFY_TIKTOK_ACTOR || "clockworks~tiktok-scraper";
+const FB_ACTOR = process.env.APIFY_FACEBOOK_POSTS_ACTOR || "apify~facebook-posts-scraper";
+/** Facebook posts read per Page: enough to cover the ads it also posts organically. */
+const FB_POSTS = 30;
 const RECENT = 12;
 
 export interface SocialRead {
@@ -35,6 +38,13 @@ const when = (v: unknown): string | null => {
 
 export const normHandle = (h: string) => h.trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?(instagram|tiktok)\.com\/@?/i, "").replace(/[/?#].*$/, "").toLowerCase();
 
+/** Up to 8 comment texts from an actor's comment list. */
+function commentTexts(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const texts = v.flatMap((c) => (isObj(c) ? (str(c.text) ?? []) : typeof c === "string" ? [c] : [])).map((t) => t.slice(0, 200));
+  return texts.length ? texts.slice(0, 8) : undefined;
+}
+
 /** One Instagram profile item (apify/instagram-profile-scraper) → a read. */
 export function mapInstagram(item: Obj): SocialRead | null {
   const handle = str(item.username);
@@ -55,6 +65,7 @@ export function mapInstagram(item: Obj): SocialRead | null {
       comments: num(p.commentsCount),
       views: num(p.videoViewCount) ?? num(p.videoPlayCount),
       kind: str(p.type),
+      top_comments: commentTexts(p.latestComments),
     })),
   };
 }
@@ -92,6 +103,45 @@ export function mapTiktok(items: Obj[]): SocialRead[] {
     }
   }
   return [...byAuthor.values()];
+}
+
+/** A Facebook Page's posts (apify/facebook-posts-scraper) → one read, keyed by the Page id we asked for. */
+export function mapFacebook(pageId: string, items: Obj[]): SocialRead | null {
+  const posts = items.filter((p) => str(p.text) ?? str(p.message));
+  if (!posts.length) return null;
+  const first = posts[0];
+  const user = isObj(first.user) ? first.user : {};
+  return {
+    platform: "facebook",
+    handle: pageId,
+    displayName: str(first.pageName) ?? str(user.name),
+    followers: null,
+    following: null,
+    posts: null,
+    recent: posts.slice(0, FB_POSTS).map((p) => ({
+      url: str(p.url) ?? str(p.postUrl) ?? str(p.topLevelUrl),
+      caption: (str(p.text) ?? str(p.message))?.slice(0, 600) ?? null,
+      posted_at: when(p.time ?? p.timestamp),
+      likes: num(p.likes) ?? num(p.reactionsCount) ?? num(p.topReactionsCount),
+      comments: num(p.comments) ?? num(p.commentsCount),
+      shares: num(p.shares) ?? num(p.sharesCount),
+      views: num(p.viewsCount),
+      kind: str(p.type) ?? "post",
+    })),
+  };
+}
+
+/** Recent posts of each Facebook Page, one actor run per Page so each read keeps its Page id. */
+export async function readFacebook(pageIds: string[]): Promise<SocialRead[]> {
+  if (!env.apifyToken || !pageIds.length) return [];
+  const reads = await Promise.all(
+    pageIds.map((id) =>
+      runActor(FB_ACTOR, { startUrls: [{ url: `https://www.facebook.com/${id}` }], resultsLimit: FB_POSTS })
+        .then((items) => mapFacebook(id, items))
+        .catch((e) => (console.warn(`[social] facebook ${id}:`, (e as Error).message), null)),
+    ),
+  );
+  return reads.filter((r): r is SocialRead => r !== null);
 }
 
 /** Posts per week over the span the recent posts cover. */

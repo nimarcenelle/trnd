@@ -18,7 +18,9 @@ export const env = {
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
-  stripePrice: process.env.STRIPE_PRICE ?? "",
+  stripePriceStarter: process.env.STRIPE_PRICE_STARTER ?? "",
+  /** STRIPE_PRICE is the old single plan's price, still read as Growth so a live deploy keeps billing. */
+  stripePriceGrowth: process.env.STRIPE_PRICE_GROWTH || process.env.STRIPE_PRICE || "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM || "TRND <reports@usetrnd.com>",
   /** The domain competitors' marketing emails are received on, e.g. "in.usetrnd.com". */
@@ -28,6 +30,6 @@ export const env = {
 };
 
 export const isModelConfigured = Boolean(env.openaiApiKey);
-export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePrice);
+export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePriceGrowth);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isInboxConfigured = Boolean(env.inboundDomain && env.inboundSecret);

@@ -9,22 +9,14 @@ import { SAMPLE_ADS, type SampleAd } from "@/components/sample/market";
 import ProductShot from "@/components/sample/product-shot";
 import SiteNav from "@/components/site-nav";
 import UrlStart from "@/components/url-start";
-import { PRICE_LABEL } from "@/lib/billing";
+import PlanCard from "@/components/billing/plan-card";
+import { AGENCY, PLANS, TRIAL_DAYS } from "@/lib/billing";
 
 const STEPS = [
   { title: "Tell us your business", body: "Enter your website. TRND learns what you sell, who you serve, how you're priced and what makes you different. Correct anything, and add your goals." },
   { title: "We watch them every day", body: "TRND follows your competitors' public marketing daily: what they launch, what they promote, what they change and what they keep paying for." },
   { title: "We connect the dots", body: "Moves rarely come alone. A new message, a bundle offer and a run of savings ads are one push, not three events. TRND links them and reads them through your business." },
   { title: "You get your next move", body: "Each move ranked: get ahead, win the choice, counter, or ignore. With a campaign brief ready to test: angle, hook, offer, creative and audience." },
-];
-
-const INCLUDED = [
-  "Up to 10 competitors, checked daily",
-  "Every public move, tracked daily",
-  "Opportunities ranked for your business",
-  "Campaign briefs ready to test",
-  "Instagram and TikTok tracking",
-  "An email when something changes",
 ];
 
 const FAQ = [
@@ -283,26 +275,36 @@ export default function Home() {
         <div className="wrap py-20 sm:py-28">
           <div className="text-center">
             <p className="kicker">Pricing</p>
-            <h2 className="display text-[30px] sm:text-[38px] mt-3">One plan, everything included.</h2>
-            <p className="text-[16px] text-ink-2 mt-3">Try it free for 14 days. No credit card required.</p>
+            <h2 className="display text-[30px] sm:text-[38px] mt-3">Pick how much of your market to watch.</h2>
+            <p className="text-[16px] text-ink-2 mt-3">{TRIAL_DAYS} days free on every plan. Cancel before the trial ends and you pay nothing.</p>
           </div>
-          <div className="card mt-12 max-w-[440px] mx-auto p-8 shadow-[var(--shadow-md)]">
-            <div className="text-[14px] font-semibold">TRND</div>
-            <div className="mt-3 flex items-baseline gap-1.5">
-              <span className="display text-[44px] tnum">{PRICE_LABEL.replace("/mo", "")}</span>
-              <span className="text-ink-3 text-[14px]">per month</span>
-            </div>
-            <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3">
-              {INCLUDED.map((f) => (
-                <li key={f} className="flex gap-2.5 text-[14px]">
-                  <IconCheck className="text-brand mt-[3px] shrink-0" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <Link href="/signup" className="btn btn-primary btn-lg w-full mt-8">
-              Start free trial
-            </Link>
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 mt-12 max-w-[1040px] mx-auto lg:grid-cols-3">
+            {[PLANS.starter, PLANS.growth].map((p) => (
+              <PlanCard
+                key={p.tier}
+                name={p.name}
+                price={`$${p.price}`}
+                blurb={p.blurb}
+                features={p.features}
+                featured={p.tier === "growth"}
+                cta={
+                  <Link href="/signup" className={`btn ${p.tier === "growth" ? "btn-primary" : "btn-secondary"} btn-lg w-full`}>
+                    Start free trial
+                  </Link>
+                }
+              />
+            ))}
+            <PlanCard
+              name={AGENCY.name}
+              price={AGENCY.price}
+              blurb={AGENCY.blurb}
+              features={AGENCY.features}
+              cta={
+                <a href={AGENCY.contact} className="btn btn-secondary btn-lg w-full">
+                  Talk to us
+                </a>
+              }
+            />
           </div>
         </div>
       </section>

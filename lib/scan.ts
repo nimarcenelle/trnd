@@ -1,11 +1,13 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { after } from "next/server";
 
 import { findPage, pageLooksRight } from "@/lib/adlibrary/resolve";
 import type { ScrapedAd } from "@/lib/adlibrary/parse";
 import { scrapeAds } from "@/lib/adlibrary/scrape";
 import { commentSentiment, tagAds, tagEmails, writeReport } from "@/lib/ai/analyze";
+import { rivalLimit, tierOf } from "@/lib/billing";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Ad, Brand, OwnAdResult, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/score";
@@ -266,6 +268,12 @@ async function pool<T, R>(items: T[], n: number, fn: (item: T) => Promise<R>): P
   return out;
 }
 
+/** Mark the brand as scanning and run a full scan after the response is sent. */
+export async function startScan(brandId: string): Promise<void> {
+  await adminSupabase().from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brandId);
+  after(() => scanBrand(brandId, { forceReport: true }).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
+}
+
 /** `forceReport`: write a report even when nothing changed (a manual scan, after the owner edited their context). */
 export async function scanBrand(brandId: string, opts: { forceReport?: boolean } = {}): Promise<{ changes: number; report: boolean }> {
   const sb = adminSupabase();
@@ -285,10 +293,13 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean }
         .single();
       if (self) all.push(self as Rival);
     }
-    const rivals = all.filter((r) => !r.is_self);
+    // The plan sets how many competitors are watched: the first on the list.
+    const rivals = all.filter((r) => !r.is_self).slice(0, rivalLimit(brand));
     const self = all.find((r) => r.is_self) ?? null;
+    const watched = self ? [self, ...rivals] : rivals;
 
-    const socialRun = refreshSocial(sb, brandId, all).catch((err) => {
+    // Instagram and TikTok are on Growth.
+    const socialRun = (tierOf(brand.plan) === "growth" ? refreshSocial(sb, brandId, watched) : Promise.resolve([])).catch((err) => {
       console.warn("[scan] social:", (err as Error).message);
       return [];
     });
@@ -299,7 +310,7 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean }
         subscribeOnce(sb, rival).catch((err) => console.warn(`[scan] ${rival.name} signup:`, (err as Error).message)),
       ]);
     });
-    const results = await pool(all, 3, async (rival) => {
+    const results = await pool(watched, 3, async (rival) => {
       try {
         return await scanRival(sb, brand, rival);
       } catch (err) {
@@ -323,7 +334,7 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean }
       return { changes: adChanges, report: false };
     }
 
-    const nameOf = new Map(all.map((r) => [r.id, r.is_self ? `${brand.name} (you)` : r.name]));
+    const nameOf = new Map(watched.map((r) => [r.id, r.is_self ? `${brand.name} (you)` : r.name]));
     await tagUntagged(sb, brandId);
     await tagUntaggedEmails(sb, brandId, nameOf).catch((err) => console.warn("[scan] email tags:", (err as Error).message));
     const profiles = await socialRun;

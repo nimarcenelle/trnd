@@ -81,18 +81,29 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
           {!setup && <TopTabs rivals={links} />}
         </header>
 
-        {plan?.locked && (
+        {brand && plan?.locked && !plan.needsPlan && (
           <div className="border-b border-line bg-neg-bg text-neg text-[13px] py-2 px-5 sm:px-8 lg:px-10">
-            Your trial has ended and scans are paused.{" "}
-            <Link className="underline font-medium" href="/app/settings#billing">
-              Choose a plan
-            </Link>
+            {brand.plan_status === "past_due" ? (
+              <>
+                Your last payment failed and scans are paused.{" "}
+                <Link className="underline font-medium" href="/app/settings#billing">
+                  Update your card
+                </Link>
+              </>
+            ) : (
+              <>
+                {brand.plan === "trial" ? "Your trial has ended" : "Your subscription has ended"} and scans are paused.{" "}
+                <Link className="underline font-medium" href="/app/plan">
+                  Choose a plan
+                </Link>
+              </>
+            )}
           </div>
         )}
         {plan && !plan.locked && !plan.paid && plan.trialDaysLeft <= 5 && (
           <div className="border-b border-line bg-warn-bg text-warn text-[13px] py-2 px-5 sm:px-8 lg:px-10">
             {plan.trialDaysLeft} day{plan.trialDaysLeft === 1 ? "" : "s"} left in your trial.{" "}
-            <Link className="underline font-medium" href="/app/settings#billing">
+            <Link className="underline font-medium" href="/app/plan">
               Choose a plan
             </Link>
           </div>

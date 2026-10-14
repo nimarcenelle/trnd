@@ -5,26 +5,33 @@ import RivalList from "@/components/app/rival-list";
 import SubmitButton from "@/components/app/submit-button";
 import { scanNowAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
+import { planState } from "@/lib/billing";
 import { getBrand, listRivals } from "@/lib/data";
+import { isStripeConfigured } from "@/lib/env";
 import { isScanning } from "@/lib/format";
 
 export const metadata = { title: "Set up — TRND" };
 // Reading the site and naming rivals is one model call; the first scan runs after the response.
 export const maxDuration = 300;
 
+/** Three steps when a plan is picked before the first scan (billing on), else two. */
 function Step({ n }: { n: 1 | 2 }) {
+  const total = isStripeConfigured ? 3 : 2;
   return (
     <div className="flex items-center gap-3">
-      <span className="caption">Step {n} of 2</span>
+      <span className="caption">
+        Step {n} of {total}
+      </span>
       <div className="flex gap-1">
-        <span className="w-6 h-1 rounded-full bg-ink" />
-        <span className={`w-6 h-1 rounded-full ${n === 2 ? "bg-ink" : "bg-line-strong"}`} />
+        {Array.from({ length: total }, (_, i) => (
+          <span key={i} className={`w-6 h-1 rounded-full ${i < n ? "bg-ink" : "bg-line-strong"}`} />
+        ))}
       </div>
     </div>
   );
 }
 
-/** Two steps: the site, then the competitors to confirm before the first scan. */
+/** The site, then the competitors to confirm; then a plan (/app/plan) before the first scan. */
 export default async function SetupPage({ searchParams }: PageProps<"/app/setup">) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -73,7 +80,7 @@ export default async function SetupPage({ searchParams }: PageProps<"/app/setup"
         </a>
         <form action={scanNowAction}>
           <SubmitButton className="btn btn-primary btn-lg" pending="Starting…">
-            Start tracking {rivals.length} competitors
+            {planState(brand).needsPlan ? "Continue" : `Start tracking ${rivals.length} competitors`}
           </SubmitButton>
         </form>
       </div>

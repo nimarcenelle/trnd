@@ -1,15 +1,10 @@
 import type Stripe from "stripe";
 
+import { tierOf } from "@/lib/billing";
 import { adminSupabase } from "@/lib/db/supabase";
 import { env, isStripeConfigured } from "@/lib/env";
 
-/** Stripe → brands. The only writer of paid plan state; signature-verified. */
-
-function mapStatus(s: Stripe.Subscription.Status): "active" | "past_due" | "canceled" {
-  if (s === "active" || s === "trialing") return "active";
-  if (s === "past_due" || s === "unpaid") return "past_due";
-  return "canceled";
-}
+/** Stripe → brands. The writer of paid plan state (with /app/start, which reads the same subscription); signature-verified. */
 
 const idOf = (v: string | { id: string } | null | undefined) => (typeof v === "string" ? v : (v?.id ?? null));
 
@@ -18,7 +13,7 @@ export async function POST(req: Request): Promise<Response> {
   const signature = req.headers.get("stripe-signature");
   if (!signature) return new Response("missing signature", { status: 400 });
 
-  const { getStripe } = await import("@/lib/billing/stripe");
+  const { getStripe, subscriptionFields } = await import("@/lib/billing/stripe");
   let event: Stripe.Event;
   try {
     event = await getStripe().webhooks.constructEventAsync(await req.text(), signature, env.stripeWebhookSecret);
@@ -32,16 +27,16 @@ export async function POST(req: Request): Promise<Response> {
     if (event.type === "checkout.session.completed") {
       const s = event.data.object;
       const brandId = s.metadata?.brand_id ?? s.client_reference_id;
-      if (brandId) {
-        await sb
-          .from("brands")
-          .update({ plan: "pro", plan_status: "active", stripe_customer_id: idOf(s.customer), stripe_subscription_id: idOf(s.subscription) })
-          .eq("id", brandId);
+      const subId = idOf(s.subscription);
+      if (brandId && subId) {
+        const sub = await getStripe().subscriptions.retrieve(subId);
+        await sb.from("brands").update(subscriptionFields(sub, s.metadata?.tier ? tierOf(s.metadata.tier) : null)).eq("id", brandId);
       }
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       const sub = event.data.object;
-      const status = event.type === "customer.subscription.deleted" ? "canceled" : mapStatus(sub.status);
-      const q = sb.from("brands").update({ plan: "pro", plan_status: status, stripe_customer_id: idOf(sub.customer), stripe_subscription_id: sub.id });
+      const fields = subscriptionFields(sub, null);
+      if (event.type === "customer.subscription.deleted") fields.plan_status = "canceled";
+      const q = sb.from("brands").update(fields);
       await (sub.metadata?.brand_id ? q.eq("id", sub.metadata.brand_id) : q.eq("stripe_subscription_id", sub.id));
     }
   } catch (err) {

@@ -2,17 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 
 import { pageFromInput } from "@/lib/adlibrary/resolve";
 import { discoverRivals, ProfileSchema } from "@/lib/ai/analyze";
 import { getSessionUser } from "@/lib/auth/session";
+import { planState, stripePriceFor, type Tier } from "@/lib/billing";
 import { getBrand } from "@/lib/data";
 import { adminSupabase } from "@/lib/db/supabase";
 import { MAX_RIVALS } from "@/lib/db/types";
 import { isModelConfigured, isStripeConfigured } from "@/lib/env";
 import { isScanning } from "@/lib/format";
-import { scanBrand } from "@/lib/scan";
+import { startScan } from "@/lib/scan";
 import { parseAdsExport } from "@/lib/results";
 import { normHandle } from "@/lib/social/read";
 import { normalizeUrl, readSitePage } from "@/lib/site";
@@ -133,10 +133,7 @@ export async function setPageAction(_prev: FormState & { saved?: boolean }, form
   }
   // Separate so it works before 0102_page_source.sql has run.
   await sb.from("rivals").update({ page_source: "owner" }).eq("id", rival.id);
-  if (!isScanning(brand)) {
-    await sb.from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
-    after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
-  }
+  if (!isScanning(brand) && !planState(brand).locked) await startScan(brand.id);
   revalidatePath("/app", "layout");
   return { saved: true };
 }
@@ -172,18 +169,20 @@ export async function updateProfileAction(_prev: FormState & { saved?: boolean }
 /** Start a scan now and return at once; the dashboard polls until it is done. */
 export async function scanNowAction(): Promise<void> {
   const { brand } = await requireBrand();
-  if (!isScanning(brand)) {
-    await adminSupabase().from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
-    after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
-  }
+  const plan = planState(brand);
+  if (plan.needsPlan) redirect("/app/plan");
+  if (plan.locked) redirect("/app/settings#billing");
+  if (!isScanning(brand)) await startScan(brand.id);
   redirect("/app");
 }
 
-export async function checkoutAction(): Promise<void> {
+export async function checkoutAction(formData: FormData): Promise<void> {
   const { user, brand } = await requireBrand();
-  if (!isStripeConfigured) redirect("/app/settings?billing=unconfigured");
+  const from = formData.get("from") === "setup" ? "setup" : "settings";
+  const tier: Tier = formData.get("tier") === "starter" ? "starter" : "growth";
+  if (!isStripeConfigured || !stripePriceFor(tier)) redirect("/app/settings?billing=unconfigured");
   const { createCheckoutSession } = await import("@/lib/billing/stripe");
-  redirect(await createCheckoutSession(brand, user.email));
+  redirect(await createCheckoutSession(brand, user.email, tier, from));
 }
 
 export async function billingPortalAction(): Promise<void> {

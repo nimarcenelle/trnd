@@ -4,11 +4,10 @@ import Avatar from "@/components/app/avatar";
 import { AddRivalForm } from "@/components/app/forms";
 import RivalList from "@/components/app/rival-list";
 import SubmitButton from "@/components/app/submit-button";
-import { billingPortalAction, checkoutAction } from "@/lib/actions";
+import { billingPortalAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
-import { planState, PRICE_LABEL } from "@/lib/billing";
+import { planState, PLANS, priceLabel, rivalLimit } from "@/lib/billing";
 import { getBrand, listRivals } from "@/lib/data";
-import { MAX_RIVALS } from "@/lib/db/types";
 import { isStripeConfigured } from "@/lib/env";
 
 export const metadata = { title: "Settings — TRND" };
@@ -32,6 +31,16 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   if (!brand) redirect("/app/setup");
   const [rivals, { billing }] = await Promise.all([listRivals(brand.id), searchParams]);
   const plan = planState(brand);
+  const limit = rivalLimit(brand);
+  const current = PLANS[plan.tier];
+  const days = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
+  const status = plan.paid
+    ? `${current.name} · ${priceLabel(plan.tier)}${plan.trialDaysLeft > 0 ? ` · trial, ${days(plan.trialDaysLeft)} left` : ""}`
+    : plan.locked
+      ? brand.plan === "trial"
+        ? "Trial ended"
+        : "No active plan"
+      : `Free trial · ${days(plan.trialDaysLeft)} left`;
 
   return (
     <div className="max-w-[960px]">
@@ -52,37 +61,51 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         </div>
       </Section>
 
-      <Section title="Competitors" sub={`${rivals.length} of ${MAX_RIVALS}. New competitors are read on the next scan.`}>
+      <Section
+        title="Competitors"
+        sub={
+          rivals.length > limit
+            ? `${current.name} watches the first ${limit} on this list. Remove one to promote the next, or move to Growth for 10.`
+            : `${rivals.length} of ${limit} on ${current.name}. New competitors are read on the next scan.`
+        }
+      >
         <div className="card">
-          <RivalList rivals={rivals} social />
+          <RivalList rivals={rivals} social={plan.tier === "growth"} watched={limit} />
           <div className="border-t border-line p-4 bg-subtle rounded-b-xl">
             <AddRivalForm />
           </div>
         </div>
       </Section>
 
-      <Section id="billing" title="Plan" sub="One plan. Cancel anytime.">
+      <Section id="billing" title="Plan" sub={`${current.name} scans ${current.cadence}. Cancel anytime.`}>
         <div className="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="text-[14px] font-semibold">
-              {plan.paid ? `TRND · ${PRICE_LABEL}` : plan.locked ? "Trial ended" : `Free trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left`}
-            </div>
+            <div className="text-[14px] font-semibold">{status}</div>
+            {plan.paid && plan.trialDaysLeft > 0 && <p className="text-ink-3 text-[13px] mt-1">Your card is charged when the trial ends. Cancel before then and you pay nothing.</p>}
             {brand.plan_status === "past_due" && <p className="text-neg text-[13px] mt-1">Your last payment failed. Update your card to keep scans running.</p>}
             {billing === "success" && <p className="text-pos text-[13px] mt-1">Thanks. Your plan is active.</p>}
             {!isStripeConfigured && <p className="text-ink-3 text-[13px] mt-1">Billing isn&apos;t connected on this deployment.</p>}
           </div>
-          {isStripeConfigured &&
-            (brand.stripe_customer_id ? (
-              <form action={billingPortalAction}>
-                <SubmitButton className="btn btn-secondary">Manage billing</SubmitButton>
-              </form>
-            ) : (
-              <form action={checkoutAction}>
-                <SubmitButton className="btn btn-primary" pending="Opening Stripe…">
-                  Subscribe · {PRICE_LABEL}
-                </SubmitButton>
-              </form>
-            ))}
+          {isStripeConfigured && (
+            <div className="flex gap-2 shrink-0">
+              {plan.paid && plan.tier === "starter" && (
+                <form action={billingPortalAction}>
+                  <SubmitButton className="btn btn-primary" pending="Opening Stripe…">
+                    Move to Growth
+                  </SubmitButton>
+                </form>
+              )}
+              {brand.stripe_customer_id && (plan.paid || brand.plan_status === "past_due") ? (
+                <form action={billingPortalAction}>
+                  <SubmitButton className="btn btn-secondary">Manage billing</SubmitButton>
+                </form>
+              ) : (
+                <a className="btn btn-primary" href="/app/plan">
+                  Choose a plan
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </Section>
     </div>

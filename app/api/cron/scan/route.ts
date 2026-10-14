@@ -1,4 +1,4 @@
-import { planState } from "@/lib/billing";
+import { planState, PLANS } from "@/lib/billing";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Brand } from "@/lib/db/types";
 import { env } from "@/lib/env";
@@ -6,14 +6,15 @@ import { isScanning } from "@/lib/format";
 import { scanBrand } from "@/lib/scan";
 
 /**
- * The daily watch. Called by Vercel Cron with no brand: lists every brand
- * that is due and calls itself once per brand, so each scan gets its own
- * function and its own time limit. Called with ?brand=<id>: scans that one.
+ * The scheduled watch: Growth brands every day, Starter every week. Called by
+ * Vercel Cron with no brand: lists every brand that is due and calls itself
+ * once per brand, so each scan gets its own function and its own time limit.
+ * Called with ?brand=<id>: scans that one.
  */
 export const maxDuration = 300;
 
-/** A brand scanned in the last 20 hours is not due again yet. */
-const DUE_AFTER_MS = 20 * 3_600_000;
+/** Due once its plan's interval has nearly passed (4 hours early, so a daily scan never slips a day). */
+const dueAfterMs = (b: Brand) => (PLANS[planState(b).tier].every - 4) * 3_600_000;
 
 export async function GET(req: Request): Promise<Response> {
   if (!env.cronSecret || req.headers.get("authorization") !== `Bearer ${env.cronSecret}`) {
@@ -34,7 +35,7 @@ export async function GET(req: Request): Promise<Response> {
     (b) =>
       !planState(b).locked &&
       !isScanning(b) &&
-      (!b.last_scan_at || Date.now() - Date.parse(b.last_scan_at) > DUE_AFTER_MS),
+      (!b.last_scan_at || Date.now() - Date.parse(b.last_scan_at) > dueAfterMs(b)),
   );
   const results = await Promise.allSettled(
     due.map((b) =>

@@ -13,6 +13,7 @@ import { crossedProven } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { env, isModelConfigured } from "@/lib/env";
 import { isNoPageNote, NO_PAGE_NOTE } from "@/lib/format";
+import { storeCreatives } from "@/lib/creatives";
 import { recordHealth } from "@/lib/health";
 import { subscribeOnce } from "@/lib/inbox/store";
 import { checkSite } from "@/lib/sitewatch/watch";
@@ -163,6 +164,8 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
       .select("*");
     if (upsertError) throw new Error(upsertError.message);
     upserted = data as Ad[];
+    // Keep the images before Facebook's links expire. Never fails the scan.
+    await storeCreatives(sb, upserted).catch((err) => console.warn(`[scan] ${rival.name} creatives:`, (err as Error).message));
     // The read comes back sorted by impressions: each ad's place in it is its reach rank.
     // A separate write, so a database without 0104 yet still scans.
     const { error: rankError } = await sb.from("ads").upsert(

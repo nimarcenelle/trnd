@@ -1,10 +1,11 @@
 import { assertApifyUp, noteApifyStatus } from "@/lib/apify";
-import { env } from "@/lib/env";
+import { env, isWorkerConfigured } from "@/lib/env";
 import { fetchRetry } from "@/lib/retry";
 
 import { fromMetaApi, isMetaApiConfigured } from "./api";
 import { graphqlBlocks, jsonBlocks, looksBlocked, pageTokens, parsePayloads, type ScrapedAd } from "./parse";
 import { BROWSER_HEADERS, CookieJar, UA } from "./session";
+import { fromWorker } from "./worker";
 
 /**
  * The Meta Ad Library, read the way the browser reads it: GET the library
@@ -31,7 +32,7 @@ export interface ScrapeResult {
   /** Every active ad was read. False means a later page could not be fetched,
    * so an ad missing from this read may still be running. */
   complete: boolean;
-  via: "library" | "api" | "apify";
+  via: "worker" | "library" | "api" | "apify";
 }
 
 export class ScrapeBlockedError extends Error {}
@@ -201,12 +202,23 @@ const BLOCK_PAUSE_MS = 10 * 60_000;
 
 /**
  * Active ads for a Page, or for a keyword, most impressions (or reach) first.
- * In order: the direct read, Meta's API, the paid Apify actor. `backup:
+ * In order: TRND's scraper worker (a real browser behind a residential proxy),
+ * the direct read, Meta's API, the paid Apify actor. `backup:
  * false` never pays for Apify (for searches that are nice to have).
  */
 export async function scrapeAds(search: Search, limit = env.adsPerRival, opts: { backup?: boolean } = {}): Promise<ScrapeResult> {
   const paid = opts.backup !== false && Boolean(env.apifyToken);
   const errors: string[] = [];
+
+  if (isWorkerConfigured) {
+    try {
+      const { ads, complete } = await fromWorker(search, limit);
+      return { ads, complete, via: "worker" };
+    } catch (err) {
+      console.warn("[adlibrary] worker failed:", (err as Error).message);
+      errors.push((err as Error).message);
+    }
+  }
 
   if (Date.now() >= blockedUntil) {
     try {

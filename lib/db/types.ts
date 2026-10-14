@@ -99,6 +99,8 @@ export interface Ad {
   rank_total?: number | null;
   topic?: string | null;
   engagement?: AdEngagement | null;
+  /** Our copy of the image in Supabase Storage (Facebook's links expire). */
+  stored_image_url?: string | null;
   /** The conversion score, 0-100 (lib/score.ts). */
   score?: number | null;
   score_parts?: ScoreParts | null;

@@ -19,6 +19,8 @@ import { getBrand, getSelf, listAds, listChanges, listEmails, listReports, listR
 import type { Ad, ChangeKind, Report } from "@/lib/db/types";
 import { ago, compact, daysRunningOf, isNoPageNote, isScanning, todayIso, withinDays } from "@/lib/format";
 import { buildTimeline } from "@/lib/timeline";
+import { coverageFor } from "@/lib/coverage-map";
+import { isInboxConfigured } from "@/lib/env";
 import { standing, type Standing as StandingT } from "@/lib/standing";
 import { weeklyLaunches } from "@/lib/stats";
 import { adStage } from "@/lib/diff";
@@ -191,6 +193,7 @@ export default async function Briefing() {
   );
   const opportunities = latest?.body.opportunities ?? [];
   const ordered = [...opportunities.filter((o) => o.type !== "ignore"), ...opportunities.filter((o) => o.type === "ignore")];
+  const cov = coverageFor(rivals, allAds, isInboxConfigured);
   const stand = standing({
     companies: [...(self ? [{ id: self.id, name: brand.name, you: true }] : []), ...rivals.map((r) => ({ id: r.id, name: r.name, you: false }))],
     ads: allAds,
@@ -205,6 +208,18 @@ export default async function Briefing() {
           <h1 className="heading text-[22px]">Briefing</h1>
           <p className="text-[13px] text-ink-3 mt-0.5">
             {rivals.length} rivals watched · last scan {ago(brand.last_scan_at)}
+            {cov.overall && (
+              <>
+                {" · "}
+                <Link
+                  href="/app/settings"
+                  className={`hover:underline ${cov.overall.label === "solid" ? "text-pos" : cov.overall.label === "thin" ? "text-warn" : "text-neg"}`}
+                  title="How complete and fresh our data on your competitors is. Per competitor in Rivals & settings."
+                >
+                  data coverage {cov.overall.score}/100 ({cov.overall.label})
+                </Link>
+              </>
+            )}
           </p>
         </div>
         {!locked && (

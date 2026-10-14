@@ -8,7 +8,8 @@ import SubmitButton from "@/components/app/submit-button";
 import { billingPortalAction, checkoutAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { planState, PRICE_LABEL } from "@/lib/billing";
-import { getBrand, listRivals } from "@/lib/data";
+import { coverageFor } from "@/lib/coverage-map";
+import { getBrand, listAds, listRivals } from "@/lib/data";
 import { MAX_RIVALS } from "@/lib/db/types";
 import { isStripeConfigured } from "@/lib/env";
 
@@ -31,7 +32,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   if (!user) redirect("/login");
   const brand = await getBrand(user.id);
   if (!brand) redirect("/app/setup");
-  const [rivals, { billing }] = await Promise.all([listRivals(brand.id), searchParams]);
+  const [rivals, { billing }, liveAds] = await Promise.all([listRivals(brand.id), searchParams, listAds(brand.id, { activeOnly: true })]);
+  const cov = coverageFor(rivals, liveAds, isInboxConfigured);
   const plan = planState(brand);
 
   return (
@@ -55,7 +57,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
 
       <Section title="Competitors" sub={`${rivals.length} of ${MAX_RIVALS}. New competitors are read on the next scan.`}>
         <div className="card">
-          <RivalList rivals={rivals} social inbox={isInboxConfigured} />
+          <RivalList rivals={rivals} social inbox={isInboxConfigured} coverage={cov.byRival} />
           <div className="border-t border-line p-4 bg-subtle rounded-b-xl">
             <AddRivalForm />
           </div>

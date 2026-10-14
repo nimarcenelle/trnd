@@ -1,6 +1,8 @@
 import { isMetaApiConfigured } from "@/lib/adlibrary/api";
 import { scrapeAds } from "@/lib/adlibrary/scrape";
-import { env, isEmailConfigured, isInboxConfigured, isModelConfigured, isStripeConfigured } from "@/lib/env";
+import { adminSupabase } from "@/lib/db/supabase";
+import { env, isEmailConfigured, isInboxConfigured, isModelConfigured, isStripeConfigured, isWorkerConfigured } from "@/lib/env";
+import { fleetHealth } from "@/lib/ops";
 
 /**
  * Which integrations are configured (presence only, never values). With
@@ -13,9 +15,10 @@ export const maxDuration = 60;
 export async function GET(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const probe = url.searchParams.get("probe");
+  const authed = Boolean(env.cronSecret) && url.searchParams.get("key") === env.cronSecret;
   let read: Record<string, unknown> | undefined;
   if (probe) {
-    if (!env.cronSecret || url.searchParams.get("key") !== env.cronSecret) return new Response("unauthorized", { status: 401 });
+    if (!authed) return new Response("unauthorized", { status: 401 });
     const started = Date.now();
     try {
       const { ads, via, complete } = await scrapeAds({ query: probe.slice(0, 80) }, 30, { backup: false });
@@ -31,6 +34,7 @@ export async function GET(req: Request): Promise<Response> {
       keys: {
         supabase: Boolean(env.supabaseUrl && env.supabaseServiceRoleKey),
         openai: isModelConfigured,
+        worker: isWorkerConfigured,
         metaApi: isMetaApiConfigured(),
         apifyFallback: Boolean(env.apifyToken),
         stripe: isStripeConfigured,
@@ -39,6 +43,8 @@ export async function GET(req: Request): Promise<Response> {
         cron: Boolean(env.cronSecret),
       },
       ...(read ? { read } : {}),
+      // With the key: the fleet's data health (share of companies read in the last day, why the rest failed, the worker).
+      ...(authed ? { fleet: await fleetHealth(adminSupabase()).catch((err) => ({ error: (err as Error).message })) } : {}),
     },
     { headers: { "cache-control": "no-store" } },
   );

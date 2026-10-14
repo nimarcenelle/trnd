@@ -6,7 +6,7 @@ import type { Brand, ReportBody } from "@/lib/db/types";
 import { env, isEmailConfigured } from "@/lib/env";
 
 /** Resend over REST. Unconfigured, a send is a logged no-op. */
-async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
   if (!isEmailConfigured) {
     console.warn(`[email] RESEND_API_KEY not set; skipped "${subject}" to ${to}`);
     return;

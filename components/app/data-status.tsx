@@ -1,3 +1,4 @@
+import type { Coverage } from "@/lib/coverage";
 import type { Rival, SourceHealth } from "@/lib/db/types";
 import { ago } from "@/lib/format";
 
@@ -23,7 +24,7 @@ function source(h: SourceHealth | undefined, fallbackAt: string | null | undefin
 }
 
 /** What TRND last pulled for a company from each source, and whether it worked. */
-export default function DataStatus({ rival, inbox }: { rival: Rival; inbox: boolean }) {
+export default function DataStatus({ rival, inbox, coverage }: { rival: Rival; inbox: boolean; coverage?: Coverage }) {
   const ads = source(rival.health?.ads, rival.last_scraped_at, (h) => `${h.count ?? 0} ads${h.via === "apify" ? " (backup reader)" : h.via === "api" ? " (Meta API, EU)" : ""}`);
   const site = rival.website ? source(rival.health?.site, rival.site_checked_at, (h) => (h.count ? `${h.count} products` : "read")) : { value: "no website", tone: "off" as Tone };
   const email: { value: string; tone: Tone } = !inbox
@@ -37,6 +38,14 @@ export default function DataStatus({ rival, inbox }: { rival: Rival; inbox: bool
           : { value: "next scan", tone: "off" };
   return (
     <div className="flex flex-wrap gap-1.5">
+      {coverage && (
+        <Chip
+          label="Data"
+          value={`${coverage.score}/100`}
+          tone={coverage.label === "solid" ? "ok" : coverage.label === "thin" ? "warn" : "bad"}
+          title={`Data coverage: ${coverage.label}.${coverage.gap ? ` Biggest gap: ${coverage.gap}.` : ""}`}
+        />
+      )}
       <Chip label="Ads" {...ads} />
       {!rival.is_self && <Chip label="Website" {...site} />}
       {!rival.is_self && <Chip label="Emails" {...email} />}

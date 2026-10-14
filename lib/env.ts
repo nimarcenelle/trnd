@@ -12,6 +12,11 @@ export const env = {
   /** Optional fallback for the Ad Library read when Meta walls our fetch. */
   apifyToken: process.env.APIFY_TOKEN ?? "",
   apifyAdLibraryActor: process.env.APIFY_ADLIBRARY_ACTOR || "curious_coder~facebook-ads-library-scraper",
+  /** Where data-health alerts go (lib/ops.ts). */
+  opsEmail: process.env.OPS_EMAIL ?? "",
+  /** TRND's scraper worker (worker/server.ts): a real browser behind a residential proxy. */
+  scraperUrl: (process.env.SCRAPER_URL ?? "").replace(/\/$/, ""),
+  scraperKey: process.env.SCRAPER_KEY ?? "",
   /** Meta's official Ad Library API: a user access token from developers.facebook.com/tools/ad-library. */
   metaAccessToken: process.env.META_ACCESS_TOKEN ?? "",
   metaApiVersion: process.env.META_API_VERSION || "v23.0",
@@ -40,3 +45,4 @@ export const isModelConfigured = Boolean(env.openaiApiKey);
 export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePrice);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isInboxConfigured = Boolean(env.inboundDomain && env.inboundSecret);
+export const isWorkerConfigured = Boolean(env.scraperUrl && env.scraperKey);

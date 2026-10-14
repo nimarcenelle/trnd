@@ -56,7 +56,24 @@ every country, most impressions first) with a plain `fetch`. The first page of r
 Later pages come from the same GraphQL query the page itself calls. `lib/adlibrary/parse.ts` walks every JSON payload
 for objects with an `ad_archive_id` and a `snapshot`, so it survives Meta moving things around.
 
-Meta walls cloud servers it takes for bots, so the read looks like a returning browser (`lib/adlibrary/session.ts`):
+**The scraper worker** (`worker/`) is the first reader: a small always-on service running a real Chrome (Playwright)
+behind a residential proxy, so Meta sees a person at home, not a cloud server. The app calls it over HTTP
+(`lib/adlibrary/worker.ts`); it also fetches Facebook Pages for Page-finding. When it's down or walled, the readers
+below take over. Deploy it on Railway:
+
+1. New project → Deploy from GitHub repo → this repo. `railway.json` points Railway at `worker/Dockerfile`.
+2. Variables: `SCRAPER_KEY` (any long random string), `PROXY_URL` (`http://user:pass@host:port` from a residential
+   proxy provider), optionally `WORKER_CONCURRENCY` (3).
+3. Settings → Networking → Generate domain. Put that URL in Vercel as `SCRAPER_URL`, and the same `SCRAPER_KEY`.
+4. Check `https://<worker>/health`, then `https://<site>/api/health?probe=<brand>&key=<CRON_SECRET>`: `"via": "worker"`.
+
+Each ad's image is copied to Supabase Storage (`creatives` bucket, `lib/creatives.ts`) the first time it's seen, since
+Facebook's image links expire. Every company shows a **data coverage** score (`lib/coverage.ts`: Page found, ads read
+recently and fully, engagement matched, site read, emails), and the Briefing the average. `/api/health?key=<CRON_SECRET>`
+reports the fleet: the share of companies read in the last day, why the rest failed, the worker's state. The daily cron
+emails `OPS_EMAIL` when that share drops below 95% or the worker is down.
+
+Without the worker, Meta walls cloud servers it takes for bots, so the direct read looks like a returning browser (`lib/adlibrary/session.ts`):
 it visits the library first, keeps the cookies Facebook sets (including the `datr` set from script), and sends them
 with Chrome's headers. When the wall still comes up, reads go, in order, to:
 
@@ -93,7 +110,7 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql` and `0104_ad_scores.sql`, safe to re-run). They create
+`0101_brand_intel.sql` through `0106_creatives.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
 `site_snapshots`, `site_changes` and `emails`, and leave the old
 product's tables alone (drop them when convenient).

@@ -3,6 +3,7 @@ import { adminSupabase } from "@/lib/db/supabase";
 import type { Brand } from "@/lib/db/types";
 import { env } from "@/lib/env";
 import { isScanning } from "@/lib/format";
+import { alertIfDegraded } from "@/lib/ops";
 import { scanBrand } from "@/lib/scan";
 
 /**
@@ -41,5 +42,7 @@ export async function GET(req: Request): Promise<Response> {
       fetch(`${url.origin}${url.pathname}?brand=${b.id}`, { headers: { authorization: `Bearer ${env.cronSecret}` } }).then((r) => r.status),
     ),
   );
-  return Response.json({ due: due.length, ok: results.filter((r) => r.status === "fulfilled" && r.value === 200).length });
+  // After the day's scans: how much of the fleet was read, and an alert when it isn't enough.
+  const health = await alertIfDegraded(adminSupabase()).catch(() => null);
+  return Response.json({ due: due.length, ok: results.filter((r) => r.status === "fulfilled" && r.value === 200).length, health });
 }

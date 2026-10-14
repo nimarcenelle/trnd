@@ -8,6 +8,7 @@ import { IconArrowUpRight } from "@/components/icons";
 import { getSessionUser } from "@/lib/auth/session";
 import HandlesForm from "@/components/app/handles-form";
 import DataStatus from "@/components/app/data-status";
+import { coverage } from "@/lib/coverage";
 import InboxCard from "@/components/app/inbox-card";
 import PageForm from "@/components/app/page-form";
 import SocialCard from "@/components/app/social-card";
@@ -88,7 +89,7 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
       </header>
 
       <div className="mt-4">
-        <DataStatus rival={rival} inbox={isInboxConfigured} />
+        <DataStatus rival={rival} inbox={isInboxConfigured} coverage={coverage(rival, { activeAds: live.length, engagedAds: live.filter((a) => a.engagement).length, inbox: isInboxConfigured })} />
       </div>
 
       {rival.page_id && (

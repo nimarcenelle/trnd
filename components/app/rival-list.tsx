@@ -1,4 +1,5 @@
 import { removeRivalAction } from "@/lib/actions";
+import type { Coverage } from "@/lib/coverage";
 import type { Rival } from "@/lib/db/types";
 import { isNoPageNote } from "@/lib/format";
 
@@ -8,7 +9,7 @@ import HandlesForm from "./handles-form";
 import SubmitButton from "./submit-button";
 
 /** The rivals being watched, each removable. */
-export default function RivalList({ rivals, social = false, inbox = false }: { rivals: Rival[]; social?: boolean; inbox?: boolean }) {
+export default function RivalList({ rivals, social = false, inbox = false, coverage }: { rivals: Rival[]; social?: boolean; inbox?: boolean; coverage?: Map<string, Coverage> }) {
   if (!rivals.length) return <p className="p-5 text-[13.5px] text-ink-2">No competitors yet. Add one below.</p>;
   return (
     <ul className="list-none p-0 m-0 divide-y divide-line">
@@ -23,7 +24,7 @@ export default function RivalList({ rivals, social = false, inbox = false }: { r
             </div>
             {r.reason && <p className="text-[13px] text-ink-2 mt-0.5 leading-[1.5]">{r.reason}</p>}
             <div className="mt-2">
-              <DataStatus rival={r} inbox={inbox} />
+              <DataStatus rival={r} inbox={inbox} coverage={coverage?.get(r.id)} />
             </div>
             {r.last_error && <p className={`text-[12.5px] mt-1 ${isNoPageNote(r.last_error) ? "text-ink-3" : "text-neg"}`}>{r.last_error}</p>}
             {social && (

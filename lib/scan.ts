@@ -11,12 +11,15 @@ import type { Ad, Brand, Rival } from "@/lib/db/types";
 import { crossedProven } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { isModelConfigured } from "@/lib/env";
+import { followerGrowth, refreshSocial } from "@/lib/social/store";
+import type { SocialLine } from "@/lib/ai/analyze";
 
 /**
- * One scan of one brand: read every rival's active ads, compare them with what
- * we saw last time, tag the new ones, and have the model write a report when
- * something changed. The first scan of a rival is its baseline: everything it
- * runs is "seen", not "launched".
+ * One scan of one brand: read every rival's active ads and the brand's own
+ * (the is_self rival), compare them with what we saw last time, read
+ * everyone's Instagram and TikTok, tag the new ads, and have the model write a
+ * report when something changed. The first scan of a rival is its baseline:
+ * everything it runs is "seen", not "launched".
  */
 
 export interface RivalChanges {
@@ -149,8 +152,24 @@ export async function scanBrand(brandId: string): Promise<{ changes: number; rep
 
   try {
     const { data: rivalRows } = await sb.from("rivals").select("*").eq("brand_id", brandId).order("created_at");
-    const rivals = (rivalRows ?? []) as Rival[];
-    const results = await pool(rivals, 3, async (rival) => {
+    const all = (rivalRows ?? []) as Rival[];
+    // Brands created before self-tracking get their own row on the next scan.
+    if (!all.some((r) => r.is_self)) {
+      const { data: self } = await sb
+        .from("rivals")
+        .insert({ brand_id: brandId, name: brand.name, website: brand.url.replace(/^https?:\/\//, ""), is_self: true, source: "owner", reason: "Your brand" })
+        .select("*")
+        .single();
+      if (self) all.push(self as Rival);
+    }
+    const rivals = all.filter((r) => !r.is_self);
+    const self = all.find((r) => r.is_self) ?? null;
+
+    const socialRun = refreshSocial(sb, brandId, all).catch((err) => {
+      console.warn("[scan] social:", (err as Error).message);
+      return [];
+    });
+    const results = await pool(all, 3, async (rival) => {
       try {
         return await scanRival(sb, brand, rival);
       } catch (err) {
@@ -173,6 +192,12 @@ export async function scanBrand(brandId: string): Promise<{ changes: number; rep
     }
 
     await tagUntagged(sb, brandId);
+    const profiles = await socialRun;
+    const growth = await followerGrowth(sb, profiles.map((p) => p.id));
+    const nameOf = new Map(all.map((r) => [r.id, r.is_self ? `${brand.name} (you)` : r.name]));
+    const social: SocialLine[] = profiles
+      .filter((p) => !p.error && p.followers !== null)
+      .map((p) => ({ name: nameOf.get(p.rival_id) ?? "?", profile: p, growth: growth.get(p.id) ?? null }));
 
     const { count: reportCount } = await sb.from("reports").select("id", { count: "exact", head: true }).eq("brand_id", brandId);
     const isBaseline = !reportCount;
@@ -186,7 +211,9 @@ export async function scanBrand(brandId: string): Promise<{ changes: number; rep
       if (ads.length) {
         const body = await writeReport({
           brand,
+          own: self ? ads.filter((a) => a.rival_id === self.id) : [],
           rivals: rivals.map((r) => ({ name: r.name, ads: ads.filter((a) => a.rival_id === r.id) })),
+          social,
           changes: isBaseline ? null : { launched: fresh(changes.launched), stopped: changes.stopped, proven: fresh(changes.proven) },
           today: today(),
         });

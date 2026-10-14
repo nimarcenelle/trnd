@@ -7,14 +7,15 @@ import Avatar from "@/components/app/avatar";
 import Brief from "@/components/app/brief";
 import { LaunchBars } from "@/components/app/charts";
 import Evidence from "@/components/app/evidence";
+import { LandscapeTable, YouVsThem, type LandscapeStats } from "@/components/app/landscape";
 import SubmitButton from "@/components/app/submit-button";
 import { IconRefresh } from "@/components/icons";
 import { scanNowAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
-import { getBrand, listAds, listChanges, listReports, listRivals } from "@/lib/data";
+import { getBrand, getSelf, listAds, listChanges, listReports, listRivals, listSocial } from "@/lib/data";
 import type { Ad, ChangeKind, Report } from "@/lib/db/types";
-import { ago, daysRunningOf, isScanning, libraryLink, withinDays } from "@/lib/format";
+import { ago, compact, daysRunningOf, isScanning, libraryLink, withinDays } from "@/lib/format";
 import { weeklyLaunches } from "@/lib/stats";
 
 export const metadata = { title: "Briefing — TRND" };
@@ -95,9 +96,27 @@ export default async function Briefing() {
   if (!brand) redirect("/app/setup");
   if (!brand.last_scan_at && !isScanning(brand) && brand.scan_status !== "error") redirect("/app/setup");
 
-  const [rivals, ads, reports, changes] = await Promise.all([listRivals(brand.id), listAds(brand.id), listReports(brand.id), listChanges(brand.id)]);
-  const byArchive = new Map(ads.map((a) => [a.archive_id, a]));
+  const [rivals, allAds, reports, changes, self, social] = await Promise.all([
+    listRivals(brand.id),
+    listAds(brand.id),
+    listReports(brand.id),
+    listChanges(brand.id),
+    getSelf(brand.id),
+    listSocial(brand.id),
+  ]);
+  const byArchive = new Map(allAds.map((a) => [a.archive_id, a]));
+  // Competitors' ads only; the brand's own are on its page and in the landscape.
+  const ads = allAds.filter((a) => !self || a.rival_id !== self.id);
   const rivalName = new Map(rivals.map((r) => [r.id, r.name]));
+  if (self) rivalName.set(self.id, "You");
+  const followers = (rivalId: string, platform: "instagram" | "tiktok") => social.find((p) => p.rival_id === rivalId && p.platform === platform && !p.error)?.followers ?? null;
+  const statsFor = (name: string): LandscapeStats | null => {
+    const r = name.toLowerCase() === brand.name.toLowerCase() ? self : rivals.find((x) => x.name.toLowerCase() === name.toLowerCase());
+    if (!r) return null;
+    const live = allAds.filter((a) => a.rival_id === r.id && a.active);
+    return { liveAds: live.length, longest: Math.max(0, ...live.map((a) => daysRunningOf(a) ?? 0)), instagram: followers(r.id, "instagram"), tiktok: followers(r.id, "tiktok") };
+  };
+  const hasSocial = social.some((p) => !p.error && p.followers !== null);
   const [latest, ...older] = reports;
   const running = isScanning(brand);
   const locked = planState(brand).locked;
@@ -204,6 +223,16 @@ export default async function Briefing() {
         </div>
       )}
 
+      {latest?.body.landscape && (
+        <Section title="Where you stand" aside="Positioning from your competitors' ads and your profile">
+          <p className="text-[13.5px] text-ink-2 leading-[1.6] mb-3 max-w-[820px]">{latest.body.landscape.summary}</p>
+          <LandscapeTable landscape={latest.body.landscape} you={brand.name} stats={statsFor} />
+          <div className="mt-3">
+            <YouVsThem landscape={latest.body.landscape} />
+          </div>
+        </Section>
+      )}
+
       {latest && latest.body.plays.length > 0 && (
         <Section title="Ads to make next" aside="Modeled on what's working for your rivals">
           <Plays report={latest} ads={byArchive} />
@@ -212,7 +241,7 @@ export default async function Briefing() {
 
       <Section title="Rivals">
         <div className="card overflow-x-auto">
-          <table className="table min-w-[680px]">
+          <table className="table min-w-[760px]">
             <thead>
               <tr>
                 <th>Rival</th>
@@ -220,6 +249,8 @@ export default async function Briefing() {
                 <th className="!text-right">New · 7d</th>
                 <th className="!text-right">Stopped · 7d</th>
                 <th className="!text-right">Longest running</th>
+                {hasSocial && <th className="!text-right">Instagram</th>}
+                {hasSocial && <th className="!text-right">TikTok</th>}
                 <th>Launches · 10 wks</th>
               </tr>
             </thead>
@@ -241,6 +272,8 @@ export default async function Briefing() {
                     <td className={`text-right tnum ${week("launched", r.id) ? "text-pos font-medium" : "text-ink-3"}`}>{week("launched", r.id)}</td>
                     <td className={`text-right tnum ${week("stopped", r.id) ? "text-neg font-medium" : "text-ink-3"}`}>{week("stopped", r.id)}</td>
                     <td className="text-right tnum">{longest ? `${longest} days` : "—"}</td>
+                    {hasSocial && <td className="text-right tnum">{compact(followers(r.id, "instagram"))}</td>}
+                    {hasSocial && <td className="text-right tnum">{compact(followers(r.id, "tiktok"))}</td>}
                     <td>
                       <LaunchBars counts={weeklyLaunches(theirs, 10)} />
                     </td>

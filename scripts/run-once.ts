@@ -1,7 +1,8 @@
 /**
  * One full TRND run for a real business, with no database and no login:
- * read the site, name the rivals, pull each rival's live Meta ads, tag them,
- * and write the report. The same code the app runs, end to end.
+ * read the site, profile the brand, name the rivals, pull the brand's and
+ * each rival's live Meta ads (and Instagram/TikTok with APIFY_TOKEN), tag the
+ * ads, and write the report. The same code the app runs, end to end.
  *
  *   pnpm run:once glossier.com
  *
@@ -12,12 +13,13 @@ import { mkdirSync, writeFileSync } from "node:fs";
 
 import { pickRivalPage } from "@/lib/adlibrary/match";
 import { scrapeAds } from "@/lib/adlibrary/scrape";
-import { discoverRivals, tagAds, writeReport } from "@/lib/ai/analyze";
+import { discoverRivals, tagAds, writeReport, type SocialLine } from "@/lib/ai/analyze";
 import type { Ad } from "@/lib/db/types";
 import { daysRunning } from "@/lib/diff";
 import { env } from "@/lib/env";
 import { libraryLink } from "@/lib/format";
-import { normalizeUrl, readSite } from "@/lib/site";
+import { engagementRate, postsPerWeek, readSocial } from "@/lib/social/read";
+import { normalizeUrl, readSitePage } from "@/lib/site";
 
 const today = new Date().toISOString().slice(0, 10);
 const log = (...a: unknown[]) => console.log("·", ...a);
@@ -28,19 +30,20 @@ async function main() {
   if (!env.openaiApiKey) throw new Error("OPENAI_API_KEY is not set (shell or .env.local).");
 
   log(`reading ${url}`);
-  const site = await readSite(url);
-  const found = await discoverRivals(url, site);
-  log(`${found.name}: ${found.category}`);
+  const site = await readSitePage(url);
+  const found = await discoverRivals(url, site.text);
+  log(`${found.name}: ${found.category} · ${found.profile.price_point} · ${found.profile.audience}`);
   log(`rivals: ${found.rivals.map((r) => r.name).join(", ")}`);
 
-  const rivals: { name: string; website: string; pageName: string | null; error: string | null; ads: Ad[] }[] = [];
-  for (const r of found.rivals) {
+  const rivals: { name: string; website: string; pageName: string | null; error: string | null; ads: Ad[]; self?: boolean }[] = [];
+  const companies = [{ name: found.name, website: new URL(url).hostname, reason: "you", self: true }, ...found.rivals.map((r) => ({ ...r, self: false }))];
+  for (const r of companies) {
     try {
       const search = await scrapeAds({ query: r.name }, 60);
       const page = pickRivalPage({ name: r.name, website: r.website }, search.ads);
       if (!page) {
         log(`${r.name}: no matching Facebook Page (${search.ads.length} keyword results via ${search.via})`);
-        rivals.push({ name: r.name, website: r.website, pageName: null, error: "no Page found", ads: [] });
+        rivals.push({ name: r.name, website: r.website, pageName: null, error: "no Page found", ads: [], self: r.self });
         continue;
       }
       const { ads, via, complete } = await scrapeAds({ pageId: page.pageId });
@@ -50,6 +53,7 @@ async function main() {
         website: r.website,
         pageName: page.pageName,
         error: null,
+        self: r.self,
         ads: ads.map((a) => ({
           id: a.archiveId,
           brand_id: "",
@@ -77,7 +81,7 @@ async function main() {
       });
     } catch (err) {
       log(`${r.name}: ${(err as Error).message}`);
-      rivals.push({ name: r.name, website: r.website, pageName: null, error: (err as Error).message, ads: [] });
+      rivals.push({ name: r.name, website: r.website, pageName: null, error: (err as Error).message, ads: [], self: r.self });
     }
   }
 
@@ -92,10 +96,25 @@ async function main() {
     }
   }
 
+  // Organic social, for the brand only (rival handles come from their sites in the app).
+  let social: SocialLine[] = [];
+  if (env.apifyToken && (site.socials.instagram || site.socials.tiktok)) {
+    log(`reading social: ${[site.socials.instagram, site.socials.tiktok].filter(Boolean).join(", ")}`);
+    const reads = await readSocial({ instagram: site.socials.instagram ? [site.socials.instagram] : [], tiktok: site.socials.tiktok ? [site.socials.tiktok] : [] });
+    social = reads.map((s) => ({
+      name: `${found.name} (you)`,
+      growth: null,
+      profile: { platform: s.platform, handle: s.handle, followers: s.followers, posts_per_week: postsPerWeek(s.recent), engagement_rate: engagementRate(s.recent, s.followers), recent: s.recent },
+    }));
+  }
+
   log("writing the report");
+  const own = rivals.find((r) => r.self)?.ads ?? [];
   const report = await writeReport({
-    brand: { name: found.name, url, summary: found.summary, category: found.category },
-    rivals: rivals.map((r) => ({ name: r.name, ads: r.ads })),
+    brand: { name: found.name, url, summary: found.summary, category: found.category, profile: found.profile },
+    own,
+    rivals: rivals.filter((r) => !r.self).map((r) => ({ name: r.name, ads: r.ads })),
+    social,
     changes: null,
     today,
   });
@@ -103,10 +122,17 @@ async function main() {
   const md = [
     `# ${found.name}: rival ad report (${today})`,
     `${found.summary}`,
+    `Profile: ${found.profile.what_it_sells} · ${found.profile.price_point} (${found.profile.price_tier}) · for ${found.profile.audience}`,
     `## ${report.headline}`,
     report.summary,
     `## What you wouldn't otherwise know`,
     ...report.insights.map((i, n) => `${n + 1}. **${i.title}** ${i.detail}\n   Evidence: ${i.evidence.map(libraryLink).join(" ") || "none"}`),
+    `## Where you stand`,
+    report.landscape.summary,
+    ...report.landscape.positions.map((p) => `- **${p.name}** (${p.price_tier}): ${p.audience}. Message: ${p.message}. Strength: ${p.strength}`),
+    `Only you: ${report.landscape.you_vs_them.only_you.join("; ") || "none"}`,
+    `Only them: ${report.landscape.you_vs_them.only_them.join("; ") || "none"}`,
+    `Open lanes: ${report.landscape.you_vs_them.open_lanes.join("; ") || "none"}`,
     `## Ads to make next`,
     ...report.plays.map((p, n) => `### ${n + 1}. ${p.title}\n${p.why}\n\n${p.brief}\n\nModeled on: ${p.inspired_by.map(libraryLink).join(" ")}`),
     `## Rivals`,

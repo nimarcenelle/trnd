@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { createServerSupabase } from "@/lib/db/supabase";
-import type { Ad, AdChange, Brand, Report, Rival } from "@/lib/db/types";
+import type { Ad, AdChange, Brand, Report, Rival, SocialProfile } from "@/lib/db/types";
 
 /** Reads for the pages, as the signed-in user (RLS keeps them to their own brand). */
 
@@ -13,10 +13,32 @@ export const getBrand = cache(async (userId: string): Promise<Brand | null> => {
   return data;
 });
 
+/** The brand's competitors (not the brand itself). */
 export async function listRivals(brandId: string): Promise<Rival[]> {
   const sb = await createServerSupabase();
-  const { data } = await sb.from("rivals").select("*").eq("brand_id", brandId).order("created_at");
+  const { data } = await sb.from("rivals").select("*").eq("brand_id", brandId).eq("is_self", false).order("created_at");
   return (data ?? []) as Rival[];
+}
+
+/** The brand's own row, watched like a rival. Null for brands not yet scanned since self-tracking. */
+export async function getSelf(brandId: string): Promise<Rival | null> {
+  const sb = await createServerSupabase();
+  const { data } = await sb.from("rivals").select("*").eq("brand_id", brandId).eq("is_self", true).maybeSingle<Rival>();
+  return data;
+}
+
+export async function listSocial(brandId: string): Promise<SocialProfile[]> {
+  const sb = await createServerSupabase();
+  const { data } = await sb.from("social_profiles").select("*").eq("brand_id", brandId);
+  return (data ?? []) as SocialProfile[];
+}
+
+export async function listSnapshots(profileIds: string[], days = 60): Promise<{ profile_id: string; followers: number; captured_on: string }[]> {
+  if (!profileIds.length) return [];
+  const sb = await createServerSupabase();
+  const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+  const { data } = await sb.from("social_snapshots").select("profile_id, followers, captured_on").in("profile_id", profileIds).gte("captured_on", since).order("captured_on");
+  return (data ?? []) as { profile_id: string; followers: number; captured_on: string }[];
 }
 
 export async function listAds(brandId: string, opts: { rivalId?: string; activeOnly?: boolean } = {}): Promise<Ad[]> {

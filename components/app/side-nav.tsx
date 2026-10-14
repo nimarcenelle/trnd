@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { IconBriefing, IconRivals, IconSettings } from "@/components/icons";
+import { IconBrand, IconBriefing, IconRivals, IconSettings } from "@/components/icons";
 
 import Avatar from "./avatar";
 
@@ -16,6 +16,7 @@ export interface RivalLink {
 
 const MAIN = [
   { href: "/app", label: "Briefing", icon: IconBriefing },
+  { href: "/app/brand", label: "Your brand", icon: IconBrand },
   { href: "/app/settings", label: "Rivals & settings", icon: IconSettings },
 ];
 

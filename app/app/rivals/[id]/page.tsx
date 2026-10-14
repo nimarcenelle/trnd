@@ -6,7 +6,10 @@ import Avatar from "@/components/app/avatar";
 import { AngleBars, LaunchBars } from "@/components/app/charts";
 import { IconArrowUpRight } from "@/components/icons";
 import { getSessionUser } from "@/lib/auth/session";
-import { getBrand, listAds, listReports, listRivals } from "@/lib/data";
+import HandlesForm from "@/components/app/handles-form";
+import SocialCard from "@/components/app/social-card";
+import { getBrand, listAds, listReports, listRivals, listSnapshots, listSocial } from "@/lib/data";
+import { growthBy } from "@/lib/social/read";
 import { PROVEN_DAYS } from "@/lib/diff";
 import { ago, daysRunningOf } from "@/lib/format";
 import { angleMix, weeklyLaunches } from "@/lib/stats";
@@ -23,7 +26,9 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
   const rival = (await listRivals(brand.id)).find((r) => r.id === id);
   if (!rival) notFound();
 
-  const [ads, [latest]] = await Promise.all([listAds(brand.id, { rivalId: rival.id }), listReports(brand.id, 1)]);
+  const [ads, [latest], allSocial] = await Promise.all([listAds(brand.id, { rivalId: rival.id }), listReports(brand.id, 1), listSocial(brand.id)]);
+  const social = allSocial.filter((p) => p.rival_id === rival.id);
+  const growth = growthBy(await listSnapshots(social.map((p) => p.id)));
   const byDays = (a: (typeof ads)[number]) => daysRunningOf(a) ?? -1;
   const live = ads.filter((a) => a.active).sort((a, b) => byDays(b) - byDays(a));
   const stopped = ads.filter((a) => !a.active).sort((a, b) => Date.parse(b.stopped_at ?? "") - Date.parse(a.stopped_at ?? ""));
@@ -100,6 +105,29 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
           <AngleBars rows={angleMix(ads, 5)} />
         </div>
       </div>
+
+      <section className="mt-10">
+        <h2 className="heading text-[15px] mb-3">Organic social</h2>
+        {social.length > 0 ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {social.map((p) => (
+              <SocialCard key={p.id} profile={p} growth={growth.get(p.id)} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-[13.5px] text-ink-2 mb-3">
+            {rival.instagram || rival.tiktok ? "Their accounts are read on the next scan." : "We couldn't find their Instagram or TikTok on their website. Add them and they're read on the next scan."}
+          </p>
+        )}
+        <details className="mt-3 group">
+          <summary className="text-[13px] text-ink-2 hover:text-ink inline-flex items-center gap-1.5">
+            <span className="transition-transform group-open:rotate-90">›</span> {rival.instagram || rival.tiktok ? "Edit handles" : "Add handles"}
+          </summary>
+          <div className="card p-4 mt-3 max-w-[640px]">
+            <HandlesForm rival={rival} />
+          </div>
+        </details>
+      </section>
 
       <section className="mt-10">
         <div className="flex items-center justify-between gap-4 mb-4">

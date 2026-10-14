@@ -7,6 +7,7 @@ vi.mock("@/lib/ai/openai", () => ({
     insights: [{ title: "t", detail: "d", evidence: ["A1", "MADE-UP"] }],
     plays: [{ title: "p", why: "w", brief: "b", inspired_by: ["MADE-UP", "A1"] }],
     rivals: [],
+    landscape: { summary: "s", positions: [], you_vs_them: { only_you: [], only_them: [], open_lanes: [] } },
   })),
 }));
 
@@ -54,6 +55,23 @@ describe("report", () => {
     expect(prompt).toContain("4 variants");
     expect(prompt).toContain("offer: 15% off");
     expect(prompt).not.toContain("What changed");
+  });
+
+  it("puts the brand's own ads, profile and social beside its rivals'", () => {
+    const prompt = reportPrompt({
+      ...input,
+      brand: {
+        ...input.brand,
+        profile: { what_it_sells: "Shower filters", price_point: "$79", price_tier: "mid", audience: "Women 25-45", value_props: ["Softer hair"], proof_points: [], offers: ["Free refill"], tone: "Warm", differentiators: ["Vitamin C"] },
+      },
+      own: [ad({ archive_id: "OWN1", rival_id: "self", started_at: "2026-10-01" })],
+      social: [{ name: "Rival", profile: { platform: "instagram", handle: "rival", followers: 12000, posts_per_week: 3, engagement_rate: 0.021, recent: [] }, growth: { from: 11000, to: 12000, days: 30 } }],
+    });
+    expect(prompt).toContain("Mine's own active Meta ads (1)");
+    expect(prompt).toContain("[OWN1]");
+    expect(prompt).toContain("Price: $79 (mid)");
+    expect(prompt).toContain("@rival): 12000 followers, +1000 followers in 30d, 3 posts/week, engagement 2.10%");
+    expect(prompt).toContain("landscape:");
   });
 
   it("drops archive ids the model made up", async () => {

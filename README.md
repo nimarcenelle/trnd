@@ -1,7 +1,8 @@
 # TRND
 
-Always-on surveillance for paid social. Enter your website; TRND names your competitors, reads every Meta ad they run,
-tells you what's working, and watches for changes every day.
+Always-on surveillance for paid social. Enter your website; TRND profiles your brand, names your competitors, reads
+every Meta ad you and they run plus everyone's Instagram and TikTok, tells you what's working and where you stand, and
+watches for changes every day.
 
 ## How it works
 
@@ -15,6 +16,12 @@ tells you what's working, and watches for changes every day.
      (`lib/diff.ts`).
    - New ads are tagged with angle, hook and offer, and the model writes a report: insights with the ads that show them,
      three ads to make next, and a line on each rival's strategy.
+   - The brand itself is a rival row with `is_self = true`, so its own ads go through the same scan; its profile
+     (`brands.profile`: price, audience, promises, proof, offers, tone, differentiators) is editable on `/app/brand`.
+   - Instagram and TikTok handles come from each company's site links (or the owner), are read through Apify
+     (`lib/social/`), and get a daily follower snapshot for growth. Skipped without `APIFY_TOKEN`.
+   - The report adds a landscape: each company's price tier, audience, message and strength, and what only you do,
+     what only they do, and the open lanes.
 3. **Monitor**. Vercel Cron hits `/api/cron/scan` daily, which fans out one invocation per due brand. A scan that finds
    changes writes an update report and emails the owner.
 
@@ -49,8 +56,9 @@ cp .env.example .env.local   # fill in Supabase + OpenAI at minimum
 pnpm dev
 ```
 
-Run `supabase/migrations/0100_surveillance.sql` in the Supabase SQL editor once. It creates `brands`, `rivals`, `ads`,
-`ad_changes` and `reports`, and leaves the old product's tables alone (drop them when convenient).
+Run `supabase/migrations/0100_surveillance.sql`, then `0101_brand_intel.sql`, in the Supabase SQL editor. They create
+`brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles` and `social_snapshots`, and leave the old
+product's tables alone (drop them when convenient).
 
 ## Layout
 

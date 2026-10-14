@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
-import { discoverRivals } from "@/lib/ai/analyze";
+import { discoverRivals, ProfileSchema } from "@/lib/ai/analyze";
 import { getSessionUser } from "@/lib/auth/session";
 import { getBrand } from "@/lib/data";
 import { adminSupabase } from "@/lib/db/supabase";
@@ -12,7 +12,8 @@ import { MAX_RIVALS } from "@/lib/db/types";
 import { isModelConfigured, isStripeConfigured } from "@/lib/env";
 import { isScanning } from "@/lib/format";
 import { scanBrand } from "@/lib/scan";
-import { normalizeUrl, readSite } from "@/lib/site";
+import { normHandle } from "@/lib/social/read";
+import { normalizeUrl, readSitePage } from "@/lib/site";
 
 export interface FormState {
   error?: string;
@@ -35,8 +36,11 @@ export async function createBrandAction(_prev: FormState, formData: FormData): P
   if (!isModelConfigured) return { error: "OPENAI_API_KEY is not set, so TRND cannot read your site yet." };
 
   let discovery;
+  let socials;
   try {
-    discovery = await discoverRivals(url, await readSite(url));
+    const page = await readSitePage(url);
+    socials = page.socials;
+    discovery = await discoverRivals(url, page.text);
   } catch (err) {
     console.warn("[setup] discovery failed:", (err as Error).message);
     return { error: `We couldn't read ${url}. Check the address and try again.` };
@@ -45,11 +49,24 @@ export async function createBrandAction(_prev: FormState, formData: FormData): P
   const sb = adminSupabase();
   const { data: brand, error } = await sb
     .from("brands")
-    .upsert({ owner_id: user.id, url, name: discovery.name, summary: discovery.summary, category: discovery.category }, { onConflict: "owner_id" })
+    .upsert({ owner_id: user.id, url, name: discovery.name, summary: discovery.summary, category: discovery.category, profile: discovery.profile }, { onConflict: "owner_id" })
     .select("id")
     .single();
   if (error || !brand) return { error: error?.message ?? "Could not save the brand." };
   await sb.from("rivals").delete().eq("brand_id", brand.id).eq("source", "ai");
+  // The brand itself, watched like a rival: replaced when the site changes.
+  await sb.from("rivals").delete().eq("brand_id", brand.id).eq("is_self", true);
+  await sb.from("rivals").insert({
+    brand_id: brand.id,
+    name: discovery.name,
+    website: url.replace(/^https?:\/\//, ""),
+    reason: "Your brand",
+    source: "owner",
+    is_self: true,
+    instagram: socials.instagram ? normHandle(socials.instagram) : null,
+    tiktok: socials.tiktok ? normHandle(socials.tiktok) : null,
+    socials_checked_at: new Date().toISOString(),
+  });
   await sb.from("rivals").insert(
     discovery.rivals.slice(0, MAX_RIVALS).map((r) => ({ brand_id: brand.id, name: r.name, website: r.website || null, reason: r.reason, source: "ai" })),
   );
@@ -62,7 +79,7 @@ export async function addRivalAction(_prev: FormState, formData: FormData): Prom
   const website = String(formData.get("website") ?? "").trim().slice(0, 200);
   if (!name) return { error: "Enter the rival's name as it appears on Facebook." };
   const sb = adminSupabase();
-  const { count } = await sb.from("rivals").select("id", { count: "exact", head: true }).eq("brand_id", brand.id);
+  const { count } = await sb.from("rivals").select("id", { count: "exact", head: true }).eq("brand_id", brand.id).eq("is_self", false);
   if ((count ?? 0) >= MAX_RIVALS) return { error: `You can watch up to ${MAX_RIVALS} rivals. Remove one first.` };
   const { error } = await sb.from("rivals").insert({ brand_id: brand.id, name, website: website || null, source: "owner" });
   if (error) return { error: error.message };
@@ -72,8 +89,51 @@ export async function addRivalAction(_prev: FormState, formData: FormData): Prom
 
 export async function removeRivalAction(formData: FormData): Promise<void> {
   const { brand } = await requireBrand();
-  await adminSupabase().from("rivals").delete().eq("id", String(formData.get("id"))).eq("brand_id", brand.id);
+  await adminSupabase().from("rivals").delete().eq("id", String(formData.get("id"))).eq("brand_id", brand.id).eq("is_self", false);
   revalidatePath("/app", "layout");
+}
+
+/** Set or correct a company's Instagram and TikTok handles (the brand's own included). */
+export async function updateHandlesAction(formData: FormData): Promise<void> {
+  const { brand } = await requireBrand();
+  const clean = (v: FormDataEntryValue | null) => {
+    const h = normHandle(String(v ?? "")).slice(0, 40);
+    return /^[a-z0-9._]{2,40}$/.test(h) ? h : null;
+  };
+  await adminSupabase()
+    .from("rivals")
+    .update({ instagram: clean(formData.get("instagram")), tiktok: clean(formData.get("tiktok")), socials_checked_at: new Date().toISOString() })
+    .eq("id", String(formData.get("id")))
+    .eq("brand_id", brand.id);
+  revalidatePath("/app", "layout");
+}
+
+/** The owner's corrections to the brand profile every report is written against. */
+export async function updateProfileAction(_prev: FormState & { saved?: boolean }, formData: FormData): Promise<FormState & { saved?: boolean }> {
+  const { brand } = await requireBrand();
+  const text = (k: string) => String(formData.get(k) ?? "").trim().slice(0, 600);
+  const lines = (k: string) =>
+    text(k)
+      .split(/\n+/)
+      .map((l) => l.replace(/^[-•*]\s*/, "").trim())
+      .filter(Boolean)
+      .slice(0, 8);
+  const parsed = ProfileSchema.safeParse({
+    what_it_sells: text("what_it_sells"),
+    price_point: text("price_point"),
+    price_tier: text("price_tier") || "unknown",
+    audience: text("audience"),
+    value_props: lines("value_props"),
+    proof_points: lines("proof_points"),
+    offers: lines("offers"),
+    tone: text("tone"),
+    differentiators: lines("differentiators"),
+  });
+  if (!parsed.success) return { error: "Check the price tier and try again." };
+  const { error } = await adminSupabase().from("brands").update({ profile: parsed.data }).eq("id", brand.id);
+  if (error) return { error: error.message };
+  revalidatePath("/app", "layout");
+  return { saved: true };
 }
 
 /** Start a scan now and return at once; the dashboard polls until it is done. */

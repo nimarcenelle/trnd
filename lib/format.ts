@@ -31,3 +31,16 @@ export const withinDays = (iso: string, days: number, now = Date.now()) => now -
 
 /** "ugc testimonial" → "UGC testimonial": a model-written tag, shown in sentence case. */
 export const tagLabel = (t: string) => (t.charAt(0).toUpperCase() + t.slice(1)).replace(/\bugc\b/gi, "UGC").replace(/\bdco\b/gi, "DCO");
+
+/** 12345 → "12.3K", 1200000 → "1.2M". */
+export function compact(n: number | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}M`;
+  if (Math.abs(n) >= 1e4) return `${(n / 1e3).toFixed(n >= 1e5 ? 0 : 1)}K`;
+  return n.toLocaleString("en-US");
+}
+
+export const percent = (f: number | null | undefined, digits = 1) => (f === null || f === undefined ? "—" : `${(f * 100).toFixed(digits)}%`);
+
+export const profileUrl = (platform: "instagram" | "tiktok", handle: string) =>
+  platform === "instagram" ? `https://www.instagram.com/${handle}/` : `https://www.tiktok.com/@${handle}`;

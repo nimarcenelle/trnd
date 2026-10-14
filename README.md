@@ -51,13 +51,22 @@ get ahead, win the choice, counter, or ignore, each with a campaign brief.
 
 ## The scraper
 
-`lib/adlibrary/scrape.ts` fetches the public Ad Library page (`facebook.com/ads/library/?view_all_page_id=…`, active
-ads, every country, most impressions first) with a plain `fetch`. The first page of results is JSON embedded in the HTML.
+`lib/adlibrary/scrape.ts` reads the public Ad Library page (`facebook.com/ads/library/?view_all_page_id=…`, active ads,
+every country, most impressions first) with a plain `fetch`. The first page of results is JSON embedded in the HTML.
 Later pages come from the same GraphQL query the page itself calls. `lib/adlibrary/parse.ts` walks every JSON payload
 for objects with an `ad_archive_id` and a `snapshot`, so it survives Meta moving things around.
 
-If Meta answers with a login wall (it sometimes does to datacenter IPs), the same URL goes through an Apify Ad Library
-actor when `APIFY_TOKEN` is set. Without the token, the rival shows the error.
+Meta walls cloud servers it takes for bots, so the read looks like a returning browser (`lib/adlibrary/session.ts`):
+it visits the library first, keeps the cookies Facebook sets (including the `datr` set from script), and sends them
+with Chrome's headers. When the wall still comes up, reads go, in order, to:
+
+1. **Meta's official Ad Library API** (`lib/adlibrary/api.ts`, `META_ACCESS_TOKEN`): free and never walled, but for
+   commercial ads it only returns ads shown in the EU, without images. In return it gives each ad's EU reach, which
+   ranks ads. Ads aren't marked stopped across a switch between the API and the full library.
+2. **Apify** (`APIFY_TOKEN`), paid, only when set. A 402 or a refused token switches it off for 15 minutes.
+
+`/api/health?probe=<brand>&key=<CRON_SECRET>` runs one search from the deployment through the free readers and says
+which one worked.
 
 Run the whole pipeline once for a real business, no database or login (needs `OPENAI_API_KEY`):
 

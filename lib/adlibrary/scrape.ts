@@ -2,23 +2,27 @@ import { assertApifyUp, noteApifyStatus } from "@/lib/apify";
 import { env } from "@/lib/env";
 import { fetchRetry } from "@/lib/retry";
 
+import { fromMetaApi, isMetaApiConfigured } from "./api";
 import { graphqlBlocks, jsonBlocks, looksBlocked, pageTokens, parsePayloads, type ScrapedAd } from "./parse";
+import { BROWSER_HEADERS, CookieJar, UA } from "./session";
 
 /**
  * The Meta Ad Library, read the way the browser reads it: GET the library
  * page (the first page of results is in the HTML), then ask the page's own
  * GraphQL query for the rest. No login, no browser, no API key.
  *
- * Meta sometimes answers a datacenter IP with a login wall. When that happens
- * and APIFY_TOKEN is set, the same search goes through the Apify Ad Library
- * actor instead; without it the scan says it was blocked.
+ * Meta sometimes answers a datacenter IP with a login wall. The read first
+ * looks like a returning browser (lib/adlibrary/session.ts). When the wall
+ * still comes up, the same search goes to Meta's official Ad Library API
+ * (META_ACCESS_TOKEN: free, but only ads shown in the EU), then to the paid
+ * Apify actor if APIFY_TOKEN is set. Without either, the scan says it was
+ * blocked.
  */
 
 const LIBRARY = "https://www.facebook.com/ads/library/";
 const GRAPHQL = "https://www.facebook.com/api/graphql/";
 const PAGE_SIZE = 30;
-const UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+const jar = new CookieJar();
 
 export type Search = { pageId: string } | { query: string };
 
@@ -27,7 +31,7 @@ export interface ScrapeResult {
   /** Every active ad was read. False means a later page could not be fetched,
    * so an ad missing from this read may still be running. */
   complete: boolean;
-  via: "library" | "apify";
+  via: "library" | "api" | "apify";
 }
 
 export class ScrapeBlockedError extends Error {}
@@ -53,28 +57,37 @@ export function libraryUrl(search: Search): string {
   return `${LIBRARY}?${p}`;
 }
 
-/** Cookies from a response, folded into one Cookie header for the follow-ups. */
-function cookieHeader(res: Response): string {
-  const all = typeof res.headers.getSetCookie === "function" ? res.headers.getSetCookie() : [];
-  return all.map((c) => c.split(";")[0]).join("; ");
+/** Visit the library once, as a browser would before searching, to pick up its cookies. */
+async function warmUp(): Promise<void> {
+  const res = await fetchRetry(LIBRARY, { headers: BROWSER_HEADERS, redirect: "follow", timeoutMs: 20_000, cache: "no-store" }).catch(() => null);
+  if (!res) return;
+  jar.take(res, await res.text().catch(() => ""));
+  jar.markWarm();
 }
 
-async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult> {
+async function libraryPage(search: Search): Promise<{ res: Response; html: string }> {
+  if (!jar.warm) await warmUp();
+  const cookie = jar.header();
   const res = await fetchRetry(libraryUrl(search), {
-    headers: {
-      "user-agent": UA,
-      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "accept-language": "en-US,en;q=0.9",
-      "sec-fetch-dest": "document",
-      "sec-fetch-mode": "navigate",
-      "sec-fetch-site": "none",
-    },
+    headers: { ...BROWSER_HEADERS, "sec-fetch-site": "same-origin", referer: LIBRARY, ...(cookie ? { cookie } : {}) },
     redirect: "follow",
     timeoutMs: 25_000,
     cache: "no-store",
   });
   const html = await res.text();
-  if (!res.ok || looksBlocked(html) || res.url.includes("/login")) {
+  jar.take(res, html);
+  return { res, html };
+}
+
+async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult> {
+  let { res, html } = await libraryPage(search);
+  const walled = () => !res.ok || looksBlocked(html) || res.url.includes("/login");
+  if (walled()) {
+    // A stale or missing session is the usual reason: start a fresh one and try once more.
+    jar.reset();
+    ({ res, html } = await libraryPage(search));
+  }
+  if (walled()) {
     throw new ScrapeBlockedError(`Ad Library answered ${res.status}${looksBlocked(html) ? " with a login wall" : ""}`);
   }
   const first = parsePayloads(jsonBlocks(html));
@@ -86,7 +99,7 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
   const ads = new Map(first.ads.map((a) => [a.archiveId, a]));
   let { cursor, hasNext } = first;
   const { lsd, docId } = pageTokens(html);
-  const cookies = cookieHeader(res);
+  const cookies = jar.header();
   const sessionId = crypto.randomUUID();
 
   while (hasNext && cursor && ads.size < limit) {
@@ -180,28 +193,44 @@ async function fromApify(search: Search, limit: number): Promise<ScrapeResult> {
   return { ads: ads.slice(0, limit), complete: ads.length < limit, via: "apify" };
 }
 
-/** When Meta last walled the direct read: for a while after, go straight to the backup. */
+/** When Meta last walled the direct read: for a while after, go straight to the fallbacks. */
 let blockedUntil = 0;
 const BLOCK_PAUSE_MS = 10 * 60_000;
 
 /**
- * Active ads for a Page, or for a keyword, most impressions first. `backup:
- * false` never falls back to Apify (for searches that are nice to have, not
- * worth paying for).
+ * Active ads for a Page, or for a keyword, most impressions (or reach) first.
+ * In order: the direct read, Meta's API, the paid Apify actor. `backup:
+ * false` never pays for Apify (for searches that are nice to have).
  */
 export async function scrapeAds(search: Search, limit = env.adsPerRival, opts: { backup?: boolean } = {}): Promise<ScrapeResult> {
-  const backup = opts.backup !== false && Boolean(env.apifyToken);
-  if (Date.now() < blockedUntil && backup) return fromApify(search, limit);
-  try {
-    return await fromLibrary(search, limit);
-  } catch (err) {
-    if (err instanceof ScrapeBlockedError) blockedUntil = Date.now() + BLOCK_PAUSE_MS;
-    if (!backup) {
-      throw err instanceof ScrapeBlockedError && !env.apifyToken
-        ? new ScrapeBlockedError("Meta blocked the direct read of the Ad Library, and there's no backup reader (set APIFY_TOKEN).")
-        : err;
+  const paid = opts.backup !== false && Boolean(env.apifyToken);
+  const errors: string[] = [];
+
+  if (Date.now() >= blockedUntil) {
+    try {
+      return await fromLibrary(search, limit);
+    } catch (err) {
+      if (err instanceof ScrapeBlockedError) blockedUntil = Date.now() + BLOCK_PAUSE_MS;
+      errors.push((err as Error).message);
     }
-    console.warn("[adlibrary] direct read failed, trying Apify:", (err as Error).message);
+  } else {
+    errors.push("Meta walled the direct read a few minutes ago");
+  }
+
+  if (isMetaApiConfigured()) {
+    try {
+      const { ads, complete } = await fromMetaApi(search, limit);
+      return { ads, complete, via: "api" };
+    } catch (err) {
+      console.warn("[adlibrary] Meta API failed:", (err as Error).message);
+      errors.push((err as Error).message);
+    }
+  }
+
+  if (paid) {
+    console.warn("[adlibrary] trying Apify after:", errors.join("; "));
     return fromApify(search, limit);
   }
+  const hint = isMetaApiConfigured() ? "" : " Set META_ACCESS_TOKEN to read through Meta's free API instead.";
+  throw new ScrapeBlockedError(`${errors.join(". ")}.${hint}`);
 }

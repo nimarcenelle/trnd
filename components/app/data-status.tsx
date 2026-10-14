@@ -24,7 +24,7 @@ function source(h: SourceHealth | undefined, fallbackAt: string | null | undefin
 
 /** What TRND last pulled for a company from each source, and whether it worked. */
 export default function DataStatus({ rival, inbox }: { rival: Rival; inbox: boolean }) {
-  const ads = source(rival.health?.ads, rival.last_scraped_at, (h) => `${h.count ?? 0} ads${h.via === "apify" ? " (backup reader)" : ""}`);
+  const ads = source(rival.health?.ads, rival.last_scraped_at, (h) => `${h.count ?? 0} ads${h.via === "apify" ? " (backup reader)" : h.via === "api" ? " (Meta API, EU)" : ""}`);
   const site = rival.website ? source(rival.health?.site, rival.site_checked_at, (h) => (h.count ? `${h.count} products` : "read")) : { value: "no website", tone: "off" as Tone };
   const email: { value: string; tone: Tone } = !inbox
     ? { value: "off", tone: "off" }

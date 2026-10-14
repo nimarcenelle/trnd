@@ -96,6 +96,8 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
   const none: RivalChanges = { launched: [], stopped: [], proven: [] };
   const now = new Date().toISOString();
   const company = { name: rival.name, website: rival.website, category: brand.category };
+  // Which reader the last read came from: Meta's API sees only EU ads, the others every ad.
+  const lastView = viewOf(rival.health?.ads?.via);
   let remapped = false;
   let { pageId, tried } = await resolvePage(sb, brand, rival);
   let read = pageId ? await scrapeAds({ pageId }) : null;
@@ -154,8 +156,11 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
   }
 
   // An ad missing from a complete read has stopped. From an incomplete read
-  // (a page we could not fetch) absence proves nothing, so nothing stops.
-  const stoppedIds = complete
+  // (a page we could not fetch) absence proves nothing, so nothing stops; nor
+  // does it after a switch between the EU-only API and the full library, when
+  // ads can go missing only because the view changed.
+  const sameView = !lastView || lastView === viewOf(via);
+  const stoppedIds = complete && sameView
     ? [...existing.values()].filter((a) => a.active && !seen.has(a.archive_id)).map((a) => a.id)
     : [];
   let stopped: Ad[] = [];
@@ -166,7 +171,17 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
 
   await sb.from("rivals").update({ last_scraped_at: now, last_error: null }).eq("id", rival.id);
   rival.last_error = null;
-  await recordHealth(sb, rival, "ads", { ok: true, count: scraped.length, via, note: complete ? null : "Partial read: some ads couldn't be fetched, so none were marked stopped" });
+  await recordHealth(sb, rival, "ads", {
+    ok: true,
+    count: scraped.length,
+    via,
+    note:
+      via === "api"
+        ? "Read through Meta's API: only ads shown in the EU, without images"
+        : complete
+          ? null
+          : "Partial read: some ads couldn't be fetched, so none were marked stopped",
+  });
   if (baseline) return { ...none, remapped };
 
   const launched = upserted.filter((a) => !existing.has(a.archive_id));
@@ -263,7 +278,14 @@ async function tagUntaggedEmails(sb: SupabaseClient, brandId: string, nameOf: Ma
 function unreadReason(rival: Rival): string | null {
   if (!rival.page_id) return "we couldn't find its Facebook Page";
   if (rival.last_error) return `the read failed: ${rival.last_error}`;
+  const ads = rival.health?.ads;
+  if (ads?.via === "api" && !ads.count) return "only ads shown in the EU were visible, and it has none there";
   return null;
+}
+
+/** The library and Apify read the same full library; Meta's API sees only ads shown in the EU. */
+function viewOf(via: string | null | undefined): "all" | "eu" | null {
+  return via === "api" ? "eu" : via ? "all" : null;
 }
 
 /** Run `fn` over `items`, `n` at a time. */

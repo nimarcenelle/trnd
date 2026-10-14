@@ -12,6 +12,9 @@ export const env = {
   /** Optional fallback for the Ad Library read when Meta walls our fetch. */
   apifyToken: process.env.APIFY_TOKEN ?? "",
   apifyAdLibraryActor: process.env.APIFY_ADLIBRARY_ACTOR || "curious_coder~facebook-ads-library-scraper",
+  /** Meta's official Ad Library API: a user access token from developers.facebook.com/tools/ad-library. */
+  metaAccessToken: process.env.META_ACCESS_TOKEN ?? "",
+  metaApiVersion: process.env.META_API_VERSION || "v23.0",
   /** Ads read per rival per scan. */
   adsPerRival: Math.min(200, Math.max(10, Number(process.env.ADS_PER_RIVAL) || 50)),
   cronSecret: process.env.CRON_SECRET ?? "",

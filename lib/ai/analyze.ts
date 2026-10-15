@@ -2,7 +2,6 @@ import "server-only";
 
 import { z } from "zod";
 
-import { MAX_RIVALS } from "@/lib/db/types";
 import type { Ad, Brand, BrandProfile, EmailKind, Landscape, Objectives, Opportunity, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { rankResults } from "@/lib/results";
 import { topHooks, topicsByScore } from "@/lib/score";
@@ -47,9 +46,23 @@ const DiscoverySchema = z.object({
   summary: z.string(),
   category: z.string(),
   profile: ProfileSchema,
-  rivals: z.array(z.object({ name: z.string(), website: z.string(), reason: z.string() })),
+  rivals: z.array(
+    z.object({
+      name: z.string(),
+      website: z.string(),
+      reason: z.string(),
+      /** 5: same product, same buyer, same price tier. 1: adjacent category or a different buyer. */
+      directness: z.number(),
+      /** Roughly how the brand compares in size and ad spend. */
+      scale: z.enum(["larger", "similar", "smaller"]),
+    }),
+  ),
 });
 export type Discovery = z.infer<typeof DiscoverySchema>;
+export type RivalCandidate = Discovery["rivals"][number];
+
+/** Candidates asked for, so the check against the Ad Library has spares to fill from. */
+export const CANDIDATE_RIVALS = 16;
 
 export async function discoverRivals(url: string, siteText: string): Promise<Discovery> {
   return generateJson({
@@ -75,12 +88,16 @@ Return:
   - offers: current discounts, bundles, subscriptions or shipping offers.
   - tone: how it talks, in a few words.
   - differentiators: what it claims makes it different from alternatives.
-- rivals: the ${MAX_RIVALS} most influential direct competitors for the same customer, most influential first.
-  Influence means how much of this customer's attention and spend a brand commands: market share, brand recognition,
-  how heavily it advertises on Meta, and its social following. Leading brands in the category belong here even when
-  bigger than this one. Leave out marketplaces and general retailers (no Amazon, Walmart, Target) and brands that
-  only overlap a little. For each: the brand name exactly as it appears on its Facebook Page, its website domain
-  (e.g. "brand.com"), and one line on why it competes for the same customer.`,
+- rivals: ${CANDIDATE_RIVALS} candidate competitors, the most direct first. Direct means a shopper comparing this brand
+  would weigh that one for the same purchase: the same product type and purchase occasion, the same kind of customer,
+  a comparable price tier, sold online the same way. Score each 1-5 for directness: 5 is the same product for the same
+  buyer at a similar price (for a filtered showerhead brand: other filtered showerhead and shower filter brands sold
+  direct to consumers); 3 is the same product in a different tier or a close substitute; 1 is an adjacent category or
+  a different buyer (whole-home water systems, hardware-store fixtures, plumbing brands, pro or B2B lines). Prefer
+  brands that advertise on Meta and are of a comparable scale, and mark each larger, similar or smaller. Leading
+  brands in the category belong here even when bigger. Leave out marketplaces and general retailers (no Amazon,
+  Walmart, Target). For each: the brand name exactly as it appears on its Facebook Page, its website domain
+  (e.g. "brand.com"), one line on why a shopper would compare them, directness and scale.`,
   });
 }
 

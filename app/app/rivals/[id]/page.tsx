@@ -313,6 +313,9 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
           </div>
         ) : shown.length ? (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+            <p className="caption col-span-full m-0 -mb-1">
+              Score: how well an ad is working for them, 0-100, from how long it has run, its reach rank, how many versions run, and engagement on the post it also runs as. Hover a score for its parts.
+            </p>
             {groupAdVersions(shown)
               .slice(0, 60)
               .map(({ lead, versions }) => (

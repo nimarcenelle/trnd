@@ -1,6 +1,7 @@
 import type { Ad, Opportunity, OpportunityType } from "@/lib/db/types";
 
 import Avatar from "./avatar";
+import CopyBrief from "./copy-brief";
 import Evidence, { type SignalRef } from "./evidence";
 
 export const OPPORTUNITY: Record<OpportunityType, { label: string; cls: string; blurb: string }> = {
@@ -20,6 +21,25 @@ function Field({ k, v }: { k: string; v: string }) {
       <dd className="m-0 text-ink-2">{v}</dd>
     </div>
   );
+}
+
+/** The brief as a creator reads it: one labeled line per part, the why on top. */
+export function briefText(o: Opportunity): string {
+  const b = o.brief;
+  const lines = [
+    o.title,
+    `Why: ${o.fit}`,
+    `What we saw: ${o.signal}`,
+    "",
+    `Hook: ${b.hook}`,
+    `Angle: ${b.angle}`,
+    b.offer && b.offer.toLowerCase() !== "none" ? `Offer: ${b.offer}` : null,
+    `Format: ${b.format}`,
+    `Creative: ${b.creative}`,
+    `Audience: ${b.audience}`,
+    `Test: ${b.experiment}`,
+  ];
+  return lines.filter((l): l is string => l !== null).join("\n");
 }
 
 /** One decision: the competitor move, what it likely means, why it matters to you, and the campaign to run. */
@@ -84,6 +104,7 @@ export default function OpportunityCard({ o, ads, refs }: { o: Opportunity; ads:
             <Field k="Audience" v={b.audience} />
             <Field k="Test" v={b.experiment} />
           </dl>
+          <CopyBrief text={briefText(o)} />
         </details>
       )}
 

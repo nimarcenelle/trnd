@@ -16,6 +16,8 @@ export interface SiteProduct {
   compare_at: number | null;
   available: boolean;
   url: string | null;
+  /** When the store added it (Shopify's published date), so a first read can say what is new. */
+  created_at?: string | null;
 }
 
 export interface SiteSnapshot {
@@ -128,6 +130,7 @@ export function shopifyProducts(json: unknown, base: string): SiteProduct[] {
         compare_at: Number.isFinite(compare) && price !== null && compare > price ? compare : null,
         available: variants.some((v) => v.available !== false),
         url: o.handle ? `${base.replace(/\/$/, "")}/products/${o.handle}` : null,
+        created_at: typeof o.published_at === "string" ? o.published_at : typeof o.created_at === "string" ? o.created_at : null,
       },
     ];
   });
@@ -237,4 +240,21 @@ export function diffSnapshots(prev: SiteSnapshot, next: SiteSnapshot): SiteDiff[
     out.push({ kind: "message_changed", title: "New site description", before: prev.description, after: next.description, url: null });
 
   return out;
+}
+
+/**
+ * What a first snapshot can say about the recent past: the products the
+ * store added in the last `days`, each dated when it was published. Many at
+ * once collapse into one line, as diffSnapshots does.
+ */
+export function recentProducts(snapshot: SiteSnapshot, now: string, days = 30): (SiteDiff & { detected_at: string })[] {
+  const since = new Date(Date.parse(now) - days * 86_400_000).toISOString();
+  const recent = snapshot.products
+    .filter((p): p is SiteProduct & { created_at: string } => typeof p.created_at === "string" && p.created_at >= since && p.created_at <= now)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  if (!recent.length) return [];
+  if (recent.length <= 3) {
+    return recent.map((p) => ({ kind: "new_product", title: `New product: ${p.title}`, before: null, after: p.price !== null ? money(p.price) : null, url: p.url, detected_at: p.created_at }));
+  }
+  return [{ kind: "new_product", title: `${recent.length} products added`, before: null, after: recent.slice(0, 6).map((p) => p.title).join(", "), url: null, detected_at: recent[0].created_at }];
 }

@@ -15,6 +15,7 @@ import { IconRefresh } from "@/components/icons";
 import { scanNowAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
+import { isInboxConfigured } from "@/lib/env";
 import { getBrand, getSelf, listAds, listChanges, listEmails, listReports, listRivals, listSiteChanges, listSocial } from "@/lib/data";
 import type { Ad, ChangeKind, Report } from "@/lib/db/types";
 import { ago, compact, daysRunningOf, isNoPageNote, isScanning, todayIso, withinDays } from "@/lib/format";
@@ -204,7 +205,7 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
       {latest ? (
         <div className="card mt-6 p-6 sm:p-7">
           <div className="flex items-center gap-2 text-[12.5px]">
-            <span className="badge">{latest.kind === "baseline" ? "First read" : "Since the last scan"}</span>
+            <span className="badge">{latest.kind === "baseline" ? "Last 30 days" : "Since the last scan"}</span>
             <span className="text-ink-3">{fmtDate(latest.created_at)}</span>
           </div>
           <h2 className="heading text-[21px] sm:text-[23px] leading-[1.3] mt-3 max-w-[860px]">{latest.body.headline}</h2>
@@ -219,11 +220,11 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
         )
       )}
 
-      <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className={`mt-4 grid grid-cols-2 ${isInboxConfigured ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-3`}>
         <Kpi label="Live ads" value={live.length} hint={`Across ${rivals.length} rivals`} />
         <Kpi label="Ad moves" value={week("launched") + week("stopped")} hint={`${week("launched")} new · ${week("stopped")} stopped · 7 days`} tone={week("launched") ? "text-pos" : ""} />
         <Kpi label="Website changes" value={siteWeek()} hint="Products, prices, promos · 7 days" tone={siteWeek() ? "text-warn" : ""} />
-        <Kpi label="Competitor emails" value={emailMonth()} hint="Sent to subscribers · 30 days" />
+        {isInboxConfigured && <Kpi label="Competitor emails" value={emailMonth()} hint="Sent to subscribers · 30 days" />}
       </div>
 
       {act.length > 0 && (

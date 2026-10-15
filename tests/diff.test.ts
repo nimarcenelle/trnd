@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { crossedProven, daysRunning, PROVEN_DAYS, isLaunch, readLooksPartial } from "@/lib/diff";
+import { crossedProven, daysRunning, PROVEN_DAYS, isLaunch, readLooksPartial, backfillEvents, backfillStopped } from "@/lib/diff";
 import { isScanning } from "@/lib/format";
 
 describe("daysRunning", () => {
@@ -56,5 +56,26 @@ describe("a read with under half of last time's ads is partial", () => {
     expect(readLooksPartial(33, 17)).toBe(false);
     expect(readLooksPartial(6, 1)).toBe(false);
     expect(readLooksPartial(0, 0)).toBe(false);
+  });
+});
+
+describe("the first read writes the last 30 days from the ads' own dates", () => {
+  const now = "2026-10-15T17:00:00Z";
+  it("dates launches on their start day and proven ads on the day they crossed the line", () => {
+    const ads = [
+      { id: "a", started_at: "2026-10-10", active: true },
+      { id: "b", started_at: "2026-09-20", active: true },
+      { id: "c", started_at: "2026-08-01", active: true },
+      { id: "d", started_at: "2026-10-01", active: false },
+      { id: "e", started_at: null, active: true },
+    ];
+    const { launched, proven } = backfillEvents(ads, now);
+    expect(launched.map((l) => l.ad.id)).toEqual(["a", "b"]);
+    expect(launched[0].at).toBe("2026-10-10T12:00:00.000Z");
+    expect(proven.map((l) => `${l.ad.id}@${l.at.slice(0, 10)}`)).toEqual(["b@2026-10-11"]);
+  });
+  it("keeps the stopped ads that ended inside the window", () => {
+    const ended = [{ archiveId: "x", endedAt: "2026-10-12" }, { archiveId: "y", endedAt: "2026-08-30" }, { archiveId: "z", endedAt: null }];
+    expect(backfillStopped(ended, now).map((s) => `${s.ad.archiveId}@${s.at.slice(0, 10)}`)).toEqual(["x@2026-10-12"]);
   });
 });

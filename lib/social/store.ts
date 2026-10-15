@@ -9,9 +9,9 @@ import { readSitePage } from "@/lib/site";
 import { engagementRate, growthBy, normHandle, postsPerWeek, readFacebook, readSocialWithStatus, type Growth, type Snapshot } from "./read";
 
 /** Facebook posts are read for ad engagement, every few days rather than daily. */
-const FACEBOOK_EVERY_MS = 3 * 86_400_000;
-/** Instagram and TikTok profiles are paid reads: once a day is enough for follower counts and recent posts. */
-const SOCIAL_EVERY_MS = 20 * 3_600_000;
+/** Facebook posts and TikTok profiles are the expensive reads (about $0.14 a Page and $0.25 a run): weekly. Instagram is cheap: daily. */
+const FACEBOOK_EVERY_MS = 7 * 86_400_000;
+const SOCIAL_EVERY_MS: Record<"instagram" | "tiktok", number> = { instagram: 20 * 3_600_000, tiktok: 6 * 86_400_000 };
 
 /**
  * The social half of a scan: find each company's Instagram and TikTok handles
@@ -44,7 +44,7 @@ export async function refreshSocial(sb: SupabaseClient, brandId: string, rivals:
   const { data: recentRows } = await sb.from("social_profiles").select("rival_id, platform, fetched_at, error").eq("brand_id", brandId).in("platform", ["instagram", "tiktok"]);
   const freshKeys = new Set(
     (recentRows ?? [])
-      .filter((r) => !r.error && r.fetched_at && Date.now() - Date.parse(r.fetched_at as string) < SOCIAL_EVERY_MS)
+      .filter((r) => !r.error && r.fetched_at && Date.now() - Date.parse(r.fetched_at as string) < SOCIAL_EVERY_MS[r.platform as "instagram" | "tiktok"])
       .map((r) => `${r.platform}:${r.rival_id}`),
   );
   const owner = new Map<string, Rival>();

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { confirmLink, emailLinks, emailText, findSignupForm, inboxAddress, klaviyoCompany, readWebhook, tokenFromRecipients } from "@/lib/inbox/parse";
 import { verifyInbound } from "@/lib/inbox/verify";
-import { diffSnapshots, promoLines, shopifyProducts, snapshotFrom, type SiteSnapshot } from "@/lib/sitewatch/snapshot";
+import { diffSnapshots, promoLines, shopifyProducts, snapshotFrom, type SiteSnapshot, recentProducts } from "@/lib/sitewatch/snapshot";
 import { buildTimeline, byDay } from "@/lib/timeline";
 
 const snap = (over: Partial<SiteSnapshot>): SiteSnapshot => ({
@@ -32,8 +32,8 @@ describe("website snapshots", () => {
       "https://tidewell.com",
     );
     expect(products).toEqual([
-      { id: "filter", title: "Filter", price: 79, compare_at: 99, available: true, url: "https://tidewell.com/products/filter" },
-      { id: "refill", title: "Refill", price: 25, compare_at: null, available: false, url: "https://tidewell.com/products/refill" },
+      { id: "filter", title: "Filter", price: 79, compare_at: 99, available: true, url: "https://tidewell.com/products/filter", created_at: null },
+      { id: "refill", title: "Refill", price: 25, compare_at: null, available: false, url: "https://tidewell.com/products/refill", created_at: null },
     ]);
   });
 
@@ -182,5 +182,19 @@ describe("timeline", () => {
       ["2026-10-13", 1],
       ["2026-10-12", 2],
     ]);
+  });
+});
+
+describe("a first snapshot names the products the store added lately", () => {
+  const snap = (products: { id: string; title: string; created_at: string | null }[]) =>
+    ({ title: null, description: null, headlines: [], promos: [], nav: [], products: products.map((p) => ({ ...p, price: 20, compare_at: null, available: true, url: null })), catalog: true, text_hash: "h" }) as never;
+  it("dates each new product when it was published and groups many into one line", () => {
+    const one = recentProducts(snap([{ id: "a", title: "Mist", created_at: "2026-10-01T00:00:00Z" }, { id: "b", title: "Old", created_at: "2026-06-01T00:00:00Z" }]), "2026-10-15T17:00:00Z");
+    expect(one).toHaveLength(1);
+    expect(one[0]).toMatchObject({ kind: "new_product", title: "New product: Mist", detected_at: "2026-10-01T00:00:00Z" });
+    const many = recentProducts(snap(["a", "b", "c", "d"].map((id) => ({ id, title: id.toUpperCase(), created_at: "2026-10-05T00:00:00Z" }))), "2026-10-15T17:00:00Z");
+    expect(many).toHaveLength(1);
+    expect(many[0].title).toBe("4 products added");
+    expect(recentProducts(snap([{ id: "x", title: "No date", created_at: null }]), "2026-10-15T17:00:00Z")).toEqual([]);
   });
 });

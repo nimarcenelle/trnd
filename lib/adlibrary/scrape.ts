@@ -18,7 +18,8 @@ const PAGE_SIZE = 30;
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 
-export type Search = { pageId: string } | { query: string };
+/** `status`: active ads (the default) or the ones that have stopped, newest end first. */
+export type Search = ({ pageId: string } | { query: string }) & { status?: "active" | "inactive" };
 
 export interface ScrapeResult {
   ads: ScrapedAd[];
@@ -33,7 +34,7 @@ export class ScrapeBlockedError extends Error {}
 /** The library URL for a search, active ads only, most impressions first. */
 export function libraryUrl(search: Search): string {
   const p = new URLSearchParams({
-    active_status: "active",
+    active_status: search.status ?? "active",
     ad_type: "all",
     country: "ALL",
     is_targeted_country: "false",
@@ -184,7 +185,7 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
   while (hasNext && cursor && ads.size < limit) {
     if (!lsd || !docId) break;
     const variables = {
-      activeStatus: "active",
+      activeStatus: search.status ?? "active",
       adType: "ALL",
       bylines: [],
       collationToken: null,
@@ -266,7 +267,7 @@ async function fromApify(search: Search, limit: number): Promise<ScrapeResult> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ urls: [{ url: libraryUrl(search) }], count: limit, "scrapePageAds.activeStatus": "active" }),
+    body: JSON.stringify({ urls: [{ url: libraryUrl(search) }], count: limit, "scrapePageAds.activeStatus": search.status ?? "active" }),
     signal: AbortSignal.timeout(240_000),
     cache: "no-store",
   });

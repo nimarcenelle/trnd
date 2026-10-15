@@ -95,3 +95,37 @@ export const PARTIAL_READ_MIN = 10;
 export function readLooksPartial(previouslyActive: number, readCount: number): boolean {
   return previouslyActive >= PARTIAL_READ_MIN && readCount < previouslyActive / 2;
 }
+
+/** How far back the first read of a Page writes history from the ads' own dates. */
+export const BACKFILL_DAYS = 30;
+
+const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T12:00:00Z`) + n * 86_400_000).toISOString();
+
+/**
+ * The events a Page's first read can state from the ads' own dates, so a
+ * fresh brand's first week is not a blank baseline: every ad that started
+ * in the window is a launch on its start day, and every ad that crossed
+ * PROVEN_DAYS inside the window is proven on the day it did. Stopped ads
+ * come from the inactive read (backfillStopped). Dated at noon UTC on the
+ * day, never after `now`.
+ */
+export function backfillEvents<T extends Pick<Ad, "started_at" | "active">>(ads: T[], now: string): { launched: { ad: T; at: string }[]; proven: { ad: T; at: string }[] } {
+  const today = now.slice(0, 10);
+  const windowStart = addDays(today, -BACKFILL_DAYS).slice(0, 10);
+  const launched: { ad: T; at: string }[] = [];
+  const proven: { ad: T; at: string }[] = [];
+  for (const ad of ads) {
+    if (!ad.active || !ad.started_at) continue;
+    if (ad.started_at >= windowStart && ad.started_at <= today) launched.push({ ad, at: addDays(ad.started_at, 0) });
+    const provenDay = addDays(ad.started_at, PROVEN_DAYS).slice(0, 10);
+    if (provenDay >= windowStart && provenDay <= today) proven.push({ ad, at: addDays(provenDay, 0) });
+  }
+  return { launched, proven };
+}
+
+/** The stopped ads of an inactive read that ended inside the window, with the day they did. */
+export function backfillStopped<T extends { endedAt?: string | null }>(ads: T[], now: string): { ad: T; at: string }[] {
+  const today = now.slice(0, 10);
+  const windowStart = addDays(today, -BACKFILL_DAYS).slice(0, 10);
+  return ads.flatMap((ad) => (ad.endedAt && ad.endedAt >= windowStart && ad.endedAt <= today ? [{ ad, at: addDays(ad.endedAt, 0) }] : []));
+}

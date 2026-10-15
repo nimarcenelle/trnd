@@ -9,7 +9,7 @@ import { commentSentiment, tagAds, tagEmails, writeReport } from "@/lib/ai/analy
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Ad, Brand, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/score";
-import { crossedProven, isLaunch, readLooksPartial } from "@/lib/diff";
+import { backfillEvents, backfillStopped, crossedProven, isLaunch, readLooksPartial } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { env, isModelConfigured } from "@/lib/env";
 import { NO_PAGE_NOTE } from "@/lib/format";
@@ -179,7 +179,10 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
   }
 
   await sb.from("rivals").update({ last_scraped_at: now, last_error: null }).eq("id", rival.id);
-  if (baseline) return { ...none, remapped };
+  if (baseline) {
+    await backfillHistory(sb, brand, rival, pageId, upserted, now).catch((err) => console.warn(`[scan] ${rival.name} history:`, (err as Error).message));
+    return { ...none, remapped };
+  }
 
   const launched = upserted.filter((a) => !existing.has(a.archive_id) && isLaunch(a, rival.last_scraped_at, complete));
   const proven = crossedProven(upserted, rival.last_scraped_at, now.slice(0, 10));
@@ -239,6 +242,53 @@ function handOff(brandId: string, state: ScanState): void {
   fetch(url, { headers: { authorization: `Bearer ${env.cronSecret}` }, signal: AbortSignal.timeout(4_000), cache: "no-store" }).catch(() => {
     /* the route runs on regardless of whether this wait ends first */
   });
+}
+
+/** Stopped ads read on a Page's first scan: enough to cover a month of endings. */
+const STOPPED_READ = 40;
+
+/**
+ * What a Page's first read can say about the last 30 days, so a fresh brand
+ * does not start from a blank baseline: launches and proven ads from the
+ * ads' own start dates, and stopped ads from a second read of the Page's
+ * inactive ads with their end dates. None of these count as this scan's
+ * changes (they are dated when they happened); they fill the timeline and
+ * the week's numbers.
+ */
+async function backfillHistory(sb: SupabaseClient, brand: Brand, rival: Rival, pageId: string, active: Ad[], now: string): Promise<void> {
+  const { launched, proven } = backfillEvents(active, now);
+  const rows = [
+    ...launched.map(({ ad, at }) => ({ brand_id: brand.id, rival_id: rival.id, ad_id: ad.id, kind: "launched", detected_at: at })),
+    ...proven.map(({ ad, at }) => ({ brand_id: brand.id, rival_id: rival.id, ad_id: ad.id, kind: "proven", detected_at: at })),
+  ];
+
+  const ended = await scrapeAds({ pageId, status: "inactive" }, STOPPED_READ).catch((err) => {
+    console.warn(`[scan] ${rival.name} stopped ads:`, (err as Error).message);
+    return null;
+  });
+  let stoppedCount = 0;
+  if (ended?.ads.length) {
+    const stopped = backfillStopped(ended.ads, now);
+    if (stopped.length) {
+      const { data } = await sb
+        .from("ads")
+        .upsert(
+          stopped.map(({ ad, at }) => ({ ...row(brand.id, rival.id, ad, now), active: false, stopped_at: at, last_seen_at: at })),
+          { onConflict: "rival_id,archive_id", ignoreDuplicates: true },
+        )
+        .select("id, archive_id");
+      const byArchive = new Map(((data ?? []) as Pick<Ad, "id" | "archive_id">[]).map((a) => [a.archive_id, a.id]));
+      for (const { ad, at } of stopped) {
+        const id = byArchive.get(ad.archiveId);
+        if (id) {
+          rows.push({ brand_id: brand.id, rival_id: rival.id, ad_id: id, kind: "stopped", detected_at: at });
+          stoppedCount += 1;
+        }
+      }
+    }
+  }
+  if (rows.length) await sb.from("ad_changes").insert(rows);
+  console.log(`[scan] ${rival.name}: history ${launched.length} launched, ${proven.length} proven, ${stoppedCount} stopped`);
 }
 
 /**

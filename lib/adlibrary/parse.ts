@@ -13,6 +13,8 @@ import type { AdFormat } from "@/lib/db/types";
 
 export interface ScrapedAd {
   archiveId: string;
+  /** The day the ad stopped, for an inactive ad; null while it runs. */
+  endedAt?: string | null;
   pageId: string | null;
   pageName: string | null;
   /** The Page's facebook.com address, e.g. "https://www.facebook.com/brand/". */
@@ -174,6 +176,7 @@ export function toScrapedAd(o: Obj): ScrapedAd | null {
     platforms,
     variants: typeof o.collation_count === "number" && o.collation_count > 0 ? o.collation_count : 1,
     startedAt: day(o.start_date ?? o.startDate),
+    endedAt: day(o.end_date ?? o.endDate),
     active: o.is_active !== false && o.isActive !== false,
   };
 }

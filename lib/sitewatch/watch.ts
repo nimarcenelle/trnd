@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Rival } from "@/lib/db/types";
 import { get } from "@/lib/site";
 
-import { diffSnapshots, shopifyProducts, snapshotFrom, type SiteDiff, type SiteSnapshot } from "./snapshot";
+import { recentProducts, diffSnapshots, shopifyProducts, snapshotFrom, type SiteDiff, type SiteSnapshot } from "./snapshot";
 
 /**
  * Read a competitor's homepage and catalog, compare with the last snapshot,
@@ -58,6 +58,11 @@ export async function checkSite(sb: SupabaseClient, brandId: string, rival: Riva
     .maybeSingle<{ id: string; data: SiteSnapshot }>();
 
   const diffs = last ? diffSnapshots(last.data, read.snapshot) : [];
+  // The first read has nothing to diff against, but the catalog says what the store added lately.
+  if (!last) {
+    const recent = recentProducts(read.snapshot, now);
+    if (recent.length) await sb.from("site_changes").insert(recent.map((d) => ({ ...d, url: d.url ?? read.url, brand_id: brandId, rival_id: rival.id })));
+  }
   if (!last || last.data.text_hash !== read.snapshot.text_hash || diffs.length) {
     await sb.from("site_snapshots").insert({ brand_id: brandId, rival_id: rival.id, url: read.url, data: read.snapshot, captured_at: now });
     // Keep the latest few, not a year of homepages.

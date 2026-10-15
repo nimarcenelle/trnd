@@ -22,6 +22,8 @@ export function ago(iso: string | null, now = Date.now()): string {
 /** A scan longer than this died with its function (the limit is 5 minutes). */
 // Three stages of up to 170s each, plus hand-offs, must fit before a scan reads as abandoned.
 const SCAN_STALE_MS = 15 * 60_000;
+/** A manual scan sooner than this after the last one is a wasted model run; the page says so. */
+export const SCAN_MIN_GAP_MS = 10 * 60_000;
 
 /** A scan is running, and not one that died mid-way and never reset its flag. */
 export function isScanning(brand: Pick<Brand, "scan_status" | "scan_started_at">, now = Date.now()): boolean {

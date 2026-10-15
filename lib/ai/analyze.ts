@@ -316,7 +316,7 @@ export interface ReportInput {
 
 /** The standing report, as the model sees it: what it must keep unless the signals moved. */
 function standingBlock(prev: ReportBody): string {
-  const opps = (prev.opportunities ?? []).map((o, i) => `${i + 1}. [${o.type}] ${o.title} — ${o.recommendation}`).join("\n");
+  const opps = (prev.opportunities ?? []).map((o, i) => `${i + 1}. title: "${o.title}" · type: ${o.type} · recommendation: ${o.recommendation}`).join("\n");
   return `\n\n# The standing report (what the founder is already acting on)
 Headline: ${prev.headline}
 Summary: ${prev.summary}
@@ -550,6 +550,15 @@ export function fallbackEvidence(text: string, competitors: string[], rivals: Re
   return (hits.length ? hits : scored.slice(0, Math.min(2, max))).map((a) => a.id);
 }
 
+/** A standing title the model echoed with its recommendation glued on ("Title — Do this") is the title alone. */
+export function standingTitle(title: string, previous: ReportBody | null | undefined): string {
+  for (const p of previous?.opportunities ?? []) {
+    const t = p.title.trim();
+    if (t && title.length > t.length && title.toLowerCase().startsWith(t.toLowerCase()) && /^[\s:\u2014\u2013-]/.test(title.slice(t.length))) return t;
+  }
+  return title;
+}
+
 export async function writeReport(input: ReportInput): Promise<ReportBody & { landscape: Landscape; opportunities: Opportunity[] }> {
   const body = await generateJson({ system: SYSTEM, schema: ReportSchema, prompt: reportPrompt(input) });
   const { site, emails } = refsOf(input);
@@ -587,7 +596,8 @@ export async function writeReport(input: ReportInput): Promise<ReportBody & { la
       brief: o.brief,
       evidence: o.type === "ignore" ? resolve(o.evidence) : withEvidence(o.evidence, `${o.title} ${o.signal}`, o.competitors),
       status: input.previous ? (o.status ?? "new") : "new",
-    }));
+    }))
+    .map((o) => ({ ...o, title: standingTitle(o.title, input.previous) }));
   // Nothing new since the standing report (a manual re-scan): the story the founder is acting on stays.
   const prev = input.previous;
   const freshCount = (input.changes ? input.changes.launched.length + input.changes.stopped.length + input.changes.proven.length : 0) +

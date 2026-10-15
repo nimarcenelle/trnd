@@ -82,7 +82,15 @@ function Plays({ report, ads }: { report: Report; ads: Map<string, Ad> }) {
   );
 }
 
-export default async function Briefing() {
+/** What the scan is doing right now, by stage (lib/scan.ts). */
+const STAGE_LINE = {
+  ads: "Reading every rival\u2019s ads, website and social accounts.",
+  tag: "Tagging and scoring every ad.",
+  report: "Writing your report.",
+} as const;
+
+export default async function Briefing({ searchParams }: { searchParams: Promise<{ scan?: string }> }) {
+  const { scan: scanFlag } = await searchParams;
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const brand = await getBrand(user.id);
@@ -173,7 +181,17 @@ export default async function Briefing() {
       {running && (
         <div className="card mt-6 px-5 py-4 flex items-center gap-3 text-[13.5px]">
           <span className="spinner" />
-          Reading every rival&apos;s ads and writing your report. This takes a few minutes; the page updates on its own.
+          {STAGE_LINE[brand.scan_state?.stage ?? "ads"]} This takes a few minutes; the page updates on its own.
+        </div>
+      )}
+      {scanFlag === "recent" && !running && (
+        <div className="card mt-6 px-5 py-4 text-[13.5px] text-ink-2">
+          Scanned {ago(brand.last_scan_at)}. A scan reads every rival again, so the next one can start ten minutes after the last.
+        </div>
+      )}
+      {!running && brand.scan_status === "running" && brand.scan_state && (
+        <div className="mt-6 rounded-xl border border-warn/30 bg-warn-bg px-5 py-4 text-[13.5px] text-warn">
+          The last scan was cut short while {STAGE_LINE[brand.scan_state.stage].toLowerCase().replace(/\.$/, "")}. It picks up where it stopped on the next scan.
         </div>
       )}
       {brand.scan_status === "error" && brand.scan_error && (

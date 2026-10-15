@@ -111,9 +111,15 @@ export async function refreshSocial(sb: SupabaseClient, brandId: string, rivals:
         .upsert({ brand_id: brandId, rival_id: rival.id, platform, handle, error: `${platform === "instagram" ? "Instagram" : "TikTok"} could not be read this scan; it is tried again next time.` }, { onConflict: "rival_id,platform" });
       continue;
     }
+    // A profile read before is a real profile: a scan that misses it keeps its numbers and says the read failed.
+    const { data: prior } = await sb.from("social_profiles").select("followers").eq("rival_id", rival.id).eq("platform", platform).maybeSingle<{ followers: number | null }>();
+    const label = platform === "instagram" ? "Instagram" : "TikTok";
     await sb
       .from("social_profiles")
-      .upsert({ brand_id: brandId, rival_id: rival.id, platform, handle, error: `No public ${platform === "instagram" ? "Instagram" : "TikTok"} profile found for @${handle}.` }, { onConflict: "rival_id,platform" });
+      .upsert(
+        { brand_id: brandId, rival_id: rival.id, platform, handle, error: prior?.followers !== null && prior?.followers !== undefined ? `${label} could not be read this scan; the last read stands.` : `No public ${label} profile found for @${handle}.` },
+        { onConflict: "rival_id,platform" },
+      );
   }
 
   const { data } = await sb.from("social_profiles").select("*").eq("brand_id", brandId);

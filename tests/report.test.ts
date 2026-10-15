@@ -29,7 +29,7 @@ vi.mock("@/lib/ai/openai", () => ({
   })),
 }));
 
-import { fallbackEvidence, reportPrompt, writeReport } from "@/lib/ai/analyze";
+import { fallbackEvidence, reportPrompt, standingTitle, writeReport } from "@/lib/ai/analyze";
 import type { Ad, ReportBody } from "@/lib/db/types";
 
 const ad = (over: Partial<Ad>): Ad => ({
@@ -153,7 +153,7 @@ describe("report", () => {
     } as ReportBody;
     const prompt = reportPrompt({ ...input, previous, changes: { launched: [ad({ archive_id: "A3" })], stopped: [], proven: [] } });
     expect(prompt).toContain("# The standing report");
-    expect(prompt).toContain("1. [counter] Defend $148 with visible proof — Run proof-led ads.");
+    expect(prompt).toContain('1. title: "Defend $148 with visible proof" · type: counter · recommendation: Run proof-led ads.');
     expect(prompt).toContain("the same title word for word");
     expect(prompt).toContain("at most two per update");
     expect(reportPrompt(input)).toContain('every opportunity is status "new"');
@@ -182,5 +182,14 @@ describe("report", () => {
     expect(fallbackEvidence("Rival leans on free shipping", ["Rival"], rivals)).toEqual(["Q"]);
     expect(fallbackEvidence("nothing in common here", ["Rival"], rivals)).toEqual(["Q", "P"]);
     expect(fallbackEvidence("softer hair", ["Nobody"], rivals)).toEqual(["P"]);
+  });
+
+  it("strips a recommendation the model glued onto a standing title", () => {
+    const previous = { headline: "", summary: "", insights: [], rivals: [], opportunities: [{ ...opp, title: "Do not fight AquaBliss on price" }] } as ReportBody;
+    expect(standingTitle("Do not fight AquaBliss on price \u2014 Counter with a proof ad.", previous)).toBe("Do not fight AquaBliss on price");
+    expect(standingTitle("Do not fight AquaBliss on price: show the difference", previous)).toBe("Do not fight AquaBliss on price");
+    expect(standingTitle("Do not fight AquaBliss on pricey add-ons", previous)).toBe("Do not fight AquaBliss on pricey add-ons");
+    expect(standingTitle("Something new", previous)).toBe("Something new");
+    expect(standingTitle("Anything", null)).toBe("Anything");
   });
 });

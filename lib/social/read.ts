@@ -220,7 +220,8 @@ async function runChunked(actor: string, items: string[], input: (chunk: string[
   const runs = await Promise.all(
     chunks.map((chunk) =>
       runActor(actor, input(chunk)).then(
-        (out) => ({ out, ok: true }),
+        // Nothing back for a chunk of real handles is a run that gave up, not three missing profiles.
+        (out) => (out.length ? { out, ok: true } : (console.warn(`[social] ${actor} (${chunk.join(", ")}): empty run`), { out, ok: false })),
         (e: Error) => (console.warn(`[social] ${actor} (${chunk.join(", ")}):`, e.message), { out: [] as Obj[], ok: false }),
       ),
     ),

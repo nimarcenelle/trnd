@@ -11,7 +11,7 @@ import { getBrand } from "@/lib/data";
 import { adminSupabase } from "@/lib/db/supabase";
 import { MAX_RIVALS } from "@/lib/db/types";
 import { isModelConfigured, isStripeConfigured } from "@/lib/env";
-import { isScanning } from "@/lib/format";
+import { isScanning, SCAN_MIN_GAP_MS } from "@/lib/format";
 import { scanBrand } from "@/lib/scan";
 import { parseAdsExport } from "@/lib/results";
 import { normHandle } from "@/lib/social/read";
@@ -172,10 +172,14 @@ export async function updateProfileAction(_prev: FormState & { saved?: boolean }
 /** Start a scan now and return at once; the dashboard polls until it is done. */
 export async function scanNowAction(): Promise<void> {
   const { brand } = await requireBrand();
-  if (!isScanning(brand)) {
+  if (isScanning(brand)) redirect("/app");
+  // A scan cut short resumes regardless of when it started (lib/scan.ts reads brands.scan_state).
+  const resuming = brand.scan_status === "running" && Boolean(brand.scan_state);
+  if (!resuming && brand.last_scan_at && Date.now() - Date.parse(brand.last_scan_at) < SCAN_MIN_GAP_MS) redirect("/app?scan=recent");
+  if (!resuming) {
     await adminSupabase().from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
-    after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
   }
+  after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
   redirect("/app");
 }
 

@@ -205,6 +205,13 @@ export async function billingPortalAction(): Promise<void> {
 }
 
 const GOALS = ["new_customers", "subscriptions", "launch", "retention", "awareness"] as const;
+const GOAL_LABELS: { value: string; label: string }[] = [
+  { value: "new_customers", label: "Win new customers" },
+  { value: "subscriptions", label: "Grow subscriptions" },
+  { value: "launch", label: "Launch something new" },
+  { value: "retention", label: "Bring customers back" },
+  { value: "awareness", label: "Build awareness" },
+];
 
 /** What the brand is trying to do right now. */
 export async function updateObjectivesAction(_prev: FormState & { saved?: boolean }, formData: FormData): Promise<FormState & { saved?: boolean }> {
@@ -216,7 +223,10 @@ export async function updateObjectivesAction(_prev: FormState & { saved?: boolea
   const { error } = await adminSupabase().from("brands").update({ objectives }).eq("id", brand.id);
   if (error) return { error: error.message };
   revalidatePath("/app", "layout");
-  return { saved: true };
+  const label = GOAL_LABELS.find((g) => g.value === goal)?.label ?? goal;
+  // What was saved, in one line, for a form that shows it back without re-reading the brand.
+  const summary = [label, objectives.monthly_budget, objectives.target_cost, objectives.focus].filter(Boolean).join(" · ");
+  return { saved: true, summary };
 }
 
 /** An Ads Manager export (CSV): replaces the brand's past results. */

@@ -501,7 +501,7 @@ and its goal.
   - counter: a competitor's push threatens ${brand.name}'s position; a differentiated response, never a reflex copy.
   - ignore: it doesn't fit ${brand.name}'s customers, brand or economics; say why and save the money. Include at least one
     when anything notable doesn't fit.
-  For each: title (the decision in a few words); competitors; signal (what was observed, across channels, with dates or
+  For each: title (the decision alone, under ten words, no dash or colon, never the recommendation); competitors; signal (what was observed, across channels, with dates or
   days running); intent (what they seem to be trying to do, hedged); fit (why it matters or doesn't for ${brand.name},
   against its profile, goal, constraints and past results); urgency and confidence (high, medium, low); scores 1-5 for
   relevance to its customers, urgency, differentiation potential, feasibility for this brand, and confidence; the
@@ -550,13 +550,23 @@ export function fallbackEvidence(text: string, competitors: string[], rivals: Re
   return (hits.length ? hits : scored.slice(0, Math.min(2, max))).map((a) => a.id);
 }
 
-/** A standing title the model echoed with its recommendation glued on ("Title — Do this") is the title alone. */
+/**
+ * A title is the decision in a few words. One echoed with its recommendation
+ * glued on ("Title — Do this", "Title: do this") is cut at the join, whether
+ * the join came from the standing report or the model's own hand.
+ */
 export function standingTitle(title: string, previous: ReportBody | null | undefined): string {
   for (const p of previous?.opportunities ?? []) {
     const t = p.title.trim();
-    if (t && title.length > t.length && title.toLowerCase().startsWith(t.toLowerCase()) && /^[\s:\u2014\u2013-]/.test(title.slice(t.length))) return t;
+    if (t && title.length > t.length && title.toLowerCase().startsWith(t.toLowerCase()) && /^[\s:\u2014\u2013-]/.test(title.slice(t.length))) return cleanTitle(t);
   }
-  return title;
+  return cleanTitle(title);
+}
+
+export function cleanTitle(title: string): string {
+  const m = title.match(/^(.{12,}?)\s+[\u2014\u2013]\s+.{12,}$/) ?? title.match(/^([^:]{12,}?):\s+.{20,}$/);
+  const head = m ? m[1] : title;
+  return head.trim().replace(/[.\s]+$/, "");
 }
 
 export async function writeReport(input: ReportInput): Promise<ReportBody & { landscape: Landscape; opportunities: Opportunity[] }> {

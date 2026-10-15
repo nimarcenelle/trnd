@@ -9,7 +9,7 @@ import { commentSentiment, tagAds, tagEmails, writeReport } from "@/lib/ai/analy
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Ad, Brand, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/score";
-import { crossedProven } from "@/lib/diff";
+import { crossedProven, isLaunch, readLooksPartial } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { env, isModelConfigured } from "@/lib/env";
 import { NO_PAGE_NOTE } from "@/lib/format";
@@ -134,13 +134,21 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
     return { ...none, remapped };
   }
 
-  const { ads: scraped, complete } = read;
+  const { ads: scraped } = read;
   const baseline = !rival.last_scraped_at;
 
   const { data: existingRows, error } = await sb.from("ads").select("*").eq("rival_id", rival.id);
   if (error) throw new Error(error.message);
   const existing = new Map((existingRows as Ad[]).map((a) => [a.archive_id, a]));
   const seen = new Set(scraped.map((a) => a.archiveId));
+  // A read that came back with under half of last time's ads is treated as
+  // partial whatever it says: nothing stops on its word alone.
+  const previouslyActive = [...existing.values()].filter((a) => a.active).length;
+  let complete = read.complete;
+  if (complete && readLooksPartial(previouslyActive, scraped.length)) {
+    console.warn(`[scan] ${rival.name}: read ${scraped.length} of ${previouslyActive} active ads; treating the read as partial`);
+    complete = false;
+  }
 
   let upserted: Ad[] = [];
   if (scraped.length) {
@@ -173,7 +181,7 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
   await sb.from("rivals").update({ last_scraped_at: now, last_error: null }).eq("id", rival.id);
   if (baseline) return { ...none, remapped };
 
-  const launched = upserted.filter((a) => !existing.has(a.archive_id));
+  const launched = upserted.filter((a) => !existing.has(a.archive_id) && isLaunch(a, rival.last_scraped_at, complete));
   const proven = crossedProven(upserted, rival.last_scraped_at, now.slice(0, 10));
   const changes: RivalChanges = { launched, stopped, proven };
   const rowsOf = (kind: "launched" | "stopped" | "proven") =>

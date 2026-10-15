@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { crossedProven, daysRunning, PROVEN_DAYS } from "@/lib/diff";
+import { crossedProven, daysRunning, PROVEN_DAYS, isLaunch, readLooksPartial } from "@/lib/diff";
 import { isScanning } from "@/lib/format";
 
 describe("daysRunning", () => {
@@ -33,5 +33,28 @@ describe("isScanning", () => {
     expect(isScanning({ scan_status: "running", scan_started_at: "2026-10-12T11:58:00Z" }, now)).toBe(true);
     expect(isScanning({ scan_status: "running", scan_started_at: "2026-10-12T11:00:00Z" }, now)).toBe(false);
     expect(isScanning({ scan_status: "idle", scan_started_at: "2026-10-12T11:58:00Z" }, now)).toBe(false);
+  });
+});
+
+describe("a first sighting is a launch only when the ad is new", () => {
+  it("counts an ad that started since the last read, and one with no date on a complete read", () => {
+    expect(isLaunch({ started_at: "2026-10-14" }, "2026-10-15T15:03:08Z", true)).toBe(true);
+    expect(isLaunch({ started_at: "2026-10-13" }, "2026-10-15T15:03:08Z", true)).toBe(true);
+    expect(isLaunch({ started_at: null }, "2026-10-15T15:03:08Z", true)).toBe(true);
+  });
+  it("does not count an ad that started weeks before but sat outside the read's cap, nor a baseline read", () => {
+    expect(isLaunch({ started_at: "2026-09-10" }, "2026-10-15T15:03:08Z", false)).toBe(false);
+    expect(isLaunch({ started_at: "2026-09-10" }, "2026-10-15T15:03:08Z", true)).toBe(false);
+    expect(isLaunch({ started_at: null }, "2026-10-15T15:03:08Z", false)).toBe(false);
+    expect(isLaunch({ started_at: "2026-10-15" }, null, true)).toBe(false);
+  });
+});
+
+describe("a read with under half of last time's ads is partial", () => {
+  it("flags AquaBliss's 9 of 33 and lets small or steady reads through", () => {
+    expect(readLooksPartial(33, 9)).toBe(true);
+    expect(readLooksPartial(33, 17)).toBe(false);
+    expect(readLooksPartial(6, 1)).toBe(false);
+    expect(readLooksPartial(0, 0)).toBe(false);
   });
 });

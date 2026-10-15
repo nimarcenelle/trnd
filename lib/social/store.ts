@@ -103,21 +103,24 @@ export async function refreshSocial(sb: SupabaseClient, brandId: string, rivals:
   for (const [key, rival] of owner) {
     if (seen.has(key) || key.startsWith("facebook:")) continue;
     const [platform, handle] = key.split(":") as [Platform, string];
+    const label = platform === "instagram" ? "Instagram" : "TikTok";
+    const { data: prior } = await sb.from("social_profiles").select("followers").eq("rival_id", rival.id).eq("platform", platform).maybeSingle<{ followers: number | null }>();
+    const hasData = prior?.followers !== null && prior?.followers !== undefined;
     if (!social.complete[platform as "instagram" | "tiktok"]) {
-      const { data: had } = await sb.from("social_profiles").select("id").eq("rival_id", rival.id).eq("platform", platform).maybeSingle();
-      if (had) continue;
+      // The numbers from the last good read stay; only the note changes.
       await sb
         .from("social_profiles")
-        .upsert({ brand_id: brandId, rival_id: rival.id, platform, handle, error: `${platform === "instagram" ? "Instagram" : "TikTok"} could not be read this scan; it is tried again next time.` }, { onConflict: "rival_id,platform" });
+        .upsert(
+          { brand_id: brandId, rival_id: rival.id, platform, handle, error: hasData ? `${label} could not be read this scan; the last read stands.` : `${label} could not be read this scan; it is tried again next time.` },
+          { onConflict: "rival_id,platform" },
+        );
       continue;
     }
     // A profile read before is a real profile: a scan that misses it keeps its numbers and says the read failed.
-    const { data: prior } = await sb.from("social_profiles").select("followers").eq("rival_id", rival.id).eq("platform", platform).maybeSingle<{ followers: number | null }>();
-    const label = platform === "instagram" ? "Instagram" : "TikTok";
     await sb
       .from("social_profiles")
       .upsert(
-        { brand_id: brandId, rival_id: rival.id, platform, handle, error: prior?.followers !== null && prior?.followers !== undefined ? `${label} could not be read this scan; the last read stands.` : `No public ${label} profile found for @${handle}.` },
+        { brand_id: brandId, rival_id: rival.id, platform, handle, error: hasData ? `${label} could not be read this scan; the last read stands.` : `No public ${label} profile found for @${handle}.` },
         { onConflict: "rival_id,platform" },
       );
   }

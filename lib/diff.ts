@@ -64,3 +64,34 @@ export function groupAdVersions<T extends Pick<Ad, "body" | "title" | "started_a
     return { lead, versions: list.length };
   });
 }
+
+/** Days before the last read within which an ad's own start date still counts as a launch. */
+export const LAUNCH_GRACE_DAYS = 2;
+
+/**
+ * Whether an ad seen for the first time was launched since the last read,
+ * or only read for the first time. Reads are capped (50 ads a Page), so an
+ * ad can sit outside the cap for weeks and then appear: its own start date
+ * says which. Jolie's fourth scan "launched" 12 ads that had started a month
+ * before. No start date and a complete read: a launch.
+ */
+export function isLaunch(ad: Pick<Ad, "started_at">, lastScrapedAt: string | null, complete: boolean): boolean {
+  if (!lastScrapedAt) return false;
+  if (!ad.started_at) return complete;
+  const cutoff = new Date(Date.parse(lastScrapedAt) - LAUNCH_GRACE_DAYS * 86_400_000).toISOString().slice(0, 10);
+  return ad.started_at >= cutoff;
+}
+
+/** Below this many previously active ads a sudden drop is plausible, not a partial read. */
+export const PARTIAL_READ_MIN = 10;
+
+/**
+ * Whether a read that calls itself complete is more likely a partial one:
+ * fewer than half the ads that were active last time. AquaBliss's fourth
+ * read returned 9 of 33 ads and 24 were marked stopped in thirteen
+ * minutes. A real drop that size shows up again on the next read, which
+ * then stops them.
+ */
+export function readLooksPartial(previouslyActive: number, readCount: number): boolean {
+  return previouslyActive >= PARTIAL_READ_MIN && readCount < previouslyActive / 2;
+}

@@ -29,7 +29,7 @@ vi.mock("@/lib/ai/openai", () => ({
   })),
 }));
 
-import { fallbackEvidence, reportPrompt, standingTitle, writeReport } from "@/lib/ai/analyze";
+import { cleanTitle, fallbackEvidence, reportPrompt, standingTitle, writeReport } from "@/lib/ai/analyze";
 import type { Ad, ReportBody } from "@/lib/db/types";
 
 const ad = (over: Partial<Ad>): Ad => ({
@@ -191,5 +191,14 @@ describe("report", () => {
     expect(standingTitle("Do not fight AquaBliss on pricey add-ons", previous)).toBe("Do not fight AquaBliss on pricey add-ons");
     expect(standingTitle("Something new", previous)).toBe("Something new");
     expect(standingTitle("Anything", null)).toBe("Anything");
+  });
+
+  it("cuts a title at a dash or colon that joins the recommendation onto it", () => {
+    expect(cleanTitle("Do not fight AquaBliss on price \u2014 Counter with a \u201cwhat are you buying?\u201d ad.")).toBe("Do not fight AquaBliss on price");
+    expect(cleanTitle("Protect the clinical claim: show the study and the dermatologists")).toBe("Protect the clinical claim");
+    expect(cleanTitle("Own beauty plus bathroom design")).toBe("Own beauty plus bathroom design");
+    expect(cleanTitle("Defend $148 with visible proof.")).toBe("Defend $148 with visible proof");
+    // A short lead or a short tail is not a glued recommendation.
+    expect(cleanTitle("Price: hold it")).toBe("Price: hold it");
   });
 });

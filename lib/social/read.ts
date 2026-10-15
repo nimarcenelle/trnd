@@ -202,6 +202,7 @@ async function runActor(actor: string, input: Obj): Promise<Obj[]> {
   });
   if (!res.ok) throw new Error(`Apify ${actor} answered ${res.status}`);
   const items = (await res.json()) as unknown;
+  if (isObj(items) && isObj(items.error)) throw new Error(`Apify ${actor}: ${str(items.error.message) ?? str(items.error.type) ?? "error"}`);
   return Array.isArray(items) ? items.filter(isObj) : [];
 }
 

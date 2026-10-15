@@ -1,67 +1,46 @@
-import "server-only";
-
 import type { RivalCandidate } from "@/lib/ai/analyze";
-import { pickRivalPage, type PageMatch } from "@/lib/adlibrary/match";
-import { scrapeAds } from "@/lib/adlibrary/scrape";
-import { MAX_RIVALS } from "@/lib/db/types";
+import { MAX_RIVALS, type Rival, type SpareCandidate } from "@/lib/db/types";
 
 /**
- * Which of the model's candidates become the brand's rivals. The model
- * names who is comparable; the Ad Library says who is actually advertising.
- * Both count: a direct competitor with live Meta ads outranks an adjacent
- * giant, and an adjacent brand only fills a seat when nothing closer runs
- * ads. Jolie's first list carried Culligan, Aquasana and WaterChef
- * (whole-home filtration) and Vitaclean (no ads) beside the filtered
- * showerhead brands it actually competes with.
+ * Which of the model's candidates become the brand's rivals. Setup seats
+ * the most direct ten at once (the model's read takes a minute and nobody
+ * waits longer at a form), keeps the rest as spares, and the first scan,
+ * which reads every seated brand's ads anyway, swaps a seat whose brand
+ * runs no Meta ads for the next spare. Jolie's first list carried
+ * Culligan, Aquasana and WaterChef (whole-home filtration) and Vitaclean
+ * (no ads) beside the filtered showerhead brands it competes with.
  */
 
-export interface CheckedCandidate extends RivalCandidate {
-  /** The candidate's Page, when a keyword search surely found it. */
-  page: PageMatch | null;
-  /** Active ads the search showed from that Page; null when the check did not run or finish. */
-  ads: number | null;
-}
-
-/** Time the checks get before the setup page shows the list; unchecked candidates keep the model's rank. */
-export const CHECK_BUDGET_MS = 45_000;
-const CHECK_CONCURRENCY = 4;
-const CHECK_ADS = 30;
-
-/** Ask the Ad Library whether each candidate advertises, a few at a time, until the budget is spent. */
-export async function checkCandidates(candidates: RivalCandidate[], budgetMs = CHECK_BUDGET_MS): Promise<CheckedCandidate[]> {
-  const deadline = Date.now() + budgetMs;
-  const out: CheckedCandidate[] = candidates.map((c) => ({ ...c, page: null, ads: null }));
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(CHECK_CONCURRENCY, out.length) }, async () => {
-      while (next < out.length && Date.now() < deadline) {
-        const i = next++;
-        const c = out[i];
-        try {
-          const { ads } = await scrapeAds({ query: c.name }, CHECK_ADS);
-          const page = pickRivalPage({ name: c.name, website: c.website || null }, ads);
-          c.page = page;
-          c.ads = page ? ads.filter((a) => a.pageId === page.pageId).length : 0;
-        } catch {
-          c.ads = null;
-        }
-      }
-    }),
-  );
-  return out;
-}
-
-/**
- * The seats, in order: directness first, then whether ads were seen, then
- * the model's own order. A candidate the check never reached keeps its
- * place by directness alone. Below directness 3 a brand only fills a seat
- * left over.
- */
-export function rankCandidates<T extends { directness: number; ads?: number | null }>(candidates: T[], seats = MAX_RIVALS): T[] {
+/** The seats, most direct first, the model's own order among equals. Below directness 3 a brand only fills a seat left over. */
+export function rankCandidates<T extends { directness: number }>(candidates: T[], seats = MAX_RIVALS): { seated: T[]; spares: T[] } {
   const indexed = candidates.map((c, i) => ({ c, i }));
-  const score = (c: T) => (c.ads === null || c.ads === undefined ? 0.5 : c.ads > 0 ? 1 : 0);
-  const sorted = [...indexed].sort((a, b) => b.c.directness - a.c.directness || score(b.c) - score(a.c) || a.i - b.i);
-  const direct = sorted.filter(({ c }) => c.directness >= 3 && (c.ads === null || c.ads === undefined || c.ads > 0));
-  const rest = sorted.filter((x) => !direct.includes(x));
-  return [...direct, ...rest].slice(0, seats).map(({ c }) => c);
+  const sorted = [...indexed].sort((a, b) => b.c.directness - a.c.directness || a.i - b.i);
+  const direct = sorted.filter(({ c }) => c.directness >= 3);
+  const rest = sorted.filter(({ c }) => c.directness < 3);
+  const ordered = [...direct, ...rest].map(({ c }) => c);
+  return { seated: ordered.slice(0, seats), spares: ordered.slice(seats) };
+}
+
+export const toSpare = (c: RivalCandidate): SpareCandidate => ({ name: c.name, website: c.website, reason: c.reason, directness: c.directness });
+
+/**
+ * After a first read: which seated rivals to swap out, and for whom. A
+ * rival the model seated that turned out to have no Page or no active ads
+ * gives its seat to the most direct spare, one spare each. Rivals the owner
+ * added themselves are never swapped.
+ */
+export function planSwaps(
+  rivals: Pick<Rival, "id" | "name" | "source" | "page_id">[],
+  adsOf: (rivalId: string) => number,
+  spares: SpareCandidate[],
+): { out: Pick<Rival, "id" | "name">; in: SpareCandidate }[] {
+  const idle = rivals.filter((r) => r.source === "ai" && (!r.page_id || adsOf(r.id) === 0));
+  const queue = [...spares].sort((a, b) => b.directness - a.directness);
+  const swaps: { out: Pick<Rival, "id" | "name">; in: SpareCandidate }[] = [];
+  for (const r of idle) {
+    const next = queue.shift();
+    if (!next) break;
+    swaps.push({ out: { id: r.id, name: r.name }, in: next });
+  }
+  return swaps;
 }

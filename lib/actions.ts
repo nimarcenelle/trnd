@@ -6,7 +6,7 @@ import { after } from "next/server";
 
 import { pageFromInput } from "@/lib/adlibrary/resolve";
 import { discoverRivals, ProfileSchema } from "@/lib/ai/analyze";
-import { checkCandidates, rankCandidates } from "@/lib/rivals";
+import { rankCandidates, toSpare } from "@/lib/rivals";
 import { getSessionUser } from "@/lib/auth/session";
 import { getBrand } from "@/lib/data";
 import { adminSupabase } from "@/lib/db/supabase";
@@ -45,8 +45,8 @@ export async function createBrandAction(_prev: FormState, formData: FormData): P
     const page = await readSitePage(url);
     socials = page.socials;
     discovery = await discoverRivals(url, page.text);
-    // The model names who is comparable; the Ad Library says who advertises. The ten seats go to the most direct brands that do.
-    rivals = rankCandidates(await checkCandidates(discovery.rivals));
+    // The most direct ten take the seats now; the rest wait as spares for the first scan to swap in if a seat runs no ads.
+    rivals = rankCandidates(discovery.rivals);
   } catch (err) {
     console.warn("[setup] discovery failed:", (err as Error).message);
     return { error: `We couldn't read ${url}. Check the address and try again.` };
@@ -55,7 +55,10 @@ export async function createBrandAction(_prev: FormState, formData: FormData): P
   const sb = adminSupabase();
   const { data: brand, error } = await sb
     .from("brands")
-    .upsert({ owner_id: user.id, url, name: discovery.name, summary: discovery.summary, category: discovery.category, profile: discovery.profile }, { onConflict: "owner_id" })
+    .upsert(
+      { owner_id: user.id, url, name: discovery.name, summary: discovery.summary, category: discovery.category, profile: discovery.profile, candidates: { spares: rivals.spares.map(toSpare), swapped: [] } },
+      { onConflict: "owner_id" },
+    )
     .select("id")
     .single();
   if (error || !brand) return { error: error?.message ?? "Could not save the brand." };
@@ -74,15 +77,7 @@ export async function createBrandAction(_prev: FormState, formData: FormData): P
     socials_checked_at: new Date().toISOString(),
   });
   await sb.from("rivals").insert(
-    rivals.slice(0, MAX_RIVALS).map((r) => ({
-      brand_id: brand.id,
-      name: r.name,
-      website: r.website || null,
-      reason: r.reason,
-      source: "ai",
-      // A Page the check surely found is kept, so the first scan reads ads instead of hunting for it.
-      ...(r.page ? { page_id: r.page.pageId, page_name: r.page.pageName || r.name, page_source: "checked" } : {}),
-    })),
+    rivals.seated.slice(0, MAX_RIVALS).map((r) => ({ brand_id: brand.id, name: r.name, website: r.website || null, reason: r.reason, source: "ai" })),
   );
   redirect("/app/setup");
 }

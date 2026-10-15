@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { IconPlus } from "@/components/icons";
@@ -8,21 +8,45 @@ import { addRivalAction, createBrandAction, type FormState } from "@/lib/actions
 
 import SubmitButton from "./submit-button";
 
-/** Shown while the site is read and the rivals named: about half a minute. */
+/** What the read is doing, by the second it usually reaches that part. One model call does all of it, so this is a clock, not a signal. */
+const READ_STEPS: { at: number; label: (site: string) => string }[] = [
+  { at: 0, label: (site) => `Reading ${site}` },
+  { at: 6, label: () => "Working out what you sell, to whom, and at what price" },
+  { at: 18, label: () => "Naming the brands competing for the same customers" },
+  { at: 38, label: () => "Ranking them by how directly they compete" },
+];
+
+/** Shown while the site is read and the rivals named: about a minute, narrated so it reads as progress. */
 function Reading() {
   const { pending, data } = useFormStatus();
+  const [seconds, setSeconds] = useState(0);
+  const startedAt = useRef(0);
+  useEffect(() => {
+    if (!pending) return;
+    startedAt.current = Date.now();
+    const id = setInterval(() => setSeconds(Math.floor((Date.now() - startedAt.current) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [pending]);
   if (!pending) return null;
-  const site = String(data?.get("url") ?? "").replace(/^https?:\/\//, "");
+  const site = String(data?.get("url") ?? "").replace(/^https?:\/\//, "") || "your site";
+  const current = READ_STEPS.filter((s) => s.at <= seconds).length - 1;
   return (
     <div className="card mt-4 p-4">
       <ul className="list-none m-0 p-0 flex flex-col gap-2.5 text-[13.5px]">
-        <li className="flex items-center gap-2.5">
-          <span className="spinner" /> Reading {site || "your site"}
-        </li>
-        <li className="flex items-center gap-2.5 text-ink-3">
-          <span className="w-3.5 h-3.5 rounded-full border-2 border-line-strong" /> Finding the brands competing for your customers
-        </li>
+        {READ_STEPS.map((step, i) => (
+          <li key={step.at} className={`flex items-center gap-2.5 ${i > current ? "text-ink-3" : ""}`}>
+            {i < current ? (
+              <span className="w-3.5 h-3.5 rounded-full bg-ink text-bg grid place-items-center text-[9px]">✓</span>
+            ) : i === current ? (
+              <span className="spinner" />
+            ) : (
+              <span className="w-3.5 h-3.5 rounded-full border-2 border-line-strong" />
+            )}
+            {step.label(site)}
+          </li>
+        ))}
       </ul>
+      <p className="caption mt-3">About a minute. Then you confirm the list and the first read of their ads starts.</p>
     </div>
   );
 }

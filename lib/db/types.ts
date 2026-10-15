@@ -20,10 +20,20 @@ export interface Brand {
   scan_status: "idle" | "running" | "error";
   scan_error: string | null;
   scan_started_at: string | null;
+  /** The competitor candidates setup did not seat, and the swaps the first scan made (lib/rivals.ts); null before 0106. */
+  candidates?: { spares: SpareCandidate[]; swapped: { out: string; in: string; at: string }[] } | null;
   /** Where a running scan is (lib/scan.ts); null when idle or before 0105. */
   scan_state?: { stage: "ads" | "tag" | "report"; started: string; force: boolean; remapped: boolean } | null;
   last_scan_at: string | null;
   created_at: string;
+}
+
+/** A competitor the model named that did not get one of the seats. */
+export interface SpareCandidate {
+  name: string;
+  website: string;
+  reason: string;
+  directness: number;
 }
 
 export interface Rival {

@@ -317,3 +317,8 @@ create index if not exists ads_score_idx on public.ads (brand_id, score desc);
 -- where a scan is, so the next invocation resumes rather than restarts, and
 -- the report stage can find this scan's changes. Safe to re-run.
 alter table public.brands add column if not exists scan_state jsonb;
+
+-- Setup keeps the competitor candidates it did not seat (the model's spares)
+-- on the brand, so the first scan can swap a rival that runs no Meta ads for
+-- the next closest one, and remembers what it swapped. Safe to re-run.
+alter table public.brands add column if not exists candidates jsonb;

@@ -51,7 +51,8 @@ export default async function SetupPage({ searchParams }: PageProps<"/app/setup"
       <Step n={2} />
       <h1 className="heading text-[26px] mt-5">Confirm your competitors</h1>
       <p className="text-[15px] text-ink-2 mt-2 leading-[1.6]">
-        We found {rivals.length} brands competing with {brand.name}. Remove any that aren&apos;t a fit and add any we missed.
+        We found {rivals.length} brands competing with {brand.name}, most direct first. Remove any that aren&apos;t a fit and add any we
+        missed. A brand that turns out to run no Meta ads is swapped for the next closest one during the first read.
       </p>
       {brand.summary && (
         <div className="well px-4 py-3 mt-5 text-[13px] text-ink-2 leading-[1.6]">

@@ -5,6 +5,7 @@ import AutoRefresh from "@/components/app/auto-refresh";
 import Avatar from "@/components/app/avatar";
 import { LaunchBars } from "@/components/app/charts";
 import Evidence, { type SignalRef } from "@/components/app/evidence";
+import ObjectivesForm from "@/components/app/objectives-form";
 import OpportunityCard, { OPPORTUNITY } from "@/components/app/opportunity-card";
 import PlayCard from "@/components/app/play-card";
 import Timeline from "@/components/app/timeline";
@@ -138,6 +139,7 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
   const feed = buildTimeline({ adChanges: changes, site: siteChanges.filter((c) => withinDays(c.detected_at, 14)), emails: emails.filter((e) => withinDays(e.received_at, 14)), emailHref }).filter(
     (e) => !self || e.rivalId !== self.id,
   );
+  const recentSwaps = (brand.candidates?.swapped ?? []).filter((s) => withinDays(s.at, 2));
   const opportunities = latest?.body.opportunities ?? [];
   const act = opportunities.filter((o) => o.type !== "ignore");
   const skip = opportunities.filter((o) => o.type === "ignore");
@@ -170,7 +172,14 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
         )}
       </header>
 
-      {!brand.objectives && (
+      {!brand.objectives && running && !latest && (
+        <section className="card mt-6 p-5">
+          <h2 className="text-[15px] font-semibold">While we read your competitors: what are you trying to do?</h2>
+          <p className="text-[13px] text-ink-2 mt-1 mb-4">Your first report lands in about three minutes. Every recommendation in it is judged against this.</p>
+          <ObjectivesForm objectives={null} />
+        </section>
+      )}
+      {!brand.objectives && !(running && !latest) && (
         <Link href="/app/brand#goals" className="card mt-6 px-5 py-4 flex items-center justify-between gap-4 hover:shadow-[var(--shadow-md)] transition-shadow">
           <span>
             <span className="text-[13.5px] font-semibold">Tell TRND what you&apos;re trying to do</span>
@@ -182,7 +191,16 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
       {running && (
         <div className="card mt-6 px-5 py-4 flex items-center gap-3 text-[13.5px]">
           <span className="spinner" />
-          {STAGE_LINE[brand.scan_state?.stage ?? "ads"]} This takes a few minutes; the page updates on its own.
+          {STAGE_LINE[brand.scan_state?.stage ?? "ads"]} {latest ? "A few minutes; the page updates on its own." : "About three minutes in all; the page updates on its own, and the rivals below fill in as they are read."}
+        </div>
+      )}
+      {recentSwaps.length > 0 && (
+        <div className="card mt-6 px-5 py-4 text-[13.5px] text-ink-2">
+          {recentSwaps.map((s) => (
+            <div key={s.in}>
+              <span className="font-medium text-ink">{s.out}</span> runs no Meta ads, so it was swapped for <span className="font-medium text-ink">{s.in}</span>, the next closest competitor.
+            </div>
+          ))}
         </div>
       )}
       {scanFlag === "recent" && !running && (

@@ -14,6 +14,7 @@ import { sendReportEmail } from "@/lib/email";
 import { env, isModelConfigured } from "@/lib/env";
 import { NO_PAGE_NOTE } from "@/lib/format";
 import { subscribeOnce } from "@/lib/inbox/store";
+import { planSwaps } from "@/lib/rivals";
 import { checkSite } from "@/lib/sitewatch/watch";
 import { followerGrowth, refreshSocial } from "@/lib/social/store";
 import type { SocialLine } from "@/lib/ai/analyze";
@@ -447,6 +448,50 @@ async function adsStage(sb: SupabaseClient, brand: Brand, state: ScanState): Pro
   });
   state.remapped = results.some((r) => Boolean(r.remapped));
   await Promise.all([sideRun, socialRun]);
+  await swapIdleRivals(sb, brand, rivals).catch((err) => console.warn("[scan] swaps:", (err as Error).message));
+}
+
+/**
+ * A seated rival the first read found running no Meta ads gives its seat to
+ * the most direct spare the model named at setup, which is read now so the
+ * report sees it. Once per seat; the owner's own additions are never swapped.
+ */
+async function swapIdleRivals(sb: SupabaseClient, brand: Brand, rivals: Rival[]): Promise<void> {
+  const spares = brand.candidates?.spares ?? [];
+  if (!spares.length) return;
+  // Only rivals on their first read: a brand that advertised last month and paused is not idle.
+  const fresh = rivals.filter((r) => !(brand.candidates?.swapped ?? []).some((s) => s.in === r.name));
+  const { data: countRows } = await sb.from("ads").select("rival_id").eq("brand_id", brand.id).eq("active", true).in("rival_id", fresh.map((r) => r.id));
+  const counts = new Map<string, number>();
+  for (const row of countRows ?? []) counts.set(row.rival_id as string, (counts.get(row.rival_id as string) ?? 0) + 1);
+  const { data: current } = await sb.from("rivals").select("id, name, source, page_id, last_scraped_at").in("id", fresh.map((r) => r.id));
+  const firstRead = ((current ?? []) as Pick<Rival, "id" | "name" | "source" | "page_id" | "last_scraped_at">[]).filter((r) => !r.last_scraped_at || fresh.find((f) => f.id === r.id)?.last_scraped_at === null);
+  const swaps = planSwaps(firstRead, (id) => counts.get(id) ?? 0, spares);
+  if (!swaps.length) return;
+  const used = new Set(swaps.map((s) => s.in.name));
+  const swapped = [...(brand.candidates?.swapped ?? [])];
+  for (const { out, in: spare } of swaps) {
+    await sb.from("rivals").delete().eq("id", out.id);
+    const { data: added } = await sb
+      .from("rivals")
+      .insert({ brand_id: brand.id, name: spare.name, website: spare.website || null, reason: spare.reason, source: "ai" })
+      .select("*")
+      .single<Rival>();
+    swapped.push({ out: out.name, in: spare.name, at: new Date().toISOString() });
+    console.log(`[scan] ${brand.name}: swapped ${out.name} (no Meta ads) for ${spare.name}`);
+    if (added) {
+      try {
+        await scanRival(sb, brand, added);
+        await Promise.all([
+          checkSite(sb, brand.id, added).catch(() => undefined),
+          subscribeOnce(sb, added).catch(() => undefined),
+        ]);
+      } catch (err) {
+        await sb.from("rivals").update({ last_error: (err as Error).message.slice(0, 300) }).eq("id", added.id);
+      }
+    }
+  }
+  await sb.from("brands").update({ candidates: { spares: spares.filter((c) => !used.has(c.name)), swapped } }).eq("id", brand.id);
 }
 
 /** Stage 2: tag the ads and emails the model has not read, then score every ad. */

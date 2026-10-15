@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { AddRivalForm, UrlForm } from "@/components/app/forms";
+import OnboardingCarry from "@/components/app/onboarding-carry";
 import RivalList from "@/components/app/rival-list";
 import SubmitButton from "@/components/app/submit-button";
 import { scanNowAction } from "@/lib/actions";
@@ -54,6 +55,7 @@ export default async function SetupPage({ searchParams }: PageProps<"/app/setup"
         We found {rivals.length} brands competing with {brand.name}, most direct first. Remove any that aren&apos;t a fit and add any we
         missed. A brand that turns out to run no Meta ads is swapped for the next closest one during the first read.
       </p>
+      <OnboardingCarry hasObjectives={Boolean(brand.objectives)} />
       {brand.summary && (
         <div className="well px-4 py-3 mt-5 text-[13px] text-ink-2 leading-[1.6]">
           <span className="font-medium text-ink">{brand.name}: </span>

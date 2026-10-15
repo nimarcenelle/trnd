@@ -81,7 +81,7 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql` and `0104_ad_scores.sql`, safe to re-run). They create
+`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql`, `0104_ad_scores.sql` and `0105_scan_state.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
 `site_snapshots`, `site_changes` and `emails`, and leave the old
 product's tables alone (drop them when convenient).

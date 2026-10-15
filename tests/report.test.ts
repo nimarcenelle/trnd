@@ -29,8 +29,8 @@ vi.mock("@/lib/ai/openai", () => ({
   })),
 }));
 
-import { reportPrompt, writeReport } from "@/lib/ai/analyze";
-import type { Ad } from "@/lib/db/types";
+import { fallbackEvidence, reportPrompt, writeReport } from "@/lib/ai/analyze";
+import type { Ad, ReportBody } from "@/lib/db/types";
 
 const ad = (over: Partial<Ad>): Ad => ({
   id: "x",
@@ -141,5 +141,46 @@ describe("report", () => {
     expect(body.opportunities[0].evidence).toEqual(["site:sc1"]);
     expect(body.opportunities[1].evidence).toEqual(["A1"]);
     expect("scores" in body.opportunities[0]).toBe(false);
+  });
+
+  it("hands the model the standing report and the continuity rules on an update", () => {
+    const previous = {
+      headline: "AquaBliss is attacking on price. Answer with proof.",
+      summary: "They say $35 beats $150.",
+      insights: [{ title: "The value attack is explicit", detail: "", evidence: [] }],
+      opportunities: [{ ...opp, type: "counter" as const, title: "Defend $148 with visible proof", recommendation: "Run proof-led ads." }],
+      rivals: [],
+    } as ReportBody;
+    const prompt = reportPrompt({ ...input, previous, changes: { launched: [ad({ archive_id: "A3" })], stopped: [], proven: [] } });
+    expect(prompt).toContain("# The standing report");
+    expect(prompt).toContain("1. [counter] Defend $148 with visible proof — Run proof-led ads.");
+    expect(prompt).toContain("the same title word for word");
+    expect(prompt).toContain("at most two per update");
+    expect(reportPrompt(input)).toContain('every opportunity is status "new"');
+  });
+
+  it("keeps the standing headline when a re-scan found nothing new, and marks opportunities", async () => {
+    const previous = { headline: "Keep me", summary: "And me", insights: [], opportunities: [{ ...opp, title: "Old" }], rivals: [] } as ReportBody;
+    const same = await writeReport({ ...input, previous, changes: { launched: [], stopped: [], proven: [] } });
+    expect(same.headline).toBe("Keep me");
+    expect(same.summary).toBe("And me");
+    expect(same.opportunities.every((o) => o.status === "new")).toBe(true);
+    const moved = await writeReport({ ...input, previous, changes: { launched: [ad({ archive_id: "A2" })], stopped: [], proven: [] } });
+    expect(moved.headline).toBe("h");
+  });
+
+  it("never leaves a claim without evidence: the named rival's matching ads stand in", async () => {
+    const body = await writeReport(input);
+    // The model cited nothing real for "low" except A1; "high" cited only S1 (not in this input), so its evidence is filled in.
+    for (const o of body.opportunities.filter((o) => o.type !== "ignore")) expect(o.evidence.length).toBeGreaterThan(0);
+    // Both of Rival's ads say "chlorine"; the longer-running one (same score) leads.
+    expect(fallbackEvidence("Stop the chlorine story", ["Rival"], input.rivals)).toEqual(["A1", "A2"]);
+  });
+
+  it("picks the ads whose copy shares words with the claim, by score when none do", () => {
+    const rivals = [{ name: "Rival", ads: [ad({ archive_id: "P", body: "Softer hair in 7 days", score: 40 }), ad({ archive_id: "Q", body: "Free shipping on every order", score: 90 })] }];
+    expect(fallbackEvidence("Rival leans on free shipping", ["Rival"], rivals)).toEqual(["Q"]);
+    expect(fallbackEvidence("nothing in common here", ["Rival"], rivals)).toEqual(["Q", "P"]);
+    expect(fallbackEvidence("softer hair", ["Nobody"], rivals)).toEqual(["P"]);
   });
 });

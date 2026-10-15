@@ -7,11 +7,11 @@ import type { ScrapedAd } from "@/lib/adlibrary/parse";
 import { scrapeAds } from "@/lib/adlibrary/scrape";
 import { commentSentiment, tagAds, tagEmails, writeReport } from "@/lib/ai/analyze";
 import { adminSupabase } from "@/lib/db/supabase";
-import type { Ad, Brand, OwnAdResult, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
+import type { Ad, Brand, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/score";
 import { crossedProven } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
-import { isModelConfigured } from "@/lib/env";
+import { env, isModelConfigured } from "@/lib/env";
 import { NO_PAGE_NOTE } from "@/lib/format";
 import { subscribeOnce } from "@/lib/inbox/store";
 import { checkSite } from "@/lib/sitewatch/watch";
@@ -24,6 +24,15 @@ import type { SocialLine } from "@/lib/ai/analyze";
  * everyone's Instagram and TikTok, tag the new ads, and have the model write a
  * report when something changed. The first scan of a rival is its baseline:
  * everything it runs is "seen", not "launched".
+ *
+ * A scan is three stages (ads, tag, report), and a serverless function gets
+ * 300 seconds. Jolie's first scan took 267 of them: the ads were read in 48,
+ * the model work took the rest, and a brand with slower rivals would have
+ * been killed mid-run with the dashboard stuck on "Scanning". So each stage
+ * checks the clock, and when the budget is spent the scan writes where it is
+ * (brands.scan_state) and asks /api/cron/scan to run the next stage in a
+ * fresh invocation. Every stage reads its input from the database, never
+ * from the memory of the stage before it.
  */
 
 export interface RivalChanges {
@@ -174,19 +183,88 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
   return changes;
 }
 
-/** Tag every active ad the model has not read yet. */
-async function tagUntagged(sb: SupabaseClient, brandId: string) {
+/** Where a scan is. Persisted on the brand so the next invocation resumes it. */
+export type ScanStage = "ads" | "tag" | "report";
+export interface ScanState {
+  stage: ScanStage;
+  /** When this scan's ads stage began: the report stage reads ad_changes from here. */
+  started: string;
+  /** Write a report even when nothing changed (a manual scan, an edited profile). */
+  force: boolean;
+  /** A rival's Page was replaced during the ads stage, so the last report is wrong. */
+  remapped: boolean;
+}
+
+/** Time one invocation spends before handing the rest of the scan to the next one. */
+export const SCAN_BUDGET_MS = 170_000;
+const TAG_BATCH = 60;
+const TAG_CONCURRENCY = 3;
+
+async function saveState(sb: SupabaseClient, brandId: string, state: ScanState | null) {
+  const { error } = await sb.from("brands").update({ scan_state: state }).eq("id", brandId);
+  if (error) console.warn("[scan] scan_state not saved (run supabase/migrations/0105_scan_state.sql):", error.message);
+  return !error;
+}
+
+/** The origin the scan can call itself back on. */
+function selfOrigin(): string | null {
+  if (env.siteUrl && !/localhost|127\.0\.0\.1/.test(env.siteUrl)) return env.siteUrl.replace(/\/$/, "");
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  if (vercel) return `https://${vercel}`;
+  return env.siteUrl || null;
+}
+
+/**
+ * Ask a fresh invocation to run the next stage. The request is sent and not
+ * waited for (waiting would hold this function open for the whole stage);
+ * the route runs on after the client gives up. Needs the cron secret the
+ * route checks; without one the caller keeps going inline.
+ */
+export function canHandOff(): boolean {
+  return Boolean(env.cronSecret && selfOrigin());
+}
+function handOff(brandId: string, state: ScanState): void {
+  const url = new URL("/api/cron/scan", selfOrigin()!);
+  url.searchParams.set("brand", brandId);
+  url.searchParams.set("stage", state.stage);
+  if (state.force) url.searchParams.set("force", "1");
+  fetch(url, { headers: { authorization: `Bearer ${env.cronSecret}` }, signal: AbortSignal.timeout(4_000), cache: "no-store" }).catch(() => {
+    /* the route runs on regardless of whether this wait ends first */
+  });
+}
+
+/**
+ * Tag every active ad the model has not read yet, a few batches at a time,
+ * until none are left or the clock runs out. Resumable: a second call picks
+ * up the ads the first did not reach. (A cap of 300 ads per scan once left
+ * 54 of Jolie's 354 untagged and invisible to the report.)
+ */
+async function tagUntagged(sb: SupabaseClient, brandId: string, deadline: number): Promise<{ done: boolean }> {
   const base = () => sb.from("ads").select("id, body, title, cta, format").eq("brand_id", brandId).eq("active", true);
-  // Ads tagged before topics existed get a topic too; without the topic column, angle alone decides.
-  const withTopic = await base().or("angle.is.null,topic.is.null").limit(300);
-  const hasTopic = !withTopic.error;
-  const data = hasTopic ? withTopic.data : (await base().is("angle", null).limit(300)).data;
-  const ads = (data ?? []) as Pick<Ad, "id" | "body" | "title" | "cta" | "format">[];
-  for (let i = 0; i < ads.length; i += 60) {
-    const tags = await tagAds(ads.slice(i, i + 60));
+  let hasTopic = true;
+  for (;;) {
+    // Ads tagged before topics existed get a topic too; without the topic column, angle alone decides.
+    const withTopic = hasTopic ? await base().or("angle.is.null,topic.is.null").limit(TAG_BATCH * TAG_CONCURRENCY) : null;
+    if (withTopic?.error) hasTopic = false;
+    const data = hasTopic ? withTopic!.data : (await base().is("angle", null).limit(TAG_BATCH * TAG_CONCURRENCY)).data;
+    const ads = (data ?? []) as Pick<Ad, "id" | "body" | "title" | "cta" | "format">[];
+    if (!ads.length) return { done: true };
+    if (Date.now() > deadline) return { done: false };
+    const batches: (typeof ads)[] = [];
+    for (let i = 0; i < ads.length; i += TAG_BATCH) batches.push(ads.slice(i, i + TAG_BATCH));
+    const tagged = await Promise.all(batches.map((b) => tagAds(b)));
+    const ids = new Set<string>();
     await Promise.all(
-      tags.map((t) => sb.from("ads").update({ angle: t.angle, hook: t.hook, offer: t.offer, ...(hasTopic ? { topic: t.topic } : {}) }).eq("id", t.id).eq("brand_id", brandId)),
+      tagged.flat().map((t) => {
+        ids.add(t.id);
+        return sb.from("ads").update({ angle: t.angle, hook: t.hook, offer: t.offer, ...(hasTopic ? { topic: t.topic } : {}) }).eq("id", t.id).eq("brand_id", brandId);
+      }),
     );
+    // An ad the model skipped would be asked for forever: mark it read with nothing.
+    const skipped = ads.filter((a) => !ids.has(a.id));
+    if (skipped.length) {
+      await Promise.all(skipped.map((a) => sb.from("ads").update({ angle: "untagged", hook: null, offer: "none", ...(hasTopic ? { topic: null } : {}) }).eq("id", a.id)));
+    }
   }
 }
 
@@ -266,131 +344,220 @@ async function pool<T, R>(items: T[], n: number, fn: (item: T) => Promise<R>): P
   return out;
 }
 
-/** `forceReport`: write a report even when nothing changed (a manual scan, after the owner edited their context). */
-export async function scanBrand(brandId: string, opts: { forceReport?: boolean } = {}): Promise<{ changes: number; report: boolean }> {
+/** Every rival row of the brand, with the brand's own row added the first time. */
+async function loadRivals(sb: SupabaseClient, brand: Brand): Promise<Rival[]> {
+  const { data: rivalRows } = await sb.from("rivals").select("*").eq("brand_id", brand.id).order("created_at");
+  const all = (rivalRows ?? []) as Rival[];
+  // Brands created before self-tracking get their own row on the next scan.
+  if (!all.some((r) => r.is_self)) {
+    const { data: self } = await sb
+      .from("rivals")
+      .insert({ brand_id: brand.id, name: brand.name, website: brand.url.replace(/^https?:\/\//, ""), is_self: true, source: "owner", reason: "Your brand" })
+      .select("*")
+      .single();
+    if (self) all.push(self as Rival);
+  }
+  return all;
+}
+
+/* --------------------------------- stages --------------------------------- */
+
+/** Stage 1: every rival's ads, website and inbox, and everyone's social accounts. */
+async function adsStage(sb: SupabaseClient, brand: Brand, state: ScanState): Promise<void> {
+  const all = await loadRivals(sb, brand);
+  const rivals = all.filter((r) => !r.is_self);
+  const socialRun = refreshSocial(sb, brand.id, all).catch((err) => {
+    console.warn("[scan] social:", (err as Error).message);
+    return [];
+  });
+  // Websites and inboxes, beside the ads. Either failing never fails the scan.
+  const sideRun = pool(rivals, 3, async (rival) => {
+    await Promise.all([
+      checkSite(sb, brand.id, rival).catch((err) => console.warn(`[scan] ${rival.name} site:`, (err as Error).message)),
+      subscribeOnce(sb, rival).catch((err) => console.warn(`[scan] ${rival.name} signup:`, (err as Error).message)),
+    ]);
+  });
+  const results = await pool(all, 3, async (rival) => {
+    try {
+      return await scanRival(sb, brand, rival);
+    } catch (err) {
+      const message = (err as Error).message.slice(0, 300);
+      console.warn(`[scan] ${rival.name}:`, message);
+      await sb.from("rivals").update({ last_error: message }).eq("id", rival.id);
+      return { launched: [], stopped: [], proven: [] } satisfies RivalChanges;
+    }
+  });
+  state.remapped = results.some((r) => Boolean(r.remapped));
+  await Promise.all([sideRun, socialRun]);
+}
+
+/** Stage 2: tag the ads and emails the model has not read, then score every ad. */
+async function tagStage(sb: SupabaseClient, brand: Brand, deadline: number): Promise<{ done: boolean }> {
+  const all = await loadRivals(sb, brand);
+  const nameOf = new Map(all.map((r) => [r.id, r.is_self ? `${brand.name} (you)` : r.name]));
+  const { done } = await tagUntagged(sb, brand.id, deadline);
+  if (!done) return { done: false };
+  await tagUntaggedEmails(sb, brand.id, nameOf).catch((err) => console.warn("[scan] email tags:", (err as Error).message));
+  const { data } = await sb.from("social_profiles").select("*").eq("brand_id", brand.id);
+  await scoreAds(sb, brand.id, (data ?? []) as SocialProfile[]).catch((err) => console.warn("[scan] score:", (err as Error).message));
+  return { done: true };
+}
+
+/** This scan's ad changes, read back from the database with the ads they point at. */
+async function changesSince(sb: SupabaseClient, brandId: string, since: string): Promise<{ launched: Ad[]; stopped: Ad[]; proven: Ad[] }> {
+  const { data } = await sb.from("ad_changes").select("kind, ad_id").eq("brand_id", brandId).gte("detected_at", since);
+  const rows = (data ?? []) as { kind: "launched" | "stopped" | "proven"; ad_id: string | null }[];
+  const ids = [...new Set(rows.map((r) => r.ad_id).filter((id): id is string => Boolean(id)))];
+  const ads = new Map<string, Ad>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data: adRows } = await sb.from("ads").select("*").in("id", ids.slice(i, i + 200));
+    for (const a of (adRows ?? []) as Ad[]) ads.set(a.id, a);
+  }
+  const of = (kind: "launched" | "stopped" | "proven") => rows.filter((r) => r.kind === kind && r.ad_id && ads.has(r.ad_id)).map((r) => ads.get(r.ad_id!)!);
+  return { launched: of("launched"), stopped: of("stopped"), proven: of("proven") };
+}
+
+/** Stage 3: the report, when something changed or one was asked for. */
+async function reportStage(sb: SupabaseClient, brand: Brand, state: ScanState): Promise<{ changes: number; report: boolean }> {
+  const all = await loadRivals(sb, brand);
+  const rivals = all.filter((r) => !r.is_self);
+  const self = all.find((r) => r.is_self) ?? null;
+  const nameOf = new Map(all.map((r) => [r.id, r.is_self ? `${brand.name} (you)` : r.name]));
+
+  const { data: profileRows } = await sb.from("social_profiles").select("*").eq("brand_id", brand.id);
+  const profiles = (profileRows ?? []) as SocialProfile[];
+  const growth = await followerGrowth(sb, profiles.map((p) => p.id));
+  const social: SocialLine[] = profiles
+    .filter((p) => !p.error && p.followers !== null)
+    .map((p) => ({ name: nameOf.get(p.rival_id) ?? "?", profile: p, growth: growth.get(p.id) ?? null }));
+
+  const { data: lastReport } = await sb
+    .from("reports")
+    .select("created_at, body")
+    .eq("brand_id", brand.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ created_at: string; body: ReportBody }>();
+  const isBaseline = !lastReport;
+  const since = lastReport?.created_at ?? "1970-01-01";
+  const monthAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const changes = await changesSince(sb, brand.id, state.started);
+  const adChanges = changes.launched.length + changes.stopped.length + changes.proven.length;
+  // The other two streams; reads fail quietly on a database without 0103 yet.
+  const { data: siteRows } = await sb.from("site_changes").select("*").eq("brand_id", brand.id).gte("detected_at", monthAgo).order("detected_at", { ascending: false }).limit(60);
+  const { data: emailRows } = await sb
+    .from("emails")
+    .select("id, rival_id, subject, preview, received_at, kind, offer, theme, is_repeat")
+    .eq("brand_id", brand.id)
+    .gte("received_at", monthAgo)
+    // Keep untagged emails (kind null); `neq` alone would drop them.
+    .or("kind.is.null,kind.neq.confirmation")
+    .order("received_at", { ascending: false })
+    .limit(60);
+  const site = ((siteRows ?? []) as SiteChange[]).map((c) => ({ ...c, rival: nameOf.get(c.rival_id) ?? "?", fresh: c.detected_at > since }));
+  const emails = ((emailRows ?? []) as (Pick<RivalEmail, "id" | "rival_id" | "subject" | "preview" | "received_at" | "kind" | "offer" | "theme" | "is_repeat">)[]).map((e) => ({
+    ...e,
+    rival: nameOf.get(e.rival_id) ?? "?",
+    fresh: e.received_at > since,
+  }));
+  const changeCount = adChanges + site.filter((c) => c.fresh).length + emails.filter((e) => e.fresh).length;
+  if (!(isBaseline || changeCount > 0 || state.remapped || state.force)) return { changes: changeCount, report: false };
+
+  const { data: adRows } = await sb.from("ads").select("*").eq("brand_id", brand.id).eq("active", true);
+  const ads = (adRows ?? []) as Ad[];
+  if (!ads.length && !site.length && !emails.length) return { changes: changeCount, report: false };
+  const body = await writeReport({
+    brand,
+    own: self ? ads.filter((a) => a.rival_id === self.id) : [],
+    results: ((await sb.from("own_ad_results").select("*").eq("brand_id", brand.id)).data ?? []) as OwnAdResult[],
+    rivals: rivals.map((r) => ({ name: r.name, ads: ads.filter((a) => a.rival_id === r.id) })),
+    social,
+    site,
+    emails,
+    changes: isBaseline ? null : changes,
+    // The standing report: an update amends it rather than starting over.
+    previous: lastReport?.body ?? null,
+    today: today(),
+  });
+  body.changes = {
+    launched: changes.launched.length,
+    stopped: changes.stopped.length,
+    proven: changes.proven.length,
+    site: site.filter((c) => c.fresh).length,
+    emails: emails.filter((e) => e.fresh).length,
+  };
+  await sb.from("reports").insert({ brand_id: brand.id, kind: isBaseline ? "baseline" : "update", body });
+  if (!isBaseline && changeCount > 0) await sendReportEmail(sb, brand, body).catch((err) => console.warn("[scan] email failed:", (err as Error).message));
+  return { changes: changeCount, report: true };
+}
+
+const NEXT: Record<ScanStage, ScanStage | null> = { ads: "tag", tag: "report", report: null };
+
+export interface ScanResult {
+  changes: number;
+  report: boolean;
+  /** The stage handed to a fresh invocation, when this one ran out of time. */
+  handedOff: ScanStage | null;
+}
+
+/**
+ * Run a brand's scan from `opts.stage` (or where its saved state says it is,
+ * or the start) until it is done or the time budget is spent. `forceReport`:
+ * write a report even when nothing changed (a manual scan, after the owner
+ * edited their context).
+ */
+export async function scanBrand(brandId: string, opts: { forceReport?: boolean; stage?: ScanStage; budgetMs?: number } = {}): Promise<ScanResult> {
   const sb = adminSupabase();
-  const { data: brand } = await sb.from("brands").select("*").eq("id", brandId).single<Brand>();
+  const deadline = Date.now() + (opts.budgetMs ?? SCAN_BUDGET_MS);
+  const { data: brand } = await sb.from("brands").select("*").eq("id", brandId).single<Brand & { scan_state?: ScanState | null }>();
   if (!brand) throw new Error(`brand ${brandId} not found`);
-  await sb.from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brandId);
+
+  // Resume a scan in progress; otherwise this is a new one.
+  const saved = brand.scan_state && brand.scan_status === "running" ? brand.scan_state : null;
+  const state: ScanState = saved
+    ? { ...saved, stage: opts.stage ?? saved.stage, force: saved.force || Boolean(opts.forceReport) }
+    : { stage: opts.stage ?? "ads", started: new Date().toISOString(), force: Boolean(opts.forceReport), remapped: false };
+  if (!saved) {
+    await sb.from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: state.started }).eq("id", brandId);
+  }
+  await saveState(sb, brandId, state);
 
   try {
-    const { data: rivalRows } = await sb.from("rivals").select("*").eq("brand_id", brandId).order("created_at");
-    const all = (rivalRows ?? []) as Rival[];
-    // Brands created before self-tracking get their own row on the next scan.
-    if (!all.some((r) => r.is_self)) {
-      const { data: self } = await sb
-        .from("rivals")
-        .insert({ brand_id: brandId, name: brand.name, website: brand.url.replace(/^https?:\/\//, ""), is_self: true, source: "owner", reason: "Your brand" })
-        .select("*")
-        .single();
-      if (self) all.push(self as Rival);
-    }
-    const rivals = all.filter((r) => !r.is_self);
-    const self = all.find((r) => r.is_self) ?? null;
-
-    const socialRun = refreshSocial(sb, brandId, all).catch((err) => {
-      console.warn("[scan] social:", (err as Error).message);
-      return [];
-    });
-    // Websites and inboxes, beside the ads. Either failing never fails the scan.
-    const sideRun = pool(rivals, 3, async (rival) => {
-      await Promise.all([
-        checkSite(sb, brandId, rival).catch((err) => console.warn(`[scan] ${rival.name} site:`, (err as Error).message)),
-        subscribeOnce(sb, rival).catch((err) => console.warn(`[scan] ${rival.name} signup:`, (err as Error).message)),
-      ]);
-    });
-    const results = await pool(all, 3, async (rival) => {
-      try {
-        return await scanRival(sb, brand, rival);
-      } catch (err) {
-        const message = (err as Error).message.slice(0, 300);
-        console.warn(`[scan] ${rival.name}:`, message);
-        await sb.from("rivals").update({ last_error: message }).eq("id", rival.id);
-        return { launched: [], stopped: [], proven: [] } satisfies RivalChanges;
+    let changes = 0;
+    let report = false;
+    for (;;) {
+      if (state.stage === "ads") {
+        await adsStage(sb, brand, state);
+      } else if (state.stage === "tag") {
+        if (!isModelConfigured) {
+          await sb.from("brands").update({ scan_status: "error", scan_error: "OPENAI_API_KEY is not set: ads were read but not analyzed.", last_scan_at: new Date().toISOString(), scan_state: null }).eq("id", brandId);
+          return { changes, report: false, handedOff: null };
+        }
+        const { done } = await tagStage(sb, brand, deadline);
+        if (!done) {
+          // Out of time with ads still untagged: the same stage, next invocation.
+          if (canHandOff() && (await saveState(sb, brandId, state))) {
+            handOff(brandId, state);
+            return { changes, report, handedOff: state.stage };
+          }
+          continue;
+        }
+      } else {
+        ({ changes, report } = await reportStage(sb, brand, state));
       }
-    });
-    const changes: RivalChanges = {
-      launched: results.flatMap((r) => r.launched),
-      stopped: results.flatMap((r) => r.stopped),
-      proven: results.flatMap((r) => r.proven),
-    };
-    const adChanges = changes.launched.length + changes.stopped.length + changes.proven.length;
-    const remapped = results.some((r) => r.remapped);
-    await sideRun;
-
-    if (!isModelConfigured) {
-      await sb.from("brands").update({ scan_status: "error", scan_error: "OPENAI_API_KEY is not set: ads were read but not analyzed.", last_scan_at: new Date().toISOString() }).eq("id", brandId);
-      return { changes: adChanges, report: false };
-    }
-
-    const nameOf = new Map(all.map((r) => [r.id, r.is_self ? `${brand.name} (you)` : r.name]));
-    await tagUntagged(sb, brandId);
-    await tagUntaggedEmails(sb, brandId, nameOf).catch((err) => console.warn("[scan] email tags:", (err as Error).message));
-    const profiles = await socialRun;
-    await scoreAds(sb, brandId, profiles).catch((err) => console.warn("[scan] score:", (err as Error).message));
-    const growth = await followerGrowth(sb, profiles.map((p) => p.id));
-    const social: SocialLine[] = profiles
-      .filter((p) => !p.error && p.followers !== null)
-      .map((p) => ({ name: nameOf.get(p.rival_id) ?? "?", profile: p, growth: growth.get(p.id) ?? null }));
-
-    const { data: lastReport } = await sb.from("reports").select("created_at").eq("brand_id", brandId).order("created_at", { ascending: false }).limit(1).maybeSingle<{ created_at: string }>();
-    const isBaseline = !lastReport;
-    const since = lastReport?.created_at ?? "1970-01-01";
-    const monthAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
-    // The other two streams; reads fail quietly on a database without 0103 yet.
-    const { data: siteRows } = await sb.from("site_changes").select("*").eq("brand_id", brandId).gte("detected_at", monthAgo).order("detected_at", { ascending: false }).limit(60);
-    const { data: emailRows } = await sb
-      .from("emails")
-      .select("id, rival_id, subject, preview, received_at, kind, offer, theme, is_repeat")
-      .eq("brand_id", brandId)
-      .gte("received_at", monthAgo)
-      // Keep untagged emails (kind null); `neq` alone would drop them.
-      .or("kind.is.null,kind.neq.confirmation")
-      .order("received_at", { ascending: false })
-      .limit(60);
-    const site = ((siteRows ?? []) as SiteChange[]).map((c) => ({ ...c, rival: nameOf.get(c.rival_id) ?? "?", fresh: c.detected_at > since }));
-    const emails = ((emailRows ?? []) as (Pick<RivalEmail, "id" | "rival_id" | "subject" | "preview" | "received_at" | "kind" | "offer" | "theme" | "is_repeat">)[]).map((e) => ({
-      ...e,
-      rival: nameOf.get(e.rival_id) ?? "?",
-      fresh: e.received_at > since,
-    }));
-    const changeCount = adChanges + site.filter((c) => c.fresh).length + emails.filter((e) => e.fresh).length;
-    let reported = false;
-    if (isBaseline || changeCount > 0 || remapped || opts.forceReport) {
-      const { data: adRows } = await sb.from("ads").select("*").eq("brand_id", brandId).eq("active", true);
-      const ads = (adRows ?? []) as Ad[];
-      // Re-read the changed ads so the report sees their fresh tags.
-      const byId = new Map(ads.map((a) => [a.id, a]));
-      const fresh = (list: Ad[]) => list.map((a) => byId.get(a.id) ?? a);
-      if (ads.length || site.length || emails.length) {
-        const body = await writeReport({
-          brand,
-          own: self ? ads.filter((a) => a.rival_id === self.id) : [],
-          results: ((await sb.from("own_ad_results").select("*").eq("brand_id", brandId)).data ?? []) as OwnAdResult[],
-          rivals: rivals.map((r) => ({ name: r.name, ads: ads.filter((a) => a.rival_id === r.id) })),
-          social,
-          site,
-          emails,
-          changes: isBaseline ? null : { launched: fresh(changes.launched), stopped: changes.stopped, proven: fresh(changes.proven) },
-          today: today(),
-        });
-        body.changes = {
-          launched: changes.launched.length,
-          stopped: changes.stopped.length,
-          proven: changes.proven.length,
-          site: site.filter((c) => c.fresh).length,
-          emails: emails.filter((e) => e.fresh).length,
-        };
-        await sb.from("reports").insert({ brand_id: brandId, kind: isBaseline ? "baseline" : "update", body });
-        reported = true;
-        if (!isBaseline) await sendReportEmail(sb, brand, body).catch((err) => console.warn("[scan] email failed:", (err as Error).message));
+      const next = NEXT[state.stage];
+      if (!next) break;
+      state.stage = next;
+      await saveState(sb, brandId, state);
+      if (Date.now() > deadline && canHandOff()) {
+        handOff(brandId, state);
+        return { changes, report, handedOff: next };
       }
     }
-
-    await sb.from("brands").update({ scan_status: "idle", last_scan_at: new Date().toISOString() }).eq("id", brandId);
-    return { changes: changeCount, report: reported };
+    await sb.from("brands").update({ scan_status: "idle", last_scan_at: new Date().toISOString(), scan_state: null }).eq("id", brandId);
+    return { changes, report, handedOff: null };
   } catch (err) {
-    await sb.from("brands").update({ scan_status: "error", scan_error: (err as Error).message.slice(0, 300) }).eq("id", brandId);
+    await sb.from("brands").update({ scan_status: "error", scan_error: (err as Error).message.slice(0, 300), scan_state: null }).eq("id", brandId);
     throw err;
   }
 }

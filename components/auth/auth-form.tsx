@@ -23,6 +23,8 @@ export default function AuthForm({ mode, site }: { mode: "login" | "signup"; sit
     <div>
       <form action={formAction}>
         {site ? <input type="hidden" name="site" value={site} /> : null}
+        {/* A field people never see and bots fill. Filled in: the signup is dropped. */}
+        <input type="text" name="company_website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] w-px h-px opacity-0" />
         <div className="field">
           <label htmlFor="email">Email</label>
           <input id="email" name="email" type="email" placeholder="you@yourbrand.com" autoComplete="email" required />

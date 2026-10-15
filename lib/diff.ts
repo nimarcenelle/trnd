@@ -41,3 +41,26 @@ export function adStage(ad: Pick<Ad, "active" | "started_at" | "stopped_at" | "v
   if (ad.variants >= SCALING_VERSIONS || days >= SCALING_DAYS) return "scaling";
   return "running";
 }
+
+/** The copy an ad runs, normalized enough that its versions collapse to one. */
+export function adCopyKey(ad: Pick<Ad, "body" | "title">): string {
+  return `${ad.title ?? ""} ${ad.body ?? ""}`.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+/**
+ * One card per piece of copy. Jolie ran 50 ads of which 47 shared their
+ * body text, and the page showed 47 cards saying the same thing. The lead is
+ * the version that has run longest (then the highest score); `versions` is
+ * how many ads carry that copy.
+ */
+export function groupAdVersions<T extends Pick<Ad, "body" | "title" | "started_at" | "score">>(ads: T[]): { lead: T; versions: number }[] {
+  const groups = new Map<string, T[]>();
+  for (const ad of ads) {
+    const key = adCopyKey(ad) || `~${Math.random()}`;
+    groups.set(key, [...(groups.get(key) ?? []), ad]);
+  }
+  return [...groups.values()].map((list) => {
+    const lead = [...list].sort((a, b) => (a.started_at ?? "9999").localeCompare(b.started_at ?? "9999") || (b.score ?? 0) - (a.score ?? 0))[0];
+    return { lead, versions: list.length };
+  });
+}

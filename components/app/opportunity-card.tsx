@@ -29,7 +29,11 @@ export default function OpportunityCard({ o, ads, refs }: { o: Opportunity; ads:
   return (
     <article className="card p-5 flex flex-col">
       <div className="flex items-center justify-between gap-3">
-        <span className={t.cls}>{t.label}</span>
+        <span className="flex items-center gap-1.5">
+          <span className={t.cls}>{t.label}</span>
+          {o.status === "new" && <span className="badge badge-pos" title="Added by this scan">New</span>}
+          {o.status === "updated" && <span className="badge badge-info" title="The signals behind it moved this scan">Updated</span>}
+        </span>
         <span className="caption text-right">
           Urgency {LEVEL[o.urgency].toLowerCase()} · Confidence {LEVEL[o.confidence].toLowerCase()}
         </span>

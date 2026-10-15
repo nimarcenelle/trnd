@@ -3,12 +3,14 @@ import { adminSupabase } from "@/lib/db/supabase";
 import type { Brand } from "@/lib/db/types";
 import { env } from "@/lib/env";
 import { isScanning } from "@/lib/format";
-import { scanBrand } from "@/lib/scan";
+import { scanBrand, type ScanStage } from "@/lib/scan";
 
 /**
  * The daily watch. Called by Vercel Cron with no brand: lists every brand
  * that is due and calls itself once per brand, so each scan gets its own
- * function and its own time limit. Called with ?brand=<id>: scans that one.
+ * function and its own time limit. Called with ?brand=<id>: scans that one,
+ * from ?stage= when a previous invocation ran out of time and handed off
+ * (lib/scan.ts); ?force=1 writes a report even when nothing changed.
  */
 export const maxDuration = 300;
 
@@ -22,8 +24,15 @@ export async function GET(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const brandId = url.searchParams.get("brand");
   if (brandId) {
+    const stage = url.searchParams.get("stage");
+    const stages: ScanStage[] = ["ads", "tag", "report"];
     try {
-      return Response.json(await scanBrand(brandId));
+      return Response.json(
+        await scanBrand(brandId, {
+          stage: stages.includes(stage as ScanStage) ? (stage as ScanStage) : undefined,
+          forceReport: url.searchParams.get("force") === "1",
+        }),
+      );
     } catch (err) {
       return Response.json({ error: (err as Error).message }, { status: 500 });
     }

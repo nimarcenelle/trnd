@@ -61,18 +61,39 @@ export async function findPage(company: Company, opts: { exclude?: string[] } = 
   const exclude = new Set(opts.exclude ?? []);
   const facebook = await siteFacebook(company.website);
 
-  // 1. The Page the site links to.
-  if (facebook) {
-    const page = await lookupFacebookPage(facebook);
-    if (page && !exclude.has(page.pageId)) return { page: { pageId: page.pageId, pageName: page.pageName ?? company.name }, via: "site" };
-  }
-
   // 2. Keyword searches.
   const ref: RivalRef = { name: company.name, website: company.website, facebook, aliases: [] };
   const tried: string[] = [];
   const pool = new Map<string, ScrapedAd>();
   let firstError: unknown = null;
   let anyRead = false;
+
+  // 1. The Page the site links to. A brand sometimes advertises from a
+  // different Page than the one its footer links to (a regional or shop
+  // Page), so a linked Page with no ads is checked against a search before
+  // it is taken: a Page whose ads link to the site wins over an idle one.
+  if (facebook) {
+    const page = await lookupFacebookPage(facebook);
+    if (page && !exclude.has(page.pageId)) {
+      const linked = { pageId: page.pageId, pageName: page.pageName ?? company.name };
+      const peek = await scrapeAds({ pageId: page.pageId }, 12).catch(() => null);
+      if (!peek || peek.ads.length > 0 || !peek.complete) return { page: linked, via: "site" };
+      const domain = domainOf(company.website);
+      for (const term of [company.name, domain]) {
+        if (!term) continue;
+        try {
+          const { ads } = await scrapeAds({ query: term }, 60);
+          tried.push(term);
+          for (const ad of ads) if (ad.pageId && !exclude.has(ad.pageId)) pool.set(ad.archiveId, ad);
+        } catch {
+          /* the linked Page still stands */
+        }
+      }
+      const best = scorePages(ref, [...pool.values()]).find((c) => c.pageId !== page.pageId && c.points >= SURE_POINTS);
+      if (best) return { page: { pageId: best.pageId, pageName: best.pageName }, via: "search" };
+      return { page: linked, via: "site" };
+    }
+  }
 
   const search = async (term: string) => {
     const t = term.trim();

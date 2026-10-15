@@ -278,6 +278,7 @@ const OpportunitySchema = z.object({
     experiment: z.string(),
   }),
   evidence: z.array(z.string()),
+  status: z.enum(["standing", "updated", "new"]),
 });
 
 const ReportSchema = z.object({
@@ -308,7 +309,20 @@ export interface ReportInput {
   /** Competitor marketing emails, recent first. `fresh`: received since the last report. */
   emails?: (Pick<RivalEmail, "id" | "subject" | "preview" | "received_at" | "kind" | "offer" | "theme" | "is_repeat"> & { rival: string; fresh: boolean })[];
   changes: { launched: Ad[]; stopped: Ad[]; proven: Ad[] } | null;
+  /** The last report, so an update amends it instead of starting over. */
+  previous?: ReportBody | null;
   today: string;
+}
+
+/** The standing report, as the model sees it: what it must keep unless the signals moved. */
+function standingBlock(prev: ReportBody): string {
+  const opps = (prev.opportunities ?? []).map((o, i) => `${i + 1}. [${o.type}] ${o.title} — ${o.recommendation}`).join("\n");
+  return `\n\n# The standing report (what the founder is already acting on)
+Headline: ${prev.headline}
+Summary: ${prev.summary}
+Opportunities, in rank order:
+${opps || "(none)"}
+Insights: ${prev.insights.map((i) => i.title).join("; ") || "(none)"}`;
 }
 
 /** Short refs for the prompt (S1, E1), mapped back to "site:<id>" and "email:<id>" in the report. */
@@ -438,6 +452,20 @@ ${topHooks(scored).map((a) => `- "${a.hook}" (${a.rival}, ${a.score})`).join("\n
   const siteText = site.size ? `\n\n# Competitor website changes (homepage, catalog, prices, promotions)\n${siteBlock(site)}` : "";
   const emailText = emails.size ? `\n\n# Competitor marketing emails (sent to subscribers)\n${emailBlock(emails)}` : "";
   const fresh = Boolean(changes) || [...site.values()].some((c) => c.fresh) || [...emails.values()].some((e) => e.fresh);
+  const standing = input.previous?.opportunities?.length ? standingBlock(input.previous) : "";
+  const continuity = standing
+    ? `
+This is an update to the standing report, not a new report. The founder reads it every day and acts on it over weeks;
+a plan that changes with every scan is worthless. So:
+- Keep every standing opportunity whose signals still hold: the same title word for word, the same type, the same rank.
+  Refresh its signal and fit only where the new lines change them (status "updated"); otherwise keep its text as it
+  was (status "standing").
+- Drop a standing opportunity only when the signals behind it have stopped.
+- Add an opportunity (status "new") only when a new signal matters more than a standing one, and at most two per update.
+- Keep the headline and summary word for word unless what changed outranks the standing story. A few new ads from one
+  competitor on a message it was already running do not.`
+    : `
+There is no standing report: every opportunity is status "new".`;
 
   return `Today is ${today}. The brand: ${brand.name} (${brand.url}), ${brand.category ?? ""}. ${brand.summary ?? ""}
 ${brand.profile ? profileBlock(brand.profile) : ""}
@@ -449,9 +477,9 @@ ref: an ad's archive id, S# for a website change, E# for an email. Lines marked 
 
 ${ranking ? `${ranking}\n\n` : ""}# Active Meta ads, highest score first
 Each ad is marked testing (under ${TESTING_DAYS} days), scaling (past ${TESTING_DAYS} days with ${SCALING_VERSIONS}+ versions, or past ${SCALING_DAYS} days), or running.
-${rivalBlocks}${siteText}${emailText}${ownBlock}${results}${social}${changeBlock}
+${rivalBlocks}${siteText}${emailText}${ownBlock}${results}${social}${changeBlock}${standing}
 
-Write the report the brand's founder reads.${ranking ? ` Start from the conversion ranking: the topics and hooks of the highest-scoring ads
+Write the report the brand's founder reads.${continuity}${ranking ? ` Start from the conversion ranking: the topics and hooks of the highest-scoring ads
 are what works in this market, so they shape the opportunities and every brief (borrow the topic and the shape of the
 hook, in ${brand.name}'s voice); the lowest-scoring patterns are what to avoid.` : ""} The value is in connecting signals: a new value-focused homepage, a
 discounted email bundle and several savings-themed ads together suggest a coordinated affordability push, not three
@@ -489,16 +517,45 @@ and its goal.
   - you_vs_them: only_you (angles, offers or claims ${brand.name} uses that no competitor does), only_them (what
     competitors lean on that ${brand.name} doesn't), and open_lanes (angles or audiences nobody is using well).
 Ad repetition and longevity are imperfect proxies, not proof of performance; emails are only what subscribers see. Use
-only refs that appear above.`;
+only refs that appear above, and give every insight and every opportunity at least two refs: the exact ad archive ids
+(the bracketed numbers), S# or E# lines its claims rest on. A claim without refs cannot be shown to the founder.`;
 }
 
 const rank = (o: z.infer<typeof OpportunitySchema>) =>
   o.type === "ignore" ? -1 : o.scores.relevance + o.scores.urgency + o.scores.differentiation + o.scores.feasibility + o.scores.confidence;
 
+/**
+ * The ads a claim is about, when the model named none: the named competitors'
+ * active ads whose hook, topic or copy share words with the claim, best
+ * scoring first. Every claim on the page then opens something real.
+ */
+export function fallbackEvidence(text: string, competitors: string[], rivals: ReportInput["rivals"], max = 3): string[] {
+  const words = new Set(
+    text
+      .toLowerCase()
+      .split(/[^a-z0-9$%]+/)
+      .filter((w) => w.length > 3),
+  );
+  const named = rivals.filter((r) => competitors.some((c) => c.toLowerCase().includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(c.toLowerCase())));
+  const from = named.length ? named : rivals;
+  const scored = from
+    .flatMap((r) => r.ads.filter((a) => a.active))
+    .map((a) => {
+      const own = `${a.hook ?? ""} ${a.topic ?? ""} ${a.title ?? ""} ${(a.body ?? "").slice(0, 300)}`.toLowerCase().split(/[^a-z0-9$%]+/);
+      const overlap = own.filter((w) => w.length > 3 && words.has(w)).length;
+      return { id: a.archive_id, overlap, score: a.score ?? 0 };
+    })
+    .sort((x, y) => y.overlap - x.overlap || y.score - x.score);
+  const hits = scored.filter((a) => a.overlap > 0).slice(0, max);
+  return (hits.length ? hits : scored.slice(0, Math.min(2, max))).map((a) => a.id);
+}
+
 export async function writeReport(input: ReportInput): Promise<ReportBody & { landscape: Landscape; opportunities: Opportunity[] }> {
   const body = await generateJson({ system: SYSTEM, schema: ReportSchema, prompt: reportPrompt(input) });
   const { site, emails } = refsOf(input);
   const ads = new Set([...input.rivals.flatMap((r) => r.ads.map((a) => a.archive_id)), ...(input.own ?? []).map((a) => a.archive_id)]);
+  const rivalNames = input.rivals.map((r) => r.name);
+  const mentioned = (text: string) => rivalNames.filter((n) => text.toLowerCase().includes(n.toLowerCase()));
   // Turn prompt refs into stored ids, and drop any the model made up, so every evidence link opens something real.
   const resolve = (refs: string[]) =>
     refs.flatMap((r) => {
@@ -510,7 +567,11 @@ export async function writeReport(input: ReportInput): Promise<ReportBody & { la
       if (e) return [`email:${e.id}`];
       return [];
     });
-  const insights = body.insights.map((i) => ({ ...i, evidence: resolve(i.evidence) }));
+  const withEvidence = (refs: string[], text: string, competitors: string[]) => {
+    const found = resolve(refs);
+    return found.length ? found : fallbackEvidence(text, competitors, input.rivals);
+  };
+  const insights = body.insights.map((i) => ({ ...i, evidence: withEvidence(i.evidence, `${i.title} ${i.detail}`, mentioned(`${i.title} ${i.detail}`)) }));
   const opportunities = [...body.opportunities]
     .sort((a, b) => rank(b) - rank(a))
     .map((o): Opportunity => ({
@@ -524,7 +585,15 @@ export async function writeReport(input: ReportInput): Promise<ReportBody & { la
       confidence: o.confidence,
       recommendation: o.recommendation,
       brief: o.brief,
-      evidence: resolve(o.evidence),
+      evidence: o.type === "ignore" ? resolve(o.evidence) : withEvidence(o.evidence, `${o.title} ${o.signal}`, o.competitors),
+      status: input.previous ? (o.status ?? "new") : "new",
     }));
-  return { ...body, insights, opportunities };
+  // Nothing new since the standing report (a manual re-scan): the story the founder is acting on stays.
+  const prev = input.previous;
+  const freshCount = (input.changes ? input.changes.launched.length + input.changes.stopped.length + input.changes.proven.length : 0) +
+    (input.site ?? []).filter((c) => c.fresh).length +
+    (input.emails ?? []).filter((e) => e.fresh).length;
+  const headline = prev && freshCount === 0 ? prev.headline : body.headline;
+  const summary = prev && freshCount === 0 ? prev.summary : body.summary;
+  return { ...body, headline, summary, insights, opportunities };
 }

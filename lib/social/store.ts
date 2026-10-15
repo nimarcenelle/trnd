@@ -6,7 +6,7 @@ import type { Platform, Rival, SocialProfile } from "@/lib/db/types";
 import { env } from "@/lib/env";
 import { readSitePage } from "@/lib/site";
 
-import { engagementRate, growthBy, normHandle, postsPerWeek, readFacebook, readSocial, type Growth, type Snapshot } from "./read";
+import { engagementRate, growthBy, normHandle, postsPerWeek, readFacebook, readSocialWithStatus, type Growth, type Snapshot } from "./read";
 
 /** Facebook posts are read for ad engagement, every few days rather than daily. */
 const FACEBOOK_EVERY_MS = 3 * 86_400_000;
@@ -50,13 +50,13 @@ export async function refreshSocial(sb: SupabaseClient, brandId: string, rivals:
   if (!owner.size) return [];
 
   const [social, facebook] = await Promise.all([
-    readSocial({
+    readSocialWithStatus({
       instagram: rivals.flatMap((r) => (r.instagram ? [r.instagram] : [])),
       tiktok: rivals.flatMap((r) => (r.tiktok ? [r.tiktok] : [])),
     }),
     readFacebook(fbDue.map((r) => r.page_id!)),
   ]);
-  const reads = [...social, ...facebook];
+  const reads = [...social.reads, ...facebook];
   const now = new Date().toISOString();
   const today = now.slice(0, 10);
   const seen = new Set<string>();
@@ -97,10 +97,20 @@ export async function refreshSocial(sb: SupabaseClient, brandId: string, rivals:
     }
   }
 
-  // A handle the actor returned nothing for is worth saying so on the page.
+  // A handle the actor returned nothing for is worth saying so on the page,
+  // but only when its runs all finished: a run that died says nothing about
+  // the handles it carried, and what was read last time stays.
   for (const [key, rival] of owner) {
     if (seen.has(key) || key.startsWith("facebook:")) continue;
     const [platform, handle] = key.split(":") as [Platform, string];
+    if (!social.complete[platform as "instagram" | "tiktok"]) {
+      const { data: had } = await sb.from("social_profiles").select("id").eq("rival_id", rival.id).eq("platform", platform).maybeSingle();
+      if (had) continue;
+      await sb
+        .from("social_profiles")
+        .upsert({ brand_id: brandId, rival_id: rival.id, platform, handle, error: `${platform === "instagram" ? "Instagram" : "TikTok"} could not be read this scan; it is tried again next time.` }, { onConflict: "rival_id,platform" });
+      continue;
+    }
     await sb
       .from("social_profiles")
       .upsert({ brand_id: brandId, rival_id: rival.id, platform, handle, error: `No public ${platform === "instagram" ? "Instagram" : "TikTok"} profile found for @${handle}.` }, { onConflict: "rival_id,platform" });

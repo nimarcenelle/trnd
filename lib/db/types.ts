@@ -20,6 +20,8 @@ export interface Brand {
   scan_status: "idle" | "running" | "error";
   scan_error: string | null;
   scan_started_at: string | null;
+  /** Where a running scan is (lib/scan.ts); null when idle or before 0105. */
+  scan_state?: { stage: "ads" | "tag" | "report"; started: string; force: boolean; remapped: boolean } | null;
   last_scan_at: string | null;
   created_at: string;
 }
@@ -171,6 +173,8 @@ export interface Opportunity {
   /** The campaign to run; empty strings for "ignore". */
   brief: { angle: string; hook: string; offer: string; creative: string; format: string; audience: string; experiment: string };
   evidence: string[];
+  /** Against the standing report: carried over as it was, refreshed, or new this scan. Absent on older reports. */
+  status?: "standing" | "updated" | "new";
 }
 
 /** An ad to make next. Older reports carry only `brief`; newer ones the structured fields. */

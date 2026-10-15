@@ -48,7 +48,7 @@ export function ScoreBadge({ ad }: { ad: Ad }) {
 }
 
 /** One ad: where it is in their process, the ad as it appears in the feed, and what the model read off it. */
-export default function AdCard({ ad, rivalName, badge }: { ad: Ad; rivalName?: string; badge?: AdBadge }) {
+export default function AdCard({ ad, rivalName, badge, versions = 1 }: { ad: Ad; rivalName?: string; badge?: AdBadge; versions?: number }) {
   const days = daysRunningOf(ad);
   const status = badge ?? STAGE_BADGE[adStage(ad, todayIso())];
   const offer = ad.offer && ad.offer.toLowerCase() !== "none" ? ad.offer : null;
@@ -60,6 +60,7 @@ export default function AdCard({ ad, rivalName, badge }: { ad: Ad; rivalName?: s
           {status.label}
         </span>
         <span className="text-[12px] text-ink-3 tnum">
+          {versions > 1 && <span title={`${versions} ads run this same copy`}>{versions} versions · </span>}
           {days !== null && (ad.active ? `${days} days` : `Ran ${days} days`)}
           {ad.variants > 1 && ` · ${ad.variants} versions`}
         </span>

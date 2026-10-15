@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import AdCard from "@/components/app/ad-card";
+import { groupAdVersions } from "@/lib/diff";
 import Avatar from "@/components/app/avatar";
 import HandlesForm from "@/components/app/handles-form";
 import PageForm from "@/components/app/page-form";
@@ -210,9 +211,11 @@ export default async function BrandPage() {
         </div>
         {live.length ? (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 mt-4">
-            {live.slice(0, 12).map((a) => (
-              <AdCard key={a.id} ad={a} rivalName={brand.name} />
-            ))}
+            {groupAdVersions(live)
+              .slice(0, 12)
+              .map(({ lead, versions }) => (
+                <AdCard key={lead.id} ad={lead} rivalName={brand.name} versions={versions} />
+              ))}
           </div>
         ) : (
           <div className="card p-6 mt-4 text-[13.5px] text-ink-2">

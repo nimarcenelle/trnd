@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import AdCard from "@/components/app/ad-card";
+import { groupAdVersions } from "@/lib/diff";
 import Avatar from "@/components/app/avatar";
 import { AngleBars, LaunchBars } from "@/components/app/charts";
 import { IconArrowUpRight } from "@/components/icons";
@@ -312,9 +313,11 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
           </div>
         ) : shown.length ? (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-            {shown.slice(0, 60).map((a) => (
-              <AdCard key={a.id} ad={a} rivalName={rival.name} />
-            ))}
+            {groupAdVersions(shown)
+              .slice(0, 60)
+              .map(({ lead, versions }) => (
+                <AdCard key={lead.id} ad={lead} rivalName={rival.name} versions={versions} />
+              ))}
           </div>
         ) : (
           <div className="card p-8 text-center text-[13.5px] text-ink-2">{showStopped ? "No stopped ads yet." : "No active ads right now."}</div>

@@ -10,6 +10,8 @@ import { engagementRate, growthBy, normHandle, postsPerWeek, readFacebook, readS
 
 /** Facebook posts are read for ad engagement, every few days rather than daily. */
 const FACEBOOK_EVERY_MS = 3 * 86_400_000;
+/** Instagram and TikTok profiles are paid reads: once a day is enough for follower counts and recent posts. */
+const SOCIAL_EVERY_MS = 20 * 3_600_000;
 
 /**
  * The social half of a scan: find each company's Instagram and TikTok handles
@@ -36,10 +38,19 @@ export async function refreshSocial(sb: SupabaseClient, brandId: string, rivals:
   await Promise.all(rivals.map((r) => discoverHandles(sb, r).catch((e) => console.warn(`[social] ${r.name} handles:`, (e as Error).message))));
   if (!env.apifyToken) return [];
 
+  // Profiles read successfully in the last day are not read again: every
+  // manual scan was re-reading all of them, and the Apify credit went in two
+  // days of testing. A profile whose last read failed is tried again.
+  const { data: recentRows } = await sb.from("social_profiles").select("rival_id, platform, fetched_at, error").eq("brand_id", brandId).in("platform", ["instagram", "tiktok"]);
+  const freshKeys = new Set(
+    (recentRows ?? [])
+      .filter((r) => !r.error && r.fetched_at && Date.now() - Date.parse(r.fetched_at as string) < SOCIAL_EVERY_MS)
+      .map((r) => `${r.platform}:${r.rival_id}`),
+  );
   const owner = new Map<string, Rival>();
   for (const r of rivals) {
-    if (r.instagram) owner.set(`instagram:${normHandle(r.instagram)}`, r);
-    if (r.tiktok) owner.set(`tiktok:${normHandle(r.tiktok)}`, r);
+    if (r.instagram && !freshKeys.has(`instagram:${r.id}`)) owner.set(`instagram:${normHandle(r.instagram)}`, r);
+    if (r.tiktok && !freshKeys.has(`tiktok:${r.id}`)) owner.set(`tiktok:${normHandle(r.tiktok)}`, r);
   }
 
   // Facebook Pages whose posts are due for a re-read.

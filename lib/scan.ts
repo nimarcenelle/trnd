@@ -9,7 +9,7 @@ import { commentSentiment, tagAds, tagEmails, writeReport } from "@/lib/ai/analy
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Ad, Brand, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/score";
-import { backfillEvents, backfillStopped, crossedProven, isLaunch, readLooksPartial } from "@/lib/diff";
+import { backfillEvents, backfillStopped, crossedProven, isLaunch, readLooksPartial, unseenStopped } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { env, isModelConfigured } from "@/lib/env";
 import { NO_PAGE_NOTE } from "@/lib/format";
@@ -168,10 +168,10 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
   }
 
   // An ad missing from a complete read has stopped. From an incomplete read
-  // (a page we could not fetch) absence proves nothing, so nothing stops.
+  // absence proves little, so only an ad unseen for days of reads stops.
   const stoppedIds = complete
     ? [...existing.values()].filter((a) => a.active && !seen.has(a.archive_id)).map((a) => a.id)
-    : [];
+    : unseenStopped([...existing.values()], seen, (a) => a.archive_id, now, rival.last_scraped_at).map((a) => a.id);
   let stopped: Ad[] = [];
   if (stoppedIds.length) {
     const { data } = await sb.from("ads").update({ active: false, stopped_at: now }).in("id", stoppedIds).select("*");

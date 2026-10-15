@@ -129,3 +129,23 @@ export function backfillStopped<T extends { endedAt?: string | null }>(ads: T[],
   const windowStart = addDays(today, -BACKFILL_DAYS).slice(0, 10);
   return ads.flatMap((ad) => (ad.endedAt && ad.endedAt >= windowStart && ad.endedAt <= today ? [{ ad, at: addDays(ad.endedAt, 0) }] : []));
 }
+
+/** An active ad not seen in this many days of reads has stopped, complete read or not. */
+export const UNSEEN_STOP_DAYS = 3;
+
+/**
+ * Ads to mark stopped from an incomplete read. A Page is now read in slices
+ * (its pagination query is rate limited), so a read rarely calls itself
+ * complete and "missing from a complete read" would never fire. An ad that
+ * has not shown up in UNSEEN_STOP_DAYS of reads is gone: each read takes the
+ * top ads of every slice, and a live ad surfaces in one of them. `lastRead`
+ * is the previous read's time, so a Page read for the first time in a week
+ * does not stop everything at once.
+ */
+export function unseenStopped<T extends Pick<Ad, "active" | "last_seen_at">>(ads: T[], seen: Set<string>, keyOf: (ad: T) => string, now: string, lastRead: string | null): T[] {
+  if (!lastRead) return [];
+  const cutoff = new Date(Date.parse(now) - UNSEEN_STOP_DAYS * 86_400_000).toISOString();
+  // Reads must have been happening: the previous read within the window, this one now.
+  if (lastRead < cutoff) return [];
+  return ads.filter((a) => a.active && !seen.has(keyOf(a)) && a.last_seen_at < cutoff);
+}

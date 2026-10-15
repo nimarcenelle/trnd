@@ -18,8 +18,14 @@ const PAGE_SIZE = 30;
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 
-/** `status`: active ads (the default) or the ones that have stopped, newest end first. */
-export type Search = ({ pageId: string } | { query: string }) & { status?: "active" | "inactive" };
+/** `status`: active ads (the default) or the ones that have stopped, newest end first. `facet`: one slice of the results. */
+export type Search = ({ pageId: string } | { query: string }) & { status?: "active" | "inactive"; facet?: Facet };
+export interface Facet {
+  media?: "image" | "video" | "meme";
+  platform?: "facebook" | "instagram";
+}
+/** The slices a Page is read in when its pages cannot be fetched: by media, then by platform. Each is one HTML read. */
+const FACETS: Facet[] = [{ media: "video" }, { media: "image" }, { media: "meme" }, { platform: "instagram" }, { platform: "facebook" }];
 
 export interface ScrapeResult {
   ads: ScrapedAd[];
@@ -38,8 +44,9 @@ export function libraryUrl(search: Search): string {
     ad_type: "all",
     country: "ALL",
     is_targeted_country: "false",
-    media_type: "all",
+    media_type: search.facet?.media ?? "all",
   });
+  if (search.facet?.platform) p.set("publisher_platforms[0]", search.facet.platform);
   if ("pageId" in search) {
     p.set("search_type", "page");
     p.set("view_all_page_id", search.pageId);
@@ -278,8 +285,29 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
     hasNext = page.hasNext;
   }
 
+  // The page's own pagination query is rate limited for shared addresses
+  // (Meta answers 1675004 from Vercel, and lately from a laptop too). The
+  // HTML page is not, and it carries the top ads of any filter, so the rest
+  // of a Page is read as slices: each media type, then each platform, one
+  // page each, merged. Complete when the union reaches the count the first
+  // page reported.
+  const short = () => ads.size < limit && (first.count === null || ads.size < first.count);
+  if (hasNext && short()) {
+    for (const facet of FACETS) {
+      if (!short()) break;
+      try {
+        const r = await fetchLibraryPage(libraryUrl({ ...search, facet }), verified || undefined);
+        if (!r.ok) continue;
+        const page = parsePayloads(jsonBlocks(await r.text()));
+        for (const ad of page.ads) ads.set(ad.archiveId, ad);
+      } catch {
+        // one slice failing loses nothing already read
+      }
+    }
+  }
+
   const list = [...ads.values()].slice(0, limit);
-  const complete = !hasNext || (first.count !== null && list.length >= first.count);
+  const complete = !hasNext || (first.count !== null && ads.size >= first.count);
   return { ads: list, complete, via: "library" };
 }
 

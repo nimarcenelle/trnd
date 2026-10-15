@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { crossedProven, daysRunning, PROVEN_DAYS, isLaunch, readLooksPartial, backfillEvents, backfillStopped } from "@/lib/diff";
+import { crossedProven, daysRunning, PROVEN_DAYS, isLaunch, readLooksPartial, backfillEvents, backfillStopped, unseenStopped } from "@/lib/diff";
 import { isScanning } from "@/lib/format";
 
 describe("daysRunning", () => {
@@ -77,5 +77,22 @@ describe("the first read writes the last 30 days from the ads' own dates", () =>
   it("keeps the stopped ads that ended inside the window", () => {
     const ended = [{ archiveId: "x", endedAt: "2026-10-12" }, { archiveId: "y", endedAt: "2026-08-30" }, { archiveId: "z", endedAt: null }];
     expect(backfillStopped(ended, now).map((s) => `${s.ad.archiveId}@${s.at.slice(0, 10)}`)).toEqual(["x@2026-10-12"]);
+  });
+});
+
+describe("an ad unseen for days of reads has stopped", () => {
+  const now = "2026-10-15T17:00:00Z";
+  const ads = [
+    { archive_id: "fresh", active: true, last_seen_at: "2026-10-14T17:00:00Z" },
+    { archive_id: "gone", active: true, last_seen_at: "2026-10-11T17:00:00Z" },
+    { archive_id: "old-stopped", active: false, last_seen_at: "2026-10-01T17:00:00Z" },
+  ];
+  it("stops the ad not seen in three days while the Page kept being read", () => {
+    expect(unseenStopped(ads, new Set(["fresh"]), (a) => a.archive_id, now, "2026-10-14T17:00:00Z").map((a) => a.archive_id)).toEqual(["gone"]);
+  });
+  it("stops nothing when the Page itself was not read lately, or this read saw the ad", () => {
+    expect(unseenStopped(ads, new Set(["fresh"]), (a) => a.archive_id, now, "2026-10-05T17:00:00Z")).toEqual([]);
+    expect(unseenStopped(ads, new Set(["fresh", "gone"]), (a) => a.archive_id, now, "2026-10-14T17:00:00Z")).toEqual([]);
+    expect(unseenStopped(ads, new Set(), (a) => a.archive_id, now, null)).toEqual([]);
   });
 });

@@ -3,6 +3,7 @@ import { adminSupabase } from "@/lib/db/supabase";
 import type { Brand } from "@/lib/db/types";
 import { env } from "@/lib/env";
 import { isScanning } from "@/lib/format";
+import { lastPagination, scrapeAds } from "@/lib/adlibrary/scrape";
 import { scanBrand, type ScanStage } from "@/lib/scan";
 
 /**
@@ -22,6 +23,16 @@ export async function GET(req: Request): Promise<Response> {
     return new Response("unauthorized", { status: 401 });
   }
   const url = new URL(req.url);
+  // ?probe=<pageId>: read one Page from this host and say where the read stopped. Diagnostics only.
+  const probe = url.searchParams.get("probe");
+  if (probe) {
+    try {
+      const r = await scrapeAds({ pageId: probe }, 100);
+      return Response.json({ ads: r.ads.length, complete: r.complete, via: r.via, ...lastPagination });
+    } catch (err) {
+      return Response.json({ error: (err as Error).message, ...lastPagination }, { status: 500 });
+    }
+  }
   const brandId = url.searchParams.get("brand");
   if (brandId) {
     const stage = url.searchParams.get("stage");

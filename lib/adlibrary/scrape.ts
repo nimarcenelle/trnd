@@ -93,6 +93,16 @@ export function docIdFromBundle(js: string): string | null {
 
 let cachedDocId: string | null = null;
 
+/** What the last pagination attempt saw, for the probe endpoint: where a read stops on a host we cannot watch. */
+export const lastPagination: { docId: string | null; lsd: boolean; challenge: boolean; graphqlStatus: number | null; graphqlNote: string | null; bundles: number | null } = {
+  docId: null,
+  lsd: false,
+  challenge: false,
+  graphqlStatus: null,
+  graphqlNote: null,
+  bundles: null,
+};
+
 async function findDocId(html: string): Promise<string | null> {
   if (cachedDocId) return cachedDocId;
   const srcs = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, "&"));
@@ -107,6 +117,7 @@ async function findDocId(html: string): Promise<string | null> {
     }),
   );
   cachedDocId = hits.find((h): h is string => Boolean(h)) ?? null;
+  lastPagination.bundles = srcs.length;
   if (!cachedDocId) console.warn(`[adlibrary] pagination doc id not found in ${srcs.length} bundles; reading the first page only`);
   return cachedDocId;
 }
@@ -153,6 +164,7 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
   // The cookie the challenge hands back is what clears the next request.
   let verified = "";
   const challenge = res.status === 403 ? challengePath(html) : null;
+  lastPagination.challenge = Boolean(challenge);
   if (challenge) {
     const posted = await fetch(`https://www.facebook.com${challenge}`, {
       method: "POST",
@@ -178,6 +190,10 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
   const tokens = pageTokens(html);
   const lsd = tokens.lsd;
   const docId = tokens.docId ?? (first.hasNext ? await findDocId(html) : null);
+  lastPagination.docId = docId;
+  lastPagination.lsd = Boolean(lsd);
+  lastPagination.graphqlStatus = null;
+  lastPagination.graphqlNote = first.hasNext ? null : "first page was complete";
   const cookies = [verified, cookieHeader(res)].filter(Boolean).join("; ");
   const session = sessionParams(html);
   const sessionId = crypto.randomUUID();
@@ -244,8 +260,14 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
         signal: AbortSignal.timeout(20_000),
         cache: "no-store",
       });
-      if (!r.ok) break;
-      page = parsePayloads(graphqlBlocks(await r.text()));
+      const text = await r.text();
+      lastPagination.graphqlStatus = r.status;
+      if (!r.ok) {
+        lastPagination.graphqlNote = text.slice(0, 160);
+        break;
+      }
+      page = parsePayloads(graphqlBlocks(text));
+      if (page.ads.length === 0) lastPagination.graphqlNote = text.slice(0, 160);
     } catch {
       break;
     }

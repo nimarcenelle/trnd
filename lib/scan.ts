@@ -469,6 +469,17 @@ async function reportStage(sb: SupabaseClient, brand: Brand, state: ScanState): 
     fresh: e.received_at > since,
   }));
   const changeCount = adChanges + site.filter((c) => c.fresh).length + emails.filter((e) => e.fresh).length;
+  // Rivals whose ads could not be read this scan. With most of them unread
+  // the standing report stays: a report written over missing data would say
+  // the market went quiet when it was the read that failed.
+  const unread = rivals.filter((r) => r.last_error && (!r.last_scraped_at || r.last_scraped_at < state.started));
+  if (rivals.length && unread.length > rivals.length / 2) {
+    const why = unread[0].last_error?.replace(/\.$/, "") ?? "unknown error";
+    const note = `Ads could not be read for ${unread.length} of ${rivals.length} competitors (${why}). The report from the last full read stands.`;
+    console.warn(`[scan] ${brand.name}: ${note}`);
+    await sb.from("brands").update({ scan_error: note }).eq("id", brand.id);
+    return { changes: changeCount, report: false };
+  }
   if (!(isBaseline || changeCount > 0 || state.remapped || state.force)) return { changes: changeCount, report: false };
 
   const { data: adRows } = await sb.from("ads").select("*").eq("brand_id", brand.id).eq("active", true);

@@ -197,6 +197,9 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
       {brand.scan_status === "error" && brand.scan_error && (
         <div className="mt-6 rounded-xl border border-neg/30 bg-neg-bg px-5 py-4 text-[13.5px] text-neg">The last scan ran into a problem: {brand.scan_error}</div>
       )}
+      {brand.scan_status === "idle" && brand.scan_error && (
+        <div className="mt-6 rounded-xl border border-warn/30 bg-warn-bg px-5 py-4 text-[13.5px] text-warn">{brand.scan_error}</div>
+      )}
 
       {latest ? (
         <div className="card mt-6 p-6 sm:p-7">

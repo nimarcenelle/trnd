@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { pageFromHtml } from "@/lib/adlibrary/facebook";
 import { domainOf, facebookHandle, nameCore, pickRivalPage, sameName, scorePages } from "@/lib/adlibrary/match";
 import { graphqlBlocks, jsonBlocks, looksBlocked, pageTokens, parsePayloads, toScrapedAd } from "@/lib/adlibrary/parse";
-import { libraryUrl } from "@/lib/adlibrary/scrape";
+import { challengePath, docIdFromBundle, libraryUrl, sessionParams } from "@/lib/adlibrary/scrape";
 import { facebookRef } from "@/lib/site";
 
 /** An ad node in the shape the Ad Library ships it (search_results_connection → edges → collated_results). */
@@ -192,5 +192,34 @@ describe("finding the right Page", () => {
     expect(pageFromHtml(html)).toEqual({ pageId: "1234567890", pageName: "Jolie & Co" });
     expect(pageFromHtml('{"delegate_page":{"is_business_page_active":true,"id":"222333444"}} fb://profile/999888777')?.pageId).toBe("222333444");
     expect(pageFromHtml("<html>login</html>")).toBeNull();
+  });
+});
+
+describe("Meta's verification challenge", () => {
+  it("finds the one-time path in the 403 page and nothing in a real page", () => {
+    const page = `<html><body><script>fetch('/__rd_verify_Q_6hBQReRuLsu29wQ1JSeLeCniLpzoZgnbpj_c_6aef7MFecdg?challenge=3', { method: 'POST' }).finally(() => window.location.reload());</script></body></html>`;
+    expect(challengePath(page)).toBe("/__rd_verify_Q_6hBQReRuLsu29wQ1JSeLeCniLpzoZgnbpj_c_6aef7MFecdg?challenge=3");
+    expect(challengePath("<html>ad_archive_id</html>")).toBeNull();
+  });
+});
+
+describe("the pagination doc id in a script bundle", () => {
+  it("reads the Relay operation export and ignores other ids", () => {
+    const js = `__d("AdLibrarySearchPaginationQuery_facebookRelayOperation",[],(function(t,n,r,o,a,i){a.exports="24922295957467452"}),null); __d("Other_facebookRelayOperation",[],(function(t,n,r,o,a,i){a.exports="11111111111111111"}),null);`;
+    expect(docIdFromBundle(js)).toBe("24922295957467452");
+    expect(docIdFromBundle(`a.exports="11111111111111111"`)).toBeNull();
+  });
+});
+
+describe("the session parameters the GraphQL endpoint wants", () => {
+  it("reads them off the page and falls back sensibly", () => {
+    const html = `"server_revision":1050469598,"haste_session":"20741.HYP:comet_plat_default_pkg.2.1...0","connectionClass":"EXCELLENT","hsi":"7696939723807301248","__spin_r":1050469598,"__spin_b":"trunk","__spin_t":1792083430, jazoest=22507`;
+    const p = sessionParams(html);
+    expect(p.__rev).toBe("1050469598");
+    expect(p.__hs).toBe("20741.HYP:comet_plat_default_pkg.2.1...0");
+    expect(p.__hsi).toBe("7696939723807301248");
+    expect(p.__spin_t).toBe("1792083430");
+    expect(p.jazoest).toBe("22507");
+    expect(sessionParams("").__spin_b).toBe("trunk");
   });
 });

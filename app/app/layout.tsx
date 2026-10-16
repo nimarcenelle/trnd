@@ -9,7 +9,7 @@ import { signOutAction } from "@/lib/auth/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
 import { getBrand, listAds, listRivals } from "@/lib/data";
-import { ago, isNoPageNote, isScanning } from "@/lib/format";
+import { ago, isNoPageNote, isScanning, isNoAdsNote, isPausedNote, rivalHidden } from "@/lib/format";
 
 export default async function AppLayout({ children }: LayoutProps<"/app">) {
   const user = await getSessionUser();
@@ -18,12 +18,15 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
   const plan = brand ? planState(brand) : null;
   const [rivals, live] = brand ? await Promise.all([listRivals(brand.id), listAds(brand.id, { activeOnly: true })]) : [[], []];
   const scanning = brand ? isScanning(brand) : false;
-  const links: RivalLink[] = rivals.map((r) => ({
-    id: r.id,
-    name: r.name,
-    live: live.filter((a) => a.rival_id === r.id).length,
-    error: Boolean(r.last_error) && !isNoPageNote(r.last_error),
-  }));
+  const links: RivalLink[] = rivals
+    .map((r) => ({ r, live: live.filter((a) => a.rival_id === r.id).length }))
+    .filter(({ r, live: n }) => !rivalHidden(r, n))
+    .map(({ r, live: n }) => ({
+      id: r.id,
+      name: r.name,
+      live: n,
+      error: Boolean(r.last_error) && !isNoPageNote(r.last_error) && !isNoAdsNote(r.last_error) && !isPausedNote(r.last_error),
+    }));
   const setup = !brand || (!brand.last_scan_at && !scanning);
 
   return (

@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { findPage, pageLooksRight } from "@/lib/adlibrary/resolve";
+import { domainOf } from "@/lib/adlibrary/match";
 import type { ScrapedAd } from "@/lib/adlibrary/parse";
 import { scrapeAds } from "@/lib/adlibrary/scrape";
 import { commentSentiment, tagAds, tagEmails, writeReport } from "@/lib/ai/analyze";
@@ -12,7 +13,7 @@ import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/sco
 import { backfillEvents, backfillStopped, crossedProven, groupAdVersions, isLaunch, readLooksPartial, unseenStopped } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { env, isModelConfigured } from "@/lib/env";
-import { NO_PAGE_NOTE } from "@/lib/format";
+import { isNoAdsNote, isNoPageNote, NO_ADS_NOTE, NO_PAGE_NOTE, PAUSED_NOTE } from "@/lib/format";
 import { subscribeOnce } from "@/lib/inbox/store";
 import { planSwaps } from "@/lib/rivals";
 import { checkSite } from "@/lib/sitewatch/watch";
@@ -101,7 +102,48 @@ function row(brandId: string, rivalId: string, ad: ScrapedAd, now: string) {
   };
 }
 
-export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival): Promise<RivalChanges> {
+/** Re-confirm a confirmed "no ads" this often; the full search costs a model call. */
+const CONFIRM_EVERY_MS = 3 * 86_400_000;
+
+/**
+ * Before a rival is shown as running no Meta ads: read its Page's past ads
+ * (a pause is not an absence), then run the full Page hunt without the
+ * Page we hold (the Ad Library under its name, domain and handle, and the
+ * model's look at every advertiser found). A Page with active ads replaces
+ * ours; otherwise the note says what was checked and the date it was.
+ */
+async function confirmNoAds(sb: SupabaseClient, brand: Brand, rival: Rival, pageId: string): Promise<{ switched: boolean; note: string }> {
+  const fresh = rival.ads_confirmed_at && Date.now() - Date.parse(rival.ads_confirmed_at) < CONFIRM_EVERY_MS && rival.last_error && (isNoAdsNote(rival.last_error) || rival.last_error.startsWith(PAUSED_NOTE));
+  if (fresh) return { switched: false, note: rival.last_error! };
+  const company = { name: rival.name, website: rival.website, category: brand.category };
+  const today = new Date().toISOString().slice(0, 10);
+
+  const past = await scrapeAds({ pageId, status: "inactive" }, 20).catch(() => null);
+  const ended = (past?.ads ?? []).filter((a) => a.endedAt).sort((a, b) => (b.endedAt ?? "").localeCompare(a.endedAt ?? ""));
+
+  const found = await findPage(company, { exclude: [pageId] }).catch(() => null);
+  if (found?.page) {
+    const theirs = await scrapeAds({ pageId: found.page.pageId }, 12).catch(() => null);
+    if (theirs && theirs.ads.length > 0) {
+      console.log(`[scan] ${rival.name}: Page ${pageId} runs nothing; ${found.page.pageName} (${found.page.pageId}) does, switching`);
+      await dropPage(sb, rival);
+      await sb.from("rivals").update({ page_id: found.page.pageId, page_name: found.page.pageName || rival.name }).eq("id", rival.id);
+      rival.page_id = found.page.pageId;
+      rival.page_name = found.page.pageName || rival.name;
+      await markPage(sb, rival, "checked");
+      return { switched: true, note: "" };
+    }
+  }
+  const checked = [`"${rival.name}"`, domainOf(rival.website) ? `"${domainOf(rival.website)}"` : null].filter(Boolean).join(", ");
+  const note = ended.length
+    ? `${PAUSED_NOTE}: no active Meta ads; ${ended.length} past ad${ended.length === 1 ? "" : "s"}, the last ended ${ended[0].endedAt}. Checked ${today}.`
+    : `${NO_ADS_NOTE}. Their Page runs nothing and has no past ads; the Ad Library under ${checked} shows no Page of theirs. Checked ${today}.`;
+  const { error } = await sb.from("rivals").update({ ads_confirmed_at: new Date().toISOString() }).eq("id", rival.id);
+  if (error) console.warn("[scan] ads_confirmed_at not saved (run supabase/migrations/0107_ads_confirmed.sql):", error.message);
+  return { switched: false, note };
+}
+
+export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival, confirming = false): Promise<RivalChanges> {
   const none: RivalChanges = { launched: [], stopped: [], proven: [] };
   const now = new Date().toISOString();
   const company = { name: rival.name, website: rival.website, category: brand.category };
@@ -137,6 +179,15 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival):
 
   const { ads: scraped } = read;
   const baseline = !rival.last_scraped_at;
+
+  // A Page that reads as empty is not called empty on one read: the full
+  // search runs before the word "no" goes on the page.
+  if (scraped.length === 0 && read.complete && !confirming) {
+    const verdict = await confirmNoAds(sb, brand, rival, pageId);
+    if (verdict.switched) return scanRival(sb, brand, rival, true);
+    await sb.from("rivals").update({ last_scraped_at: now, last_error: verdict.note }).eq("id", rival.id);
+    return { ...none, remapped };
+  }
 
   const { data: existingRows, error } = await sb.from("ads").select("*").eq("rival_id", rival.id);
   if (error) throw new Error(error.message);
@@ -459,14 +510,11 @@ async function adsStage(sb: SupabaseClient, brand: Brand, state: ScanState): Pro
 async function swapIdleRivals(sb: SupabaseClient, brand: Brand, rivals: Rival[]): Promise<void> {
   const spares = brand.candidates?.spares ?? [];
   if (!spares.length) return;
-  // Only rivals on their first read: a brand that advertised last month and paused is not idle.
-  const fresh = rivals.filter((r) => !(brand.candidates?.swapped ?? []).some((s) => s.in === r.name));
-  const { data: countRows } = await sb.from("ads").select("rival_id").eq("brand_id", brand.id).eq("active", true).in("rival_id", fresh.map((r) => r.id));
-  const counts = new Map<string, number>();
-  for (const row of countRows ?? []) counts.set(row.rival_id as string, (counts.get(row.rival_id as string) ?? 0) + 1);
-  const { data: current } = await sb.from("rivals").select("id, name, source, page_id, last_scraped_at").in("id", fresh.map((r) => r.id));
-  const firstRead = ((current ?? []) as Pick<Rival, "id" | "name" | "source" | "page_id" | "last_scraped_at">[]).filter((r) => !r.last_scraped_at || fresh.find((f) => f.id === r.id)?.last_scraped_at === null);
-  const swaps = planSwaps(firstRead, (id) => counts.get(id) ?? 0, spares);
+  // A seat confirmed to run no Meta ads (no Page found, or a Page with nothing and no past ads) is given up.
+  // A pause is not an absence: a brand that advertised lately keeps its seat.
+  const { data: current } = await sb.from("rivals").select("id, name, source, page_id, last_error").in("id", rivals.map((r) => r.id));
+  const idle = ((current ?? []) as Pick<Rival, "id" | "name" | "source" | "page_id" | "last_error">[]).filter((r) => isNoPageNote(r.last_error) || isNoAdsNote(r.last_error));
+  const swaps = planSwaps(idle, () => 0, spares);
   if (!swaps.length) return;
   const used = new Set(swaps.map((s) => s.in.name));
   const swapped = [...(brand.candidates?.swapped ?? [])];

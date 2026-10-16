@@ -20,7 +20,7 @@ import { planState } from "@/lib/billing";
 import { isInboxConfigured } from "@/lib/env";
 import { getBrand, getSelf, listAds, listChanges, listEmails, listReports, listRivals, listSiteChanges, listSocial } from "@/lib/data";
 import type { Ad, ChangeKind, Report } from "@/lib/db/types";
-import { ago, compact, daysRunningOf, isNoPageNote, isScanning, todayIso, withinDays } from "@/lib/format";
+import { ago, compact, daysRunningOf, isNoPageNote, isScanning, todayIso, withinDays, rivalHidden } from "@/lib/format";
 import { buildTimeline } from "@/lib/timeline";
 import { weeklyLaunches } from "@/lib/stats";
 import { adStage, groupAdVersions } from "@/lib/diff";
@@ -100,7 +100,7 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
   if (!brand) redirect("/app/setup");
   if (!brand.last_scan_at && !isScanning(brand) && brand.scan_status !== "error") redirect("/app/setup");
 
-  const [rivals, allAds, reports, changes, self, social, siteChanges, emails] = await Promise.all([
+  const [allRivals, allAds, reports, changes, self, social, siteChanges, emails] = await Promise.all([
     listRivals(brand.id),
     listAds(brand.id),
     listReports(brand.id),
@@ -118,6 +118,8 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
   const byArchive = new Map(allAds.map((a) => [a.archive_id, a]));
   // Competitors' ads only; the brand's own are on its page and in the landscape.
   const ads = allAds.filter((a) => !self || a.rival_id !== self.id);
+  // Rivals confirmed to run no Meta ads stay under Settings; the briefing is about the ones that do.
+  const rivals = allRivals.filter((r) => !rivalHidden(r, allAds.filter((a) => a.rival_id === r.id && a.active).length));
   const rivalName = new Map(rivals.map((r) => [r.id, r.name]));
   if (self) rivalName.set(self.id, "You");
   const followers = (rivalId: string, platform: "instagram" | "tiktok") => social.find((p) => p.rival_id === rivalId && p.platform === platform && !p.error)?.followers ?? null;

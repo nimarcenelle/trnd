@@ -46,6 +46,8 @@ export interface Rival {
   page_name: string | null;
   /** How the Page was settled: confirmed against its ads, or pasted by the owner. Null: not yet confirmed. */
   page_source?: "checked" | "owner" | null;
+  /** When "no active Meta ads" was last confirmed by the full search (lib/scan.ts confirmNoAds); null before 0107. */
+  ads_confirmed_at?: string | null;
   source: "ai" | "owner";
   /** The brand itself, watched like a rival so its own ads are read too. */
   is_self: boolean;

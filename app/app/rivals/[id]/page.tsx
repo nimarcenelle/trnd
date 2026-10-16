@@ -19,7 +19,7 @@ import { buildTimeline } from "@/lib/timeline";
 import Timeline from "@/components/app/timeline";
 import { growthBy } from "@/lib/social/read";
 import { adStage, daysRunning, TESTING_DAYS } from "@/lib/diff";
-import { libraryLink, cleanCopy, ago, daysRunningOf, isNoPageNote, noPageSearched, todayIso } from "@/lib/format";
+import { libraryLink, cleanCopy, ago, daysRunningOf, isNoPageNote, noPageSearched, todayIso, isNoAdsNote, isPausedNote } from "@/lib/format";
 import { angleMix, weeklyLaunches } from "@/lib/stats";
 
 export const metadata = { title: "Rival — TRND" };
@@ -101,12 +101,14 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
         </details>
       )}
 
-      {isNoPageNote(rival.last_error) ? (
+      {isNoPageNote(rival.last_error) || isNoAdsNote(rival.last_error) || isPausedNote(rival.last_error) ? (
         <div className="card mt-6 px-5 py-4">
-          <p className="text-[14px] font-semibold">No Meta ads found for {rival.name}</p>
+          <p className="text-[14px] font-semibold">{isPausedNote(rival.last_error) ? `${rival.name} has paused its Meta ads` : `No Meta ads found for ${rival.name}`}</p>
           <p className="text-[13px] text-ink-2 mt-1 leading-[1.55]">
-            We checked their site for a Facebook link, searched the Ad Library under every name they might advertise as, and had
-            the model look through every advertiser that came up{noPageSearched(rival.last_error) ? ` (${noPageSearched(rival.last_error)})` : ""}. Most likely they are not running ads right now; we check again every day. If you know their Page, paste it.
+            {isNoPageNote(rival.last_error)
+              ? `We checked their site for a Facebook link, searched the Ad Library under every name they might advertise as, and had the model look through every advertiser that came up${noPageSearched(rival.last_error) ? ` (${noPageSearched(rival.last_error)})` : ""}.`
+              : rival.last_error}{" "}
+            {isPausedNote(rival.last_error) ? "It comes back to the briefing the day an ad goes live." : "It stays off the briefing until it does, and is checked again every few days. If you know their Page, paste it."}
           </p>
           <div className="mt-3 max-w-[560px]">
             <PageForm rivalId={rival.id} />

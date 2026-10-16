@@ -54,7 +54,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
 
       <Section title="Competitors" sub={`${rivals.length} of ${MAX_RIVALS}. New competitors are read on the next scan.`}>
         <div className="card">
-          <RivalList rivals={rivals} social />
+          <RivalList rivals={rivals} social spares={brand.candidates?.spares.length ?? 0} />
           <div className="border-t border-line p-4 bg-subtle rounded-b-xl">
             <AddRivalForm />
           </div>

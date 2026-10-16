@@ -102,6 +102,29 @@ export async function removeRivalAction(formData: FormData): Promise<void> {
   revalidatePath("/app", "layout");
 }
 
+/**
+ * Give a seat that runs no Meta ads to the most direct spare the model named
+ * at setup. With no spare left, the seat is simply freed.
+ */
+export async function swapRivalAction(formData: FormData): Promise<void> {
+  const { brand } = await requireBrand();
+  const id = String(formData.get("id") ?? "");
+  const sb = adminSupabase();
+  const { data: rival } = await sb.from("rivals").select("id, name").eq("id", id).eq("brand_id", brand.id).eq("is_self", false).maybeSingle<{ id: string; name: string }>();
+  if (!rival) return;
+  const spares = [...(brand.candidates?.spares ?? [])].sort((a, b) => b.directness - a.directness);
+  const next = spares.shift();
+  await sb.from("rivals").delete().eq("id", rival.id);
+  if (next) {
+    await sb.from("rivals").insert({ brand_id: brand.id, name: next.name, website: next.website || null, reason: next.reason, source: "ai" });
+    await sb
+      .from("brands")
+      .update({ candidates: { spares, swapped: [...(brand.candidates?.swapped ?? []), { out: rival.name, in: next.name, at: new Date().toISOString() }] } })
+      .eq("id", brand.id);
+  }
+  revalidatePath("/app", "layout");
+}
+
 /** Set or correct a company's Instagram and TikTok handles (the brand's own included). */
 export async function updateHandlesAction(formData: FormData): Promise<void> {
   const { brand } = await requireBrand();

@@ -37,11 +37,15 @@ export async function GET(req: Request): Promise<Response> {
   if (brandId) {
     const stage = url.searchParams.get("stage");
     const stages: ScanStage[] = ["ads", "tag", "report"];
+    // ?budget=<ms> shortens this invocation's time budget so a stage hand-off
+    // can be exercised on demand (the route is behind CRON_SECRET).
+    const budget = Number(url.searchParams.get("budget"));
     try {
       return Response.json(
         await scanBrand(brandId, {
           stage: stages.includes(stage as ScanStage) ? (stage as ScanStage) : undefined,
           forceReport: url.searchParams.get("force") === "1",
+          budgetMs: budget > 0 ? budget : undefined,
         }),
       );
     } catch (err) {

@@ -293,9 +293,21 @@ function handOff(brandId: string, state: ScanState): void {
   url.searchParams.set("brand", brandId);
   url.searchParams.set("stage", state.stage);
   if (state.force) url.searchParams.set("force", "1");
-  fetch(url, { headers: { authorization: `Bearer ${env.cronSecret}` }, signal: AbortSignal.timeout(4_000), cache: "no-store" }).catch(() => {
-    /* the route runs on regardless of whether this wait ends first */
-  });
+  // The apex host answers 308 to www, and a fetch that follows a redirect to
+  // another host drops the authorization header: the next stage was being
+  // asked for without its secret and refused (Caraway's first scan stalled
+  // at 180 of 467 ads tagged). Redirects are followed by hand, header kept.
+  const send = (target: URL, hops: number): Promise<void> =>
+    fetch(target, { headers: { authorization: `Bearer ${env.cronSecret}` }, redirect: "manual", signal: AbortSignal.timeout(4_000), cache: "no-store" })
+      .then((res) => {
+        const location = res.headers.get("location");
+        if (res.status >= 300 && res.status < 400 && location && hops < 3) return send(new URL(location, target), hops + 1);
+        if (res.status === 401) console.warn(`[scan] hand-off to ${target.host} was refused: check CRON_SECRET and NEXT_PUBLIC_SITE_URL`);
+      })
+      .catch(() => {
+        /* the route runs on regardless of whether this wait ends first */
+      });
+  void send(url, 0);
 }
 
 /** Stopped ads read on a Page's first scan: enough to cover a month of endings. */

@@ -58,7 +58,7 @@ export function buildTimeline(input: {
   emails: RivalEmail[];
   emailHref: (e: RivalEmail) => string;
 }): TimelineEvent[] {
-  const ads: TimelineEvent[] = input.adChanges
+  const adEvents: TimelineEvent[] = input.adChanges
     .filter((c) => c.ad)
     .map((c) => ({
       id: `ad:${c.id}`,
@@ -73,6 +73,15 @@ export function buildTimeline(input: {
       external: true,
       image: c.ad!.image_url,
     }));
+  // Four launches of one piece of copy on one day are one move, not four lines.
+  const merged = new Map<string, TimelineEvent & { count: number }>();
+  for (const e of adEvents) {
+    const key = `${e.rivalId}:${e.tag}:${e.at.slice(0, 10)}:${e.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}`;
+    const had = merged.get(key);
+    if (had) had.count += 1;
+    else merged.set(key, { ...e, count: 1 });
+  }
+  const ads: TimelineEvent[] = [...merged.values()].map(({ count, ...e }) => (count > 1 ? { ...e, detail: [e.detail, `${count} ads with this copy`].filter(Boolean).join(" · ") } : e));
   const site: TimelineEvent[] = input.site.map((c) => ({
     id: `site:${c.id}`,
     at: c.detected_at,

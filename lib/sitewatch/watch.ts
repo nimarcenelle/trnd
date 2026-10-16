@@ -49,15 +49,11 @@ export async function checkSite(sb: SupabaseClient, brandId: string, rival: Riva
     await sb.from("rivals").update({ site_checked_at: now }).eq("id", rival.id);
     return [];
   }
-  const { data: last } = await sb
-    .from("site_snapshots")
-    .select("id, data")
-    .eq("rival_id", rival.id)
-    .order("captured_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ id: string; data: SiteSnapshot }>();
+  const { data: recentRows } = await sb.from("site_snapshots").select("id, data").eq("rival_id", rival.id).order("captured_at", { ascending: false }).limit(4);
+  const recent = (recentRows ?? []) as { id: string; data: SiteSnapshot }[];
+  const last = recent[0] ?? null;
 
-  const diffs = last ? diffSnapshots(last.data, read.snapshot) : [];
+  const diffs = last ? diffSnapshots(last.data, read.snapshot, recent.slice(1).map((r) => r.data)) : [];
   // The first read has nothing to diff against, but the catalog says what the store added lately.
   if (!last) {
     const recent = recentProducts(read.snapshot, now);

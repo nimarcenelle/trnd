@@ -206,7 +206,7 @@ export default async function BrandPage() {
           <div className="card px-4 py-3.5">
             <div className="text-[13px] text-ink-2">Average days live</div>
             <div className="text-[26px] font-semibold tracking-tight tnum mt-1">{yourAvg ?? "—"}</div>
-            <div className="caption mt-0.5">Competitors: {theirAvg ?? "—"}</div>
+            <div className="caption mt-0.5">Competitors average {theirAvg ?? "—"}{theirAvg !== null && theirAvg !== undefined ? " days" : ""}</div>
           </div>
         </div>
         {live.length ? (

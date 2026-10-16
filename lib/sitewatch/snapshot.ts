@@ -187,7 +187,19 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9%$]+/g, " ").trim()
  * (a catalog reshuffle, a new collection) collapse into one line, so a big
  * day reads as one event, not forty.
  */
-export function diffSnapshots(prev: SiteSnapshot, next: SiteSnapshot): SiteDiff[] {
+/** A promotion's identity: its words and numbers, without the fragments a rotating banner adds or drops. */
+export function promoKey(p: string): string {
+  return p
+    .toLowerCase()
+    .replace(/\(cont\.?[^)]*\)?/g, " ")
+    .replace(/[^a-z0-9%$]+/g, " ")
+    .split(" ")
+    .filter((w) => w.length >= 3 || /\d/.test(w))
+    .slice(0, 8)
+    .join(" ");
+}
+
+export function diffSnapshots(prev: SiteSnapshot, next: SiteSnapshot, history: SiteSnapshot[] = []): SiteDiff[] {
   const out: SiteDiff[] = [];
   const before = new Map(prev.products.map((p) => [p.id, p]));
   const after = new Map(next.products.map((p) => [p.id, p]));
@@ -228,10 +240,19 @@ export function diffSnapshots(prev: SiteSnapshot, next: SiteSnapshot): SiteDiff[
   collapse(sales);
   collapse(prices);
 
-  const prevPromos = new Set(prev.promos.map(norm));
-  const nextPromos = new Set(next.promos.map(norm));
-  for (const p of next.promos.filter((x) => !prevPromos.has(norm(x))).slice(0, 4)) out.push({ kind: "promo_added", title: "New promotion", before: null, after: p, url: null });
-  for (const p of prev.promos.filter((x) => !nextPromos.has(norm(x))).slice(0, 2)) out.push({ kind: "promo_removed", title: "Promotion removed", before: p, after: null, url: null });
+  // Promotions: a rotating announcement bar shows a different fragment of
+  // the same offers on every read ("Free Shipping On Orders $25+ (Cont." one
+  // day, "...$25+ (Cont. U.S.)" the next), which read as a promotion added
+  // and removed every day. A promotion is new only when its key was in none
+  // of the recent snapshots, and gone only when it had been stable in them.
+  const keys = (snap: SiteSnapshot) => new Set(snap.promos.map(promoKey));
+  const prevKeys = keys(prev);
+  const nextKeys = keys(next);
+  const seenBefore = new Set([...prevKeys, ...history.flatMap((h) => [...keys(h)])]);
+  for (const p of next.promos.filter((x) => !seenBefore.has(promoKey(x))).slice(0, 4)) out.push({ kind: "promo_added", title: "New promotion", before: null, after: p, url: null });
+  const stable = (k: string) => history.length >= 2 && history.slice(0, 2).every((h) => keys(h).has(k));
+  for (const p of prev.promos.filter((x) => !nextKeys.has(promoKey(x)) && (history.length < 2 || stable(promoKey(x)))).slice(0, 2))
+    out.push({ kind: "promo_removed", title: "Promotion removed", before: p, after: null, url: null });
 
   // Messaging: the hero headline, the page title, or the meta description.
   const hero = (s: SiteSnapshot) => s.headlines[0] ?? "";

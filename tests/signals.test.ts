@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { confirmLink, emailLinks, emailText, findSignupForm, inboxAddress, klaviyoCompany, readWebhook, tokenFromRecipients } from "@/lib/inbox/parse";
 import { verifyInbound } from "@/lib/inbox/verify";
-import { diffSnapshots, promoLines, shopifyProducts, snapshotFrom, type SiteSnapshot, recentProducts } from "@/lib/sitewatch/snapshot";
+import { diffSnapshots, promoKey, promoLines, shopifyProducts, snapshotFrom, type SiteSnapshot, recentProducts } from "@/lib/sitewatch/snapshot";
 import { buildTimeline, byDay } from "@/lib/timeline";
 
 const snap = (over: Partial<SiteSnapshot>): SiteSnapshot => ({
@@ -196,5 +196,22 @@ describe("a first snapshot names the products the store added lately", () => {
     expect(many).toHaveLength(1);
     expect(many[0].title).toBe("4 products added");
     expect(recentProducts(snap([{ id: "x", title: "No date", created_at: null }]), "2026-10-15T17:00:00Z")).toEqual([]);
+  });
+});
+
+describe("promotions on a rotating banner", () => {
+  const snap = (promos: string[]) => ({ title: null, description: null, headlines: [], promos, nav: [], products: [], catalog: false, text_hash: "h" }) as unknown as SiteSnapshot;
+  it("keys the fragments of one offer the same", () => {
+    expect(promoKey("Free Shipping On Orders $25+ (Cont. U.S.)")).toBe(promoKey("Free Shipping On Orders $25+ (Cont."));
+    expect(promoKey("Free Shipping On Orders $25+")).not.toBe(promoKey("Free Shipping On Orders $40+"));
+  });
+  it("does not report a fragment seen in a recent read as new, nor a flickering one as removed", () => {
+    const a = snap(["ELEVATE YOUR HYDRATION TODAY! | Free Shipping On Orders $25+ (Cont. U.S.)"]);
+    const b = snap(["Free Shipping On Orders $25+ (Cont."]);
+    expect(diffSnapshots(a, b, [b, a])).toEqual([]);
+    // A promotion stable across the last reads that vanishes is reported; a brand-new one is reported.
+    const c = snap(["Buy one get one free"]);
+    const kinds = diffSnapshots(a, c, [a, a]).map((d) => d.kind);
+    expect(kinds).toEqual(["promo_added", "promo_removed"]);
   });
 });

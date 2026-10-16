@@ -101,13 +101,15 @@ export function docIdFromBundle(js: string): string | null {
 let cachedDocId: string | null = null;
 
 /** What the last pagination attempt saw, for the probe endpoint: where a read stops on a host we cannot watch. */
-export const lastPagination: { docId: string | null; lsd: boolean; challenge: boolean; graphqlStatus: number | null; graphqlNote: string | null; bundles: number | null } = {
+export const lastPagination: { docId: string | null; lsd: boolean; challenge: boolean; graphqlStatus: number | null; graphqlNote: string | null; bundles: number | null; euReach: number } = {
   docId: null,
   lsd: false,
   challenge: false,
   graphqlStatus: null,
   graphqlNote: null,
   bundles: null,
+  /** How many ads on the first page carried an EU reach figure (only ads delivered in the EU do). */
+  euReach: 0,
 };
 
 async function findDocId(html: string): Promise<string | null> {
@@ -199,6 +201,7 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
   const docId = tokens.docId ?? (first.hasNext ? await findDocId(html) : null);
   lastPagination.docId = docId;
   lastPagination.lsd = Boolean(lsd);
+  lastPagination.euReach = (html.match(/"eu_total_reach":\s*\d/g) ?? []).length;
   lastPagination.graphqlStatus = null;
   lastPagination.graphqlNote = first.hasNext ? null : "first page was complete";
   const cookies = [verified, cookieHeader(res)].filter(Boolean).join("; ");

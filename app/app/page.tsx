@@ -14,7 +14,10 @@ import Translations from "@/components/app/translations";
 import { LandscapeTable, YouVsThem, type LandscapeStats } from "@/components/app/landscape";
 import SubmitButton from "@/components/app/submit-button";
 import { IconRefresh } from "@/components/icons";
+import { after } from "next/server";
+
 import { scanNowAction } from "@/lib/actions";
+import { scanBrand } from "@/lib/scan";
 import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
 import { isInboxConfigured } from "@/lib/env";
@@ -85,6 +88,16 @@ function Plays({ report, ads }: { report: Report; ads: Map<string, Ad> }) {
   );
 }
 
+/** Per instance: when a stalled scan was last resumed from this page, so refreshes do not pile resumes up. */
+const resumes = new Map<string, number>();
+const RESUME_EVERY_MS = 3 * 60_000;
+function dueForResume(brandId: string): boolean {
+  const last = resumes.get(brandId) ?? 0;
+  if (Date.now() - last < RESUME_EVERY_MS) return false;
+  resumes.set(brandId, Date.now());
+  return true;
+}
+
 /** What the scan is doing right now, by stage (lib/scan.ts). */
 const STAGE_LINE = {
   ads: "Reading every rival\u2019s ads, website and social accounts.",
@@ -98,7 +111,14 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
   if (!user) redirect("/login");
   const brand = await getBrand(user.id);
   if (!brand) redirect("/app/setup");
-  if (!brand.last_scan_at && !isScanning(brand) && brand.scan_status !== "error") redirect("/app/setup");
+  // A scan that went quiet past the stale window with its stage still saved was cut short
+  // (a hand-off lost, a function killed). It is picked up again from here, once every few
+  // minutes per instance, so a first scan never strands the owner on the confirm page.
+  const stalled = brand.scan_status === "running" && !isScanning(brand) && Boolean(brand.scan_state);
+  if (stalled && dueForResume(brand.id)) {
+    after(() => scanBrand(brand.id).catch((err) => console.warn("[briefing] resume failed:", (err as Error).message)));
+  }
+  if (!brand.last_scan_at && !isScanning(brand) && brand.scan_status !== "error" && !stalled) redirect("/app/setup");
 
   const [allRivals, allAds, reports, changes, self, social, siteChanges, emails] = await Promise.all([
     listRivals(brand.id),
@@ -132,7 +152,7 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
   const hasSocial = social.some((p) => !p.error && p.followers !== null);
   const today = todayIso();
   const [latest, ...older] = reports;
-  const running = isScanning(brand);
+  const running = isScanning(brand) || stalled;
   const locked = planState(brand).locked;
   const live = ads.filter((a) => a.active);
   const week = (k: ChangeKind, rivalId?: string) =>
@@ -215,9 +235,9 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
           Scanned {ago(brand.last_scan_at)}. A scan reads every rival again, so the next one can start ten minutes after the last.
         </div>
       )}
-      {!running && brand.scan_status === "running" && brand.scan_state && (
+      {stalled && (
         <div className="mt-6 rounded-xl border border-warn/30 bg-warn-bg px-5 py-4 text-[13.5px] text-warn">
-          The last scan was cut short while {STAGE_LINE[brand.scan_state.stage].toLowerCase().replace(/\.$/, "")}. It picks up where it stopped on the next scan.
+          This scan went quiet while {STAGE_LINE[brand.scan_state!.stage].toLowerCase().replace(/\.$/, "")}. It is picking up where it stopped.
         </div>
       )}
       {brand.scan_status === "error" && brand.scan_error && (

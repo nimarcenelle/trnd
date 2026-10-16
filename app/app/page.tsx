@@ -142,7 +142,6 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
   );
   const recentSwaps = (brand.candidates?.swapped ?? []).filter((s) => withinDays(s.at, 2));
   // The competitor ads our score ranks highest, one card per piece of copy: what rivals keep funding, with the receipts.
-  const rivalName = new Map(rivals.map((r) => [r.id, r.name]));
   const topAds = groupAdVersions(live.filter((a) => a.rival_id !== self?.id && a.score !== null && a.score !== undefined))
     .sort((a, b) => (b.lead.score ?? 0) - (a.lead.score ?? 0))
     .slice(0, 6);

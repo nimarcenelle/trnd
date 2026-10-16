@@ -24,6 +24,13 @@ export const STAGE_BADGE: Record<Stage, AdBadge> = {
 
 
 
+/** Dynamic-creative templates leave "{{product.name}}" in the copy Meta shows; the placeholder is the product. */
+export function cleanCopy(text: string | null): string | null {
+  if (!text) return text;
+  const out = text.replace(/\{\{\s*product\.[a-z_]+\s*\}\}/gi, "the product").replace(/\{\{[^}]*\}\}/g, "").replace(/\s{2,}/g, " ").trim();
+  return out || null;
+}
+
 const PART_LABEL = { longevity: "how long it has run", engagement: "engagement on its organic post", reach: "reach rank", repetition: "versions running", sentiment: "comment sentiment" } as const;
 
 /** The conversion score, with what it was built from on hover. */
@@ -60,15 +67,15 @@ export default function AdCard({ ad, rivalName, badge, versions = 1 }: { ad: Ad;
           {status.label}
         </span>
         <span className="text-[12px] text-ink-3 tnum">
-          {versions > 1 && <span title={`${versions} ads run this same copy`}>{versions} versions · </span>}
+          {/* Versions: the ads carrying this copy, or the variants Meta reports for the one ad, whichever says more. */}
+          {Math.max(versions, ad.variants) > 1 && <span title="Ads running this same copy, counting Meta's own variants">{Math.max(versions, ad.variants)} versions · </span>}
           {days !== null && (ad.active ? `${days} days` : `Ran ${days} days`)}
-          {ad.variants > 1 && ` · ${ad.variants} versions`}
         </span>
       </div>
       <AdPreview
         page={rivalName ?? ad.page_name ?? "Advertiser"}
-        body={ad.body}
-        title={ad.title}
+        body={cleanCopy(ad.body)}
+        title={cleanCopy(ad.title)}
         cta={ad.cta}
         domain={domainOf(ad.link_url)}
         media={<AdThumb src={ad.image_url} label={ad.format} />}

@@ -214,7 +214,10 @@ const GOAL_LABELS: { value: string; label: string }[] = [
 ];
 
 /** What the brand is trying to do right now. */
-export async function updateObjectivesAction(_prev: FormState & { saved?: boolean }, formData: FormData): Promise<FormState & { saved?: boolean }> {
+export async function updateObjectivesAction(
+  _prev: FormState & { saved?: boolean; summary?: string },
+  formData: FormData,
+): Promise<FormState & { saved?: boolean; summary?: string }> {
   const { brand } = await requireBrand();
   const text = (k: string, max = 200) => String(formData.get(k) ?? "").trim().slice(0, max);
   const goal = text("goal");

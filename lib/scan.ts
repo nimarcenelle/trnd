@@ -219,11 +219,13 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival, 
     if (rankError) console.warn("[scan] impression rank not saved (run supabase/migrations/0104_ad_scores.sql):", rankError.message);
   }
 
-  // An ad missing from a complete read has stopped. From an incomplete read
-  // absence proves little, so only an ad unseen for days of reads stops.
-  const stoppedIds = complete
-    ? [...existing.values()].filter((a) => a.active && !seen.has(a.archive_id)).map((a) => a.id)
-    : unseenStopped([...existing.values()], seen, (a) => a.archive_id, now, rival.last_scraped_at).map((a) => a.id);
+  // An ad stops only after it has been missing from days of reads. Meta
+  // hands back a different subset of a Page on different reads (AquaBliss
+  // read as 33, then 9, then 36, then 20 ads in one day, each time calling
+  // itself complete), so one read's word is never enough, however it labels
+  // itself. The cost is a stop showing up three days late; the alternative
+  // was dozens of ads "stopped" and "launched" that never moved.
+  const stoppedIds = unseenStopped([...existing.values()], seen, (a) => a.archive_id, now, rival.last_scraped_at).map((a) => a.id);
   let stopped: Ad[] = [];
   if (stoppedIds.length) {
     const { data } = await sb.from("ads").update({ active: false, stopped_at: now }).in("id", stoppedIds).select("*");

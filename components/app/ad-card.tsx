@@ -1,7 +1,7 @@
 import { domainOf } from "@/lib/adlibrary/match";
 import type { Ad } from "@/lib/db/types";
 import { adStage, SCALING_DAYS, SCALING_VERSIONS, TESTING_DAYS, type Stage } from "@/lib/diff";
-import { daysRunningOf, libraryLink, tagLabel, todayIso } from "@/lib/format";
+import { cleanCopy, daysRunningOf, libraryLink, tagLabel, todayIso } from "@/lib/format";
 import { tierOf } from "@/lib/score";
 
 import AdPreview from "./ad-preview";
@@ -23,13 +23,6 @@ export const STAGE_BADGE: Record<Stage, AdBadge> = {
 };
 
 
-
-/** Dynamic-creative templates leave "{{product.name}}" in the copy Meta shows; the placeholder is the product. */
-export function cleanCopy(text: string | null): string | null {
-  if (!text) return text;
-  const out = text.replace(/\{\{\s*product\.[a-z_]+\s*\}\}/gi, "the product").replace(/\{\{[^}]*\}\}/g, "").replace(/\s{2,}/g, " ").trim();
-  return out || null;
-}
 
 const PART_LABEL = { longevity: "how long it has run", engagement: "engagement on its organic post", reach: "reach rank", repetition: "versions running", sentiment: "comment sentiment" } as const;
 

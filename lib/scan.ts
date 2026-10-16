@@ -9,7 +9,7 @@ import { commentSentiment, tagAds, tagEmails, writeReport } from "@/lib/ai/analy
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Ad, Brand, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/score";
-import { backfillEvents, backfillStopped, crossedProven, isLaunch, readLooksPartial, unseenStopped } from "@/lib/diff";
+import { backfillEvents, backfillStopped, crossedProven, groupAdVersions, isLaunch, readLooksPartial, unseenStopped } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { env, isModelConfigured } from "@/lib/env";
 import { NO_PAGE_NOTE } from "@/lib/format";
@@ -601,7 +601,14 @@ async function reportStage(sb: SupabaseClient, brand: Brand, state: ScanState): 
     emails: emails.filter((e) => e.fresh).length,
   };
   await sb.from("reports").insert({ brand_id: brand.id, kind: isBaseline ? "baseline" : "update", body });
-  if (!isBaseline && changeCount > 0) await sendReportEmail(sb, brand, body).catch((err) => console.warn("[scan] email failed:", (err as Error).message));
+  if (!isBaseline && changeCount > 0) {
+    // The six competitor ads our score ranks highest ride along, creative and all.
+    const topAds = groupAdVersions(ads.filter((a) => a.rival_id !== self?.id && a.score !== null && a.score !== undefined))
+      .sort((a, b) => (b.lead.score ?? 0) - (a.lead.score ?? 0))
+      .slice(0, 6)
+      .map(({ lead, versions }) => ({ ad: lead, rival: nameOf.get(lead.rival_id) ?? lead.page_name ?? "", versions }));
+    await sendReportEmail(sb, brand, body, topAds).catch((err) => console.warn("[scan] email failed:", (err as Error).message));
+  }
   return { changes: changeCount, report: true };
 }
 

@@ -56,3 +56,10 @@ export const NO_PAGE_NOTE = "Not running Meta ads under any Page we could find";
 export const isNoPageNote = (note: string | null | undefined) => Boolean(note?.startsWith(NO_PAGE_NOTE));
 /** What the search behind a NO_PAGE_NOTE tried, e.g. `"Afina", "afina.com"`, or null. */
 export const noPageSearched = (note: string | null | undefined) => note?.split(" Searched: ")[1]?.replace(/\.$/, "") ?? null;
+
+/** Dynamic-creative templates leave "{{product.name}}" in the copy Meta shows; the placeholder is the product. */
+export function cleanCopy(text: string | null): string | null {
+  if (!text) return text;
+  const out = text.replace(/\{\{\s*product\.[a-z_]+\s*\}\}/gi, "the product").replace(/\{\{[^}]*\}\}/g, "").replace(/\s{2,}/g, " ").trim();
+  return out || null;
+}

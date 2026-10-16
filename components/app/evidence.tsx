@@ -13,7 +13,7 @@ export interface SignalRef {
   href: string | null;
 }
 
-const box = "block w-9 h-9 rounded-md overflow-hidden border border-line hover:border-ink-3 transition-colors";
+const box = "block w-14 h-14 rounded-md overflow-hidden border border-line hover:border-ink-3 transition-colors";
 
 /** The signals behind a claim: ad thumbnails that open in the Ad Library, website changes and emails. */
 export default function Evidence({ ids, ads, refs, label = "Based on" }: { ids: string[]; ads: Map<string, Ad>; refs?: Map<string, SignalRef>; label?: string }) {

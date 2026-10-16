@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import AutoRefresh from "@/components/app/auto-refresh";
+import AdCard from "@/components/app/ad-card";
 import Avatar from "@/components/app/avatar";
 import { LaunchBars } from "@/components/app/charts";
 import Evidence, { type SignalRef } from "@/components/app/evidence";
@@ -22,7 +23,7 @@ import type { Ad, ChangeKind, Report } from "@/lib/db/types";
 import { ago, compact, daysRunningOf, isNoPageNote, isScanning, todayIso, withinDays } from "@/lib/format";
 import { buildTimeline } from "@/lib/timeline";
 import { weeklyLaunches } from "@/lib/stats";
-import { adStage } from "@/lib/diff";
+import { adStage, groupAdVersions } from "@/lib/diff";
 
 export const metadata = { title: "Briefing — TRND" };
 // "Scan now" runs the scan after the response, inside this route's time limit.
@@ -140,6 +141,11 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
     (e) => !self || e.rivalId !== self.id,
   );
   const recentSwaps = (brand.candidates?.swapped ?? []).filter((s) => withinDays(s.at, 2));
+  // The competitor ads our score ranks highest, one card per piece of copy: what rivals keep funding, with the receipts.
+  const rivalName = new Map(rivals.map((r) => [r.id, r.name]));
+  const topAds = groupAdVersions(live.filter((a) => a.rival_id !== self?.id && a.score !== null && a.score !== undefined))
+    .sort((a, b) => (b.lead.score ?? 0) - (a.lead.score ?? 0))
+    .slice(0, 6);
   const opportunities = latest?.body.opportunities ?? [];
   const act = opportunities.filter((o) => o.type !== "ignore");
   const skip = opportunities.filter((o) => o.type === "ignore");
@@ -228,6 +234,9 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
           </div>
           <h2 className="heading text-[21px] sm:text-[23px] leading-[1.3] mt-3 max-w-[860px]">{latest.body.headline}</h2>
           <p className="text-[14.5px] text-ink-2 leading-[1.7] mt-3 max-w-[820px]">{latest.body.summary}</p>
+          <p className="caption mt-4">
+            From {live.length} live ads across {rivals.length} competitors, their websites{isInboxConfigured ? " and emails" : ""}, read {ago(brand.last_scan_at)}. Every claim below links to what it rests on.
+          </p>
         </div>
       ) : (
         !running && (
@@ -244,6 +253,16 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
         <Kpi label="Website changes" value={siteWeek()} hint="Products, prices, promos · 7 days" tone={siteWeek() ? "text-warn" : ""} />
         {isInboxConfigured && <Kpi label="Competitor emails" value={emailMonth()} hint="Sent to subscribers · 30 days" />}
       </div>
+
+      {topAds.length >= 3 && (
+        <Section title="What they keep paying for" aside={`The highest-scoring of ${live.length} live competitor ads · each opens in the Ad Library`}>
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+            {topAds.map(({ lead, versions }) => (
+              <AdCard key={lead.id} ad={lead} rivalName={rivalName.get(lead.rival_id) ?? lead.page_name ?? undefined} versions={versions} />
+            ))}
+          </div>
+        </Section>
+      )}
 
       {act.length > 0 && (
         <Section title="What to do next" aside="Competitor moves, judged against your business">

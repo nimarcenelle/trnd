@@ -36,7 +36,11 @@ async function discoverHandles(sb: SupabaseClient, rival: Rival): Promise<void> 
 
 export async function refreshSocial(sb: SupabaseClient, brandId: string, rivals: Rival[]): Promise<SocialProfile[]> {
   await Promise.all(rivals.map((r) => discoverHandles(sb, r).catch((e) => console.warn(`[social] ${r.name} handles:`, (e as Error).message))));
-  if (!env.apifyToken) return [];
+  // Handles are found from the sites for free; the reads themselves spend credit and wait for the switch.
+  if (!env.apifyToken || !env.apifySocial) {
+    const { data } = await sb.from("social_profiles").select("*").eq("brand_id", brandId);
+    return (data ?? []) as SocialProfile[];
+  }
 
   // Profiles read successfully in the last day are not read again: every
   // manual scan was re-reading all of them, and the Apify credit went in two

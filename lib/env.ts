@@ -9,8 +9,8 @@ export const env = {
   openaiApiKey: process.env.OPENAI_API_KEY ?? "",
   /** OPENAI_MODEL_PRO is the old name, still read so a live deploy keeps its pin. */
   openaiModel: process.env.OPENAI_MODEL || process.env.OPENAI_MODEL_PRO || "gpt-5.5",
-  /** Social reads (Instagram, TikTok, Facebook posts) cost Apify credit per run: off until APIFY_SOCIAL=1. */
-  apifySocial: process.env.APIFY_SOCIAL === "1",
+  /** Social reads (Instagram, TikTok, Facebook posts) cost Apify credit per run: on with the token, APIFY_SOCIAL=0 turns them off. */
+  apifySocial: Boolean(process.env.APIFY_TOKEN) && process.env.APIFY_SOCIAL !== "0",
   /** Optional fallback for the Ad Library read when Meta walls our fetch. */
   apifyToken: process.env.APIFY_TOKEN ?? "",
   apifyAdLibraryActor: process.env.APIFY_ADLIBRARY_ACTOR || "curious_coder~facebook-ads-library-scraper",

@@ -79,3 +79,12 @@ export function cleanCopy(text: string | null): string | null {
   const out = text.replace(/\{\{\s*product\.[a-z_]+\s*\}\}/gi, "the product").replace(/\{\{[^}]*\}\}/g, "").replace(/\s{2,}/g, " ").trim();
   return out || null;
 }
+
+/**
+ * Text safe to put in JSON for another service: a lone surrogate half (an
+ * emoji cut in two by a character-count trim) serializes to an escape that
+ * OpenAI and Postgres both reject as invalid JSON.
+ */
+export function safeText(text: string): string {
+  return text.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "").replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
+}

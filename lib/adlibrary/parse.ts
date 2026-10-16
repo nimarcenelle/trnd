@@ -1,3 +1,4 @@
+import { safeText } from "@/lib/format";
 import type { AdFormat } from "@/lib/db/types";
 
 /**
@@ -166,7 +167,7 @@ export function toScrapedAd(o: Obj): ScrapedAd | null {
     pageId: str(o.page_id ?? snap.page_id),
     pageName: str(o.page_name ?? snap.page_name),
     pageUrl: str(snap.page_profile_uri ?? o.page_profile_uri),
-    body: body ? body.slice(0, 2000) : null,
+    body: body ? safeText(body.slice(0, 2000)) : null,
     title: str(snap.title) ?? (first ? str(first.title) : null),
     cta: str(snap.cta_text) ?? (first ? str(first.cta_text) : null),
     linkUrl: str(snap.link_url) ?? (first ? str(first.link_url) : null),

@@ -32,6 +32,8 @@ export interface ScrapedAd {
   /** yyyy-mm-dd */
   startedAt: string | null;
   active: boolean;
+  /** People reached in the EU, when the read came from Meta's API. */
+  reach?: number | null;
 }
 
 export interface PageResult {

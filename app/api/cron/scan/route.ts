@@ -4,6 +4,8 @@ import type { Brand } from "@/lib/db/types";
 import { env } from "@/lib/env";
 import { isScanning } from "@/lib/format";
 import { lastPagination, scrapeAds } from "@/lib/adlibrary/scrape";
+import { enqueueScan, scanQueueOn } from "@/lib/jobs";
+import { alertIfDegraded } from "@/lib/ops";
 import { scanBrand, type ScanStage } from "@/lib/scan";
 
 /**
@@ -60,10 +62,20 @@ export async function GET(req: Request): Promise<Response> {
       !isScanning(b) &&
       (!b.last_scan_at || Date.now() - Date.parse(b.last_scan_at) > DUE_AFTER_MS),
   );
+  // With the scan queue on, the worker runs the scans: queue them and return.
+  if (scanQueueOn()) {
+    // Yesterday's data health, and whether the worker took yesterday's jobs; it alerts on its own too.
+    const health = await alertIfDegraded(adminSupabase()).catch(() => null);
+    const queued = await Promise.all(due.map((b) => enqueueScan(b.id, { kind: "daily" }).catch(() => false)));
+    return Response.json({ due: due.length, queued: queued.filter(Boolean).length, health });
+  }
+
   const results = await Promise.allSettled(
     due.map((b) =>
       fetch(`${url.origin}${url.pathname}?brand=${b.id}`, { headers: { authorization: `Bearer ${env.cronSecret}` } }).then((r) => r.status),
     ),
   );
-  return Response.json({ due: due.length, ok: results.filter((r) => r.status === "fulfilled" && r.value === 200).length });
+  // After the day's scans: how much of the fleet was read, and an alert when it isn't enough.
+  const health = await alertIfDegraded(adminSupabase()).catch(() => null);
+  return Response.json({ due: due.length, ok: results.filter((r) => r.status === "fulfilled" && r.value === 200).length, health });
 }

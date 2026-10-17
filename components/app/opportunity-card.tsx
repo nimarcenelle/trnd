@@ -11,8 +11,6 @@ export const OPPORTUNITY: Record<OpportunityType, { label: string; cls: string; 
   ignore: { label: "Ignore", cls: "badge", blurb: "Doesn't fit your customers or economics" },
 };
 
-const LEVEL = { high: "High", medium: "Medium", low: "Low" } as const;
-
 function Field({ k, v }: { k: string; v: string }) {
   if (!v) return null;
   return (
@@ -42,60 +40,37 @@ export function briefText(o: Opportunity): string {
   return lines.filter((l): l is string => l !== null).join("\n");
 }
 
-/** One decision: the competitor move, what it likely means, why it matters to you, and the campaign to run. */
-export default function OpportunityCard({ o, ads, refs }: { o: Opportunity; ads: Map<string, Ad>; refs: Map<string, SignalRef> }) {
-  const t = OPPORTUNITY[o.type];
+/** The detail behind a decision: what we saw, the likely intent, why it matters to you, what to do, the brief. */
+function Detail({ o, ads, refs }: { o: Opportunity; ads: Map<string, Ad>; refs: Map<string, SignalRef> }) {
   const b = o.brief;
   return (
-    <article className="card p-5 flex flex-col">
-      <div className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-1.5">
-          <span className={t.cls}>{t.label}</span>
-          {o.status === "new" && <span className="badge badge-pos" title="Added by this scan">New</span>}
-          {o.status === "updated" && <span className="badge badge-info" title="The signals behind it moved this scan">Updated</span>}
-        </span>
-        <span className="caption text-right">
-          Urgency {LEVEL[o.urgency].toLowerCase()} · Confidence {LEVEL[o.confidence].toLowerCase()}
-        </span>
-      </div>
-      <h3 className="text-[16px] font-semibold leading-snug mt-3">{o.title}</h3>
-      {o.competitors.length > 0 && (
-        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-          {o.competitors.map((c) => (
-            <span key={c} className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-2 mr-1.5">
-              <Avatar name={c} size={16} />
-              {c}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <dl className="m-0 mt-4 flex flex-col gap-3 text-[13.5px] leading-[1.6]">
-        <div>
-          <dt className="text-[12px] font-medium text-ink-3">What we saw</dt>
-          <dd className="m-0 mt-0.5">{o.signal}</dd>
-        </div>
-        <div>
-          <dt className="text-[12px] font-medium text-ink-3">Likely intent</dt>
-          <dd className="m-0 mt-0.5 text-ink-2">{o.intent}</dd>
-        </div>
+    <div className="flex flex-col gap-3">
+      <dl className="m-0 grid grid-cols-[minmax(0,1fr)] sm:grid-cols-3 gap-3 text-[13.5px] leading-[1.6]">
+        {o.signal && (
+          <div>
+            <dt className="text-[12px] font-medium text-ink-3">What we saw</dt>
+            <dd className="m-0 mt-0.5">{o.signal}</dd>
+          </div>
+        )}
+        {o.intent && (
+          <div>
+            <dt className="text-[12px] font-medium text-ink-3">Likely intent</dt>
+            <dd className="m-0 mt-0.5 text-ink-2">{o.intent}</dd>
+          </div>
+        )}
         <div>
           <dt className="text-[12px] font-medium text-ink-3">For you</dt>
           <dd className="m-0 mt-0.5 text-ink-2">{o.fit}</dd>
         </div>
       </dl>
-
-      <div className="well px-3.5 py-3 mt-4">
+      <div className="well px-3.5 py-3">
         <div className="text-[12px] font-medium text-ink-3">{o.type === "ignore" ? "Instead" : "What to do"}</div>
         <p className="text-[13.5px] font-medium leading-[1.55] mt-1">{o.recommendation}</p>
       </div>
-
       {o.type !== "ignore" && b.hook && (
-        <details className="mt-3 group">
-          <summary className="text-[13px] font-medium text-ink-2 hover:text-ink cursor-pointer flex items-center gap-1.5">
-            <span className="transition-transform group-open:rotate-90">›</span> Campaign brief
-          </summary>
-          <blockquote className="m-0 mt-3 border-l-2 border-ink pl-3 text-[15px] font-medium leading-[1.45]">&ldquo;{b.hook.replace(/^["“]|["”]$/g, "")}&rdquo;</blockquote>
+        <div className="rounded-[10px] border border-line p-4">
+          <div className="text-[12px] font-medium text-ink-3">Campaign brief</div>
+          <blockquote className="m-0 mt-2 border-l-2 border-ink pl-3 text-[15px] font-medium leading-[1.45]">&ldquo;{b.hook.replace(/^["“]|["”]$/g, "")}&rdquo;</blockquote>
           <dl className="m-0 mt-3 grid grid-cols-[84px_minmax(0,1fr)] gap-x-3 gap-y-2 text-[13px] leading-[1.5]">
             <Field k="Angle" v={b.angle} />
             <Field k="Offer" v={b.offer} />
@@ -105,12 +80,43 @@ export default function OpportunityCard({ o, ads, refs }: { o: Opportunity; ads:
             <Field k="Test" v={b.experiment} />
           </dl>
           <CopyBrief text={briefText(o)} />
-        </details>
+        </div>
       )}
+      <Evidence ids={o.evidence} ads={ads} refs={refs} label="Signals" />
+    </div>
+  );
+}
 
-      <div className="mt-auto">
-        <Evidence ids={o.evidence} ads={ads} refs={refs} label="Signals" />
+/** One decision in the feed: the type, the call and the line behind it; tap for the detail and the brief. */
+export function OpportunityRow({ o, n, ads, refs }: { o: Opportunity; n: number; ads: Map<string, Ad>; refs: Map<string, SignalRef> }) {
+  const t = OPPORTUNITY[o.type];
+  return (
+    <details className="group">
+      <summary className="flex gap-4 px-5 py-4 cursor-pointer hover:bg-subtle transition-colors list-none [&::-webkit-details-marker]:hidden">
+        <span className="w-6 h-6 rounded-full bg-muted text-ink-2 text-[12px] font-semibold grid place-items-center shrink-0 tnum mt-0.5">{n}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={t.cls}>{t.label}</span>
+            {o.status === "new" && <span className="badge badge-pos" title="Added by this scan">New</span>}
+            {o.status === "updated" && <span className="badge badge-info" title="The signals behind it moved this scan">Updated</span>}
+            {o.competitors.slice(0, 3).map((c) => (
+              <span key={c} className="inline-flex items-center gap-1 text-[12.5px] text-ink-2">
+                <Avatar name={c} size={16} />
+                {c}
+              </span>
+            ))}
+            {o.type !== "ignore" && <span className="caption ml-auto hidden sm:inline">Urgency {o.urgency}</span>}
+          </div>
+          <h3 className="text-[15px] font-semibold leading-snug mt-2">{o.title}</h3>
+          <p className="text-[13.5px] text-ink-2 leading-[1.55] mt-0.5">{o.punch ?? o.recommendation}</p>
+        </div>
+        <span className="text-ink-3 transition-transform group-open:rotate-90 self-center shrink-0" aria-hidden="true">
+          ›
+        </span>
+      </summary>
+      <div className="px-5 pb-5 sm:pl-[60px]">
+        <Detail o={o} ads={ads} refs={refs} />
       </div>
-    </article>
+    </details>
   );
 }

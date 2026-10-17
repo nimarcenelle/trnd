@@ -5,15 +5,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { findPage, pageLooksRight } from "@/lib/adlibrary/resolve";
 import { domainOf } from "@/lib/adlibrary/match";
 import type { ScrapedAd } from "@/lib/adlibrary/parse";
-import { scrapeAds } from "@/lib/adlibrary/scrape";
+import { scrapeAds, ScrapeBlockedError } from "@/lib/adlibrary/scrape";
 import { commentSentiment, tagAds, tagEmails, writeReport } from "@/lib/ai/analyze";
+import { AiBudgetExceeded, tokensUsedToday, withAiBudget } from "@/lib/ai/openai";
+import { captureError } from "@/lib/errors";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Ad, Brand, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/score";
 import { backfillEvents, backfillStopped, crossedProven, groupAdVersions, isLaunch, readLooksPartial, unseenStopped } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { env, isModelConfigured } from "@/lib/env";
-import { isNoAdsNote, isNoPageNote, NO_ADS_NOTE, NO_PAGE_NOTE, PAUSED_NOTE } from "@/lib/format";
+import { isNoAdsNote, isNoPageNote, isPausedNote, NO_ADS_NOTE, NO_PAGE_NOTE, PAUSED_NOTE } from "@/lib/format";
+import { storeCreatives } from "@/lib/creatives";
+import { recordHealth } from "@/lib/health";
 import { subscribeOnce } from "@/lib/inbox/store";
 import { planSwaps } from "@/lib/rivals";
 import { checkSite } from "@/lib/sitewatch/watch";
@@ -147,9 +151,27 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival, 
   const none: RivalChanges = { launched: [], stopped: [], proven: [] };
   const now = new Date().toISOString();
   const company = { name: rival.name, website: rival.website, category: brand.category };
+  // Which reader the last read came from: Meta's API sees only EU ads, the others every ad.
+  const lastView = viewOf(rival.health?.ads?.via);
   let remapped = false;
   let { pageId, tried } = await resolvePage(sb, brand, rival);
-  let read = pageId ? await scrapeAds({ pageId }) : null;
+  // Free reads run every scan. A paid (Apify) read runs only when this company is due one.
+  const paidDue = paidReadDue(rival);
+  const readAds = async (id: string) => {
+    try {
+      return await scrapeAds({ pageId: id }, undefined, { backup: paidDue });
+    } catch (err) {
+      if (!paidDue && err instanceof ScrapeBlockedError && env.apifyToken) return "skipped" as const;
+      throw err;
+    }
+  };
+  let first = pageId ? await readAds(pageId) : null;
+  if (first === "skipped") {
+    // Walled, and not due a paid read yet: keep what we have from the last read.
+    console.warn(`[scan] ${rival.name}: direct read walled; next paid read in under ${env.apifyEveryDays} days`);
+    return { ...none, remapped };
+  }
+  let read = first;
 
   // A Page matched before pages were confirmed may be someone else's (a Page
   // that only shares the name). Check it once against its ads and look again
@@ -163,7 +185,8 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival, 
       await dropPage(sb, rival);
       remapped = true;
       ({ pageId, tried } = await resolvePage(sb, brand, rival, [wrong]));
-      read = pageId ? await scrapeAds({ pageId }) : null;
+      first = pageId ? await readAds(pageId) : null;
+      read = first === "skipped" ? null : first;
     }
   }
 
@@ -174,10 +197,12 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival, 
       // Not marked scraped: the first read that finds the Page is still its baseline.
       .update({ last_error: `${NO_PAGE_NOTE}.${searched}` })
       .eq("id", rival.id);
+    rival.last_error = `${NO_PAGE_NOTE}.${searched}`;
+    await recordHealth(sb, rival, "ads", { ok: true, count: 0, note: "No Facebook Page running ads found" });
     return { ...none, remapped };
   }
 
-  const { ads: scraped } = read;
+  const { ads: scraped, via } = read;
   const baseline = !rival.last_scraped_at;
 
   // A Page that reads as empty is not called empty on one read: the full
@@ -186,6 +211,8 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival, 
     const verdict = await confirmNoAds(sb, brand, rival, pageId);
     if (verdict.switched) return scanRival(sb, brand, rival, true);
     await sb.from("rivals").update({ last_scraped_at: now, last_error: verdict.note }).eq("id", rival.id);
+    rival.last_error = verdict.note;
+    await recordHealth(sb, rival, "ads", { ok: true, count: 0, via, note: null });
     return { ...none, remapped };
   }
 
@@ -201,6 +228,9 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival, 
     console.warn(`[scan] ${rival.name}: read ${scraped.length} of ${previouslyActive} active ads; treating the read as partial`);
     complete = false;
   }
+  // After a switch between the EU-only API and the full library, ads can go
+  // missing only because the view changed: nothing stops on that read.
+  if (lastView && lastView !== viewOf(via)) complete = false;
 
   let upserted: Ad[] = [];
   if (scraped.length) {
@@ -210,6 +240,8 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival, 
       .select("*");
     if (upsertError) throw new Error(upsertError.message);
     upserted = data as Ad[];
+    // Keep the images before Facebook's links expire. Never fails the scan.
+    await storeCreatives(sb, upserted).catch((err) => console.warn(`[scan] ${rival.name} creatives:`, (err as Error).message));
     // The read comes back sorted by impressions: each ad's place in it is its reach rank.
     // A separate write, so a database without 0104 yet still scans.
     const { error: rankError } = await sb.from("ads").upsert(
@@ -233,6 +265,18 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival, 
   }
 
   await sb.from("rivals").update({ last_scraped_at: now, last_error: null }).eq("id", rival.id);
+  rival.last_error = null;
+  await recordHealth(sb, rival, "ads", {
+    ok: true,
+    count: scraped.length,
+    via,
+    note:
+      via === "api"
+        ? "Read through Meta's API: only ads shown in the EU, without images"
+        : complete
+          ? null
+          : "Partial read: some ads couldn't be fetched, so none were marked stopped",
+  });
   if (baseline) {
     await backfillHistory(sb, brand, rival, pageId, upserted, now).catch((err) => console.warn(`[scan] ${rival.name} history:`, (err as Error).message));
     return { ...none, remapped };
@@ -453,6 +497,34 @@ async function tagUntaggedEmails(sb: SupabaseClient, brandId: string, nameOf: Ma
   }
 }
 
+/**
+ * Why a company's ads weren't read on this scan, or null when they were. A
+ * failed read or a Page we couldn't find is unknown, not "runs no ads".
+ */
+function unreadReason(rival: Rival): string | null {
+  if (isNoAdsNote(rival.last_error) || isPausedNote(rival.last_error)) return null;
+  if (!rival.page_id || isNoPageNote(rival.last_error)) return "we couldn't find its Facebook Page";
+  if (rival.last_error) return `the read failed: ${rival.last_error}`;
+  const ads = rival.health?.ads;
+  if (ads?.via === "api" && !ads.count) return "only ads shown in the EU were visible, and it has none there";
+  return null;
+}
+
+/**
+ * Whether a company is due a paid read: never read, its last read failed or
+ * came free, or its last paid read is APIFY_EVERY_DAYS old.
+ */
+function paidReadDue(rival: Rival): boolean {
+  const ads = rival.health?.ads;
+  if (!rival.last_scraped_at || !ads || !ads.ok || ads.via !== "apify") return true;
+  return Date.now() - Date.parse(ads.at) > env.apifyEveryDays * 86_400_000 - 3 * 3_600_000;
+}
+
+/** The library and Apify read the same full library; Meta's API sees only ads shown in the EU. */
+function viewOf(via: string | null | undefined): "all" | "eu" | null {
+  return via === "api" ? "eu" : via ? "all" : null;
+}
+
 /** Run `fn` over `items`, `n` at a time. */
 async function pool<T, R>(items: T[], n: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
@@ -508,6 +580,8 @@ async function adsStage(sb: SupabaseClient, brand: Brand, state: ScanState): Pro
       const message = (err as Error).message.slice(0, 300);
       console.warn(`[scan] ${rival.name}:`, message);
       await sb.from("rivals").update({ last_error: message }).eq("id", rival.id);
+      rival.last_error = message;
+      await recordHealth(sb, rival, "ads", { ok: false, note: message });
       return { launched: [], stopped: [], proven: [] } satisfies RivalChanges;
     }
   });
@@ -645,8 +719,9 @@ async function reportStage(sb: SupabaseClient, brand: Brand, state: ScanState): 
   const body = await writeReport({
     brand,
     own: self ? ads.filter((a) => a.rival_id === self.id) : [],
+    ownUnread: self ? unreadReason(self) : null,
     results: ((await sb.from("own_ad_results").select("*").eq("brand_id", brand.id)).data ?? []) as OwnAdResult[],
-    rivals: rivals.map((r) => ({ name: r.name, ads: ads.filter((a) => a.rival_id === r.id) })),
+    rivals: rivals.map((r) => ({ name: r.name, ads: ads.filter((a) => a.rival_id === r.id), unread: unreadReason(r) })),
     social,
     site,
     emails,
@@ -689,7 +764,19 @@ export interface ScanResult {
  * write a report even when nothing changed (a manual scan, after the owner
  * edited their context).
  */
-export async function scanBrand(brandId: string, opts: { forceReport?: boolean; stage?: ScanStage; budgetMs?: number } = {}): Promise<ScanResult> {
+export async function scanBrand(brandId: string, opts: ScanOptions = {}): Promise<ScanResult> {
+  // Every model call in the scan counts against the brand's daily budget.
+  const used = await tokensUsedToday(brandId).catch(() => 0);
+  return withAiBudget(brandId, env.aiDailyTokens - used, () => runScan(brandId, opts));
+}
+
+export interface ScanOptions {
+  forceReport?: boolean;
+  stage?: ScanStage;
+  budgetMs?: number;
+}
+
+async function runScan(brandId: string, opts: ScanOptions): Promise<ScanResult> {
   const sb = adminSupabase();
   const deadline = Date.now() + (opts.budgetMs ?? SCAN_BUDGET_MS);
   const { data: brand } = await sb.from("brands").select("*").eq("id", brandId).single<Brand & { scan_state?: ScanState | null }>();
@@ -741,6 +828,7 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean; 
     return { changes, report, handedOff: null };
   } catch (err) {
     await sb.from("brands").update({ scan_status: "error", scan_error: (err as Error).message.slice(0, 300), scan_state: null }).eq("id", brandId);
+    if (!(err instanceof AiBudgetExceeded)) await captureError(err, { where: "scan", brandId });
     throw err;
   }
 }

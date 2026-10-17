@@ -3,11 +3,13 @@ import { redirect } from "next/navigation";
 import Avatar from "@/components/app/avatar";
 import { AddRivalForm } from "@/components/app/forms";
 import RivalList from "@/components/app/rival-list";
+import { isInboxConfigured } from "@/lib/env";
 import SubmitButton from "@/components/app/submit-button";
-import { billingPortalAction, checkoutAction } from "@/lib/actions";
+import { billingPortalAction, checkoutAction, updateEmailPrefsAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { planState, PRICE_LABEL } from "@/lib/billing";
-import { getBrand, listRivals } from "@/lib/data";
+import { coverageFor } from "@/lib/coverage-map";
+import { getBrand, listAds, listRivals } from "@/lib/data";
 import { MAX_RIVALS } from "@/lib/db/types";
 import { isStripeConfigured } from "@/lib/env";
 
@@ -30,7 +32,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   if (!user) redirect("/login");
   const brand = await getBrand(user.id);
   if (!brand) redirect("/app/setup");
-  const [rivals, { billing }] = await Promise.all([listRivals(brand.id), searchParams]);
+  const [rivals, { billing }, liveAds] = await Promise.all([listRivals(brand.id), searchParams, listAds(brand.id, { activeOnly: true })]);
+  const cov = coverageFor(rivals, liveAds, isInboxConfigured);
   const plan = planState(brand);
 
   return (
@@ -54,11 +57,26 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
 
       <Section title="Competitors" sub={`${rivals.length} of ${MAX_RIVALS}. New competitors are read on the next scan.`}>
         <div className="card">
-          <RivalList rivals={rivals} social spares={brand.candidates?.spares.length ?? 0} />
+          <RivalList rivals={rivals} social inbox={isInboxConfigured} coverage={cov.byRival} spares={brand.candidates?.spares.length ?? 0} />
           <div className="border-t border-line p-4 bg-subtle rounded-b-xl">
             <AddRivalForm />
           </div>
         </div>
+      </Section>
+
+      <Section id="notifications" title="Emails" sub="An email when your competitors make a move worth knowing about.">
+        <form action={updateEmailPrefsAction} className="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <label className="flex items-start gap-3 text-[13.5px] cursor-pointer">
+            <input type="checkbox" name="email_updates" defaultChecked={brand.email_updates !== false} className="mt-0.5 h-4 w-4 accent-[var(--ink)]" />
+            <span>
+              <span className="font-medium">Update emails</span>
+              <span className="block text-ink-3 text-[13px]">Sent after a scan finds new moves. Your briefing updates either way.</span>
+            </span>
+          </label>
+          <SubmitButton className="btn btn-secondary btn-sm shrink-0" pending="Saving…">
+            Save
+          </SubmitButton>
+        </form>
       </Section>
 
       <Section id="billing" title="Plan" sub="One plan. Cancel anytime.">

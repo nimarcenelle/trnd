@@ -7,7 +7,7 @@ import Avatar from "@/components/app/avatar";
 import { LaunchBars } from "@/components/app/charts";
 import Evidence, { type SignalRef } from "@/components/app/evidence";
 import ObjectivesForm from "@/components/app/objectives-form";
-import OpportunityCard, { OPPORTUNITY } from "@/components/app/opportunity-card";
+import { OpportunityRow } from "@/components/app/opportunity-card";
 import PlayCard from "@/components/app/play-card";
 import Timeline from "@/components/app/timeline";
 import Translations from "@/components/app/translations";
@@ -25,6 +25,8 @@ import { getBrand, getSelf, listAds, listChanges, listEmails, listReports, listR
 import type { Ad, ChangeKind, Report } from "@/lib/db/types";
 import { ago, compact, daysRunningOf, isNoPageNote, isScanning, todayIso, withinDays, rivalHidden } from "@/lib/format";
 import { buildTimeline } from "@/lib/timeline";
+import { coverageFor } from "@/lib/coverage-map";
+import { standing, type Standing as StandingT } from "@/lib/standing";
 import { weeklyLaunches } from "@/lib/stats";
 import { adStage, groupAdVersions } from "@/lib/diff";
 
@@ -33,16 +35,6 @@ export const metadata = { title: "Briefing — TRND" };
 export const maxDuration = 300;
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-function Kpi({ label, value, hint, tone = "" }: { label: string; value: number; hint: string; tone?: string }) {
-  return (
-    <div className="card px-4 py-3.5">
-      <div className="text-[13px] text-ink-2">{label}</div>
-      <div className={`text-[26px] font-semibold tracking-tight tnum mt-1 ${tone}`}>{value}</div>
-      <div className="caption mt-0.5">{hint}</div>
-    </div>
-  );
-}
 
 function Section({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -62,19 +54,89 @@ function Insights({ report, ads, refs }: { report: Report; ads: Map<string, Ad>;
   return (
     <ol className="list-none m-0 p-0 card divide-y divide-line">
       {report.body.insights.map((i, n) => (
-        <li key={n} className="p-5 flex gap-4">
-          <span className="w-6 h-6 rounded-full bg-muted text-ink-2 text-[12px] font-semibold grid place-items-center shrink-0 tnum">{n + 1}</span>
-          <div className="min-w-0">
-            <div className="flex items-start gap-2 justify-between">
-              <h3 className="text-[14.5px] font-semibold leading-snug">{i.title}</h3>
-              {i.status && <span className={`${STATUS[i.status].cls} shrink-0`}>{STATUS[i.status].label}</span>}
+        <li key={n}>
+          <details className="group">
+            <summary className="flex gap-4 px-5 py-4 cursor-pointer hover:bg-subtle transition-colors list-none [&::-webkit-details-marker]:hidden">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-2 justify-between">
+                  <h3 className="text-[14.5px] font-semibold leading-snug">{i.title}</h3>
+                  {i.status && <span className={`${STATUS[i.status].cls} shrink-0`}>{STATUS[i.status].label}</span>}
+                </div>
+                {i.line && <p className="text-[13.5px] text-ink-2 leading-[1.55] mt-0.5">{i.line}</p>}
+              </div>
+              <span className="text-ink-3 transition-transform group-open:rotate-90 self-center shrink-0" aria-hidden="true">
+                ›
+              </span>
+            </summary>
+            <div className="px-5 pb-5">
+              <p className="text-[13.5px] text-ink-2 leading-[1.6]">{i.detail}</p>
+              <Evidence ids={i.evidence} ads={ads} refs={refs} />
             </div>
-            <p className="text-[13.5px] text-ink-2 leading-[1.6] mt-1">{i.detail}</p>
-            <Evidence ids={i.evidence} ads={ads} refs={refs} />
-          </div>
+          </details>
         </li>
       ))}
     </ol>
+  );
+}
+
+function Standing({ s, you }: { s: StandingT; you: string }) {
+  if (!s.you || s.you.strength === null) return null;
+  const leader = s.brands[0];
+  const missing = s.topics.filter((t) => !t.yours).slice(0, 4);
+  const ranked = s.brands.filter((b) => b.rank !== null);
+  return (
+    <section className="card mt-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line">
+        <div className="px-5 py-4">
+          <div className="text-[13px] text-ink-2">Your rank</div>
+          <div className="text-[26px] font-semibold tracking-tight tnum mt-1">
+            #{s.you.rank} <span className="text-[15px] text-ink-3 font-normal">of {ranked.length} brands</span>
+          </div>
+          <div className="caption mt-0.5">By the conversion score of each brand&apos;s 5 best ads</div>
+        </div>
+        <div className="px-5 py-4">
+          <div className="text-[13px] text-ink-2">Your ad strength</div>
+          <div className="text-[26px] font-semibold tracking-tight tnum mt-1">
+            {s.you.strength}
+            {leader && !leader.you && <span className="text-[15px] text-ink-3 font-normal"> vs {leader.strength} for {leader.name}</span>}
+          </div>
+          <div className="caption mt-0.5">{s.bestAdRank ? `Your best ad is #${s.bestAdRank} of ${s.totalAds} in the market` : "None of your ads scored yet"}</div>
+        </div>
+        <div className="px-5 py-4">
+          <div className="text-[13px] text-ink-2">Working for them, not for you</div>
+          {missing.length ? (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {missing.map((t) => (
+                <span key={t.topic} className="badge badge-warn" title={`${t.ads} competitor ads, average score ${t.avgScore}`}>
+                  {t.topic} · {t.avgScore}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[13.5px] mt-2">You run every topic that scores for them.</p>
+          )}
+        </div>
+      </div>
+      <details className="group border-t border-line">
+        <summary className="px-5 py-3 text-[13px] text-ink-2 hover:text-ink cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center gap-1.5">
+          <span className="transition-transform group-open:rotate-90">›</span> All brands
+        </summary>
+        <ol className="list-none m-0 px-5 pb-4 flex flex-col gap-2">
+          {s.brands.map((b) => (
+            <li key={b.rivalId} className="flex items-center gap-3 text-[13.5px]">
+              <span className="w-6 text-ink-3 tnum">{b.rank ? `#${b.rank}` : "–"}</span>
+              <span className={`flex-1 min-w-0 truncate ${b.you ? "font-semibold" : ""}`}>
+                {b.you ? `${you} (you)` : b.name}
+              </span>
+              <span className="w-32 h-1.5 rounded-full bg-muted overflow-hidden hidden sm:block">
+                <span className={`block h-full rounded-full ${b.you ? "bg-brand" : "bg-ink"}`} style={{ width: `${b.strength ?? 0}%`, opacity: b.you ? 1 : 0.75 }} />
+              </span>
+              <span className="w-10 text-right tnum font-medium">{b.strength ?? "–"}</span>
+            </li>
+          ))}
+        </ol>
+      </details>
+    </section>
   );
 }
 
@@ -138,6 +200,7 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
   const byArchive = new Map(allAds.map((a) => [a.archive_id, a]));
   // Competitors' ads only; the brand's own are on its page and in the landscape.
   const ads = allAds.filter((a) => !self || a.rival_id !== self.id);
+  const live = ads.filter((a) => a.active);
   // Rivals confirmed to run no Meta ads stay under Settings; the briefing is about the ones that do.
   const rivals = allRivals.filter((r) => !rivalHidden(r, allAds.filter((a) => a.rival_id === r.id && a.active).length));
   const rivalName = new Map(rivals.map((r) => [r.id, r.name]));
@@ -154,7 +217,6 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
   const [latest, ...older] = reports;
   const running = isScanning(brand) || stalled;
   const locked = planState(brand).locked;
-  const live = ads.filter((a) => a.active);
   const week = (k: ChangeKind, rivalId?: string) =>
     changes.filter((c) => c.kind === k && withinDays(c.detected_at, 7) && (!rivalId || c.rival_id === rivalId)).length;
   const siteWeek = (rivalId?: string) => siteChanges.filter((c) => withinDays(c.detected_at, 7) && (!rivalId || c.rival_id === rivalId)).length;
@@ -168,8 +230,12 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
     .sort((a, b) => (b.lead.score ?? 0) - (a.lead.score ?? 0))
     .slice(0, 6);
   const opportunities = latest?.body.opportunities ?? [];
-  const act = opportunities.filter((o) => o.type !== "ignore");
-  const skip = opportunities.filter((o) => o.type === "ignore");
+  const ordered = [...opportunities.filter((o) => o.type !== "ignore"), ...opportunities.filter((o) => o.type === "ignore")];
+  const cov = coverageFor(rivals, allAds, isInboxConfigured);
+  const stand = standing({
+    companies: [...(self ? [{ id: self.id, name: brand.name, you: true }] : []), ...rivals.map((r) => ({ id: r.id, name: r.name, you: false }))],
+    ads: allAds,
+  });
 
   return (
     <div>
@@ -180,6 +246,18 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
           <h1 className="heading text-[22px]">Briefing</h1>
           <p className="text-[13px] text-ink-3 mt-0.5">
             {rivals.length} rivals watched · last scan {ago(brand.last_scan_at)}
+            {cov.overall && (
+              <>
+                {" · "}
+                <Link
+                  href="/app/settings"
+                  className={`hover:underline ${cov.overall.label === "solid" ? "text-pos" : cov.overall.label === "thin" ? "text-warn" : "text-neg"}`}
+                  title="How complete and fresh our data on your competitors is. Per competitor in Rivals & settings."
+                >
+                  data coverage {cov.overall.score}/100 ({cov.overall.label})
+                </Link>
+              </>
+            )}
           </p>
         </div>
         {!locked && (
@@ -268,12 +346,7 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
         )
       )}
 
-      <div className={`mt-4 grid grid-cols-2 ${isInboxConfigured ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-3`}>
-        <Kpi label="Live ads" value={live.length} hint={`Across ${rivals.length} rivals`} />
-        <Kpi label="Ad moves" value={week("launched") + week("stopped")} hint={`${week("launched")} new · ${week("stopped")} stopped · 7 days`} tone={week("launched") ? "text-pos" : ""} />
-        <Kpi label="Website changes" value={siteWeek()} hint="Products, prices, promos · 7 days" tone={siteWeek() ? "text-warn" : ""} />
-        {isInboxConfigured && <Kpi label="Competitor emails" value={emailMonth()} hint="Sent to subscribers · 30 days" />}
-      </div>
+      <Standing s={stand} you={brand.name} />
 
       {topAds.length >= 3 && (
         <Section title="What they keep paying for" aside={`The highest-scoring of ${live.length} live competitor ads · each opens in the Ad Library`}>
@@ -285,35 +358,22 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
         </Section>
       )}
 
-      {act.length > 0 && (
-        <Section title="What to do next" aside="Competitor moves, judged against your business">
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-2">
-            {act.map((o, n) => (
-              <OpportunityCard key={n} o={o} ads={byArchive} refs={refs} />
+      {ordered.length > 0 && (
+        <Section title="What to do" aside={`${ordered.length} moves, most important first`}>
+          <ol className="list-none m-0 p-0 card divide-y divide-line">
+            {ordered.map((o, n) => (
+              <li key={n}>
+                <OpportunityRow o={o} n={n + 1} ads={byArchive} refs={refs} />
+              </li>
             ))}
-          </div>
-          {skip.length > 0 && (
-            <div className="card mt-3 divide-y divide-line">
-              {skip.map((o, n) => (
-                <div key={n} className="px-5 py-3.5 flex flex-col sm:flex-row sm:items-baseline gap-1.5 sm:gap-4">
-                  <span className={`${OPPORTUNITY.ignore.cls} self-start`}>{OPPORTUNITY.ignore.label}</span>
-                  <div className="min-w-0">
-                    <span className="text-[13.5px] font-medium">{o.title}</span>
-                    <span className="text-[13px] text-ink-2"> · {o.fit}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <p className="caption mt-3">
-            Intent is inferred from public signals. Ad longevity and email frequency hint at what works; they don&apos;t prove it.
-          </p>
+          </ol>
+          <p className="caption mt-3">Tap any move for the evidence and a brief. Intent is inferred from public signals, never known.</p>
         </Section>
       )}
 
       {latest && latest.body.insights.length > 0 && (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-x-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-          <Section title="Patterns" aside={`${latest.body.insights.length} across ads, sites and email`}>
+          <Section title="What's happening" aside={`${latest.body.insights.length} patterns`}>
             <Insights report={latest} ads={byArchive} refs={refs} />
           </Section>
           <Section
@@ -334,13 +394,21 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
       )}
 
       {latest?.body.landscape && (
-        <Section title="Where you stand" aside="Your profile against every competitor">
-          <p className="text-[13.5px] text-ink-2 leading-[1.6] mb-3 max-w-[820px]">{latest.body.landscape.summary}</p>
-          <LandscapeTable landscape={latest.body.landscape} you={brand.name} stats={statsFor} />
+        <details className="group mt-10">
+          <summary className="flex items-baseline justify-between gap-4 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+            <h2 className="heading text-[15px] inline-flex items-center gap-1.5">
+              <span className="text-ink-3 transition-transform group-open:rotate-90">›</span> Market map
+            </h2>
+            <span className="caption text-right">Price, audience and message for every brand</span>
+          </summary>
           <div className="mt-3">
-            <YouVsThem landscape={latest.body.landscape} />
+            <p className="text-[13.5px] text-ink-2 leading-[1.6] mb-3 max-w-[820px]">{latest.body.landscape.summary}</p>
+            <LandscapeTable landscape={latest.body.landscape} you={brand.name} stats={statsFor} />
+            <div className="mt-3">
+              <YouVsThem landscape={latest.body.landscape} />
+            </div>
           </div>
-        </Section>
+        </details>
       )}
 
       {latest && !opportunities.length && (
@@ -389,7 +457,11 @@ export default async function Briefing({ searchParams }: { searchParams: Promise
                       <Link href={href} className="flex items-center gap-2.5 font-medium">
                         <Avatar name={r.name} size={24} />
                         {r.name}
-                        {isNoPageNote(r.last_error) ? <span className="badge">No ads</span> : r.last_error && <span className="badge badge-neg">Can&apos;t read</span>}
+                        {isNoPageNote(r.last_error) ? <span className="badge">No ads</span> : r.last_error && (
+                          <span className="badge badge-neg" title={r.last_error}>
+                            Can&apos;t read
+                          </span>
+                        )}
                       </Link>
                     </td>
                     <td className="text-right tnum">{theirs.filter((a) => a.active).length}</td>

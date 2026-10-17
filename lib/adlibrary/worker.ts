@@ -8,6 +8,21 @@ import type { ScrapedAd } from "./parse";
  * it the way it walls Vercel.
  */
 
+/**
+ * Inside the worker process itself (where scans run off the queue), reads go
+ * straight to its browser instead of over HTTP to itself.
+ */
+export interface LocalReader {
+  scrape(search: { pageId: string } | { query: string }, limit: number): Promise<{ ads: ScrapedAd[]; complete: boolean }>;
+  fetch(url: string): Promise<{ status: number; html: string }>;
+}
+const g = globalThis as { __trndLocalReader?: LocalReader };
+export function registerLocalReader(reader: LocalReader) {
+  g.__trndLocalReader = reader;
+}
+/** A browser reader is available: in this process, or over HTTP. */
+export const hasWorker = () => Boolean(g.__trndLocalReader) || isWorkerConfigured;
+
 export class WorkerError extends Error {
   constructor(
     message: string,
@@ -38,11 +53,16 @@ async function call<T>(path: string, body: unknown, timeoutMs: number): Promise<
 }
 
 export function fromWorker(search: { pageId: string } | { query: string }, limit: number): Promise<{ ads: ScrapedAd[]; complete: boolean }> {
+  if (g.__trndLocalReader) return g.__trndLocalReader.scrape(search, limit);
   return call("/scrape", { search, limit }, 150_000);
 }
 
 /** A Facebook, Instagram or TikTok page's HTML, fetched by the worker's browser. */
 export async function workerFetch(url: string): Promise<string | null> {
+  if (g.__trndLocalReader) {
+    const r = await g.__trndLocalReader.fetch(url).catch(() => null);
+    return r && r.status < 400 ? r.html : null;
+  }
   if (!isWorkerConfigured) return null;
   const r = await call<{ status: number; html: string }>("/fetch", { url }, 60_000).catch(() => null);
   return r && r.status < 400 ? r.html : null;

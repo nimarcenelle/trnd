@@ -6,6 +6,8 @@ import { findPage, pageLooksRight } from "@/lib/adlibrary/resolve";
 import type { ScrapedAd } from "@/lib/adlibrary/parse";
 import { scrapeAds, ScrapeBlockedError } from "@/lib/adlibrary/scrape";
 import { commentSentiment, tagAds, tagEmails, writeReport } from "@/lib/ai/analyze";
+import { AiBudgetExceeded, tokensUsedToday, withAiBudget } from "@/lib/ai/openai";
+import { captureError } from "@/lib/errors";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Ad, Brand, OwnAdResult, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/score";
@@ -335,6 +337,12 @@ async function pool<T, R>(items: T[], n: number, fn: (item: T) => Promise<R>): P
 
 /** `forceReport`: write a report even when nothing changed (a manual scan, after the owner edited their context). */
 export async function scanBrand(brandId: string, opts: { forceReport?: boolean } = {}): Promise<{ changes: number; report: boolean }> {
+  // Every model call in the scan counts against the brand's daily budget.
+  const used = await tokensUsedToday(brandId).catch(() => 0);
+  return withAiBudget(brandId, env.aiDailyTokens - used, () => runScan(brandId, opts));
+}
+
+async function runScan(brandId: string, opts: { forceReport?: boolean }): Promise<{ changes: number; report: boolean }> {
   const sb = adminSupabase();
   const { data: brand } = await sb.from("brands").select("*").eq("id", brandId).single<Brand>();
   if (!brand) throw new Error(`brand ${brandId} not found`);
@@ -469,6 +477,7 @@ export async function scanBrand(brandId: string, opts: { forceReport?: boolean }
     return { changes: changeCount, report: reported };
   } catch (err) {
     await sb.from("brands").update({ scan_status: "error", scan_error: (err as Error).message.slice(0, 300) }).eq("id", brandId);
+    if (!(err instanceof AiBudgetExceeded)) await captureError(err, { where: "scan", brandId });
     throw err;
   }
 }

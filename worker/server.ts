@@ -1,8 +1,11 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { libraryUrl, type Search } from "../lib/adlibrary/scrape";
+import { registerLocalReader } from "../lib/adlibrary/worker";
+import { captureError } from "../lib/errors";
 
 import { closeBrowser, fetchHtml, readLibrary, Walled } from "./browser";
+import { scanStats, startScanLoop } from "./scans";
 
 /**
  * TRND's scraper worker: a small always-on service (Railway, Fly, Render) that
@@ -12,6 +15,9 @@ import { closeBrowser, fetchHtml, readLibrary, Walled } from "./browser";
  *   POST /scrape { search: { pageId } | { query }, limit }  → { ads, complete, via: "worker" }
  *   POST /fetch  { url }                                     → { status, url, html } (Facebook, Instagram, TikTok only)
  *   GET  /health                                             → counters, no auth
+ *
+ * With SCAN_QUEUE=1 and the app's environment, it also runs the scans
+ * themselves off the queue (worker/scans.ts), reading through its own browser.
  *
  * Every POST needs `authorization: Bearer <SCRAPER_KEY>`. Reads run at most
  * WORKER_CONCURRENCY (3) at a time; the rest wait their turn.
@@ -81,7 +87,8 @@ async function scrape(search: Search, limit: number) {
 
 const server = createServer(async (req, res) => {
   const path = new URL(req.url ?? "/", "http://worker").pathname;
-  if (req.method === "GET" && path === "/health") return send(res, 200, { ok: true, running, waiting: waiting.length, proxy: Boolean(process.env.PROXY_URL), ...stats });
+  if (req.method === "GET" && path === "/health")
+    return send(res, 200, { ok: true, running, waiting: waiting.length, proxy: Boolean(process.env.PROXY_URL), scans: scanLoop ? scanStats : "off", ...stats });
   if (req.method !== "POST") return send(res, 404, { error: "not found" });
   if (!KEY || req.headers.authorization !== `Bearer ${KEY}`) return send(res, 401, { error: "unauthorized" });
   const input = await body(req);
@@ -110,6 +117,11 @@ const server = createServer(async (req, res) => {
   }
 });
 
+// Scans running in this process read through this browser directly.
+registerLocalReader({ scrape: (search, limit) => scrape(search, limit), fetch: (url) => slot(() => fetchHtml(url)) });
+const scanLoop = startScanLoop();
+
+process.on("unhandledRejection", (err) => void captureError(err, { where: "worker-unhandled" }));
 server.listen(PORT, () => console.log(`[worker] listening on ${PORT}${process.env.PROXY_URL ? " via proxy" : " WITHOUT a proxy"}`));
 for (const sig of ["SIGTERM", "SIGINT"] as const) {
   process.on(sig, () => {

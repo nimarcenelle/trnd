@@ -12,6 +12,12 @@ export const env = {
   /** Optional fallback for the Ad Library read when Meta walls our fetch. */
   apifyToken: process.env.APIFY_TOKEN ?? "",
   apifyAdLibraryActor: process.env.APIFY_ADLIBRARY_ACTOR || "curious_coder~facebook-ads-library-scraper",
+  /** Model tokens a brand may use per 24 hours before analysis waits for the next scan. */
+  aiDailyTokens: Math.max(50_000, Number(process.env.AI_DAILY_TOKENS) || 1_500_000),
+  /** Minutes after a scan before "Scan now" runs another (each scan costs reads and model calls). */
+  scanCooldownMinutes: process.env.SCAN_COOLDOWN_MINUTES ? Math.max(0, Number(process.env.SCAN_COOLDOWN_MINUTES) || 0) : 15,
+  /** Scans run as jobs on the worker (lib/jobs.ts, worker/scans.ts) instead of in Vercel functions. */
+  scanQueue: process.env.SCAN_QUEUE === "1" || process.env.SCAN_QUEUE === "true",
   /** Where data-health alerts go (lib/ops.ts). */
   opsEmail: process.env.OPS_EMAIL ?? "",
   /** TRND's scraper worker (worker/server.ts): a real browser behind a residential proxy. */

@@ -1,11 +1,11 @@
 import { assertApifyUp, noteApifyStatus } from "@/lib/apify";
-import { env, isWorkerConfigured } from "@/lib/env";
+import { env } from "@/lib/env";
 import { fetchRetry } from "@/lib/retry";
 
 import { fromMetaApi, isMetaApiConfigured } from "./api";
 import { graphqlBlocks, jsonBlocks, looksBlocked, pageTokens, parsePayloads, type ScrapedAd } from "./parse";
 import { BROWSER_HEADERS, CookieJar, UA } from "./session";
-import { fromWorker } from "./worker";
+import { fromWorker, hasWorker } from "./worker";
 
 /**
  * The Meta Ad Library, read the way the browser reads it: GET the library
@@ -210,7 +210,7 @@ export async function scrapeAds(search: Search, limit = env.adsPerRival, opts: {
   const paid = opts.backup !== false && Boolean(env.apifyToken);
   const errors: string[] = [];
 
-  if (isWorkerConfigured) {
+  if (hasWorker()) {
     try {
       const { ads, complete } = await fromWorker(search, limit);
       return { ads, complete, via: "worker" };

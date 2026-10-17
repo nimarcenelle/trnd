@@ -19,6 +19,8 @@ export interface Brand {
   stripe_subscription_id: string | null;
   scan_status: "idle" | "running" | "error";
   scan_error: string | null;
+  /** The owner gets the update emails (unsubscribe turns this off). */
+  email_updates?: boolean;
   scan_started_at: string | null;
   last_scan_at: string | null;
   created_at: string;

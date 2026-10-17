@@ -20,7 +20,8 @@ export function ago(iso: string | null, now = Date.now()): string {
 }
 
 /** A scan longer than this died with its function (the limit is 5 minutes). */
-const SCAN_STALE_MS = 10 * 60_000;
+// Long enough for a queued scan to wait its turn on the worker and run.
+const SCAN_STALE_MS = 45 * 60_000;
 
 /** A scan is running, and not one that died mid-way and never reset its flag. */
 export function isScanning(brand: Pick<Brand, "scan_status" | "scan_started_at">, now = Date.now()): boolean {

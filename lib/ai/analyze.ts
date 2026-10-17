@@ -54,6 +54,7 @@ export type Discovery = z.infer<typeof DiscoverySchema>;
 
 export async function discoverRivals(url: string, siteText: string): Promise<Discovery> {
   return generateJson({
+    purpose: "discover",
     system: SYSTEM,
     schema: DiscoverySchema,
     prompt: `Here is the text of ${url}.
@@ -126,6 +127,7 @@ export async function huntPage(
         .join("\n")
     : "(none: the searches found no advertisers)";
   return generateJson({
+    purpose: "find_page",
     system: SYSTEM,
     schema: PageHuntSchema,
     effort: "low",
@@ -168,6 +170,7 @@ export async function tagAds(ads: Pick<Ad, "id" | "body" | "title" | "cta" | "fo
     .map((a) => `[${a.id}] ${a.format} · ${a.title ?? ""} · ${(a.body ?? "").slice(0, 400).replace(/\s+/g, " ")} · CTA: ${a.cta ?? "-"}`)
     .join("\n");
   const { ads: tags } = await generateJson({
+    purpose: "tag_ads",
     system: SYSTEM,
     schema: TagSchema,
     effort: "low",
@@ -192,6 +195,7 @@ export async function commentSentiment(items: { id: string; comments: string[] }
   if (!items.length) return [];
   const lines = items.map((i) => `[${i.id}]\n${i.comments.slice(0, 8).map((c) => `  - ${c.replace(/\s+/g, " ").slice(0, 200)}`).join("\n")}`).join("\n");
   const { items: out } = await generateJson({
+    purpose: "sentiment",
     system: SYSTEM,
     schema: SentimentSchema,
     effort: "low",
@@ -232,6 +236,7 @@ export async function tagEmails(
     .map((e) => `[${e.id}] ${e.rival} · "${e.subject}" · ${(e.preview ?? "").slice(0, 300).replace(/\s+/g, " ")}${e.earlier.length ? `\n   their earlier subjects: ${e.earlier.slice(0, 8).map((x) => `"${x}"`).join(", ")}` : ""}`)
     .join("\n");
   const { emails: tags } = await generateJson({
+    purpose: "tag_emails",
     system: SYSTEM,
     schema: EmailTagSchema,
     effort: "low",
@@ -520,7 +525,7 @@ const rank = (o: z.infer<typeof OpportunitySchema>) =>
   o.type === "ignore" ? -1 : o.scores.relevance + o.scores.urgency + o.scores.differentiation + o.scores.feasibility + o.scores.confidence;
 
 export async function writeReport(input: ReportInput): Promise<ReportBody & { landscape: Landscape; opportunities: Opportunity[] }> {
-  const body = await generateJson({ system: SYSTEM, schema: ReportSchema, prompt: reportPrompt(input) });
+  const body = await generateJson({ purpose: "report", system: SYSTEM, schema: ReportSchema, prompt: reportPrompt(input) });
   const { site, emails } = refsOf(input);
   const ads = new Set([...input.rivals.flatMap((r) => r.ads.map((a) => a.archive_id)), ...(input.own ?? []).map((a) => a.archive_id)]);
   // Turn prompt refs into stored ids, and drop any the model made up, so every evidence link opens something real.

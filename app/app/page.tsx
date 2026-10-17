@@ -145,7 +145,8 @@ function Plays({ report, ads }: { report: Report; ads: Map<string, Ad> }) {
   );
 }
 
-export default async function Briefing() {
+export default async function Briefing({ searchParams }: PageProps<"/app">) {
+  const { cooldown } = await searchParams;
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const brand = await getBrand(user.id);
@@ -247,6 +248,11 @@ export default async function Briefing() {
           </span>
           <span className="btn btn-secondary btn-sm shrink-0">Set goals</span>
         </Link>
+      )}
+      {!running && typeof cooldown === "string" && (
+        <div className="card mt-6 px-5 py-4 text-[13.5px] text-ink-2">
+          This briefing was updated a few minutes ago. You can scan again in {Number(cooldown) || 1} minute{cooldown === "1" ? "" : "s"}; the daily scan runs on its own.
+        </div>
       )}
       {running && (
         <div className="card mt-6 px-5 py-4 flex items-center gap-3 text-[13.5px]">

@@ -23,6 +23,8 @@ export interface FleetHealth {
   failing: { reason: string; count: number }[];
   worker: { configured: boolean; up: boolean | null; stats?: Record<string, unknown> };
   apifyPaused: boolean;
+  /** Scan jobs waiting over an hour past their time: the worker isn't taking them. */
+  stuckJobs: number;
 }
 
 export async function fleetHealth(sb: SupabaseClient): Promise<FleetHealth> {
@@ -46,7 +48,11 @@ export async function fleetHealth(sb: SupabaseClient): Promise<FleetHealth> {
     worker = { configured: true, up: Boolean(res?.ok), stats: res?.ok ? ((await res.json().catch(() => ({}))) as Record<string, unknown>) : undefined };
   }
 
+  const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
+  const { count: stuck } = await sb.from("scan_jobs").select("id", { count: "exact", head: true }).eq("status", "queued").lt("run_after", hourAgo);
+
   return {
+    stuckJobs: stuck ?? 0,
     companies: rows.length,
     readLastDay,
     share: rows.length ? Math.round((readLastDay / rows.length) * 1000) / 1000 : null,
@@ -61,12 +67,13 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 /** Email OPS_EMAIL when the fleet reads fewer than 95% of companies in a day, or the worker is down. */
 export async function alertIfDegraded(sb: SupabaseClient): Promise<FleetHealth> {
   const h = await fleetHealth(sb);
-  const degraded = (h.share !== null && h.share < TARGET) || h.worker.up === false;
+  const degraded = (h.share !== null && h.share < TARGET) || h.worker.up === false || h.stuckJobs > 0;
   if (degraded && env.opsEmail) {
     const pct = h.share === null ? "n/a" : `${Math.round(h.share * 100)}%`;
     const html = `<div style="font-family:Inter,system-ui,sans-serif;color:#111110">
 <p><b>${pct}</b> of ${h.companies} watched companies had their ads read in the last day (target ${TARGET * 100}%).</p>
 <p>Scraper worker: ${h.worker.configured ? (h.worker.up ? "up" : "<b>down</b>") : "not configured"}${h.apifyPaused ? " · Apify paused (billing or token)" : ""}</p>
+${h.stuckJobs ? `<p><b>${h.stuckJobs} scans have waited over an hour in the queue:</b> the worker isn't taking them. Check it on Railway, or turn SCAN_QUEUE off on Vercel to scan there.</p>` : ""}
 <ul>${h.failing.map((f) => `<li>${f.count} × ${esc(f.reason)}</li>`).join("")}</ul></div>`;
     await sendEmail(env.opsEmail, `TRND data: ${pct} read in the last day`, html).catch((err) => console.warn("[ops] alert:", (err as Error).message));
   }

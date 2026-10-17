@@ -4,9 +4,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Brand, ReportBody } from "@/lib/db/types";
 import { env, isEmailConfigured } from "@/lib/env";
+import { unsubscribeUrl } from "@/lib/unsubscribe";
 
 /** Resend over REST. Unconfigured, a send is a logged no-op. */
-export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+export async function sendEmail(to: string, subject: string, html: string, headers?: Record<string, string>): Promise<void> {
   if (!isEmailConfigured) {
     console.warn(`[email] RESEND_API_KEY not set; skipped "${subject}" to ${to}`);
     return;
@@ -14,7 +15,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { authorization: `Bearer ${env.resendApiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({ from: env.emailFrom, to: [to], subject, html }),
+    body: JSON.stringify({ from: env.emailFrom, to: [to], subject, html, ...(headers ? { headers } : {}) }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
@@ -23,6 +24,7 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 
 /** The "your competitors moved" email, sent after an update report. */
 export async function sendReportEmail(sb: SupabaseClient, brand: Brand, body: ReportBody): Promise<void> {
+  if (brand.email_updates === false) return;
   const { data } = await sb.auth.admin.getUserById(brand.owner_id);
   const to = data.user?.email;
   if (!to) return;
@@ -45,12 +47,14 @@ export async function sendReportEmail(sb: SupabaseClient, brand: Brand, body: Re
         .map((o) => `<li style="margin:0 0 12px"><span style="font-size:12px;color:#0f8a78">${LABEL[o.type]}</span><br><b>${esc(o.title)}</b><br>${esc(o.recommendation)}</li>`)
     : body.insights.slice(0, 3).map((i) => `<li style="margin:0 0 10px"><b>${esc(i.title)}</b><br>${esc(i.detail)}</li>`);
   const insights = items.join("");
+  const unsub = unsubscribeUrl(env.siteUrl, brand.id);
   const html = `<div style="font-family:Inter,system-ui,sans-serif;max-width:560px;margin:0 auto;color:#111110">
 <p style="font-size:12px;color:#868680">TRND · ${esc(brand.name)} · ${esc(counts)}</p>
 <h1 style="font-size:22px;line-height:1.3;margin:0 0 12px">${esc(body.headline)}</h1>
 <p style="line-height:1.6">${esc(body.summary)}</p>
 <ul style="padding-left:18px;line-height:1.55">${insights}</ul>
 <p><a href="${env.siteUrl}/app" style="display:inline-block;background:#111110;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Open the full report</a></p>
+<p style="font-size:12px;color:#868680;margin-top:32px">You get this because you watch competitors on TRND. <a href="${unsub}" style="color:#868680">Unsubscribe</a> · <a href="${env.siteUrl}/app/settings#notifications" style="color:#868680">Email settings</a></p>
 </div>`;
-  await sendEmail(to, `Your competitors: ${body.headline}`, html);
+  await sendEmail(to, `Your competitors: ${body.headline}`, html, { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" });
 }

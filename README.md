@@ -110,7 +110,7 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql` through `0106_creatives.sql`, safe to re-run). They create
+`0101_brand_intel.sql` through `0107_jobs_usage_email.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
 `site_snapshots`, `site_changes` and `emails`, and leave the old
 product's tables alone (drop them when convenient).
@@ -122,6 +122,23 @@ gives you the MX records), add a webhook for `email.received` pointing at `https
 signing secret (`whsec_…`) as `INBOUND_SECRET`; the body is fetched with `RESEND_API_KEY`. Any other inbound service
 (a Cloudflare Email Worker, Postmark) can post `{from, to, subject, text, html}` as JSON to
 `/api/inbound?secret=<INBOUND_SECRET>`. Without these, everything else runs and the Emails tabs say how to turn it on.
+
+## Production
+
+- **Scans run on the worker** with `SCAN_QUEUE=1` (on Vercel and the worker): "Scan now", Page fixes and the daily
+  cron queue a job in `scan_jobs` (`lib/jobs.ts`); the worker claims jobs (`claim_scan_job`, skip-locked, reclaims
+  jobs a crashed worker left running), runs `WORKER_SCANS` at once with no time limit, retries a failure twice (10 and
+  20 minutes later), and checks the fleet's data health when the day's queue empties (`worker/scans.ts`). The worker
+  needs the app's whole environment for this. Without the queue, scans run in Vercel functions as before.
+- **Cost guards**: every model call is logged to `ai_usage` per brand; a scan stops calling the model once the brand
+  has used `AI_DAILY_TOKENS` in 24 hours (`withAiBudget`, `lib/ai/openai.ts`). "Scan now" waits
+  `SCAN_COOLDOWN_MINUTES` after a scan.
+- **Email**: update emails carry a signed unsubscribe link and one-click `List-Unsubscribe` headers
+  (`/api/unsubscribe`, `lib/unsubscribe.ts`); owners switch them in Settings → Emails (`brands.email_updates`).
+- **Errors** go to Sentry with `SENTRY_DSN` (`lib/errors.ts`, no SDK): every server error (`instrumentation.ts`),
+  failed scans, and the worker.
+- **CI** (`.github/workflows/ci.yml`): typecheck, lint, unit tests, build, then the Playwright smoke test (`e2e/`:
+  public pages, sign-in redirect, API routes) against the production build.
 
 ## Layout
 

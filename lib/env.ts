@@ -9,13 +9,13 @@ export const env = {
   openaiApiKey: process.env.OPENAI_API_KEY ?? "",
   /** OPENAI_MODEL_PRO is the old name, still read so a live deploy keeps its pin. */
   openaiModel: process.env.OPENAI_MODEL || process.env.OPENAI_MODEL_PRO || "gpt-5.5",
+  /** Social reads (Instagram, TikTok, Facebook posts) cost Apify credit per run: on with the token, APIFY_SOCIAL=0 turns them off. */
+  apifySocial: Boolean(process.env.APIFY_TOKEN) && process.env.APIFY_SOCIAL !== "0",
   /** Optional fallback for the Ad Library read when Meta walls our fetch. */
   apifyToken: process.env.APIFY_TOKEN ?? "",
   apifyAdLibraryActor: process.env.APIFY_ADLIBRARY_ACTOR || "curious_coder~facebook-ads-library-scraper",
   /** Model tokens a brand may use per 24 hours before analysis waits for the next scan. */
   aiDailyTokens: Math.max(50_000, Number(process.env.AI_DAILY_TOKENS) || 1_500_000),
-  /** Minutes after a scan before "Scan now" runs another (each scan costs reads and model calls). */
-  scanCooldownMinutes: process.env.SCAN_COOLDOWN_MINUTES ? Math.max(0, Number(process.env.SCAN_COOLDOWN_MINUTES) || 0) : 15,
   /** Scans run as jobs on the worker (lib/jobs.ts, worker/scans.ts) instead of in Vercel functions. */
   scanQueue: process.env.SCAN_QUEUE === "1" || process.env.SCAN_QUEUE === "true",
   /** Where data-health alerts go (lib/ops.ts). */
@@ -32,8 +32,8 @@ export const env = {
   /** Days between Instagram/TikTok reads, and between Facebook post reads (all through Apify). */
   socialEveryDays: Math.max(1, Number(process.env.SOCIAL_EVERY_DAYS) || 2),
   facebookPostsEveryDays: Math.max(1, Number(process.env.FACEBOOK_POSTS_EVERY_DAYS) || 7),
-  /** Ads read per rival per scan. */
-  adsPerRival: Math.min(200, Math.max(10, Number(process.env.ADS_PER_RIVAL) || 50)),
+  /** Ads read per rival per scan. 100 covers most Pages whole; Jolie alone runs 62. */
+  adsPerRival: Math.min(200, Math.max(10, Number(process.env.ADS_PER_RIVAL) || 100)),
   cronSecret: process.env.CRON_SECRET ?? "",
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",

@@ -209,18 +209,57 @@ async function runActor(actor: string, input: Obj): Promise<Obj[]> {
     if (res.status >= 400 && res.status < 500) throw new NoRetry(`Apify ${actor} answered ${res.status}`);
     if (!res.ok) throw new Error(`Apify ${actor} answered ${res.status}`);
     const items = (await res.json()) as unknown;
+    if (isObj(items) && isObj(items.error)) throw new NoRetry(`Apify ${actor}: ${str(items.error.message) ?? str(items.error.type) ?? "error"}`);
     return Array.isArray(items) ? items.filter(isObj) : [];
   });
 }
 
-/** Every profile asked for, in one actor run per platform. */
-export async function readSocial(handles: { instagram: string[]; tiktok: string[] }): Promise<SocialRead[]> {
-  if (!env.apifyToken) return [];
+/** Profiles per actor run. Ten Instagram profiles in one run outlasted the sync call and every one read as "not found". */
+const PER_RUN = 3;
+
+/**
+ * Run the actor over `items` a few at a time, in parallel. Returns what came
+ * back and whether every run finished: a run that failed or timed out says
+ * nothing about the handles it carried, and the caller must not mark them
+ * missing.
+ */
+async function runChunked(actor: string, items: string[], input: (chunk: string[]) => Obj): Promise<{ items: Obj[]; complete: boolean }> {
+  const chunks: string[][] = [];
+  for (let i = 0; i < items.length; i += PER_RUN) chunks.push(items.slice(i, i + PER_RUN));
+  const runs = await Promise.all(
+    chunks.map((chunk) =>
+      runActor(actor, input(chunk)).then(
+        // Nothing back for a chunk of real handles is a run that gave up, not three missing profiles.
+        (out) => (out.length ? { out, ok: true } : (console.warn(`[social] ${actor} (${chunk.join(", ")}): empty run`), { out, ok: false })),
+        (e: Error) => (console.warn(`[social] ${actor} (${chunk.join(", ")}):`, e.message), { out: [] as Obj[], ok: false }),
+      ),
+    ),
+  );
+  return { items: runs.flatMap((r) => r.out), complete: runs.every((r) => r.ok) };
+}
+
+export interface SocialReads {
+  reads: SocialRead[];
+  /** Platforms whose every run finished, so a handle missing from `reads` has no public profile. */
+  complete: Record<"instagram" | "tiktok", boolean>;
+}
+
+/** Every profile asked for, a few per actor run, with whether each platform's runs all finished. */
+export async function readSocialWithStatus(handles: { instagram: string[]; tiktok: string[] }): Promise<SocialReads> {
+  if (!env.apifyToken) return { reads: [], complete: { instagram: false, tiktok: false } };
   const ig = [...new Set(handles.instagram.map(normHandle))].filter(Boolean);
   const tt = [...new Set(handles.tiktok.map(normHandle))].filter(Boolean);
-  const [igItems, ttItems] = await Promise.all([
-    ig.length ? runActor(IG_ACTOR, { usernames: ig }).catch((e) => (console.warn("[social] instagram:", (e as Error).message), [])) : [],
-    tt.length ? runActor(TT_ACTOR, { profiles: tt, resultsPerPage: RECENT, shouldDownloadVideos: false, shouldDownloadCovers: false }).catch((e) => (console.warn("[social] tiktok:", (e as Error).message), [])) : [],
+  const [igRun, ttRun] = await Promise.all([
+    ig.length ? runChunked(IG_ACTOR, ig, (chunk) => ({ usernames: chunk })) : { items: [], complete: true },
+    tt.length ? runChunked(TT_ACTOR, tt, (chunk) => ({ profiles: chunk, resultsPerPage: RECENT, shouldDownloadVideos: false, shouldDownloadCovers: false })) : { items: [], complete: true },
   ]);
-  return [...igItems.map(mapInstagram).filter((r): r is SocialRead => r !== null), ...mapTiktok(ttItems)];
+  return {
+    reads: [...igRun.items.map(mapInstagram).filter((r): r is SocialRead => r !== null), ...mapTiktok(ttRun.items)],
+    complete: { instagram: igRun.complete, tiktok: ttRun.complete },
+  };
+}
+
+/** Every profile asked for. */
+export async function readSocial(handles: { instagram: string[]; tiktok: string[] }): Promise<SocialRead[]> {
+  return (await readSocialWithStatus(handles)).reads;
 }

@@ -41,3 +41,111 @@ export function adStage(ad: Pick<Ad, "active" | "started_at" | "stopped_at" | "v
   if (ad.variants >= SCALING_VERSIONS || days >= SCALING_DAYS) return "scaling";
   return "running";
 }
+
+/** The copy an ad runs, normalized enough that its versions collapse to one. */
+export function adCopyKey(ad: Pick<Ad, "body" | "title">): string {
+  return `${ad.title ?? ""} ${ad.body ?? ""}`.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+/**
+ * One card per piece of copy. Jolie ran 50 ads of which 47 shared their
+ * body text, and the page showed 47 cards saying the same thing. The lead is
+ * the version that has run longest (then the highest score); `versions` is
+ * how many ads carry that copy.
+ */
+export function groupAdVersions<T extends Pick<Ad, "body" | "title" | "started_at" | "score">>(ads: T[]): { lead: T; versions: number }[] {
+  const groups = new Map<string, T[]>();
+  for (const ad of ads) {
+    const key = adCopyKey(ad) || `~${Math.random()}`;
+    groups.set(key, [...(groups.get(key) ?? []), ad]);
+  }
+  return [...groups.values()].map((list) => {
+    const lead = [...list].sort((a, b) => (a.started_at ?? "9999").localeCompare(b.started_at ?? "9999") || (b.score ?? 0) - (a.score ?? 0))[0];
+    return { lead, versions: list.length };
+  });
+}
+
+/** Days before the last read within which an ad's own start date still counts as a launch. */
+export const LAUNCH_GRACE_DAYS = 2;
+
+/**
+ * Whether an ad seen for the first time was launched since the last read,
+ * or only read for the first time. Reads are capped (50 ads a Page), so an
+ * ad can sit outside the cap for weeks and then appear: its own start date
+ * says which. Jolie's fourth scan "launched" 12 ads that had started a month
+ * before. No start date and a complete read: a launch.
+ */
+export function isLaunch(ad: Pick<Ad, "started_at">, lastScrapedAt: string | null, complete: boolean): boolean {
+  if (!lastScrapedAt) return false;
+  if (!ad.started_at) return complete;
+  const cutoff = new Date(Date.parse(lastScrapedAt) - LAUNCH_GRACE_DAYS * 86_400_000).toISOString().slice(0, 10);
+  return ad.started_at >= cutoff;
+}
+
+/** Below this many previously active ads a sudden drop is plausible, not a partial read. */
+export const PARTIAL_READ_MIN = 10;
+
+/**
+ * Whether a read that calls itself complete is more likely a partial one:
+ * fewer than half the ads that were active last time. AquaBliss's fourth
+ * read returned 9 of 33 ads and 24 were marked stopped in thirteen
+ * minutes. A real drop that size shows up again on the next read, which
+ * then stops them.
+ */
+export function readLooksPartial(previouslyActive: number, readCount: number): boolean {
+  return previouslyActive >= PARTIAL_READ_MIN && readCount < previouslyActive / 2;
+}
+
+/** How far back the first read of a Page writes history from the ads' own dates. */
+export const BACKFILL_DAYS = 30;
+
+const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T12:00:00Z`) + n * 86_400_000).toISOString();
+
+/**
+ * The events a Page's first read can state from the ads' own dates, so a
+ * fresh brand's first week is not a blank baseline: every ad that started
+ * in the window is a launch on its start day, and every ad that crossed
+ * PROVEN_DAYS inside the window is proven on the day it did. Stopped ads
+ * come from the inactive read (backfillStopped). Dated at noon UTC on the
+ * day, never after `now`.
+ */
+export function backfillEvents<T extends Pick<Ad, "started_at" | "active">>(ads: T[], now: string): { launched: { ad: T; at: string }[]; proven: { ad: T; at: string }[] } {
+  const today = now.slice(0, 10);
+  const windowStart = addDays(today, -BACKFILL_DAYS).slice(0, 10);
+  const launched: { ad: T; at: string }[] = [];
+  const proven: { ad: T; at: string }[] = [];
+  for (const ad of ads) {
+    if (!ad.active || !ad.started_at) continue;
+    if (ad.started_at >= windowStart && ad.started_at <= today) launched.push({ ad, at: addDays(ad.started_at, 0) });
+    const provenDay = addDays(ad.started_at, PROVEN_DAYS).slice(0, 10);
+    if (provenDay >= windowStart && provenDay <= today) proven.push({ ad, at: addDays(provenDay, 0) });
+  }
+  return { launched, proven };
+}
+
+/** The stopped ads of an inactive read that ended inside the window, with the day they did. */
+export function backfillStopped<T extends { endedAt?: string | null }>(ads: T[], now: string): { ad: T; at: string }[] {
+  const today = now.slice(0, 10);
+  const windowStart = addDays(today, -BACKFILL_DAYS).slice(0, 10);
+  return ads.flatMap((ad) => (ad.endedAt && ad.endedAt >= windowStart && ad.endedAt <= today ? [{ ad, at: addDays(ad.endedAt, 0) }] : []));
+}
+
+/** An active ad not seen in this many days of reads has stopped, complete read or not. */
+export const UNSEEN_STOP_DAYS = 3;
+
+/**
+ * Ads to mark stopped from an incomplete read. A Page is now read in slices
+ * (its pagination query is rate limited), so a read rarely calls itself
+ * complete and "missing from a complete read" would never fire. An ad that
+ * has not shown up in UNSEEN_STOP_DAYS of reads is gone: each read takes the
+ * top ads of every slice, and a live ad surfaces in one of them. `lastRead`
+ * is the previous read's time, so a Page read for the first time in a week
+ * does not stop everything at once.
+ */
+export function unseenStopped<T extends Pick<Ad, "active" | "last_seen_at">>(ads: T[], seen: Set<string>, keyOf: (ad: T) => string, now: string, lastRead: string | null): T[] {
+  if (!lastRead) return [];
+  const cutoff = new Date(Date.parse(now) - UNSEEN_STOP_DAYS * 86_400_000).toISOString();
+  // Reads must have been happening: the previous read within the window, this one now.
+  if (lastRead < cutoff) return [];
+  return ads.filter((a) => a.active && !seen.has(keyOf(a)) && a.last_seen_at < cutoff);
+}

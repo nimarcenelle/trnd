@@ -6,15 +6,16 @@ import { after } from "next/server";
 
 import { pageFromInput } from "@/lib/adlibrary/resolve";
 import { discoverRivals, ProfileSchema } from "@/lib/ai/analyze";
+import { rankCandidates, toSpare } from "@/lib/rivals";
 import { getSessionUser } from "@/lib/auth/session";
 import { getBrand } from "@/lib/data";
 import { adminSupabase } from "@/lib/db/supabase";
 import { MAX_RIVALS } from "@/lib/db/types";
 import type { Brand } from "@/lib/db/types";
-import { env, isModelConfigured, isStripeConfigured } from "@/lib/env";
+import { isModelConfigured, isStripeConfigured } from "@/lib/env";
 import { captureError } from "@/lib/errors";
 import { enqueueScan } from "@/lib/jobs";
-import { isScanning } from "@/lib/format";
+import { isScanning, SCAN_MIN_GAP_MS } from "@/lib/format";
 import { scanBrand } from "@/lib/scan";
 import { parseAdsExport } from "@/lib/results";
 import { normHandle } from "@/lib/social/read";
@@ -42,10 +43,13 @@ export async function createBrandAction(_prev: FormState, formData: FormData): P
 
   let discovery;
   let socials;
+  let rivals;
   try {
     const page = await readSitePage(url);
     socials = page.socials;
     discovery = await discoverRivals(url, page.text);
+    // The most direct ten take the seats now; the rest wait as spares for the first scan to swap in if a seat runs no ads.
+    rivals = rankCandidates(discovery.rivals);
   } catch (err) {
     console.warn("[setup] discovery failed:", (err as Error).message);
     return { error: `We couldn't read ${url}. Check the address and try again.` };
@@ -54,7 +58,10 @@ export async function createBrandAction(_prev: FormState, formData: FormData): P
   const sb = adminSupabase();
   const { data: brand, error } = await sb
     .from("brands")
-    .upsert({ owner_id: user.id, url, name: discovery.name, summary: discovery.summary, category: discovery.category, profile: discovery.profile }, { onConflict: "owner_id" })
+    .upsert(
+      { owner_id: user.id, url, name: discovery.name, summary: discovery.summary, category: discovery.category, profile: discovery.profile, candidates: { spares: rivals.spares.map(toSpare), swapped: [] } },
+      { onConflict: "owner_id" },
+    )
     .select("id")
     .single();
   if (error || !brand) return { error: error?.message ?? "Could not save the brand." };
@@ -73,7 +80,7 @@ export async function createBrandAction(_prev: FormState, formData: FormData): P
     socials_checked_at: new Date().toISOString(),
   });
   await sb.from("rivals").insert(
-    discovery.rivals.slice(0, MAX_RIVALS).map((r) => ({ brand_id: brand.id, name: r.name, website: r.website || null, reason: r.reason, source: "ai" })),
+    rivals.seated.slice(0, MAX_RIVALS).map((r) => ({ brand_id: brand.id, name: r.name, website: r.website || null, reason: r.reason, source: "ai" })),
   );
   redirect("/app/setup");
 }
@@ -95,6 +102,29 @@ export async function addRivalAction(_prev: FormState, formData: FormData): Prom
 export async function removeRivalAction(formData: FormData): Promise<void> {
   const { brand } = await requireBrand();
   await adminSupabase().from("rivals").delete().eq("id", String(formData.get("id"))).eq("brand_id", brand.id).eq("is_self", false);
+  revalidatePath("/app", "layout");
+}
+
+/**
+ * Give a seat that runs no Meta ads to the most direct spare the model named
+ * at setup. With no spare left, the seat is simply freed.
+ */
+export async function swapRivalAction(formData: FormData): Promise<void> {
+  const { brand } = await requireBrand();
+  const id = String(formData.get("id") ?? "");
+  const sb = adminSupabase();
+  const { data: rival } = await sb.from("rivals").select("id, name").eq("id", id).eq("brand_id", brand.id).eq("is_self", false).maybeSingle<{ id: string; name: string }>();
+  if (!rival) return;
+  const spares = [...(brand.candidates?.spares ?? [])].sort((a, b) => b.directness - a.directness);
+  const next = spares.shift();
+  await sb.from("rivals").delete().eq("id", rival.id);
+  if (next) {
+    await sb.from("rivals").insert({ brand_id: brand.id, name: next.name, website: next.website || null, reason: next.reason, source: "ai" });
+    await sb
+      .from("brands")
+      .update({ candidates: { spares, swapped: [...(brand.candidates?.swapped ?? []), { out: rival.name, in: next.name, at: new Date().toISOString() }] } })
+      .eq("id", brand.id);
+  }
   revalidatePath("/app", "layout");
 }
 
@@ -173,21 +203,21 @@ export async function updateProfileAction(_prev: FormState & { saved?: boolean }
  * Start a scan with a report: queued for the worker when the scan queue is
  * on, else run after the response, inside this route's time limit.
  */
-async function startScan(brand: Brand): Promise<void> {
-  if (isScanning(brand)) return;
+async function startScan(brand: Brand, resuming = false): Promise<void> {
+  if (!resuming && isScanning(brand)) return;
   if (await enqueueScan(brand.id, { kind: "manual", forceReport: true })) return;
-  await adminSupabase().from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
+  if (!resuming) await adminSupabase().from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
   after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => captureError(err, { where: "scan", brandId: brand.id })));
 }
 
 /** Start a scan now and return at once; the dashboard polls until it is done. A scan finished minutes ago isn't run again (each one costs). */
 export async function scanNowAction(): Promise<void> {
   const { brand } = await requireBrand();
-  const since = brand.last_scan_at ? Date.now() - Date.parse(brand.last_scan_at) : Infinity;
-  if (since < env.scanCooldownMinutes * 60_000 && brand.scan_status !== "error") {
-    redirect(`/app?cooldown=${Math.ceil((env.scanCooldownMinutes * 60_000 - since) / 60_000)}`);
-  }
-  await startScan(brand);
+  if (isScanning(brand)) redirect("/app");
+  // A scan cut short resumes regardless of when it started (lib/scan.ts reads brands.scan_state).
+  const resuming = brand.scan_status === "running" && Boolean(brand.scan_state);
+  if (!resuming && brand.last_scan_at && Date.now() - Date.parse(brand.last_scan_at) < SCAN_MIN_GAP_MS) redirect("/app?scan=recent");
+  await startScan(brand, resuming);
   redirect("/app");
 }
 
@@ -213,9 +243,19 @@ export async function billingPortalAction(): Promise<void> {
 }
 
 const GOALS = ["new_customers", "subscriptions", "launch", "retention", "awareness"] as const;
+const GOAL_LABELS: { value: string; label: string }[] = [
+  { value: "new_customers", label: "Win new customers" },
+  { value: "subscriptions", label: "Grow subscriptions" },
+  { value: "launch", label: "Launch something new" },
+  { value: "retention", label: "Bring customers back" },
+  { value: "awareness", label: "Build awareness" },
+];
 
 /** What the brand is trying to do right now. */
-export async function updateObjectivesAction(_prev: FormState & { saved?: boolean }, formData: FormData): Promise<FormState & { saved?: boolean }> {
+export async function updateObjectivesAction(
+  _prev: FormState & { saved?: boolean; summary?: string },
+  formData: FormData,
+): Promise<FormState & { saved?: boolean; summary?: string }> {
   const { brand } = await requireBrand();
   const text = (k: string, max = 200) => String(formData.get(k) ?? "").trim().slice(0, max);
   const goal = text("goal");
@@ -224,7 +264,10 @@ export async function updateObjectivesAction(_prev: FormState & { saved?: boolea
   const { error } = await adminSupabase().from("brands").update({ objectives }).eq("id", brand.id);
   if (error) return { error: error.message };
   revalidatePath("/app", "layout");
-  return { saved: true };
+  const label = GOAL_LABELS.find((g) => g.value === goal)?.label ?? goal;
+  // What was saved, in one line, for a form that shows it back without re-reading the brand.
+  const summary = [label, objectives.monthly_budget, objectives.target_cost, objectives.focus].filter(Boolean).join(" · ");
+  return { saved: true, summary };
 }
 
 /** An Ads Manager export (CSV): replaces the brand's past results. */

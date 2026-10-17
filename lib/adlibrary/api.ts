@@ -24,6 +24,7 @@ const FIELDS = [
   "ad_creative_link_titles",
   "ad_creative_link_captions",
   "ad_delivery_start_time",
+  "ad_delivery_stop_time",
   "publisher_platforms",
   "eu_total_reach",
 ].join(",");
@@ -58,7 +59,8 @@ export function fromArchive(o: Obj): ScrapedAd | null {
     platforms: strs(o.publisher_platforms).map((p) => p.toLowerCase()),
     variants: Math.max(1, new Set(bodies).size),
     startedAt: start,
-    active: true,
+    // A stop time means it has stopped (inactive reads); active reads carry none.
+    active: !o.ad_delivery_stop_time,
     reach,
   };
 }
@@ -75,11 +77,11 @@ export function apiError(status: number, body: unknown): string {
 
 export class MetaApiError extends NoRetry {}
 
-export async function fromMetaApi(search: { pageId: string } | { query: string }, limit: number): Promise<{ ads: ScrapedAd[]; complete: boolean }> {
+export async function fromMetaApi(search: ({ pageId: string } | { query: string }) & { status?: "active" | "inactive" }, limit: number): Promise<{ ads: ScrapedAd[]; complete: boolean }> {
   const p = new URLSearchParams({
     access_token: env.metaAccessToken,
     ad_type: "ALL",
-    ad_active_status: "ACTIVE",
+    ad_active_status: search.status === "inactive" ? "INACTIVE" : "ACTIVE",
     ad_reached_countries: JSON.stringify(EU),
     fields: FIELDS,
     limit: String(Math.min(100, limit)),

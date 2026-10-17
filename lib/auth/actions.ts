@@ -23,6 +23,9 @@ const setupPath = (site: string) => (site ? `/app/setup?url=${encodeURIComponent
 
 export async function signUpAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const { email, password, site } = fields(formData);
+  // The honeypot: a field no person sees. Bots fill every field, so a value
+  // here is a bot, and it gets the same reply a real signup does.
+  if (String(formData.get("company_website") ?? "").trim()) return { notice: "Check your email and click the confirmation link to finish signing up." };
   if (!/.+@.+\..+/.test(email)) return { error: "Enter a valid email." };
   if (password.length < 8) return { error: "Use at least 8 characters for the password." };
   const sb = await createServerSupabase();

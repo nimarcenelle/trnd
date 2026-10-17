@@ -6,7 +6,7 @@ import type { Rival } from "@/lib/db/types";
 import { recordHealth } from "@/lib/health";
 import { get } from "@/lib/site";
 
-import { diffSnapshots, shopifyProducts, snapshotFrom, type SiteDiff, type SiteSnapshot } from "./snapshot";
+import { recentProducts, diffSnapshots, shopifyProducts, snapshotFrom, type SiteDiff, type SiteSnapshot } from "./snapshot";
 
 /**
  * Read a competitor's homepage and catalog, compare with the last snapshot,
@@ -51,15 +51,16 @@ export async function checkSite(sb: SupabaseClient, brandId: string, rival: Riva
     await recordHealth(sb, rival, "site", { ok: false, note: "Their site didn't load for us, after a retry and a rendered read" });
     return [];
   }
-  const { data: last } = await sb
-    .from("site_snapshots")
-    .select("id, data")
-    .eq("rival_id", rival.id)
-    .order("captured_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ id: string; data: SiteSnapshot }>();
+  const { data: recentRows } = await sb.from("site_snapshots").select("id, data").eq("rival_id", rival.id).order("captured_at", { ascending: false }).limit(4);
+  const recent = (recentRows ?? []) as { id: string; data: SiteSnapshot }[];
+  const last = recent[0] ?? null;
 
-  const diffs = last ? diffSnapshots(last.data, read.snapshot) : [];
+  const diffs = last ? diffSnapshots(last.data, read.snapshot, recent.slice(1).map((r) => r.data)) : [];
+  // The first read has nothing to diff against, but the catalog says what the store added lately.
+  if (!last) {
+    const recent = recentProducts(read.snapshot, now);
+    if (recent.length) await sb.from("site_changes").insert(recent.map((d) => ({ ...d, url: d.url ?? read.url, brand_id: brandId, rival_id: rival.id })));
+  }
   if (!last || last.data.text_hash !== read.snapshot.text_hash || diffs.length) {
     await sb.from("site_snapshots").insert({ brand_id: brandId, rival_id: rival.id, url: read.url, data: read.snapshot, captured_at: now });
     // Keep the latest few, not a year of homepages.

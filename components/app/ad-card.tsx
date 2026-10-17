@@ -1,7 +1,7 @@
 import { domainOf } from "@/lib/adlibrary/match";
 import type { Ad } from "@/lib/db/types";
 import { adStage, SCALING_DAYS, SCALING_VERSIONS, TESTING_DAYS, type Stage } from "@/lib/diff";
-import { daysRunningOf, libraryLink, tagLabel, todayIso } from "@/lib/format";
+import { cleanCopy, daysRunningOf, libraryLink, tagLabel, todayIso } from "@/lib/format";
 import { tierOf } from "@/lib/score";
 
 import AdPreview from "./ad-preview";
@@ -48,7 +48,7 @@ export function ScoreBadge({ ad }: { ad: Ad }) {
 }
 
 /** One ad: where it is in their process, the ad as it appears in the feed, and what the model read off it. */
-export default function AdCard({ ad, rivalName, badge }: { ad: Ad; rivalName?: string; badge?: AdBadge }) {
+export default function AdCard({ ad, rivalName, badge, versions = 1 }: { ad: Ad; rivalName?: string; badge?: AdBadge; versions?: number }) {
   const days = daysRunningOf(ad);
   const status = badge ?? STAGE_BADGE[adStage(ad, todayIso())];
   const offer = ad.offer && ad.offer.toLowerCase() !== "none" ? ad.offer : null;
@@ -60,14 +60,15 @@ export default function AdCard({ ad, rivalName, badge }: { ad: Ad; rivalName?: s
           {status.label}
         </span>
         <span className="text-[12px] text-ink-3 tnum">
+          {/* Versions: the ads carrying this copy, or the variants Meta reports for the one ad, whichever says more. */}
+          {Math.max(versions, ad.variants) > 1 && <span title="Ads running this same copy, counting Meta's own variants">{Math.max(versions, ad.variants)} versions · </span>}
           {days !== null && (ad.active ? `${days} days` : `Ran ${days} days`)}
-          {ad.variants > 1 && ` · ${ad.variants} versions`}
         </span>
       </div>
       <AdPreview
         page={rivalName ?? ad.page_name ?? "Advertiser"}
-        body={ad.body}
-        title={ad.title}
+        body={cleanCopy(ad.body)}
+        title={cleanCopy(ad.title)}
         cta={ad.cta}
         domain={domainOf(ad.link_url)}
         media={<AdThumb src={ad.image_url} label={ad.format} />}

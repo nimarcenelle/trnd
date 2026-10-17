@@ -1,4 +1,4 @@
-import type { Ad, Brand } from "@/lib/db/types";
+import type { Ad, Brand, Rival } from "@/lib/db/types";
 
 /** The ad's public Ad Library page: the link that never expires. */
 export const libraryLink = (archiveId: string) => `https://www.facebook.com/ads/library/?id=${encodeURIComponent(archiveId)}`;
@@ -20,8 +20,10 @@ export function ago(iso: string | null, now = Date.now()): string {
 }
 
 /** A scan longer than this died with its function (the limit is 5 minutes). */
-// Long enough for a queued scan to wait its turn on the worker and run.
-const SCAN_STALE_MS = 45 * 60_000;
+// Three stages of up to 170s each, plus hand-offs, must fit before a scan reads as abandoned.
+const SCAN_STALE_MS = 15 * 60_000;
+/** A manual scan sooner than this after the last one is a wasted model run; the page says so. */
+export const SCAN_MIN_GAP_MS = 10 * 60_000;
 
 /** A scan is running, and not one that died mid-way and never reset its flag. */
 export function isScanning(brand: Pick<Brand, "scan_status" | "scan_started_at">, now = Date.now()): boolean {
@@ -52,5 +54,37 @@ export const todayIso = (now = Date.now()) => new Date(now).toISOString().slice(
 /** The note a rival carries when no Page running Meta ads could be found: not an error, a fact. */
 export const NO_PAGE_NOTE = "Not running Meta ads under any Page we could find";
 export const isNoPageNote = (note: string | null | undefined) => Boolean(note?.startsWith(NO_PAGE_NOTE));
+/** A Page we hold that runs nothing, confirmed by the full search; details follow the period. */
+export const NO_ADS_NOTE = "No active Meta ads";
+export const isNoAdsNote = (note: string | null | undefined) => Boolean(note?.startsWith(NO_ADS_NOTE));
+/** A Page that ran ads recently and stopped: a pause, not an absence. */
+export const PAUSED_NOTE = "Paused";
+export const isPausedNote = (note: string | null | undefined) => Boolean(note?.startsWith(`${PAUSED_NOTE}:`));
+
+/**
+ * Whether a rival belongs in the main views. One that runs no Meta ads,
+ * confirmed, has nothing for the briefing, the sidebar or the landscape;
+ * it stays under Settings with the note and a way to swap it.
+ */
+export function rivalHidden(rival: Pick<Rival, "last_error">, liveAds: number): boolean {
+  return liveAds === 0 && (isNoPageNote(rival.last_error) || isNoAdsNote(rival.last_error) || isPausedNote(rival.last_error));
+}
+
 /** What the search behind a NO_PAGE_NOTE tried, e.g. `"Afina", "afina.com"`, or null. */
 export const noPageSearched = (note: string | null | undefined) => note?.split(" Searched: ")[1]?.replace(/\.$/, "") ?? null;
+
+/** Dynamic-creative templates leave "{{product.name}}" in the copy Meta shows; the placeholder is the product. */
+export function cleanCopy(text: string | null): string | null {
+  if (!text) return text;
+  const out = text.replace(/\{\{\s*product\.[a-z_]+\s*\}\}/gi, "the product").replace(/\{\{[^}]*\}\}/g, "").replace(/\s{2,}/g, " ").trim();
+  return out || null;
+}
+
+/**
+ * Text safe to put in JSON for another service: a lone surrogate half (an
+ * emoji cut in two by a character-count trim) serializes to an escape that
+ * OpenAI and Postgres both reject as invalid JSON.
+ */
+export function safeText(text: string): string {
+  return text.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "").replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
+}

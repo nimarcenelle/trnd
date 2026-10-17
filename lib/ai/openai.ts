@@ -7,6 +7,7 @@ import type { z } from "zod";
 
 import { adminSupabase } from "@/lib/db/supabase";
 import { env } from "@/lib/env";
+import { safeText } from "@/lib/format";
 
 import { strictJsonSchema } from "./json-schema";
 
@@ -39,7 +40,7 @@ export function withAiBudget<T>(brandId: string, remaining: number, fn: () => Pr
   return scope.run({ brandId, remaining }, fn);
 }
 
-/** Tokens a brand used in the last 24 hours (0 before 0107 has run). */
+/** Tokens a brand used in the last 24 hours (0 before 0110 has run). */
 export async function tokensUsedToday(brandId: string): Promise<number> {
   const since = new Date(Date.now() - 86_400_000).toISOString();
   const { data, error } = await adminSupabase().from("ai_usage").select("input_tokens, output_tokens").eq("brand_id", brandId).gte("created_at", since).limit(5000);
@@ -74,10 +75,11 @@ export async function generateJson<S extends z.ZodType>(opts: {
   for (let attempt = 0; attempt < 2; attempt++) {
     const budget = scope.getStore();
     if (budget && budget.remaining <= 0) throw new AiBudgetExceeded("This brand's daily AI budget is spent; the rest of the analysis runs on the next scan.");
+    const prompt = safeText(feedback ? `${opts.prompt}\n\nYour previous reply was rejected: ${feedback}\nReturn corrected JSON.` : opts.prompt);
     const res = await getClient().responses.create({
       model,
-      instructions: opts.system,
-      input: feedback ? `${opts.prompt}\n\nYour previous reply was rejected: ${feedback}\nReturn corrected JSON.` : opts.prompt,
+      instructions: safeText(opts.system),
+      input: prompt,
       text: { format },
       ...(isReasoning(model) ? { reasoning: { effort: opts.effort ?? "medium" } } : { temperature: 0.4 }),
     });

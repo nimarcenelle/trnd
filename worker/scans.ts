@@ -24,6 +24,9 @@ interface Job {
   attempts: number;
 }
 
+/** Long enough that a scan on the worker never hands a stage off to the app. */
+const WORKER_BUDGET_MS = 45 * 60_000;
+
 export const scanStats = { claimed: 0, done: 0, failed: 0, running: 0, lastJobAt: null as string | null };
 let processedSinceAlert = 0;
 let lastAlertAt = 0;
@@ -33,7 +36,8 @@ async function run(job: Job) {
   scanStats.running++;
   scanStats.lastJobAt = new Date().toISOString();
   try {
-    const result = await scanBrand(job.brand_id, { forceReport: job.force_report });
+    // No serverless time limit here: the whole scan runs in this process, never handed off.
+    const result = await scanBrand(job.brand_id, { forceReport: job.force_report, budgetMs: WORKER_BUDGET_MS });
     await sb.from("scan_jobs").update({ status: "done", result, error: null, finished_at: new Date().toISOString() }).eq("id", job.id);
     scanStats.done++;
   } catch (err) {
@@ -58,7 +62,7 @@ async function run(job: Job) {
 async function tick() {
   const sb = adminSupabase();
   while (scanStats.running < MAX) {
-    const { data, error } = await sb.rpc("claim_scan_job", { stale_minutes: 30 });
+    const { data, error } = await sb.rpc("claim_scan_job", { stale_minutes: 60 });
     if (error) {
       console.warn("[scans] claim failed:", error.message);
       return;

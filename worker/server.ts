@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
-import { libraryUrl, type Search } from "../lib/adlibrary/scrape";
+import { libraryUrl, type Facet, type Search } from "../lib/adlibrary/scrape";
 import { registerLocalReader } from "../lib/adlibrary/worker";
 import { captureError } from "../lib/errors";
 
@@ -61,8 +61,18 @@ async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
 function searchFrom(v: unknown): Search | null {
   if (!v || typeof v !== "object") return null;
   const o = v as Record<string, unknown>;
-  if (typeof o.pageId === "string" && /^\d{3,25}$/.test(o.pageId)) return { pageId: o.pageId };
-  if (typeof o.query === "string" && o.query.trim() && o.query.length <= 120) return { query: o.query.trim() };
+  // Stopped ads (for history) and one slice of the results are part of the search, not extras to drop.
+  const status = o.status === "inactive" ? ("inactive" as const) : undefined;
+  const f = o.facet && typeof o.facet === "object" ? (o.facet as Record<string, unknown>) : null;
+  const facet: Facet | undefined = f
+    ? {
+        ...(f.media === "image" || f.media === "video" || f.media === "meme" ? { media: f.media as NonNullable<Facet["media"]> } : {}),
+        ...(f.platform === "facebook" || f.platform === "instagram" ? { platform: f.platform as NonNullable<Facet["platform"]> } : {}),
+      }
+    : undefined;
+  const extra = { ...(status ? { status } : {}), ...(facet && Object.keys(facet).length ? { facet } : {}) };
+  if (typeof o.pageId === "string" && /^\d{3,25}$/.test(o.pageId)) return { pageId: o.pageId, ...extra };
+  if (typeof o.query === "string" && o.query.trim() && o.query.length <= 120) return { query: o.query.trim(), ...extra };
   return null;
 }
 

@@ -312,14 +312,30 @@ alter table public.ads add column if not exists engagement jsonb;
 alter table public.ads add column if not exists score int;
 alter table public.ads add column if not exists score_parts jsonb;
 create index if not exists ads_score_idx on public.ads (brand_id, score desc);
+-- A scan runs in stages (ads, tag, report), each inside its own function
+-- invocation when the previous one runs out of time. scan_state remembers
+-- where a scan is, so the next invocation resumes rather than restarts, and
+-- the report stage can find this scan's changes. Safe to re-run.
+alter table public.brands add column if not exists scan_state jsonb;
 
--- 0105_rival_health.sql
+-- Setup keeps the competitor candidates it did not seat (the model's spares)
+-- on the brand, so the first scan can swap a rival that runs no Meta ads for
+-- the next closest one, and remembers what it swapped. Safe to re-run.
+alter table public.brands add column if not exists candidates jsonb;
+
+-- When a rival's "no active Meta ads" was last confirmed by the full search
+-- (its Page's past ads, the Ad Library under its name, domain and handle, and
+-- the model's look at the advertisers found), so the check runs every few
+-- days rather than every scan. Safe to re-run.
+alter table public.rivals add column if not exists ads_confirmed_at timestamptz;
+
+-- 0108_rival_health.sql
 -- What the last pull from each source found for a rival, so the app can say
 -- plainly what was read, when, and what failed:
 -- { ads: { at, ok, count, via, note }, site: { at, ok, count, note } }. Safe to re-run.
 alter table public.rivals add column if not exists health jsonb;
 
--- 0106_creatives.sql
+-- 0109_creatives.sql
 -- Ad creatives kept by TRND. Facebook's image links expire after a while, so
 -- each ad's image is copied to Supabase Storage the first time it's seen and
 -- the app shows the copy. Safe to re-run.
@@ -330,7 +346,7 @@ insert into storage.buckets (id, name, public)
 values ('creatives', 'creatives', true)
 on conflict (id) do update set public = true;
 
--- 0107_jobs_usage_email.sql
+-- 0110_jobs_usage_email.sql
 -- Production plumbing. Safe to re-run.
 --
 -- scan_jobs: scans run on the worker (worker/), not inside a time-limited

@@ -2,7 +2,6 @@ import "server-only";
 
 import { z } from "zod";
 
-import { MAX_RIVALS } from "@/lib/db/types";
 import type { Ad, Brand, BrandProfile, EmailKind, Landscape, Objectives, Opportunity, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { rankResults } from "@/lib/results";
 import { topHooks, topicsByScore } from "@/lib/score";
@@ -48,9 +47,23 @@ const DiscoverySchema = z.object({
   summary: z.string(),
   category: z.string(),
   profile: ProfileSchema,
-  rivals: z.array(z.object({ name: z.string(), website: z.string(), reason: z.string() })),
+  rivals: z.array(
+    z.object({
+      name: z.string(),
+      website: z.string(),
+      reason: z.string(),
+      /** 5: same product, same buyer, same price tier. 1: adjacent category or a different buyer. */
+      directness: z.number(),
+      /** Roughly how the brand compares in size and ad spend. */
+      scale: z.enum(["larger", "similar", "smaller"]),
+    }),
+  ),
 });
 export type Discovery = z.infer<typeof DiscoverySchema>;
+export type RivalCandidate = Discovery["rivals"][number];
+
+/** Candidates asked for, so the check against the Ad Library has spares to fill from. */
+export const CANDIDATE_RIVALS = 16;
 
 export async function discoverRivals(url: string, siteText: string): Promise<Discovery> {
   return generateJson({
@@ -77,12 +90,16 @@ Return:
   - offers: current discounts, bundles, subscriptions or shipping offers.
   - tone: how it talks, in a few words.
   - differentiators: what it claims makes it different from alternatives.
-- rivals: the ${MAX_RIVALS} most influential direct competitors for the same customer, most influential first.
-  Influence means how much of this customer's attention and spend a brand commands: market share, brand recognition,
-  how heavily it advertises on Meta, and its social following. Leading brands in the category belong here even when
-  bigger than this one. Leave out marketplaces and general retailers (no Amazon, Walmart, Target) and brands that
-  only overlap a little. For each: the brand name exactly as it appears on its Facebook Page, its website domain
-  (e.g. "brand.com"), and one line on why it competes for the same customer.`,
+- rivals: ${CANDIDATE_RIVALS} candidate competitors, the most direct first. Direct means a shopper comparing this brand
+  would weigh that one for the same purchase: the same product type and purchase occasion, the same kind of customer,
+  a comparable price tier, sold online the same way. Score each 1-5 for directness: 5 is the same product for the same
+  buyer at a similar price (for a filtered showerhead brand: other filtered showerhead and shower filter brands sold
+  direct to consumers); 3 is the same product in a different tier or a close substitute; 1 is an adjacent category or
+  a different buyer (whole-home water systems, hardware-store fixtures, plumbing brands, pro or B2B lines). Prefer
+  brands that advertise on Meta and are of a comparable scale, and mark each larger, similar or smaller. Leading
+  brands in the category belong here even when bigger. Leave out marketplaces and general retailers (no Amazon,
+  Walmart, Target). For each: the brand name exactly as it appears on its Facebook Page, its website domain
+  (e.g. "brand.com"), one line on why a shopper would compare them, directness and scale.`,
   });
 }
 
@@ -285,6 +302,7 @@ const OpportunitySchema = z.object({
     experiment: z.string(),
   }),
   evidence: z.array(z.string()),
+  status: z.enum(["standing", "updated", "new"]),
 });
 
 const ReportSchema = z.object({
@@ -318,7 +336,20 @@ export interface ReportInput {
   /** Competitor marketing emails, recent first. `fresh`: received since the last report. */
   emails?: (Pick<RivalEmail, "id" | "subject" | "preview" | "received_at" | "kind" | "offer" | "theme" | "is_repeat"> & { rival: string; fresh: boolean })[];
   changes: { launched: Ad[]; stopped: Ad[]; proven: Ad[] } | null;
+  /** The last report, so an update amends it instead of starting over. */
+  previous?: ReportBody | null;
   today: string;
+}
+
+/** The standing report, as the model sees it: what it must keep unless the signals moved. */
+function standingBlock(prev: ReportBody): string {
+  const opps = (prev.opportunities ?? []).map((o, i) => `${i + 1}. title: "${o.title}" · type: ${o.type} · recommendation: ${o.recommendation}`).join("\n");
+  return `\n\n# The standing report (what the founder is already acting on)
+Headline: ${prev.headline}
+Summary: ${prev.summary}
+Opportunities, in rank order:
+${opps || "(none)"}
+Insights: ${prev.insights.map((i) => i.title).join("; ") || "(none)"}`;
 }
 
 /** Short refs for the prompt (S1, E1), mapped back to "site:<id>" and "email:<id>" in the report. */
@@ -463,6 +494,20 @@ Topics that score for competitors: ${stand.topics.map((t) => `${t.topic} (${t.av
   const siteText = site.size ? `\n\n# Competitor website changes (homepage, catalog, prices, promotions)\n${siteBlock(site)}` : "";
   const emailText = emails.size ? `\n\n# Competitor marketing emails (sent to subscribers)\n${emailBlock(emails)}` : "";
   const fresh = Boolean(changes) || [...site.values()].some((c) => c.fresh) || [...emails.values()].some((e) => e.fresh);
+  const standingReport = input.previous?.opportunities?.length ? standingBlock(input.previous) : "";
+  const continuity = standingReport
+    ? `
+This is an update to the standing report, not a new report. The founder reads it every day and acts on it over weeks;
+a plan that changes with every scan is worthless. So:
+- Keep every standing opportunity whose signals still hold: the same title word for word, the same type, the same rank.
+  Refresh its signal and fit only where the new lines change them (status "updated"); otherwise keep its text as it
+  was (status "standing").
+- Drop a standing opportunity only when the signals behind it have stopped.
+- Add an opportunity (status "new") only when a new signal matters more than a standing one, and at most two per update.
+- Keep the headline and summary word for word unless what changed outranks the standing story. A few new ads from one
+  competitor on a message it was already running do not.`
+    : `
+There is no standing report: every opportunity is status "new".`;
 
   return `Today is ${today}. The brand: ${brand.name} (${brand.url}), ${brand.category ?? ""}. ${brand.summary ?? ""}
 ${brand.profile ? profileBlock(brand.profile) : ""}
@@ -474,9 +519,9 @@ ref: an ad's archive id, S# for a website change, E# for an email. Lines marked 
 
 ${ranking ? `${ranking}${standingText}\n\n` : ""}# Active Meta ads, highest score first
 Each ad is marked testing (under ${TESTING_DAYS} days), scaling (past ${TESTING_DAYS} days with ${SCALING_VERSIONS}+ versions, or past ${SCALING_DAYS} days), or running.
-${rivalBlocks}${siteText}${emailText}${ownBlock}${results}${social}${changeBlock}
+${rivalBlocks}${siteText}${emailText}${ownBlock}${results}${social}${changeBlock}${standingReport}
 
-Write the report the brand's founder reads.${ranking ? ` Start from the conversion ranking: the topics and hooks of the highest-scoring ads
+Write the report the brand's founder reads.${continuity}${ranking ? ` Start from the conversion ranking: the topics and hooks of the highest-scoring ads
 are what works in this market, so they shape the opportunities and every brief (borrow the topic and the shape of the
 hook, in ${brand.name}'s voice); the lowest-scoring patterns are what to avoid.` : ""} The value is in connecting signals: a new value-focused homepage, a
 discounted email bundle and several savings-themed ads together suggest a coordinated affordability push, not three
@@ -501,8 +546,9 @@ The report is read as a feed: every item is one punchy line first, with the deta
   - counter: a competitor's push threatens ${brand.name}'s position; a differentiated response, never a reflex copy.
   - ignore: it doesn't fit ${brand.name}'s customers, brand or economics; say why and save the money. Include at least one
     when anything notable doesn't fit.
-  For each: title (the decision, at most 9 words); punch (one sentence, at most 20 words: what to do and the number
-  behind it, tied to ${brand.name}'s own score or ads where the standing shows a gap); competitors; signal (what was observed, across channels, with dates or
+  For each: title (the decision alone, under ten words, no dash or colon, never the recommendation); punch (one sentence,
+  at most 20 words: what to do and the number behind it, tied to ${brand.name}'s own score or ads where the standing
+  shows a gap); competitors; signal (what was observed, across channels, with dates or
   days running); intent (what they seem to be trying to do, hedged); fit (why it matters or doesn't for ${brand.name},
   against its profile, goal, constraints and past results); urgency and confidence (high, medium, low); scores 1-5 for
   relevance to its customers, urgency, differentiation potential, feasibility for this brand, and confidence; the
@@ -518,16 +564,64 @@ The report is read as a feed: every item is one punchy line first, with the deta
   - you_vs_them: only_you (angles, offers or claims ${brand.name} uses that no competitor does), only_them (what
     competitors lean on that ${brand.name} doesn't), and open_lanes (angles or audiences nobody is using well).
 Ad repetition and longevity are imperfect proxies, not proof of performance; emails are only what subscribers see. Use
-only refs that appear above.`;
+only refs that appear above, and give every insight and every opportunity at least two refs: the exact ad archive ids
+(the bracketed numbers), S# or E# lines its claims rest on. A claim without refs cannot be shown to the founder.`;
 }
 
 const rank = (o: z.infer<typeof OpportunitySchema>) =>
   o.type === "ignore" ? -1 : o.scores.relevance + o.scores.urgency + o.scores.differentiation + o.scores.feasibility + o.scores.confidence;
 
+/**
+ * The ads a claim is about, when the model named none: the named competitors'
+ * active ads whose hook, topic or copy share words with the claim, best
+ * scoring first. Every claim on the page then opens something real.
+ */
+export function fallbackEvidence(text: string, competitors: string[], rivals: ReportInput["rivals"], max = 3): string[] {
+  const words = new Set(
+    text
+      .toLowerCase()
+      .split(/[^a-z0-9$%]+/)
+      .filter((w) => w.length > 3),
+  );
+  const named = rivals.filter((r) => competitors.some((c) => c.toLowerCase().includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(c.toLowerCase())));
+  const from = named.length ? named : rivals;
+  const scored = from
+    .flatMap((r) => r.ads.filter((a) => a.active))
+    .map((a) => {
+      const own = `${a.hook ?? ""} ${a.topic ?? ""} ${a.title ?? ""} ${(a.body ?? "").slice(0, 300)}`.toLowerCase().split(/[^a-z0-9$%]+/);
+      const overlap = own.filter((w) => w.length > 3 && words.has(w)).length;
+      return { id: a.archive_id, overlap, score: a.score ?? 0 };
+    })
+    .sort((x, y) => y.overlap - x.overlap || y.score - x.score);
+  const hits = scored.filter((a) => a.overlap > 0).slice(0, max);
+  return (hits.length ? hits : scored.slice(0, Math.min(2, max))).map((a) => a.id);
+}
+
+/**
+ * A title is the decision in a few words. One echoed with its recommendation
+ * glued on ("Title — Do this", "Title: do this") is cut at the join, whether
+ * the join came from the standing report or the model's own hand.
+ */
+export function standingTitle(title: string, previous: ReportBody | null | undefined): string {
+  for (const p of previous?.opportunities ?? []) {
+    const t = p.title.trim();
+    if (t && title.length > t.length && title.toLowerCase().startsWith(t.toLowerCase()) && /^[\s:\u2014\u2013-]/.test(title.slice(t.length))) return cleanTitle(t);
+  }
+  return cleanTitle(title);
+}
+
+export function cleanTitle(title: string): string {
+  const m = title.match(/^(.{12,}?)\s+[\u2014\u2013]\s+.{12,}$/) ?? title.match(/^([^:]{12,}?):\s+.{20,}$/);
+  const head = m ? m[1] : title;
+  return head.trim().replace(/[.\s]+$/, "");
+}
+
 export async function writeReport(input: ReportInput): Promise<ReportBody & { landscape: Landscape; opportunities: Opportunity[] }> {
   const body = await generateJson({ purpose: "report", system: SYSTEM, schema: ReportSchema, prompt: reportPrompt(input) });
   const { site, emails } = refsOf(input);
   const ads = new Set([...input.rivals.flatMap((r) => r.ads.map((a) => a.archive_id)), ...(input.own ?? []).map((a) => a.archive_id)]);
+  const rivalNames = input.rivals.map((r) => r.name);
+  const mentioned = (text: string) => rivalNames.filter((n) => text.toLowerCase().includes(n.toLowerCase()));
   // Turn prompt refs into stored ids, and drop any the model made up, so every evidence link opens something real.
   const resolve = (refs: string[]) =>
     refs.flatMap((r) => {
@@ -539,7 +633,11 @@ export async function writeReport(input: ReportInput): Promise<ReportBody & { la
       if (e) return [`email:${e.id}`];
       return [];
     });
-  const insights = body.insights.map((i) => ({ ...i, evidence: resolve(i.evidence) }));
+  const withEvidence = (refs: string[], text: string, competitors: string[]) => {
+    const found = resolve(refs);
+    return found.length ? found : fallbackEvidence(text, competitors, input.rivals);
+  };
+  const insights = body.insights.map((i) => ({ ...i, evidence: withEvidence(i.evidence, `${i.title} ${i.detail}`, mentioned(`${i.title} ${i.detail}`)) }));
   const opportunities = [...body.opportunities]
     .sort((a, b) => rank(b) - rank(a))
     .map((o): Opportunity => ({
@@ -554,7 +652,16 @@ export async function writeReport(input: ReportInput): Promise<ReportBody & { la
       confidence: o.confidence,
       recommendation: o.recommendation,
       brief: o.brief,
-      evidence: resolve(o.evidence),
-    }));
-  return { ...body, insights, opportunities };
+      evidence: o.type === "ignore" ? resolve(o.evidence) : withEvidence(o.evidence, `${o.title} ${o.signal}`, o.competitors),
+      status: input.previous ? (o.status ?? "new") : "new",
+    }))
+    .map((o) => ({ ...o, title: standingTitle(o.title, input.previous) }));
+  // Nothing new since the standing report (a manual re-scan): the story the founder is acting on stays.
+  const prev = input.previous;
+  const freshCount = (input.changes ? input.changes.launched.length + input.changes.stopped.length + input.changes.proven.length : 0) +
+    (input.site ?? []).filter((c) => c.fresh).length +
+    (input.emails ?? []).filter((e) => e.fresh).length;
+  const headline = prev && freshCount === 0 ? prev.headline : body.headline;
+  const summary = prev && freshCount === 0 ? prev.summary : body.summary;
+  return { ...body, headline, summary, insights, opportunities };
 }

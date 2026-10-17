@@ -23,7 +23,7 @@ let bucketMissing = false;
 const extOf = (type: string) => (type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg");
 
 export async function storeCreatives(sb: SupabaseClient, ads: Pick<Ad, "id" | "archive_id" | "image_url" | "stored_image_url">[]): Promise<number> {
-  // Rows read without the column mean 0106 hasn't run: nothing to store into yet.
+  // Rows read without the column mean 0109 hasn't run: nothing to store into yet.
   if (bucketMissing || !ads.length || !("stored_image_url" in ads[0])) return 0;
   const todo = ads.filter((a) => a.image_url && !a.stored_image_url && /^https:\/\//.test(a.image_url)).slice(0, PER_RUN);
   let stored = 0;

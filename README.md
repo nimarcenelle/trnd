@@ -110,7 +110,7 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql` through `0107_jobs_usage_email.sql`, safe to re-run). They create
+`0101_brand_intel.sql` through `0110_jobs_usage_email.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
 `site_snapshots`, `site_changes` and `emails`, and leave the old
 product's tables alone (drop them when convenient).
@@ -132,7 +132,7 @@ signing secret (`whsec_…`) as `INBOUND_SECRET`; the body is fetched with `RESE
   needs the app's whole environment for this. Without the queue, scans run in Vercel functions as before.
 - **Cost guards**: every model call is logged to `ai_usage` per brand; a scan stops calling the model once the brand
   has used `AI_DAILY_TOKENS` in 24 hours (`withAiBudget`, `lib/ai/openai.ts`). "Scan now" waits
-  `SCAN_COOLDOWN_MINUTES` after a scan.
+  10 minutes after a scan (`SCAN_MIN_GAP_MS`, `lib/format.ts`).
 - **Email**: update emails carry a signed unsubscribe link and one-click `List-Unsubscribe` headers
   (`/api/unsubscribe`, `lib/unsubscribe.ts`); owners switch them in Settings → Emails (`brands.email_updates`).
 - **Errors** go to Sentry with `SENTRY_DSN` (`lib/errors.ts`, no SDK): every server error (`instrumentation.ts`),

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Timeline, { CHANNEL } from "@/components/app/timeline";
 import { getSessionUser } from "@/lib/auth/session";
 import { getBrand, listChanges, listEmails, listRivals, listSiteChanges } from "@/lib/data";
+import { rivalHidden } from "@/lib/format";
 import { buildTimeline, type Channel } from "@/lib/timeline";
 
 export const metadata = { title: "Timeline — TRND" };
@@ -16,7 +17,8 @@ export default async function TimelinePage({ searchParams }: PageProps<"/app/tim
   const brand = await getBrand(user.id);
   if (!brand) redirect("/app/setup");
 
-  const [rivals, adChanges, site, emails] = await Promise.all([listRivals(brand.id), listChanges(brand.id, 30), listSiteChanges(brand.id), listEmails(brand.id, { days: 30 })]);
+  const [allRivals, adChanges, site, emails] = await Promise.all([listRivals(brand.id), listChanges(brand.id, 30), listSiteChanges(brand.id), listEmails(brand.id, { days: 30 })]);
+  const rivals = allRivals.filter((r) => !rivalHidden(r, adChanges.filter((c) => c.rival_id === r.id && c.ad?.active).length) || adChanges.some((c) => c.rival_id === r.id));
   const names = new Map(rivals.map((r) => [r.id, r.name]));
   const all = buildTimeline({ adChanges, site, emails, emailHref: (e) => `/app/rivals/${e.rival_id}?view=emails#${e.id}` }).filter((e) => names.has(e.rivalId));
   const ch = typeof channel === "string" && channel in CHANNEL ? (channel as Channel) : null;

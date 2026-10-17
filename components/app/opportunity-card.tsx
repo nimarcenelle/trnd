@@ -1,6 +1,7 @@
 import type { Ad, Opportunity, OpportunityType } from "@/lib/db/types";
 
 import Avatar from "./avatar";
+import CopyBrief from "./copy-brief";
 import Evidence, { type SignalRef } from "./evidence";
 
 export const OPPORTUNITY: Record<OpportunityType, { label: string; cls: string; blurb: string }> = {
@@ -18,6 +19,25 @@ function Field({ k, v }: { k: string; v: string }) {
       <dd className="m-0 text-ink-2">{v}</dd>
     </div>
   );
+}
+
+/** The brief as a creator reads it: one labeled line per part, the why on top. */
+export function briefText(o: Opportunity): string {
+  const b = o.brief;
+  const lines = [
+    o.title,
+    `Why: ${o.fit}`,
+    `What we saw: ${o.signal}`,
+    "",
+    `Hook: ${b.hook}`,
+    `Angle: ${b.angle}`,
+    b.offer && b.offer.toLowerCase() !== "none" ? `Offer: ${b.offer}` : null,
+    `Format: ${b.format}`,
+    `Creative: ${b.creative}`,
+    `Audience: ${b.audience}`,
+    `Test: ${b.experiment}`,
+  ];
+  return lines.filter((l): l is string => l !== null).join("\n");
 }
 
 /** The detail behind a decision: what we saw, the likely intent, why it matters to you, what to do, the brief. */
@@ -59,6 +79,7 @@ function Detail({ o, ads, refs }: { o: Opportunity; ads: Map<string, Ad>; refs: 
             <Field k="Audience" v={b.audience} />
             <Field k="Test" v={b.experiment} />
           </dl>
+          <CopyBrief text={briefText(o)} />
         </div>
       )}
       <Evidence ids={o.evidence} ads={ads} refs={refs} label="Signals" />
@@ -76,6 +97,8 @@ export function OpportunityRow({ o, n, ads, refs }: { o: Opportunity; n: number;
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={t.cls}>{t.label}</span>
+            {o.status === "new" && <span className="badge badge-pos" title="Added by this scan">New</span>}
+            {o.status === "updated" && <span className="badge badge-info" title="The signals behind it moved this scan">Updated</span>}
             {o.competitors.slice(0, 3).map((c) => (
               <span key={c} className="inline-flex items-center gap-1 text-[12.5px] text-ink-2">
                 <Avatar name={c} size={16} />

@@ -16,6 +16,8 @@ export interface SiteProduct {
   compare_at: number | null;
   available: boolean;
   url: string | null;
+  /** When the store added it (Shopify's published date), so a first read can say what is new. */
+  created_at?: string | null;
 }
 
 export interface SiteSnapshot {
@@ -128,6 +130,7 @@ export function shopifyProducts(json: unknown, base: string): SiteProduct[] {
         compare_at: Number.isFinite(compare) && price !== null && compare > price ? compare : null,
         available: variants.some((v) => v.available !== false),
         url: o.handle ? `${base.replace(/\/$/, "")}/products/${o.handle}` : null,
+        created_at: typeof o.published_at === "string" ? o.published_at : typeof o.created_at === "string" ? o.created_at : null,
       },
     ];
   });
@@ -184,7 +187,19 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9%$]+/g, " ").trim()
  * (a catalog reshuffle, a new collection) collapse into one line, so a big
  * day reads as one event, not forty.
  */
-export function diffSnapshots(prev: SiteSnapshot, next: SiteSnapshot): SiteDiff[] {
+/** A promotion's identity: its words and numbers, without the fragments a rotating banner adds or drops. */
+export function promoKey(p: string): string {
+  return p
+    .toLowerCase()
+    .replace(/\(cont\.?[^)]*\)?/g, " ")
+    .replace(/[^a-z0-9%$]+/g, " ")
+    .split(" ")
+    .filter((w) => w.length >= 3 || /\d/.test(w))
+    .slice(0, 8)
+    .join(" ");
+}
+
+export function diffSnapshots(prev: SiteSnapshot, next: SiteSnapshot, history: SiteSnapshot[] = []): SiteDiff[] {
   const out: SiteDiff[] = [];
   const before = new Map(prev.products.map((p) => [p.id, p]));
   const after = new Map(next.products.map((p) => [p.id, p]));
@@ -225,10 +240,19 @@ export function diffSnapshots(prev: SiteSnapshot, next: SiteSnapshot): SiteDiff[
   collapse(sales);
   collapse(prices);
 
-  const prevPromos = new Set(prev.promos.map(norm));
-  const nextPromos = new Set(next.promos.map(norm));
-  for (const p of next.promos.filter((x) => !prevPromos.has(norm(x))).slice(0, 4)) out.push({ kind: "promo_added", title: "New promotion", before: null, after: p, url: null });
-  for (const p of prev.promos.filter((x) => !nextPromos.has(norm(x))).slice(0, 2)) out.push({ kind: "promo_removed", title: "Promotion removed", before: p, after: null, url: null });
+  // Promotions: a rotating announcement bar shows a different fragment of
+  // the same offers on every read ("Free Shipping On Orders $25+ (Cont." one
+  // day, "...$25+ (Cont. U.S.)" the next), which read as a promotion added
+  // and removed every day. A promotion is new only when its key was in none
+  // of the recent snapshots, and gone only when it had been stable in them.
+  const keys = (snap: SiteSnapshot) => new Set(snap.promos.map(promoKey));
+  const prevKeys = keys(prev);
+  const nextKeys = keys(next);
+  const seenBefore = new Set([...prevKeys, ...history.flatMap((h) => [...keys(h)])]);
+  for (const p of next.promos.filter((x) => !seenBefore.has(promoKey(x))).slice(0, 4)) out.push({ kind: "promo_added", title: "New promotion", before: null, after: p, url: null });
+  const stable = (k: string) => history.length >= 2 && history.slice(0, 2).every((h) => keys(h).has(k));
+  for (const p of prev.promos.filter((x) => !nextKeys.has(promoKey(x)) && (history.length < 2 || stable(promoKey(x)))).slice(0, 2))
+    out.push({ kind: "promo_removed", title: "Promotion removed", before: p, after: null, url: null });
 
   // Messaging: the hero headline, the page title, or the meta description.
   const hero = (s: SiteSnapshot) => s.headlines[0] ?? "";
@@ -237,4 +261,21 @@ export function diffSnapshots(prev: SiteSnapshot, next: SiteSnapshot): SiteDiff[
     out.push({ kind: "message_changed", title: "New site description", before: prev.description, after: next.description, url: null });
 
   return out;
+}
+
+/**
+ * What a first snapshot can say about the recent past: the products the
+ * store added in the last `days`, each dated when it was published. Many at
+ * once collapse into one line, as diffSnapshots does.
+ */
+export function recentProducts(snapshot: SiteSnapshot, now: string, days = 30): (SiteDiff & { detected_at: string })[] {
+  const since = new Date(Date.parse(now) - days * 86_400_000).toISOString();
+  const recent = snapshot.products
+    .filter((p): p is SiteProduct & { created_at: string } => typeof p.created_at === "string" && p.created_at >= since && p.created_at <= now)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  if (!recent.length) return [];
+  if (recent.length <= 3) {
+    return recent.map((p) => ({ kind: "new_product", title: `New product: ${p.title}`, before: null, after: p.price !== null ? money(p.price) : null, url: p.url, detected_at: p.created_at }));
+  }
+  return [{ kind: "new_product", title: `${recent.length} products added`, before: null, after: recent.slice(0, 6).map((p) => p.title).join(", "), url: null, detected_at: recent[0].created_at }];
 }

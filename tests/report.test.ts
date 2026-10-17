@@ -29,8 +29,8 @@ vi.mock("@/lib/ai/openai", () => ({
   })),
 }));
 
-import { reportPrompt, writeReport } from "@/lib/ai/analyze";
-import type { Ad } from "@/lib/db/types";
+import { cleanTitle, fallbackEvidence, reportPrompt, standingTitle, writeReport } from "@/lib/ai/analyze";
+import type { Ad, ReportBody } from "@/lib/db/types";
 
 const ad = (over: Partial<Ad>): Ad => ({
   id: "x",
@@ -154,5 +154,64 @@ describe("report", () => {
     expect(body.opportunities[0].evidence).toEqual(["site:sc1"]);
     expect(body.opportunities[1].evidence).toEqual(["A1"]);
     expect("scores" in body.opportunities[0]).toBe(false);
+  });
+
+  it("hands the model the standing report and the continuity rules on an update", () => {
+    const previous = {
+      headline: "AquaBliss is attacking on price. Answer with proof.",
+      summary: "They say $35 beats $150.",
+      insights: [{ title: "The value attack is explicit", detail: "", evidence: [] }],
+      opportunities: [{ ...opp, type: "counter" as const, title: "Defend $148 with visible proof", recommendation: "Run proof-led ads." }],
+      rivals: [],
+    } as ReportBody;
+    const prompt = reportPrompt({ ...input, previous, changes: { launched: [ad({ archive_id: "A3" })], stopped: [], proven: [] } });
+    expect(prompt).toContain("# The standing report");
+    expect(prompt).toContain('1. title: "Defend $148 with visible proof" · type: counter · recommendation: Run proof-led ads.');
+    expect(prompt).toContain("the same title word for word");
+    expect(prompt).toContain("at most two per update");
+    expect(reportPrompt(input)).toContain('every opportunity is status "new"');
+  });
+
+  it("keeps the standing headline when a re-scan found nothing new, and marks opportunities", async () => {
+    const previous = { headline: "Keep me", summary: "And me", insights: [], opportunities: [{ ...opp, title: "Old" }], rivals: [] } as ReportBody;
+    const same = await writeReport({ ...input, previous, changes: { launched: [], stopped: [], proven: [] } });
+    expect(same.headline).toBe("Keep me");
+    expect(same.summary).toBe("And me");
+    expect(same.opportunities.every((o) => o.status === "new")).toBe(true);
+    const moved = await writeReport({ ...input, previous, changes: { launched: [ad({ archive_id: "A2" })], stopped: [], proven: [] } });
+    expect(moved.headline).toBe("h");
+  });
+
+  it("never leaves a claim without evidence: the named rival's matching ads stand in", async () => {
+    const body = await writeReport(input);
+    // The model cited nothing real for "low" except A1; "high" cited only S1 (not in this input), so its evidence is filled in.
+    for (const o of body.opportunities.filter((o) => o.type !== "ignore")) expect(o.evidence.length).toBeGreaterThan(0);
+    // Both of Rival's ads say "chlorine"; the longer-running one (same score) leads.
+    expect(fallbackEvidence("Stop the chlorine story", ["Rival"], input.rivals)).toEqual(["A1", "A2"]);
+  });
+
+  it("picks the ads whose copy shares words with the claim, by score when none do", () => {
+    const rivals = [{ name: "Rival", ads: [ad({ archive_id: "P", body: "Softer hair in 7 days", score: 40 }), ad({ archive_id: "Q", body: "Free shipping on every order", score: 90 })] }];
+    expect(fallbackEvidence("Rival leans on free shipping", ["Rival"], rivals)).toEqual(["Q"]);
+    expect(fallbackEvidence("nothing in common here", ["Rival"], rivals)).toEqual(["Q", "P"]);
+    expect(fallbackEvidence("softer hair", ["Nobody"], rivals)).toEqual(["P"]);
+  });
+
+  it("strips a recommendation the model glued onto a standing title", () => {
+    const previous = { headline: "", summary: "", insights: [], rivals: [], opportunities: [{ ...opp, title: "Do not fight AquaBliss on price" }] } as ReportBody;
+    expect(standingTitle("Do not fight AquaBliss on price \u2014 Counter with a proof ad.", previous)).toBe("Do not fight AquaBliss on price");
+    expect(standingTitle("Do not fight AquaBliss on price: show the difference", previous)).toBe("Do not fight AquaBliss on price");
+    expect(standingTitle("Do not fight AquaBliss on pricey add-ons", previous)).toBe("Do not fight AquaBliss on pricey add-ons");
+    expect(standingTitle("Something new", previous)).toBe("Something new");
+    expect(standingTitle("Anything", null)).toBe("Anything");
+  });
+
+  it("cuts a title at a dash or colon that joins the recommendation onto it", () => {
+    expect(cleanTitle("Do not fight AquaBliss on price \u2014 Counter with a \u201cwhat are you buying?\u201d ad.")).toBe("Do not fight AquaBliss on price");
+    expect(cleanTitle("Protect the clinical claim: show the study and the dermatologists")).toBe("Protect the clinical claim");
+    expect(cleanTitle("Own beauty plus bathroom design")).toBe("Own beauty plus bathroom design");
+    expect(cleanTitle("Defend $148 with visible proof.")).toBe("Defend $148 with visible proof");
+    // A short lead or a short tail is not a glued recommendation.
+    expect(cleanTitle("Price: hold it")).toBe("Price: hold it");
   });
 });

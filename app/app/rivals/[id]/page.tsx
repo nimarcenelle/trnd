@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import AdCard from "@/components/app/ad-card";
+import { groupAdVersions } from "@/lib/diff";
+import { topHooks, topicsByScore } from "@/lib/score";
 import Avatar from "@/components/app/avatar";
 import { AngleBars, LaunchBars } from "@/components/app/charts";
 import { IconArrowUpRight } from "@/components/icons";
@@ -18,8 +20,8 @@ import { inboxAddress } from "@/lib/inbox/parse";
 import { buildTimeline } from "@/lib/timeline";
 import Timeline from "@/components/app/timeline";
 import { growthBy } from "@/lib/social/read";
-import { adStage, TESTING_DAYS } from "@/lib/diff";
-import { ago, daysRunningOf, isNoPageNote, noPageSearched, todayIso } from "@/lib/format";
+import { adStage, daysRunning, TESTING_DAYS } from "@/lib/diff";
+import { libraryLink, cleanCopy, ago, daysRunningOf, isNoPageNote, noPageSearched, todayIso, isNoAdsNote, isPausedNote } from "@/lib/format";
 import { angleMix, weeklyLaunches } from "@/lib/stats";
 
 export const metadata = { title: "Rival — TRND" };
@@ -56,6 +58,8 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
     .sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || byDays(b) - byDays(a));
   if (worst) live.reverse();
   const stopped = ads.filter((a) => !a.active).sort((a, b) => Date.parse(b.stopped_at ?? "") - Date.parse(a.stopped_at ?? ""));
+  const playbookHooks = topHooks(live, 5);
+  const playbookTopics = topicsByScore(live, 6);
   const today = todayIso();
   const read = latest?.body.rivals.find((r) => r.name.toLowerCase() === rival.name.toLowerCase());
   const showStopped = view === "stopped";
@@ -103,12 +107,14 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
         </details>
       )}
 
-      {isNoPageNote(rival.last_error) ? (
+      {isNoPageNote(rival.last_error) || isNoAdsNote(rival.last_error) || isPausedNote(rival.last_error) ? (
         <div className="card mt-6 px-5 py-4">
-          <p className="text-[14px] font-semibold">No Meta ads found for {rival.name}</p>
+          <p className="text-[14px] font-semibold">{isPausedNote(rival.last_error) ? `${rival.name} has paused its Meta ads` : `No Meta ads found for ${rival.name}`}</p>
           <p className="text-[13px] text-ink-2 mt-1 leading-[1.55]">
-            We checked their site for a Facebook link, searched the Ad Library under every name they might advertise as, and had
-            the model look through every advertiser that came up{noPageSearched(rival.last_error) ? ` (${noPageSearched(rival.last_error)})` : ""}. Most likely they are not running ads right now; we check again every day. If you know their Page, paste it.
+            {isNoPageNote(rival.last_error)
+              ? `We checked their site for a Facebook link, searched the Ad Library under every name they might advertise as, and had the model look through every advertiser that came up${noPageSearched(rival.last_error) ? ` (${noPageSearched(rival.last_error)})` : ""}.`
+              : rival.last_error}{" "}
+            {isPausedNote(rival.last_error) ? "It comes back to the briefing the day an ad goes live." : "It stays off the briefing until it does, and is checked again every few days. If you know their Page, paste it."}
           </p>
           <div className="mt-3 max-w-[560px]">
             <PageForm rivalId={rival.id} />
@@ -159,6 +165,46 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
           <AngleBars rows={angleMix(ads, 5)} />
         </div>
       </div>
+
+      {(playbookHooks.length > 0 || playbookTopics.length > 0) && (
+        <section className="mt-10">
+          <div className="flex items-baseline justify-between gap-4 mb-3">
+            <h2 className="heading text-[15px]">Their playbook</h2>
+            <span className="caption">From their live ads, ranked by conversion score</span>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <div className="card p-5">
+              <h3 className="text-[13px] font-medium text-ink-2">Hooks they keep paying for</h3>
+              <ol className="m-0 mt-3 p-0 list-none flex flex-col gap-3">
+                {playbookHooks.map((a, i) => (
+                  <li key={a.id} className="flex gap-3">
+                    <span className="text-[12px] text-ink-3 tnum w-4 shrink-0 pt-0.5">{i + 1}</span>
+                    <div className="min-w-0">
+                      <a href={libraryLink(a.archive_id)} target="_blank" rel="noreferrer" className="text-[14px] font-medium leading-snug hover:underline">
+                        &ldquo;{cleanCopy(a.hook)}&rdquo;
+                      </a>
+                      <div className="caption mt-0.5">
+                        {[daysRunning(a, today) !== null ? `${daysRunning(a, today)} days` : null, a.variants > 1 ? `${a.variants} versions` : null, a.topic ? a.topic : null, `score ${a.score}`].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="card p-5">
+              <h3 className="text-[13px] font-medium text-ink-2">What their ads are about</h3>
+              <ul className="m-0 mt-3 p-0 list-none flex flex-col gap-2">
+                {playbookTopics.map((t) => (
+                  <li key={t.topic} className="flex items-center justify-between gap-3 text-[13.5px]">
+                    <span className="capitalize">{t.topic}</span>
+                    <span className="caption tnum">{t.ads} ad{t.ads === 1 ? "" : "s"} · avg {t.avgScore}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="mt-10">
         <h2 className="heading text-[15px] mb-3">Organic social</h2>
@@ -318,9 +364,14 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
           </div>
         ) : shown.length ? (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-            {shown.slice(0, 60).map((a) => (
-              <AdCard key={a.id} ad={a} rivalName={rival.name} />
-            ))}
+            <p className="caption col-span-full m-0 -mb-1">
+              Score: how well an ad is working for them, 0-100, from how long it has run, its reach rank, how many versions run, and engagement on the post it also runs as. Hover a score for its parts.
+            </p>
+            {groupAdVersions(shown)
+              .slice(0, 60)
+              .map(({ lead, versions }) => (
+                <AdCard key={lead.id} ad={lead} rivalName={rival.name} versions={versions} />
+              ))}
           </div>
         ) : (
           <div className="card p-8 text-center text-[13.5px] text-ink-2">{showStopped ? "No stopped ads yet." : "No active ads right now."}</div>

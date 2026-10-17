@@ -1,6 +1,7 @@
 import { env, isWorkerConfigured } from "@/lib/env";
 
 import type { ScrapedAd } from "./parse";
+import type { Search } from "./scrape";
 
 /**
  * The app's side of TRND's scraper worker (worker/server.ts): the read that
@@ -13,7 +14,7 @@ import type { ScrapedAd } from "./parse";
  * straight to its browser instead of over HTTP to itself.
  */
 export interface LocalReader {
-  scrape(search: { pageId: string } | { query: string }, limit: number): Promise<{ ads: ScrapedAd[]; complete: boolean }>;
+  scrape(search: Search, limit: number): Promise<{ ads: ScrapedAd[]; complete: boolean }>;
   fetch(url: string): Promise<{ status: number; html: string }>;
 }
 const g = globalThis as { __trndLocalReader?: LocalReader };
@@ -52,7 +53,7 @@ async function call<T>(path: string, body: unknown, timeoutMs: number): Promise<
   return data as T;
 }
 
-export function fromWorker(search: { pageId: string } | { query: string }, limit: number): Promise<{ ads: ScrapedAd[]; complete: boolean }> {
+export function fromWorker(search: Search, limit: number): Promise<{ ads: ScrapedAd[]; complete: boolean }> {
   if (g.__trndLocalReader) return g.__trndLocalReader.scrape(search, limit);
   return call("/scrape", { search, limit }, 150_000);
 }

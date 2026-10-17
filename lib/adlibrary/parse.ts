@@ -1,3 +1,4 @@
+import { safeText } from "@/lib/format";
 import type { AdFormat } from "@/lib/db/types";
 
 /**
@@ -13,6 +14,8 @@ import type { AdFormat } from "@/lib/db/types";
 
 export interface ScrapedAd {
   archiveId: string;
+  /** The day the ad stopped, for an inactive ad; null while it runs. */
+  endedAt?: string | null;
   pageId: string | null;
   pageName: string | null;
   /** The Page's facebook.com address, e.g. "https://www.facebook.com/brand/". */
@@ -166,7 +169,7 @@ export function toScrapedAd(o: Obj): ScrapedAd | null {
     pageId: str(o.page_id ?? snap.page_id),
     pageName: str(o.page_name ?? snap.page_name),
     pageUrl: str(snap.page_profile_uri ?? o.page_profile_uri),
-    body: body ? body.slice(0, 2000) : null,
+    body: body ? safeText(body.slice(0, 2000)) : null,
     title: str(snap.title) ?? (first ? str(first.title) : null),
     cta: str(snap.cta_text) ?? (first ? str(first.cta_text) : null),
     linkUrl: str(snap.link_url) ?? (first ? str(first.link_url) : null),
@@ -176,6 +179,7 @@ export function toScrapedAd(o: Obj): ScrapedAd | null {
     platforms,
     variants: typeof o.collation_count === "number" && o.collation_count > 0 ? o.collation_count : 1,
     startedAt: day(o.start_date ?? o.startDate),
+    endedAt: day(o.end_date ?? o.endDate),
     active: o.is_active !== false && o.isActive !== false,
   };
 }

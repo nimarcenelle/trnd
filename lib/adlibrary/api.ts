@@ -59,6 +59,8 @@ export function fromArchive(o: Obj): ScrapedAd | null {
     platforms: strs(o.publisher_platforms).map((p) => p.toLowerCase()),
     variants: Math.max(1, new Set(bodies).size),
     startedAt: start,
+    // The day it ended, so a first read can date the stops (lib/diff.ts backfillStopped).
+    endedAt: typeof o.ad_delivery_stop_time === "string" ? o.ad_delivery_stop_time.slice(0, 10) : null,
     // A stop time means it has stopped (inactive reads); active reads carry none.
     active: !o.ad_delivery_stop_time,
     reach,

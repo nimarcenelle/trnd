@@ -23,7 +23,7 @@ no spend, impressions or results for commercial ads, so "still running after N d
 strongest evidence you have. Say "still running after 60 days", never "their best performer". You also read their websites and
 the marketing emails they send subscribers. What a competitor intends is inferred from public signals, never known: say
 "looks like", "suggests", and match your confidence to the evidence.
-Write for a busy founder: short sentences, everyday words. No strategy jargon ("lane", "claim territory", "value
+Write for a busy marketing lead: short sentences, everyday words. No strategy jargon ("lane", "claim territory", "value
 argument", "positioning play"). One idea per sentence.`;
 
 /* ------------------------------ site → rivals ----------------------------- */
@@ -292,6 +292,10 @@ const OpportunitySchema = z.object({
   confidence: LEVEL,
   scores: z.object({ relevance: score, urgency: score, differentiation: score, feasibility: score, confidence: score }),
   recommendation: z.string(),
+  proof: z.string(),
+  you_now: z.string(),
+  steps: z.array(z.string()),
+  impact: z.string(),
   brief: z.object({
     angle: z.string(),
     hook: z.string(),
@@ -311,6 +315,7 @@ const ReportSchema = z.object({
   insights: z.array(z.object({ title: z.string(), line: z.string(), detail: z.string(), status: z.enum(["new", "ongoing", "repeated"]), evidence: z.array(z.string()) })),
   opportunities: z.array(OpportunitySchema),
   rivals: z.array(z.object({ name: z.string(), strategy: z.string(), watch_for: z.string() })),
+  you: z.object({ working: z.array(z.string()), missing: z.array(z.string()), better: z.array(z.string()) }),
   landscape: LandscapeSchema,
 });
 
@@ -521,7 +526,8 @@ ${ranking ? `${ranking}${standingText}\n\n` : ""}# Active Meta ads, highest scor
 Each ad is marked testing (under ${TESTING_DAYS} days), scaling (past ${TESTING_DAYS} days with ${SCALING_VERSIONS}+ versions, or past ${SCALING_DAYS} days), or running.
 ${rivalBlocks}${siteText}${emailText}${ownBlock}${results}${social}${changeBlock}${standingReport}
 
-Write the report the brand's founder reads.${continuity}${ranking ? ` Start from the conversion ranking: the topics and hooks of the highest-scoring ads
+Write the report the brand's marketing team reads. They should know what to do within a minute of opening it: answers
+first, every claim with the number that makes it believable, every recommendation with how to run it.${continuity}${ranking ? ` Start from the conversion ranking: the topics and hooks of the highest-scoring ads
 are what works in this market, so they shape the opportunities and every brief (borrow the topic and the shape of the
 hook, in ${brand.name}'s voice); the lowest-scoring patterns are what to avoid.` : ""} The value is in connecting signals: a new value-focused homepage, a
 discounted email bundle and several savings-themed ads together suggest a coordinated affordability push, not three
@@ -552,10 +558,19 @@ The report is read as a feed: every item is one punchy line first, with the deta
   days running); intent (what they seem to be trying to do, hedged); fit (why it matters or doesn't for ${brand.name},
   against its profile, goal, constraints and past results); urgency and confidence (high, medium, low); scores 1-5 for
   relevance to its customers, urgency, differentiation potential, feasibility for this brand, and confidence; the
-  recommendation in one or two sentences; and a brief, ready to test, in ${brand.name}'s voice: angle, hook (word for
+  recommendation in one or two sentences; proof (one sentence of hard numbers that make the signal believable at a
+  glance: days running, versions, scores, counts, prices, e.g. "3 Dormify ads on dorm planning, live 110-170 days, 2-3
+  versions each, scores 83-91"); you_now (one sentence: what ${brand.name} runs on this today, from its own ads above,
+  with a number, or that it runs nothing on it); steps (3-4 short imperative steps to ship it this week, in order: what to
+  make, where to run it, what to spend or cut, what to measure); impact (one sentence: the result to expect and why,
+  tied to ${brand.name}'s goal${brand.objectives?.target_cost ? `, target cost ${brand.objectives.target_cost}` : ""} and the evidence, hedged, never an invented number); and a brief, ready to test, in ${brand.name}'s voice: angle, hook (word for
   word), offer (or "none"), creative (what is shown, shot by shot or frame by frame), format (e.g. "9:16 UGC video,
   20s" or "email + landing page"), audience, and experiment (what to test against what, and how to tell it worked). For
-  ignore, leave the brief's fields empty. Evidence: the refs.
+  ignore, leave the brief's fields, steps and impact empty. Evidence: the refs.
+- you: ${brand.name}'s own Meta ads against the market, from its ads and the conversion ranking above. working: 1-3
+  things its ads do well, each with the number (score, days, versions) and how it compares; missing: 1-3 things that work
+  for competitors that it doesn't run, naming the competitor and the number; better: 1-3 places it runs the same thing
+  weaker, and what exactly to change. If its ads were not read, say so once in missing and leave the rest empty.
 - rivals: one entry per competitor above with any signal: their strategy in one or two sentences, and what to watch for next.
 - landscape: where ${brand.name} sits in this market.
   - summary: two sentences on how the market is positioned and where ${brand.name} fits.
@@ -651,6 +666,10 @@ export async function writeReport(input: ReportInput): Promise<ReportBody & { la
       urgency: o.urgency,
       confidence: o.confidence,
       recommendation: o.recommendation,
+      proof: o.proof,
+      you_now: o.you_now,
+      steps: o.type === "ignore" ? [] : (o.steps ?? []).filter(Boolean).slice(0, 5),
+      impact: o.impact,
       brief: o.brief,
       evidence: o.type === "ignore" ? resolve(o.evidence) : withEvidence(o.evidence, `${o.title} ${o.signal}`, o.competitors),
       status: input.previous ? (o.status ?? "new") : "new",

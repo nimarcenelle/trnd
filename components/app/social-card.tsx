@@ -7,7 +7,7 @@ import { IconArrowUpRight } from "@/components/icons";
 const LABEL = { instagram: "Instagram", tiktok: "TikTok", facebook: "Facebook" } as const;
 
 /** One company's presence on one platform: size, growth, cadence, engagement and its best recent posts. */
-export default function SocialCard({ profile, growth }: { profile: SocialProfile; growth?: Growth | null }) {
+export default function SocialCard({ profile, growth, flags }: { profile: SocialProfile; growth?: Growth | null; flags?: string[] }) {
   const delta = growth && growth.days > 0 ? growth.to - growth.from : null;
   const top = [...profile.recent].sort((a, b) => (b.likes ?? 0) + (b.views ?? 0) / 20 - ((a.likes ?? 0) + (a.views ?? 0) / 20)).slice(0, 3);
   return (
@@ -45,6 +45,19 @@ export default function SocialCard({ profile, growth }: { profile: SocialProfile
               <div className="text-[20px] font-semibold tnum mt-0.5">{percent(profile.engagement_rate, 2)}</div>
             </div>
           </div>
+          {flags && (
+            <div className={`mt-4 rounded-[10px] px-3.5 py-2.5 text-[13px] leading-[1.5] ${flags.length ? "bg-warn-bg text-warn" : "bg-subtle text-ink-3"}`}>
+              {flags.length ? (
+                <ul className="m-0 p-0 list-none flex flex-col gap-1">
+                  {flags.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
+              ) : (
+                "Nothing unusual this month: growth and engagement in line with the accounts you watch."
+              )}
+            </div>
+          )}
           {top.length > 0 && (
             <div className="mt-4 border-t border-line pt-3">
               <div className="caption mb-1.5">Top recent posts</div>

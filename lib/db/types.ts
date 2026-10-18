@@ -81,6 +81,8 @@ export interface SourceHealth {
 export interface RivalHealth {
   ads?: SourceHealth;
   site?: SourceHealth;
+  /** When stopped ads were last read back from the Ad Library (lib/scan.ts backfillHistory). */
+  history?: { at: string };
 }
 
 export type EmailStatus = "subscribed" | "manual" | "receiving";
@@ -182,6 +184,8 @@ export interface ReportBody {
   /** Each notable competitor move, judged for this brand: copy it, adapt it, or skip it. */
   translations?: Translation[];
   rivals: { name: string; strategy: string; watch_for: string }[];
+  /** The brand's own ads against the market: what works, what's missing, where to get better. Absent on older reports. */
+  you?: { working: string[]; missing: string[]; better: string[] };
   /** Where the brand sits against each rival; absent on reports written before it existed. */
   landscape?: Landscape;
   changes?: { launched: number; stopped: number; proven: number; site?: number; emails?: number };
@@ -206,6 +210,14 @@ export interface Opportunity {
   urgency: Level;
   confidence: Level;
   recommendation: string;
+  /** The numbers that make the signal believable at a glance. Absent on older reports. */
+  proof?: string;
+  /** What the brand runs on this today. Absent on older reports. */
+  you_now?: string;
+  /** How to ship it this week, in order. Absent on older reports. */
+  steps?: string[];
+  /** The result to expect and why, tied to the brand's goal. Absent on older reports. */
+  impact?: string;
   /** The campaign to run; empty strings for "ignore". */
   brief: { angle: string; hook: string; offer: string; creative: string; format: string; audience: string; experiment: string };
   evidence: string[];

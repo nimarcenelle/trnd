@@ -78,6 +78,10 @@ describe("the first read writes the last 30 days from the ads' own dates", () =>
     const ended = [{ archiveId: "x", endedAt: "2026-10-12" }, { archiveId: "y", endedAt: "2026-08-30" }, { archiveId: "z", endedAt: null }];
     expect(backfillStopped(ended, now).map((s) => `${s.ad.archiveId}@${s.at.slice(0, 10)}`)).toEqual(["x@2026-10-12"]);
   });
+  it("keeps stops from further back when given a wider window", () => {
+    const ended = [{ archiveId: "x", endedAt: "2026-10-12" }, { archiveId: "y", endedAt: "2026-08-30" }, { archiveId: "old", endedAt: "2026-05-01" }];
+    expect(backfillStopped(ended, now, 90).map((s) => s.ad.archiveId)).toEqual(["x", "y"]);
+  });
 });
 
 describe("an ad unseen for days of reads has stopped", () => {

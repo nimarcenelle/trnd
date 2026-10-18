@@ -1,4 +1,5 @@
-import type { Ad, Opportunity, OpportunityType } from "@/lib/db/types";
+import type { Ad, Objectives, Opportunity, OpportunityType } from "@/lib/db/types";
+import { GOALS } from "@/lib/goals";
 
 import Avatar from "./avatar";
 import CopyBrief from "./copy-brief";
@@ -36,6 +37,8 @@ export function briefText(o: Opportunity): string {
     `Creative: ${b.creative}`,
     `Audience: ${b.audience}`,
     `Test: ${b.experiment}`,
+    ...(o.steps?.length ? ["", "Steps:", ...o.steps.map((x, i) => `${i + 1}. ${x}`)] : []),
+    o.impact ? `Expected: ${o.impact}` : null,
   ];
   return lines.filter((l): l is string => l !== null).join("\n");
 }
@@ -118,5 +121,112 @@ export function OpportunityRow({ o, n, ads, refs }: { o: Opportunity; n: number;
         <Detail o={o} ads={ads} refs={refs} />
       </div>
     </details>
+  );
+}
+
+/** The campaign brief, folded: hook first, then the parts a creator needs, with a copy button. */
+function BriefBlock({ o }: { o: Opportunity }) {
+  const b = o.brief;
+  if (o.type === "ignore" || !b.hook) return null;
+  return (
+    <details className="group border-t border-line">
+      <summary className="px-5 py-3 text-[13px] font-medium text-ink-2 hover:text-ink cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center gap-1.5">
+        <span className="transition-transform group-open:rotate-90">›</span> Campaign brief, ready to hand off
+      </summary>
+      <div className="px-5 pb-5">
+        <blockquote className="m-0 border-l-2 border-ink pl-3 text-[15px] font-medium leading-[1.45]">&ldquo;{b.hook.replace(/^["“]|["”]$/g, "")}&rdquo;</blockquote>
+        <dl className="m-0 mt-3 grid grid-cols-[84px_minmax(0,1fr)] gap-x-3 gap-y-2 text-[13px] leading-[1.5]">
+          <Field k="Angle" v={b.angle} />
+          <Field k="Offer" v={b.offer} />
+          <Field k="Format" v={b.format} />
+          <Field k="Creative" v={b.creative} />
+          <Field k="Audience" v={b.audience} />
+          <Field k="Test" v={b.experiment} />
+        </dl>
+        <CopyBrief text={briefText(o)} />
+      </div>
+    </details>
+  );
+}
+
+function Col({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="px-5 py-4 min-w-0">
+      <div className="text-[12px] font-medium text-ink-3">{title}</div>
+      <div className="mt-2 flex flex-col gap-2 text-[13.5px] leading-[1.55]">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * One move, laid out as the answer: what is working for them and the numbers
+ * that prove it, what it means for this brand against its goal, and how to
+ * run it this week. The brief is a tap away.
+ */
+export function MoveCard({ o, n, ads, refs, objectives }: { o: Opportunity; n: number; ads: Map<string, Ad>; refs: Map<string, SignalRef>; objectives?: Objectives | null }) {
+  const t = OPPORTUNITY[o.type];
+  const goal = GOALS.find((g) => g.value === objectives?.goal);
+  const steps = o.steps?.length ? o.steps : null;
+  return (
+    <article className="card overflow-hidden">
+      <div className="px-5 pt-5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="w-6 h-6 rounded-full bg-ink text-bg text-[12px] font-semibold grid place-items-center shrink-0 tnum">{n}</span>
+          <span className={t.cls} title={t.blurb}>
+            {t.label}
+          </span>
+          {o.status === "new" && <span className="badge badge-pos" title="Added by this scan">New</span>}
+          {o.status === "updated" && <span className="badge badge-info" title="The signals behind it moved this scan">Updated</span>}
+          {o.competitors.slice(0, 3).map((c) => (
+            <span key={c} className="inline-flex items-center gap-1 text-[12.5px] text-ink-2">
+              <Avatar name={c} size={16} />
+              {c}
+            </span>
+          ))}
+          <span className="caption ml-auto hidden sm:inline">
+            Urgency {o.urgency} · confidence {o.confidence}
+          </span>
+        </div>
+        <h3 className="heading text-[18px] leading-snug mt-3">{o.title}</h3>
+        <p className="text-[14px] text-ink-2 leading-[1.55] mt-1">{o.punch ?? o.recommendation}</p>
+      </div>
+      <div className="mt-4 border-t border-line grid grid-cols-[minmax(0,1fr)] lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-line">
+        <Col title="Working for them">
+          <p className="m-0">{o.signal}</p>
+          {o.proof && <p className="m-0 font-medium tnum">{o.proof}</p>}
+          <Evidence ids={o.evidence} ads={ads} refs={refs} label="Proof" />
+        </Col>
+        <Col title="For you">
+          {o.you_now && <p className="m-0">{o.you_now}</p>}
+          <p className="m-0 text-ink-2">{o.fit}</p>
+          {goal && (
+            <p className="m-0 caption">
+              Judged against your goal: {goal.label.toLowerCase()}
+              {objectives?.target_cost ? `, target ${objectives.target_cost}` : ""}
+            </p>
+          )}
+        </Col>
+        <Col title="Do this">
+          <p className="m-0 font-medium">{o.recommendation}</p>
+          {steps && (
+            <ol className="m-0 pl-0 list-none flex flex-col gap-1.5">
+              {steps.map((s, i) => (
+                <li key={i} className="flex gap-2 text-ink-2">
+                  <span className="text-ink-3 tnum w-4 shrink-0">{i + 1}.</span>
+                  <span>{s}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Col>
+      </div>
+      {o.impact && (
+        <div className="border-t border-line px-5 py-3 text-[13.5px] bg-subtle">
+          <span className="font-medium">Why it should work: </span>
+          <span className="text-ink-2">{o.impact}</span>
+        </div>
+      )}
+      <BriefBlock o={o} />
+    </article>
   );
 }

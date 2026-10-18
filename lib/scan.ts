@@ -12,7 +12,7 @@ import { captureError } from "@/lib/errors";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Ad, Brand, OwnAdResult, ReportBody, Rival, RivalEmail, SiteChange, SocialProfile } from "@/lib/db/types";
 import { conversionScore, matchPost, versionsOf, type PostPool } from "@/lib/score";
-import { backfillEvents, backfillStopped, crossedProven, groupAdVersions, isLaunch, readLooksPartial, unseenStopped } from "@/lib/diff";
+import { backfillEvents, backfillStopped, STOPPED_BACKFILL_DAYS, crossedProven, groupAdVersions, isLaunch, readLooksPartial, unseenStopped } from "@/lib/diff";
 import { sendReportEmail } from "@/lib/email";
 import { env, isModelConfigured } from "@/lib/env";
 import { isNoAdsNote, isNoPageNote, isPausedNote, NO_ADS_NOTE, NO_PAGE_NOTE, PAUSED_NOTE } from "@/lib/format";
@@ -281,6 +281,13 @@ export async function scanRival(sb: SupabaseClient, brand: Brand, rival: Rival, 
     await backfillHistory(sb, brand, rival, pageId, upserted, now).catch((err) => console.warn(`[scan] ${rival.name} history:`, (err as Error).message));
     return { ...none, remapped };
   }
+  // A company read before stopped ads were kept from further back (or whose first stopped read
+  // failed) has none on file: read its stopped ads again, at most weekly, so "0 stopped" is real.
+  const noStops = ![...existing.values()].some((a) => !a.active) && !stopped.length;
+  const historyAt = rival.health?.history?.at;
+  if (noStops && (!historyAt || Date.now() - Date.parse(historyAt) > 7 * 86_400_000)) {
+    await backfillHistory(sb, brand, rival, pageId, [], now, { events: false }).catch((err) => console.warn(`[scan] ${rival.name} stopped top-up:`, (err as Error).message));
+  }
 
   const launched = upserted.filter((a) => !existing.has(a.archive_id) && isLaunch(a, rival.last_scraped_at, complete));
   const proven = crossedProven(upserted, rival.last_scraped_at, now.slice(0, 10));
@@ -355,7 +362,7 @@ function handOff(brandId: string, state: ScanState): void {
 }
 
 /** Stopped ads read on a Page's first scan: enough to cover a month of endings. */
-const STOPPED_READ = 40;
+const STOPPED_READ = 60;
 
 /**
  * What a Page's first read can say about the last 30 days, so a fresh brand
@@ -365,8 +372,9 @@ const STOPPED_READ = 40;
  * changes (they are dated when they happened); they fill the timeline and
  * the week's numbers.
  */
-async function backfillHistory(sb: SupabaseClient, brand: Brand, rival: Rival, pageId: string, active: Ad[], now: string): Promise<void> {
-  const { launched, proven } = backfillEvents(active, now);
+async function backfillHistory(sb: SupabaseClient, brand: Brand, rival: Rival, pageId: string, active: Ad[], now: string, opts: { events?: boolean } = {}): Promise<void> {
+  // Launch and proven events come from the first read only; a later top-up adds stops alone.
+  const { launched, proven } = opts.events === false ? { launched: [], proven: [] } : backfillEvents(active, now);
   const rows = [
     ...launched.map(({ ad, at }) => ({ brand_id: brand.id, rival_id: rival.id, ad_id: ad.id, kind: "launched", detected_at: at })),
     ...proven.map(({ ad, at }) => ({ brand_id: brand.id, rival_id: rival.id, ad_id: ad.id, kind: "proven", detected_at: at })),
@@ -378,7 +386,7 @@ async function backfillHistory(sb: SupabaseClient, brand: Brand, rival: Rival, p
   });
   let stoppedCount = 0;
   if (ended?.ads.length) {
-    const stopped = backfillStopped(ended.ads, now);
+    const stopped = backfillStopped(ended.ads, now, STOPPED_BACKFILL_DAYS);
     if (stopped.length) {
       const { data } = await sb
         .from("ads")
@@ -398,6 +406,8 @@ async function backfillHistory(sb: SupabaseClient, brand: Brand, rival: Rival, p
     }
   }
   if (rows.length) await sb.from("ad_changes").insert(rows);
+  rival.health = { ...(rival.health ?? {}), history: { at: now } };
+  await sb.from("rivals").update({ health: rival.health }).eq("id", rival.id);
   console.log(`[scan] ${rival.name}: history ${launched.length} launched, ${proven.length} proven, ${stoppedCount} stopped`);
 }
 

@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import Timeline, { CHANNEL } from "@/components/app/timeline";
 import { getSessionUser } from "@/lib/auth/session";
 import { getBrand, listChanges, listEmails, listRivals, listSiteChanges } from "@/lib/data";
-import { rivalHidden } from "@/lib/format";
+import { rivalHidden, withinDays } from "@/lib/format";
+import { adMovesTakeaway, siteTakeaway } from "@/lib/insight";
 import { buildTimeline, type Channel } from "@/lib/timeline";
 
 export const metadata = { title: "Timeline — TRND" };
@@ -31,6 +32,15 @@ export default async function TimelinePage({ searchParams }: PageProps<"/app/tim
     if (r) p.set("rival", r);
     return `/app/timeline${p.size ? `?${p}` : ""}`;
   };
+  const nameOf = (id: string) => names.get(id) ?? "A competitor";
+  const mine = (id: string) => !rv || id === rv;
+  // What the last week of this channel adds up to, before the list of every move.
+  const takeaway =
+    ch === "ad"
+      ? adMovesTakeaway(adChanges.filter((c) => withinDays(c.detected_at, 7) && names.has(c.rival_id) && mine(c.rival_id)), nameOf)
+      : ch === "site"
+        ? siteTakeaway(site.filter((c) => withinDays(c.detected_at, 7) && names.has(c.rival_id) && mine(c.rival_id)), nameOf)
+        : null;
   const pill = (active: boolean) =>
     `h-8 px-3 inline-flex items-center gap-1.5 rounded-md text-[13px] font-medium shrink-0 ${active ? "bg-bg text-ink shadow-[0_0_0_1px_var(--line),var(--shadow-sm)]" : "text-ink-2 hover:text-ink"}`;
 
@@ -66,6 +76,18 @@ export default async function TimelinePage({ searchParams }: PageProps<"/app/tim
           ))}
         </div>
       </div>
+
+      {takeaway && (
+        <div className="card mt-6 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="text-[12px] font-medium text-ink-3">This week, in a line</div>
+            <p className="text-[14.5px] font-medium leading-[1.5] mt-1">{takeaway}</p>
+          </div>
+          <Link href="/app#moves" className="btn btn-secondary btn-sm shrink-0">
+            What to do about it
+          </Link>
+        </div>
+      )}
 
       <div className="mt-6">
         {events.length ? (

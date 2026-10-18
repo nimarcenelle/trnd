@@ -5,6 +5,8 @@
  * the app deep link (fb://page/ID), or the page's own "pageID".
  */
 
+import { workerFetch } from "./worker";
+
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 
@@ -49,9 +51,11 @@ export async function lookupFacebookPage(ref: string): Promise<{ pageId: string;
       signal: AbortSignal.timeout(15_000),
       cache: "no-store",
     });
-    if (!res.ok) return null;
-    return pageFromHtml(await res.text());
+    const direct = res.ok ? pageFromHtml(await res.text()) : null;
+    if (direct) return direct;
   } catch {
-    return null;
+    // walled or unreachable: the worker's browser may get through
   }
+  const html = await workerFetch(`https://www.facebook.com/${encodeURIComponent(handle)}/`);
+  return html ? pageFromHtml(html) : null;
 }

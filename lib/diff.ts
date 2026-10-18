@@ -123,10 +123,17 @@ export function backfillEvents<T extends Pick<Ad, "started_at" | "active">>(ads:
   return { launched, proven };
 }
 
+/**
+ * How far back a first read keeps stopped ads. Wider than the launch window:
+ * the inactive search comes back ordered by impressions, not by end date, so
+ * a 30-day window kept almost nothing and every company read "0 stopped".
+ */
+export const STOPPED_BACKFILL_DAYS = 90;
+
 /** The stopped ads of an inactive read that ended inside the window, with the day they did. */
-export function backfillStopped<T extends { endedAt?: string | null }>(ads: T[], now: string): { ad: T; at: string }[] {
+export function backfillStopped<T extends { endedAt?: string | null }>(ads: T[], now: string, days = BACKFILL_DAYS): { ad: T; at: string }[] {
   const today = now.slice(0, 10);
-  const windowStart = addDays(today, -BACKFILL_DAYS).slice(0, 10);
+  const windowStart = addDays(today, -days).slice(0, 10);
   return ads.flatMap((ad) => (ad.endedAt && ad.endedAt >= windowStart && ad.endedAt <= today ? [{ ad, at: addDays(ad.endedAt, 0) }] : []));
 }
 

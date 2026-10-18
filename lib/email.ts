@@ -4,10 +4,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Ad, Brand, ReportBody } from "@/lib/db/types";
 import { env, isEmailConfigured } from "@/lib/env";
+import { unsubscribeUrl } from "@/lib/unsubscribe";
 import { cleanCopy, daysRunningOf, libraryLink } from "@/lib/format";
 
 /** Resend over REST. Unconfigured, a send is a logged no-op. */
-async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+export async function sendEmail(to: string, subject: string, html: string, headers?: Record<string, string>): Promise<void> {
   if (!isEmailConfigured) {
     console.warn(`[email] RESEND_API_KEY not set; skipped "${subject}" to ${to}`);
     return;
@@ -15,7 +16,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { authorization: `Bearer ${env.resendApiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({ from: env.emailFrom, to: [to], subject, html }),
+    body: JSON.stringify({ from: env.emailFrom, to: [to], subject, html, ...(headers ? { headers } : {}) }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
@@ -40,7 +41,7 @@ function adCard(e: EmailAd): string {
 }
 
 /** The email, as HTML: the headline, what to do, and the competitor ads our score ranks highest. */
-export function reportEmailHtml(brand: Pick<Brand, "name">, body: ReportBody, topAds: EmailAd[] = [], counts = ""): string {
+export function reportEmailHtml(brand: Pick<Brand, "name">, body: ReportBody, topAds: EmailAd[] = [], counts = "", unsub?: string): string {
   const LABEL = { get_ahead: "Get ahead", win_choice: "Win the choice", counter: "Counter", ignore: "Ignore" } as const;
   const items = body.opportunities?.length
     ? body.opportunities
@@ -57,11 +58,13 @@ export function reportEmailHtml(brand: Pick<Brand, "name">, body: ReportBody, to
 <p style="line-height:1.6">${esc(body.summary)}</p>
 <ul style="padding-left:18px;line-height:1.55">${items.join("")}</ul>${wall}
 <p><a href="${env.siteUrl}/app" style="display:inline-block;background:#111110;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Open the full report</a></p>
+${unsub ? `<p style="font-size:12px;color:#868680;margin-top:32px">You get this because you watch competitors on TRND. <a href="${unsub}" style="color:#868680">Unsubscribe</a> · <a href="${env.siteUrl}/app/settings#notifications" style="color:#868680">Email settings</a></p>` : ""}
 </div>`;
 }
 
 /** The "your competitors moved" email, sent after an update report. */
 export async function sendReportEmail(sb: SupabaseClient, brand: Brand, body: ReportBody, topAds: EmailAd[] = []): Promise<void> {
+  if (brand.email_updates === false) return;
   const { data } = await sb.auth.admin.getUserById(brand.owner_id);
   const to = data.user?.email;
   if (!to) return;
@@ -76,5 +79,9 @@ export async function sendReportEmail(sb: SupabaseClient, brand: Brand, body: Re
         .filter(Boolean)
         .join(" · ")
     : "";
-  await sendEmail(to, `Your competitors: ${body.headline}`, reportEmailHtml(brand, body, topAds, counts));
+  const unsub = unsubscribeUrl(env.siteUrl, brand.id);
+  await sendEmail(to, `Your competitors: ${body.headline}`, reportEmailHtml(brand, body, topAds, counts, unsub), {
+    "List-Unsubscribe": `<${unsub}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  });
 }

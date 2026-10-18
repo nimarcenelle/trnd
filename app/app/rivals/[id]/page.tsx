@@ -9,10 +9,12 @@ import { AngleBars, LaunchBars } from "@/components/app/charts";
 import { IconArrowUpRight } from "@/components/icons";
 import { getSessionUser } from "@/lib/auth/session";
 import HandlesForm from "@/components/app/handles-form";
+import DataStatus from "@/components/app/data-status";
+import { coverage } from "@/lib/coverage";
 import InboxCard from "@/components/app/inbox-card";
 import PageForm from "@/components/app/page-form";
 import SocialCard from "@/components/app/social-card";
-import { getBrand, getSiteSnapshot, listAds, listEmails, listReports, listRivals, listSiteChanges, listSnapshots, listSocial } from "@/lib/data";
+import { getBrand, getSelf, getSiteSnapshot, listAds, listEmails, listReports, listRivals, listSiteChanges, listSnapshots, listSocial } from "@/lib/data";
 import { env, isInboxConfigured } from "@/lib/env";
 import { inboxAddress } from "@/lib/inbox/parse";
 import { buildTimeline } from "@/lib/timeline";
@@ -21,6 +23,9 @@ import { growthBy } from "@/lib/social/read";
 import { adStage, daysRunning, TESTING_DAYS } from "@/lib/diff";
 import { libraryLink, cleanCopy, ago, daysRunningOf, isNoPageNote, noPageSearched, todayIso, isNoAdsNote, isPausedNote } from "@/lib/format";
 import { angleMix, weeklyLaunches } from "@/lib/stats";
+import { OpportunityRow } from "@/components/app/opportunity-card";
+import type { SignalRef } from "@/components/app/evidence";
+import { socialFlags, youVsMarket } from "@/lib/insight";
 
 export const metadata = { title: "Rival — TRND" };
 // Pasting a Page starts a scan after the response, inside this route\'s time limit.
@@ -36,14 +41,19 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
   const rival = (await listRivals(brand.id)).find((r) => r.id === id);
   if (!rival) notFound();
 
-  const [ads, [latest], allSocial, siteChanges, emails, snapshot] = await Promise.all([
-    listAds(brand.id, { rivalId: rival.id }),
+  const [allAds, [latest], allSocial, siteChanges, emails, snapshot, self] = await Promise.all([
+    listAds(brand.id),
     listReports(brand.id, 1),
     listSocial(brand.id),
     listSiteChanges(brand.id, { rivalId: rival.id, days: 90 }),
     listEmails(brand.id, { rivalId: rival.id, days: 90 }),
     getSiteSnapshot(rival.id),
+    getSelf(brand.id),
   ]);
+  const ads = allAds.filter((a) => a.rival_id === rival.id);
+  // Every competitor's live ads: what this one's scores are measured against.
+  const market = allAds.filter((a) => a.active && (!self || a.rival_id !== self.id));
+  const mine = self ? allAds.filter((a) => a.rival_id === self.id) : [];
   const address = isInboxConfigured && rival.inbox_token ? inboxAddress(rival.name, rival.inbox_token, env.inboundDomain) : null;
   const social = allSocial.filter((p) => p.rival_id === rival.id);
   const growth = growthBy(await listSnapshots(social.map((p) => p.id)));
@@ -60,6 +70,25 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
   const playbookTopics = topicsByScore(live, 6);
   const today = todayIso();
   const read = latest?.body.rivals.find((r) => r.name.toLowerCase() === rival.name.toLowerCase());
+  // What works for them: their highest-scoring copy, and the topics it is about.
+  const working = groupAdVersions(ads.filter((a) => a.active && a.score !== null && a.score !== undefined))
+    .sort((a, b) => (b.lead.score ?? 0) - (a.lead.score ?? 0))
+    .slice(0, 3);
+  const theirTopics = topicsByScore(ads.filter((a) => a.active), 2);
+  const marketScores = market.filter((a) => a.score !== null && a.score !== undefined).map((a) => a.score!);
+  const marketAvg = marketScores.length ? Math.round(marketScores.reduce((x, y) => x + y, 0) / marketScores.length) : null;
+  const workingLine = theirTopics.length
+    ? `Their best-scoring ads are about ${theirTopics.map((t) => `${t.topic.toLowerCase()} (${t.ads} ad${t.ads === 1 ? "" : "s"}, average ${t.avgScore})`).join(" and ")}${marketAvg !== null ? `. The average ad you watch scores ${marketAvg}.` : "."}`
+    : null;
+  // What it means for the brand: the report's moves that involve them, and their ads against the brand's own.
+  const name = rival.name.toLowerCase();
+  const moves = (latest?.body.opportunities ?? []).filter((o) => o.competitors.some((c) => c.toLowerCase().includes(name) || name.includes(c.toLowerCase())));
+  const vs = youVsMarket({ you: mine, them: ads, nameOf: () => rival.name });
+  const byArchive = new Map(allAds.map((a) => [a.archive_id, a]));
+  const refs = new Map<string, SignalRef>([
+    ...siteChanges.map((c) => [`site:${c.id}`, { kind: "site" as const, title: c.title, href: c.url }] as const),
+    ...emails.map((e) => [`email:${e.id}`, { kind: "email" as const, title: e.subject, href: `/app/rivals/${rival.id}?view=emails#${e.id}` }] as const),
+  ]);
   const showStopped = view === "stopped";
   const showSite = view === "site";
   const showEmails = view === "emails";
@@ -90,6 +119,10 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
         )}
       </header>
 
+      <div className="mt-4">
+        <DataStatus rival={rival} inbox={isInboxConfigured} coverage={coverage(rival, { activeAds: live.length, engagedAds: live.filter((a) => a.engagement).length, inbox: isInboxConfigured })} />
+      </div>
+
       {rival.page_id && (
         <details className="mt-3">
           <summary className="caption hover:text-ink cursor-pointer">
@@ -118,12 +151,69 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
         rival.last_error && <div className="mt-6 rounded-xl border border-neg/30 bg-neg-bg px-5 py-4 text-[13.5px] text-neg">{rival.last_error}</div>
       )}
 
-      <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {working.length > 0 && (
+        <section className="mt-8">
+          <div className="flex items-baseline justify-between gap-4 mb-1">
+            <h2 className="heading text-[15px]">What&apos;s working for them, and why</h2>
+            <span className="caption hidden sm:block">Their highest-scoring ads · tap a score for why</span>
+          </div>
+          {workingLine && <p className="text-[14px] text-ink-2 leading-[1.6] mb-3 max-w-[860px]">{workingLine}</p>}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+            {working.map(({ lead, versions }) => (
+              <AdCard key={lead.id} ad={lead} rivalName={rival.name} versions={versions} market={market} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="mt-10">
+        <div className="flex items-baseline justify-between gap-4 mb-3">
+          <h2 className="heading text-[15px]">What it means for {brand.name}</h2>
+          <span className="caption hidden sm:block">Judged against your ads and goals</span>
+        </div>
+        {moves.length > 0 && (
+          <ol className="list-none m-0 p-0 card divide-y divide-line mb-3">
+            {moves.map((o, n) => (
+              <li key={n}>
+                <OpportunityRow o={o} n={n + 1} ads={byArchive} refs={refs} />
+              </li>
+            ))}
+          </ol>
+        )}
+        {vs.missing.length + vs.better.length + vs.working.length > 0 ? (
+          <div className="card grid grid-cols-[minmax(0,1fr)] md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-line">
+            {(
+              [
+                ["Where you beat them", vs.working, "text-pos"],
+                ["Working for them, missing from you", vs.missing, "text-warn"],
+                ["Where to get better", vs.better, "text-brand"],
+              ] as const
+            ).map(([title, items, tone]) => (
+              <div key={title} className="px-5 py-4">
+                <div className={`text-[12px] font-medium ${tone}`}>{title}</div>
+                {items.length ? (
+                  <ul className="m-0 mt-2 p-0 list-none flex flex-col gap-2 text-[13.5px] leading-[1.55]">
+                    {items.map((x) => (
+                      <li key={x}>{x}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="m-0 mt-2 text-[13.5px] text-ink-3">Nothing stands out.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          !moves.length && <p className="text-[13.5px] text-ink-2">Nothing to act on against {rival.name} in this report. Their moves are still tracked below.</p>
+        )}
+      </section>
+
+      <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           ["Live ads", live.length, "", "Running now"],
           ["Testing", live.filter((a) => adStage(a, today) === "testing").length, "text-brand", `Live under ${TESTING_DAYS} days`],
           ["Scaling", live.filter((a) => adStage(a, today) === "scaling").length, "text-pos", "Kept and expanded"],
-          ["Stopped", stopped.length, stopped.length ? "text-neg" : "", "Since we started watching"],
+          ["Stopped", stopped.length, stopped.length ? "text-neg" : "", rival.health?.history ? "Ended in the last 90 days" : "Since we started watching"],
         ].map(([label, n, tone, hint]) => (
           <div key={label as string} className="card px-4 py-3.5">
             <div className="text-[13px] text-ink-2">{label}</div>
@@ -205,7 +295,7 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
         {social.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2">
             {social.map((p) => (
-              <SocialCard key={p.id} profile={p} growth={growth.get(p.id)} />
+              <SocialCard key={p.id} profile={p} growth={growth.get(p.id)} flags={socialFlags(p, growth.get(p.id), allSocial)} />
             ))}
           </div>
         ) : (
@@ -359,12 +449,12 @@ export default async function RivalPage({ params, searchParams }: PageProps<"/ap
         ) : shown.length ? (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             <p className="caption col-span-full m-0 -mb-1">
-              Score: how well an ad is working for them, 0-100, from how long it has run, its reach rank, how many versions run, and engagement on the post it also runs as. Hover a score for its parts.
+              Score: how well an ad is working for them, 0-100, from how long it has run, its reach rank, how many versions run, and engagement on the post it also runs as. Tap “Why it scores” on any ad.
             </p>
             {groupAdVersions(shown)
               .slice(0, 60)
               .map(({ lead, versions }) => (
-                <AdCard key={lead.id} ad={lead} rivalName={rival.name} versions={versions} />
+                <AdCard key={lead.id} ad={lead} rivalName={rival.name} versions={versions} market={market} />
               ))}
           </div>
         ) : (

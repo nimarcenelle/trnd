@@ -49,8 +49,11 @@ export async function listAds(brandId: string, opts: { rivalId?: string; activeO
   if (opts.rivalId) q = q.eq("rival_id", opts.rivalId);
   if (opts.activeOnly) q = q.eq("active", true);
   const { data } = await q.order("started_at", { ascending: true, nullsFirst: false }).limit(1000);
-  return (data ?? []) as Ad[];
+  return ((data ?? []) as Ad[]).map(withStoredImage);
 }
+
+/** Show our stored copy of an ad's image when we have one: Facebook's own links expire. */
+const withStoredImage = (a: Ad): Ad => (a.stored_image_url ? { ...a, image_url: a.stored_image_url } : a);
 
 export async function listReports(brandId: string, limit = 10): Promise<Report[]> {
   const sb = await createServerSupabase();
@@ -68,7 +71,7 @@ export async function listChanges(brandId: string, sinceDays = 14): Promise<(AdC
     .gte("detected_at", since)
     .order("detected_at", { ascending: false })
     .limit(200);
-  return (data ?? []) as (AdChange & { ad: Ad | null })[];
+  return ((data ?? []) as (AdChange & { ad: Ad | null })[]).map((c) => (c.ad ? { ...c, ad: withStoredImage(c.ad) } : c));
 }
 
 export async function listResults(brandId: string): Promise<OwnAdResult[]> {

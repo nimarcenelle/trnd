@@ -11,7 +11,10 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getBrand } from "@/lib/data";
 import { adminSupabase } from "@/lib/db/supabase";
 import { MAX_RIVALS } from "@/lib/db/types";
+import type { Brand } from "@/lib/db/types";
 import { isModelConfigured, isStripeConfigured } from "@/lib/env";
+import { captureError } from "@/lib/errors";
+import { enqueueScan } from "@/lib/jobs";
 import { isScanning, SCAN_MIN_GAP_MS } from "@/lib/format";
 import { scanBrand } from "@/lib/scan";
 import { parseAdsExport } from "@/lib/results";
@@ -163,10 +166,7 @@ export async function setPageAction(_prev: FormState & { saved?: boolean }, form
   }
   // Separate so it works before 0102_page_source.sql has run.
   await sb.from("rivals").update({ page_source: "owner" }).eq("id", rival.id);
-  if (!isScanning(brand)) {
-    await sb.from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
-    after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
-  }
+  await startScan(brand);
   revalidatePath("/app", "layout");
   return { saved: true };
 }
@@ -199,18 +199,33 @@ export async function updateProfileAction(_prev: FormState & { saved?: boolean }
   return { saved: true };
 }
 
-/** Start a scan now and return at once; the dashboard polls until it is done. */
+/**
+ * Start a scan with a report: queued for the worker when the scan queue is
+ * on, else run after the response, inside this route's time limit.
+ */
+async function startScan(brand: Brand, resuming = false): Promise<void> {
+  if (!resuming && isScanning(brand)) return;
+  if (await enqueueScan(brand.id, { kind: "manual", forceReport: true })) return;
+  if (!resuming) await adminSupabase().from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
+  after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => captureError(err, { where: "scan", brandId: brand.id })));
+}
+
+/** Start a scan now and return at once; the dashboard polls until it is done. A scan finished minutes ago isn't run again (each one costs). */
 export async function scanNowAction(): Promise<void> {
   const { brand } = await requireBrand();
   if (isScanning(brand)) redirect("/app");
   // A scan cut short resumes regardless of when it started (lib/scan.ts reads brands.scan_state).
   const resuming = brand.scan_status === "running" && Boolean(brand.scan_state);
   if (!resuming && brand.last_scan_at && Date.now() - Date.parse(brand.last_scan_at) < SCAN_MIN_GAP_MS) redirect("/app?scan=recent");
-  if (!resuming) {
-    await adminSupabase().from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
-  }
-  after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
+  await startScan(brand, resuming);
   redirect("/app");
+}
+
+/** Turn the update emails on or off. */
+export async function updateEmailPrefsAction(formData: FormData): Promise<void> {
+  const { brand } = await requireBrand();
+  await adminSupabase().from("brands").update({ email_updates: formData.get("email_updates") === "on" }).eq("id", brand.id);
+  revalidatePath("/app/settings");
 }
 
 export async function checkoutAction(): Promise<void> {

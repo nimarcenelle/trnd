@@ -51,13 +51,42 @@ get ahead, win the choice, counter, or ignore, each with a campaign brief.
 
 ## The scraper
 
-`lib/adlibrary/scrape.ts` fetches the public Ad Library page (`facebook.com/ads/library/?view_all_page_id=…`, active
-ads, every country, most impressions first) with a plain `fetch`. The first page of results is JSON embedded in the HTML.
+`lib/adlibrary/scrape.ts` reads the public Ad Library page (`facebook.com/ads/library/?view_all_page_id=…`, active ads,
+every country, most impressions first) with a plain `fetch`. The first page of results is JSON embedded in the HTML.
 Later pages come from the same GraphQL query the page itself calls. `lib/adlibrary/parse.ts` walks every JSON payload
 for objects with an `ad_archive_id` and a `snapshot`, so it survives Meta moving things around.
 
-If Meta answers with a login wall (it sometimes does to datacenter IPs), the same URL goes through an Apify Ad Library
-actor when `APIFY_TOKEN` is set. Without the token, the rival shows the error.
+**The scraper worker** (`worker/`) is the first reader: a small always-on service running a real Chrome (Playwright)
+behind a residential proxy, so Meta sees a person at home, not a cloud server. The app calls it over HTTP
+(`lib/adlibrary/worker.ts`); it also fetches Facebook Pages for Page-finding. When it's down or walled, the readers
+below take over. Deploy it on Railway:
+
+1. New project → Deploy from GitHub repo → this repo. `railway.json` points Railway at `worker/Dockerfile`.
+2. Variables: `SCRAPER_KEY` (any long random string), `PROXY_URL` (`http://user:pass@host:port` from a residential
+   proxy provider), optionally `WORKER_CONCURRENCY` (3).
+3. Settings → Networking → Generate domain. Put that URL in Vercel as `SCRAPER_URL`, and the same `SCRAPER_KEY`.
+4. Check `https://<worker>/health`, then `https://<site>/api/health?probe=<brand>&key=<CRON_SECRET>`: `"via": "worker"`.
+
+Each ad's image is copied to Supabase Storage (`creatives` bucket, `lib/creatives.ts`) the first time it's seen, since
+Facebook's image links expire. Every company shows a **data coverage** score (`lib/coverage.ts`: Page found, ads read
+recently and fully, engagement matched, site read, emails), and the Briefing the average. `/api/health?key=<CRON_SECRET>`
+reports the fleet: the share of companies read in the last day, why the rest failed, the worker's state. The daily cron
+emails `OPS_EMAIL` when that share drops below 95% or the worker is down.
+
+Without the worker, Meta walls cloud servers it takes for bots, so the direct read looks like a returning browser (`lib/adlibrary/session.ts`):
+it visits the library first, keeps the cookies Facebook sets (including the `datr` set from script), and sends them
+with Chrome's headers. When the wall still comes up, reads go, in order, to:
+
+1. **Meta's official Ad Library API** (`lib/adlibrary/api.ts`, `META_ACCESS_TOKEN`): free and never walled, but for
+   commercial ads it only returns ads shown in the EU, without images. In return it gives each ad's EU reach, which
+   ranks ads. Ads aren't marked stopped across a switch between the API and the full library.
+2. **Apify** (`APIFY_TOKEN`), paid, only when set. A 402 or a refused token switches it off for 15 minutes. To keep
+   the bill down, a paid read takes the top `APIFY_ADS_PER_RIVAL` ads (25) and runs every `APIFY_EVERY_DAYS` (2) per
+   company (never-read and failing companies right away; free reads stay daily). Instagram/TikTok are read every
+   `SOCIAL_EVERY_DAYS` (2) and Facebook posts every `FACEBOOK_POSTS_EVERY_DAYS` (7).
+
+`/api/health?probe=<brand>&key=<CRON_SECRET>` runs one search from the deployment through the free readers and says
+which one worked.
 
 Run the whole pipeline once for a real business, no database or login (needs `OPENAI_API_KEY`):
 
@@ -81,7 +110,7 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql`, `0104_ad_scores.sql`, `0105_scan_state.sql`, `0106_candidates.sql` and `0107_ads_confirmed.sql`, safe to re-run). They create
+`0101_brand_intel.sql` through `0110_jobs_usage_email.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
 `site_snapshots`, `site_changes` and `emails`, and leave the old
 product's tables alone (drop them when convenient).
@@ -93,6 +122,23 @@ gives you the MX records), add a webhook for `email.received` pointing at `https
 signing secret (`whsec_…`) as `INBOUND_SECRET`; the body is fetched with `RESEND_API_KEY`. Any other inbound service
 (a Cloudflare Email Worker, Postmark) can post `{from, to, subject, text, html}` as JSON to
 `/api/inbound?secret=<INBOUND_SECRET>`. Without these, everything else runs and the Emails tabs say how to turn it on.
+
+## Production
+
+- **Scans run on the worker** with `SCAN_QUEUE=1` (on Vercel and the worker): "Scan now", Page fixes and the daily
+  cron queue a job in `scan_jobs` (`lib/jobs.ts`); the worker claims jobs (`claim_scan_job`, skip-locked, reclaims
+  jobs a crashed worker left running), runs `WORKER_SCANS` at once with no time limit, retries a failure twice (10 and
+  20 minutes later), and checks the fleet's data health when the day's queue empties (`worker/scans.ts`). The worker
+  needs the app's whole environment for this. Without the queue, scans run in Vercel functions as before.
+- **Cost guards**: every model call is logged to `ai_usage` per brand; a scan stops calling the model once the brand
+  has used `AI_DAILY_TOKENS` in 24 hours (`withAiBudget`, `lib/ai/openai.ts`). "Scan now" waits
+  10 minutes after a scan (`SCAN_MIN_GAP_MS`, `lib/format.ts`).
+- **Email**: update emails carry a signed unsubscribe link and one-click `List-Unsubscribe` headers
+  (`/api/unsubscribe`, `lib/unsubscribe.ts`); owners switch them in Settings → Emails (`brands.email_updates`).
+- **Errors** go to Sentry with `SENTRY_DSN` (`lib/errors.ts`, no SDK): every server error (`instrumentation.ts`),
+  failed scans, and the worker.
+- **CI** (`.github/workflows/ci.yml`): typecheck, lint, unit tests, build, then the Playwright smoke test (`e2e/`:
+  public pages, sign-in redirect, API routes) against the production build.
 
 ## Layout
 

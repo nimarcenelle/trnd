@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import Avatar from "@/components/app/avatar";
+import { LogoProvider } from "@/components/app/logos";
 import { SideNav, TopTabs, type RivalLink } from "@/components/app/side-nav";
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
@@ -9,6 +10,7 @@ import { signOutAction } from "@/lib/auth/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
 import { getBrand, listAds, listRivals } from "@/lib/data";
+import { domainOf } from "@/lib/adlibrary/match";
 import { ago, isNoPageNote, isScanning, isNoAdsNote, isPausedNote, rivalHidden } from "@/lib/format";
 
 export default async function AppLayout({ children }: LayoutProps<"/app">) {
@@ -28,8 +30,15 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
       error: Boolean(r.last_error) && !isNoPageNote(r.last_error) && !isNoAdsNote(r.last_error) && !isPausedNote(r.last_error),
     }));
   const setup = !brand || (!brand.last_scan_at && !scanning);
+  // Every company's domain by name, so logos show wherever a name does.
+  const domains: Record<string, string> = {};
+  for (const [name, site] of [...rivals.map((r) => [r.name, r.website] as const), ...(brand ? [[brand.name, brand.url] as const] : [])]) {
+    const d = domainOf(site);
+    if (d) domains[name.trim().toLowerCase()] = d;
+  }
 
   return (
+    <LogoProvider domains={domains}>
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
       <aside className="hidden lg:flex flex-col sticky top-0 h-dvh border-r border-line bg-subtle px-3 py-4">
         <div className="px-2.5 h-8 flex items-center">
@@ -103,5 +112,6 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
         <main className="flex-1 w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 py-7 lg:py-9">{children}</main>
       </div>
     </div>
+    </LogoProvider>
   );
 }

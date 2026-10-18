@@ -65,6 +65,8 @@ export async function findPage(company: Company, opts: { exclude?: string[] } = 
   const ref: RivalRef = { name: company.name, website: company.website, facebook, aliases: [] };
   const tried: string[] = [];
   const pool = new Map<string, ScrapedAd>();
+  // When Meta walls the direct read, searches go through the paid backup: allow two per company, not one per guess.
+  let paid = 0;
   let firstError: unknown = null;
   let anyRead = false;
 
@@ -100,7 +102,8 @@ export async function findPage(company: Company, opts: { exclude?: string[] } = 
     if (!t || tried.some((x) => x.toLowerCase() === t.toLowerCase())) return;
     tried.push(t);
     try {
-      const { ads } = await scrapeAds({ query: t }, 60);
+      const { ads, via } = await scrapeAds({ query: t }, 60, { backup: paid < 2 });
+      if (via === "apify") paid++;
       anyRead = true;
       for (const ad of ads) if (ad.pageId && !exclude.has(ad.pageId)) pool.set(ad.archiveId, ad);
     } catch (err) {
@@ -145,7 +148,7 @@ export async function findPage(company: Company, opts: { exclude?: string[] } = 
     tried.push(`facebook.com/${h}`);
     if (!page || exclude.has(page.pageId)) continue;
     try {
-      const { ads } = await scrapeAds({ pageId: page.pageId }, 12);
+      const { ads } = await scrapeAds({ pageId: page.pageId }, 12, { backup: false });
       for (const ad of ads) pool.set(ad.archiveId, { ...ad, pageId: ad.pageId ?? page.pageId, pageName: ad.pageName ?? page.pageName });
     } catch {
       // a Page we cannot read adds nothing

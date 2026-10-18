@@ -19,6 +19,8 @@ export interface Brand {
   stripe_subscription_id: string | null;
   scan_status: "idle" | "running" | "error";
   scan_error: string | null;
+  /** The owner gets the update emails (unsubscribe turns this off). */
+  email_updates?: boolean;
   scan_started_at: string | null;
   /** The competitor candidates setup did not seat, and the swaps the first scan made (lib/rivals.ts); null before 0106. */
   candidates?: { spares: SpareCandidate[]; swapped: { out: string; in: string; at: string }[] } | null;
@@ -61,7 +63,26 @@ export interface Rival {
   email_status?: EmailStatus | null;
   email_note?: string | null;
   site_checked_at?: string | null;
+  /** What the last pull from each source found. */
+  health?: RivalHealth | null;
   created_at: string;
+}
+
+export interface SourceHealth {
+  at: string;
+  ok: boolean;
+  /** Ads read, or products in the catalog. */
+  count?: number | null;
+  /** "library" or "apify" for ads. */
+  via?: string | null;
+  note?: string | null;
+}
+
+export interface RivalHealth {
+  ads?: SourceHealth;
+  site?: SourceHealth;
+  /** When stopped ads were last read back from the Ad Library (lib/scan.ts backfillHistory). */
+  history?: { at: string };
 }
 
 export type EmailStatus = "subscribed" | "manual" | "receiving";
@@ -96,6 +117,8 @@ export interface Ad {
   rank_total?: number | null;
   topic?: string | null;
   engagement?: AdEngagement | null;
+  /** Our copy of the image in Supabase Storage (Facebook's links expire). */
+  stored_image_url?: string | null;
   /** The conversion score, 0-100 (lib/score.ts). */
   score?: number | null;
   score_parts?: ScoreParts | null;
@@ -152,7 +175,8 @@ export interface ReportBody {
    * Patterns across ads, sites and emails. Evidence holds ad archive ids,
    * "site:<site_changes.id>" and "email:<emails.id>".
    */
-  insights: { title: string; detail: string; evidence: string[]; status?: "new" | "ongoing" | "repeated" }[];
+  /** `line`: the one-sentence version shown in the feed; absent on older reports. */
+  insights: { title: string; line?: string; detail: string; evidence: string[]; status?: "new" | "ongoing" | "repeated" }[];
   /** What to do about each competitor move, ranked. Absent on reports written before the opportunity engine. */
   opportunities?: Opportunity[];
   /** Older reports: ads to make next. */
@@ -160,6 +184,8 @@ export interface ReportBody {
   /** Each notable competitor move, judged for this brand: copy it, adapt it, or skip it. */
   translations?: Translation[];
   rivals: { name: string; strategy: string; watch_for: string }[];
+  /** The brand's own ads against the market: what works, what's missing, where to get better. Absent on older reports. */
+  you?: { working: string[]; missing: string[]; better: string[] };
   /** Where the brand sits against each rival; absent on reports written before it existed. */
   landscape?: Landscape;
   changes?: { launched: number; stopped: number; proven: number; site?: number; emails?: number };
@@ -172,6 +198,8 @@ export type Level = "high" | "medium" | "low";
 export interface Opportunity {
   type: OpportunityType;
   title: string;
+  /** One sentence for the feed: what to do and the number behind it. Absent on older reports. */
+  punch?: string;
   competitors: string[];
   /** What was observed, across channels. */
   signal: string;
@@ -182,6 +210,14 @@ export interface Opportunity {
   urgency: Level;
   confidence: Level;
   recommendation: string;
+  /** The numbers that make the signal believable at a glance. Absent on older reports. */
+  proof?: string;
+  /** What the brand runs on this today. Absent on older reports. */
+  you_now?: string;
+  /** How to ship it this week, in order. Absent on older reports. */
+  steps?: string[];
+  /** The result to expect and why, tied to the brand's goal. Absent on older reports. */
+  impact?: string;
   /** The campaign to run; empty strings for "ignore". */
   brief: { angle: string; hook: string; offer: string; creative: string; format: string; audience: string; experiment: string };
   evidence: string[];

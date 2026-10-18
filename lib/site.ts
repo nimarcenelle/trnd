@@ -5,6 +5,8 @@
  * r.jina.ai reader, which renders it.
  */
 
+import { fetchRetry } from "@/lib/retry";
+
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 const MAX_CHARS = 12_000;
@@ -39,10 +41,10 @@ export function htmlToText(html: string): string {
 /** A GET that answers null on any failure. */
 export async function get(url: string, headers: Record<string, string> = {}): Promise<string | null> {
   try {
-    const res = await fetch(url, {
+    const res = await fetchRetry(url, {
       headers: { "user-agent": UA, "accept-language": "en-US,en;q=0.9", ...headers },
       redirect: "follow",
-      signal: AbortSignal.timeout(20_000),
+      timeoutMs: 20_000,
       cache: "no-store",
     });
     return res.ok ? await res.text() : null;

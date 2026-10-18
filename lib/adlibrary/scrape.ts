@@ -1,22 +1,28 @@
+import { assertApifyUp, noteApifyStatus } from "@/lib/apify";
 import { env } from "@/lib/env";
+import { fetchRetry } from "@/lib/retry";
 
+import { fromMetaApi, isMetaApiConfigured } from "./api";
 import { graphqlBlocks, jsonBlocks, looksBlocked, pageTokens, parsePayloads, type ScrapedAd } from "./parse";
+import { UA } from "./session";
+import { fromWorker, hasWorker } from "./worker";
 
 /**
  * The Meta Ad Library, read the way the browser reads it: GET the library
  * page (the first page of results is in the HTML), then ask the page's own
  * GraphQL query for the rest. No login, no browser, no API key.
  *
- * Meta sometimes answers a datacenter IP with a login wall. When that happens
- * and APIFY_TOKEN is set, the same search goes through the Apify Ad Library
- * actor instead; without it the scan says it was blocked.
+ * Meta sometimes answers a datacenter IP with a login wall. The read first
+ * looks like a returning browser (lib/adlibrary/session.ts). When the wall
+ * still comes up, the same search goes to Meta's official Ad Library API
+ * (META_ACCESS_TOKEN: free, but only ads shown in the EU), then to the paid
+ * Apify actor if APIFY_TOKEN is set. Without either, the scan says it was
+ * blocked.
  */
 
 const LIBRARY = "https://www.facebook.com/ads/library/";
 const GRAPHQL = "https://www.facebook.com/api/graphql/";
 const PAGE_SIZE = 30;
-const UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 
 /** `status`: active ads (the default) or the ones that have stopped, newest end first. `facet`: one slice of the results. */
 export type Search = ({ pageId: string } | { query: string }) & { status?: "active" | "inactive"; facet?: Facet };
@@ -32,7 +38,7 @@ export interface ScrapeResult {
   /** Every active ad was read. False means a later page could not be fetched,
    * so an ad missing from this read may still be running. */
   complete: boolean;
-  via: "library" | "apify";
+  via: "worker" | "library" | "api" | "apify";
 }
 
 export class ScrapeBlockedError extends Error {}
@@ -250,7 +256,7 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
     });
     let page;
     try {
-      const r = await fetch(GRAPHQL, {
+      const r = await fetchRetry(GRAPHQL, {
         method: "POST",
         headers: {
           "user-agent": UA,
@@ -267,7 +273,7 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
           ...(cookies ? { cookie: cookies } : {}),
         },
         body,
-        signal: AbortSignal.timeout(20_000),
+        timeoutMs: 20_000,
         cache: "no-store",
       });
       const text = await r.text();
@@ -315,28 +321,74 @@ async function fromLibrary(search: Search, limit: number): Promise<ScrapeResult>
 }
 
 /** The same search through the Apify Ad Library actor; its items share Meta's shape. */
-async function fromApify(search: Search, limit: number): Promise<ScrapeResult> {
+async function fromApify(search: Search, wanted: number): Promise<ScrapeResult> {
+  // Apify bills per ad: a paid read takes the top APIFY_ADS_PER_RIVAL by impressions, not the full free-read count.
+  const limit = Math.min(wanted, env.apifyAdsPerRival);
   const url = `https://api.apify.com/v2/acts/${env.apifyAdLibraryActor}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`;
-  const res = await fetch(url, {
+  assertApifyUp();
+  const res = await fetchRetry(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ urls: [{ url: libraryUrl(search) }], count: limit, "scrapePageAds.activeStatus": search.status ?? "active" }),
     signal: AbortSignal.timeout(240_000),
     cache: "no-store",
   });
+  noteApifyStatus(res.status);
   if (!res.ok) throw new Error(`Apify Ad Library actor answered ${res.status}`);
   const items = (await res.json()) as unknown[];
   const { ads } = parsePayloads([items]);
   return { ads: ads.slice(0, limit), complete: ads.length < limit, via: "apify" };
 }
 
-/** Active ads for a Page, or for a keyword, most impressions first. */
-export async function scrapeAds(search: Search, limit = env.adsPerRival): Promise<ScrapeResult> {
-  try {
-    return await fromLibrary(search, limit);
-  } catch (err) {
-    if (!env.apifyToken) throw err;
-    console.warn("[adlibrary] direct read failed, trying Apify:", (err as Error).message);
+/** When Meta last walled the direct read: for a while after, go straight to the fallbacks. */
+let blockedUntil = 0;
+const BLOCK_PAUSE_MS = 10 * 60_000;
+
+/**
+ * Active ads for a Page, or for a keyword, most impressions (or reach) first.
+ * In order: TRND's scraper worker (a real browser behind a residential proxy),
+ * the direct read, Meta's API, the paid Apify actor. `backup:
+ * false` never pays for Apify (for searches that are nice to have).
+ */
+export async function scrapeAds(search: Search, limit = env.adsPerRival, opts: { backup?: boolean } = {}): Promise<ScrapeResult> {
+  const paid = opts.backup !== false && Boolean(env.apifyToken);
+  const errors: string[] = [];
+
+  if (hasWorker()) {
+    try {
+      const { ads, complete } = await fromWorker(search, limit);
+      return { ads, complete, via: "worker" };
+    } catch (err) {
+      console.warn("[adlibrary] worker failed:", (err as Error).message);
+      errors.push((err as Error).message);
+    }
+  }
+
+  if (Date.now() >= blockedUntil) {
+    try {
+      return await fromLibrary(search, limit);
+    } catch (err) {
+      if (err instanceof ScrapeBlockedError) blockedUntil = Date.now() + BLOCK_PAUSE_MS;
+      errors.push((err as Error).message);
+    }
+  } else {
+    errors.push("Meta walled the direct read a few minutes ago");
+  }
+
+  if (isMetaApiConfigured()) {
+    try {
+      const { ads, complete } = await fromMetaApi(search, limit);
+      return { ads, complete, via: "api" };
+    } catch (err) {
+      console.warn("[adlibrary] Meta API failed:", (err as Error).message);
+      errors.push((err as Error).message);
+    }
+  }
+
+  if (paid) {
+    console.warn("[adlibrary] trying Apify after:", errors.join("; "));
     return fromApify(search, limit);
   }
+  const hint = isMetaApiConfigured() ? "" : " Set META_ACCESS_TOKEN to read through Meta's free API instead.";
+  throw new ScrapeBlockedError(`${errors.join(". ")}.${hint}`);
 }

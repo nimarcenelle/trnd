@@ -53,10 +53,12 @@ export interface Creator {
   tiktok_connected_at: string | null;
   /** Set by "Read again now": the next scan writes a new plan even inside the week. */
   plan_requested: boolean;
+  /** When the model last read the account; the read is weekly. */
+  profile_read_at: string | null;
   created_at: string;
 }
 
-export type ScanStage = "profile" | "peers" | "trends" | "plan";
+export type ScanStage = "profile" | "niche" | "peers" | "trends" | "tag" | "plan";
 
 export interface Peer {
   id: string;
@@ -69,6 +71,8 @@ export interface Peer {
   source: "match" | "owner";
   last_read_at: string | null;
   last_error: string | null;
+  /** Set when the owner removes a matched peer: hidden, and never matched again. */
+  removed_at: string | null;
   created_at: string;
 }
 
@@ -182,7 +186,7 @@ export interface IdeaRun {
   expected: { low: number; high: number } | null;
   video_id: string | null;
   status: "planned" | "posted" | "checked";
-  result: { views: number | null; likes: number | null; comments: number | null; saves: number | null; read: "beat" | "in_range" | "missed" } | null;
+  result: { views: number | null; likes: number | null; comments: number | null; saves: number | null; read: "beat" | "in_range" | "missed" | "unknown" } | null;
   added_at: string;
   matched_at: string | null;
   checked_at: string | null;

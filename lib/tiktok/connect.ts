@@ -51,10 +51,12 @@ async function token(params: Record<string, string>): Promise<TokenReply> {
 const expiry = (s: number) => new Date(Date.now() + s * 1000).toISOString();
 
 /** Trades the code from the consent screen for tokens and saves them; returns the account's username. */
-export async function completeConnect(creatorId: string, code: string): Promise<string | null> {
+export async function completeConnect(creatorId: string, code: string): Promise<string> {
   const t = await token({ code, grant_type: "authorization_code", redirect_uri: redirectUri() });
-  const user = await getJson(`${API}/user/info/?fields=open_id,username,display_name`, t.access_token).catch(() => null);
-  const username = (user?.data as { user?: { username?: string } } | undefined)?.user?.username ?? null;
+  // Without the username we can't tell whose account this is, so nothing is saved.
+  const user = await getJson(`${API}/user/info/?fields=open_id,username,display_name`, t.access_token);
+  const username = (user.data as { user?: { username?: string } } | undefined)?.user?.username;
+  if (!username) throw new Error("TikTok did not say which account this is");
   const sb = adminSupabase();
   await sb.from("tiktok_connections").upsert({
     creator_id: creatorId,

@@ -40,7 +40,8 @@ export async function POST(req: Request): Promise<Response> {
     if (event.type === "checkout.session.completed") {
       const s = event.data.object;
       const creatorId = s.metadata?.creator_id ?? s.client_reference_id;
-      if (creatorId) {
+      // A delayed payment method (a bank debit) completes checkout unpaid; the subscription event activates it later.
+      if (creatorId && s.payment_status !== "unpaid") {
         await sb
           .from("creators")
           .update({ plan: planOf(null, s.metadata?.interval), plan_status: "active", stripe_customer_id: idOf(s.customer), stripe_subscription_id: idOf(s.subscription) })
@@ -49,8 +50,16 @@ export async function POST(req: Request): Promise<Response> {
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       const sub = event.data.object;
       const status = event.type === "customer.subscription.deleted" ? "canceled" : mapStatus(sub.status);
-      const q = sb.from("creators").update({ plan: planOf(sub, sub.metadata?.interval), plan_status: status, stripe_customer_id: idOf(sub.customer), stripe_subscription_id: sub.id });
-      await (sub.metadata?.creator_id ? q.eq("id", sub.metadata.creator_id) : q.eq("stripe_subscription_id", sub.id));
+      const creatorId = sub.metadata?.creator_id;
+      const { data: current } = creatorId
+        ? await sb.from("creators").select("stripe_subscription_id").eq("id", creatorId).maybeSingle()
+        : await sb.from("creators").select("stripe_subscription_id").eq("stripe_subscription_id", sub.id).maybeSingle();
+      // A late event about an older subscription (canceled, then re-subscribed) never overwrites the current one.
+      const stale = current?.stripe_subscription_id && current.stripe_subscription_id !== sub.id && status !== "active";
+      if (!stale) {
+        const q = sb.from("creators").update({ plan: planOf(sub, sub.metadata?.interval), plan_status: status, stripe_customer_id: idOf(sub.customer), stripe_subscription_id: sub.id });
+        await (creatorId ? q.eq("id", creatorId) : q.eq("stripe_subscription_id", sub.id));
+      }
     }
   } catch (err) {
     console.warn(`[stripe] ${event.type} failed:`, (err as Error).message);

@@ -156,7 +156,8 @@ async function runActor(actor: string, input: Obj): Promise<Obj[]> {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
-    signal: AbortSignal.timeout(200_000),
+    // Bounded so a scan stage with one read fits in its 300s function; a read cut short retries on the next scan.
+    signal: AbortSignal.timeout(120_000),
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Apify ${actor} answered ${res.status}`);

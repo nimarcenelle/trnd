@@ -31,7 +31,11 @@ function Tile({ label, value, hint, tone }: { label: string; value: React.ReactN
 }
 
 function Strip({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-px bg-line border border-line rounded-[14px] overflow-hidden">{children}</div>;
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 gap-px bg-line border border-line rounded-[14px] overflow-hidden">
+      {children}
+    </div>
+  );
 }
 
 function Heading({ title, sub }: { title: string; sub?: React.ReactNode }) {
@@ -84,7 +88,12 @@ export function NextView({
           tone={followers ? (followers.change >= 0 ? "up" : "down") : undefined}
         />
         <Tile label="Your typical video" value={compact(normal.views)} hint={normal.low !== null ? `${compact(normal.low)}–${compact(normal.high)} views, middle half` : "Not enough videos yet"} />
-        <Tile label="Best this month" value={best?.x ? `${best.x}×` : "—"} hint={best?.x ? `your usual views · ${shortDate(best.v.posted_at!)}` : "No videos in 30 days"} tone={best?.x && best.x >= 2 ? "up" : undefined} />
+        <Tile
+          label="Best this month"
+          value={best?.x ? `${best.x}×` : "—"}
+          hint={best?.x ? `your usual views · ${shortDate(best.v.posted_at!)}` : month.length ? "Not enough videos to compare yet" : "No videos in 30 days"}
+          tone={best?.x && best.x >= 2 ? "up" : undefined}
+        />
         <Tile label="Goal" value={goalLabel(creator.goals?.goal) ?? "—"} hint={creator.goals?.target || (perWeek ? `You post ${perWeek}× a week` : "Set a target in settings")} />
       </Strip>
       {plan.body.ideas.map((idea, i) => (
@@ -141,11 +150,15 @@ export function MineView({ creator, own, normal, plan, followers }: { creator: C
   return (
     <>
       <Heading
-        title={`Your last ${shown.length} videos`}
+        title={shown.length === 1 ? "Your last video" : `Your last ${shown.length} videos`}
         sub={
-          <>
-            Views tell you reach. <strong>Times your usual</strong> tells you which videos broke out, against your own median of {compact(normal.views)}. Saves per 1K views show what people keep to use later.
-          </>
+          normal.views !== null ? (
+            <>
+              Views tell you reach. <strong>Times your usual</strong> tells you which videos broke out, against your own median of {compact(normal.views)}. Saves per 1K views show what people keep to use later.
+            </>
+          ) : (
+            "Your usual views show once you have a few videos older than two days. Until then, each video is still counting."
+          )
         }
       />
       <div className="card overflow-x-auto">
@@ -341,7 +354,8 @@ export function CreatorsView({ cards }: { cards: PeerCard[] }) {
                 <div className="min-w-0">
                   <strong className="block break-all">@{peer.handle}</strong>
                   <span className="caption">
-                    {compact(peer.followers)} followers{growth ? ` · ${signed(growth.change)} in ${growth.days}d` : ""}
+                    {peer.followers === null ? "Not read yet" : `${compact(peer.followers)} followers`}
+                    {growth ? ` · ${signed(growth.change)} in ${growth.days}d` : ""}
                   </span>
                 </div>
               </div>
@@ -404,11 +418,17 @@ export function PeerVideos({ rows }: { rows: { v: Video; score: number; parts: B
 
 /* --------------------------------- loop ----------------------------------- */
 
-const RESULT = { beat: { label: "Beat it", cls: "pill pill-pos" }, in_range: { label: "In range", cls: "pill" }, missed: { label: "Missed", cls: "pill pill-neg" } } as const;
+const RESULT = {
+  beat: { label: "Beat it", cls: "pill pill-pos" },
+  in_range: { label: "In range", cls: "pill" },
+  missed: { label: "Missed", cls: "pill pill-neg" },
+  unknown: { label: "No numbers", cls: "pill" },
+} as const;
 
 export function LoopView({ runs, videos }: { runs: IdeaRun[]; videos: Video[] }) {
   const byId = new Map(videos.map((v) => [v.id, v]));
   const checked = runs.filter((r) => r.status === "checked" && r.result);
+  const judged = checked.filter((r) => r.result!.read !== "unknown");
   const beat = checked.filter((r) => r.result!.read === "beat").length;
   const inRange = checked.filter((r) => r.result!.read === "in_range").length;
   return (
@@ -420,7 +440,7 @@ export function LoopView({ runs, videos }: { runs: IdeaRun[]; videos: Video[] })
       <Strip>
         <Tile label="Ideas added" value={runs.length} hint="from your plans" />
         <Tile label="Posted" value={runs.filter((r) => r.status !== "planned").length} hint="matched to your videos" />
-        <Tile label="Beat or met your usual" value={checked.length ? `${beat + inRange} of ${checked.length}` : "—"} hint={checked.length ? `${beat} beat it` : "checked 48h after posting"} tone={checked.length && beat ? "up" : undefined} />
+        <Tile label="Beat or met your usual" value={judged.length ? `${beat + inRange} of ${judged.length}` : "—"} hint={judged.length ? `${beat} beat it` : "checked 48h after posting"} tone={judged.length && beat ? "up" : undefined} />
       </Strip>
       {runs.length ? (
         <div className="card px-4 divide-y divide-line">

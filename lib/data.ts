@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { allRows } from "@/lib/db/rows";
 import { createServerSupabase } from "@/lib/db/supabase";
 import type { Creator, FollowerSnapshot, IdeaRun, Peer, Plan, TrendSnapshot, Video } from "@/lib/db/types";
 
@@ -15,19 +16,25 @@ export const getCreator = cache(async (userId: string): Promise<Creator | null> 
 
 export async function listPeers(creatorId: string): Promise<Peer[]> {
   const sb = await createServerSupabase();
-  const { data } = await sb.from("peers").select("*").eq("creator_id", creatorId).order("followers", { ascending: false, nullsFirst: false });
+  const { data } = await sb.from("peers").select("*").eq("creator_id", creatorId).is("removed_at", null).order("followers", { ascending: false, nullsFirst: false });
   return (data ?? []) as Peer[];
 }
 
-/** Videos posted in the last `days`, newest first: the creator's own, peers', and the niche hashtag sample. */
-export async function listVideos(creatorId: string, opts: { days?: number; selfOnly?: boolean; author?: string } = {}): Promise<Video[]> {
+/**
+ * Videos posted in the last `days`, newest first, every page of them: the
+ * creator's own (`self: true`), some authors' (`authors`), or everything read
+ * including the niche hashtag sample.
+ */
+export async function listVideos(creatorId: string, opts: { days?: number; self?: boolean; authors?: string[] } = {}): Promise<Video[]> {
+  if (opts.authors && !opts.authors.length) return [];
   const sb = await createServerSupabase();
   const since = new Date(Date.now() - (opts.days ?? 120) * 86_400_000).toISOString();
-  let q = sb.from("videos").select("*").eq("creator_id", creatorId).gte("posted_at", since);
-  if (opts.selfOnly) q = q.eq("is_self", true);
-  if (opts.author) q = q.eq("author", opts.author);
-  const { data } = await q.order("posted_at", { ascending: false }).limit(2000);
-  return (data ?? []) as Video[];
+  return allRows<Video>((from, to) => {
+    let q = sb.from("videos").select("*").eq("creator_id", creatorId).gte("posted_at", since);
+    if (opts.self !== undefined) q = q.eq("is_self", opts.self);
+    if (opts.authors) q = q.in("author", opts.authors);
+    return q.order("posted_at", { ascending: false }).order("id").range(from, to);
+  });
 }
 
 export async function listPlans(creatorId: string, limit = 6): Promise<Plan[]> {

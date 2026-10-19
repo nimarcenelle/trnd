@@ -21,7 +21,7 @@ export default async function PeerPage({ params }: PageProps<"/app/creators/[han
   const peers = await listPeers(creator.id);
   const peer = peers.find((p) => p.handle === decodeURIComponent(handle));
   if (!peer) notFound();
-  const [videos, followers] = await Promise.all([listVideos(creator.id, { author: peer.handle, days: 90 }), listFollowers(creator.id, 60)]);
+  const [videos, followers] = await Promise.all([listVideos(creator.id, { authors: [peer.handle], days: 90 }), listFollowers(creator.id, 60)]);
   const normal = normalOf(videos);
   const growth = followerChange(followers.filter((f) => f.handle === peer.handle));
   const rows = videos

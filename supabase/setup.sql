@@ -30,7 +30,7 @@ create table if not exists public.creators (
   stripe_customer_id text,
   stripe_subscription_id text,
   scan_status text not null default 'idle', -- idle | running | error
-  scan_stage text, -- profile | peers | trends | plan, while running
+  scan_stage text, -- profile | niche | peers | trends | tag | plan, while running
   scan_error text,
   scan_started_at timestamptz,
   last_scan_at timestamptz,
@@ -146,6 +146,8 @@ create table if not exists public.idea_runs (
   checked_at timestamptz
 );
 create index if not exists idea_runs_creator_idx on public.idea_runs (creator_id, added_at desc);
+-- One run per idea: a double click on "Add to my week" cannot add it twice.
+create unique index if not exists idea_runs_plan_rank_idx on public.idea_runs (plan_id, rank);
 
 -- Row-level security: owners read their own rows; every write goes through the service role.
 alter table public.creators enable row level security;
@@ -205,3 +207,7 @@ alter table public.tiktok_connections enable row level security;
 alter table public.creators add column if not exists tiktok_connected_at timestamptz;
 -- "Read again now": the next plan stage writes a new plan even inside the week.
 alter table public.creators add column if not exists plan_requested boolean not null default false;
+-- When the model last read the account (niche, audience, hashtags): weekly, apart from the daily reads.
+alter table public.creators add column if not exists profile_read_at timestamptz;
+-- A matched peer the owner removed stays here, hidden, so the next scan doesn't match them again.
+alter table public.peers add column if not exists removed_at timestamptz;

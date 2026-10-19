@@ -172,16 +172,25 @@ export interface PeerCandidate {
   videos: number;
 }
 
+/** The smallest and largest a creator like you can be, for an account of `followers`. */
+export function peerBand(followers: number | null): { min: number; max: number } {
+  // Unknown size: anyone from 1K up. Small accounts learn from accounts a little ahead of them, so the band never
+  // narrows below 1K to 20K; above that it is a tenth to ten times their size.
+  if (!followers) return { min: 1000, max: Infinity };
+  return { min: Math.max(1000, Math.round(followers / 10)), max: Math.max(20_000, followers * 10) };
+}
+
 /**
  * Which accounts in a hashtag sample are creators like you: they post in
- * several of your niche hashtags and are within a size band of you (a tenth to
- * ten times your followers), the closest in size first among equal fits.
+ * several of your niche hashtags and are within a size band of you, the
+ * closest in size first among equal fits.
  */
 export function rankPeers(candidates: PeerCandidate[], self: { handle: string; followers: number | null }, limit: number): PeerCandidate[] {
-  const mine = Math.max(1, self.followers ?? 0);
-  const size = (c: PeerCandidate) => (c.followers ? Math.abs(Math.log10(c.followers / mine)) : 3);
+  const band = peerBand(self.followers);
+  const mine = Math.max(1, self.followers ?? 1);
+  const size = (c: PeerCandidate) => Math.abs(Math.log10((c.followers ?? 1) / mine));
   return candidates
-    .filter((c) => c.handle !== self.handle && c.followers !== null && c.followers >= 1000 && size(c) <= 1)
+    .filter((c) => c.handle !== self.handle && c.followers !== null && c.followers >= band.min && c.followers <= band.max)
     .sort((a, b) => b.tags - a.tags || b.videos - a.videos || size(a) - size(b))
     .slice(0, limit);
 }

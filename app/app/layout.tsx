@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
           </div>
         </div>
       )}
-      {plan && !plan.locked && !plan.paid && plan.trialDaysLeft <= 3 && (
+      {plan && !plan.locked && !plan.paid && plan.trialDaysLeft > 0 && plan.trialDaysLeft <= 3 && (
         <div className="border-b border-line bg-warn-bg text-warn text-[13.5px] py-2">
           <div className="wrap">
             {plan.trialDaysLeft} day{plan.trialDaysLeft === 1 ? "" : "s"} left in your trial.{" "}

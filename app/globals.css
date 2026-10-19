@@ -115,6 +115,11 @@
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* A long handle, hashtag or caption wraps instead of widening the page. */
+    overflow-wrap: anywhere;
+  }
+  table {
+    overflow-wrap: normal;
   }
   a {
     color: inherit;
@@ -479,6 +484,12 @@
   .tab[aria-current="page"] {
     color: var(--ink);
     border-bottom-color: var(--brand);
+  }
+  @media (max-width: 640px) {
+    .tab {
+      padding: 10px 9px;
+      font-size: 14px;
+    }
   }
   .tab .count {
     font-family: var(--mono);

@@ -124,3 +124,18 @@ describe("compact", () => {
     expect([signed(32000), signed(-450), signed(0)]).toEqual(["+32K", "−450", "0"]);
   });
 });
+
+describe("peerBand", () => {
+  it("lets small and unknown-size accounts find creators a little ahead of them", async () => {
+    const { peerBand, rankPeers } = await import("@/lib/creators/stats");
+    expect(peerBand(50)).toEqual({ min: 1000, max: 20000 });
+    expect(peerBand(null)).toEqual({ min: 1000, max: Infinity });
+    expect(peerBand(500_000)).toEqual({ min: 50000, max: 5_000_000 });
+    const cands = [
+      { handle: "a", followers: 4000, tags: 3, videos: 2 },
+      { handle: "b", followers: 900, tags: 4, videos: 2 },
+    ];
+    expect(rankPeers(cands, { handle: "me", followers: 50 }, 5).map((c) => c.handle)).toEqual(["a"]);
+    expect(rankPeers(cands, { handle: "me", followers: null }, 5).map((c) => c.handle)).toEqual(["a"]);
+  });
+});

@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { readAccount, tagVideos, videoLine, writePlan } from "@/lib/ai/creators";
 import { planState } from "@/lib/billing";
+import { allRows } from "@/lib/db/rows";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Creator, IdeaRun, Peer, PlanBody, ScanStage, Video } from "@/lib/db/types";
 import { MAX_PEERS } from "@/lib/db/types";
@@ -16,18 +17,22 @@ import { isTiktokConfigured, readCreativeCenter, readHashtags, readProfiles, typ
 import { borrowScore, matchIdea, normalOf, outcomeOf, postsPerWeek, rankPeers, SETTLE_HOURS, timesNormal, trendRows, type PeerCandidate } from "./stats";
 
 /**
- * One scan, in four stages, each saved before the next starts so a scan cut
+ * One scan, in six stages, each saved before the next starts so a scan cut
  * short picks up where it stopped:
- *   profile: the creator's own videos and numbers, and (first time, then weekly) the model's read of the account
- *   peers:   videos under the niche hashtags; creators like them picked from those; each peer's recent videos
+ *   profile: the creator's own videos and numbers, and (weekly) the model's read of the account
+ *   niche:   videos under the niche hashtags; creators like them picked from those
+ *   peers:   each peer's recent videos
  *   trends:  hashtags and sounds across everything read in the last 14 days, staged and snapshotted
- *   plan:    ideas posted since the last scan matched and checked; once a week (or when asked), new videos tagged and the plan written
- * A stage that starts past the time budget hands the rest to a fresh function.
+ *   tag:     when a plan is due, the format and hook of videos not yet tagged
+ *   plan:    ideas posted since the last scan matched and checked; when due, the plan written
+ * Each stage makes at most one slow call (an Apify read or a model call, each
+ * bounded near two minutes), so any one stage fits in a 300s function. A
+ * stage that would start past the budget hands the rest to a fresh function.
  */
 
-const STAGES: ScanStage[] = ["profile", "peers", "trends", "plan"];
-/** Leave room under the 300s function limit for the slowest stage (an Apify read or the plan). */
-const DEFAULT_BUDGET_MS = 150_000;
+const STAGES: ScanStage[] = ["profile", "niche", "peers", "trends", "tag", "plan"];
+/** A stage starts in this function only this soon after it began; later ones go to a fresh function. */
+const DEFAULT_BUDGET_MS = 60_000;
 /** The model re-reads the account once a week; numbers are read every scan. */
 const PROFILE_EVERY_MS = 7 * 86_400_000;
 /** Matched peers are looked for again when fewer than this remain. */
@@ -35,6 +40,10 @@ const MIN_PEERS = 4;
 const NICHE_TAGS_READ = 4;
 /** Reads are daily; a new plan (and its email) is weekly, unless the creator asks for one. */
 const PLAN_EVERY_MS = 6.5 * 86_400_000;
+/** Videos tagged per scan: one model call. The rest are tagged on the next. */
+const TAG_PER_SCAN = 60;
+/** A posted idea whose numbers never come in is given up on after this. */
+const GIVE_UP_MS = 7 * 86_400_000;
 
 export interface ScanResult {
   creator: string;
@@ -44,6 +53,8 @@ export interface ScanResult {
 }
 
 const today = () => todayIso();
+const DAY = 86_400_000;
+const since = (days: number) => new Date(Date.now() - days * DAY).toISOString();
 
 /** Videos and their day's snapshot, written together; the model's tags on a row are never overwritten here. */
 async function saveVideos(sb: SupabaseClient, creatorId: string, videos: ReadVideo[], self: string): Promise<void> {
@@ -82,10 +93,37 @@ async function snapFollowers(sb: SupabaseClient, creatorId: string, authors: Rea
   if (rows.length) await sb.from("follower_snapshots").upsert(rows, { onConflict: "creator_id,handle,captured_on" });
 }
 
-async function listVideos(sb: SupabaseClient, creatorId: string, days: number): Promise<Video[]> {
-  const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  const { data } = await sb.from("videos").select("*").eq("creator_id", creatorId).gte("posted_at", since).order("posted_at", { ascending: false }).limit(2000);
-  return (data ?? []) as Video[];
+/** Videos posted in the last `days`, newest first, every page of them; `self` and `authors` narrow it. */
+async function listVideos(sb: SupabaseClient, creatorId: string, days: number, opts: { self?: boolean; authors?: string[] } = {}): Promise<Video[]> {
+  if (opts.authors && !opts.authors.length) return [];
+  return allRows<Video>((from, to) => {
+    let q = sb.from("videos").select("*").eq("creator_id", creatorId).gte("posted_at", since(days));
+    if (opts.self !== undefined) q = q.eq("is_self", opts.self);
+    if (opts.authors) q = q.in("author", opts.authors);
+    return q.order("posted_at", { ascending: false }).order("id").range(from, to);
+  });
+}
+
+async function livePeers(sb: SupabaseClient, creatorId: string): Promise<Peer[]> {
+  const { data, error } = await sb.from("peers").select("*").eq("creator_id", creatorId);
+  if (error) throw new Error(`Reading creators like you failed: ${error.message}`);
+  return ((data ?? []) as Peer[]).filter((p) => !p.removed_at);
+}
+
+/** Copies only the numbers a source actually gave: a missing field never blanks a good one. */
+function overlay<T extends object>(base: T, extra: Partial<T> | undefined): T {
+  if (!extra) return base;
+  const out = { ...base };
+  for (const [k, v] of Object.entries(extra)) if (v !== null && v !== undefined) (out as Record<string, unknown>)[k] = v;
+  return out;
+}
+
+/** A plan is due when there is none, the creator asked for one, or the last is a week old. */
+async function planDue(sb: SupabaseClient, c: Creator): Promise<boolean> {
+  if (c.plan_requested) return true;
+  const { data } = await sb.from("plans").select("created_at").eq("creator_id", c.id).order("created_at", { ascending: false }).limit(1);
+  const last = data?.[0]?.created_at as string | undefined;
+  return !last || Date.now() - Date.parse(last) >= PLAN_EVERY_MS;
 }
 
 /* -------------------------------- stages ---------------------------------- */
@@ -96,9 +134,9 @@ async function profileStage(sb: SupabaseClient, c: Creator): Promise<void> {
   if (!me) throw new Error(`We couldn't read @${c.handle} on TikTok. Check the handle, and that the account is public.`);
   // A connected account's own numbers, straight from TikTok, over the public read where both exist.
   const connected = c.tiktok_connected_at ? await readConnected(c.id).catch((e) => (console.warn("[scan] connected read:", (e as Error).message), null)) : null;
-  const videos = connected ? read.videos.map((v) => ({ ...v, ...(connected.videos.get(v.videoId) ?? {}) })) : read.videos;
+  const videos = read.videos.map((v) => overlay(v, connected?.videos.get(v.videoId)));
   await saveVideos(sb, c.id, videos, c.handle);
-  const author = { ...me, ...(connected?.author ?? {}) };
+  const author = overlay(me, connected?.author);
   await snapFollowers(sb, c.id, [author]);
   const update: Partial<Creator> = {
     display_name: author.displayName,
@@ -109,9 +147,9 @@ async function profileStage(sb: SupabaseClient, c: Creator): Promise<void> {
     hearts: author.hearts,
     videos: author.videos,
   };
-  const stale = !c.profile || !c.last_scan_at || Date.now() - Date.parse(c.last_scan_at) > PROFILE_EVERY_MS;
+  const stale = !c.profile || !c.hashtags.length || !c.profile_read_at || Date.now() - Date.parse(c.profile_read_at) > PROFILE_EVERY_MS;
   if (stale && isModelConfigured) {
-    const own = (await listVideos(sb, c.id, 180)).filter((v) => v.is_self);
+    const own = await listVideos(sb, c.id, 180, { self: true });
     const normal = normalOf(own);
     const account = await readAccount({
       handle: c.handle,
@@ -121,47 +159,56 @@ async function profileStage(sb: SupabaseClient, c: Creator): Promise<void> {
       videos: own.slice(0, 30).map((v) => videoLine(v, timesNormal(v.views, normal))),
     });
     update.profile = { niche: account.niche, audience: account.audience, works: account.works, doesnt: account.doesnt, style: account.style };
+    update.profile_read_at = new Date().toISOString();
     // The owner's hashtags stand; the model's fill an empty list.
     if (!c.hashtags.length) update.hashtags = account.hashtags.map((t) => t.replace(/^#/, "").toLowerCase()).filter((t) => t && !BROAD.has(t)).slice(0, 8);
   }
-  await sb.from("creators").update(update).eq("id", c.id);
+  const { error } = await sb.from("creators").update(update).eq("id", c.id);
+  if (error) throw new Error(`Saving your profile failed: ${error.message}`);
 }
 
 /** Tags too broad to say anything about a niche. */
 const BROAD = new Set(["fyp", "foryou", "foryoupage", "viral", "trending", "tiktok", "explore", "xyzbca", "fy"]);
 
-async function peersStage(sb: SupabaseClient, c: Creator): Promise<void> {
+/** The niche sample: recent videos under the niche hashtags, and new creators like you picked from it. */
+async function nicheStage(sb: SupabaseClient, c: Creator): Promise<void> {
   const tags = c.hashtags.slice(0, NICHE_TAGS_READ);
+  if (!tags.length) return;
   const sample = await readHashtags(tags, 30);
   await saveVideos(sb, c.id, sample.videos, c.handle);
 
-  const { data: peerRows } = await sb.from("peers").select("*").eq("creator_id", c.id);
-  let peers = (peerRows ?? []) as Peer[];
-  if (peers.length < MIN_PEERS) {
-    const niche = new Set(c.hashtags);
-    const byAuthor = new Map<string, PeerCandidate>();
-    for (const v of sample.videos) {
-      const a = byAuthor.get(v.author) ?? { handle: v.author, followers: sample.authors.get(v.author)?.followers ?? null, tags: 0, videos: 0 };
-      a.videos++;
-      byAuthor.set(v.author, a);
-    }
-    for (const a of byAuthor.values()) a.tags = new Set(sample.videos.filter((v) => v.author === a.handle).flatMap((v) => v.hashtags).filter((t) => niche.has(t))).size;
-    const taken = new Set(peers.map((p) => p.handle));
-    const picks = rankPeers([...byAuthor.values()].filter((p) => !taken.has(p.handle)), { handle: c.handle, followers: c.followers }, MAX_PEERS - peers.length);
-    if (picks.length) {
-      const rows = picks.map((p) => ({
-        creator_id: c.id,
-        handle: p.handle,
-        display_name: sample.authors.get(p.handle)?.displayName ?? null,
-        avatar_url: sample.authors.get(p.handle)?.avatarUrl ?? null,
-        followers: p.followers,
-        reason: `Posts in ${p.tags} of your niche hashtags`,
-        source: "match",
-      }));
-      const { data } = await sb.from("peers").upsert(rows, { onConflict: "creator_id,handle", ignoreDuplicates: true }).select("*");
-      peers = [...peers, ...((data ?? []) as Peer[])];
-    }
+  const { data: all } = await sb.from("peers").select("handle, removed_at").eq("creator_id", c.id);
+  const known = (all ?? []) as Pick<Peer, "handle" | "removed_at">[];
+  const live = known.filter((p) => !p.removed_at).length;
+  if (live >= MIN_PEERS) return;
+  const niche = new Set(c.hashtags);
+  const byAuthor = new Map<string, PeerCandidate & { seen: Set<string> }>();
+  for (const v of sample.videos) {
+    const a = byAuthor.get(v.author) ?? { handle: v.author, followers: sample.authors.get(v.author)?.followers ?? null, tags: 0, videos: 0, seen: new Set<string>() };
+    a.videos++;
+    for (const t of v.hashtags) if (niche.has(t)) a.seen.add(t);
+    a.tags = a.seen.size;
+    byAuthor.set(v.author, a);
   }
+  // Anyone already listed, including peers the owner removed, is never picked again.
+  const taken = new Set(known.map((p) => p.handle));
+  const picks = rankPeers([...byAuthor.values()].filter((p) => !taken.has(p.handle)), { handle: c.handle, followers: c.followers }, MAX_PEERS - live);
+  if (!picks.length) return;
+  const rows = picks.map((p) => ({
+    creator_id: c.id,
+    handle: p.handle,
+    display_name: sample.authors.get(p.handle)?.displayName ?? null,
+    avatar_url: sample.authors.get(p.handle)?.avatarUrl ?? null,
+    followers: p.followers,
+    reason: `Posts in ${p.tags} of your niche hashtags`,
+    source: "match",
+  }));
+  const { error } = await sb.from("peers").upsert(rows, { onConflict: "creator_id,handle", ignoreDuplicates: true });
+  if (error) throw new Error(`Saving creators like you failed: ${error.message}`);
+}
+
+async function peersStage(sb: SupabaseClient, c: Creator): Promise<void> {
+  const peers = await livePeers(sb, c.id);
   if (!peers.length) return;
   const read = await readProfiles(
     peers.map((p) => p.handle),
@@ -184,10 +231,10 @@ async function peersStage(sb: SupabaseClient, c: Creator): Promise<void> {
 async function trendsStage(sb: SupabaseClient, c: Creator): Promise<void> {
   const videos = await listVideos(sb, c.id, 14);
   const rows = trendRows(videos).slice(0, 60);
+  if (!rows.length) return;
   const cc = await readCreativeCenter(null);
   const ccViews = new Map(cc.map((t) => [t.tag, t.views]));
-  if (!rows.length) return;
-  await sb.from("trend_snapshots").upsert(
+  const { error } = await sb.from("trend_snapshots").upsert(
     rows.map((r) => ({
       creator_id: c.id,
       kind: r.kind,
@@ -201,11 +248,30 @@ async function trendsStage(sb: SupabaseClient, c: Creator): Promise<void> {
     })),
     { onConflict: "creator_id,kind,key,captured_on" },
   );
+  if (error) throw new Error(`Saving trends failed: ${error.message}`);
+}
+
+/** When a plan is due: the format and opening line of the videos it will be written from, one model call's worth. */
+async function tagStage(sb: SupabaseClient, c: Creator): Promise<void> {
+  if (!isModelConfigured || !(await planDue(sb, c))) return;
+  const own = await listVideos(sb, c.id, 120, { self: true });
+  const peers = await livePeers(sb, c.id);
+  const theirs = await listVideos(
+    sb,
+    c.id,
+    21,
+    { authors: peers.map((p) => p.handle) },
+  );
+  const untagged = [...own.slice(0, 40), ...theirs].filter((v) => !v.format).slice(0, TAG_PER_SCAN);
+  if (!untagged.length) return;
+  const tags = await tagVideos(untagged);
+  await Promise.all([...tags].map(([videoId, t]) => sb.from("videos").update(t).eq("creator_id", c.id).eq("video_id", videoId)));
 }
 
 /** Ideas the creator added: matched to the video they became, then checked once it has had 48 hours. */
 async function checkRuns(sb: SupabaseClient, c: Creator, own: Video[]): Promise<IdeaRun[]> {
-  const { data } = await sb.from("idea_runs").select("*").eq("creator_id", c.id).order("added_at", { ascending: false }).limit(30);
+  const { data, error } = await sb.from("idea_runs").select("*").eq("creator_id", c.id).order("added_at", { ascending: false }).limit(200);
+  if (error) throw new Error(`Reading your ideas failed: ${error.message}`);
   const runs = (data ?? []) as IdeaRun[];
   const taken = new Set(runs.map((r) => r.video_id).filter((id): id is string => Boolean(id)));
   const byId = new Map(own.map((v) => [v.id, v]));
@@ -221,38 +287,40 @@ async function checkRuns(sb: SupabaseClient, c: Creator, own: Video[]): Promise<
       }
     }
     const v = r.video_id ? byId.get(r.video_id) : null;
-    if (r.status === "posted" && v?.posted_at && Date.now() - Date.parse(v.posted_at) >= SETTLE_HOURS * 3_600_000) {
-      r.result = { views: v.views, likes: v.likes, comments: v.comments, saves: v.saves, read: outcomeOf(v.views, r.expected) ?? "in_range" };
-      r.status = "checked";
-      r.checked_at = new Date().toISOString();
-      await sb.from("idea_runs").update({ status: "checked", result: r.result, checked_at: r.checked_at }).eq("id", r.id);
-    }
+    if (r.status !== "posted" || !v?.posted_at || Date.now() - Date.parse(v.posted_at) < SETTLE_HOURS * 3_600_000) continue;
+    // Too few videos when it was added: measured against the usual as it is now, without this video.
+    const n = normalOf(own.filter((o) => o.id !== v.id));
+    const expected = r.expected ?? (n.low !== null && n.high !== null ? { low: n.low, high: n.high } : null);
+    const read = outcomeOf(v.views, expected);
+    // No numbers to judge it by: wait for the next read, and give up after a week rather than make a verdict up.
+    if (!read && Date.now() - Date.parse(v.posted_at) < GIVE_UP_MS) continue;
+    r.expected = expected;
+    r.result = { views: v.views, likes: v.likes, comments: v.comments, saves: v.saves, read: read ?? "unknown" };
+    r.status = "checked";
+    r.checked_at = new Date().toISOString();
+    await sb.from("idea_runs").update({ status: "checked", expected, result: r.result, checked_at: r.checked_at }).eq("id", r.id);
   }
   return runs;
 }
 
-async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | null> {
-  const videos = await listVideos(sb, c.id, 120);
-  const own = videos.filter((v) => v.is_self);
-  const runs = await checkRuns(sb, c, own);
-  if (!isModelConfigured) return null;
-  const { data: last } = await sb.from("plans").select("created_at").eq("creator_id", c.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
-  if (last && !c.plan_requested && Date.now() - Date.parse(last.created_at) < PLAN_EVERY_MS) return null;
+/** "#StudyTok" or "studytok" both name the trend keyed "studytok". */
+const trendKey = (k: string) => k.trim().replace(/^#/, "").toLowerCase();
 
-  const { data: peerRows } = await sb.from("peers").select("handle").eq("creator_id", c.id);
-  const peerSet = new Set((peerRows ?? []).map((p) => p.handle as string));
-  const recentPeer = videos.filter((v) => !v.is_self && peerSet.has(v.author) && v.posted_at && Date.now() - Date.parse(v.posted_at) < 21 * 86_400_000);
-  const untagged = [...own.slice(0, 40), ...recentPeer].filter((v) => !v.format);
-  if (untagged.length) {
-    const tags = await tagVideos(untagged.slice(0, 120));
-    await Promise.all(
-      [...tags].map(([videoId, t]) => {
-        const v = videos.find((x) => x.video_id === videoId);
-        if (v) Object.assign(v, t);
-        return sb.from("videos").update(t).eq("creator_id", c.id).eq("video_id", videoId);
-      }),
-    );
-  }
+async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | null> {
+  const own = await listVideos(sb, c.id, 120, { self: true });
+  const runs = await checkRuns(sb, c, own);
+  if (!(await planDue(sb, c))) return null;
+  if (!isModelConfigured) throw new Error("Plans aren't set up on this deployment yet (OPENAI_API_KEY).");
+
+  const peers = await livePeers(sb, c.id);
+  const peerVideos = await listVideos(
+    sb,
+    c.id,
+    90,
+    { authors: peers.map((p) => p.handle) },
+  );
+  const recentPeer = peerVideos.filter((v) => v.posted_at && Date.now() - Date.parse(v.posted_at) < 21 * DAY);
+  const recent = await listVideos(sb, c.id, 14);
 
   const normal = normalOf(own);
   const ranked = own
@@ -260,20 +328,17 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
     .map((v) => ({ v, x: timesNormal(v.views, normal) }))
     .sort((a, b) => (b.x ?? 0) - (a.x ?? 0));
   const ownLines = [...ranked.slice(0, 12), ...ranked.slice(-5)].filter((r, i, all) => all.findIndex((o) => o.v.id === r.v.id) === i).map((r) => videoLine(r.v, r.x));
-  const normals = new Map<string, ReturnType<typeof normalOf>>();
-  for (const h of peerSet) normals.set(h, normalOf(videos.filter((v) => v.author === h)));
+  const normals = new Map(peers.map((p) => [p.handle, normalOf(peerVideos.filter((v) => v.author === p.handle))]));
   const borrow = recentPeer
     .map((v) => ({ v, ...borrowScore(v, normals.get(v.author)!, c.hashtags) }))
     .filter((b) => b.score >= 45)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 8)
-    .map((b) => `${videoLine(b.v, b.times)} · borrow score ${b.score}`);
-  const trends = trendRows(videos.filter((v) => v.posted_at && Date.now() - Date.parse(v.posted_at) < 14 * 86_400_000))
+    .slice(0, 8);
+  const rising = trendRows(recent)
     .filter((t) => t.stage === "early" || t.stage === "rising" || t.stage === "peaking")
-    .slice(0, 14)
-    .map((t) => `[${t.key}] ${t.kind} ${t.label}: ${t.recent} videos this week, ${t.prior} last week, ${t.creators} creators, ${t.stage}`);
+    .slice(0, 14);
   const past = runs
-    .filter((r) => r.status === "checked" && r.result)
+    .filter((r) => r.status === "checked" && r.result && r.result.read !== "unknown")
     .slice(0, 6)
     .map((r) => `"${r.idea.hook}" (${r.idea.type}): ${r.result!.views?.toLocaleString("en-US") ?? "?"} views against a usual ${r.expected?.low ?? "?"}-${r.expected?.high ?? "?"}: ${r.result!.read.replace("_", " ")}`);
 
@@ -285,31 +350,50 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
     today: today(),
     normal: { views: normal.views, low: normal.low, high: normal.high, perWeek: postsPerWeek(own.slice(0, 30)) },
     own: ownLines,
-    borrow,
-    trends,
+    borrow: borrow.map((b) => `${videoLine(b.v, b.times)} · borrow score ${b.score}`),
+    trends: rising.map((t) => `[${t.key}] ${t.kind} ${t.label}: ${t.recent} videos this week, ${t.prior} last week, ${t.creators} creators, ${t.stage}`),
     past,
   });
-  // A source the model named that we never gave it is dropped, not shown as evidence.
-  const known = new Set(videos.map((v) => v.video_id));
-  const trendKeys = new Set(trends.map((t) => t.slice(1, t.indexOf("]"))));
-  body.ideas = body.ideas.slice(0, 3).map((i) => ({ ...i, source_video: known.has(i.source_video) ? i.source_video : "", source_trend: trendKeys.has(i.source_trend) ? i.source_trend : "" }));
+  // A source must be one we gave the model, of the kind the idea claims; anything else is dropped, not shown as evidence.
+  const ownIds = new Set(own.map((v) => v.video_id));
+  const peerIds = new Set(recentPeer.map((v) => v.video_id));
+  const trendKeys = new Map(rising.map((t) => [trendKey(t.key), t.key]));
+  body.ideas = body.ideas.slice(0, 3).map((i) => ({
+    ...i,
+    source_video: (i.type === "double_down" ? ownIds : i.type === "borrow" ? peerIds : new Set<string>()).has(i.source_video) ? i.source_video : "",
+    source_trend: i.type === "ride" ? (trendKeys.get(trendKey(i.source_trend)) ?? "") : "",
+  }));
+  if (!body.ideas.length) throw new Error("The plan came back without ideas. Read again to retry.");
+  const known = new Set([...ownIds, ...peerIds]);
   body.patterns = body.patterns.map((p) => ({ ...p, videos: p.videos.filter((id) => known.has(id)) }));
-  await sb.from("plans").insert({ creator_id: c.id, body });
+  const { error } = await sb.from("plans").insert({ creator_id: c.id, body });
+  if (error) throw new Error(`Saving the plan failed: ${error.message}`);
   await sb.from("creators").update({ plan_requested: false }).eq("id", c.id);
   return body;
 }
 
 /* --------------------------------- run ------------------------------------ */
 
-/** Starts the next stage in a fresh function: the cron route, called for this one creator. */
-async function handOff(creatorId: string): Promise<void> {
-  if (!env.cronSecret) return;
-  await fetch(`${env.siteUrl}/api/cron/scan?creator=${creatorId}&resume=1`, {
-    headers: { authorization: `Bearer ${env.cronSecret}` },
-    signal: AbortSignal.timeout(4000),
-  }).catch(() => {
-    // The request is out; the timeout only stops this function from waiting for the scan it started.
-  });
+/** Where a hand-off is sent: this deployment on a preview, the site otherwise. */
+const selfUrl = () => (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : env.siteUrl);
+
+/**
+ * Starts the next stage in a fresh function: the cron route, for this one
+ * creator. True when the request went out (an answer, or our own timeout while
+ * the scan it started runs on); false when it never reached the route, so the
+ * caller carries on itself.
+ */
+async function handOff(creatorId: string): Promise<boolean> {
+  if (!env.cronSecret) return false;
+  try {
+    const res = await fetch(`${selfUrl()}/api/cron/scan?creator=${creatorId}&resume=1`, {
+      headers: { authorization: `Bearer ${env.cronSecret}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    return res.ok;
+  } catch (err) {
+    return (err as Error).name === "TimeoutError";
+  }
 }
 
 /** A scan this long without progress died with its function. */
@@ -326,33 +410,33 @@ export async function scanCreator(creatorId: string, opts: { resume?: boolean; b
   };
   let c = await load();
   const result: ScanResult = { creator: c.handle, stages: [], handedOff: false };
-  if (planState(c).locked) return { ...result, error: "Trial ended" };
+  if (planState(c).locked) {
+    if (c.scan_status === "running") await sb.from("creators").update({ scan_status: "idle", scan_stage: null }).eq("id", c.id);
+    return { ...result, error: "Trial ended" };
+  }
   if (!isTiktokConfigured()) {
     await sb.from("creators").update({ scan_status: "error", scan_error: "TikTok reads are not set up on this deployment (APIFY_TOKEN).", scan_stage: null }).eq("id", c.id);
     return { ...result, error: "APIFY_TOKEN not set" };
   }
   const fresh = c.scan_status === "running" && c.scan_started_at && Date.now() - Date.parse(c.scan_started_at) < SCAN_STALE_MS;
   if (fresh && !opts.resume) return { ...result, error: "Already running" };
-  const resuming = c.scan_status === "running" && c.scan_stage;
-  const from = resuming ? STAGES.indexOf(c.scan_stage!) : 0;
-  await sb
-    .from("creators")
-    .update({ scan_status: "running", scan_stage: STAGES[from], scan_started_at: new Date().toISOString(), scan_error: null })
-    .eq("id", c.id);
+  const at = c.scan_status === "running" && c.scan_stage ? STAGES.indexOf(c.scan_stage) : -1;
+  const from = Math.max(0, at);
+  const handle = c.handle;
 
   try {
     for (let i = from; i < STAGES.length; i++) {
       const stage = STAGES[i];
-      if (i > from && Date.now() - started > budget) {
-        await sb.from("creators").update({ scan_stage: stage, scan_started_at: new Date().toISOString() }).eq("id", c.id);
-        await handOff(c.id);
-        return { ...result, handedOff: true };
-      }
-      await sb.from("creators").update({ scan_stage: stage, scan_started_at: new Date().toISOString() }).eq("id", c.id);
+      await sb.from("creators").update({ scan_status: "running", scan_stage: stage, scan_started_at: new Date().toISOString(), scan_error: null }).eq("id", c.id);
+      if (i > from && Date.now() - started >= budget && (await handOff(c.id))) return { ...result, handedOff: true };
       c = await load();
+      // The handle changed under this scan: a new scan has started for the new account; this one stops.
+      if (c.handle !== handle) return { ...result, error: "Handle changed" };
       if (stage === "profile") await profileStage(sb, c);
+      else if (stage === "niche") await nicheStage(sb, c);
       else if (stage === "peers") await peersStage(sb, c);
       else if (stage === "trends") await trendsStage(sb, c);
+      else if (stage === "tag") await tagStage(sb, c);
       else {
         const first = !c.last_scan_at;
         const body = await planStage(sb, c);
@@ -360,12 +444,12 @@ export async function scanCreator(creatorId: string, opts: { resume?: boolean; b
       }
       result.stages.push(stage);
     }
-    await sb.from("creators").update({ scan_status: "idle", scan_stage: null, scan_error: null, last_scan_at: new Date().toISOString() }).eq("id", c.id);
+    await sb.from("creators").update({ scan_status: "idle", scan_stage: null, scan_error: null, last_scan_at: new Date().toISOString() }).eq("id", c.id).eq("handle", handle);
     return result;
   } catch (err) {
     const message = (err as Error).message;
-    console.warn(`[scan] @${c.handle}:`, message);
-    await sb.from("creators").update({ scan_status: "error", scan_stage: null, scan_error: message }).eq("id", c.id);
+    console.warn(`[scan] @${handle}:`, message);
+    await sb.from("creators").update({ scan_status: "error", scan_stage: null, scan_error: message }).eq("id", c.id).eq("handle", handle);
     return { ...result, error: message };
   }
 }

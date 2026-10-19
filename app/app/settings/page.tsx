@@ -13,6 +13,8 @@ import { isStripeConfigured, isTiktokLoginConfigured } from "@/lib/env";
 import { compact, shortDate } from "@/lib/format";
 
 export const metadata = { title: "Settings — TRND for creators" };
+// A handle change from here starts a read after the response, inside this route's time limit.
+export const maxDuration = 300;
 
 function Section({ id, title, sub, children }: { id?: string; title: string; sub?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -171,7 +173,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             {!isStripeConfigured && <p className="text-ink-3 text-[13.5px] mt-1">Billing isn&apos;t connected on this deployment.</p>}
           </div>
           {isStripeConfigured &&
-            (creator.stripe_customer_id ? (
+            (plan.paid && creator.stripe_customer_id ? (
               <form action={billingPortalAction}>
                 <SubmitButton className="btn">Manage billing</SubmitButton>
               </form>

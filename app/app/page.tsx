@@ -9,6 +9,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
 import { borrowScore, followerChange, normalOf, timesNormal, trendRows } from "@/lib/creators/stats";
 import { getCreator, listFollowers, listPeers, listPlans, listRuns, listVideos } from "@/lib/data";
+import type { ScanStage } from "@/lib/db/types";
 import { ago, compact, isScanning, withinDays } from "@/lib/format";
 
 export const metadata = { title: "Your plan — TRND for creators" };
@@ -16,15 +17,22 @@ export const metadata = { title: "Your plan — TRND for creators" };
 export const maxDuration = 300;
 
 const TABS = [
-  { key: "next", label: "Post next" },
-  { key: "mine", label: "Your videos" },
-  { key: "trends", label: "Trending" },
-  { key: "creators", label: "Creators like you" },
-  { key: "loop", label: "Did it work?" },
+  { key: "next", label: "Post next", short: "Next" },
+  { key: "mine", label: "Your videos", short: "Videos" },
+  { key: "trends", label: "Trending", short: "Trends" },
+  { key: "creators", label: "Creators like you", short: "Creators" },
+  { key: "loop", label: "Did it work?", short: "Results" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
-const STAGE_LINE = { profile: "Reading your videos.", peers: "Reading creators like you.", trends: "Scanning your niche.", plan: "Writing your plan." } as const;
+const STAGE_LINE: Record<ScanStage, string> = {
+  profile: "Reading your videos.",
+  niche: "Reading your niche's hashtags.",
+  peers: "Reading creators like you.",
+  trends: "Scanning what's rising.",
+  tag: "Reading your new videos.",
+  plan: "Checking your ideas.",
+};
 
 export default async function PlanPage({ searchParams }: PageProps<"/app">) {
   const user = await getSessionUser();
@@ -33,13 +41,16 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
   if (!creator) redirect("/app/setup");
   const { tab: tabParam, idea: ideaParam, scan: scanFlag } = await searchParams;
 
-  const [plans, videos, peers, runs, followers] = await Promise.all([
+  const [plans, own, peers, recent, runs, followers] = await Promise.all([
     listPlans(creator.id, 6),
-    listVideos(creator.id, { days: 120 }),
+    listVideos(creator.id, { days: 120, self: true }),
     listPeers(creator.id),
+    listVideos(creator.id, { days: 14 }),
     listRuns(creator.id),
     listFollowers(creator.id, 60),
   ]);
+  const peerVideos = await listVideos(creator.id, { days: 90, authors: peers.map((p) => p.handle) });
+  const videos = [...own, ...peerVideos];
   const [latest] = plans;
   if (!latest) redirect("/app/setup");
   if (!creator.goals) redirect("/app/setup");
@@ -49,13 +60,11 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
   const locked = planState(creator).locked;
 
   // The numbers every view leans on, computed once.
-  const own = videos.filter((v) => v.is_self);
   const normal = normalOf(own);
   const peerSet = new Set(peers.map((p) => p.handle));
   const byAuthor = new Map<string, typeof videos>();
   for (const v of videos) byAuthor.set(v.author, [...(byAuthor.get(v.author) ?? []), v]);
   const normals = new Map([...byAuthor].map(([h, vs]) => [h, normalOf(vs)]));
-  const recent = videos.filter((v) => v.posted_at && withinDays(v.posted_at, 14));
   const trends = trendRows(recent);
   const myFollowers = followerChange(followers.filter((f) => f.handle === creator.handle));
 
@@ -106,7 +115,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
       {running && (
         <div className="card px-4 py-3 flex items-center gap-3 text-[14px]">
           <span className="spinner" />
-          {STAGE_LINE[creator.scan_stage ?? "profile"]} A new plan lands in a couple of minutes; this page updates on its own.
+          {STAGE_LINE[creator.scan_stage ?? "profile"]} {creator.plan_requested ? "A new plan lands in a few minutes" : "Your numbers update in a few minutes"}; this page updates on its own.
         </div>
       )}
       {scanFlag === "recent" && !running && <div className="card px-4 py-3 text-[14px] text-ink-2">Read {ago(creator.last_scan_at)}. The next read can start ten minutes after the last.</div>}
@@ -115,7 +124,8 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
       <nav className="tabs" aria-label="Views">
         {TABS.map((t) => (
           <Link key={t.key} href={t.key === "next" ? "/app" : `/app?tab=${t.key}`} className="tab" aria-current={tab === t.key ? "page" : undefined}>
-            {t.label}
+            <span className="max-[640px]:hidden">{t.label}</span>
+            <span className="min-[641px]:hidden">{t.short}</span>
             {t.key === "next" && <span className="count">{latest.body.ideas.length}</span>}
           </Link>
         ))}

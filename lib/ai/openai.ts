@@ -15,7 +15,8 @@ import { strictJsonSchema } from "./json-schema";
 
 let client: OpenAI | null = null;
 function getClient(): OpenAI {
-  client ??= new OpenAI({ apiKey: env.openaiApiKey, timeout: 180_000, maxRetries: 2 });
+  // Bounded so a scan stage that makes a call still fits in its 300s function: one try, two minutes.
+  client ??= new OpenAI({ apiKey: env.openaiApiKey, timeout: 120_000, maxRetries: 0 });
   return client;
 }
 
@@ -32,7 +33,10 @@ export async function generateJson<S extends z.ZodType>(opts: {
   const format = { type: "json_schema" as const, name: "reply", strict: true, schema: strictJsonSchema(opts.schema) };
   let feedback = "";
   let lastError: unknown;
+  const started = Date.now();
   for (let attempt = 0; attempt < 2; attempt++) {
+    // A rejected reply is asked for again only while there is time left for it.
+    if (attempt && Date.now() - started > 60_000) break;
     const res = await getClient().responses.create({
       model,
       instructions: opts.system,

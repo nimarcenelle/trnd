@@ -19,7 +19,7 @@ const PART_LABEL: Record<keyof BorrowParts, string> = { beat: "Beat their normal
 /** The borrow score as a pill that opens into what it is made of. */
 export function BorrowScore({ score, parts }: { score: number; parts: BorrowParts }) {
   return (
-    <details className="relative inline-block group">
+    <details data-popover className="relative inline-block group">
       <summary className="pill pill-brand border border-brand">Borrow score {score} ⓘ</summary>
       <div className="absolute z-20 top-[calc(100%+6px)] left-0 w-[min(310px,80vw)] card p-3 shadow-[var(--shadow-lg)] text-[13px] grid gap-2">
         <strong>Is it worth borrowing for you?</strong>

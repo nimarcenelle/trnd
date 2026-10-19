@@ -45,12 +45,34 @@ export async function startAction(_prev: FormState, formData: FormData): Promise
   const existing = await getCreator(user.id);
   let id = existing?.id;
   if (existing && existing.handle !== handle) {
+    if (isScanning(existing)) return { error: "We're still reading your current account. Change the handle once that finishes, in about two minutes." };
     // A new handle is a new account: what was read for the old one no longer applies.
-    await Promise.all(["peers", "videos", "follower_snapshots", "trend_snapshots", "plans", "idea_runs", "tiktok_connections"].map((t) => sb.from(t).delete().eq("creator_id", existing.id)));
+    if (existing.tiktok_connected_at) await disconnect(existing.id);
+    const results = await Promise.all(["peers", "videos", "follower_snapshots", "trend_snapshots", "plans", "idea_runs"].map((t) => sb.from(t).delete().eq("creator_id", existing.id)));
+    if (results.some((r) => r.error)) return { error: "Couldn't switch accounts. Try again in a moment." };
     await sb
       .from("creators")
-      .update({ handle, profile: null, hashtags: [], display_name: null, avatar_url: null, bio: null, followers: null, last_scan_at: null, scan_status: "idle", scan_stage: null, scan_error: null, tiktok_connected_at: null })
+      .update({
+        handle,
+        profile: null,
+        profile_read_at: null,
+        hashtags: [],
+        display_name: null,
+        avatar_url: null,
+        bio: null,
+        followers: null,
+        following: null,
+        hearts: null,
+        videos: null,
+        last_scan_at: null,
+        plan_requested: false,
+        scan_status: "idle",
+        scan_stage: null,
+        scan_error: null,
+      })
       .eq("id", existing.id);
+  } else if (existing && isScanning(existing)) {
+    redirect("/app/setup");
   } else if (!existing) {
     const { data, error } = await sb.from("creators").insert({ owner_id: user.id, handle }).select("id").single();
     if (error) return { error: "Couldn't save that handle. Try again in a moment." };
@@ -85,6 +107,17 @@ export async function scanNowAction(): Promise<void> {
   redirect("/app");
 }
 
+/** Setup's "Try again": picks a stopped first read up where it stopped. */
+export async function retryScanAction(): Promise<void> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  if (!isScanning(creator)) {
+    after(() => scanCreator(creator.id, { resume: true }).catch((e) => console.warn("[setup] retry:", (e as Error).message)));
+    await adminSupabase().from("creators").update({ scan_status: "running", scan_stage: creator.scan_stage ?? "profile", scan_started_at: new Date().toISOString(), scan_error: null }).eq("id", creator.id);
+  }
+  redirect("/app/setup");
+}
+
 /** "Add to my week": the idea is tracked, with the creator's typical range as the bar it is measured against. */
 export async function addToWeekAction(formData: FormData): Promise<void> {
   const { creator } = await requireCreator();
@@ -95,18 +128,12 @@ export async function addToWeekAction(formData: FormData): Promise<void> {
   const { data: plan } = await sb.from("plans").select("*").eq("id", planId).eq("creator_id", creator.id).maybeSingle<Plan>();
   const idea = plan?.body.ideas[rank - 1];
   if (!plan || !idea) redirect("/app");
-  const { data: dup } = await sb.from("idea_runs").select("id").eq("plan_id", planId).eq("rank", rank).maybeSingle();
-  if (!dup) {
-    const { data: own } = await sb.from("videos").select("views, saves, comments, posted_at").eq("creator_id", creator.id).eq("is_self", true).order("posted_at", { ascending: false }).limit(30);
-    const n = normalOf((own ?? []) as Pick<Video, "views" | "saves" | "comments" | "posted_at">[]);
-    await sb.from("idea_runs").insert({
-      creator_id: creator.id,
-      plan_id: planId,
-      rank,
-      idea,
-      expected: n.low !== null && n.high !== null ? { low: n.low, high: n.high } : null,
-    });
-  }
+  const { data: own } = await sb.from("videos").select("views, saves, comments, posted_at").eq("creator_id", creator.id).eq("is_self", true).order("posted_at", { ascending: false }).limit(30);
+  const n = normalOf((own ?? []) as Pick<Video, "views" | "saves" | "comments" | "posted_at">[]);
+  // One run per idea (unique plan_id, rank): a second click is a no-op.
+  await sb
+    .from("idea_runs")
+    .upsert({ creator_id: creator.id, plan_id: planId, rank, idea, expected: n.low !== null && n.high !== null ? { low: n.low, high: n.high } : null }, { onConflict: "plan_id,rank", ignoreDuplicates: true });
   revalidatePath("/app");
   redirect(`/app?added=${rank}#idea-${rank}`);
 }
@@ -125,10 +152,16 @@ export async function addPeerAction(_prev: FormState, formData: FormData): Promi
   if (!HANDLE.test(handle)) return { error: "Enter a TikTok handle, like @theircreator." };
   if (handle === creator.handle) return { error: "That's you." };
   const sb = adminSupabase();
-  const { count } = await sb.from("peers").select("id", { count: "exact", head: true }).eq("creator_id", creator.id);
-  if ((count ?? 0) >= MAX_PEERS) return { error: `You can follow up to ${MAX_PEERS} creators. Remove one first.` };
-  const { error } = await sb.from("peers").insert({ creator_id: creator.id, handle, source: "owner", reason: "Added by you" });
-  if (error) return { error: /duplicate/i.test(error.message) ? "Already on your list." : "Couldn't add that creator." };
+  const { data: rows } = await sb.from("peers").select("id, handle, removed_at").eq("creator_id", creator.id);
+  const list = rows ?? [];
+  const existing = list.find((p) => p.handle === handle);
+  if (existing && !existing.removed_at) return { error: "Already on your list." };
+  if (list.filter((p) => !p.removed_at).length >= MAX_PEERS) return { error: `You can follow up to ${MAX_PEERS} creators. Remove one first.` };
+  // Someone removed earlier comes back as yours.
+  const { error } = existing
+    ? await sb.from("peers").update({ removed_at: null, source: "owner", reason: "Added by you" }).eq("id", existing.id)
+    : await sb.from("peers").insert({ creator_id: creator.id, handle, source: "owner", reason: "Added by you" });
+  if (error) return { error: "Couldn't add that creator." };
   revalidatePath("/app", "layout");
   return { notice: `@${handle} is read on the next scan.` };
 }
@@ -139,8 +172,9 @@ export async function removePeerAction(formData: FormData): Promise<void> {
   const sb = adminSupabase();
   const { data } = await sb.from("peers").select("handle").eq("id", String(formData.get("id") ?? "")).eq("creator_id", creator.id).maybeSingle();
   if (data) {
-    await sb.from("peers").delete().eq("id", String(formData.get("id"))).eq("creator_id", creator.id);
-    // Their videos go too, so they stop counting toward trends and ideas.
+    // Kept, marked removed, so the next scan does not match them again.
+    await sb.from("peers").update({ removed_at: new Date().toISOString() }).eq("id", String(formData.get("id"))).eq("creator_id", creator.id);
+    // Their videos go, so they stop counting toward trends and ideas.
     await sb.from("videos").delete().eq("creator_id", creator.id).eq("author", data.handle);
   }
   revalidatePath("/app", "layout");

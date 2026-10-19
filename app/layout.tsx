@@ -6,6 +6,8 @@ import "@fontsource-variable/jetbrains-mono/index.css";
 import "@fontsource/unbounded/600.css";
 import "@fontsource/unbounded/800.css";
 
+import DismissPopovers from "@/components/dismiss-popovers";
+
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://creators.usetrnd.com";
@@ -38,7 +40,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <DismissPopovers />
+      </body>
     </html>
   );
 }

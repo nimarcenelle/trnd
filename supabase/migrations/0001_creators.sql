@@ -1,0 +1,207 @@
+-- TRND for Creators: everything in one paste for the Supabase SQL editor of a
+-- fresh project. Safe to re-run.
+--
+-- A creator (one per owner) is a TikTok handle. Each scan reads their recent
+-- videos, the videos of a handful of peer creators in the same niche and the
+-- niche's hashtags, snapshots the numbers, and writes a plan: three ideas to
+-- post next. An idea the creator adds to their week is matched to the video
+-- they post, and its numbers are checked 48 hours later.
+
+create table if not exists public.creators (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  handle text not null,
+  display_name text,
+  avatar_url text,
+  bio text,
+  followers bigint,
+  following bigint,
+  hearts bigint,
+  videos int,
+  -- The model's read of the account: niche, audience, what works and what doesn't.
+  profile jsonb,
+  -- What the creator is posting for, set by them: goal, posts per week, target, notes.
+  goals jsonb,
+  -- Niche hashtags to watch, and where each came from.
+  hashtags text[] not null default '{}',
+  plan text not null default 'trial',
+  plan_status text not null default 'active',
+  trial_ends_at timestamptz not null default now() + interval '14 days',
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  scan_status text not null default 'idle', -- idle | running | error
+  scan_stage text, -- profile | peers | trends | plan, while running
+  scan_error text,
+  scan_started_at timestamptz,
+  last_scan_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (owner_id)
+);
+
+-- Creators in the same niche, matched by the scan or added by the owner.
+create table if not exists public.peers (
+  id uuid primary key default gen_random_uuid(),
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  handle text not null,
+  display_name text,
+  avatar_url text,
+  followers bigint,
+  reason text,
+  source text not null default 'match', -- match | owner
+  last_read_at timestamptz,
+  last_error text,
+  created_at timestamptz not null default now(),
+  unique (creator_id, handle)
+);
+
+-- Every video read, the creator's own and their peers', latest numbers on the row.
+create table if not exists public.videos (
+  id uuid primary key default gen_random_uuid(),
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  author text not null, -- the handle that posted it
+  is_self boolean not null default false,
+  video_id text not null,
+  url text,
+  caption text,
+  hashtags text[] not null default '{}',
+  sound text,
+  sound_original boolean,
+  duration_s int,
+  cover_url text,
+  posted_at timestamptz,
+  views bigint,
+  likes bigint,
+  comments bigint,
+  shares bigint,
+  saves bigint,
+  -- The model's read: the format (e.g. "ranked list") and the opening line.
+  format text,
+  hook text,
+  first_seen_at timestamptz not null default now(),
+  last_read_at timestamptz not null default now(),
+  unique (creator_id, video_id)
+);
+create index if not exists videos_creator_idx on public.videos (creator_id, is_self, posted_at desc);
+
+-- One row per video per day it was read: what "48 hours later" is measured from.
+create table if not exists public.video_snapshots (
+  video_id uuid not null references public.videos(id) on delete cascade,
+  captured_on date not null,
+  views bigint,
+  likes bigint,
+  comments bigint,
+  shares bigint,
+  saves bigint,
+  primary key (video_id, captured_on)
+);
+
+-- Follower counts per day, the creator's and each peer's.
+create table if not exists public.follower_snapshots (
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  handle text not null,
+  followers bigint not null,
+  captured_on date not null,
+  primary key (creator_id, handle, captured_on)
+);
+
+-- What each scan saw for each hashtag and sound in the niche: the basis for early, rising, peaking, fading.
+create table if not exists public.trend_snapshots (
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  kind text not null, -- hashtag | sound
+  key text not null,
+  label text not null,
+  -- Videos in the sample using it, posted in the last 7 days and the 7 before; their views.
+  recent int not null default 0,
+  prior int not null default 0,
+  views bigint not null default 0,
+  -- Hashtag-wide totals when the source reports them.
+  total_views bigint,
+  captured_on date not null,
+  primary key (creator_id, kind, key, captured_on)
+);
+
+-- What a scan ends with: the answer and the ideas.
+create table if not exists public.plans (
+  id uuid primary key default gen_random_uuid(),
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  body jsonb not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists plans_creator_idx on public.plans (creator_id, created_at desc);
+
+-- An idea the creator put in their week, the video it became, and how it did.
+create table if not exists public.idea_runs (
+  id uuid primary key default gen_random_uuid(),
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  plan_id uuid references public.plans(id) on delete set null,
+  rank int not null,
+  idea jsonb not null,
+  -- The creator's own typical range when it was added: { low, high } views.
+  expected jsonb,
+  video_id uuid references public.videos(id) on delete set null,
+  status text not null default 'planned', -- planned | posted | checked
+  result jsonb,
+  added_at timestamptz not null default now(),
+  matched_at timestamptz,
+  checked_at timestamptz
+);
+create index if not exists idea_runs_creator_idx on public.idea_runs (creator_id, added_at desc);
+
+-- Row-level security: owners read their own rows; every write goes through the service role.
+alter table public.creators enable row level security;
+alter table public.peers enable row level security;
+alter table public.videos enable row level security;
+alter table public.video_snapshots enable row level security;
+alter table public.follower_snapshots enable row level security;
+alter table public.trend_snapshots enable row level security;
+alter table public.plans enable row level security;
+alter table public.idea_runs enable row level security;
+
+drop policy if exists creators_owner_read on public.creators;
+create policy creators_owner_read on public.creators for select using (owner_id = auth.uid());
+
+drop policy if exists peers_owner_read on public.peers;
+create policy peers_owner_read on public.peers for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+drop policy if exists videos_owner_read on public.videos;
+create policy videos_owner_read on public.videos for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+drop policy if exists video_snapshots_owner_read on public.video_snapshots;
+create policy video_snapshots_owner_read on public.video_snapshots for select
+  using (exists (select 1 from public.videos v join public.creators c on c.id = v.creator_id where v.id = video_id and c.owner_id = auth.uid()));
+
+drop policy if exists follower_snapshots_owner_read on public.follower_snapshots;
+create policy follower_snapshots_owner_read on public.follower_snapshots for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+drop policy if exists trend_snapshots_owner_read on public.trend_snapshots;
+create policy trend_snapshots_owner_read on public.trend_snapshots for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+drop policy if exists plans_owner_read on public.plans;
+create policy plans_owner_read on public.plans for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+drop policy if exists idea_runs_owner_read on public.idea_runs;
+create policy idea_runs_owner_read on public.idea_runs for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+-- A creator's connected TikTok account (Login Kit). Tokens are read only by the
+-- service role: there is no owner read policy on this table.
+create table if not exists public.tiktok_connections (
+  creator_id uuid primary key references public.creators(id) on delete cascade,
+  open_id text not null,
+  username text,
+  scopes text,
+  access_token text not null,
+  refresh_token text not null,
+  expires_at timestamptz not null,
+  refresh_expires_at timestamptz not null,
+  connected_at timestamptz not null default now()
+);
+alter table public.tiktok_connections enable row level security;
+alter table public.creators add column if not exists tiktok_connected_at timestamptz;
+-- "Read again now": the next plan stage writes a new plan even inside the week.
+alter table public.creators add column if not exists plan_requested boolean not null default false;

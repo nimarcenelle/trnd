@@ -4,7 +4,7 @@ import AuthShell from "@/components/auth/auth-shell";
 import ForgotForm from "@/components/auth/forgot-form";
 import { getSessionUser } from "@/lib/auth/session";
 
-export const metadata = { title: "Reset password — TRND" };
+export const metadata = { title: "Reset password — TRND for creators" };
 
 export default async function ForgotPage() {
   const user = await getSessionUser();

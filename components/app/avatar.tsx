@@ -1,6 +1,6 @@
-/** A rival's initial in a muted circle, the color stable per name. */
-const TONES = ["#e8e1d6", "#dde5ea", "#e3e8dc", "#ebdfe2", "#e2e0ec", "#ece5d3", "#d9e7e3"];
-const INKS = ["#5c4a33", "#34505f", "#45573a", "#6a3d47", "#47406b", "#66532a", "#2f5c52"];
+/** A creator's initial in a colored circle, the color stable per handle. Initials, not photos: TikTok's image links expire. */
+const TONES = ["#fde6ee", "#def3f6", "#e2f4e9", "#fbefdb", "#ece6fb", "#f6e3f3"];
+const INKS = ["#b01a4a", "#0a6f7f", "#14683d", "#8a5205", "#5b3fb8", "#8f2f84"];
 
 function hash(s: string): number {
   let h = 0;
@@ -10,13 +10,14 @@ function hash(s: string): number {
 
 export default function Avatar({ name, size = 28 }: { name: string; size?: number }) {
   const i = hash(name) % TONES.length;
+  const letter = name.replace(/[^\p{L}\p{N}]/gu, "").charAt(0).toUpperCase() || "?";
   return (
     <span
       aria-hidden="true"
-      className="inline-grid place-items-center rounded-full font-semibold shrink-0"
+      className="inline-grid place-items-center rounded-full font-bold shrink-0"
       style={{ width: size, height: size, background: TONES[i], color: INKS[i], fontSize: Math.round(size * 0.42) }}
     >
-      {name.trim().charAt(0).toUpperCase() || "?"}
+      {letter}
     </span>
   );
 }

@@ -3,7 +3,7 @@ import type Stripe from "stripe";
 import { adminSupabase } from "@/lib/db/supabase";
 import { env, isStripeConfigured } from "@/lib/env";
 
-/** Stripe → brands. The only writer of paid plan state; signature-verified. */
+/** Stripe → creators. The only writer of paid plan state; signature-verified. */
 
 function mapStatus(s: Stripe.Subscription.Status): "active" | "past_due" | "canceled" {
   if (s === "active" || s === "trialing") return "active";
@@ -31,18 +31,18 @@ export async function POST(req: Request): Promise<Response> {
   try {
     if (event.type === "checkout.session.completed") {
       const s = event.data.object;
-      const brandId = s.metadata?.brand_id ?? s.client_reference_id;
-      if (brandId) {
+      const creatorId = s.metadata?.creator_id ?? s.client_reference_id;
+      if (creatorId) {
         await sb
-          .from("brands")
+          .from("creators")
           .update({ plan: "pro", plan_status: "active", stripe_customer_id: idOf(s.customer), stripe_subscription_id: idOf(s.subscription) })
-          .eq("id", brandId);
+          .eq("id", creatorId);
       }
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       const sub = event.data.object;
       const status = event.type === "customer.subscription.deleted" ? "canceled" : mapStatus(sub.status);
-      const q = sb.from("brands").update({ plan: "pro", plan_status: status, stripe_customer_id: idOf(sub.customer), stripe_subscription_id: sub.id });
-      await (sub.metadata?.brand_id ? q.eq("id", sub.metadata.brand_id) : q.eq("stripe_subscription_id", sub.id));
+      const q = sb.from("creators").update({ plan: "pro", plan_status: status, stripe_customer_id: idOf(sub.customer), stripe_subscription_id: sub.id });
+      await (sub.metadata?.creator_id ? q.eq("id", sub.metadata.creator_id) : q.eq("stripe_subscription_id", sub.id));
     }
   } catch (err) {
     console.warn(`[stripe] ${event.type} failed:`, (err as Error).message);

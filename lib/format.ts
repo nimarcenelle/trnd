@@ -1,13 +1,4 @@
-import type { Ad, Brand } from "@/lib/db/types";
-
-/** The ad's public Ad Library page: the link that never expires. */
-export const libraryLink = (archiveId: string) => `https://www.facebook.com/ads/library/?id=${encodeURIComponent(archiveId)}`;
-
-export function daysRunningOf(ad: Pick<Ad, "started_at" | "stopped_at">, now = Date.now()): number | null {
-  if (!ad.started_at) return null;
-  const end = ad.stopped_at ? Date.parse(ad.stopped_at) : now;
-  return Math.max(0, Math.floor((end - Date.parse(ad.started_at)) / 86_400_000));
-}
+import type { Creator } from "@/lib/db/types";
 
 export function ago(iso: string | null, now = Date.now()): string {
   if (!iso) return "never";
@@ -23,33 +14,34 @@ export function ago(iso: string | null, now = Date.now()): string {
 const SCAN_STALE_MS = 10 * 60_000;
 
 /** A scan is running, and not one that died mid-way and never reset its flag. */
-export function isScanning(brand: Pick<Brand, "scan_status" | "scan_started_at">, now = Date.now()): boolean {
-  return brand.scan_status === "running" && Boolean(brand.scan_started_at) && now - Date.parse(brand.scan_started_at!) < SCAN_STALE_MS;
+export function isScanning(c: Pick<Creator, "scan_status" | "scan_started_at">, now = Date.now()): boolean {
+  return c.scan_status === "running" && Boolean(c.scan_started_at) && now - Date.parse(c.scan_started_at!) < SCAN_STALE_MS;
 }
 
 export const withinDays = (iso: string, days: number, now = Date.now()) => now - Date.parse(iso) < days * 86_400_000;
 
-/** "ugc testimonial" → "UGC testimonial": a model-written tag, shown in sentence case. */
-export const tagLabel = (t: string) => (t.charAt(0).toUpperCase() + t.slice(1)).replace(/\bugc\b/gi, "UGC").replace(/\bdco\b/gi, "DCO");
-
-/** 12345 → "12.3K", 1200000 → "1.2M". */
+/** 12345 → "12K", 9500 → "9,500", 1200000 → "1.2M", 36000 → "36K". */
 export function compact(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
-  if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}M`;
-  if (Math.abs(n) >= 1e4) return `${(n / 1e3).toFixed(n >= 1e5 ? 0 : 1)}K`;
+  const a = Math.abs(n);
+  // One decimal below 10 (2.4M, 9.5K), none above, and never a trailing ".0".
+  const short = (x: number, unit: string) => `${x.toFixed(Math.abs(x) >= 10 ? 0 : 1).replace(/\.0$/, "")}${unit}`;
+  if (a >= 1e9) return short(n / 1e9, "B");
+  if (a >= 1e6) return short(n / 1e6, "M");
+  if (a >= 1e4) return short(n / 1e3, "K");
   return n.toLocaleString("en-US");
 }
 
-export const percent = (f: number | null | undefined, digits = 1) => (f === null || f === undefined ? "—" : `${(f * 100).toFixed(digits)}%`);
+/** +1,234 / −56: a change with its sign. */
+export const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${compact(Math.abs(n))}`;
 
-export const profileUrl = (platform: "instagram" | "tiktok" | "facebook", handle: string) =>
-  platform === "instagram" ? `https://www.instagram.com/${handle}/` : platform === "facebook" ? `https://www.facebook.com/${handle}` : `https://www.tiktok.com/@${handle}`;
+export const profileUrl = (handle: string) => `https://www.tiktok.com/@${handle}`;
 
-/** Today as yyyy-mm-dd (UTC), the date the stage and day counts are measured to. */
+/** Today as yyyy-mm-dd (UTC), the date snapshots are filed under. */
 export const todayIso = (now = Date.now()) => new Date(now).toISOString().slice(0, 10);
 
-/** The note a rival carries when no Page running Meta ads could be found: not an error, a fact. */
-export const NO_PAGE_NOTE = "Not running Meta ads under any Page we could find";
-export const isNoPageNote = (note: string | null | undefined) => Boolean(note?.startsWith(NO_PAGE_NOTE));
-/** What the search behind a NO_PAGE_NOTE tried, e.g. `"Afina", "afina.com"`, or null. */
-export const noPageSearched = (note: string | null | undefined) => note?.split(" Searched: ")[1]?.replace(/\.$/, "") ?? null;
+/** "Mar 4" */
+export const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
+/** 44 → "44s", 75 → "1m15s". */
+export const duration = (s: number | null) => (s === null ? "" : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m${String(s % 60).padStart(2, "0")}s`);

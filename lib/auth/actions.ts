@@ -14,27 +14,27 @@ function fields(formData: FormData) {
   return {
     email: String(formData.get("email") ?? "").trim(),
     password: String(formData.get("password") ?? ""),
-    // The site typed on the home page, carried into setup so it starts on its own.
-    site: String(formData.get("site") ?? "").trim().slice(0, 200),
+    // The handle typed on the home page, carried into setup.
+    handle: String(formData.get("handle") ?? "").trim().slice(0, 60),
   };
 }
 
-const setupPath = (site: string) => (site ? `/app/setup?url=${encodeURIComponent(site)}` : "/app/setup");
+const setupPath = (handle: string) => (handle ? `/app/setup?handle=${encodeURIComponent(handle)}` : "/app/setup");
 
 export async function signUpAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
-  const { email, password, site } = fields(formData);
+  const { email, password, handle } = fields(formData);
   if (!/.+@.+\..+/.test(email)) return { error: "Enter a valid email." };
   if (password.length < 8) return { error: "Use at least 8 characters for the password." };
   const sb = await createServerSupabase();
   const { data, error } = await sb.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: `${env.siteUrl}/auth/callback?next=${encodeURIComponent(setupPath(site))}` },
+    options: { emailRedirectTo: `${env.siteUrl}/auth/callback?next=${encodeURIComponent(setupPath(handle))}` },
   });
   if (error) return { error: error.message };
   // With email confirmation on, signUp starts no session: say what happens next.
   if (!data.session) return { notice: "Check your email and click the confirmation link to finish signing up." };
-  redirect(setupPath(site));
+  redirect(setupPath(handle));
 }
 
 export async function signInAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {

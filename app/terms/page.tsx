@@ -1,49 +1,49 @@
 import LegalShell from "@/components/legal/legal-shell";
 
-export const metadata = { title: "Terms of Service — TRND" };
+export const metadata = { title: "Terms of Service — TRND for creators" };
 
 /** Plain-English terms that match what the product does. Have counsel review before scale. */
 export default function TermsPage() {
   return (
-    <LegalShell title="Terms of Service" updated="October 12, 2026">
-      <h2>What TRND is</h2>
+    <LegalShell title="Terms of Service" updated="October 19, 2026">
+      <h2>What TRND for creators is</h2>
       <p>
-        TRND reads your website, names the competitors running Meta ads to your customers, reads their active ads from Meta&apos;s
-        public Ad Library every day, and writes reports on what they run and what changed. It is a research and decision-support
-        tool. You make and run your own ads, on your own accounts, with your own budgets.
+        TRND reads your public TikTok videos, the public videos of creators in your niche and the hashtags you post in, and writes
+        a weekly plan: ideas for videos to make, with scripts. It is a planning tool. You make and post your own videos, on your
+        own account.
       </p>
 
       <h2>Your account</h2>
       <p>
-        Keep your password to yourself and tell us if you think someone else has it. You must be authorized to act for the
-        business you register. One business per account.
+        Keep your password to yourself and tell us if you think someone else has it. Only track a TikTok account that is yours or
+        that you are authorized to manage. One TikTok account per TRND account.
       </p>
 
       <h2>Trial and billing</h2>
       <p>
         Every account starts with a 14-day free trial. After that, TRND is a monthly subscription billed through Stripe until you
         cancel. Cancel any time from Settings; you keep access until the end of the period you paid for. When a trial ends without
-        a plan, daily scans pause and what TRND already found stays readable.
+        a plan, daily reads pause and what TRND already found stays readable.
       </p>
 
-      <h2>Public ad data and generated reports</h2>
+      <h2>Public data and generated plans</h2>
       <p>
-        Competitor ads come from Meta&apos;s public Ad Library and belong to the advertisers who ran them. TRND shows them so you
-        can study the market; it gives you no rights in them. Use what you learn to make your own ads, not to copy someone
-        else&apos;s creative, trademarks or claims. Reports are written by an AI model from that public data. They can be wrong,
-        and how long an ad has run is evidence, not proof, that it works. Check before you spend.
+        Other creators&apos; videos belong to them. TRND shows their public numbers so you can learn what works in your niche; it
+        gives you no rights in their videos. Make your own version, never a copy of someone else&apos;s video, voice, likeness,
+        music or words. Plans are written by an AI model from public numbers. They can be wrong, and a video beating its usual
+        views is evidence, not proof, that a format works.
       </p>
 
       <h2>What you may not do</h2>
       <p>
         Don&apos;t resell or republish TRND&apos;s data in bulk, probe or overload the service, access another customer&apos;s
-        data, or use TRND to break the law or another platform&apos;s terms.
+        data, harass the creators you follow, or use TRND to break the law or TikTok&apos;s terms.
       </p>
 
       <h2>Liability</h2>
       <p>
         TRND is provided as is. To the extent the law allows, our total liability to you is limited to what you paid us in the
-        three months before the claim, and we are not liable for lost profits, ad spend, or indirect damages.
+        three months before the claim, and we are not liable for lost earnings, deals or indirect damages.
       </p>
 
       <h2>Ending things</h2>

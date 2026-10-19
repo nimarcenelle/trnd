@@ -1,28 +1,36 @@
--- TRND database setup: everything in one paste for the Supabase SQL editor.
--- This is 0100_surveillance.sql followed by 0101_brand_intel.sql. Safe to re-run.
-
--- TRND rebuild: always-on surveillance of rivals' Meta ads.
+-- TRND for Creators: everything in one paste for the Supabase SQL editor of a
+-- fresh project. Safe to re-run.
 --
--- Five tables. A brand (one per owner) watches rivals; every ad a rival runs
--- is kept with when we first and last saw it; each scan writes the changes it
--- found and a report the model wrote from them. The tables of the old product
--- (businesses, competitors, picks, ...) are untouched and unused; drop them
--- whenever convenient. Safe to re-run.
+-- A creator (one per owner) is a TikTok handle. Each scan reads their recent
+-- videos, the videos of a handful of peer creators in the same niche and the
+-- niche's hashtags, snapshots the numbers, and writes a plan: three ideas to
+-- post next. An idea the creator adds to their week is matched to the video
+-- they post, and its numbers are checked 48 hours later.
 
-create table if not exists public.brands (
+create table if not exists public.creators (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
-  url text not null,
-  name text not null,
-  -- What the brand sells and to whom, as the model read it off the site.
-  summary text,
-  category text,
+  handle text not null,
+  display_name text,
+  avatar_url text,
+  bio text,
+  followers bigint,
+  following bigint,
+  hearts bigint,
+  videos int,
+  -- The model's read of the account: niche, audience, what works and what doesn't.
+  profile jsonb,
+  -- What the creator is posting for, set by them: goal, posts per week, target, notes.
+  goals jsonb,
+  -- Niche hashtags to watch, and where each came from.
+  hashtags text[] not null default '{}',
   plan text not null default 'trial',
   plan_status text not null default 'active',
   trial_ends_at timestamptz not null default now() + interval '14 days',
   stripe_customer_id text,
   stripe_subscription_id text,
   scan_status text not null default 'idle', -- idle | running | error
+  scan_stage text, -- profile | peers | trends | plan, while running
   scan_error text,
   scan_started_at timestamptz,
   last_scan_at timestamptz,
@@ -30,285 +38,170 @@ create table if not exists public.brands (
   unique (owner_id)
 );
 
-create table if not exists public.rivals (
+-- Creators in the same niche, matched by the scan or added by the owner.
+create table if not exists public.peers (
   id uuid primary key default gen_random_uuid(),
-  brand_id uuid not null references public.brands(id) on delete cascade,
-  name text not null,
-  website text,
-  -- Why the model (or the owner) thinks this is a rival.
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  handle text not null,
+  display_name text,
+  avatar_url text,
+  followers bigint,
   reason text,
-  -- The advertiser's Facebook Page, resolved on the first scan that finds it.
-  page_id text,
-  page_name text,
-  source text not null default 'ai', -- ai | owner
-  last_scraped_at timestamptz,
+  source text not null default 'match', -- match | owner
+  last_read_at timestamptz,
   last_error text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique (creator_id, handle)
 );
-create index if not exists rivals_brand_idx on public.rivals (brand_id);
 
-create table if not exists public.ads (
+-- Every video read, the creator's own and their peers', latest numbers on the row.
+create table if not exists public.videos (
   id uuid primary key default gen_random_uuid(),
-  brand_id uuid not null references public.brands(id) on delete cascade,
-  rival_id uuid not null references public.rivals(id) on delete cascade,
-  archive_id text not null,
-  page_name text,
-  body text,
-  title text,
-  cta text,
-  link_url text,
-  format text, -- video | image | carousel | dco | unknown
-  image_url text,
-  video_url text,
-  platforms text[] not null default '{}',
-  variants int not null default 1,
-  started_at date,
-  active boolean not null default true,
-  first_seen_at timestamptz not null default now(),
-  last_seen_at timestamptz not null default now(),
-  stopped_at timestamptz,
-  -- The model's read of the ad: angle, hook, offer.
-  angle text,
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  author text not null, -- the handle that posted it
+  is_self boolean not null default false,
+  video_id text not null,
+  url text,
+  caption text,
+  hashtags text[] not null default '{}',
+  sound text,
+  sound_original boolean,
+  duration_s int,
+  cover_url text,
+  posted_at timestamptz,
+  views bigint,
+  likes bigint,
+  comments bigint,
+  shares bigint,
+  saves bigint,
+  -- The model's read: the format (e.g. "ranked list") and the opening line.
+  format text,
   hook text,
-  offer text,
-  unique (rival_id, archive_id)
+  first_seen_at timestamptz not null default now(),
+  last_read_at timestamptz not null default now(),
+  unique (creator_id, video_id)
 );
-create index if not exists ads_brand_idx on public.ads (brand_id, active);
+create index if not exists videos_creator_idx on public.videos (creator_id, is_self, posted_at desc);
 
-create table if not exists public.ad_changes (
-  id uuid primary key default gen_random_uuid(),
-  brand_id uuid not null references public.brands(id) on delete cascade,
-  rival_id uuid not null references public.rivals(id) on delete cascade,
-  ad_id uuid references public.ads(id) on delete cascade,
-  kind text not null, -- launched | stopped | proven
-  detected_at timestamptz not null default now()
+-- One row per video per day it was read: what "48 hours later" is measured from.
+create table if not exists public.video_snapshots (
+  video_id uuid not null references public.videos(id) on delete cascade,
+  captured_on date not null,
+  views bigint,
+  likes bigint,
+  comments bigint,
+  shares bigint,
+  saves bigint,
+  primary key (video_id, captured_on)
 );
-create index if not exists ad_changes_brand_idx on public.ad_changes (brand_id, detected_at desc);
 
-create table if not exists public.reports (
+-- Follower counts per day, the creator's and each peer's.
+create table if not exists public.follower_snapshots (
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  handle text not null,
+  followers bigint not null,
+  captured_on date not null,
+  primary key (creator_id, handle, captured_on)
+);
+
+-- What each scan saw for each hashtag and sound in the niche: the basis for early, rising, peaking, fading.
+create table if not exists public.trend_snapshots (
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  kind text not null, -- hashtag | sound
+  key text not null,
+  label text not null,
+  -- Videos in the sample using it, posted in the last 7 days and the 7 before; their views.
+  recent int not null default 0,
+  prior int not null default 0,
+  views bigint not null default 0,
+  -- Hashtag-wide totals when the source reports them.
+  total_views bigint,
+  captured_on date not null,
+  primary key (creator_id, kind, key, captured_on)
+);
+
+-- What a scan ends with: the answer and the ideas.
+create table if not exists public.plans (
   id uuid primary key default gen_random_uuid(),
-  brand_id uuid not null references public.brands(id) on delete cascade,
-  kind text not null, -- baseline | update
+  creator_id uuid not null references public.creators(id) on delete cascade,
   body jsonb not null,
   created_at timestamptz not null default now()
 );
-create index if not exists reports_brand_idx on public.reports (brand_id, created_at desc);
+create index if not exists plans_creator_idx on public.plans (creator_id, created_at desc);
 
--- Owners read their own rows. Every write goes through the server with the
--- service role after the session is checked, so there are no write policies.
-alter table public.brands enable row level security;
-alter table public.rivals enable row level security;
-alter table public.ads enable row level security;
-alter table public.ad_changes enable row level security;
-alter table public.reports enable row level security;
-
-drop policy if exists brands_owner_read on public.brands;
-create policy brands_owner_read on public.brands for select using (owner_id = auth.uid());
-
-drop policy if exists rivals_owner_read on public.rivals;
-create policy rivals_owner_read on public.rivals for select
-  using (exists (select 1 from public.brands b where b.id = brand_id and b.owner_id = auth.uid()));
-
-drop policy if exists ads_owner_read on public.ads;
-create policy ads_owner_read on public.ads for select
-  using (exists (select 1 from public.brands b where b.id = brand_id and b.owner_id = auth.uid()));
-
-drop policy if exists ad_changes_owner_read on public.ad_changes;
-create policy ad_changes_owner_read on public.ad_changes for select
-  using (exists (select 1 from public.brands b where b.id = brand_id and b.owner_id = auth.uid()));
-
-drop policy if exists reports_owner_read on public.reports;
-create policy reports_owner_read on public.reports for select
-  using (exists (select 1 from public.brands b where b.id = brand_id and b.owner_id = auth.uid()));
-
-
--- Brand intelligence, objectives, past ad results and organic social. Safe to re-run.
---
--- The brand itself is now watched like a rival: one rivals row per brand with
--- is_self = true, so its own Meta ads go through the same scan, diff and tags.
--- brands.profile holds what the brand sells, to whom and how (editable by the
--- owner). Instagram and TikTok presence for the brand and every rival lives in
--- social_profiles, with a daily follower snapshot for growth.
-
-alter table public.brands add column if not exists profile jsonb;
-
-alter table public.rivals add column if not exists is_self boolean not null default false;
-alter table public.rivals add column if not exists instagram text;
-alter table public.rivals add column if not exists tiktok text;
--- When the rival's website was last read for social links, so it is read once.
-alter table public.rivals add column if not exists socials_checked_at timestamptz;
-create unique index if not exists rivals_one_self_idx on public.rivals (brand_id) where is_self;
-
-create table if not exists public.social_profiles (
+-- An idea the creator put in their week, the video it became, and how it did.
+create table if not exists public.idea_runs (
   id uuid primary key default gen_random_uuid(),
-  brand_id uuid not null references public.brands(id) on delete cascade,
-  rival_id uuid not null references public.rivals(id) on delete cascade,
-  platform text not null, -- instagram | tiktok
-  handle text not null,
-  display_name text,
-  followers int,
-  following int,
-  posts int,
-  -- Recent posts: { url, caption, posted_at, likes, comments, views, kind }.
-  recent jsonb not null default '[]',
-  posts_per_week numeric,
-  engagement_rate numeric, -- mean (likes + comments) / followers over recent posts
-  fetched_at timestamptz,
-  error text,
-  unique (rival_id, platform)
+  creator_id uuid not null references public.creators(id) on delete cascade,
+  plan_id uuid references public.plans(id) on delete set null,
+  rank int not null,
+  idea jsonb not null,
+  -- The creator's own typical range when it was added: { low, high } views.
+  expected jsonb,
+  video_id uuid references public.videos(id) on delete set null,
+  status text not null default 'planned', -- planned | posted | checked
+  result jsonb,
+  added_at timestamptz not null default now(),
+  matched_at timestamptz,
+  checked_at timestamptz
 );
-create index if not exists social_profiles_brand_idx on public.social_profiles (brand_id);
+create index if not exists idea_runs_creator_idx on public.idea_runs (creator_id, added_at desc);
 
-create table if not exists public.social_snapshots (
-  id uuid primary key default gen_random_uuid(),
-  profile_id uuid not null references public.social_profiles(id) on delete cascade,
-  followers int not null,
-  captured_on date not null default current_date,
-  unique (profile_id, captured_on)
+-- Row-level security: owners read their own rows; every write goes through the service role.
+alter table public.creators enable row level security;
+alter table public.peers enable row level security;
+alter table public.videos enable row level security;
+alter table public.video_snapshots enable row level security;
+alter table public.follower_snapshots enable row level security;
+alter table public.trend_snapshots enable row level security;
+alter table public.plans enable row level security;
+alter table public.idea_runs enable row level security;
+
+drop policy if exists creators_owner_read on public.creators;
+create policy creators_owner_read on public.creators for select using (owner_id = auth.uid());
+
+drop policy if exists peers_owner_read on public.peers;
+create policy peers_owner_read on public.peers for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+drop policy if exists videos_owner_read on public.videos;
+create policy videos_owner_read on public.videos for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+drop policy if exists video_snapshots_owner_read on public.video_snapshots;
+create policy video_snapshots_owner_read on public.video_snapshots for select
+  using (exists (select 1 from public.videos v join public.creators c on c.id = v.creator_id where v.id = video_id and c.owner_id = auth.uid()));
+
+drop policy if exists follower_snapshots_owner_read on public.follower_snapshots;
+create policy follower_snapshots_owner_read on public.follower_snapshots for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+drop policy if exists trend_snapshots_owner_read on public.trend_snapshots;
+create policy trend_snapshots_owner_read on public.trend_snapshots for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+drop policy if exists plans_owner_read on public.plans;
+create policy plans_owner_read on public.plans for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+drop policy if exists idea_runs_owner_read on public.idea_runs;
+create policy idea_runs_owner_read on public.idea_runs for select
+  using (exists (select 1 from public.creators c where c.id = creator_id and c.owner_id = auth.uid()));
+
+-- A creator's connected TikTok account (Login Kit). Tokens are read only by the
+-- service role: there is no owner read policy on this table.
+create table if not exists public.tiktok_connections (
+  creator_id uuid primary key references public.creators(id) on delete cascade,
+  open_id text not null,
+  username text,
+  scopes text,
+  access_token text not null,
+  refresh_token text not null,
+  expires_at timestamptz not null,
+  refresh_expires_at timestamptz not null,
+  connected_at timestamptz not null default now()
 );
-
-alter table public.social_profiles enable row level security;
-alter table public.social_snapshots enable row level security;
-
-drop policy if exists social_profiles_owner_read on public.social_profiles;
-create policy social_profiles_owner_read on public.social_profiles for select
-  using (exists (select 1 from public.brands b where b.id = brand_id and b.owner_id = auth.uid()));
-
-drop policy if exists social_snapshots_owner_read on public.social_snapshots;
-create policy social_snapshots_owner_read on public.social_snapshots for select
-  using (exists (
-    select 1 from public.social_profiles p join public.brands b on b.id = p.brand_id
-    where p.id = profile_id and b.owner_id = auth.uid()
-  ));
-
--- What the brand is trying to do right now (goal, budget, target cost), set by the owner.
-alter table public.brands add column if not exists objectives jsonb;
-
--- The brand's own ad results, from an Ads Manager export the owner uploads.
--- Each upload replaces the previous one.
-create table if not exists public.own_ad_results (
-  id uuid primary key default gen_random_uuid(),
-  brand_id uuid not null references public.brands(id) on delete cascade,
-  ad_name text not null,
-  body text,
-  spend numeric,
-  impressions numeric,
-  clicks numeric,
-  ctr numeric, -- percent, as Ads Manager reports it
-  results numeric,
-  result_type text,
-  cost_per_result numeric,
-  roas numeric,
-  period_start date,
-  period_end date,
-  uploaded_at timestamptz not null default now()
-);
-create index if not exists own_ad_results_brand_idx on public.own_ad_results (brand_id);
-alter table public.own_ad_results enable row level security;
-drop policy if exists own_ad_results_owner_read on public.own_ad_results;
-create policy own_ad_results_owner_read on public.own_ad_results for select
-  using (exists (select 1 from public.brands b where b.id = brand_id and b.owner_id = auth.uid()));
-
--- 0102_page_source.sql
--- How a rival's Facebook Page was settled: 'checked' (found and confirmed
--- against its ads) or 'owner' (pasted by the owner). Null means matched before
--- this column existed, so the next scan checks it once. Safe to re-run.
-alter table public.rivals add column if not exists page_source text;
-
--- 0103_signals.sql
--- Two more signal streams beside Meta ads: competitors' websites and their
--- marketing emails. Safe to re-run.
---
--- Websites: each scan snapshots a rival's homepage and product catalog
--- (site_snapshots, latest kept) and records what materially changed since the
--- last one (site_changes): products added or dropped, prices, sales, promos,
--- headline messaging.
---
--- Emails: every rival gets its own inbound address (rivals.inbox_token). TRND
--- signs it up to the rival's newsletter, or the owner does; whatever arrives is
--- stored in emails and tagged by the model.
-
-alter table public.rivals add column if not exists inbox_token text;
-create unique index if not exists rivals_inbox_token_idx on public.rivals (inbox_token);
--- null: not tried yet | subscribed: the signup form took it | manual: the owner must sign it up | receiving: mail arrives
-alter table public.rivals add column if not exists email_status text;
-alter table public.rivals add column if not exists email_note text;
-alter table public.rivals add column if not exists site_checked_at timestamptz;
-
-create table if not exists public.site_snapshots (
-  id uuid primary key default gen_random_uuid(),
-  brand_id uuid not null references public.brands(id) on delete cascade,
-  rival_id uuid not null references public.rivals(id) on delete cascade,
-  url text not null,
-  -- { title, description, headlines[], promos[], nav[], products[{ id, title, price, compare_at, available, url }], text_hash }
-  data jsonb not null,
-  captured_at timestamptz not null default now()
-);
-create index if not exists site_snapshots_rival_idx on public.site_snapshots (rival_id, captured_at desc);
-
-create table if not exists public.site_changes (
-  id uuid primary key default gen_random_uuid(),
-  brand_id uuid not null references public.brands(id) on delete cascade,
-  rival_id uuid not null references public.rivals(id) on delete cascade,
-  -- new_product | dropped_product | price_up | price_down | sale_started | sale_ended | promo_added | promo_removed | message_changed
-  kind text not null,
-  title text not null,
-  before text,
-  after text,
-  url text,
-  detected_at timestamptz not null default now()
-);
-create index if not exists site_changes_brand_idx on public.site_changes (brand_id, detected_at desc);
-
-create table if not exists public.emails (
-  id uuid primary key default gen_random_uuid(),
-  brand_id uuid not null references public.brands(id) on delete cascade,
-  rival_id uuid not null references public.rivals(id) on delete cascade,
-  message_id text,
-  from_address text,
-  from_name text,
-  subject text not null default '',
-  preview text,
-  body text,
-  links jsonb not null default '[]',
-  received_at timestamptz not null default now(),
-  -- Set by the model: promo | launch | newsletter | content | retention | announcement | confirmation | other
-  kind text,
-  offer text,
-  theme text,
-  is_repeat boolean,
-  unique (rival_id, message_id)
-);
-create index if not exists emails_brand_idx on public.emails (brand_id, received_at desc);
-
-alter table public.site_snapshots enable row level security;
-alter table public.site_changes enable row level security;
-alter table public.emails enable row level security;
-
-drop policy if exists site_snapshots_owner_read on public.site_snapshots;
-create policy site_snapshots_owner_read on public.site_snapshots for select
-  using (exists (select 1 from public.brands b where b.id = brand_id and b.owner_id = auth.uid()));
-drop policy if exists site_changes_owner_read on public.site_changes;
-create policy site_changes_owner_read on public.site_changes for select
-  using (exists (select 1 from public.brands b where b.id = brand_id and b.owner_id = auth.uid()));
-drop policy if exists emails_owner_read on public.emails;
-create policy emails_owner_read on public.emails for select
-  using (exists (select 1 from public.brands b where b.id = brand_id and b.owner_id = auth.uid()));
-
--- 0104_ad_scores.sql
--- A conversion score per ad: a heuristic for how well an ad has worked for the
--- company running it, from how long it has run, its reach rank, how many
--- versions it has, and (when the ad also runs as an organic post) that post's
--- engagement and comment sentiment. Safe to re-run.
-
--- Position in the Page's ads sorted by impressions on the last read (0 = most), and how many were read.
-alter table public.ads add column if not exists impression_rank int;
-alter table public.ads add column if not exists rank_total int;
--- What the ad is about, in a few words ("hard water", "hair breakage").
-alter table public.ads add column if not exists topic text;
--- The organic post the ad matches, with its numbers: { platform, url, likes, comments, shares, views, sentiment, baseline }.
-alter table public.ads add column if not exists engagement jsonb;
--- 0-100, and the parts it was blended from.
-alter table public.ads add column if not exists score int;
-alter table public.ads add column if not exists score_parts jsonb;
-create index if not exists ads_score_idx on public.ads (brand_id, score desc);
+alter table public.tiktok_connections enable row level security;
+alter table public.creators add column if not exists tiktok_connected_at timestamptz;
+-- "Read again now": the next plan stage writes a new plan even inside the week.
+alter table public.creators add column if not exists plan_requested boolean not null default false;

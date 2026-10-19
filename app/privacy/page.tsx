@@ -1,51 +1,45 @@
 import LegalShell from "@/components/legal/legal-shell";
 
-export const metadata = { title: "Privacy Policy — TRND" };
+export const metadata = { title: "Privacy Policy — TRND for creators" };
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="Privacy Policy" updated="October 12, 2026">
+    <LegalShell title="Privacy Policy" updated="October 19, 2026">
       <h2>What we collect</h2>
       <p>
-        Your email and password (handled by our auth provider, Supabase), your website address, the competitors you watch, and
-        billing details (handled by Stripe; we never see your card number).
+        Your email and password (handled by our auth provider, Supabase), your TikTok handle, your goals, the creators you follow
+        in TRND, and billing details (handled by Stripe; we never see your card number).
       </p>
 
       <h2>What we read from public sources</h2>
       <p>
-        Your public website, to say what you sell and who you compete with; the active ads of your brand and the competitors you
-        watch, from Meta&apos;s public Ad Library; and public Instagram and TikTok profile and post counts for the same companies.
-        Nothing is watched until you confirm the competitor list.
+        Your public TikTok profile and videos; the public profiles and videos of creators in your niche; and public videos under
+        the hashtags you post in. For each video: its caption, hashtags, sound, length, date and its public views, likes, comments,
+        shares and saves. We keep a daily copy of those numbers so we can show change over time.
       </p>
 
-      <h2>Who else handles it</h2>
+      <h2>If you connect TikTok</h2>
       <p>
-        Supabase stores your account and data. OpenAI receives your website text and your competitors&apos; public ads to name
-        competitors and write reports; it does not train on API data. Stripe handles billing, Resend sends our emails, and Vercel
-        hosts the app. Apify fetches public Instagram and TikTok profiles for us, and the same public Ad Library pages if Meta blocks our direct read. We don&apos;t sell
-        your data.
+        Connecting is optional. With your permission, TikTok gives us your basic profile, your follower and like counts and your
+        recent videos&apos; counts. We store the access tokens on our servers only, use them only to read those numbers for you,
+        and delete them when you disconnect or delete your account. You can also revoke access in TikTok&apos;s settings.
+      </p>
+
+      <h2>Who we share it with</h2>
+      <p>
+        Supabase stores your account and data. Apify reads public TikTok pages for us. OpenAI receives your public videos&apos;
+        captions and numbers, and your goals, to write your plan; it does not train on API data. Stripe handles billing, Resend
+        sends our emails, and Vercel hosts the app. We don&apos;t sell your data or show you ads.
       </p>
 
       <h2>Emails</h2>
-      <p>Account emails (confirmations, password resets) and an email when your competitors&apos; ads change.</p>
+      <p>Account emails (confirmations, password resets) and your weekly plan.</p>
 
-      <h2>Cookies</h2>
-      <p>Only the cookies that keep you signed in, and a local setting for light or dark mode.</p>
-
-      <h2>Your controls</h2>
+      <h2>Your choices</h2>
       <p>
-        Change the competitors you watch any time in Settings. To get a copy of your data or have your account deleted, email
-        us and we&apos;ll do it within 30 days.
+        Change your handle, goals and the creators you follow any time in Settings. To get a copy of your data or have your
+        account deleted, email hello@usetrnd.com.
       </p>
-
-      <h2>Security &amp; retention</h2>
-      <p>
-        Data is encrypted in transit and at rest, and each account can read only its own rows. We keep your data while your
-        account is open and delete it within 30 days of a deletion request.
-      </p>
-
-      <h2>Changes</h2>
-      <p>We&apos;ll email you before any material change to this policy.</p>
     </LegalShell>
   );
 }

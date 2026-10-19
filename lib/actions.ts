@@ -4,233 +4,175 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
-import { pageFromInput } from "@/lib/adlibrary/resolve";
-import { discoverRivals, ProfileSchema } from "@/lib/ai/analyze";
 import { getSessionUser } from "@/lib/auth/session";
-import { getBrand } from "@/lib/data";
+import { planState } from "@/lib/billing";
+import { normalOf } from "@/lib/creators/stats";
+import { scanCreator } from "@/lib/creators/scan";
+import { getCreator } from "@/lib/data";
 import { adminSupabase } from "@/lib/db/supabase";
-import { MAX_RIVALS } from "@/lib/db/types";
-import { isModelConfigured, isStripeConfigured } from "@/lib/env";
+import { MAX_PEERS, type Goal, type Goals, type Plan, type Video } from "@/lib/db/types";
+import { isStripeConfigured } from "@/lib/env";
 import { isScanning } from "@/lib/format";
-import { scanBrand } from "@/lib/scan";
-import { parseAdsExport } from "@/lib/results";
-import { normHandle } from "@/lib/social/read";
-import { normalizeUrl, readSitePage } from "@/lib/site";
+import { GOALS } from "@/lib/goals";
+import { disconnect } from "@/lib/tiktok/connect";
+import { normHandle, normTag } from "@/lib/tiktok/read";
 
 export interface FormState {
   error?: string;
+  notice?: string;
+  saved?: boolean;
 }
 
-async function requireBrand() {
+/** A TikTok handle: letters, numbers, underscores and periods, up to 24. */
+const HANDLE = /^[a-z0-9_.]{2,24}$/;
+/** A manual scan can start this long after the last one. */
+const SCAN_MIN_GAP_MS = 10 * 60_000;
+
+async function requireCreator() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  const brand = await getBrand(user.id);
-  if (!brand) redirect("/app/setup");
-  return { user, brand };
+  const creator = await getCreator(user.id);
+  return { user, creator };
 }
 
-/** Step one: read the site, have the model name the brand and its rivals. */
-export async function createBrandAction(_prev: FormState, formData: FormData): Promise<FormState> {
+/** Setup: the handle to read. Creates the creator (or points it at a new handle) and starts the first scan. */
+export async function startAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  const url = normalizeUrl(String(formData.get("url") ?? ""));
-  if (!url) return { error: "Enter your website, like yourbrand.com." };
-  if (!isModelConfigured) return { error: "OPENAI_API_KEY is not set, so TRND cannot read your site yet." };
-
-  let discovery;
-  let socials;
-  try {
-    const page = await readSitePage(url);
-    socials = page.socials;
-    discovery = await discoverRivals(url, page.text);
-  } catch (err) {
-    console.warn("[setup] discovery failed:", (err as Error).message);
-    return { error: `We couldn't read ${url}. Check the address and try again.` };
-  }
-
+  const handle = normHandle(String(formData.get("handle") ?? ""));
+  if (!HANDLE.test(handle)) return { error: "Enter your TikTok handle, like @yourname." };
   const sb = adminSupabase();
-  const { data: brand, error } = await sb
-    .from("brands")
-    .upsert({ owner_id: user.id, url, name: discovery.name, summary: discovery.summary, category: discovery.category, profile: discovery.profile }, { onConflict: "owner_id" })
-    .select("id")
-    .single();
-  if (error || !brand) return { error: error?.message ?? "Could not save the brand." };
-  await sb.from("rivals").delete().eq("brand_id", brand.id).eq("source", "ai");
-  // The brand itself, watched like a rival: replaced when the site changes.
-  await sb.from("rivals").delete().eq("brand_id", brand.id).eq("is_self", true);
-  await sb.from("rivals").insert({
-    brand_id: brand.id,
-    name: discovery.name,
-    website: url.replace(/^https?:\/\//, ""),
-    reason: "Your brand",
-    source: "owner",
-    is_self: true,
-    instagram: socials.instagram ? normHandle(socials.instagram) : null,
-    tiktok: socials.tiktok ? normHandle(socials.tiktok) : null,
-    socials_checked_at: new Date().toISOString(),
-  });
-  await sb.from("rivals").insert(
-    discovery.rivals.slice(0, MAX_RIVALS).map((r) => ({ brand_id: brand.id, name: r.name, website: r.website || null, reason: r.reason, source: "ai" })),
-  );
+  const existing = await getCreator(user.id);
+  let id = existing?.id;
+  if (existing && existing.handle !== handle) {
+    // A new handle is a new account: what was read for the old one no longer applies.
+    await Promise.all(["peers", "videos", "follower_snapshots", "trend_snapshots", "plans", "idea_runs", "tiktok_connections"].map((t) => sb.from(t).delete().eq("creator_id", existing.id)));
+    await sb
+      .from("creators")
+      .update({ handle, profile: null, hashtags: [], display_name: null, avatar_url: null, bio: null, followers: null, last_scan_at: null, scan_status: "idle", scan_stage: null, scan_error: null, tiktok_connected_at: null })
+      .eq("id", existing.id);
+  } else if (!existing) {
+    const { data, error } = await sb.from("creators").insert({ owner_id: user.id, handle }).select("id").single();
+    if (error) return { error: "Couldn't save that handle. Try again in a moment." };
+    id = data.id as string;
+  }
+  after(() => scanCreator(id!).catch((e) => console.warn("[setup] scan:", (e as Error).message)));
   redirect("/app/setup");
 }
 
-export async function addRivalAction(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { brand } = await requireBrand();
-  const name = String(formData.get("name") ?? "").trim().slice(0, 120);
-  const website = String(formData.get("website") ?? "").trim().slice(0, 200);
-  if (!name) return { error: "Enter the rival's name as it appears on Facebook." };
-  const sb = adminSupabase();
-  const { count } = await sb.from("rivals").select("id", { count: "exact", head: true }).eq("brand_id", brand.id).eq("is_self", false);
-  if ((count ?? 0) >= MAX_RIVALS) return { error: `You can watch up to ${MAX_RIVALS} rivals. Remove one first.` };
-  const { error } = await sb.from("rivals").insert({ brand_id: brand.id, name, website: website || null, source: "owner" });
-  if (error) return { error: error.message };
+export async function saveGoalsAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  const goal = String(formData.get("goal") ?? "") as Goal;
+  if (!GOALS.some((g) => g.value === goal)) return { error: "Pick a goal." };
+  const clip = (k: string) => String(formData.get(k) ?? "").trim().slice(0, 200);
+  const goals: Goals = { goal, posts_per_week: clip("posts_per_week"), target: clip("target"), notes: clip("notes") };
+  await adminSupabase().from("creators").update({ goals }).eq("id", creator.id);
   revalidatePath("/app", "layout");
-  return {};
-}
-
-export async function removeRivalAction(formData: FormData): Promise<void> {
-  const { brand } = await requireBrand();
-  await adminSupabase().from("rivals").delete().eq("id", String(formData.get("id"))).eq("brand_id", brand.id).eq("is_self", false);
-  revalidatePath("/app", "layout");
-}
-
-/** Set or correct a company's Instagram and TikTok handles (the brand's own included). */
-export async function updateHandlesAction(formData: FormData): Promise<void> {
-  const { brand } = await requireBrand();
-  const clean = (v: FormDataEntryValue | null) => {
-    const h = normHandle(String(v ?? "")).slice(0, 40);
-    return /^[a-z0-9._]{2,40}$/.test(h) ? h : null;
-  };
-  await adminSupabase()
-    .from("rivals")
-    .update({ instagram: clean(formData.get("instagram")), tiktok: clean(formData.get("tiktok")), socials_checked_at: new Date().toISOString() })
-    .eq("id", String(formData.get("id")))
-    .eq("brand_id", brand.id);
-  revalidatePath("/app", "layout");
-}
-
-/**
- * The owner names a company's Facebook Page (or corrects the one we found).
- * The ads read from the old Page go, the new Page's first read is a baseline,
- * and a scan starts.
- */
-export async function setPageAction(_prev: FormState & { saved?: boolean }, formData: FormData): Promise<FormState & { saved?: boolean }> {
-  const { brand } = await requireBrand();
-  const id = String(formData.get("id") ?? "");
-  const sb = adminSupabase();
-  const { data: rival } = await sb.from("rivals").select("id, name, page_id").eq("id", id).eq("brand_id", brand.id).maybeSingle<{ id: string; name: string; page_id: string | null }>();
-  if (!rival) return { error: "That company is no longer on your list." };
-  const page = await pageFromInput(String(formData.get("page") ?? "").slice(0, 500));
-  if (!page) return { error: "We couldn't find that Page. Paste its facebook.com link or its Ad Library link." };
-  if (page.pageId !== rival.page_id) {
-    await sb.from("ads").delete().eq("rival_id", rival.id);
-    const { error } = await sb
-      .from("rivals")
-      .update({ page_id: page.pageId, page_name: page.pageName || rival.name, last_scraped_at: null, last_error: null })
-      .eq("id", rival.id);
-    if (error) return { error: error.message };
-  }
-  // Separate so it works before 0102_page_source.sql has run.
-  await sb.from("rivals").update({ page_source: "owner" }).eq("id", rival.id);
-  if (!isScanning(brand)) {
-    await sb.from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
-    after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
-  }
-  revalidatePath("/app", "layout");
+  const next = String(formData.get("next") ?? "");
+  if (next === "/app") redirect("/app");
   return { saved: true };
 }
 
-/** The owner's corrections to the brand profile every report is written against. */
-export async function updateProfileAction(_prev: FormState & { saved?: boolean }, formData: FormData): Promise<FormState & { saved?: boolean }> {
-  const { brand } = await requireBrand();
-  const text = (k: string) => String(formData.get(k) ?? "").trim().slice(0, 600);
-  const lines = (k: string) =>
-    text(k)
-      .split(/\n+/)
-      .map((l) => l.replace(/^[-•*]\s*/, "").trim())
-      .filter(Boolean)
-      .slice(0, 8);
-  const parsed = ProfileSchema.safeParse({
-    what_it_sells: text("what_it_sells"),
-    price_point: text("price_point"),
-    price_tier: text("price_tier") || "unknown",
-    audience: text("audience"),
-    value_props: lines("value_props"),
-    proof_points: lines("proof_points"),
-    offers: lines("offers"),
-    tone: text("tone"),
-    differentiators: lines("differentiators"),
-  });
-  if (!parsed.success) return { error: "Check the price tier and try again." };
-  const { error } = await adminSupabase().from("brands").update({ profile: parsed.data }).eq("id", brand.id);
-  if (error) return { error: error.message };
-  revalidatePath("/app", "layout");
-  return { saved: true };
-}
-
-/** Start a scan now and return at once; the dashboard polls until it is done. */
 export async function scanNowAction(): Promise<void> {
-  const { brand } = await requireBrand();
-  if (!isScanning(brand)) {
-    await adminSupabase().from("brands").update({ scan_status: "running", scan_error: null, scan_started_at: new Date().toISOString() }).eq("id", brand.id);
-    after(() => scanBrand(brand.id, { forceReport: true }).catch((err) => console.warn("[scan] failed:", (err as Error).message)));
-  }
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  if (planState(creator).locked) redirect("/app/settings#billing");
+  if (isScanning(creator)) redirect("/app");
+  if (creator.last_scan_at && Date.now() - Date.parse(creator.last_scan_at) < SCAN_MIN_GAP_MS) redirect("/app?scan=recent");
+  await adminSupabase().from("creators").update({ scan_status: "running", scan_stage: "profile", scan_started_at: new Date().toISOString(), scan_error: null, plan_requested: true }).eq("id", creator.id);
+  after(() => scanCreator(creator.id, { resume: true }).catch((e) => console.warn("[scan-now]:", (e as Error).message)));
   redirect("/app");
 }
 
-export async function checkoutAction(): Promise<void> {
-  const { user, brand } = await requireBrand();
-  if (!isStripeConfigured) redirect("/app/settings?billing=unconfigured");
-  const { createCheckoutSession } = await import("@/lib/billing/stripe");
-  redirect(await createCheckoutSession(brand, user.email));
+/** "Add to my week": the idea is tracked, with the creator's typical range as the bar it is measured against. */
+export async function addToWeekAction(formData: FormData): Promise<void> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  const planId = String(formData.get("plan") ?? "");
+  const rank = Number(formData.get("rank"));
+  const sb = adminSupabase();
+  const { data: plan } = await sb.from("plans").select("*").eq("id", planId).eq("creator_id", creator.id).maybeSingle<Plan>();
+  const idea = plan?.body.ideas[rank - 1];
+  if (!plan || !idea) redirect("/app");
+  const { data: dup } = await sb.from("idea_runs").select("id").eq("plan_id", planId).eq("rank", rank).maybeSingle();
+  if (!dup) {
+    const { data: own } = await sb.from("videos").select("views, saves, comments, posted_at").eq("creator_id", creator.id).eq("is_self", true).order("posted_at", { ascending: false }).limit(30);
+    const n = normalOf((own ?? []) as Pick<Video, "views" | "saves" | "comments" | "posted_at">[]);
+    await sb.from("idea_runs").insert({
+      creator_id: creator.id,
+      plan_id: planId,
+      rank,
+      idea,
+      expected: n.low !== null && n.high !== null ? { low: n.low, high: n.high } : null,
+    });
+  }
+  revalidatePath("/app");
+  redirect(`/app?added=${rank}#idea-${rank}`);
 }
 
-export async function billingPortalAction(): Promise<void> {
-  const { brand } = await requireBrand();
-  if (!isStripeConfigured || !brand.stripe_customer_id) redirect("/app/settings");
-  const { createPortalSession } = await import("@/lib/billing/stripe");
-  redirect(await createPortalSession(brand.stripe_customer_id));
+export async function removeRunAction(formData: FormData): Promise<void> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  await adminSupabase().from("idea_runs").delete().eq("id", String(formData.get("id") ?? "")).eq("creator_id", creator.id);
+  revalidatePath("/app");
 }
 
-const GOALS = ["new_customers", "subscriptions", "launch", "retention", "awareness"] as const;
+export async function addPeerAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  const handle = normHandle(String(formData.get("handle") ?? ""));
+  if (!HANDLE.test(handle)) return { error: "Enter a TikTok handle, like @theircreator." };
+  if (handle === creator.handle) return { error: "That's you." };
+  const sb = adminSupabase();
+  const { count } = await sb.from("peers").select("id", { count: "exact", head: true }).eq("creator_id", creator.id);
+  if ((count ?? 0) >= MAX_PEERS) return { error: `You can follow up to ${MAX_PEERS} creators. Remove one first.` };
+  const { error } = await sb.from("peers").insert({ creator_id: creator.id, handle, source: "owner", reason: "Added by you" });
+  if (error) return { error: /duplicate/i.test(error.message) ? "Already on your list." : "Couldn't add that creator." };
+  revalidatePath("/app", "layout");
+  return { notice: `@${handle} is read on the next scan.` };
+}
 
-/** What the brand is trying to do right now. */
-export async function updateObjectivesAction(_prev: FormState & { saved?: boolean }, formData: FormData): Promise<FormState & { saved?: boolean }> {
-  const { brand } = await requireBrand();
-  const text = (k: string, max = 200) => String(formData.get(k) ?? "").trim().slice(0, max);
-  const goal = text("goal");
-  if (!(GOALS as readonly string[]).includes(goal)) return { error: "Pick a goal." };
-  const objectives = { goal, monthly_budget: text("monthly_budget"), target_cost: text("target_cost"), focus: text("focus"), notes: text("notes", 600) };
-  const { error } = await adminSupabase().from("brands").update({ objectives }).eq("id", brand.id);
-  if (error) return { error: error.message };
+export async function removePeerAction(formData: FormData): Promise<void> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  const sb = adminSupabase();
+  const { data } = await sb.from("peers").select("handle").eq("id", String(formData.get("id") ?? "")).eq("creator_id", creator.id).maybeSingle();
+  if (data) {
+    await sb.from("peers").delete().eq("id", String(formData.get("id"))).eq("creator_id", creator.id);
+    // Their videos go too, so they stop counting toward trends and ideas.
+    await sb.from("videos").delete().eq("creator_id", creator.id).eq("author", data.handle);
+  }
+  revalidatePath("/app", "layout");
+}
+
+export async function saveHashtagsAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  const tags = [...new Set(String(formData.get("hashtags") ?? "").split(/[\s,]+/).map(normTag).filter((t) => /^[\p{L}\p{N}_]{2,40}$/u.test(t)))].slice(0, 8);
+  if (!tags.length) return { error: "Add at least one hashtag." };
+  await adminSupabase().from("creators").update({ hashtags: tags }).eq("id", creator.id);
   revalidatePath("/app", "layout");
   return { saved: true };
 }
 
-/** An Ads Manager export (CSV): replaces the brand's past results. */
-export async function uploadResultsAction(_prev: FormState & { count?: number }, formData: FormData): Promise<FormState & { count?: number }> {
-  const { brand } = await requireBrand();
-  const file = formData.get("file");
-  if (!(file instanceof File) || !file.size) return { error: "Choose a CSV exported from Ads Manager." };
-  if (file.size > 4_000_000) return { error: "That file is over 4 MB. Export fewer columns or a shorter date range." };
-  let rows;
-  try {
-    rows = parseAdsExport(await file.text());
-  } catch (err) {
-    return { error: (err as Error).message };
-  }
-  if (!rows.length) return { error: "No ads found in that file. Export at the Ads level, with Ad name as a column." };
-  const sb = adminSupabase();
-  await sb.from("own_ad_results").delete().eq("brand_id", brand.id);
-  const { error } = await sb.from("own_ad_results").insert(rows.slice(0, 2000).map((r) => ({ ...r, brand_id: brand.id })));
-  if (error) return { error: error.message };
-  revalidatePath("/app", "layout");
-  return { count: rows.length };
+export async function disconnectTiktokAction(): Promise<void> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  await disconnect(creator.id);
+  revalidatePath("/app/settings");
 }
 
-export async function clearResultsAction(): Promise<void> {
-  const { brand } = await requireBrand();
-  await adminSupabase().from("own_ad_results").delete().eq("brand_id", brand.id);
-  revalidatePath("/app", "layout");
+export async function checkoutAction(): Promise<void> {
+  const { user, creator } = await requireCreator();
+  if (!creator || !isStripeConfigured) redirect("/app/settings");
+  const { createCheckoutSession } = await import("@/lib/billing/stripe");
+  redirect(await createCheckoutSession(creator, user.email));
+}
+
+export async function billingPortalAction(): Promise<void> {
+  const { creator } = await requireCreator();
+  if (!creator?.stripe_customer_id) redirect("/app/settings");
+  const { createPortalSession } = await import("@/lib/billing/stripe");
+  redirect(await createPortalSession(creator.stripe_customer_id));
 }

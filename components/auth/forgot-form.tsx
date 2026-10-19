@@ -15,7 +15,7 @@ export default function ForgotForm() {
       <form action={action}>
         <div className="field">
           <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" placeholder="you@yourbrand.com" autoComplete="email" required />
+          <input id="email" name="email" type="email" placeholder="you@example.com" autoComplete="email" required />
         </div>
         {state.error && <p className="form-error">{state.error}</p>}
         {state.notice && (

@@ -12,7 +12,7 @@ import {
 
 const initial: AuthFormState = {};
 
-export default function AuthForm({ mode, site }: { mode: "login" | "signup"; site?: string }) {
+export default function AuthForm({ mode, handle }: { mode: "login" | "signup"; handle?: string }) {
   const [state, formAction, pending] = useActionState(
     mode === "login" ? signInAction : signUpAction,
     initial,
@@ -22,10 +22,10 @@ export default function AuthForm({ mode, site }: { mode: "login" | "signup"; sit
   return (
     <div>
       <form action={formAction}>
-        {site ? <input type="hidden" name="site" value={site} /> : null}
+        {handle ? <input type="hidden" name="handle" value={handle} /> : null}
         <div className="field">
           <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" placeholder="you@yourbrand.com" autoComplete="email" required />
+          <input id="email" name="email" type="email" placeholder="you@example.com" autoComplete="email" required />
         </div>
         <div className="field">
           <div className="flex justify-between items-baseline">

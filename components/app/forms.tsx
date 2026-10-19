@@ -1,60 +1,103 @@
 "use client";
 
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 
-import { IconPlus } from "@/components/icons";
-import { addRivalAction, createBrandAction, type FormState } from "@/lib/actions";
+import { addPeerAction, saveGoalsAction, saveHashtagsAction, startAction, type FormState } from "@/lib/actions";
+import type { Goals } from "@/lib/db/types";
+import { GOALS } from "@/lib/goals";
 
 import SubmitButton from "./submit-button";
 
-/** Shown while the site is read and the rivals named: about half a minute. */
-function Reading() {
-  const { pending, data } = useFormStatus();
-  if (!pending) return null;
-  const site = String(data?.get("url") ?? "").replace(/^https?:\/\//, "");
-  return (
-    <div className="card mt-4 p-4">
-      <ul className="list-none m-0 p-0 flex flex-col gap-2.5 text-[13.5px]">
-        <li className="flex items-center gap-2.5">
-          <span className="spinner" /> Reading {site || "your site"}
-        </li>
-        <li className="flex items-center gap-2.5 text-ink-3">
-          <span className="w-3.5 h-3.5 rounded-full border-2 border-line-strong" /> Finding the brands competing for your customers
-        </li>
-      </ul>
-    </div>
-  );
-}
-
-export function UrlForm({ defaultUrl }: { defaultUrl?: string }) {
-  const [state, action] = useActionState<FormState, FormData>(createBrandAction, {});
+/** The handle box: "@", the handle, Analyze. */
+export function HandleForm({ defaultHandle, cta = "Analyze" }: { defaultHandle?: string; cta?: string }) {
+  const [state, action] = useActionState<FormState, FormData>(startAction, {});
   return (
     <form action={action}>
-      <div className="sitebox">
-        <input name="url" defaultValue={defaultUrl?.replace(/^https?:\/\//, "")} placeholder="yourbrand.com" aria-label="Your website" required />
-        <SubmitButton className="btn btn-primary" pending="Reading…">
-          Continue
+      <div className="handlebox">
+        <span className="at">@</span>
+        <input name="handle" defaultValue={defaultHandle} placeholder="yourhandle" aria-label="Your TikTok handle" autoComplete="off" autoCapitalize="none" spellCheck={false} required />
+        <SubmitButton className="btn btn-primary" pending="Starting…">
+          {cta}
         </SubmitButton>
       </div>
-      {state.error && <p className="form-error mt-3">{state.error}</p>}
-      <Reading />
+      {state.error && <p className="form-error mt-2 ml-4">{state.error}</p>}
     </form>
   );
 }
 
-export function AddRivalForm() {
-  const [state, action] = useActionState<FormState, FormData>(addRivalAction, {});
+/** What the creator is posting for: every idea is judged against it. */
+export function GoalsForm({ goals, next, cta = "Save" }: { goals: Goals | null; next?: string; cta?: string }) {
+  const [state, action] = useActionState<FormState, FormData>(saveGoalsAction, {});
   return (
-    <form action={action}>
-      <div className="flex flex-col sm:flex-row gap-2">
-        <input className="input flex-1" name="name" placeholder="Competitor name, as on Facebook" required />
-        <input className="input sm:w-[200px]" name="website" placeholder="Website (optional)" />
-        <SubmitButton className="btn btn-secondary" pending="Adding…">
-          <IconPlus /> Add
+    <form action={action} className="flex flex-col gap-4">
+      {next && <input type="hidden" name="next" value={next} />}
+      <fieldset className="border-0 p-0 m-0">
+        <legend className="text-[13px] font-semibold mb-2">Main goal</legend>
+        <div className="grid gap-2 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+          {GOALS.map((g) => (
+            <label key={g.value} className="relative">
+              <input type="radio" name="goal" value={g.value} defaultChecked={(goals?.goal ?? "followers") === g.value} className="peer sr-only" required />
+              <span className="choice">
+                <span className="block text-[14px] font-bold">{g.label}</span>
+                <span className="block text-[12.5px] text-ink-2">{g.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12.5px] text-ink-2">Posts per week you can make</span>
+          <input className="input" name="posts_per_week" defaultValue={goals?.posts_per_week ?? ""} placeholder="5" />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12.5px] text-ink-2">Target</span>
+          <input className="input" name="target" defaultValue={goals?.target ?? ""} placeholder="100K followers by Dec 31" />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12.5px] text-ink-2">Also care about</span>
+          <input className="input" name="notes" defaultValue={goals?.notes ?? ""} placeholder="Shop sign-ups, without feeling salesy" />
+        </label>
+      </div>
+      <div className="flex items-center gap-3 flex-wrap">
+        <SubmitButton className="btn btn-primary" pending="Saving…">
+          {cta}
+        </SubmitButton>
+        {state.saved && <span className="text-[13px] text-pos">Saved. The next plan is written against it.</span>}
+        {state.error && <span className="form-error !m-0">{state.error}</span>}
+      </div>
+    </form>
+  );
+}
+
+export function AddPeerForm() {
+  const [state, action] = useActionState<FormState, FormData>(addPeerAction, {});
+  return (
+    <form action={action} className="flex flex-col gap-2">
+      <div className="flex gap-2">
+        <input className="input flex-1 min-w-0" name="handle" placeholder="@acreatoryouwatch" aria-label="A creator's TikTok handle" autoCapitalize="none" spellCheck={false} />
+        <SubmitButton className="btn" pending="Adding…">
+          Add
         </SubmitButton>
       </div>
-      {state.error && <p className="form-error mt-2 mb-0">{state.error}</p>}
+      {state.error && <p className="form-error !m-0">{state.error}</p>}
+      {state.notice && <p className="text-[13px] text-pos">{state.notice}</p>}
+    </form>
+  );
+}
+
+export function HashtagsForm({ hashtags }: { hashtags: string[] }) {
+  const [state, action] = useActionState<FormState, FormData>(saveHashtagsAction, {});
+  return (
+    <form action={action} className="flex flex-col gap-2">
+      <div className="flex gap-2">
+        <input className="input flex-1 min-w-0 mono !text-[13.5px]" name="hashtags" defaultValue={hashtags.map((t) => `#${t}`).join(" ")} aria-label="Niche hashtags" />
+        <SubmitButton className="btn" pending="Saving…">
+          Save
+        </SubmitButton>
+      </div>
+      {state.error && <p className="form-error !m-0">{state.error}</p>}
+      {state.saved && <p className="text-[13px] text-pos">Saved. Trends and creators like you are read from these on the next scan.</p>}
     </form>
   );
 }

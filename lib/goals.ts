@@ -1,10 +1,12 @@
-import type { Objectives } from "@/lib/db/types";
+import type { Goal } from "@/lib/db/types";
 
-/** The goals an owner can pick, shared by the form (client) and the pages (server). */
-export const GOALS: { value: Objectives["goal"]; label: string; hint: string }[] = [
-  { value: "new_customers", label: "Win new customers", hint: "First purchases at a good cost" },
-  { value: "subscriptions", label: "Grow subscriptions", hint: "Recurring revenue" },
-  { value: "launch", label: "Launch something new", hint: "A product, line or offer" },
-  { value: "retention", label: "Bring customers back", hint: "Repeat purchases" },
-  { value: "awareness", label: "Build awareness", hint: "Reach and recognition" },
+/** The goals a creator can pick, shared by the forms (client) and the pages (server). */
+export const GOALS: { value: Goal; label: string; hint: string }[] = [
+  { value: "followers", label: "Grow followers", hint: "Turn viewers into fans" },
+  { value: "comments", label: "More comments", hint: "Build a community" },
+  { value: "views", label: "More views", hint: "Reach new people" },
+  { value: "deals", label: "Land brand deals", hint: "Look good to sponsors" },
+  { value: "sales", label: "Sell something", hint: "Drive clicks to a shop" },
 ];
+
+export const goalLabel = (g: Goal | undefined | null) => GOALS.find((x) => x.value === g)?.label ?? null;

@@ -2,7 +2,7 @@ import "server-only";
 
 import Stripe from "stripe";
 
-import type { Brand } from "@/lib/db/types";
+import type { Creator } from "@/lib/db/types";
 import { env, isStripeConfigured } from "@/lib/env";
 
 /** The only file that imports the Stripe SDK. */
@@ -15,14 +15,14 @@ export function getStripe(): Stripe {
   return client;
 }
 
-export async function createCheckoutSession(brand: Brand, email: string): Promise<string> {
+export async function createCheckoutSession(creator: Creator, email: string): Promise<string> {
   const session = await getStripe().checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: env.stripePrice, quantity: 1 }],
-    client_reference_id: brand.id,
-    ...(brand.stripe_customer_id ? { customer: brand.stripe_customer_id } : { customer_email: email }),
-    metadata: { brand_id: brand.id },
-    subscription_data: { metadata: { brand_id: brand.id } },
+    client_reference_id: creator.id,
+    ...(creator.stripe_customer_id ? { customer: creator.stripe_customer_id } : { customer_email: email }),
+    metadata: { creator_id: creator.id },
+    subscription_data: { metadata: { creator_id: creator.id } },
     allow_promotion_codes: true,
     success_url: `${env.siteUrl}/app/settings?billing=success`,
     cancel_url: `${env.siteUrl}/app/settings`,

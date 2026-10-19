@@ -4,7 +4,7 @@ import AuthShell from "@/components/auth/auth-shell";
 import ResetForm from "@/components/auth/reset-form";
 import { getSessionUser } from "@/lib/auth/session";
 
-export const metadata = { title: "Set a new password — TRND" };
+export const metadata = { title: "Set a new password — TRND for creators" };
 
 /** Where the Supabase recovery link lands (already signed in by the code
  * exchange in /auth/callback). */

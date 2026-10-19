@@ -9,6 +9,7 @@ import { goalLabel } from "@/lib/goals";
 import Avatar from "./avatar";
 import { AddPeerForm } from "./forms";
 import IdeaCard, { BorrowScore, IDEA_TYPE, type IdeaSource } from "./idea-card";
+import LockedIdea from "./locked-idea";
 import { StageBar, STAGE_LABEL } from "./stage";
 
 /** "*one tool, one result*" → the phrase in pink. The model marks at most two. */
@@ -58,6 +59,7 @@ export function NextView({
   runs,
   sources,
   openIdea,
+  limited = false,
 }: {
   creator: Creator;
   plan: Plan;
@@ -67,6 +69,8 @@ export function NextView({
   runs: IdeaRun[];
   sources: IdeaSource[];
   openIdea: number;
+  /** No trial yet: idea 1 in full, the rest by their hooks. */
+  limited?: boolean;
 }) {
   const month = own.filter((v) => v.posted_at && withinDays(v.posted_at, 30));
   const best = month.map((v) => ({ v, x: timesNormal(v.views, normal) })).sort((a, b) => (b.x ?? 0) - (a.x ?? 0))[0];
@@ -96,7 +100,20 @@ export function NextView({
         />
         <Tile label="Goal" value={goalLabel(creator.goals?.goal) ?? "—"} hint={creator.goals?.target || (perWeek ? `You post ${perWeek}× a week` : "Set a target in settings")} />
       </Strip>
-      {plan.body.ideas.map((idea, i) => (
+      {plan.body.ideas.map((idea, i) =>
+        limited && i > 0 ? (
+          <LockedIdea
+            key={i}
+            hook={idea.hook}
+            type={idea.type}
+            rank={i + 1}
+            cta={
+              <Link href="/app/welcome?step=trial" className="btn btn-primary btn-sm shrink-0">
+                Start free trial
+              </Link>
+            }
+          />
+        ) : (
         <IdeaCard
           key={i}
           idea={idea}
@@ -106,8 +123,10 @@ export function NextView({
           normal={normal}
           run={runs.find((r) => r.plan_id === plan.id && r.rank === i + 1) ?? null}
           open={openIdea === i + 1}
+          sample={limited}
         />
-      ))}
+        ),
+      )}
       <p className="caption">
         From your last {own.length} videos, creators like you and your niche&apos;s hashtags, read {shortDate(plan.created_at)}. TikTok shows plays, likes, comments, shares and saves publicly; watch time and
         followers per video are not public, so nothing here claims them.

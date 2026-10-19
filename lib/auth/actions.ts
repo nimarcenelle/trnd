@@ -66,3 +66,38 @@ export async function signOutAction(): Promise<void> {
   await sb.auth.signOut();
   redirect("/login");
 }
+
+/** Only a path on this site may follow sign-in. */
+const safeNext = (next: string) => (next.startsWith("/") && !next.startsWith("//") ? next : "/app");
+
+/** Step 1 of passwordless sign-in: email a 6-digit code (and a link, for whoever prefers to click). */
+export async function sendCodeAction(_prev: AuthFormState & { email?: string }, formData: FormData): Promise<AuthFormState & { email?: string }> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const next = safeNext(String(formData.get("next") ?? "/app"));
+  if (!/.+@.+\..+/.test(email)) return { error: "Enter a valid email." };
+  const sb = await createServerSupabase();
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: `${env.siteUrl}/auth/callback?next=${encodeURIComponent(next)}` } });
+  if (error) return { error: /rate|seconds/i.test(error.message) ? "We just sent you a code. Wait a minute before asking for another." : error.message };
+  return { email };
+}
+
+/** Step 2: the code from the email signs them in (and creates the account the first time). */
+export async function verifyCodeAction(_prev: AuthFormState & { email?: string }, formData: FormData): Promise<AuthFormState & { email?: string }> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const token = String(formData.get("code") ?? "").replace(/\D/g, "");
+  const next = safeNext(String(formData.get("next") ?? "/app"));
+  if (token.length < 6) return { email, error: "Enter the 6-digit code from the email." };
+  const sb = await createServerSupabase();
+  const { error } = await sb.auth.verifyOtp({ email, token, type: "email" });
+  if (error) return { email, error: /expired|invalid/i.test(error.message) ? "That code didn't work or has expired. Check the latest email, or send a new code." : error.message };
+  redirect(next);
+}
+
+/** Continue with Google: Supabase sends them to Google and back through /auth/callback. */
+export async function googleAction(formData: FormData): Promise<void> {
+  const next = safeNext(String(formData.get("next") ?? "/app"));
+  const sb = await createServerSupabase();
+  const { data, error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${env.siteUrl}/auth/callback?next=${encodeURIComponent(next)}` } });
+  if (error || !data.url) redirect("/login?error=auth");
+  redirect(data.url);
+}

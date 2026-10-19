@@ -211,3 +211,42 @@ alter table public.creators add column if not exists plan_requested boolean not 
 alter table public.creators add column if not exists profile_read_at timestamptz;
 -- A matched peer the owner removed stays here, hidden, so the next scan doesn't match them again.
 alter table public.peers add column if not exists removed_at timestamptz;
+
+-- The free preview: what a visitor sees for a handle before they have an account.
+-- Read and written only by the server (service role): no owner policies. One
+-- preview per handle is reused for 72 hours, so a popular handle costs one read.
+create table if not exists public.previews (
+  id uuid primary key default gen_random_uuid(),
+  handle text not null,
+  -- confirm (read, waiting for "that's me") | niche | idea | ready | ineligible | error
+  status text not null default 'reading',
+  step_started_at timestamptz,
+  author jsonb,
+  videos jsonb not null default '[]',
+  profile jsonb,
+  hashtags text[] not null default '{}',
+  peers jsonb not null default '[]',
+  sample jsonb not null default '[]',
+  trends jsonb not null default '[]',
+  plan jsonb,
+  goal text,
+  reason text,
+  claimed_by uuid references public.creators(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists previews_handle_idx on public.previews (handle, created_at desc);
+alter table public.previews enable row level security;
+
+-- Previews started per visitor (a hash of their IP) and in all per day: the abuse and spend limits.
+create table if not exists public.preview_hits (
+  key text not null,
+  day date not null,
+  count int not null default 0,
+  primary key (key, day)
+);
+alter table public.preview_hits enable row level security;
+
+-- A creator's own answers from onboarding, and their trial.
+alter table public.creators add column if not exists on_camera text; -- face | voice | either
+alter table public.creators add column if not exists trial_used_at timestamptz;

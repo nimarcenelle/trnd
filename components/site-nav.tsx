@@ -15,9 +15,6 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
               <Link href="/#how" className="hover:text-ink">
                 How it works
               </Link>
-              <Link href="/#data" className="hover:text-ink">
-                What we read
-              </Link>
               <Link href="/#pricing" className="hover:text-ink">
                 Pricing
               </Link>
@@ -32,8 +29,8 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
           <Link href="/login" className="btn btn-ghost btn-sm max-[400px]:hidden">
             Sign in
           </Link>
-          <Link href="/signup" className="btn btn-primary btn-sm">
-            Start free
+          <Link href="/#start" className="btn btn-primary btn-sm">
+            Get my free plan
           </Link>
         </div>
       </div>

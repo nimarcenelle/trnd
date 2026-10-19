@@ -41,7 +41,8 @@ in a component.
 
 - **Unbounded** (600, 800): `.display` (landing headlines, the rank number), `.heading` (page and section titles, the hook).
 - **Figtree**: everything you read. 15px body.
-- **JetBrains Mono**: `.label` (11px uppercase labels), script timestamps, hashtags, numbers in a strip.
+- **JetBrains Mono**: script timestamps and hashtags only.
+- `.label` is 12.5px semibold `--ink-3`, sentence case; `.kicker` is 13.5px bold pink. No all-caps labels.
 
 Sentence case everywhere, including buttons.
 
@@ -63,6 +64,7 @@ In `app/globals.css` under `@layer components`: `.btn` (+ `-primary` pink, `-gho
 - Specific: name the video, quote the hook, give the number. "Got 4× your usual views", not "performed well".
 - No hype: no "viral", "unlock", "game-changer", "algorithm hack", "AI-powered", no sparkle emoji in the UI.
 - Say what we can't see, plainly, and what would change it.
+- No invented social proof: no made-up testimonials, user counts or "creators joined today" counters.
 
 ## Sample data
 

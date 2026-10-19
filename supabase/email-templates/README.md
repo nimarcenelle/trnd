@@ -11,11 +11,16 @@ subject and replace the message body with the matching file's HTML:
 
 | Template       | File                  | Subject                     |
 | -------------- | --------------------- | --------------------------- |
-| Magic Link     | `magic-link.html`     | Your TRND sign-in link      |
+| Magic Link     | `magic-link.html`     | Your TRND code: {{ .Token }} |
 | Reset Password | `reset-password.html` | Set a new TRND password     |
-| Confirm signup | `confirm-signup.html` | Confirm your TRND account   |
+| Confirm signup | `confirm-signup.html` | Your TRND code: {{ .Token }} |
 
-`{{ .ConfirmationURL }}` is Supabase's template variable — leave it verbatim.
+`{{ .ConfirmationURL }}` and `{{ .Token }}` are Supabase's template variables — leave them verbatim.
+Sign-up and sign-in are passwordless: the app asks for the 6-digit code (`{{ .Token }}`), so both templates
+must include it. Keep Authentication → Providers → Email → OTP length at 6.
+
+**Continue with Google**: Authentication → Providers → Google (client id and secret from Google Cloud), add
+`<site>/auth/callback` to Redirect URLs, then set `NEXT_PUBLIC_GOOGLE_AUTH=1` in the app.
 
 ## Custom SMTP (do this too)
 

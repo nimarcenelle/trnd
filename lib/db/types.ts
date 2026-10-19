@@ -40,7 +40,8 @@ export interface Creator {
   goals: Goals | null;
   hashtags: string[];
   plan: string;
-  plan_status: "active" | "past_due" | "canceled";
+  /** "trialing": a card is on file and the 14-day trial is running. */
+  plan_status: "active" | "trialing" | "past_due" | "canceled";
   trial_ends_at: string;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
@@ -53,10 +54,16 @@ export interface Creator {
   tiktok_connected_at: string | null;
   /** Set by "Read again now": the next scan writes a new plan even inside the week. */
   plan_requested: boolean;
+  /** On camera, voiceover only, or either: set in onboarding, shapes every script. */
+  on_camera: OnCamera | null;
+  /** When the card-on-file trial started: one per creator. */
+  trial_used_at: string | null;
   /** When the model last read the account; the read is weekly. */
   profile_read_at: string | null;
   created_at: string;
 }
+
+export type OnCamera = "face" | "voice" | "either";
 
 export type ScanStage = "profile" | "niche" | "peers" | "trends" | "tag" | "plan";
 

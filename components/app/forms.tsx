@@ -15,7 +15,7 @@ export function HandleForm({ defaultHandle, cta = "Analyze" }: { defaultHandle?:
     <form action={action}>
       <div className="handlebox">
         <span className="at">@</span>
-        <input name="handle" defaultValue={defaultHandle} placeholder="yourhandle" aria-label="Your TikTok handle" autoComplete="off" autoCapitalize="none" spellCheck={false} required />
+        <input name="handle" size={1} defaultValue={defaultHandle} placeholder="yourhandle" aria-label="Your TikTok handle" autoComplete="off" autoCapitalize="none" spellCheck={false} required />
         <SubmitButton className="btn btn-primary" pending="Starting…">
           {cta}
         </SubmitButton>

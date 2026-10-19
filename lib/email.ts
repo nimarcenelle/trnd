@@ -21,6 +21,23 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+/** Three days before a trial's first charge: when, how much, and that cancelling takes two clicks. */
+export async function sendTrialEndingEmail(sb: SupabaseClient, creator: Creator, chargeOn: Date, plan: string): Promise<void> {
+  const { data } = await sb.auth.admin.getUserById(creator.owner_id);
+  const to = data.user?.email;
+  if (!to) return;
+  const price = plan === "weekly" ? "$9.99 a week" : "$24.99 a month";
+  const day = chargeOn.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
+  const html = `<div style="font-family:Figtree,system-ui,sans-serif;max-width:560px;margin:0 auto;color:#17131b">
+<p style="font-size:12px;color:#8f879a">TRND for creators · @${esc(creator.handle)}</p>
+<h1 style="font-size:22px;line-height:1.3;margin:0 0 12px">Your free trial ends ${esc(day)}</h1>
+<p style="line-height:1.6">On ${esc(day)} your plan continues at ${price}. Nothing to do if you'd like to keep getting a new plan every week.</p>
+<p style="line-height:1.6">Not for you? Cancel in two clicks from Settings, and you won't be charged.</p>
+<p><a href="${env.siteUrl}/app/settings#billing" style="display:inline-block;background:#e0245e;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:600">Manage my plan</a></p>
+</div>`;
+  await sendEmail(to, `Your TRND trial ends ${day}`, html);
+}
+
 const TYPE = { double_down: "Double down on you", borrow: "Borrow a format", ride: "Ride a trend early" } as const;
 
 /** This week's plan: the answer and the three hooks, sent after each weekly scan. */

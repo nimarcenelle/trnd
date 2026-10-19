@@ -2,134 +2,170 @@ import Link from "next/link";
 
 import IdeaCard from "@/components/app/idea-card";
 import Brand from "@/components/brand";
+import StartForm from "@/components/preview/start-form";
 import { SAMPLE_HANDLE, SAMPLE_IDEA, SAMPLE_NORMAL, SAMPLE_SOURCE } from "@/components/sample/creator";
 import SiteNav from "@/components/site-nav";
-import { PRICES } from "@/lib/billing";
-
-const LOOP = [
-  { k: "Your videos", body: "Which ones broke out against your own usual, and what they share" },
-  { k: "Trending", body: "Hashtags and sounds rising in your niche, this week against last" },
-  { k: "Creators like you", body: "What's beating their normal, and what you can borrow" },
-  { k: "Post this", body: "Then we check how it did, and the next plan gets sharper" },
-];
+import { PRICES, TRIAL_DAYS } from "@/lib/billing";
 
 const STEPS = [
-  { title: "Enter your handle", body: "We read your last 30 public videos: views, likes, comments, shares and saves, and what your best ones have in common." },
-  { title: "We read your niche", body: "We find creators your size posting in your hashtags, and track which hashtags and sounds are early, rising, peaking or fading." },
-  { title: "You get three videos to make", body: "Each with the hook, a script second by second, length, sound, when to post, the caption and hashtags, and the video it builds on." },
-  { title: "We check if it worked", body: "Add an idea to your week and post it. We find it by its words, and 48 hours later compare its views with your usual." },
+  { title: "Enter your handle", body: "No login, no password. We read your public videos: views, likes, comments, shares and saves." },
+  { title: "We read your niche", body: "Creators your size posting in your hashtags, what's beating their usual, and which sounds and hashtags are rising." },
+  { title: "Get three videos to make", body: "The hook, a script second by second, length, sound, when to post, the caption and hashtags, and the proof behind each." },
 ];
 
-const SEE = [
-  ["Views, likes, comments, shares, saves", "Every public video: yours, creators like you, your niche"],
-  ["Your follower count, every day", "Growth from the day you join (TikTok shows no history)"],
-  ["Hashtags and sounds in your niche", "This week against last, from the videos we read"],
-];
-const CANT = [
-  ["Watch-through and where people swipe", "Private to your account: coming with Connect TikTok for business accounts"],
-  ["Followers gained per video", "Same: TikTok only shows this inside your analytics"],
-  ["Anyone's private numbers", "We never guess them, and never claim them"],
+const GET = [
+  { title: "Scripts, not stats", body: "Every week, three videos written for your niche, your style and your goal, ready to film." },
+  { title: "Proof for every idea", body: "Each idea shows the video it builds on and how far it beat its creator's usual views." },
+  { title: "Trends while they're early", body: "Hashtags and sounds counted this week against last in your niche, so you join before it's crowded." },
+  { title: "Did it work?", body: "Post an idea and we find it, then check its views 48 hours later against your typical video." },
 ];
 
 const FAQ = [
   {
     q: "Do I have to log in with TikTok?",
-    a: "No. Enter your handle and we read your public profile, which is enough for everything on this page. Connecting TikTok is optional and makes your own numbers come straight from TikTok.",
+    a: "No. Enter your handle and we read your public profile. Nothing is posted, and we never see your password or your private analytics.",
+  },
+  {
+    q: "What does the free preview include?",
+    a: "Your typical views and best recent video, creators like you, what's rising in your niche, and one fully scripted idea. The trial unlocks all three each week.",
+  },
+  {
+    q: "What happens after the trial?",
+    a: `Your plan continues at ${PRICES.monthly.label} (or ${PRICES.weekly.label} if you pick weekly). We email you two days before the trial ends, and you can cancel in two clicks before then.`,
   },
   {
     q: "Where do the numbers come from?",
-    a: "Public TikTok profiles and hashtag pages: the same views, likes, comments, shares and saves anyone can see. We read them every day and keep the history, so you can see change over time.",
+    a: "Public TikTok profiles and hashtag pages: the views, likes, comments, shares and saves anyone can see. We never guess numbers TikTok keeps private, like watch time.",
   },
   {
     q: "Is it going to tell me to copy people?",
-    a: "No. A borrowed format comes with how to make it yours, in your style. And most ideas build on your own videos that already beat your usual.",
-  },
-  {
-    q: "Which platforms?",
-    a: "TikTok first. Instagram Reels is next.",
+    a: "No. Most ideas build on your own videos that beat your usual. A borrowed format always comes with how to make it yours.",
   },
 ];
+
+function Check() {
+  return (
+    <svg viewBox="0 0 16 16" className="w-4 h-4 shrink-0 text-pos" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M3.5 8.5l3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** The hero's product shot: the first lines of a plan, as it looks on a phone. */
+function PhoneShot() {
+  return (
+    <div className="relative mx-auto w-[300px] max-w-full">
+      <div className="rounded-[40px] border border-line bg-surface p-3 shadow-[var(--shadow-lg)]">
+        <div className="rounded-[30px] bg-bg overflow-hidden border border-line">
+          <div className="flex items-center justify-between px-4 pt-4 pb-3">
+            <Brand href={null} size={14} sub={false} />
+            <span className="caption">@{SAMPLE_HANDLE}</span>
+          </div>
+          <div className="mx-3 night p-3.5 !rounded-[16px]">
+            <div className="label">Your answer this week</div>
+            <p className="heading text-[14.5px] mt-1.5">
+              People come for <em>one tool, one result</em>. Turn it into a ranked test.
+            </p>
+          </div>
+          <div className="m-3 card p-3.5 grid gap-2">
+            <div className="flex gap-1.5">
+              <span className="pill pill-brand !text-[10.5px]">Borrow a format</span>
+              <span className="pill !text-[10.5px]">11× their usual</span>
+            </div>
+            <p className="heading text-[14px] leading-snug">&ldquo;I tested 7 AI study tools for a week. Only 2 are worth it.&rdquo;</p>
+            {[
+              ["0–2s", "Seven paper app icons. Five get flicked off."],
+              ["2–25s", "Tools 7 to 3, four seconds each."],
+              ["25–40s", "The top two, with a quick demo."],
+            ].map(([t, s]) => (
+              <div key={t} className="grid grid-cols-[46px_minmax(0,1fr)] gap-2 text-[12px]">
+                <span className="mono text-brand">{t}</span>
+                <span className="text-ink-2">{s}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mx-3 mb-4 grid grid-cols-2 gap-2">
+            <div className="card px-3 py-2">
+              <div className="label !text-[11px]">Typical video</div>
+              <div className="display !font-semibold text-[15px]">48K</div>
+            </div>
+            <div className="card px-3 py-2">
+              <div className="label !text-[11px]">Rising</div>
+              <div className="mono text-[12.5px] text-cyan mt-0.5">#studytok</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
     <div>
       <SiteNav />
 
-      <section className="wrap pt-[clamp(40px,9vw,100px)] pb-12 grid gap-6 max-w-[1080px]">
-        <span className="kicker">TikTok growth, explained</span>
-        <h1 className="display text-[clamp(34px,6vw,58px)] max-w-[820px]">Know exactly what to post next.</h1>
-        <p className="text-ink-2 text-[17px] max-w-[58ch]">
-          Enter your TikTok handle. TRND reads your videos, what&apos;s rising in your niche and what&apos;s working for creators like you, then gives you the hook, script, sound and hashtags for your
-          next three videos.
-        </p>
-        <form action="/signup" className="handlebox max-w-[620px]">
-          <span className="at">@</span>
-          <input name="handle" placeholder="yourhandle" aria-label="Your TikTok handle" autoComplete="off" autoCapitalize="none" spellCheck={false} />
-          <button className="btn btn-primary" type="submit">
-            Analyze
-          </button>
-        </form>
-        <p className="caption -mt-2 ml-5">Free for 14 days. Public accounts only. No TikTok login needed.</p>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] border border-line rounded-[14px] bg-surface overflow-hidden mt-2">
-          {LOOP.map((l) => (
-            <div key={l.k} className="p-3.5 border-r border-line last:border-r-0 max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:last:border-b-0">
-              <b className="mono text-[11px] text-brand block mb-1 uppercase tracking-[0.08em]">{l.k}</b>
-              <p className="text-[14px] text-ink-2">{l.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="wrap pb-16 grid gap-4">
-        <div className="flex items-baseline justify-between gap-3 flex-wrap">
-          <span className="label">What a plan looks like · @{SAMPLE_HANDLE}, an example creator</span>
-        </div>
-        <div className="night grid gap-2.5 p-[22px]">
-          <span className="label">This week&apos;s answer</span>
-          <h2 className="heading text-[clamp(18px,2.6vw,23px)]">
-            People come to you for <em>one tool, one result</em> and for <em>series</em>. Turn your tool videos into a ranked test this week, and keep sponsors after the payoff.
-          </h2>
-        </div>
-        <IdeaCard idea={SAMPLE_IDEA} rank={1} planId="sample" source={SAMPLE_SOURCE} normal={SAMPLE_NORMAL} run={null} open sample />
-      </section>
-
-      <section id="how" className="border-t border-line scroll-mt-14">
-        <div className="wrap py-16 sm:py-20 grid gap-8">
-          <div>
-            <span className="kicker">How it works</span>
-            <h2 className="display text-[clamp(26px,4vw,38px)] mt-3 max-w-[680px]">From your last 30 videos to your next three.</h2>
+      <section id="start" className="wrap pt-[clamp(36px,7vw,84px)] pb-16 grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] items-center scroll-mt-14">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 min-w-0">
+          <span className="kicker">For TikTok creators</span>
+          <h1 className="display text-[clamp(34px,5.6vw,56px)]">Your next three TikToks, scripted from what&apos;s working in your niche.</h1>
+          <p className="text-ink-2 text-[17.5px] max-w-[54ch] leading-[1.55]">
+            Enter your handle. In about a minute you get your numbers, creators like you, what&apos;s rising in your niche, and a video to make, scripted second by second.
+          </p>
+          <div className="max-w-[580px]">
+            <StartForm cta="Get my free plan" compact />
           </div>
-          <ol className="list-none m-0 p-0 grid gap-3 grid-cols-[repeat(auto-fit,minmax(230px,1fr))]">
+          <ul className="list-none m-0 p-0 flex flex-wrap gap-x-6 gap-y-2 text-[14px] text-ink-2">
+            {["Free preview, no card", "No TikTok login", "Public videos only"].map((t) => (
+              <li key={t} className="flex items-center gap-2">
+                <Check /> {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <PhoneShot />
+      </section>
+
+      <section id="how" className="border-t border-line bg-surface scroll-mt-14">
+        <div className="wrap py-16 sm:py-20 grid gap-10">
+          <div className="max-w-[640px]">
+            <span className="kicker">How it works</span>
+            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">From your last 30 videos to your next three.</h2>
+          </div>
+          <ol className="list-none m-0 p-0 grid gap-8 md:grid-cols-3">
             {STEPS.map((s, i) => (
-              <li key={s.title} className="card p-5 grid gap-2 content-start">
-                <span className="display text-[26px] text-brand leading-none">{i + 1}</span>
-                <h3 className="text-[17px] font-bold mt-1">{s.title}</h3>
-                <p className="text-ink-2 text-[14.5px]">{s.body}</p>
+              <li key={s.title} className="grid gap-2 content-start">
+                <span className="w-9 h-9 rounded-full bg-brand-soft text-brand grid place-items-center font-bold">{i + 1}</span>
+                <h3 className="text-[18px] font-bold mt-2">{s.title}</h3>
+                <p className="text-ink-2 text-[15px] leading-[1.6]">{s.body}</p>
               </li>
             ))}
           </ol>
         </div>
       </section>
 
-      <section id="data" className="border-t border-line scroll-mt-14">
+      <section className="border-t border-line">
         <div className="wrap py-16 sm:py-20 grid gap-8">
-          <div>
-            <span className="kicker">What we read</span>
-            <h2 className="display text-[clamp(26px,4vw,38px)] mt-3 max-w-[720px]">Real numbers only. We say what we can&apos;t see.</h2>
+          <div className="max-w-[640px]">
+            <span className="kicker">What a plan looks like</span>
+            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">Every idea, ready to film.</h2>
+            <p className="text-ink-2 mt-3">An example plan for @{SAMPLE_HANDLE}, an invented study creator.</p>
           </div>
-          <div className="grid gap-3.5 grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
-            {[
-              { title: "What we can see", rows: SEE, cls: "chip chip-own" },
-              { title: "What we can't (yet)", rows: CANT, cls: "chip chip-miss" },
-            ].map((col) => (
-              <div key={col.title} className="card p-5 grid gap-3 content-start">
-                <span className={`${col.cls} self-start`}>{col.title}</span>
-                {col.rows.map(([k, v]) => (
-                  <div key={k}>
-                    <div className="font-bold">{k}</div>
-                    <div className="text-ink-2 text-[14px]">{v}</div>
-                  </div>
-                ))}
+          <IdeaCard idea={SAMPLE_IDEA} rank={1} planId="sample" source={SAMPLE_SOURCE} normal={SAMPLE_NORMAL} run={null} open sample />
+        </div>
+      </section>
+
+      <section className="border-t border-line bg-surface">
+        <div className="wrap py-16 sm:py-20 grid gap-10">
+          <div className="max-w-[640px]">
+            <span className="kicker">What you get</span>
+            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">Less guessing, more posting.</h2>
+          </div>
+          <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
+            {GET.map((g) => (
+              <div key={g.title} className="grid gap-1.5 content-start">
+                <h3 className="text-[18px] font-bold">{g.title}</h3>
+                <p className="text-ink-2 text-[15px] leading-[1.6]">{g.body}</p>
               </div>
             ))}
           </div>
@@ -137,48 +173,51 @@ export default function Home() {
       </section>
 
       <section id="pricing" className="border-t border-line scroll-mt-14">
-        <div className="wrap py-16 sm:py-20 grid grid-cols-[minmax(0,1fr)] gap-6">
-          <span className="kicker">Pricing</span>
-          <h2 className="display text-[clamp(26px,4vw,38px)] max-w-[640px]">Everything, weekly or monthly.</h2>
+        <div className="wrap py-16 sm:py-20 grid grid-cols-[minmax(0,1fr)] gap-8">
+          <div className="max-w-[640px]">
+            <span className="kicker">Pricing</span>
+            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">Free for {TRIAL_DAYS} days. Then one simple plan.</h2>
+            <p className="text-ink-2 mt-3">Start with a free preview, no card. The trial unlocks everything; we remind you two days before it ends.</p>
+          </div>
           <div className="grid gap-3.5 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 max-w-[760px]">
-            {(["weekly", "monthly"] as const).map((i) => (
-              <div key={i} className={`card p-6 grid gap-4 content-start ${i === "monthly" ? "!border-brand shadow-[inset_0_0_0_1px_var(--brand)]" : ""}`}>
+            {(["monthly", "weekly"] as const).map((i) => (
+              <div key={i} className={`card p-6 grid gap-3 content-start ${i === "monthly" ? "!border-brand shadow-[inset_0_0_0_1px_var(--brand)]" : ""}`}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="label">{i === "weekly" ? "Weekly" : "Monthly"}</span>
+                  <span className="font-bold">{i === "monthly" ? "Monthly" : "Weekly"}</span>
                   {i === "monthly" && <span className="pill pill-brand">Best value</span>}
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="display text-[40px]">{PRICES[i].amount}</span>
+                  <span className="display text-[38px]">{PRICES[i].amount}</span>
                   <span className="text-ink-2">/ {PRICES[i].per}</span>
                 </div>
-                <span className="text-[14px] text-ink-2">{PRICES[i].note}</span>
-                <Link href="/signup" className={i === "monthly" ? "btn btn-primary btn-lg" : "btn btn-lg"}>
-                  Start your 14-day free trial
-                </Link>
+                <span className="text-[14px] text-ink-2">{i === "monthly" ? `About ${PRICES.monthly.perWeek} a week, 42% less than weekly` : "Pay a week at a time"}</span>
               </div>
             ))}
           </div>
-          <ul className="m-0 pl-[18px] grid gap-1.5 text-[15px] max-w-[760px]">
-            <li>A new plan every week: three scripted videos</li>
-            <li>Your videos, read every day</li>
-            <li>Up to 8 creators like you, and your niche&apos;s trends</li>
-            <li>Every idea checked 48 hours after you post it</li>
+          <ul className="list-none m-0 p-0 grid gap-2 text-[15px] max-w-[760px] sm:grid-cols-2">
+            {["Three scripted videos every week", "Your videos read every day", "Creators like you and your niche's trends", "Every idea checked 48 hours after you post"].map((t) => (
+              <li key={t} className="flex items-center gap-2.5">
+                <Check /> {t}
+              </li>
+            ))}
           </ul>
-          <span className="caption">Both plans include everything. No card to start. Cancel anytime.</span>
+          <Link href="/#start" className="btn btn-primary btn-lg justify-self-start">
+            Get my free plan
+          </Link>
         </div>
       </section>
 
-      <section id="faq" className="border-t border-line scroll-mt-14">
-        <div className="wrap py-16 sm:py-20 grid gap-6 max-w-[820px]">
+      <section id="faq" className="border-t border-line bg-surface scroll-mt-14">
+        <div className="wrap py-16 sm:py-20 grid gap-6">
           <span className="kicker">Questions</span>
-          <div className="card divide-y divide-line">
+          <div className="divide-y divide-line border-y border-line max-w-[820px]">
             {FAQ.map((f) => (
               <details key={f.q} className="group">
-                <summary className="flex justify-between gap-4 px-5 py-4 font-bold">
+                <summary className="flex justify-between gap-4 py-4 font-bold text-[16px]">
                   {f.q}
-                  <span className="text-ink-3 transition-transform group-open:rotate-45">+</span>
+                  <span className="text-ink-3 transition-transform group-open:rotate-45 text-[20px] leading-none">+</span>
                 </summary>
-                <p className="px-5 pb-5 text-ink-2 leading-[1.65]">{f.a}</p>
+                <p className="pb-5 text-ink-2 leading-[1.65]">{f.a}</p>
               </details>
             ))}
           </div>
@@ -187,24 +226,29 @@ export default function Home() {
 
       <section className="border-t border-line">
         <div className="wrap py-16 sm:py-24 grid gap-6 justify-items-center text-center">
-          <h2 className="display text-[clamp(26px,4vw,40px)] max-w-[640px]">Stop guessing what to post.</h2>
-          <form action="/signup" className="handlebox w-full max-w-[520px]">
-            <span className="at">@</span>
-            <input name="handle" placeholder="yourhandle" aria-label="Your TikTok handle" autoComplete="off" autoCapitalize="none" spellCheck={false} />
-            <button className="btn btn-primary" type="submit">
-              Start free
-            </button>
-          </form>
+          <h2 className="display text-[clamp(26px,4vw,40px)] max-w-[640px]">See what to post next. Free, in about a minute.</h2>
+          <div className="w-full max-w-[540px] text-left">
+            <StartForm cta="Get my free plan" compact />
+          </div>
         </div>
       </section>
 
-      <footer className="border-t border-line">
-        <div className="wrap py-8 flex flex-col sm:flex-row gap-4 justify-between sm:items-center text-[13px] text-ink-3">
-          <div className="flex items-center gap-4">
-            <Brand size={14} />
-            <span>© {new Date().getFullYear()} TRND</span>
+      <footer className="border-t border-line bg-surface">
+        <div className="wrap py-10 grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] items-start text-[14px] text-ink-2">
+          <div className="grid gap-2">
+            <Brand size={16} />
+            <p className="text-ink-3 max-w-[40ch]">Weekly video plans for TikTok creators, from public data only.</p>
           </div>
-          <div className="flex gap-6">
+          <nav className="flex flex-wrap gap-x-6 gap-y-2">
+            <Link href="/#how" className="hover:text-ink">
+              How it works
+            </Link>
+            <Link href="/#pricing" className="hover:text-ink">
+              Pricing
+            </Link>
+            <Link href="/login" className="hover:text-ink">
+              Sign in
+            </Link>
             <Link href="/terms" className="hover:text-ink">
               Terms
             </Link>
@@ -214,8 +258,9 @@ export default function Home() {
             <a href="mailto:hello@usetrnd.com" className="hover:text-ink">
               Contact
             </a>
-          </div>
+          </nav>
         </div>
+        <div className="wrap pb-8 caption">© {new Date().getFullYear()} TRND. Not affiliated with TikTok.</div>
       </footer>
     </div>
   );

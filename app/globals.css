@@ -173,19 +173,15 @@
     letter-spacing: -0.01em;
     line-height: 1.2;
   }
-  /* A mono, uppercase label above a section or a number. */
+  /* A small label above a number or a section: sentence case, quiet. */
   .label {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-size: 12.5px;
+    font-weight: 600;
     color: var(--ink-3);
   }
   .kicker {
-    font-family: var(--mono);
-    font-size: 11.5px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-size: 13.5px;
+    font-weight: 700;
     color: var(--brand);
   }
   .caption {

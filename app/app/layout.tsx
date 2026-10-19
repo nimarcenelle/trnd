@@ -34,22 +34,12 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
           </form>
         </div>
       </header>
-      {plan?.locked && (
-        <div className="border-b border-line bg-neg-bg text-neg text-[13.5px] py-2">
+      {plan && plan.trialing && plan.trialDaysLeft > 0 && plan.trialDaysLeft <= 3 && (
+        <div className="border-b border-line bg-subtle text-ink-2 text-[13.5px] py-2">
           <div className="wrap">
-            Your trial has ended and daily reads are paused.{" "}
-            <Link className="underline font-semibold" href="/app/settings#billing">
-              Choose a plan
-            </Link>
-          </div>
-        </div>
-      )}
-      {plan && !plan.locked && !plan.paid && plan.trialDaysLeft > 0 && plan.trialDaysLeft <= 3 && (
-        <div className="border-b border-line bg-warn-bg text-warn text-[13.5px] py-2">
-          <div className="wrap">
-            {plan.trialDaysLeft} day{plan.trialDaysLeft === 1 ? "" : "s"} left in your trial.{" "}
-            <Link className="underline font-semibold" href="/app/settings#billing">
-              Choose a plan
+            Your free trial ends in {plan.trialDaysLeft} day{plan.trialDaysLeft === 1 ? "" : "s"}, then your plan continues.{" "}
+            <Link className="underline font-semibold text-ink" href="/app/settings#billing">
+              Manage
             </Link>
           </div>
         </div>

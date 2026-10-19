@@ -7,6 +7,7 @@ import { after } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
 import { normalOf } from "@/lib/creators/stats";
+import { createCreator } from "@/lib/creators/create";
 import { scanCreator } from "@/lib/creators/scan";
 import { getCreator } from "@/lib/data";
 import { adminSupabase } from "@/lib/db/supabase";
@@ -43,7 +44,7 @@ export async function startAction(_prev: FormState, formData: FormData): Promise
   if (!HANDLE.test(handle)) return { error: "Enter your TikTok handle, like @yourname." };
   const sb = adminSupabase();
   const existing = await getCreator(user.id);
-  let id = existing?.id;
+  const id = existing?.id;
   if (existing && existing.handle !== handle) {
     if (isScanning(existing)) return { error: "We're still reading your current account. Change the handle once that finishes, in about two minutes." };
     // A new handle is a new account: what was read for the old one no longer applies.
@@ -74,9 +75,9 @@ export async function startAction(_prev: FormState, formData: FormData): Promise
   } else if (existing && isScanning(existing)) {
     redirect("/app/setup");
   } else if (!existing) {
-    const { data, error } = await sb.from("creators").insert({ owner_id: user.id, handle }).select("id").single();
-    if (error) return { error: "Couldn't save that handle. Try again in a moment." };
-    id = data.id as string;
+    const made = await createCreator(user.id, handle).catch(() => null);
+    if (!made) return { error: "Couldn't save that handle. Try again in a moment." };
+    redirect(made.claimed ? "/app/welcome" : "/app/setup");
   }
   after(() => scanCreator(id!).catch((e) => console.warn("[setup] scan:", (e as Error).message)));
   redirect("/app/setup");
@@ -210,4 +211,19 @@ export async function billingPortalAction(): Promise<void> {
   if (!creator?.stripe_customer_id) redirect("/app/settings");
   const { createPortalSession } = await import("@/lib/billing/stripe");
   redirect(await createPortalSession(creator.stripe_customer_id));
+}
+
+/** One tap in the welcome steps: the goal, how often they post, or how they film. Then the next step. */
+export async function welcomeAnswerAction(formData: FormData): Promise<void> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  const field = String(formData.get("field") ?? "");
+  const value = String(formData.get("value") ?? "");
+  const goals: Goals = creator.goals ?? { goal: "followers", posts_per_week: "", target: "", notes: "" };
+  const sb = adminSupabase();
+  if (field === "goal" && GOALS.some((g) => g.value === value)) await sb.from("creators").update({ goals: { ...goals, goal: value as Goal } }).eq("id", creator.id);
+  if (field === "cadence" && ["1-2", "3-4", "5+"].includes(value)) await sb.from("creators").update({ goals: { ...goals, posts_per_week: value } }).eq("id", creator.id);
+  if (field === "camera" && ["face", "voice", "either"].includes(value)) await sb.from("creators").update({ on_camera: value }).eq("id", creator.id);
+  revalidatePath("/app", "layout");
+  redirect(`/app/welcome?step=${String(formData.get("next") ?? "")}`);
 }

@@ -55,9 +55,11 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
   if (!latest) redirect("/app/setup");
   if (!creator.goals) redirect("/app/setup");
 
+  const plan = planState(creator);
+  const limited = plan.locked;
   const tab: Tab = TABS.some((t) => t.key === tabParam) ? (tabParam as Tab) : "next";
   const running = isScanning(creator);
-  const locked = planState(creator).locked;
+
 
   // The numbers every view leans on, computed once.
   const normal = normalOf(own);
@@ -94,11 +96,19 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
   return (
     <div className="grid gap-5">
       {running && <AutoRefresh />}
+      {limited && (
+        <div className="rounded-[14px] border border-brand/30 bg-brand-soft px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-[14.5px]">{plan.canTrial ? "You're on your free plan: one script this week. Unlock all three, and a new plan every week." : "Your plan is paused: no new plans or daily reads."}</span>
+          <Link className="btn btn-primary btn-sm" href="/app/welcome?step=trial">
+            {plan.canTrial ? "Start free trial" : "Resume my plan"}
+          </Link>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <span className="label">
           @{creator.handle} · {compact(creator.followers)} followers · updated {ago(creator.last_scan_at)}
         </span>
-        {!locked && (
+        {!limited && (
           <form action={scanNowAction}>
             <SubmitButton className="btn btn-sm" pending="Starting…">
               {running ? (
@@ -141,6 +151,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
           runs={runs}
           sources={latest.body.ideas.map(ideaSource)}
           openIdea={openIdea}
+          limited={limited}
         />
       )}
       {tab === "mine" && <MineView creator={creator} own={own} normal={normal} plan={latest} followers={followers.filter((f) => f.handle === creator.handle)} />}

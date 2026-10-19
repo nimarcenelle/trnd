@@ -45,3 +45,6 @@ export const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-U
 
 /** 44 → "44s", 75 → "1m15s". */
 export const duration = (s: number | null) => (s === null ? "" : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m${String(s % 60).padStart(2, "0")}s`);
+
+/** "October 31": the date `days` from now. */
+export const dateIn = (days: number, now = Date.now()) => new Date(now + days * 86_400_000).toLocaleDateString("en-US", { month: "long", day: "numeric" });

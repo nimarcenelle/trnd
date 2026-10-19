@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import Avatar from "@/components/app/avatar";
 import { AddPeerForm, GoalsForm, HashtagsForm } from "@/components/app/forms";
 import SubmitButton from "@/components/app/submit-button";
-import { billingPortalAction, checkoutAction, disconnectTiktokAction, removePeerAction } from "@/lib/actions";
+import { billingPortalAction, disconnectTiktokAction, removePeerAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { intervalOf, planState, PRICES } from "@/lib/billing";
 import { getCreator, listPeers } from "@/lib/data";
@@ -166,28 +166,29 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         <div className="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="font-bold">
-              {plan.paid ? `TRND for creators · ${PRICES[intervalOf(creator.plan) ?? "monthly"].label}` : plan.locked ? "Trial ended" : `Free trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left`}
+              {plan.paid
+                ? `TRND for creators · ${PRICES[intervalOf(creator.plan) ?? "monthly"].label}`
+                : plan.trialing
+                  ? `Free trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left, then ${PRICES[intervalOf(creator.plan) ?? "monthly"].label}`
+                  : plan.canTrial
+                    ? "Free plan · one script a week"
+                    : plan.locked
+                      ? "Paused"
+                      : "Free trial"}
             </div>
             {creator.plan_status === "past_due" && <p className="text-neg text-[13.5px] mt-1">Your last payment failed. Update your card to keep daily reads running.</p>}
             {billing === "success" && <p className="text-pos text-[13.5px] mt-1">Thanks. Your plan is active.</p>}
             {!isStripeConfigured && <p className="text-ink-3 text-[13.5px] mt-1">Billing isn&apos;t connected on this deployment.</p>}
           </div>
           {isStripeConfigured &&
-            (plan.paid && creator.stripe_customer_id ? (
+            ((plan.paid || plan.trialing) && creator.stripe_customer_id ? (
               <form action={billingPortalAction}>
-                <SubmitButton className="btn">Manage billing</SubmitButton>
+                <SubmitButton className="btn">{plan.trialing ? "Manage or cancel" : "Manage billing"}</SubmitButton>
               </form>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {(["weekly", "monthly"] as const).map((i) => (
-                  <form key={i} action={checkoutAction}>
-                    <input type="hidden" name="interval" value={i} />
-                    <SubmitButton className={i === "monthly" ? "btn btn-primary" : "btn"} pending="Opening Stripe…">
-                      {PRICES[i].label}
-                    </SubmitButton>
-                  </form>
-                ))}
-              </div>
+              <Link href="/app/welcome?step=trial" className="btn btn-primary">
+                {plan.canTrial ? "Start free trial" : "Choose a plan"}
+              </Link>
             ))}
         </div>
       </Section>

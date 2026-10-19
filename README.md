@@ -7,6 +7,25 @@ their week is matched to the video they post and checked 48 hours later against 
 
 What TikTok data is available, from where, and what is not: `DATA.md`.
 
+## Onboarding (landing → paid)
+
+Built from a study of comparable tools (`DATA.md` covers the data side). The rule: show real value before asking for
+anything, then ask for one thing at a time.
+
+1. **Landing** (`/`): one handle box, "Get my free plan". No account, no TikTok login.
+2. **Free preview** (`/start/[id]`, `lib/preview/`): reads the profile, asks "Is this you?", then reads the niche and
+   writes the plan while asking one optional question (the goal). Shows the numbers, creators like them, what's
+   rising, and **idea 1 in full**; ideas 2 and 3 show their hooks only. One step per request (`/api/preview/[id]/step`),
+   so nothing outruns a function. Reused per handle for 72 hours; 3 new previews per visitor (hashed IP) a day and a
+   daily budget for all (`PREVIEW_DAILY_CAP`); past it, visitors go to sign-up. Optional Turnstile bot check.
+3. **Sign-up** (`/signup`): Continue with Google, or an emailed 6-digit code. No password. The preview is claimed into
+   the new account (`lib/creators/create.ts`), so the app opens on the plan at once.
+4. **Welcome** (`/app/welcome`): two one-tap steps (goal; how they film and how often), then the **trial**: a timeline
+   (today / reminder two days before / first charge), monthly first at "$5.77/week", weekly beside it, "Not now".
+5. **Trial**: Stripe Checkout with a 14-day trial and a card (`TRIAL_REQUIRES_CARD=0` for no card). Stripe's
+   `trial_will_end` sends our reminder email. Without a trial an account keeps its free plan (idea 1) and gets no
+   daily reads.
+
 ## How it works
 
 1. **Setup** (`/app/setup`). The creator enters their handle. The first scan starts at once; while it runs they set

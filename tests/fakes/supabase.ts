@@ -7,7 +7,7 @@ type Row = Record<string, unknown>;
 type Filter = (r: Row) => boolean;
 
 let seq = 0;
-const uuid = () => `id-${++seq}`;
+const uuid = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
 
 export class FakeDb {
   tables = new Map<string, Row[]>();
@@ -30,7 +30,7 @@ class Query implements PromiseLike<{ data: unknown; error: null; count?: number 
   private conflict: string[] = [];
   private ignoreDup = false;
   private returning = false;
-  private single: "maybe" | "one" | null = null;
+  private one = false;
   constructor(
     private db: FakeDb,
     private table: string,
@@ -71,8 +71,22 @@ class Query implements PromiseLike<{ data: unknown; error: null; count?: number 
     this.window = [0, n - 1];
     return this;
   }
+  /** PostgREST's or=(...): comma-separated `col.op.value` with is.null and lt supported. */
+  or(expr: string) {
+    const parts = expr.split(",").map((t) => {
+      const [k, op, ...rest] = t.split(".");
+      const v = rest.join(".");
+      return (r: Row) => (op === "is" && v === "null" ? (r[k] ?? null) === null : op === "lt" ? r[k] !== null && r[k] !== undefined && String(r[k]) < v : false);
+    });
+    this.filters.push((r) => parts.some((f) => f(r)));
+    return this;
+  }
+  single() {
+    this.one = true;
+    return this;
+  }
   maybeSingle() {
-    this.single = "maybe";
+    this.one = true;
     return this;
   }
   insert(rows: Row | Row[]) {
@@ -128,7 +142,7 @@ class Query implements PromiseLike<{ data: unknown; error: null; count?: number 
       if (this.window) out = out.slice(this.window[0], this.window[1] + 1);
     }
     const rows = out.map((r) => ({ ...r }));
-    if (this.single) return { data: rows[0] ?? null, error: null };
+    if (this.one) return { data: rows[0] ?? null, error: null };
     return { data: this.op === "select" || this.returning ? rows : null, error: null };
   }
   then<A, B>(ok?: ((v: { data: unknown; error: null }) => A | PromiseLike<A>) | null, bad?: ((e: unknown) => B | PromiseLike<B>) | null) {

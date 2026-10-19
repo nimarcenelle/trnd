@@ -5,6 +5,7 @@ import AutoRefresh from "@/components/app/auto-refresh";
 import { GoalsForm, HandleForm } from "@/components/app/forms";
 import SubmitButton from "@/components/app/submit-button";
 import { retryScanAction } from "@/lib/actions";
+import { createCreator } from "@/lib/creators/create";
 import { getSessionUser } from "@/lib/auth/session";
 import { getCreator, listPlans } from "@/lib/data";
 import type { ScanStage } from "@/lib/db/types";
@@ -30,6 +31,12 @@ export default async function SetupPage({ searchParams }: PageProps<"/app/setup"
   const { handle: raw, again } = await searchParams;
   const typed = typeof raw === "string" ? normHandle(raw) : undefined;
 
+  // Straight from sign-up with the handle they previewed: the account is made, and the preview claimed, here.
+  if (!creator && typed && /^[a-z0-9_.]{2,24}$/.test(typed)) {
+    const made = await createCreator(user.id, typed);
+    redirect(made.claimed ? "/app/welcome" : "/app/setup");
+  }
+
   if (!creator || again) {
     return (
       <section className="max-w-[640px] pt-6 sm:pt-14 grid gap-5">
@@ -45,7 +52,7 @@ export default async function SetupPage({ searchParams }: PageProps<"/app/setup"
 
   const [latest] = await listPlans(creator.id, 1);
   const running = isScanning(creator);
-  if (latest && creator.goals) redirect("/app");
+  if (latest) redirect("/app/welcome");
 
   const failed = creator.scan_status === "error";
   // The read stopped without finishing (its function died, or it never started): offer to pick it up.

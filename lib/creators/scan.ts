@@ -410,7 +410,8 @@ export async function scanCreator(creatorId: string, opts: { resume?: boolean; b
   };
   let c = await load();
   const result: ScanResult = { creator: c.handle, stages: [], handedOff: false };
-  if (planState(c).locked) {
+  // A locked account gets its first read (the free plan everyone sees), and nothing after until it subscribes.
+  if (planState(c).locked && c.last_scan_at) {
     if (c.scan_status === "running") await sb.from("creators").update({ scan_status: "idle", scan_stage: null }).eq("id", c.id);
     return { ...result, error: "Trial ended" };
   }

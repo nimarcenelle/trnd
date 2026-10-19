@@ -18,7 +18,7 @@ const DUE_AFTER_MS = 20 * 3_600_000;
 /** Scans started per second, so a large list doesn't start every Apify run at once. */
 const PER_SECOND = 5;
 
-type Due = Pick<Creator, "id" | "plan" | "plan_status" | "trial_ends_at" | "scan_status" | "scan_started_at" | "last_scan_at">;
+type Due = Pick<Creator, "id" | "plan" | "plan_status" | "trial_ends_at" | "trial_used_at" | "scan_status" | "scan_started_at" | "last_scan_at">;
 
 export async function GET(req: Request): Promise<Response> {
   if (!env.cronSecret || req.headers.get("authorization") !== `Bearer ${env.cronSecret}`) {
@@ -35,7 +35,7 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   const sb = adminSupabase();
-  const creators = await allRows<Due>((from, to) => sb.from("creators").select("id, plan, plan_status, trial_ends_at, scan_status, scan_started_at, last_scan_at").order("id").range(from, to));
+  const creators = await allRows<Due>((from, to) => sb.from("creators").select("id, plan, plan_status, trial_ends_at, trial_used_at, scan_status, scan_started_at, last_scan_at").order("id").range(from, to));
   const due = creators.filter((c) => {
     if (planState(c).locked) return false;
     const live = c.scan_status === "running" && c.scan_started_at && Date.now() - Date.parse(c.scan_started_at) < SCAN_STALE_MS;

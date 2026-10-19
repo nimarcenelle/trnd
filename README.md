@@ -43,6 +43,9 @@ This is its own product: give it a new Supabase project and paste `supabase/setu
 re-run). It creates `creators`, `peers`, `videos`, `video_snapshots`, `follower_snapshots`, `trend_snapshots`, `plans`,
 `idea_runs` and `tiktok_connections`, with owner-read RLS on all but the last (tokens are service-role only).
 
+**Billing**: two Stripe recurring prices for the same plan, `STRIPE_PRICE_WEEKLY` ($9.99) and `STRIPE_PRICE_MONTHLY`
+($24.99). The webhook records which one as `creators.plan` (`weekly` or `monthly`).
+
 **Connect TikTok** is optional and needs a TikTok developer app with Login Kit (`user.info.basic`,
 `user.info.profile`, `user.info.stats`, `video.list`), redirect URI `<site>/api/tiktok/callback`, and TikTok's app review
 before anyone but the sandbox's test users can connect.

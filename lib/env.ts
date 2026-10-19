@@ -17,12 +17,14 @@ export const env = {
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
-  stripePrice: process.env.STRIPE_PRICE ?? "",
+  /** Two Stripe recurring prices: $9.99 a week and $24.99 a month. */
+  stripePriceWeekly: process.env.STRIPE_PRICE_WEEKLY ?? "",
+  stripePriceMonthly: process.env.STRIPE_PRICE_MONTHLY ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM || "TRND <plans@usetrnd.com>",
 };
 
 export const isModelConfigured = Boolean(env.openaiApiKey);
-export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePrice);
+export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePriceWeekly && env.stripePriceMonthly);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isTiktokLoginConfigured = Boolean(env.tiktokClientKey && env.tiktokClientSecret);

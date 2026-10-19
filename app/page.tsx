@@ -4,7 +4,7 @@ import IdeaCard from "@/components/app/idea-card";
 import Brand from "@/components/brand";
 import { SAMPLE_HANDLE, SAMPLE_IDEA, SAMPLE_NORMAL, SAMPLE_SOURCE } from "@/components/sample/creator";
 import SiteNav from "@/components/site-nav";
-import { PRICE_LABEL } from "@/lib/billing";
+import { PRICES } from "@/lib/billing";
 
 const LOOP = [
   { k: "Your videos", body: "Which ones broke out against your own usual, and what they share" },
@@ -137,24 +137,34 @@ export default function Home() {
       </section>
 
       <section id="pricing" className="border-t border-line scroll-mt-14">
-        <div className="wrap py-16 sm:py-20 grid gap-6 justify-items-start">
+        <div className="wrap py-16 sm:py-20 grid grid-cols-[minmax(0,1fr)] gap-6">
           <span className="kicker">Pricing</span>
-          <div className="card p-6 sm:p-8 grid gap-4 max-w-[480px] w-full">
-            <div className="flex items-baseline gap-2">
-              <span className="display text-[40px]">{PRICE_LABEL.split("/")[0]}</span>
-              <span className="text-ink-2">/ month</span>
-            </div>
-            <ul className="m-0 pl-[18px] grid gap-1.5 text-[15px]">
-              <li>A new plan every week, three scripted videos</li>
-              <li>Your videos, read every day</li>
-              <li>Up to 8 creators like you, and your niche&apos;s trends</li>
-              <li>Every idea checked 48 hours after you post it</li>
-            </ul>
-            <Link href="/signup" className="btn btn-primary btn-lg">
-              Start your 14-day free trial
-            </Link>
-            <span className="caption">No card to start. Cancel anytime.</span>
+          <h2 className="display text-[clamp(26px,4vw,38px)] max-w-[640px]">Everything, weekly or monthly.</h2>
+          <div className="grid gap-3.5 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 max-w-[760px]">
+            {(["weekly", "monthly"] as const).map((i) => (
+              <div key={i} className={`card p-6 grid gap-4 content-start ${i === "monthly" ? "!border-brand shadow-[inset_0_0_0_1px_var(--brand)]" : ""}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="label">{i === "weekly" ? "Weekly" : "Monthly"}</span>
+                  {i === "monthly" && <span className="pill pill-brand">Best value</span>}
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="display text-[40px]">{PRICES[i].amount}</span>
+                  <span className="text-ink-2">/ {PRICES[i].per}</span>
+                </div>
+                <span className="text-[14px] text-ink-2">{PRICES[i].note}</span>
+                <Link href="/signup" className={i === "monthly" ? "btn btn-primary btn-lg" : "btn btn-lg"}>
+                  Start your 14-day free trial
+                </Link>
+              </div>
+            ))}
           </div>
+          <ul className="m-0 pl-[18px] grid gap-1.5 text-[15px] max-w-[760px]">
+            <li>A new plan every week: three scripted videos</li>
+            <li>Your videos, read every day</li>
+            <li>Up to 8 creators like you, and your niche&apos;s trends</li>
+            <li>Every idea checked 48 hours after you post it</li>
+          </ul>
+          <span className="caption">Both plans include everything. No card to start. Cancel anytime.</span>
         </div>
       </section>
 

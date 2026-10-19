@@ -11,6 +11,14 @@ function mapStatus(s: Stripe.Subscription.Status): "active" | "past_due" | "canc
   return "canceled";
 }
 
+/** The plan a subscription is on: "weekly" or "monthly" from its price, else what checkout recorded. */
+function planOf(sub: Stripe.Subscription | null, fallback?: string | null): string {
+  const unit = sub?.items?.data?.[0]?.price?.recurring?.interval;
+  if (unit === "week") return "weekly";
+  if (unit === "month") return "monthly";
+  return fallback === "weekly" || fallback === "monthly" ? fallback : "monthly";
+}
+
 const idOf = (v: string | { id: string } | null | undefined) => (typeof v === "string" ? v : (v?.id ?? null));
 
 export async function POST(req: Request): Promise<Response> {
@@ -35,13 +43,13 @@ export async function POST(req: Request): Promise<Response> {
       if (creatorId) {
         await sb
           .from("creators")
-          .update({ plan: "pro", plan_status: "active", stripe_customer_id: idOf(s.customer), stripe_subscription_id: idOf(s.subscription) })
+          .update({ plan: planOf(null, s.metadata?.interval), plan_status: "active", stripe_customer_id: idOf(s.customer), stripe_subscription_id: idOf(s.subscription) })
           .eq("id", creatorId);
       }
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       const sub = event.data.object;
       const status = event.type === "customer.subscription.deleted" ? "canceled" : mapStatus(sub.status);
-      const q = sb.from("creators").update({ plan: "pro", plan_status: status, stripe_customer_id: idOf(sub.customer), stripe_subscription_id: sub.id });
+      const q = sb.from("creators").update({ plan: planOf(sub, sub.metadata?.interval), plan_status: status, stripe_customer_id: idOf(sub.customer), stripe_subscription_id: sub.id });
       await (sub.metadata?.creator_id ? q.eq("id", sub.metadata.creator_id) : q.eq("stripe_subscription_id", sub.id));
     }
   } catch (err) {

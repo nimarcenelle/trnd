@@ -163,11 +163,12 @@ export async function disconnectTiktokAction(): Promise<void> {
   revalidatePath("/app/settings");
 }
 
-export async function checkoutAction(): Promise<void> {
+export async function checkoutAction(formData: FormData): Promise<void> {
   const { user, creator } = await requireCreator();
   if (!creator || !isStripeConfigured) redirect("/app/settings");
+  const interval = formData.get("interval") === "weekly" ? "weekly" : "monthly";
   const { createCheckoutSession } = await import("@/lib/billing/stripe");
-  redirect(await createCheckoutSession(creator, user.email));
+  redirect(await createCheckoutSession(creator, user.email, interval));
 }
 
 export async function billingPortalAction(): Promise<void> {

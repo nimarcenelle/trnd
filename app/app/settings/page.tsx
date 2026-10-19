@@ -6,7 +6,7 @@ import { AddPeerForm, GoalsForm, HashtagsForm } from "@/components/app/forms";
 import SubmitButton from "@/components/app/submit-button";
 import { billingPortalAction, checkoutAction, disconnectTiktokAction, removePeerAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
-import { planState, PRICE_LABEL } from "@/lib/billing";
+import { intervalOf, planState, PRICES } from "@/lib/billing";
 import { getCreator, listPeers } from "@/lib/data";
 import { MAX_PEERS } from "@/lib/db/types";
 import { isStripeConfigured, isTiktokLoginConfigured } from "@/lib/env";
@@ -160,11 +160,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         </div>
       </Section>
 
-      <Section id="billing" title="Plan" sub="One plan. Cancel anytime.">
+      <Section id="billing" title="Plan" sub="Everything included, weekly or monthly. Cancel anytime.">
         <div className="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="font-bold">
-              {plan.paid ? `TRND for creators · ${PRICE_LABEL}` : plan.locked ? "Trial ended" : `Free trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left`}
+              {plan.paid ? `TRND for creators · ${PRICES[intervalOf(creator.plan) ?? "monthly"].label}` : plan.locked ? "Trial ended" : `Free trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left`}
             </div>
             {creator.plan_status === "past_due" && <p className="text-neg text-[13.5px] mt-1">Your last payment failed. Update your card to keep daily reads running.</p>}
             {billing === "success" && <p className="text-pos text-[13.5px] mt-1">Thanks. Your plan is active.</p>}
@@ -176,11 +176,16 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                 <SubmitButton className="btn">Manage billing</SubmitButton>
               </form>
             ) : (
-              <form action={checkoutAction}>
-                <SubmitButton className="btn btn-primary" pending="Opening Stripe…">
-                  Subscribe · {PRICE_LABEL}
-                </SubmitButton>
-              </form>
+              <div className="flex flex-wrap gap-2">
+                {(["weekly", "monthly"] as const).map((i) => (
+                  <form key={i} action={checkoutAction}>
+                    <input type="hidden" name="interval" value={i} />
+                    <SubmitButton className={i === "monthly" ? "btn btn-primary" : "btn"} pending="Opening Stripe…">
+                      {PRICES[i].label}
+                    </SubmitButton>
+                  </form>
+                ))}
+              </div>
             ))}
         </div>
       </Section>

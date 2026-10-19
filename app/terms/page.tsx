@@ -21,7 +21,7 @@ export default function TermsPage() {
 
       <h2>Trial and billing</h2>
       <p>
-        Every account starts with a 14-day free trial. After that, TRND is a monthly subscription billed through Stripe until you
+        Every account starts with a 14-day free trial. After that, TRND is a weekly or monthly subscription, your choice, billed through Stripe until you
         cancel. Cancel any time from Settings; you keep access until the end of the period you paid for. When a trial ends without
         a plan, daily reads pause and what TRND already found stays readable.
       </p>

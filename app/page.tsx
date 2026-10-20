@@ -27,7 +27,7 @@ const FAQ = [
   },
   {
     q: "What does the free preview include?",
-    a: "Your typical views and best recent video, creators like you, what's rising in your niche, and one fully scripted idea. The trial unlocks all three each week.",
+    a: "Your typical views and best recent video, creators a step ahead of you, what's rising in your niche, and one fully scripted idea. The trial unlocks all three each week.",
   },
   {
     q: "What happens after the trial?",
@@ -110,7 +110,7 @@ export default function Home() {
           <span className="kicker">For TikTok creators</span>
           <h1 className="display text-[clamp(34px,5.6vw,56px)]">Your next three TikToks, scripted from what&apos;s working in your niche.</h1>
           <p className="text-ink-2 text-[17.5px] max-w-[54ch] leading-[1.55]">
-            Enter your handle. In about a minute you get your numbers, creators like you, what&apos;s rising in your niche, and a video to make, scripted second by second.
+            Enter your handle. In about a minute you get your numbers, creators a step ahead of you, what&apos;s rising in your niche, and a video to make, scripted second by second.
           </p>
           <div className="max-w-[580px]">
             <StartForm cta="Get my free plan" compact />
@@ -195,7 +195,7 @@ export default function Home() {
             ))}
           </div>
           <ul className="list-none m-0 p-0 grid gap-2 text-[15px] max-w-[760px] sm:grid-cols-2">
-            {["Three scripted videos every week", "Your videos read every day", "Creators like you and your niche's trends", "Every idea checked 48 hours after you post"].map((t) => (
+            {["Three scripted videos every week", "Your videos read every day", "Creators ahead of you and your niche's trends", "Every idea checked 48 hours after you post"].map((t) => (
               <li key={t} className="flex items-center gap-2.5">
                 <Check /> {t}
               </li>

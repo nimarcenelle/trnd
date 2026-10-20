@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 
-import { addPeerAction, saveGoalsAction, saveHashtagsAction, startAction, type FormState } from "@/lib/actions";
+import { addPeerAction, saveGoalsAction, saveHashtagsAction, startAction, welcomeModelsAction, type FormState } from "@/lib/actions";
 import type { Goals } from "@/lib/db/types";
 import { GOALS } from "@/lib/goals";
 
@@ -86,6 +86,34 @@ export function AddPeerForm() {
   );
 }
 
+/** Welcome: up to three creators they want to be like. */
+export function ModelsForm({ next, defaults }: { next: string; defaults: string[] }) {
+  const [state, action] = useActionState<FormState, FormData>(welcomeModelsAction, {});
+  return (
+    <form action={action} className="grid gap-3">
+      <input type="hidden" name="next" value={next} />
+      <div className="grid gap-2">
+        {[0, 1, 2].map((i) => (
+          <input
+            key={i}
+            className="input"
+            name="handles"
+            defaultValue={defaults[i] ? `@${defaults[i]}` : ""}
+            placeholder={["@acreatoryouwanttobe", "@another", "@one more"][i]}
+            aria-label={`Creator ${i + 1} you want to be like`}
+            autoCapitalize="none"
+            spellCheck={false}
+          />
+        ))}
+      </div>
+      {state.error && <p className="form-error !m-0">{state.error}</p>}
+      <SubmitButton className="btn btn-primary btn-lg self-start" pending="Saving…">
+        Continue
+      </SubmitButton>
+    </form>
+  );
+}
+
 export function HashtagsForm({ hashtags }: { hashtags: string[] }) {
   const [state, action] = useActionState<FormState, FormData>(saveHashtagsAction, {});
   return (
@@ -97,7 +125,7 @@ export function HashtagsForm({ hashtags }: { hashtags: string[] }) {
         </SubmitButton>
       </div>
       {state.error && <p className="form-error !m-0">{state.error}</p>}
-      {state.saved && <p className="text-[13px] text-pos">Saved. Trends and creators like you are read from these on the next scan.</p>}
+      {state.saved && <p className="text-[13px] text-pos">Saved. Trends and creators ahead of you are read from these on the next scan.</p>}
     </form>
   );
 }

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { ModelsForm } from "@/components/app/forms";
 import SubmitButton from "@/components/app/submit-button";
 import { checkoutAction, welcomeAnswerAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { cardFirst, planState, PRICES, TRIAL_DAYS } from "@/lib/billing";
-import { getCreator, listPlans } from "@/lib/data";
+import { getCreator, listPeers, listPlans } from "@/lib/data";
 import { isStripeConfigured } from "@/lib/env";
 import { dateIn } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
@@ -53,8 +54,9 @@ function Choice({ field, value, next, selected, label, hint }: { field: string; 
 }
 
 /**
- * After sign-up: two one-tap questions that shape every script, then the
- * trial. Each step is skippable; the plan is already there.
+ * After sign-up: two one-tap questions that shape every script, the creators
+ * they want to be like, then the trial. Each step is skippable; the plan is
+ * already there.
  */
 export default async function WelcomePage({ searchParams }: PageProps<"/app/welcome">) {
   const user = await getSessionUser();
@@ -66,12 +68,33 @@ export default async function WelcomePage({ searchParams }: PageProps<"/app/welc
   const { step: raw } = await searchParams;
   const plan = planState(creator);
   const needsTrial = isStripeConfigured && cardFirst && plan.locked;
-  const of = needsTrial ? 3 : 2;
-  const step = raw === "camera" || raw === "trial" ? raw : creator.goals ? (creator.on_camera ? (needsTrial ? "trial" : "done") : "camera") : "goal";
+  const of = needsTrial ? 4 : 3;
+  const step = raw === "camera" || raw === "models" || raw === "trial" ? raw : creator.goals ? (creator.on_camera ? (needsTrial ? "trial" : "done") : "camera") : "goal";
   if (step === "done" || (step === "trial" && !needsTrial)) redirect("/app");
 
+  const after = needsTrial ? "trial" : "done";
+
+  if (step === "models") {
+    const mine = (await listPeers(creator.id)).filter((p) => p.source === "owner").map((p) => p.handle);
+    return (
+      <section className="max-w-[620px] mx-auto pt-4 sm:pt-12 grid gap-6">
+        <Progress n={3} of={of} />
+        <div>
+          <h1 className="display text-[clamp(26px,4.5vw,36px)]">Who do you want to be like?</h1>
+          <p className="text-ink-2 mt-2">
+            Up to three creators a step or two ahead of you. We read their videos every day and build your ideas from what got them there, not from
+            accounts your size.
+          </p>
+        </div>
+        <ModelsForm next={after} defaults={mine} />
+        <Link href={after === "trial" ? "/app/welcome?step=trial" : "/app"} className="btn btn-ghost btn-sm self-start">
+          Skip, pick for me
+        </Link>
+      </section>
+    );
+  }
+
   if (step === "goal" || step === "camera") {
-    const after = needsTrial ? "trial" : "done";
     return (
       <section className="max-w-[620px] mx-auto pt-4 sm:pt-12 grid gap-6">
         <Progress n={step === "goal" ? 1 : 2} of={of} />
@@ -106,7 +129,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/app/welc
                 ))}
               </div>
             </div>
-            <Link href={after === "trial" ? "/app/welcome?step=trial" : "/app"} className={`btn btn-lg self-start ${creator.on_camera ? "btn-primary" : ""}`}>
+            <Link href="/app/welcome?step=models" className={`btn btn-lg self-start ${creator.on_camera ? "btn-primary" : ""}`}>
               {creator.on_camera ? "Continue" : "Skip for now"}
             </Link>
           </>
@@ -120,7 +143,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/app/welc
   const remind = dateIn(TRIAL_DAYS - 2);
   return (
     <section className="max-w-[720px] mx-auto pt-4 sm:pt-10 grid gap-6">
-      <Progress n={3} of={3} />
+      <Progress n={4} of={4} />
       <div>
         <h1 className="display text-[clamp(26px,4.5vw,38px)]">{plan.canTrial ? `Your plan is ready. Try it free for ${TRIAL_DAYS} days.` : "Pick up where you left off"}</h1>
         <p className="text-ink-2 mt-2">All three scripts this week, a new plan every week, and every idea checked after you post it.</p>

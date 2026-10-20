@@ -16,7 +16,7 @@ import { MIN_VIDEOS, PREVIEW_TTL_MS, type Preview, type PreviewPeer, type Previe
  * the page calls the next step until the preview is ready. Steps:
  *   reading → confirm: the profile and last 24 videos (one Apify read)
  *   confirm → niche:   waits for the visitor to say "that's me"
- *   niche → idea:      the model's read of the account, the niche hashtags' recent videos (Apify), creators like them, trends
+ *   niche → idea:      the model's read of the account, the niche hashtags' recent videos (Apify), creators ahead of them, trends
  *   idea → ready:      the plan (one model call); the page shows idea 1 and blurs the rest
  */
 

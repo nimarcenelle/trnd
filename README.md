@@ -1,6 +1,6 @@
 # TRND for creators
 
-Tells a TikTok creator exactly what to post next. TRND reads the creator's public videos, finds creators like them and
+Tells a TikTok creator exactly what to post next. TRND reads the creator's public videos, finds the creators a step ahead of them and
 what is rising in their niche, and writes a weekly plan: three videos to make, each with the hook, a script second by
 second, length, sound, when to post, caption and hashtags, and the evidence it rests on. An idea the creator adds to
 their week is matched to the video they post and checked 48 hours later against their usual views.
@@ -14,13 +14,14 @@ anything, then ask for one thing at a time.
 
 1. **Landing** (`/`): one handle box, "Get my free plan". No account, no TikTok login.
 2. **Free preview** (`/start/[id]`, `lib/preview/`): reads the profile, asks "Is this you?", then reads the niche and
-   writes the plan while asking one optional question (the goal). Shows the numbers, creators like them, what's
+   writes the plan while asking one optional question (the goal). Shows the numbers, creators ahead of them, what's
    rising, and **idea 1 in full**; ideas 2 and 3 show their hooks only. One step per request (`/api/preview/[id]/step`),
    so nothing outruns a function. Reused per handle for 72 hours; 3 new previews per visitor (hashed IP) a day and a
    daily budget for all (`PREVIEW_DAILY_CAP`); past it, visitors go to sign-up. Optional Turnstile bot check.
 3. **Sign-up** (`/signup`): Continue with Google, or an emailed 6-digit code. No password. The preview is claimed into
    the new account (`lib/creators/create.ts`), so the app opens on the plan at once.
-4. **Welcome** (`/app/welcome`): two one-tap steps (goal; how they film and how often), then the **trial**: a timeline
+4. **Welcome** (`/app/welcome`): two one-tap steps (goal; how they film and how often), up to three creators they
+   want to be like, then the **trial**: a timeline
    (today / reminder two days before / first charge), monthly first at "$5.77/week", weekly beside it, "Not now".
 5. **Trial**: Stripe Checkout with a 14-day trial and a card (`TRIAL_REQUIRES_CARD=0` for no card). Stripe's
    `trial_will_end` sends our reminder email. Without a trial an account keeps its free plan (idea 1) and gets no
@@ -37,9 +38,12 @@ anything, then ask for one thing at a time.
    - **profile**: the creator's last 30 videos and account numbers (`lib/tiktok/read.ts`, Apify). Once a week the
      model reads the account (`readAccount`, `lib/ai/creators.ts`): niche, audience, what works, what doesn't, style,
      and the niche hashtags to watch. A connected account's numbers come from TikTok itself (`lib/tiktok/connect.ts`).
-   - **niche**: recent videos under the niche hashtags. Creators like them are picked from those: posting in several
-     niche hashtags, a tenth to ten times their size, never under 1K or (for small accounts) capped below 20K
-     (`rankPeers`, `peerBand`). A peer the owner removed is never matched again.
+   - **niche**: recent videos under the niche hashtags. The creators to benchmark against are picked from those: not
+     equals but accounts a step or two ahead in the same niche, two to fifty times their followers (5K to 250K for small
+     accounts), best niche fit first, then the closest to five times their size (`rankPeers`, `aheadBand`). Too few
+     ahead in the sample and the list is topped up from around their size, biggest first (`nearBand`). Creators the
+     owner names ("Who do you want to be like?" in welcome, or Settings) always stay and come first. A peer the owner
+     removed is never matched again.
    - **peers**: each peer's last 15 videos.
    - **trends**: every hashtag and borrowed sound in the last 14 days of videos read, counted this week against last
      and staged early, rising, peaking or fading (`trendRows`, `stageOf`), snapshotted daily.

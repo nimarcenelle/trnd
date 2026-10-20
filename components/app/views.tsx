@@ -128,7 +128,7 @@ export function NextView({
         ),
       )}
       <p className="caption">
-        From your last {own.length} videos, creators like you and your niche&apos;s hashtags, read {shortDate(plan.created_at)}. TikTok shows plays, likes, comments, shares and saves publicly; watch time and
+        From your last {own.length} videos, creators ahead of you and your niche&apos;s hashtags, read {shortDate(plan.created_at)}. TikTok shows plays, likes, comments, shares and saves publicly; watch time and
         followers per video are not public, so nothing here claims them.
       </p>
     </>
@@ -338,7 +338,7 @@ export function TrendsView({ creator, trends, plan }: { creator: Creator; trends
           ))}
         </div>
         <p className="caption">
-          Trends and creators like you are found from these.{" "}
+          Trends and creators ahead of you are found from these.{" "}
           <Link href="/app/settings#hashtags" className="text-brand hover:underline">
             Change them
           </Link>
@@ -361,8 +361,8 @@ export function CreatorsView({ cards }: { cards: PeerCard[] }) {
   return (
     <>
       <Heading
-        title="Creators like you, and what you can borrow"
-        sub="Matched by your niche hashtags and a similar size. × is how far their best recent video beat their own usual views: a video that beats its creator's normal is a format that works, not just a big account."
+        title="Creators ahead of you, and what you can borrow"
+        sub="Creators in your niche a step or two bigger than you, the accounts to grow into, plus anyone you add. × is how far their best recent video beat their own usual views: a video that beats its creator's normal is a format that works, not just a big account."
       />
       {cards.length ? (
         <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(250px,1fr))]">
@@ -394,10 +394,10 @@ export function CreatorsView({ cards }: { cards: PeerCard[] }) {
           ))}
         </div>
       ) : (
-        <div className="card p-5 text-ink-2">No creators matched yet. Add ones you watch below, or check your niche hashtags in settings.</div>
+        <div className="card p-5 text-ink-2">No creators matched yet. Add ones you want to be like below, or check your niche hashtags in settings.</div>
       )}
       <div className="card p-4 grid gap-2.5 max-w-[520px]">
-        <span className="label">Add a creator you watch</span>
+        <span className="label">Add a creator you want to be like</span>
         <AddPeerForm />
       </div>
     </>

@@ -94,13 +94,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         </div>
       </Section>
 
-      <Section id="hashtags" title="Niche hashtags" sub="Where we look for trends and creators like you. Specific beats broad: #collegeapps, not #fyp. Up to 8.">
+      <Section id="hashtags" title="Niche hashtags" sub="Where we look for trends and creators ahead of you. Specific beats broad: #collegeapps, not #fyp. Up to 8.">
         <div className="card p-4">
           <HashtagsForm hashtags={creator.hashtags} />
         </div>
       </Section>
 
-      <Section title="Creators like you" sub={`${peers.length} of ${MAX_PEERS}. Matched from your hashtags; add any you learn from.`}>
+      <Section title="Creators ahead of you" sub={`${peers.length} of ${MAX_PEERS}. Matched from your niche, a step or two bigger than you. Add anyone you want to be like.`}>
         <div className="card divide-y divide-line">
           {peers.map((p) => (
             <div key={p.id} className="flex items-center gap-3 px-4 py-3">

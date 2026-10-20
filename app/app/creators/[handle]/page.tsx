@@ -11,7 +11,7 @@ import { compact, profileUrl, signed, withinDays } from "@/lib/format";
 
 export const metadata = { title: "Creator — TRND for creators" };
 
-/** One creator like you: their numbers and their recent videos, ranked by how worth borrowing each is. */
+/** One creator ahead of you: their numbers and their recent videos, ranked by how worth borrowing each is. */
 export default async function PeerPage({ params }: PageProps<"/app/creators/[handle]">) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -32,7 +32,7 @@ export default async function PeerPage({ params }: PageProps<"/app/creators/[han
   return (
     <div className="grid gap-5 max-w-[760px]">
       <Link href="/app?tab=creators" className="caption hover:text-ink">
-        ← Creators like you
+        ← Creators ahead of you
       </Link>
       <div className="flex gap-3 items-center justify-between flex-wrap">
         <div className="flex gap-3 items-center min-w-0">

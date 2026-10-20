@@ -77,19 +77,25 @@ describe("borrowScore", () => {
 });
 
 describe("rankPeers", () => {
-  it("keeps accounts within a tenth to ten times your size, the best niche fit first", () => {
-    const out = rankPeers(
-      [
-        { handle: "me", followers: 50000, tags: 9, videos: 9 },
-        { handle: "huge", followers: 9_000_000, tags: 5, videos: 5 },
-        { handle: "tiny", followers: 900, tags: 5, videos: 5 },
-        { handle: "close", followers: 60000, tags: 3, videos: 2 },
-        { handle: "fit", followers: 300000, tags: 4, videos: 3 },
-      ],
-      { handle: "me", followers: 50000 },
-      5,
-    );
-    expect(out.map((c) => c.handle)).toEqual(["fit", "close"]);
+  const cands = [
+    { handle: "me", followers: 50000, tags: 9, videos: 9 },
+    { handle: "mega", followers: 9_000_000, tags: 5, videos: 5 },
+    { handle: "tiny", followers: 900, tags: 5, videos: 5 },
+    { handle: "equal", followers: 60000, tags: 4, videos: 2 },
+    { handle: "next", followers: 260000, tags: 3, videos: 3 },
+    { handle: "far", followers: 2_000_000, tags: 3, videos: 3 },
+    { handle: "bigger", followers: 120000, tags: 2, videos: 9 },
+  ];
+  it("benchmarks against creators ahead of you, not your equals: best niche fit, then closest to five times your size", () => {
+    expect(rankPeers(cands, { handle: "me", followers: 50000 }, 3).map((c) => c.handle)).toEqual(["next", "far", "bigger"]);
+  });
+  it("tops up from around your size, the biggest first, when too few are ahead", () => {
+    expect(rankPeers(cands, { handle: "me", followers: 50000 }, 5).map((c) => c.handle)).toEqual(["next", "far", "bigger", "equal"]);
+  });
+  it("never picks accounts out of reach or far below you", () => {
+    const out = rankPeers(cands, { handle: "me", followers: 50000 }, 10).map((c) => c.handle);
+    expect(out).not.toContain("mega");
+    expect(out).not.toContain("tiny");
   });
 });
 
@@ -125,17 +131,32 @@ describe("compact", () => {
   });
 });
 
-describe("peerBand", () => {
-  it("lets small and unknown-size accounts find creators a little ahead of them", async () => {
-    const { peerBand, rankPeers } = await import("@/lib/creators/stats");
-    expect(peerBand(50)).toEqual({ min: 1000, max: 20000 });
-    expect(peerBand(null)).toEqual({ min: 1000, max: Infinity });
-    expect(peerBand(500_000)).toEqual({ min: 50000, max: 5_000_000 });
-    const cands = [
+describe("aheadBand", () => {
+  it("looks a step or two ahead, with a floor for small and unknown-size accounts", async () => {
+    const { aheadBand, nearBand, aheadLine, rankPeers } = await import("@/lib/creators/stats");
+    expect(aheadBand(50)).toEqual({ min: 5000, max: 250_000 });
+    expect(aheadBand(null)).toEqual({ min: 10_000, max: Infinity });
+    expect(aheadBand(500_000)).toEqual({ min: 1_000_000, max: 25_000_000 });
+    expect(nearBand(50)).toEqual({ min: 1000, max: 5000 });
+    const small = [
       { handle: "a", followers: 4000, tags: 3, videos: 2 },
       { handle: "b", followers: 900, tags: 4, videos: 2 },
+      { handle: "c", followers: 40000, tags: 1, videos: 1 },
     ];
-    expect(rankPeers(cands, { handle: "me", followers: 50 }, 5).map((c) => c.handle)).toEqual(["a"]);
-    expect(rankPeers(cands, { handle: "me", followers: null }, 5).map((c) => c.handle)).toEqual(["a"]);
+    expect(rankPeers(small, { handle: "me", followers: 50 }, 5).map((c) => c.handle)).toEqual(["c", "a"]);
+    // A tiny account aims at a real next level, not the smallest account over the floor.
+    const tiny = [
+      { handle: "floor", followers: 5200, tags: 2, videos: 3 },
+      { handle: "goal", followers: 30000, tags: 2, videos: 3 },
+    ];
+    expect(rankPeers(tiny, { handle: "me", followers: 73 }, 1).map((c) => c.handle)).toEqual(["goal"]);
+    expect(rankPeers(small, { handle: "me", followers: null }, 5).map((c) => c.handle)).toEqual(["c", "a"]);
+    expect([aheadLine(260000, 50000), aheadLine(2_000_000, 50000), aheadLine(55000, 50000), aheadLine(1000, 50000), aheadLine(5, null)]).toEqual([
+      "5.2× your followers",
+      "40× your followers",
+      "About your size",
+      null,
+      null,
+    ]);
   });
 });

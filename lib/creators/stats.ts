@@ -172,27 +172,54 @@ export interface PeerCandidate {
   videos: number;
 }
 
-/** The smallest and largest a creator like you can be, for an account of `followers`. */
-export function peerBand(followers: number | null): { min: number; max: number } {
-  // Unknown size: anyone from 1K up. Small accounts learn from accounts a little ahead of them, so the band never
-  // narrows below 1K to 20K; above that it is a tenth to ten times their size.
-  if (!followers) return { min: 1000, max: Infinity };
-  return { min: Math.max(1000, Math.round(followers / 10)), max: Math.max(20_000, followers * 10) };
+/**
+ * The creators worth benchmarking against: a step or two ahead of you in the
+ * same niche, the accounts you want to grow into, not your equals. Two to fifty
+ * times your followers; a small account looks at 5K to 250K.
+ */
+export function aheadBand(followers: number | null): { min: number; max: number } {
+  if (!followers) return { min: 10_000, max: Infinity };
+  return { min: Math.max(5_000, Math.round(followers * 2)), max: Math.max(250_000, followers * 50) };
 }
 
+/** Where to fall back when too few in the niche sample are ahead of you: around your size, from a third of it. */
+export function nearBand(followers: number | null): { min: number; max: number } {
+  if (!followers) return { min: 1000, max: Infinity };
+  return { min: Math.max(1000, Math.round(followers / 3)), max: Math.max(5_000, Math.round(followers * 2)) };
+}
+
+/** The size a creator ahead of you should ideally be: the next level up, about five times you, and for a small account at least 25K. */
+export const AHEAD_TARGET = 5;
+export const AHEAD_TARGET_MIN = 25_000;
+
 /**
- * Which accounts in a hashtag sample are creators like you: they post in
- * several of your niche hashtags and are within a size band of you, the
- * closest in size first among equal fits.
+ * Which accounts in a hashtag sample to benchmark you against. Creators ahead
+ * of you come first (best niche fit, then the closest to five times your size,
+ * or 25K for a small account);
+ * when the sample has too few, the list is topped up from around your size,
+ * the biggest first.
  */
 export function rankPeers(candidates: PeerCandidate[], self: { handle: string; followers: number | null }, limit: number): PeerCandidate[] {
-  const band = peerBand(self.followers);
   const mine = Math.max(1, self.followers ?? 1);
-  const size = (c: PeerCandidate) => Math.abs(Math.log10((c.followers ?? 1) / mine));
-  return candidates
-    .filter((c) => c.handle !== self.handle && c.followers !== null && c.followers >= band.min && c.followers <= band.max)
-    .sort((a, b) => b.tags - a.tags || b.videos - a.videos || size(a) - size(b))
-    .slice(0, limit);
+  const pool = candidates.filter((c) => c.handle !== self.handle && c.followers !== null);
+  const within = (b: { min: number; max: number }) => (c: PeerCandidate) => c.followers! >= b.min && c.followers! <= b.max;
+  const target = Math.max(mine * AHEAD_TARGET, AHEAD_TARGET_MIN);
+  const step = (c: PeerCandidate) => (self.followers ? Math.abs(Math.log10(c.followers! / target)) : -c.followers!);
+  const ahead = pool.filter(within(aheadBand(self.followers))).sort((a, b) => b.tags - a.tags || step(a) - step(b) || b.videos - a.videos);
+  if (ahead.length >= limit) return ahead.slice(0, limit);
+  const taken = new Set(ahead.map((c) => c.handle));
+  const near = pool
+    .filter((c) => !taken.has(c.handle) && within(nearBand(self.followers))(c))
+    .sort((a, b) => b.tags - a.tags || b.followers! - a.followers! || b.videos - a.videos);
+  return [...ahead, ...near].slice(0, limit);
+}
+
+/** How a matched creator compares with you, for the reason shown beside them: "4× your followers". */
+export function aheadLine(followers: number | null, mine: number | null): string | null {
+  if (!followers || !mine) return null;
+  const x = followers / mine;
+  if (x >= 1.5) return `${x >= 10 ? Math.round(x) : Math.round(x * 10) / 10}× your followers`;
+  return x >= 0.8 ? "About your size" : null;
 }
 
 /** Words of four letters or more, lowercased, for matching a posted video to the idea it came from. */

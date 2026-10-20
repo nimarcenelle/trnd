@@ -14,13 +14,13 @@ import { todayIso } from "@/lib/format";
 import { readConnected } from "@/lib/tiktok/connect";
 import { isTiktokConfigured, readCreativeCenter, readHashtags, readProfiles, type ReadAuthor, type ReadVideo } from "@/lib/tiktok/read";
 
-import { borrowScore, matchIdea, normalOf, outcomeOf, postsPerWeek, rankPeers, SETTLE_HOURS, timesNormal, trendRows, type PeerCandidate } from "./stats";
+import { aheadBand, aheadLine, borrowScore, matchIdea, normalOf, outcomeOf, postsPerWeek, rankPeers, SETTLE_HOURS, timesNormal, trendRows, type PeerCandidate } from "./stats";
 
 /**
  * One scan, in six stages, each saved before the next starts so a scan cut
  * short picks up where it stopped:
  *   profile: the creator's own videos and numbers, and (weekly) the model's read of the account
- *   niche:   videos under the niche hashtags; creators like them picked from those
+ *   niche:   videos under the niche hashtags; creators ahead of them picked from those
  *   peers:   each peer's recent videos
  *   trends:  hashtags and sounds across everything read in the last 14 days, staged and snapshotted
  *   tag:     when a plan is due, the format and hook of videos not yet tagged
@@ -106,7 +106,7 @@ async function listVideos(sb: SupabaseClient, creatorId: string, days: number, o
 
 async function livePeers(sb: SupabaseClient, creatorId: string): Promise<Peer[]> {
   const { data, error } = await sb.from("peers").select("*").eq("creator_id", creatorId);
-  if (error) throw new Error(`Reading creators like you failed: ${error.message}`);
+  if (error) throw new Error(`Reading creators ahead of you failed: ${error.message}`);
   return ((data ?? []) as Peer[]).filter((p) => !p.removed_at);
 }
 
@@ -170,17 +170,21 @@ async function profileStage(sb: SupabaseClient, c: Creator): Promise<void> {
 /** Tags too broad to say anything about a niche. */
 const BROAD = new Set(["fyp", "foryou", "foryoupage", "viral", "trending", "tiktok", "explore", "xyzbca", "fy"]);
 
-/** The niche sample: recent videos under the niche hashtags, and new creators like you picked from it. */
+/**
+ * The niche sample: recent videos under the niche hashtags, and creators ahead
+ * of you picked from it. A short list is filled; a full one swaps matched
+ * creators no bigger than you for ones ahead of you, one for one, smallest out
+ * first. Creators the owner added are never swapped.
+ */
 async function nicheStage(sb: SupabaseClient, c: Creator): Promise<void> {
   const tags = c.hashtags.slice(0, NICHE_TAGS_READ);
   if (!tags.length) return;
   const sample = await readHashtags(tags, 30);
   await saveVideos(sb, c.id, sample.videos, c.handle);
 
-  const { data: all } = await sb.from("peers").select("handle, removed_at").eq("creator_id", c.id);
-  const known = (all ?? []) as Pick<Peer, "handle" | "removed_at">[];
-  const live = known.filter((p) => !p.removed_at).length;
-  if (live >= MIN_PEERS) return;
+  const { data: all } = await sb.from("peers").select("id, handle, source, followers, removed_at").eq("creator_id", c.id);
+  const known = (all ?? []) as Pick<Peer, "id" | "handle" | "source" | "followers" | "removed_at">[];
+  const live = known.filter((p) => !p.removed_at);
   const niche = new Set(c.hashtags);
   const byAuthor = new Map<string, PeerCandidate & { seen: Set<string> }>();
   for (const v of sample.videos) {
@@ -192,19 +196,30 @@ async function nicheStage(sb: SupabaseClient, c: Creator): Promise<void> {
   }
   // Anyone already listed, including peers the owner removed, is never picked again.
   const taken = new Set(known.map((p) => p.handle));
-  const picks = rankPeers([...byAuthor.values()].filter((p) => !taken.has(p.handle)), { handle: c.handle, followers: c.followers }, MAX_PEERS - live);
+  const ranked = rankPeers([...byAuthor.values()].filter((p) => !taken.has(p.handle)), { handle: c.handle, followers: c.followers }, MAX_PEERS);
+  const fill = live.length < MIN_PEERS ? ranked.slice(0, MAX_PEERS - live.length) : [];
+  const band = aheadBand(c.followers);
+  const isAhead = (followers: number | null) => followers !== null && followers >= band.min;
+  const behind = live.filter((p) => p.source !== "owner" && !isAhead(p.followers)).sort((a, b) => (a.followers ?? 0) - (b.followers ?? 0));
+  const swapIn = ranked.filter((p) => isAhead(p.followers) && !fill.includes(p)).slice(0, behind.length);
+  const out = behind.slice(0, swapIn.length);
+  const picks = [...fill, ...swapIn];
   if (!picks.length) return;
+  if (out.length) {
+    const { error } = await sb.from("peers").update({ removed_at: new Date().toISOString() }).in("id", out.map((p) => p.id));
+    if (error) throw new Error(`Making room for creators ahead of you failed: ${error.message}`);
+  }
   const rows = picks.map((p) => ({
     creator_id: c.id,
     handle: p.handle,
     display_name: sample.authors.get(p.handle)?.displayName ?? null,
     avatar_url: sample.authors.get(p.handle)?.avatarUrl ?? null,
     followers: p.followers,
-    reason: `Posts in ${p.tags} of your niche hashtags`,
+    reason: [aheadLine(p.followers, c.followers), `posts in ${p.tags} of your niche hashtags`].filter(Boolean).join(" · ").replace(/^p/, "P"),
     source: "match",
   }));
   const { error } = await sb.from("peers").upsert(rows, { onConflict: "creator_id,handle", ignoreDuplicates: true });
-  if (error) throw new Error(`Saving creators like you failed: ${error.message}`);
+  if (error) throw new Error(`Saving creators ahead of you failed: ${error.message}`);
 }
 
 async function peersStage(sb: SupabaseClient, c: Creator): Promise<void> {

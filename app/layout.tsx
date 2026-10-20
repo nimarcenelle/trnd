@@ -13,7 +13,7 @@ import "./globals.css";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://creators.usetrnd.com";
 const TITLE = "TRND for creators: know exactly what to post next";
 const DESCRIPTION =
-  "TRND reads your TikTok, what's working for creators like you and what's rising in your niche, then gives you the hook, script, sound and hashtags for your next three videos.";
+  "TRND reads your TikTok, what's working for creators a step ahead of you and what's rising in your niche, then gives you the hook, script, sound and hashtags for your next three videos.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

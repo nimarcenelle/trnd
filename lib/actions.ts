@@ -227,3 +227,43 @@ export async function welcomeAnswerAction(formData: FormData): Promise<void> {
   revalidatePath("/app", "layout");
   redirect(`/app/welcome?step=${String(formData.get("next") ?? "")}`);
 }
+
+/**
+ * Welcome: the creators they want to be like, up to three handles. Theirs come
+ * first, so when the list is full the newest matched creators make room.
+ */
+export async function welcomeModelsAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  const raw = formData.getAll("handles").map((v) => normHandle(String(v))).filter(Boolean);
+  const bad = raw.find((h) => !HANDLE.test(h));
+  if (bad) return { error: `"${bad}" isn't a TikTok handle. Use their @name, like @theircreator.` };
+  const handles = [...new Set(raw)].filter((h) => h !== creator.handle).slice(0, 3);
+  const next = String(formData.get("next") ?? "done");
+  if (handles.length) {
+    const sb = adminSupabase();
+    const { data: rows } = await sb.from("peers").select("id, handle, source, removed_at, created_at").eq("creator_id", creator.id);
+    const list = rows ?? [];
+    const live = list.filter((p) => !p.removed_at);
+    const fresh = handles.filter((h) => !live.some((p) => p.handle === h && p.source === "owner"));
+    const room = MAX_PEERS - live.filter((p) => !fresh.includes(p.handle)).length;
+    const make = fresh.length - room;
+    if (make > 0) {
+      const drop = live
+        .filter((p) => p.source !== "owner" && !fresh.includes(p.handle))
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+        .slice(0, make)
+        .map((p) => p.id);
+      if (drop.length) await sb.from("peers").update({ removed_at: new Date().toISOString() }).in("id", drop);
+    }
+    for (const handle of fresh) {
+      const existing = list.find((p) => p.handle === handle);
+      const { error } = existing
+        ? await sb.from("peers").update({ removed_at: null, source: "owner", reason: "Added by you" }).eq("id", existing.id)
+        : await sb.from("peers").insert({ creator_id: creator.id, handle, source: "owner", reason: "Added by you" });
+      if (error) return { error: `Couldn't add @${handle}. Try again.` };
+    }
+    revalidatePath("/app", "layout");
+  }
+  redirect(next === "trial" ? "/app/welcome?step=trial" : "/app");
+}

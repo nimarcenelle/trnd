@@ -18,7 +18,7 @@ export const maxDuration = 300;
 
 const STEPS: { stages: ScanStage[]; label: string; done: string }[] = [
   { stages: ["profile"], label: "Reading your last 30 videos", done: "Your numbers and your niche" },
-  { stages: ["niche", "peers"], label: "Finding creators like you", done: "Matched by niche and size" },
+  { stages: ["niche", "peers"], label: "Finding creators ahead of you", done: "A step or two bigger, same niche" },
   { stages: ["trends"], label: "Scanning what's rising in your niche", done: "This week vs last" },
   { stages: ["tag", "plan"], label: "Writing your next 3 posts", done: "Ready" },
 ];
@@ -43,7 +43,7 @@ export default async function SetupPage({ searchParams }: PageProps<"/app/setup"
         <span className="kicker">Step 1 of 3</span>
         <h1 className="display text-[clamp(28px,5vw,40px)]">What&apos;s your TikTok?</h1>
         <p className="text-ink-2 text-[16px] max-w-[56ch]">
-          We read your public videos, find creators like you and what&apos;s rising in your niche, then write your next three posts. Your account has to be public.
+          We read your public videos, find creators a step ahead of you and what&apos;s rising in your niche, then write your next three posts. Your account has to be public.
         </p>
         <HandleForm defaultHandle={typed ?? creator?.handle} />
       </section>

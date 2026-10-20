@@ -20,7 +20,7 @@ const TABS = [
   { key: "next", label: "Post next", short: "Next" },
   { key: "mine", label: "Your videos", short: "Videos" },
   { key: "trends", label: "Trending", short: "Trends" },
-  { key: "creators", label: "Creators like you", short: "Creators" },
+  { key: "creators", label: "Creators ahead of you", short: "Creators" },
   { key: "loop", label: "Did it work?", short: "Results" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
@@ -28,7 +28,7 @@ type Tab = (typeof TABS)[number]["key"];
 const STAGE_LINE: Record<ScanStage, string> = {
   profile: "Reading your videos.",
   niche: "Reading your niche's hashtags.",
-  peers: "Reading creators like you.",
+  peers: "Reading creators ahead of you.",
   trends: "Scanning what's rising.",
   tag: "Reading your new videos.",
   plan: "Checking your ideas.",

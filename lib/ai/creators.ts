@@ -14,7 +14,8 @@ import { generateJson } from "./openai";
  */
 
 const SYSTEM = `You are TRND, a short-form video strategist for TikTok creators. You read a creator's public videos, the
-videos of creators like them, and what is trending in their niche, and tell them exactly what to post next.
+videos of the creators a step ahead of them in their niche (the accounts they want to grow into), and what is trending
+in their niche, and tell them exactly what to post next.
 You are concrete: you name the video, quote the hook, give the number. You never invent numbers: TikTok shows the
 public plays, likes, comments, shares and saves of a video, but not watch time, retention or followers gained, so
 never claim those. Say "got 4x your usual views", never "had 70% watch-through". Write the way a smart friend who
@@ -46,7 +47,7 @@ const AccountSchema = z.object({
   works: z.array(z.string()),
   doesnt: z.array(z.string()),
   style: z.string(),
-  /** Hashtags to watch for trends and creators like them. */
+  /** Hashtags to watch for trends and for creators ahead of them. */
   hashtags: z.array(z.string()),
 });
 export type AccountRead = z.infer<typeof AccountSchema>;
@@ -68,7 +69,7 @@ Return:
 - works: 2-4 patterns their best videos share, each a short phrase grounded in the numbers (e.g. "Numbered series", "The result in the first line").
 - doesnt: 1-3 patterns their weakest videos share (e.g. "Sponsor before the payoff", "Over 50 seconds").
 - style: their recognizable way of making videos, in one sentence (e.g. "Narrated tabletop explainers with paper cutouts").
-- hashtags: 5-8 hashtags, without #, that people in this niche actually use and that best find creators like them: specific
+- hashtags: 5-8 hashtags, without #, that people in this niche actually use and that best find creators in their niche: specific
   ones ("collegeapps", "studytok") over broad ones ("fyp", "viral", "foryou", "motivation").`,
   });
 }
@@ -159,7 +160,9 @@ ${input.own.join("\n") || "none read"}
 </their_videos>
 
 <worth_borrowing>
-Peer videos that beat their own creator's usual views, with a 0-100 borrow score (beat their normal, fits this niche, fresh, saved):
+Videos from creators ahead of them in this niche (bigger accounts they want to grow into, matched by us or named by
+them), each one that beat its own creator's usual views, with a 0-100 borrow score (beat their normal, fits this niche,
+fresh, saved). Learn what got those creators to where they are, not what an equal is doing:
 ${input.borrow.join("\n") || "none found"}
 </worth_borrowing>
 
@@ -179,7 +182,7 @@ Return:
 - summary: one or two sentences on the three ideas below and how they serve the goal. No predictions of follower counts.
 - ideas: exactly three, ranked by how well each serves the goal, and where the evidence allows one of each type:
   - double_down: builds on one of THEIR videos that beat their usual views. source_video = its id.
-  - borrow: adapts a format from a peer video in worth_borrowing. source_video = its id.
+  - borrow: adapts a format from a video in worth_borrowing, by a creator ahead of them, to their size and style. source_video = its id.
   - ride: joins a hashtag or sound in trending_in_niche that is early or rising. source_trend = its key exactly as listed, source_video = "".
   If a type has no evidence, use another type with evidence instead. Never invent a source. Each idea:
   - hook: the exact first line they say, in quotes, under 15 words, specific to them.

@@ -10,7 +10,7 @@ import { Emphasis } from "@/components/app/views";
 import Brand from "@/components/brand";
 import PreviewRunner from "@/components/preview/runner";
 import StartForm from "@/components/preview/start-form";
-import { normalOf, timesNormal } from "@/lib/creators/stats";
+import { aheadLine, normalOf, timesNormal } from "@/lib/creators/stats";
 import { compact } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
 import { confirmPreviewAction, previewGoalAction } from "@/lib/preview/actions";
@@ -60,7 +60,7 @@ function Steps({ p }: { p: Preview }) {
   const n = normalOf(own);
   const rows = [
     { label: "Reading your videos", done: at >= 1, now: p.status === "reading", found: p.videos.length ? `${p.videos.length} videos · usually ${compact(n.views)} views` : "" },
-    { label: "Finding creators like you and what's rising", done: at >= 3, now: p.status === "niche", found: p.peers.length ? `${p.peers.length} creators · ${p.trends.length} trends` : "" },
+    { label: "Finding creators ahead of you and what's rising", done: at >= 3, now: p.status === "niche", found: p.peers.length ? `${p.peers.length} creators · ${p.trends.length} trends` : "" },
     { label: "Writing your next 3 videos", done: at >= 4, now: p.status === "idea", found: "" },
   ];
   return (
@@ -160,7 +160,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
                 </form>
               </div>
             ) : (
-              <p className="text-ink-2 text-[16px]">About a minute. We read your videos, find creators like you and what&apos;s rising in your niche, then write three videos for you.</p>
+              <p className="text-ink-2 text-[16px]">About a minute. We read your videos, find creators a step ahead of you and what&apos;s rising in your niche, then write three videos for you.</p>
             )}
             {p.status !== "confirm" && <Steps p={p} />}
           </section>
@@ -169,7 +169,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
               <GoalChips p={p} action={previewGoalAction} submitLabel="Optional. Your three videos are written for it." />
               {p.peers.length > 0 && (
                 <div className="grid gap-2.5">
-                  <div className="text-[14px] font-semibold">Creators like you</div>
+                  <div className="text-[14px] font-semibold">Creators ahead of you</div>
                   <div className="flex flex-wrap gap-2">
                     {p.peers.map((x) => (
                       <span key={x.handle} className="chip gap-1.5">
@@ -222,7 +222,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
           <div className="bg-surface px-4 py-3">
             <div className="label">Your niche</div>
             <div className="font-bold text-[15px] mt-1.5">{p.profile?.niche.slice(0, 2).join(" · ") || "—"}</div>
-            <div className="caption">{p.peers.length} creators like you</div>
+            <div className="caption">{p.peers.length} creators ahead of you</div>
           </div>
         </div>
 
@@ -243,13 +243,13 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
         <div className="grid gap-3.5 md:grid-cols-2">
           {p.peers.length > 0 && (
             <div className="card p-4 grid gap-3 content-start">
-              <div className="font-bold">Creators like you</div>
+              <div className="font-bold">Creators ahead of you</div>
               {p.peers.slice(0, 4).map((x) => (
                 <div key={x.handle} className="flex items-center gap-2.5 min-w-0">
                   <Avatar name={x.handle} size={30} />
                   <div className="min-w-0">
                     <div className="font-semibold text-[14px]">@{x.handle}</div>
-                    <div className="caption line-clamp-1">{x.best?.hook ? `“${x.best.hook}” · ${compact(x.best.views)} views` : `${compact(x.followers)} followers`}</div>
+                    <div className="caption line-clamp-1">{[aheadLine(x.followers, p.author?.followers ?? null), x.best?.hook ? `“${x.best.hook}” · ${compact(x.best.views)} views` : `${compact(x.followers)} followers`].filter(Boolean).join(" · ")}</div>
                   </div>
                 </div>
               ))}

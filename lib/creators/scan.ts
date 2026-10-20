@@ -176,7 +176,7 @@ const BROAD = new Set(["fyp", "foryou", "foryoupage", "viral", "trending", "tikt
  * creators no bigger than you for ones ahead of you, one for one, smallest out
  * first. Creators the owner added are never swapped.
  */
-async function nicheStage(sb: SupabaseClient, c: Creator): Promise<void> {
+export async function nicheStage(sb: SupabaseClient, c: Creator): Promise<void> {
   const tags = c.hashtags.slice(0, NICHE_TAGS_READ);
   if (!tags.length) return;
   const sample = await readHashtags(tags, 30);

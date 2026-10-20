@@ -32,6 +32,13 @@ export function compact(n: number | null | undefined): string {
   return n.toLocaleString("en-US");
 }
 
+/** How many times something: 7.3 → "7.3×", 42.6 → "43×", 1796.4 → "1,796×". */
+export function times(x: number): string {
+  const tenths = Math.round(x * 10) / 10;
+  const n = Math.abs(tenths) < 10 ? tenths : Math.round(x);
+  return `${n.toLocaleString("en-US", { maximumFractionDigits: 1 })}×`;
+}
+
 /** +1,234 / −56: a change with its sign. */
 export const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${compact(Math.abs(n))}`;
 

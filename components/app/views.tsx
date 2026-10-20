@@ -3,7 +3,7 @@ import Link from "next/link";
 import { removeRunAction } from "@/lib/actions";
 import { perK, postsPerWeek, readVideo, timesNormal, type BorrowParts, type Normal, type TrendRow, type VideoRead } from "@/lib/creators/stats";
 import type { Creator, FollowerSnapshot, IdeaRun, Peer, Plan, Video } from "@/lib/db/types";
-import { compact, duration, shortDate, signed, withinDays } from "@/lib/format";
+import { compact, duration, shortDate, signed, times, withinDays } from "@/lib/format";
 import { goalLabel } from "@/lib/goals";
 
 import Avatar from "./avatar";
@@ -94,7 +94,7 @@ export function NextView({
         <Tile label="Your typical video" value={compact(normal.views)} hint={normal.low !== null ? `${compact(normal.low)}–${compact(normal.high)} views, middle half` : "Not enough videos yet"} />
         <Tile
           label="Best this month"
-          value={best?.x ? `${best.x}×` : "—"}
+          value={best?.x ? times(best.x) : "—"}
           hint={best?.x ? `your usual views · ${shortDate(best.v.posted_at!)}` : month.length ? "Not enough videos to compare yet" : "No videos in 30 days"}
           tone={best?.x && best.x >= 2 ? "up" : undefined}
         />
@@ -215,7 +215,7 @@ export function MineView({ creator, own, normal, plan, followers }: { creator: C
                     <span className="bar w-[60px] mr-1.5">
                       <i style={{ width: `${((x ?? 0) / maxX) * 100}%` }} />
                     </span>
-                    {x ?? "—"}
+                    {x === null ? "—" : times(x)}
                   </td>
                   <td className="text-right tnum">{perK(v.comments, v.views) ?? "—"}</td>
                   <td className="text-right tnum">{perK(v.saves, v.views) ?? "—"}</td>
@@ -381,7 +381,7 @@ export function CreatorsView({ cards }: { cards: PeerCard[] }) {
               {best ? (
                 <>
                   <div className="flex flex-wrap gap-1.5">
-                    {best.times !== null && <span className={best.times >= 2 ? "pill pill-pos" : "pill"}>Best: {best.times}× their usual</span>}
+                    {best.times !== null && <span className={best.times >= 2 ? "pill pill-pos" : "pill"}>Best: {times(best.times)} their usual</span>}
                     <span className={best.score >= 70 ? "pill pill-brand" : "pill"}>Borrow score {best.score}</span>
                   </div>
                   <p className="text-[14px] font-semibold line-clamp-2">{best.v.format ? `${best.v.format[0].toUpperCase()}${best.v.format.slice(1)}: ` : ""}&ldquo;{best.v.hook || best.v.caption}&rdquo;</p>
@@ -408,14 +408,14 @@ export function CreatorsView({ cards }: { cards: PeerCard[] }) {
 export function PeerVideos({ rows }: { rows: { v: Video; score: number; parts: BorrowParts; times: number | null }[] }) {
   return (
     <div className="grid gap-2.5">
-      {rows.map(({ v, score, parts, times }) => (
+      {rows.map(({ v, score, parts, times: x }) => (
         <div key={v.id} className="card p-3.5 grid gap-2">
           <a href={v.url ?? undefined} target="_blank" rel="noreferrer" className="font-semibold hover:underline">
             &ldquo;{v.hook || v.caption || "Untitled"}&rdquo;
           </a>
           <div className="flex flex-wrap gap-1.5 items-center">
             <span className="pill">{compact(v.views)} views</span>
-            {times !== null && <span className={times >= 2 ? "pill pill-pos" : "pill"}>{times}× their usual</span>}
+            {x !== null && <span className={x >= 2 ? "pill pill-pos" : "pill"}>{times(x)} their usual</span>}
             {v.format && <span className="pill">{v.format}</span>}
             <BorrowScore score={score} parts={parts} />
             {v.posted_at && <span className="caption">{shortDate(v.posted_at)}</span>}

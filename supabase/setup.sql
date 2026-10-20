@@ -172,7 +172,7 @@ create policy videos_owner_read on public.videos for select
 
 drop policy if exists video_snapshots_owner_read on public.video_snapshots;
 create policy video_snapshots_owner_read on public.video_snapshots for select
-  using (exists (select 1 from public.videos v join public.creators c on c.id = v.creator_id where v.id = video_id and c.owner_id = auth.uid()));
+  using (exists (select 1 from public.videos v join public.creators c on c.id = v.creator_id where v.id = video_snapshots.video_id and c.owner_id = auth.uid()));
 
 drop policy if exists follower_snapshots_owner_read on public.follower_snapshots;
 create policy follower_snapshots_owner_read on public.follower_snapshots for select

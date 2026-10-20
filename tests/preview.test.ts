@@ -136,6 +136,35 @@ describe("free preview", () => {
     expect("id" in (await run.startPreview("another", "8.8.8.8"))).toBe(true);
   });
 
+  it("holds the visitor cap and the daily budget when starts arrive at once", async () => {
+    const res = await Promise.all(Array.from({ length: 10 }, (_, i) => run.startPreview(`p${i}`, "7.7.7.7")));
+    expect(res.filter((r) => "id" in r)).toHaveLength(PER_VISITOR_PER_DAY);
+    expect(db.current.rows("previews")).toHaveLength(PER_VISITOR_PER_DAY);
+    db.current.rows("preview_hits").find((r) => r.key === "all")!.count = DAILY_BUDGET;
+    expect(await run.startPreview("fresh", "6.6.6.6")).toEqual({ blocked: "budget" });
+    // A visitor already over their cap doesn't use up everyone's budget by trying again.
+    db.current.rows("preview_hits").find((r) => r.key === "all")!.count = 0;
+    await run.startPreview("again", "7.7.7.7");
+    expect(db.current.rows("preview_hits").find((r) => r.key === "all")?.count).toBe(0);
+  });
+
+  it("still counts previews before the slot function is created", async () => {
+    db.current.missing.add("take_preview_slot");
+    for (let i = 0; i < PER_VISITOR_PER_DAY; i++) expect("id" in (await run.startPreview(`f${i}`, "5.5.5.5"))).toBe(true);
+    expect(await run.startPreview("over", "5.5.5.5")).toEqual({ blocked: "visitor" });
+  });
+
+  it("never starts a step again while it may still be running", async () => {
+    const s = (await run.startPreview("me", "1.1.1.1")) as { id: string };
+    // A slow read, five minutes in: within the step route's 300s limit plus margin.
+    db.current.rows("previews")[0].step_started_at = new Date(Date.now() - 5 * 60_000).toISOString();
+    await run.runStep(s.id);
+    expect(calls.profiles).toBe(0);
+    db.current.rows("previews")[0].step_started_at = new Date(Date.now() - run.STEP_STALE_MS - 1000).toISOString();
+    await run.runStep(s.id);
+    expect(calls.profiles).toBe(1);
+  });
+
   it("says when the account can't be found, or has too few videos", async () => {
     const ghost = await run.startPreview("ghost", "1.1.1.1");
     expect((await finish((ghost as { id: string }).id))?.reason).toBe("not_found");
@@ -163,6 +192,14 @@ describe("free preview", () => {
     expect(db.current.rows("peers")).toHaveLength(2);
     expect(db.current.rows("videos").filter((v) => v.is_self)).toHaveLength(10);
     expect(db.current.rows("creators")[0]).toMatchObject({ hashtags: ["studytok"], followers: 50_000 });
+    // Two sign-ups at once: one copy.
+    const t = (await run.startPreview("you", "1.1.1.1")) as { id: string };
+    await finish(t.id);
+    await run.confirmPreview(t.id, null);
+    await finish(t.id);
+    const both = await Promise.all([run.claimPreview(t.id, { id: "c3", handle: "you" }), run.claimPreview(t.id, { id: "c4", handle: "you" })]);
+    expect(both.filter(Boolean)).toHaveLength(1);
+    expect(db.current.rows("plans")).toHaveLength(2);
     // Another handle can't claim it.
     expect(await run.claimPreview(s.id, { id: "c2", handle: "other" })).toBe(false);
   });

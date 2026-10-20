@@ -46,7 +46,7 @@ export async function POST(req: Request): Promise<Response> {
       // A delayed payment method (a bank debit) completes checkout unpaid; the subscription event activates it later.
       if (creatorId && s.payment_status !== "unpaid") {
         // The subscription event that follows carries the real status (trialing or active) and the trial end.
-        const sub = idOf(s.subscription) ? await (await import("@/lib/billing/stripe")).getStripe().subscriptions.retrieve(idOf(s.subscription)!).catch(() => null) : null;
+        const sub = idOf(s.subscription) ? await getStripe().subscriptions.retrieve(idOf(s.subscription)!).catch(() => null) : null;
         await sb
           .from("creators")
           .update({
@@ -59,7 +59,8 @@ export async function POST(req: Request): Promise<Response> {
           .eq("id", creatorId);
       }
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
-      const sub = event.data.object;
+      // Events can arrive out of order or twice: the subscription as Stripe has it now decides, not the event's copy of it.
+      const sub = (await getStripe().subscriptions.retrieve(event.data.object.id).catch(() => null)) ?? event.data.object;
       const status = event.type === "customer.subscription.deleted" ? "canceled" : mapStatus(sub.status);
       const creatorId = sub.metadata?.creator_id;
       const { data: current } = creatorId

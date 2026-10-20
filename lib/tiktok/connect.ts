@@ -3,7 +3,7 @@ import "server-only";
 import { adminSupabase } from "@/lib/db/supabase";
 import { env, isTiktokLoginConfigured } from "@/lib/env";
 
-import type { ReadAuthor, ReadVideo } from "./read";
+import { normHandle, type ReadAuthor, type ReadVideo } from "./read";
 
 /**
  * TikTok Login Kit: a creator connects their own account, and its numbers come
@@ -50,13 +50,24 @@ async function token(params: Record<string, string>): Promise<TokenReply> {
 
 const expiry = (s: number) => new Date(Date.now() + s * 1000).toISOString();
 
-/** Trades the code from the consent screen for tokens and saves them; returns the account's username. */
-export async function completeConnect(creatorId: string, code: string): Promise<string> {
+/**
+ * Trades the code from the consent screen for tokens and saves them when they
+ * are for the handle this creator tracks. Another account's tokens are revoked
+ * and never stored, and a connection already saved stays as it was.
+ */
+export async function completeConnect(creatorId: string, code: string, handle: string): Promise<{ username: string; saved: boolean }> {
   const t = await token({ code, grant_type: "authorization_code", redirect_uri: redirectUri() });
   // Without the username we can't tell whose account this is, so nothing is saved.
-  const user = await getJson(`${API}/user/info/?fields=open_id,username,display_name`, t.access_token);
+  const user = await getJson(`${API}/user/info/?fields=open_id,username,display_name`, t.access_token).catch(async (e) => {
+    await revoke(t.access_token);
+    throw e;
+  });
   const username = (user.data as { user?: { username?: string } } | undefined)?.user?.username;
-  if (!username) throw new Error("TikTok did not say which account this is");
+  if (!username || normHandle(username) !== handle) {
+    await revoke(t.access_token);
+    if (!username) throw new Error("TikTok did not say which account this is");
+    return { username, saved: false };
+  }
   const sb = adminSupabase();
   await sb.from("tiktok_connections").upsert({
     creator_id: creatorId,
@@ -70,19 +81,22 @@ export async function completeConnect(creatorId: string, code: string): Promise<
     connected_at: new Date().toISOString(),
   });
   await sb.from("creators").update({ tiktok_connected_at: new Date().toISOString() }).eq("id", creatorId);
-  return username;
+  return { username, saved: true };
+}
+
+async function revoke(accessToken: string): Promise<void> {
+  if (!isTiktokLoginConfigured) return;
+  await fetch("https://open.tiktokapis.com/v2/oauth/revoke/", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_key: env.tiktokClientKey, client_secret: env.tiktokClientSecret, token: accessToken }),
+  }).catch(() => undefined);
 }
 
 export async function disconnect(creatorId: string): Promise<void> {
   const sb = adminSupabase();
   const { data } = await sb.from("tiktok_connections").select("access_token").eq("creator_id", creatorId).maybeSingle();
-  if (data?.access_token && isTiktokLoginConfigured) {
-    await fetch("https://open.tiktokapis.com/v2/oauth/revoke/", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ client_key: env.tiktokClientKey, client_secret: env.tiktokClientSecret, token: data.access_token }),
-    }).catch(() => undefined);
-  }
+  if (data?.access_token) await revoke(data.access_token as string);
   await sb.from("tiktok_connections").delete().eq("creator_id", creatorId);
   await sb.from("creators").update({ tiktok_connected_at: null }).eq("id", creatorId);
 }

@@ -8,7 +8,7 @@ import { isModelConfigured } from "@/lib/env";
 import { safeText, todayIso } from "@/lib/format";
 import { normHandle, readHashtags, readProfiles, type ReadVideo } from "@/lib/tiktok/read";
 
-import { gate, visitorKey, type Gate } from "./limits";
+import { DAILY_BUDGET, gate, PER_VISITOR_PER_DAY, visitorKey, type Gate } from "./limits";
 import { MIN_VIDEOS, PREVIEW_TTL_MS, type Preview, type PreviewPeer, type PreviewStatus } from "./types";
 
 /**
@@ -20,8 +20,12 @@ import { MIN_VIDEOS, PREVIEW_TTL_MS, type Preview, type PreviewPeer, type Previe
  *   idea → ready:      the plan (one model call); the page shows idea 1 and blurs the rest
  */
 
-/** A step that started longer ago than this died with its function and may be run again. */
-const STEP_STALE_MS = 4 * 60_000;
+/**
+ * A step that started longer ago than this died with its function and may be
+ * run again: past the step route's 300s limit, so a slow step that is still
+ * running is never started a second time (a second Apify read and model call).
+ */
+export const STEP_STALE_MS = 6 * 60_000;
 /** Tags too broad to say anything about a niche. */
 const BROAD = new Set(["fyp", "foryou", "foryoupage", "viral", "trending", "tiktok", "explore", "xyzbca", "fy"]);
 
@@ -74,6 +78,21 @@ async function countToday(key: string): Promise<number> {
 }
 
 /**
+ * Takes one of today's previews for this visitor if both caps allow, in one
+ * database transaction (take_preview_slot), so parallel starts can't all pass
+ * the check before any is counted. Until that function exists (supabase/migrations/0002_security.sql),
+ * falls back to counting here.
+ */
+async function takeSlot(visitor: string): Promise<Gate> {
+  const { data, error } = await adminSupabase().rpc("take_preview_slot", { p_visitor: visitor, p_day: todayIso(), p_per_visitor: PER_VISITOR_PER_DAY, p_budget: DAILY_BUDGET });
+  if (!error && (data === "ok" || data === "visitor" || data === "budget")) return data === "ok" ? { ok: true } : { ok: false, reason: data };
+  console.warn("[preview] take_preview_slot unavailable, counting without a lock:", error?.message ?? data);
+  const g = gate(await countToday(visitor), await countToday("all"));
+  if (g.ok) await Promise.all([bump(visitor), bump("all")]);
+  return g;
+}
+
+/**
  * A preview for this handle: a recent one is reused at no cost; otherwise a
  * new one is started if this visitor and today's budget allow.
  */
@@ -84,10 +103,8 @@ export async function startPreview(rawHandle: string, ip: string | null): Promis
   const { data: recent } = await sb.from("previews").select("id, status").eq("handle", handle).gte("created_at", since).order("created_at", { ascending: false }).limit(1);
   const reuse = recent?.[0];
   if (reuse && reuse.status !== "error") return { id: reuse.id as string };
-  const visitor = visitorKey(ip);
-  const g = gate(await countToday(visitor), await countToday("all"));
+  const g = await takeSlot(visitorKey(ip));
   if (!g.ok) return { blocked: g.reason };
-  await Promise.all([bump(visitor), bump("all")]);
   const { data, error } = await sb.from("previews").insert({ handle, status: "reading" }).select("id").single();
   if (error) throw new Error(error.message);
   return { id: data.id as string };
@@ -240,6 +257,9 @@ export async function claimPreview(previewId: string, creator: Pick<Creator, "id
   const p = await getPreview(previewId);
   if (!p || p.handle !== creator.handle || p.status !== "ready" || !p.plan || p.claimed_by) return false;
   const sb = adminSupabase();
+  // Taken first, and only while unclaimed: two sign-ups at once can't both copy it.
+  const { data: taken } = await sb.from("previews").update({ claimed_by: creator.id }).eq("id", p.id).is("claimed_by", null).select("id");
+  if (!taken?.length) return false;
   const now = new Date().toISOString();
   const rows = [...p.videos, ...p.sample.filter((v) => p.peers.some((x) => x.handle === v.author))].map((v) => {
     const { id: _id, first_seen_at: _f, ...row } = asVideo(v, p.handle);
@@ -274,6 +294,5 @@ export async function claimPreview(previewId: string, creator: Pick<Creator, "id
     .eq("id", creator.id);
   if (a?.followers !== null && a?.followers !== undefined) await sb.from("follower_snapshots").upsert({ creator_id: creator.id, handle: p.handle, followers: a.followers, captured_on: todayIso() }, { onConflict: "creator_id,handle,captured_on" });
   await sb.from("plans").insert({ creator_id: creator.id, body: p.plan });
-  await sb.from("previews").update({ claimed_by: creator.id }).eq("id", p.id);
   return true;
 }

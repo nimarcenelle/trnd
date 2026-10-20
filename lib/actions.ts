@@ -8,6 +8,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
 import { normalOf } from "@/lib/creators/stats";
 import { createCreator } from "@/lib/creators/create";
+import { canRetry, switchBlocked } from "@/lib/creators/guards";
 import { scanCreator } from "@/lib/creators/scan";
 import { getCreator } from "@/lib/data";
 import { adminSupabase } from "@/lib/db/supabase";
@@ -47,6 +48,7 @@ export async function startAction(_prev: FormState, formData: FormData): Promise
   const id = existing?.id;
   if (existing && existing.handle !== handle) {
     if (isScanning(existing)) return { error: "We're still reading your current account. Change the handle once that finishes, in about two minutes." };
+    if (switchBlocked(existing)) return { error: "You can switch accounts again tomorrow. Start your free trial to switch now." };
     // A new handle is a new account: what was read for the old one no longer applies.
     if (existing.tiktok_connected_at) await disconnect(existing.id);
     const results = await Promise.all(["peers", "videos", "follower_snapshots", "trend_snapshots", "plans", "idea_runs"].map((t) => sb.from(t).delete().eq("creator_id", existing.id)));
@@ -72,8 +74,9 @@ export async function startAction(_prev: FormState, formData: FormData): Promise
         scan_error: null,
       })
       .eq("id", existing.id);
-  } else if (existing && isScanning(existing)) {
-    redirect("/app/setup");
+  } else if (existing && !canRetry(existing)) {
+    // The same handle again: a read already running or finished isn't started over (that's "Read again now", with its own limits).
+    redirect(isScanning(existing) ? "/app/setup" : "/app");
   } else if (!existing) {
     const made = await createCreator(user.id, handle).catch(() => null);
     if (!made) return { error: "Couldn't save that handle. Try again in a moment." };
@@ -112,7 +115,7 @@ export async function scanNowAction(): Promise<void> {
 export async function retryScanAction(): Promise<void> {
   const { creator } = await requireCreator();
   if (!creator) redirect("/app/setup");
-  if (!isScanning(creator)) {
+  if (canRetry(creator)) {
     after(() => scanCreator(creator.id, { resume: true }).catch((e) => console.warn("[setup] retry:", (e as Error).message)));
     await adminSupabase().from("creators").update({ scan_status: "running", scan_stage: creator.scan_stage ?? "profile", scan_started_at: new Date().toISOString(), scan_error: null }).eq("id", creator.id);
   }
@@ -225,7 +228,7 @@ export async function welcomeAnswerAction(formData: FormData): Promise<void> {
   if (field === "cadence" && ["1-2", "3-4", "5+"].includes(value)) await sb.from("creators").update({ goals: { ...goals, posts_per_week: value } }).eq("id", creator.id);
   if (field === "camera" && ["face", "voice", "either"].includes(value)) await sb.from("creators").update({ on_camera: value }).eq("id", creator.id);
   revalidatePath("/app", "layout");
-  redirect(`/app/welcome?step=${String(formData.get("next") ?? "")}`);
+  redirect(`/app/welcome?step=${encodeURIComponent(String(formData.get("next") ?? ""))}`);
 }
 
 /**

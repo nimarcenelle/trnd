@@ -9,7 +9,9 @@ import { env } from "@/lib/env";
  * The daily read. Called by Vercel Cron with no creator: lists every creator
  * that is due and calls itself once per creator, so each scan gets its own
  * function and its own time limit. Called with ?creator=<id>: scans that one
- * (&resume=1: carries on a scan another function handed off).
+ * (&resume=1: carries on a scan another function handed off; &budget=<ms>
+ * shortens this invocation's time budget, so a stage hand-off can be
+ * exercised on demand).
  */
 export const maxDuration = 300;
 
@@ -28,7 +30,8 @@ export async function GET(req: Request): Promise<Response> {
   const creatorId = url.searchParams.get("creator");
   if (creatorId) {
     try {
-      return Response.json(await scanCreator(creatorId, { resume: url.searchParams.get("resume") === "1" }));
+      const budget = Number(url.searchParams.get("budget"));
+      return Response.json(await scanCreator(creatorId, { resume: url.searchParams.get("resume") === "1", budgetMs: budget > 0 ? budget : undefined }));
     } catch (err) {
       return Response.json({ error: (err as Error).message }, { status: 500 });
     }

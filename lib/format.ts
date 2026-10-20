@@ -48,3 +48,12 @@ export const duration = (s: number | null) => (s === null ? "" : s < 60 ? `${s}s
 
 /** "October 31": the date `days` from now. */
 export const dateIn = (days: number, now = Date.now()) => new Date(now + days * 86_400_000).toLocaleDateString("en-US", { month: "long", day: "numeric" });
+
+/**
+ * Text safe to put in JSON for another service: a lone surrogate half (an
+ * emoji cut in two by a character-count trim) serializes to an escape that
+ * OpenAI and Postgres both reject as invalid JSON.
+ */
+export function safeText(text: string): string {
+  return text.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "").replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
+}

@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import type { z } from "zod";
 
 import { env } from "@/lib/env";
+import { safeText } from "@/lib/format";
 
 import { strictJsonSchema } from "./json-schema";
 
@@ -39,8 +40,8 @@ export async function generateJson<S extends z.ZodType>(opts: {
     if (attempt && Date.now() - started > 60_000) break;
     const res = await getClient().responses.create({
       model,
-      instructions: opts.system,
-      input: feedback ? `${opts.prompt}\n\nYour previous reply was rejected: ${feedback}\nReturn corrected JSON.` : opts.prompt,
+      instructions: safeText(opts.system),
+      input: safeText(feedback ? `${opts.prompt}\n\nYour previous reply was rejected: ${feedback}\nReturn corrected JSON.` : opts.prompt),
       text: { format },
       ...(isReasoning(model) ? { reasoning: { effort: opts.effort ?? "medium" } } : { temperature: 0.4 }),
     });

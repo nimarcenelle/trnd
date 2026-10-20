@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { safeText } from "@/lib/format";
 
 /**
  * Public TikTok reads through Apify (clockworks/tiktok-scraper by default):
@@ -92,7 +93,7 @@ export function mapVideo(item: Obj): ReadVideo | null {
     videoId: id,
     author: handle,
     url: str(item.webVideoUrl) ?? `https://www.tiktok.com/@${handle}/video/${id}`,
-    caption: caption?.slice(0, 500) ?? null,
+    caption: caption ? safeText(caption.slice(0, 500)) : null,
     hashtags: [...new Set([...listed, ...captionTags(caption)])].filter(Boolean),
     sound: soundName ? [soundName, str(music.musicAuthor)].filter(Boolean).join(" · ") : null,
     soundOriginal: typeof music.musicOriginal === "boolean" ? music.musicOriginal : null,

@@ -5,7 +5,7 @@ import { normalOf, postsPerWeek, rankPeers, timesNormal, trendRows } from "@/lib
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Creator, Goal, Video } from "@/lib/db/types";
 import { isModelConfigured } from "@/lib/env";
-import { todayIso } from "@/lib/format";
+import { safeText, todayIso } from "@/lib/format";
 import { normHandle, readHashtags, readProfiles, type ReadVideo } from "@/lib/tiktok/read";
 
 import { gate, visitorKey, type Gate } from "./limits";
@@ -181,7 +181,7 @@ async function nicheStep(p: Preview): Promise<void> {
       handle: c.handle,
       name: sample.authors.get(c.handle)?.displayName ?? null,
       followers: c.followers,
-      best: best ? { videoId: best.videoId, hook: (best.caption ?? "").replace(/#\S+/g, "").trim().slice(0, 120), views: best.views, url: best.url } : null,
+      best: best ? { videoId: best.videoId, hook: safeText((best.caption ?? "").replace(/#\S+/g, "").trim().slice(0, 120)), views: best.views, url: best.url } : null,
     };
   });
   const trends = trendRows(sample.videos.map((v) => asVideo(v, p.handle)))

@@ -123,6 +123,16 @@ describe("matchIdea and outcomes", () => {
   });
 });
 
+describe("safeText", () => {
+  it("drops half an emoji cut by a trim and keeps whole ones", async () => {
+    const { safeText } = await import("@/lib/format");
+    const cut = "chill R&B \u{1F3B6}".slice(0, -1);
+    expect(safeText(cut)).toBe("chill R&B ");
+    expect(safeText("whole \u{1F3B6} emoji")).toBe("whole \u{1F3B6} emoji");
+    expect(() => JSON.parse(JSON.stringify(safeText(cut)))).not.toThrow();
+  });
+});
+
 describe("compact", () => {
   it("drops trailing .0 and keeps one decimal only under 10", async () => {
     const { compact, signed } = await import("@/lib/format");

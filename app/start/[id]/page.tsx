@@ -11,7 +11,7 @@ import Brand from "@/components/brand";
 import PreviewRunner from "@/components/preview/runner";
 import StartForm from "@/components/preview/start-form";
 import { aheadLine, normalOf, timesNormal } from "@/lib/creators/stats";
-import { compact } from "@/lib/format";
+import { compact, times } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
 import { confirmPreviewAction, previewGoalAction } from "@/lib/preview/actions";
 import { asVideo, getPreview } from "@/lib/preview/run";
@@ -216,7 +216,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
           </div>
           <div className="bg-surface px-4 py-3">
             <div className="label">Your best recent</div>
-            <div className="display !font-semibold text-[20px] mt-1">{best?.x ? `${best.x}×` : "—"}</div>
+            <div className="display !font-semibold text-[20px] mt-1">{best?.x ? times(best.x) : "—"}</div>
             <div className="caption">your usual views</div>
           </div>
           <div className="bg-surface px-4 py-3">

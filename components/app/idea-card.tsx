@@ -1,7 +1,7 @@
 import { addToWeekAction } from "@/lib/actions";
 import { BORROW_WEIGHTS, type BorrowParts, type Normal, type TrendRow } from "@/lib/creators/stats";
 import type { Idea, IdeaRun, IdeaType, Video } from "@/lib/db/types";
-import { compact } from "@/lib/format";
+import { compact, times } from "@/lib/format";
 
 import Avatar from "./avatar";
 import CopyText from "./copy-text";
@@ -176,7 +176,7 @@ export default function IdeaCard({
               </a>
               <div className="flex flex-wrap gap-1.5 items-center">
                 <span className="pill">{compact(source.video.views)} views</span>
-                {source.times !== null && <span className={source.times >= 2 ? "pill pill-pos" : "pill"}>{source.times}× {source.own ? "your" : "their"} usual</span>}
+                {source.times !== null && <span className={source.times >= 2 ? "pill pill-pos" : "pill"}>{times(source.times)} {source.own ? "your" : "their"} usual</span>}
                 {source.borrow && <BorrowScore score={source.borrow.score} parts={source.borrow.parts} />}
               </div>
               {source.video.posted_at && <div className="caption">Posted {new Date(source.video.posted_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>}

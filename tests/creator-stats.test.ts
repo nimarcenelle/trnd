@@ -168,5 +168,7 @@ describe("aheadBand", () => {
       null,
       null,
     ]);
+    // The preview that showed "396× your followers": past 100× the exact number says nothing more.
+    expect([aheadLine(19_800, 50), aheadLine(5_000, 50), aheadLine(9_960, 1000)]).toEqual(["Over 100× your followers", "100× your followers", "10× your followers"]);
   });
 });

@@ -1,4 +1,5 @@
 import type { IdeaRun, TrendKind, Video } from "@/lib/db/types";
+import { times } from "@/lib/format";
 
 /**
  * The arithmetic behind every number on the page, all from public counts:
@@ -218,7 +219,8 @@ export function rankPeers(candidates: PeerCandidate[], self: { handle: string; f
 export function aheadLine(followers: number | null, mine: number | null): string | null {
   if (!followers || !mine) return null;
   const x = followers / mine;
-  if (x >= 1.5) return `${x >= 10 ? Math.round(x) : Math.round(x * 10) / 10}× your followers`;
+  if (x > 100) return "Over 100× your followers";
+  if (x >= 1.5) return `${times(x)} your followers`;
   return x >= 0.8 ? "About your size" : null;
 }
 

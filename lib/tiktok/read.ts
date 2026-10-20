@@ -25,6 +25,8 @@ export interface ReadVideo {
   soundOriginal: boolean | null;
   durationS: number | null;
   coverUrl: string | null;
+  /** Our own copy of the cover in Storage (lib/preview/covers.ts): set for a preview's own videos when it could be stored. */
+  storedCover?: string | null;
   postedAt: string | null;
   views: number | null;
   likes: number | null;

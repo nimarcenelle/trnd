@@ -18,6 +18,22 @@ export class FakeDb {
   from(t: string) {
     return new Query(this, t);
   }
+  /** Database functions not yet created (a migration not applied) answer like PostgREST's missing function. */
+  missing = new Set<string>();
+  /** The SQL functions in supabase/setup.sql, each as one atomic step like its transaction. */
+  async rpc(fn: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }> {
+    if (this.missing.has(fn) || fn !== "take_preview_slot") return { data: null, error: { message: `Could not find the function public.${fn}` } };
+    const { p_visitor, p_day, p_per_visitor, p_budget } = args as { p_visitor: string; p_day: string; p_per_visitor: number; p_budget: number };
+    const hits = this.rows("preview_hits");
+    const row = (key: string) => hits.find((r) => r.key === key && r.day === p_day) ?? (hits.push({ key, day: p_day, count: 0 }), hits[hits.length - 1]);
+    const all = row("all");
+    const visitor = row(p_visitor);
+    if ((all.count as number) >= p_budget) return { data: "budget", error: null };
+    if ((visitor.count as number) >= p_per_visitor) return { data: "visitor", error: null };
+    all.count = (all.count as number) + 1;
+    visitor.count = (visitor.count as number) + 1;
+    return { data: "ok", error: null };
+  }
 }
 
 class Query implements PromiseLike<{ data: unknown; error: null; count?: number }> {

@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/db/supabase";
 import { env } from "@/lib/env";
 
+import { safeNext } from "./next";
+
 export interface AuthFormState {
   error?: string;
   notice?: string;
@@ -66,9 +68,6 @@ export async function signOutAction(): Promise<void> {
   await sb.auth.signOut();
   redirect("/login");
 }
-
-/** Only a path on this site may follow sign-in. */
-const safeNext = (next: string) => (next.startsWith("/") && !next.startsWith("//") ? next : "/app");
 
 /** Step 1 of passwordless sign-in: email a 6-digit code (and a link, for whoever prefers to click). */
 export async function sendCodeAction(_prev: AuthFormState & { email?: string }, formData: FormData): Promise<AuthFormState & { email?: string }> {

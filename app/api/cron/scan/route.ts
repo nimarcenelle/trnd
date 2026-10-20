@@ -1,5 +1,5 @@
 import { planState } from "@/lib/billing";
-import { SCAN_STALE_MS, scanCreator } from "@/lib/creators/scan";
+import { fetchSelf, SCAN_STALE_MS, scanCreator } from "@/lib/creators/scan";
 import { allRows } from "@/lib/db/rows";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Creator } from "@/lib/db/types";
@@ -47,7 +47,7 @@ export async function GET(req: Request): Promise<Response> {
     const batch = due.slice(i, i + PER_SECOND);
     const sent = await Promise.all(
       batch.map((c) =>
-        fetch(`${url.origin}${url.pathname}?creator=${c.id}&resume=1`, { headers: { authorization: `Bearer ${env.cronSecret}` }, signal: AbortSignal.timeout(1000) })
+        fetchSelf(`${url.origin}${url.pathname}?creator=${c.id}&resume=1`, 1000)
           .then(() => true)
           .catch((e: Error) => e.name === "TimeoutError"),
       ),

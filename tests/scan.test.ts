@@ -258,6 +258,35 @@ describe("scanCreator", () => {
     expect(creator().scan_status).toBe("idle");
   });
 
+  it("follows a redirect on the hand-off by hand, so the secret reaches the host that answers", async () => {
+    seedCreator();
+    env.cronSecret = "s";
+    env.siteUrl = "https://usetrnd.test";
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 308, headers: { location: "https://www.usetrnd.test/api/cron/scan?creator=c1&resume=1" } }))
+      .mockResolvedValueOnce(new Response("{}"));
+    const res = await scanCreator("c1", { budgetMs: 0 });
+    env.siteUrl = "http://test";
+    expect(res).toMatchObject({ handedOff: true, stages: ["profile"] });
+    expect(fetchSpy.mock.calls.map((c) => String(c[0]))).toEqual(["https://usetrnd.test/api/cron/scan?creator=c1&resume=1", "https://www.usetrnd.test/api/cron/scan?creator=c1&resume=1"]);
+    for (const [, init] of fetchSpy.mock.calls) expect(init).toMatchObject({ redirect: "manual", headers: { authorization: "Bearer s" } });
+    fetchSpy.mockRestore();
+  });
+
+  it("carries on inline when the route refuses the hand-off", async () => {
+    seedCreator();
+    env.cronSecret = "s";
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("unauthorized", { status: 401 }));
+    const res = await scanCreator("c1", { budgetMs: 0 });
+    expect(res).toMatchObject({ handedOff: false });
+    expect(res.stages).toHaveLength(6);
+    expect(warn.mock.calls.some((c) => /refused the cron secret/.test(String(c[0])))).toBe(true);
+    fetchSpy.mockRestore();
+    warn.mockRestore();
+  });
+
   it("keeps a peer's last read when its run died, rather than calling it private or renamed", async () => {
     seedCreator();
     await scanCreator("c1");

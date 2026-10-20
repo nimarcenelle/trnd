@@ -399,6 +399,28 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
 const selfUrl = () => (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : env.siteUrl);
 
 /**
+ * A request to this app's cron route with its secret. Redirects are followed
+ * by hand, the header kept on every hop: a fetch that follows a redirect to
+ * another host (apex to www, say) drops the authorization header, and the
+ * route then refuses the request it was meant to run. `timeoutMs` bounds the
+ * whole request, hops included.
+ */
+export async function fetchSelf(url: string | URL, timeoutMs: number): Promise<Response> {
+  const signal = AbortSignal.timeout(timeoutMs);
+  let target = new URL(url);
+  for (let hops = 0; ; hops++) {
+    const res = await fetch(target, { headers: { authorization: `Bearer ${env.cronSecret}` }, redirect: "manual", signal, cache: "no-store" });
+    const location = res.headers.get("location");
+    if (res.status >= 300 && res.status < 400 && location && hops < 3) {
+      target = new URL(location, target);
+      continue;
+    }
+    if (res.status === 401) console.warn(`[scan] ${target.host} refused the cron secret: check CRON_SECRET and NEXT_PUBLIC_SITE_URL`);
+    return res;
+  }
+}
+
+/**
  * Starts the next stage in a fresh function: the cron route, for this one
  * creator. True when the request went out (an answer, or our own timeout while
  * the scan it started runs on); false when it never reached the route, so the
@@ -407,10 +429,7 @@ const selfUrl = () => (process.env.VERCEL_ENV === "preview" && process.env.VERCE
 async function handOff(creatorId: string): Promise<boolean> {
   if (!env.cronSecret) return false;
   try {
-    const res = await fetch(`${selfUrl()}/api/cron/scan?creator=${creatorId}&resume=1`, {
-      headers: { authorization: `Bearer ${env.cronSecret}` },
-      signal: AbortSignal.timeout(10_000),
-    });
+    const res = await fetchSelf(`${selfUrl()}/api/cron/scan?creator=${creatorId}&resume=1`, 10_000);
     return res.ok;
   } catch (err) {
     return (err as Error).name === "TimeoutError";

@@ -86,6 +86,8 @@ export default function Passwordless({ next, mode }: { next: string; mode: "sign
       )}
       <form action={send} className="grid gap-3">
         <input type="hidden" name="next" value={next} />
+        {/* A field people never see and bots fill. Filled in: no code is sent. */}
+        <input type="text" name="company_website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] w-px h-px opacity-0" />
         <label className="grid gap-1.5">
           <span className="text-[13px] font-semibold">Email</span>
           <input className="input !h-11" name="email" type="email" placeholder="you@example.com" autoComplete="email" required />

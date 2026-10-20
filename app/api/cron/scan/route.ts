@@ -1,5 +1,5 @@
 import { planState } from "@/lib/billing";
-import { SCAN_STALE_MS, scanCreator } from "@/lib/creators/scan";
+import { fetchSelf, SCAN_STALE_MS, scanCreator } from "@/lib/creators/scan";
 import { allRows } from "@/lib/db/rows";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Creator } from "@/lib/db/types";
@@ -9,7 +9,9 @@ import { env } from "@/lib/env";
  * The daily read. Called by Vercel Cron with no creator: lists every creator
  * that is due and calls itself once per creator, so each scan gets its own
  * function and its own time limit. Called with ?creator=<id>: scans that one
- * (&resume=1: carries on a scan another function handed off).
+ * (&resume=1: carries on a scan another function handed off; &budget=<ms>
+ * shortens this invocation's time budget, so a stage hand-off can be
+ * exercised on demand).
  */
 export const maxDuration = 300;
 
@@ -28,7 +30,8 @@ export async function GET(req: Request): Promise<Response> {
   const creatorId = url.searchParams.get("creator");
   if (creatorId) {
     try {
-      return Response.json(await scanCreator(creatorId, { resume: url.searchParams.get("resume") === "1" }));
+      const budget = Number(url.searchParams.get("budget"));
+      return Response.json(await scanCreator(creatorId, { resume: url.searchParams.get("resume") === "1", budgetMs: budget > 0 ? budget : undefined }));
     } catch (err) {
       return Response.json({ error: (err as Error).message }, { status: 500 });
     }
@@ -47,7 +50,7 @@ export async function GET(req: Request): Promise<Response> {
     const batch = due.slice(i, i + PER_SECOND);
     const sent = await Promise.all(
       batch.map((c) =>
-        fetch(`${url.origin}${url.pathname}?creator=${c.id}&resume=1`, { headers: { authorization: `Bearer ${env.cronSecret}` }, signal: AbortSignal.timeout(1000) })
+        fetchSelf(`${url.origin}${url.pathname}?creator=${c.id}&resume=1`, 1000)
           .then(() => true)
           .catch((e: Error) => e.name === "TimeoutError"),
       ),

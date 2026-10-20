@@ -75,6 +75,9 @@ export async function sendCodeAction(_prev: AuthFormState & { email?: string }, 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const next = safeNext(String(formData.get("next") ?? "/app"));
   if (!/.+@.+\..+/.test(email)) return { error: "Enter a valid email." };
+  // The honeypot: a field no person sees. Bots fill every field, so a value
+  // here is a bot, and it gets the same reply a real sign-up does, with no email sent.
+  if (String(formData.get("company_website") ?? "").trim()) return { email };
   const sb = await createServerSupabase();
   const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: `${env.siteUrl}/auth/callback?next=${encodeURIComponent(next)}` } });
   if (error) return { error: /rate|seconds/i.test(error.message) ? "We just sent you a code. Wait a minute before asking for another." : error.message };

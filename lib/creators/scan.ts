@@ -131,6 +131,8 @@ async function planDue(sb: SupabaseClient, c: Creator): Promise<boolean> {
 async function profileStage(sb: SupabaseClient, c: Creator): Promise<void> {
   const read = await readProfiles([c.handle], 30);
   const me = read.authors.get(c.handle);
+  // A read that died says nothing about the account: the last read stands and the next scan tries again.
+  if (!me && read.unread.includes(c.handle)) throw new Error("TikTok didn't answer this time. Nothing is lost: try again in a few minutes.");
   if (!me) throw new Error(`We couldn't read @${c.handle} on TikTok. Check the handle, and that the account is public.`);
   // A connected account's own numbers, straight from TikTok, over the public read where both exist.
   const connected = c.tiktok_connected_at ? await readConnected(c.id).catch((e) => (console.warn("[scan] connected read:", (e as Error).message), null)) : null;
@@ -232,14 +234,18 @@ async function peersStage(sb: SupabaseClient, c: Creator): Promise<void> {
   await saveVideos(sb, c.id, read.videos, c.handle);
   await snapFollowers(sb, c.id, [...read.authors.values()]);
   const now = new Date().toISOString();
+  // A peer whose run died keeps its last read and note: it is not "private or renamed" on that alone.
+  const unread = new Set(read.unread);
   await Promise.all(
-    peers.map((p) => {
-      const a = read.authors.get(p.handle);
-      return sb
-        .from("peers")
-        .update(a ? { display_name: a.displayName, avatar_url: a.avatarUrl, followers: a.followers, last_read_at: now, last_error: null } : { last_error: "Couldn't read this account. It may be private or renamed." })
-        .eq("id", p.id);
-    }),
+    peers
+      .filter((p) => !unread.has(p.handle))
+      .map((p) => {
+        const a = read.authors.get(p.handle);
+        return sb
+          .from("peers")
+          .update(a ? { display_name: a.displayName, avatar_url: a.avatarUrl, followers: a.followers, last_read_at: now, last_error: null } : { last_error: "Couldn't read this account. It may be private or renamed." })
+          .eq("id", p.id);
+      }),
   );
 }
 
@@ -393,6 +399,28 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
 const selfUrl = () => (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : env.siteUrl);
 
 /**
+ * A request to this app's cron route with its secret. Redirects are followed
+ * by hand, the header kept on every hop: a fetch that follows a redirect to
+ * another host (apex to www, say) drops the authorization header, and the
+ * route then refuses the request it was meant to run. `timeoutMs` bounds the
+ * whole request, hops included.
+ */
+export async function fetchSelf(url: string | URL, timeoutMs: number): Promise<Response> {
+  const signal = AbortSignal.timeout(timeoutMs);
+  let target = new URL(url);
+  for (let hops = 0; ; hops++) {
+    const res = await fetch(target, { headers: { authorization: `Bearer ${env.cronSecret}` }, redirect: "manual", signal, cache: "no-store" });
+    const location = res.headers.get("location");
+    if (res.status >= 300 && res.status < 400 && location && hops < 3) {
+      target = new URL(location, target);
+      continue;
+    }
+    if (res.status === 401) console.warn(`[scan] ${target.host} refused the cron secret: check CRON_SECRET and NEXT_PUBLIC_SITE_URL`);
+    return res;
+  }
+}
+
+/**
  * Starts the next stage in a fresh function: the cron route, for this one
  * creator. True when the request went out (an answer, or our own timeout while
  * the scan it started runs on); false when it never reached the route, so the
@@ -401,10 +429,7 @@ const selfUrl = () => (process.env.VERCEL_ENV === "preview" && process.env.VERCE
 async function handOff(creatorId: string): Promise<boolean> {
   if (!env.cronSecret) return false;
   try {
-    const res = await fetch(`${selfUrl()}/api/cron/scan?creator=${creatorId}&resume=1`, {
-      headers: { authorization: `Bearer ${env.cronSecret}` },
-      signal: AbortSignal.timeout(10_000),
-    });
+    const res = await fetchSelf(`${selfUrl()}/api/cron/scan?creator=${creatorId}&resume=1`, 10_000);
     return res.ok;
   } catch (err) {
     return (err as Error).name === "TimeoutError";

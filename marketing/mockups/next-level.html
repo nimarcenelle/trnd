@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Next level</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
+<style>
+/* 1080×1920, loops every 10s. R restarts, space pauses, ?t=6 freezes at 6s. */
+:root{--bg:#f7f5f8;--surface:#fff;--muted:#efebf1;--line:#e1dce5;--ink:#17131b;--ink-2:#625b6a;--ink-3:#8f879a;--brand:#e0245e;--brand-soft:#fde6ee;--night:#1d1724;--D:10s}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);overflow:hidden}
+body{display:grid;place-items:center;font-family:Figtree,system-ui,sans-serif;color:var(--ink)}
+#fit{width:calc(1080px * var(--s,1));height:calc(1920px * var(--s,1));position:relative}
+#stage{position:absolute;inset:0 auto auto 0;width:1080px;height:1920px;transform:scale(var(--s,1));transform-origin:0 0;overflow:hidden;background:var(--bg)}
+#stage.go{animation:clock var(--D) linear infinite}
+@keyframes clock{to{outline-color:transparent}}
+.go *{animation-duration:var(--D);animation-iteration-count:infinite;animation-timing-function:ease-in-out}
+
+.ov{position:absolute;left:80px;right:80px;top:190px;text-align:center;font:600 58px/1.32 Unbounded,sans-serif;opacity:0}
+.ov span{background:var(--surface);color:var(--ink);padding:4px 22px;border-radius:18px;box-decoration-break:clone;-webkit-box-decoration-break:clone;box-shadow:0 10px 30px rgba(23,19,27,.08)}
+.ov b{color:var(--brand);font-weight:800}
+.go .ov1{animation-name:ov1}
+.go .ov2{animation-name:ov2}
+@keyframes ov1{0%,32%{opacity:1;transform:none}35%,96%{opacity:0;transform:translateY(-14px)}100%{opacity:1;transform:none}}
+@keyframes ov2{0%,34%{opacity:0;transform:translateY(14px)}38%,94%{opacity:1;transform:none}97%,100%{opacity:0}}
+
+/* Profile cards */
+.card{position:absolute;left:50%;display:flex;align-items:center;gap:30px;background:var(--surface);border:1px solid var(--line);border-radius:18px}
+.card .av{flex:none;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:Unbounded,sans-serif;font-weight:800}
+.card .h{font:600 40px Unbounded,sans-serif}
+.card .f{margin-top:10px;font:600 30px Figtree,sans-serif;color:var(--ink-2)}
+.card .f b{font:800 40px Unbounded,sans-serif;color:var(--ink);margin-right:8px}
+.card .tag{position:absolute;right:26px;top:-22px;padding:8px 20px;border-radius:999px;font:800 24px Figtree,sans-serif}
+.big{top:480px;width:820px;margin-left:-410px;padding:36px 40px;box-shadow:0 24px 60px rgba(23,19,27,.1)}
+.big .av{width:150px;height:150px;font-size:56px;background:linear-gradient(135deg,#6d5bd0,#e0245e)}
+.big .tag{background:var(--muted);color:var(--ink-2)}
+.small{top:1230px;width:680px;margin-left:-340px;padding:28px 34px}
+.small .av{width:110px;height:110px;font-size:40px;background:linear-gradient(135deg,#f0a33a,#e4643a)}
+.small .h{font-size:34px}
+.small .tag{background:var(--brand-soft);color:var(--brand)}
+.go .big{animation-name:big}
+@keyframes big{0%,28%{transform:none;box-shadow:0 24px 60px rgba(23,19,27,.1)}31%{transform:scale(1.05);box-shadow:0 0 0 8px #e0245e,0 30px 80px rgba(224,36,94,.35)}36%,100%{transform:none;box-shadow:0 24px 60px rgba(23,19,27,.1)}}
+.go .small{animation-name:small}
+@keyframes small{0%,16%{transform:none;opacity:1}30%{transform:translateY(-700px) scale(.3);opacity:0}93%{transform:translateY(-700px) scale(.3);opacity:0}94%{transform:translateY(30px);opacity:0}100%{transform:none;opacity:1}}
+
+/* The big account's three videos */
+.vids{position:absolute;left:50%;top:790px;width:820px;margin-left:-410px;display:flex;justify-content:space-between}
+.vid{position:relative;width:256px;height:340px;border-radius:14px;background:linear-gradient(160deg,var(--a),var(--b));opacity:0;box-shadow:0 18px 40px rgba(23,19,27,.16)}
+.vid p{position:absolute;left:18px;right:18px;top:20px;color:#fff;font:800 24px/1.25 Figtree,sans-serif;text-shadow:0 2px 10px rgba(0,0,0,.3)}
+.vid .x{position:absolute;left:50%;bottom:-30px;transform:translateX(-50%);padding:6px 22px 8px;border-radius:999px;background:var(--brand);color:#fff;font:800 40px Unbounded,sans-serif;box-shadow:0 10px 24px rgba(224,36,94,.4)}
+.go .v1{animation-name:d1}.go .v2{animation-name:d2}.go .v3{animation-name:d3}
+@keyframes d1{0%,35%{transform:translateY(-320px);opacity:0}38%{transform:translateY(14px);opacity:1}40%,93%{transform:none;opacity:1}97%,100%{transform:none;opacity:0}}
+@keyframes d2{0%,39%{transform:translateY(-320px);opacity:0}42%{transform:translateY(14px);opacity:1}44%,93%{transform:none;opacity:1}97%,100%{transform:none;opacity:0}}
+@keyframes d3{0%,43%{transform:translateY(-320px);opacity:0}46%{transform:translateY(14px);opacity:1}48%,93%{transform:none;opacity:1}97%,100%{transform:none;opacity:0}}
+.note{position:absolute;left:0;right:0;top:1200px;text-align:center;font:700 26px Figtree,sans-serif;color:var(--ink-3);opacity:0}
+.go .note{animation-name:note}
+@keyframes note{0%,48%{opacity:0}51%,93%{opacity:1}97%,100%{opacity:0}}
+.next{position:absolute;left:50%;top:1280px;transform:translateX(-50%);display:flex;align-items:center;gap:16px;white-space:nowrap;padding:14px 32px 14px 16px;border-radius:999px;background:var(--brand);color:#fff;font:800 32px Figtree,sans-serif;opacity:0;box-shadow:0 14px 34px rgba(224,36,94,.35)}
+.next i{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#f0a33a,#e4643a);border:3px solid #fff}
+.go .next{animation-name:next}
+@keyframes next{0%,58%{opacity:0;transform:translate(-50%,24px)}62%,93%{opacity:1;transform:translate(-50%,0)}97%,100%{opacity:0;transform:translate(-50%,0)}}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div class="ov ov1"><span>Me: <b>73</b> followers.<br>Them: <b>25K.</b> Same niche.</span></div>
+  <div class="ov ov2"><span>Their 3 videos that<br><b>beat their usual.</b></span></div>
+
+  <div class="card big">
+    <div class="tag">Same niche</div>
+    <div class="av"></div>
+    <div><div class="h">＠oli.draws</div><div class="f"><b>25K</b>followers</div></div>
+  </div>
+
+  <div class="vids">
+    <div class="vid v1" style="--a:#6d5bd0;--b:#3a86d8"><p>Drawing my cat every day for a year</p><div class="x">6.1×</div></div>
+    <div class="vid v2" style="--a:#e4643a;--b:#d04fb0"><p>Pen vs pencil, same sketch</p><div class="x">4.8×</div></div>
+    <div class="vid v3" style="--a:#2fa36b;--b:#0b8fa3"><p>Fix your hands in 3 lines</p><div class="x">3.9×</div></div>
+  </div>
+  <div class="note">Views vs their usual</div>
+  <div class="next"><i></i>3 ideas for ＠juno.draws</div>
+
+  <div class="card small">
+    <div class="tag">Me</div>
+    <div class="av"></div>
+    <div><div class="h">＠juno.draws</div><div class="f"><b>73</b>followers</div></div>
+  </div>
+</div></div>
+
+<script>
+const D=10000,stage=document.getElementById('stage');
+const fit=()=>document.documentElement.style.setProperty('--s',Math.min(innerWidth/1080,innerHeight/1920));
+addEventListener('resize',fit);fit();
+let ref;const all=()=>document.getAnimations();
+const seek=ms=>all().forEach(a=>a.currentTime=ms);
+addEventListener('keydown',e=>{
+  if(e.key==='r'||e.key==='R'){seek(0);all().forEach(a=>a.play())}
+  if(e.code==='Space'&&ref){e.preventDefault();const p=ref.playState==='paused';all().forEach(a=>p?a.play():a.pause())}
+});
+document.fonts.ready.then(()=>{
+  stage.classList.add('go');ref=stage.getAnimations()[0];
+  const q=parseFloat(new URLSearchParams(location.search).get('t'));
+  if(!isNaN(q)){seek(q*1000);all().forEach(a=>a.pause())}
+});
+</script>
+</body>
+</html>

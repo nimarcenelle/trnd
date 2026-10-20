@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Niche X-ray</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
+<style>
+/* 1080×1920, loops every 10s. R restarts, space pauses, ?t=6 freezes at 6s. */
+:root{--bg:#f7f5f8;--surface:#fff;--muted:#efebf1;--line:#e1dce5;--ink:#17131b;--ink-2:#625b6a;--ink-3:#8f879a;--brand:#e0245e;--brand-soft:#fde6ee;--night:#1d1724;--D:10s}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);overflow:hidden}
+body{display:grid;place-items:center;font-family:Figtree,system-ui,sans-serif;color:var(--ink)}
+#fit{width:calc(1080px * var(--s,1));height:calc(1920px * var(--s,1));position:relative}
+#stage{position:absolute;inset:0 auto auto 0;width:1080px;height:1920px;transform:scale(var(--s,1));transform-origin:0 0;overflow:hidden;background:var(--bg)}
+#stage.go{animation:clock var(--D) linear infinite}
+@keyframes clock{to{outline-color:transparent}}
+.go *{animation-duration:var(--D);animation-iteration-count:infinite;animation-timing-function:ease-in-out}
+
+.ov{position:absolute;left:80px;right:80px;top:190px;text-align:center;font:600 58px/1.32 Unbounded,sans-serif;opacity:0}
+.ov span{background:var(--surface);color:var(--ink);padding:4px 22px;border-radius:18px;box-decoration-break:clone;-webkit-box-decoration-break:clone;box-shadow:0 10px 30px rgba(23,19,27,.08)}
+.ov b{color:var(--brand);font-weight:800}
+.go .ov1{animation-name:ov1}
+.go .ov2{animation-name:ov2}
+@keyframes ov1{0%,48%{opacity:1;transform:none}51%,96%{opacity:0;transform:translateY(-14px)}100%{opacity:1;transform:none}}
+@keyframes ov2{0%,50%{opacity:0;transform:translateY(14px)}54%,94%{opacity:1;transform:none}97%,100%{opacity:0}}
+
+/* 3×4 grid of thumbnails */
+.grid{position:absolute;left:194px;top:430px;width:692px;display:grid;grid-template-columns:repeat(3,220px);gap:16px}
+.tile{position:relative;height:293px;border-radius:14px;will-change:transform}
+.tile .art{position:absolute;inset:0;border-radius:14px;overflow:hidden}
+.tile .cover{position:absolute;inset:0;background:linear-gradient(160deg,var(--a),var(--b))}
+.tile .who{position:absolute;left:50%;top:92px;width:96px;height:96px;margin-left:-48px;border-radius:50%;background:rgba(255,255,255,.35)}
+.tile .who:after{content:"";position:absolute;left:-30px;top:108px;width:156px;height:120px;border-radius:78px 78px 0 0;background:rgba(255,255,255,.35)}
+.tile .bar{position:absolute;left:22px;right:22px;top:26px;height:20px;border-radius:999px;background:#fff}
+.tile .bar.b2{top:56px;right:64px}
+.tile .tint{position:absolute;inset:0;border-radius:14px;opacity:0}
+.tile.warm .tint{background:linear-gradient(160deg,rgba(224,36,94,.62),rgba(240,140,60,.55))}
+.tile.dim .tint{background:rgba(23,19,27,.6)}
+.tile.win{z-index:5}
+.badge{display:flex;flex-direction:column;align-items:center;position:absolute;left:50%;top:100%;margin-top:10px;transform-origin:50% 0;transform:translateX(-50%);text-align:center;white-space:nowrap;opacity:0}
+.badge .x{display:inline-block;padding:6px 26px 8px;border-radius:999px;background:var(--brand);color:#fff;font:800 60px Unbounded,sans-serif;box-shadow:0 14px 34px rgba(224,36,94,.45)}
+.badge .l{display:inline-block;margin-top:8px;padding:5px 14px;border-radius:999px;background:var(--surface);font:700 17px Figtree,sans-serif;color:var(--ink-2);box-shadow:0 6px 18px rgba(23,19,27,.12)}
+
+/* The scan line */
+.scan{position:absolute;left:170px;width:740px;top:420px;height:8px;border-radius:999px;background:var(--brand);box-shadow:0 0 24px 6px rgba(224,36,94,.65),0 0 80px 20px rgba(224,36,94,.25);opacity:0;z-index:4}
+.scan:before{content:"";position:absolute;left:0;right:0;bottom:8px;height:180px;background:linear-gradient(transparent,rgba(224,36,94,.16))}
+.go .scan{animation-name:scan;animation-timing-function:linear}
+@keyframes scan{0%,24%{transform:none;opacity:0}25%{transform:none;opacity:1}50%{transform:translateY(1240px);opacity:1}52%,100%{transform:translateY(1240px);opacity:0}}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div class="ov ov1"><span>Every video in my niche,<br><b>x-rayed.</b></span></div>
+  <div class="ov ov2"><span>It found the one<br><b>worth borrowing.</b></span></div>
+  <div class="grid" id="grid"></div>
+  <div class="scan"></div>
+</div></div>
+
+<script>
+const D=10000,stage=document.getElementById('stage');
+const fit=()=>document.documentElement.style.setProperty('--s',Math.min(innerWidth/1080,innerHeight/1920));
+addEventListener('resize',fit);fit();
+let ref;const all=()=>document.getAnimations();
+const seek=ms=>all().forEach(a=>a.currentTime=ms);
+addEventListener('keydown',e=>{
+  if(e.key==='r'||e.key==='R'){seek(0);all().forEach(a=>a.play())}
+  if(e.code==='Space'&&ref){e.preventDefault();const p=ref.playState==='paused';all().forEach(a=>p?a.play():a.pause())}
+});
+
+// Covers: [from, to, beat its usual?]. Tile 7 (middle of row 3) is the one.
+const covers=[['#6d5bd0','#3a86d8'],['#f0a33a','#e4643a',1],['#2fa36b','#0b8fa3'],['#d04fb0','#6d5bd0'],['#3a86d8','#45c6d8'],['#e4643a','#d04fb0',1],
+  ['#0b8fa3','#2fa36b'],['#e0245e','#f0a33a'],['#8f6bd8','#d04fb0'],['#45c6d8','#3a86d8',1],['#f0a33a','#2fa36b'],['#6d5bd0','#e0245e']];
+const WIN=7,grid=document.getElementById('grid');
+grid.innerHTML=covers.map(([a,b,w],i)=>`<div class="tile ${i===WIN?'win':w?'warm':'dim'}" style="--a:${a};--b:${b}">
+  <div class="art"><div class="cover"></div><div class="who"></div><div class="bar"></div><div class="bar b2"></div></div><div class="tint"></div>
+  ${i===WIN?'<div class="badge"><div class="x">7.3×</div><div class="l">＠fenn.explains, vs their usual</div></div>':''}</div>`).join('');
+const tiles=[...grid.children],arts=tiles.map(t=>t.querySelector('.art'));
+const c=v=>Math.max(0,Math.min(1,v)),ease=v=>v<.5?2*v*v:1-Math.pow(-2*v+2,2)/2;
+
+function frame(ms){
+  const back=ms>9300?c((ms-9300)/500):0;              // everything eases back to color for the loop
+  const grey=c((ms-1500)/900)*(1-back);
+  const lift=ease(c((ms-5200)/700))*(1-back);
+  tiles.forEach((t,i)=>{
+    const row=Math.floor(i/3),hit=c((ms-(2500+(row+.6)/4*2500))/300)*(1-back);
+    if(i===WIN){
+      const g=grey*(1-lift);
+      arts[i].style.filter=`grayscale(${g}) brightness(${1-.12*g})`;
+      t.style.transform=`translateY(${-40*lift}px) scale(${1+.45*lift})`;
+      t.style.boxShadow=lift?`0 0 0 ${6*lift}px #e0245e, 0 30px 90px rgba(224,36,94,${.55*lift})`:'none';
+      t.querySelector('.tint').style.opacity=0;
+      const bd=t.querySelector('.badge');bd.style.opacity=c((ms-5600)/400)*(1-back);
+      
+    }else{
+      arts[i].style.filter=`grayscale(${grey}) brightness(${1-.12*grey})`;
+      t.querySelector('.tint').style.opacity=hit;
+      t.style.opacity=1-.45*lift;
+    }
+  });
+}
+
+document.fonts.ready.then(()=>{
+  stage.classList.add('go');ref=stage.getAnimations()[0];
+  const q=parseFloat(new URLSearchParams(location.search).get('t'));
+  if(!isNaN(q)){seek(q*1000);all().forEach(a=>a.pause())}
+  requestAnimationFrame(function loop(){frame((ref.currentTime||0)%D);requestAnimationFrame(loop)});
+});
+</script>
+</body>
+</html>

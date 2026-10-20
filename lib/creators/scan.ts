@@ -131,6 +131,8 @@ async function planDue(sb: SupabaseClient, c: Creator): Promise<boolean> {
 async function profileStage(sb: SupabaseClient, c: Creator): Promise<void> {
   const read = await readProfiles([c.handle], 30);
   const me = read.authors.get(c.handle);
+  // A read that died says nothing about the account: the last read stands and the next scan tries again.
+  if (!me && read.unread.includes(c.handle)) throw new Error("TikTok didn't answer this time. Nothing is lost: try again in a few minutes.");
   if (!me) throw new Error(`We couldn't read @${c.handle} on TikTok. Check the handle, and that the account is public.`);
   // A connected account's own numbers, straight from TikTok, over the public read where both exist.
   const connected = c.tiktok_connected_at ? await readConnected(c.id).catch((e) => (console.warn("[scan] connected read:", (e as Error).message), null)) : null;
@@ -232,14 +234,18 @@ async function peersStage(sb: SupabaseClient, c: Creator): Promise<void> {
   await saveVideos(sb, c.id, read.videos, c.handle);
   await snapFollowers(sb, c.id, [...read.authors.values()]);
   const now = new Date().toISOString();
+  // A peer whose run died keeps its last read and note: it is not "private or renamed" on that alone.
+  const unread = new Set(read.unread);
   await Promise.all(
-    peers.map((p) => {
-      const a = read.authors.get(p.handle);
-      return sb
-        .from("peers")
-        .update(a ? { display_name: a.displayName, avatar_url: a.avatarUrl, followers: a.followers, last_read_at: now, last_error: null } : { last_error: "Couldn't read this account. It may be private or renamed." })
-        .eq("id", p.id);
-    }),
+    peers
+      .filter((p) => !unread.has(p.handle))
+      .map((p) => {
+        const a = read.authors.get(p.handle);
+        return sb
+          .from("peers")
+          .update(a ? { display_name: a.displayName, avatar_url: a.avatarUrl, followers: a.followers, last_read_at: now, last_error: null } : { last_error: "Couldn't read this account. It may be private or renamed." })
+          .eq("id", p.id);
+      }),
   );
 }
 

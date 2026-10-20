@@ -41,8 +41,9 @@ vi.mock("@/lib/tiktok/read", async (orig) => {
     readProfiles: async (handles: string[]) => {
       calls.profiles++;
       const h = handles[0];
-      if (h === "ghost") return { videos: [], authors: new Map(), failed: [h] };
-      return { videos: Array.from({ length: world.videos }, (_, i) => video(h, `${h}${i}`, i * 3 + 3, 40_000 + i * 1000, ["studytok"])), authors: new Map([[h, author(h, 50_000)]]), failed: [] };
+      if (h === "ghost") return { videos: [], authors: new Map(), failed: [h], unread: [] };
+      if (h === "slow") return { videos: [], authors: new Map(), failed: [], unread: [h] };
+      return { videos: Array.from({ length: world.videos }, (_, i) => video(h, `${h}${i}`, i * 3 + 3, 40_000 + i * 1000, ["studytok"])), authors: new Map([[h, author(h, 50_000)]]), failed: [], unread: [] };
     },
     readHashtags: async () => {
       calls.hashtags++;
@@ -143,6 +144,13 @@ describe("free preview", () => {
     const few = await run.startPreview("tiny", "1.1.1.1");
     expect(await finish((few as { id: string }).id)).toMatchObject({ status: "ineligible", reason: "few_videos" });
     expect(calls.account).toBe(0);
+  });
+
+  it("ends a read that died in an error to retry, not in \"not found\", and starts afresh on the next try", async () => {
+    const slow = (await run.startPreview("slow", "1.1.1.1")) as { id: string };
+    expect(await finish(slow.id)).toMatchObject({ status: "error", reason: expect.stringMatching(/try again/i) });
+    const again = (await run.startPreview("slow", "1.1.1.1")) as { id: string };
+    expect(again.id).not.toBe(slow.id);
   });
 
   it("lets only one request run a step at a time", async () => {

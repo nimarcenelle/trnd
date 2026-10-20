@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { captionTags, mapCreativeCenter, mapRun, mapVideo, normHandle, normTag } from "@/lib/tiktok/read";
+import { captionTags, mapCreativeCenter, mapRun, mapVideo, normHandle, normTag, readProfiles } from "@/lib/tiktok/read";
+
+vi.mock("@/lib/env", () => ({ env: { apifyToken: "t" } }));
 
 const item = {
   id: "7301",
@@ -71,5 +73,38 @@ describe("mapCreativeCenter", () => {
       { tag: "studytok", rank: 3, posts: 1200, views: null },
       { tag: "seniorszn", rank: 2, posts: null, views: null },
     ]);
+  });
+});
+
+describe("readProfiles", () => {
+  afterEach(() => vi.restoreAllMocks());
+  const authorItem = (name: string) => ({ ...item, id: `${name}-1`, authorMeta: { ...item.authorMeta, name } });
+  /** Answers each actor run by the profiles it carries. */
+  function apify(answer: (profiles: string[]) => Response | Promise<Response>) {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    return vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => answer(JSON.parse(String(init?.body)).profiles));
+  }
+
+  it("marks the accounts of a run that died unread, not missing", async () => {
+    apify(async (profiles) => {
+      if (profiles.includes("a")) throw Object.assign(new Error("timed out"), { name: "TimeoutError" });
+      return Response.json(profiles.filter((p) => p !== "e").map(authorItem));
+    });
+    const read = await readProfiles(["a", "b", "c", "d", "e"]);
+    expect([...read.authors.keys()].sort()).toEqual(["d"]);
+    expect(read.unread).toEqual(["a", "b", "c"]);
+    expect(read.failed).toEqual(["e"]);
+  });
+
+  it("counts an empty run for several accounts as one that gave up, but one account alone as missing", async () => {
+    apify(() => Response.json([]));
+    expect(await readProfiles(["a", "b"])).toMatchObject({ unread: ["a", "b"], failed: [] });
+    expect(await readProfiles(["ghost"])).toMatchObject({ unread: [], failed: ["ghost"] });
+  });
+
+  it("treats an Apify error reply as a run that died", async () => {
+    apify(() => Response.json({ error: { type: "not-enough-usage-to-run-paid-actor" } }));
+    expect(await readProfiles(["a"])).toMatchObject({ unread: ["a"], failed: [] });
+    expect(String(vi.mocked(console.warn).mock.calls[0][1])).toContain("not-enough-usage");
   });
 });

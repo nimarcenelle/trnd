@@ -45,10 +45,13 @@ const author = (handle: string, followers: number): ReadAuthor => ({ handle, dis
 const world = {
   self: [] as ReadVideo[],
   extraSelf: [] as ReadVideo[],
+  /** Handles whose Apify run died this read. */
+  unread: [] as string[],
 };
 function resetWorld() {
   world.self = Array.from({ length: 10 }, (_, i) => video("me", `m${i}`, i * 3 + 3, i === 0 ? 400_000 : 40_000 + i * 1000, ["studytok"]));
   world.extraSelf = [];
+  world.unread = [];
 }
 
 vi.mock("@/lib/tiktok/read", async (orig) => {
@@ -62,6 +65,7 @@ vi.mock("@/lib/tiktok/read", async (orig) => {
       const videos: ReadVideo[] = [];
       const authors = new Map<string, ReadAuthor>();
       for (const h of handles) {
+        if (world.unread.includes(h)) continue;
         if (h === "me") {
           videos.push(...world.self, ...world.extraSelf);
           authors.set("me", author("me", 50_000));
@@ -70,7 +74,7 @@ vi.mock("@/lib/tiktok/read", async (orig) => {
           authors.set(h, author(h, 80_000));
         }
       }
-      return { videos, authors, failed: [] };
+      return { videos, authors, failed: [], unread: handles.filter((h) => world.unread.includes(h)) };
     },
     readHashtags: async (tags: string[]) => {
       calls.hashtags.push(tags);
@@ -252,6 +256,25 @@ describe("scanCreator", () => {
     const rest = await scanCreator("c1", { resume: true });
     expect(rest.stages).toEqual(["niche", "peers", "trends", "tag", "plan"]);
     expect(creator().scan_status).toBe("idle");
+  });
+
+  it("keeps a peer's last read when its run died, rather than calling it private or renamed", async () => {
+    seedCreator();
+    await scanCreator("c1");
+    const peer1 = () => db.current.rows("peers").find((p) => p.handle === "peer1")!;
+    const before = peer1().last_read_at;
+    expect(before).toBeTruthy();
+    world.unread = ["peer1"];
+    await scanCreator("c1");
+    expect(peer1()).toMatchObject({ last_error: null, last_read_at: before });
+  });
+
+  it("says TikTok didn't answer, not that the account can't be read, when the creator's own run died", async () => {
+    seedCreator();
+    world.unread = ["me"];
+    const res = await scanCreator("c1");
+    expect(res.error).toMatch(/didn't answer/);
+    expect(res.error).not.toMatch(/couldn't read/);
   });
 
   it("refuses a second scan while one is running, and stops when the handle changes under it", async () => {

@@ -163,26 +163,36 @@ async function runActor(actor: string, input: Obj): Promise<Obj[]> {
   });
   if (!res.ok) throw new Error(`Apify ${actor} answered ${res.status}`);
   const items = (await res.json()) as unknown;
-  if (isObj(items) && isObj(items.error)) throw new Error(`Apify ${actor}: ${str(items.error.message) ?? "error"}`);
+  if (isObj(items) && isObj(items.error)) throw new Error(`Apify ${actor}: ${str(items.error.message) ?? str(items.error.type) ?? "error"}`);
   return Array.isArray(items) ? items.filter(isObj) : [];
 }
 
 const NO_MEDIA = { shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadSubtitles: false, shouldDownloadSlideshowImages: false };
 
-/** The recent videos of each profile, a few profiles per run so one slow profile cannot sink them all. */
-export async function readProfiles(handles: string[], perProfile = 30): Promise<{ videos: ReadVideo[]; authors: Map<string, ReadAuthor>; failed: string[] }> {
+/**
+ * The recent videos of each profile, a few profiles per run so one slow profile cannot sink them all.
+ * `failed`: handles a finished run came back without (private, renamed, or no such account).
+ * `unread`: handles whose run died or timed out, or came back empty for several accounts at once:
+ * a run that gave up, which says nothing about the accounts it carried.
+ */
+export async function readProfiles(handles: string[], perProfile = 30): Promise<{ videos: ReadVideo[]; authors: Map<string, ReadAuthor>; failed: string[]; unread: string[] }> {
   const list = [...new Set(handles.map(normHandle))].filter(Boolean);
   const chunks: string[][] = [];
   for (let i = 0; i < list.length; i += 3) chunks.push(list.slice(i, i + 3));
   const runs = await Promise.all(
     chunks.map((chunk) =>
       runActor(TT_ACTOR, { profiles: chunk, resultsPerPage: perProfile, profileScrapeSections: ["videos"], ...NO_MEDIA })
-        .then((items) => ({ chunk, items }))
-        .catch((e) => (console.warn(`[tiktok] ${chunk.join(", ")}:`, (e as Error).message), { chunk, items: [] as Obj[] })),
+        .then((items) => {
+          // One account missing may not exist; every account in a run missing is a run that gave up.
+          if (!items.length && chunk.length > 1) console.warn(`[tiktok] ${chunk.join(", ")}: empty run`);
+          return { chunk, items, ok: items.length > 0 || chunk.length === 1 };
+        })
+        .catch((e) => (console.warn(`[tiktok] ${chunk.join(", ")}:`, (e as Error).message), { chunk, items: [] as Obj[], ok: false })),
     ),
   );
   const { videos, authors } = mapRun(runs.flatMap((r) => r.items));
-  return { videos, authors, failed: list.filter((h) => !authors.has(h)) };
+  const unread = new Set(runs.filter((r) => !r.ok).flatMap((r) => r.chunk));
+  return { videos, authors, failed: list.filter((h) => !authors.has(h) && !unread.has(h)), unread: list.filter((h) => !authors.has(h) && unread.has(h)) };
 }
 
 /** Recent videos posted under each hashtag. */

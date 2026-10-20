@@ -132,6 +132,8 @@ export async function runStep(id: string): Promise<Preview | null> {
 async function readStep(p: Preview): Promise<void> {
   const read = await readProfiles([p.handle], 24);
   const author = read.authors.get(p.handle);
+  // A read that died is not a missing account: the preview ends in an error the visitor can retry, not "not found" for a day.
+  if (!author && read.unread.includes(p.handle)) throw new Error("TikTok read did not finish");
   if (!author) return save(p.id, { status: "ineligible", reason: "not_found" });
   const videos = read.videos.filter((v) => v.author === p.handle);
   if (videos.length < MIN_VIDEOS) return save(p.id, { status: "ineligible", reason: "few_videos", author, videos });

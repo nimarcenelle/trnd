@@ -37,7 +37,7 @@ export default function Passwordless({ next, mode }: { next: string; mode: "sign
         <input type="hidden" name="email" value={email} />
         <input type="hidden" name="next" value={next} />
         <p className="text-[14px] text-ink-2">
-          We sent a 6-digit code to <strong className="text-ink">{email}</strong>. It expires in an hour.
+          We sent a code to <strong className="text-ink">{email}</strong>. It expires in an hour.
         </p>
         <label className="grid gap-1.5">
           <span className="text-[13px] font-semibold">Code</span>

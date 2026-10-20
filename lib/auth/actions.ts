@@ -86,7 +86,7 @@ export async function verifyCodeAction(_prev: AuthFormState & { email?: string }
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const token = String(formData.get("code") ?? "").replace(/\D/g, "");
   const next = safeNext(String(formData.get("next") ?? "/app"));
-  if (token.length < 6) return { email, error: "Enter the 6-digit code from the email." };
+  if (token.length < 6) return { email, error: "Enter the code from the email." };
   const sb = await createServerSupabase();
   const { error } = await sb.auth.verifyOtp({ email, token, type: "email" });
   if (error) return { email, error: /expired|invalid/i.test(error.message) ? "That code didn't work or has expired. Check the latest email, or send a new code." : error.message };

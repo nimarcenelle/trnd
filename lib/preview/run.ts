@@ -8,6 +8,7 @@ import { isModelConfigured } from "@/lib/env";
 import { safeText, todayIso } from "@/lib/format";
 import { normHandle, readHashtags, readProfiles, type ReadVideo } from "@/lib/tiktok/read";
 
+import { storeCovers } from "./covers";
 import { gate, visitorKey, type Gate } from "./limits";
 import { MIN_VIDEOS, PREVIEW_TTL_MS, type Preview, type PreviewPeer, type PreviewStatus } from "./types";
 
@@ -135,7 +136,7 @@ async function readStep(p: Preview): Promise<void> {
   if (!author) return save(p.id, { status: "ineligible", reason: "not_found" });
   const videos = read.videos.filter((v) => v.author === p.handle);
   if (videos.length < MIN_VIDEOS) return save(p.id, { status: "ineligible", reason: "few_videos", author, videos });
-  await save(p.id, { status: "confirm", author, videos });
+  await save(p.id, { status: "confirm", author, videos: await storeCovers(videos) });
 }
 
 /** "That's me": the rest of the preview runs. The goal, when tapped, shapes the plan. */

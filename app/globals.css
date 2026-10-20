@@ -632,6 +632,146 @@
     border: 2px solid var(--brand);
     opacity: 0.25;
   }
+  /*
+   * The account X-ray on the free preview (components/preview/xray.tsx): the
+   * grid starts grey, a pink line sweeps down and each row takes its read as
+   * the line passes (--reveal), then the biggest breakouts lift out (--lifted).
+   * The tiles' resting style is the final state, so with reduced motion the
+   * animations are dropped and the read shows at once.
+   */
+  .xray {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3px;
+    width: 100%;
+    max-width: 300px;
+    margin-inline: auto;
+  }
+  .xray-tile {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    border-radius: 6px;
+    opacity: calc(1 - var(--dim));
+    filter: grayscale(calc(var(--dim) * 1.4));
+    animation: xray-reveal 450ms ease-out var(--reveal) both;
+  }
+  .xray-face {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    background: var(--muted);
+  }
+  .xray-tint {
+    position: absolute;
+    inset: 0;
+    background: var(--pos);
+    opacity: var(--tint);
+    animation: xray-tint 450ms ease-out var(--reveal) both;
+  }
+  .xray-views {
+    position: absolute;
+    left: 5px;
+    bottom: 3px;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--on-night);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  }
+  .xray-lift {
+    z-index: 1;
+    transform: translateY(-3px) scale(1.08);
+    box-shadow:
+      0 0 0 2px var(--brand),
+      0 10px 28px -6px color-mix(in srgb, var(--brand) 55%, transparent);
+    animation:
+      xray-reveal 450ms ease-out var(--reveal) both,
+      xray-lift 500ms cubic-bezier(0.2, 0.8, 0.2, 1.2) var(--lifted) both;
+  }
+  .xray-times {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--brand);
+    color: var(--on-brand);
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    animation: xray-pop 300ms ease-out var(--lifted) both;
+  }
+  .xray-scan {
+    position: absolute;
+    left: -4px;
+    right: -4px;
+    top: 0;
+    z-index: 2;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--brand);
+    box-shadow: 0 0 12px 2px color-mix(in srgb, var(--brand) 60%, transparent);
+    pointer-events: none;
+    opacity: 0;
+    animation: xray-scan var(--sweep) linear both;
+  }
+  /* While the preview works, a fainter line keeps passing. */
+  .xray-scan-idle {
+    animation: xray-scan-idle 2600ms ease-in-out calc(var(--sweep) + 1400ms) infinite both;
+  }
+  @keyframes xray-reveal {
+    from {
+      filter: grayscale(1);
+      opacity: 0.55;
+    }
+  }
+  @keyframes xray-tint {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes xray-lift {
+    from {
+      transform: none;
+      box-shadow: none;
+    }
+  }
+  @keyframes xray-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+  }
+  @keyframes xray-scan {
+    0% {
+      top: 0;
+      opacity: 0;
+    }
+    6%,
+    94% {
+      opacity: 1;
+    }
+    100% {
+      top: 100%;
+      opacity: 0;
+    }
+  }
+  @keyframes xray-scan-idle {
+    0% {
+      top: 0;
+      opacity: 0;
+    }
+    10%,
+    90% {
+      opacity: 0.4;
+    }
+    100% {
+      top: 100%;
+      opacity: 0;
+    }
+  }
   .legal-body h2 {
     font-family: var(--display);
     font-size: 16px;
@@ -656,6 +796,15 @@
     *::after {
       animation-duration: 0.01ms !important;
       transition-duration: 0.01ms !important;
+    }
+    .xray-tile,
+    .xray-lift,
+    .xray-tint,
+    .xray-times {
+      animation: none;
+    }
+    .xray-scan {
+      display: none;
     }
   }
 }

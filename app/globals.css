@@ -277,6 +277,10 @@
   .night .label {
     color: color-mix(in srgb, var(--on-night) 60%, transparent);
   }
+  /* Hashtags on the dark "Your next TikTok" frame: cyan, light enough to read in either theme. */
+  .frame-tag {
+    color: color-mix(in srgb, var(--cyan) 40%, var(--on-night));
+  }
 
   /* -------------------------------------------------------------- forms */
   .field {

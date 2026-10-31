@@ -32,7 +32,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
       </header>
-      <main className="wrap flex-1 py-8 sm:py-12 pb-28">{children}</main>
+      <main className="wrap flex-1 pt-8 sm:pt-12 pb-[calc(8rem+env(safe-area-inset-bottom))]">{children}</main>
     </div>
   );
 }

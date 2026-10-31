@@ -7,7 +7,7 @@ is wrong in the same change.
 ## Principles
 
 - **Feels like it belongs next to TikTok, isn't a clone.** A warm off-white page, white cards, one hot pink, cyan for
-  hashtags and trends, pills instead of boxes, a big confident display face.
+  hashtags and trends, pills instead of boxes, bold, tightly set headlines.
 - **The answer first.** Every screen opens with what to do (the week's answer, three ideas). Data sits one tab behind.
 - **Color means something.** Pink (`--brand`): the action, the rank, the emphasis in the answer. Cyan: hashtags,
   sounds, trends. Green: beat your usual, a strength. Red: below your usual, a miss. Amber: peaking.
@@ -19,6 +19,7 @@ is wrong in the same change.
 ## Wordmark
 
 `components/brand.tsx`: **TRND** in Unbounded 800 with a pink period, "for creators" beside it in Figtree 600, ink-2.
+The wordmark is the only place Unbounded appears.
 
 ## Color
 
@@ -39,7 +40,8 @@ in a component.
 
 ## Type
 
-- **Unbounded** (600, 800): `.display` (landing headlines, the rank number), `.heading` (page and section titles, the hook).
+- **Figtree**, tight tracking: `.display` 750 (landing headlines, the rank number), `.heading` 700 (page and section
+  titles, the hook). Unbounded read too wide and heavy at headline sizes.
 - **Figtree**: everything you read. 15px body.
 - **JetBrains Mono**: script timestamps and hashtags only.
 - `.label` is 12.5px semibold `--ink-3`, sentence case; `.kicker` is 13.5px bold pink. No all-caps labels.

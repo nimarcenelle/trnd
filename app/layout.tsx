@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from "next";
 
-// Self-hosted: Figtree for reading, Unbounded for the big words, JetBrains Mono for labels and timestamps.
+// Self-hosted: Figtree for reading and headlines, Unbounded for the TRND wordmark, JetBrains Mono for labels and timestamps.
 import "@fontsource-variable/figtree/index.css";
 import "@fontsource-variable/jetbrains-mono/index.css";
-import "@fontsource/unbounded/600.css";
 import "@fontsource/unbounded/800.css";
 
 import DismissPopovers from "@/components/dismiss-popovers";

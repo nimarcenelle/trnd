@@ -3,7 +3,7 @@
 /*
  * TRND for Creators. Made to sit next to TikTok without looking like a clone:
  * a warm off-white (or near-black) page, white cards, one hot pink for the
- * thing to do, cyan for hashtags and trends, Unbounded for the big words,
+ * thing to do, cyan for hashtags and trends, Figtree for headlines (Unbounded only in the wordmark),
  * Figtree for everything you read, JetBrains Mono for labels, timestamps and
  * numbers in scripts. Pills, not boxes. Light is the default; [data-theme="dark"]
  * comes from the toggle.
@@ -65,7 +65,9 @@
   --shadow-md: 0 1px 2px rgba(23, 19, 27, 0.04), 0 6px 16px rgba(23, 19, 27, 0.06);
   --shadow-lg: 0 2px 4px rgba(23, 19, 27, 0.03), 0 24px 48px -12px rgba(23, 19, 27, 0.18);
   --sans: "Figtree Variable", "Figtree", "Helvetica Neue", Arial, sans-serif;
-  --display: "Unbounded", "Arial Black", Arial, sans-serif;
+  /* Headlines are Figtree at a heavier weight with tight tracking; Unbounded is kept for the TRND wordmark only. */
+  --display: "Figtree Variable", "Figtree", "Helvetica Neue", Arial, sans-serif;
+  --logo: "Unbounded", "Arial Black", Arial, sans-serif;
   --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, Menlo, monospace;
   --sun-d: none;
   --moon-d: block;
@@ -160,17 +162,17 @@
   }
 
   /* -------------------------------------------------------------- type */
-  /* Unbounded: headlines, KPI numbers, the rank of an idea. */
+  /* Headlines, KPI numbers, the rank of an idea. */
   .display {
     font-family: var(--display);
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    font-weight: 750;
+    letter-spacing: -0.035em;
     line-height: 1.05;
   }
   .heading {
     font-family: var(--display);
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     line-height: 1.2;
   }
   /* A small label above a number or a section: sentence case, quiet. */
@@ -779,7 +781,7 @@
   .legal-body h2 {
     font-family: var(--display);
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 700;
     margin: 36px 0 8px;
   }
   .legal-body p {

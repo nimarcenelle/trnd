@@ -2,9 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import Avatar from "@/components/app/avatar";
-import { AddPeerForm, GoalsForm, HashtagsForm } from "@/components/app/forms";
+import { AddPeerForm, DeleteAccountForm, GoalsForm, HashtagsForm } from "@/components/app/forms";
 import SubmitButton from "@/components/app/submit-button";
-import { billingPortalAction, disconnectTiktokAction, removePeerAction } from "@/lib/actions";
+import { billingPortalAction, disconnectTiktokAction, removePeerAction, setEmailPlansAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { intervalOf, planState, PRICES } from "@/lib/billing";
 import { getCreator, listPeers } from "@/lib/data";
@@ -128,6 +128,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
         </div>
       </Section>
 
+      {/* Connecting needs a TikTok developer app that has passed TikTok's review; until then the section isn't shown. */}
+      {(isTiktokLoginConfigured || creator.tiktok_connected_at) && (
       <Section
         id="tiktok"
         title="Connect TikTok"
@@ -147,20 +149,16 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           ) : (
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <p className="text-[14px] text-ink-2 max-w-[52ch]">
-                Connecting lets your own numbers come straight from TikTok and verifies the account is yours. Watch-through, retention and followers per video need TikTok&apos;s business
-                analytics, which we&apos;re adding next.
+                Connecting lets your own numbers come straight from TikTok and verifies the account is yours.
               </p>
-              {isTiktokLoginConfigured ? (
-                <a className="btn btn-primary" href="/api/tiktok/connect">
-                  Connect TikTok
-                </a>
-              ) : (
-                <span className="pill">Coming soon</span>
-              )}
+              <a className="btn btn-primary" href="/api/tiktok/connect">
+                Connect TikTok
+              </a>
             </div>
           )}
         </div>
       </Section>
+      )}
 
       <Section id="billing" title="Plan" sub="Everything included, weekly or monthly. Cancel anytime.">
         <div className="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -176,20 +174,40 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
                       ? "Paused"
                       : "Free trial"}
             </div>
-            {creator.plan_status === "past_due" && <p className="text-neg text-[13.5px] mt-1">Your last payment failed. Update your card to keep daily reads running.</p>}
+            {creator.plan_status === "past_due" && <p className="text-neg text-[13.5px] mt-1">Your last payment failed. Update your card; your plan keeps running while we retry.</p>}
             {billing === "success" && <p className="text-pos text-[13.5px] mt-1">Thanks. Your plan is active.</p>}
-            {!isStripeConfigured && <p className="text-ink-3 text-[13.5px] mt-1">Billing isn&apos;t connected on this deployment.</p>}
+            
           </div>
           {isStripeConfigured &&
-            ((plan.paid || plan.trialing) && creator.stripe_customer_id ? (
+            // Anyone with a Stripe customer manages billing in the portal: a failed card is fixed there, not with a second checkout.
+            ((plan.paid || plan.trialing || plan.pastDue) && creator.stripe_customer_id ? (
               <form action={billingPortalAction}>
-                <SubmitButton className="btn">{plan.trialing ? "Manage or cancel" : "Manage billing"}</SubmitButton>
+                <SubmitButton className={plan.pastDue ? "btn btn-primary" : "btn"}>{plan.pastDue ? "Update my card" : plan.trialing ? "Manage or cancel" : "Manage billing"}</SubmitButton>
               </form>
             ) : (
               <Link href="/app/welcome?step=trial" className="btn btn-primary">
                 {plan.canTrial ? "Start free trial" : "Choose a plan"}
               </Link>
             ))}
+        </div>
+      </Section>
+
+      <Section id="emails" title="Emails" sub="Sign-in codes and billing emails always come. The weekly plan is up to you.">
+        <div className="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="font-bold">Weekly plan email</div>
+            <p className="text-[13.5px] text-ink-2 mt-1">{creator.email_plans === false ? "Off. Your plan is still here every week." : "On. The week's answer and three hooks, when your new plan lands."}</p>
+          </div>
+          <form action={setEmailPlansAction}>
+            <input type="hidden" name="on" value={creator.email_plans === false ? "1" : "0"} />
+            <SubmitButton className="btn">{creator.email_plans === false ? "Turn on" : "Turn off"}</SubmitButton>
+          </form>
+        </div>
+      </Section>
+
+      <Section id="delete" title="Delete account" sub="Your plans, ideas and the numbers we've kept go for good. Any subscription stops at once.">
+        <div className="card p-4">
+          <DeleteAccountForm />
         </div>
       </Section>
     </div>

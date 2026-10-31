@@ -60,6 +60,12 @@ export interface Creator {
   trial_used_at: string | null;
   /** When the model last read the account; the read is weekly. */
   profile_read_at: string | null;
+  /** Whether the weekly plan email goes out; off from Settings or the email's own link. */
+  email_plans: boolean;
+  /** The trial end the reminder email was sent for, so a redelivered event sends nothing. */
+  trial_reminder_for: string | null;
+  /** Reads that failed in a row; reset by a read that finishes. The daily read backs off as it grows. */
+  scan_failures: number;
   created_at: string;
 }
 

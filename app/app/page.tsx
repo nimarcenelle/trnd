@@ -129,7 +129,8 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
         </div>
       )}
       {scanFlag === "recent" && !running && <div className="card px-4 py-3 text-[14px] text-ink-2">Read {ago(creator.last_scan_at)}. The next read can start ten minutes after the last.</div>}
-      {creator.scan_status === "error" && creator.scan_error && <div className="rounded-xl border border-neg/30 bg-neg-bg px-4 py-3 text-[14px] text-neg">The last read ran into a problem: {creator.scan_error}</div>}
+      {scanFlag === "daily" && !running && <div className="card px-4 py-3 text-[14px] text-ink-2">You got a new plan in the last day. You can ask for another tomorrow; your numbers still update every morning.</div>}
+      {creator.scan_status === "error" && creator.scan_error &&<div className="rounded-xl border border-neg/30 bg-neg-bg px-4 py-3 text-[14px] text-neg">The last read ran into a problem: {creator.scan_error}</div>}
 
       <nav className="tabs" aria-label="Views">
         {TABS.map((t) => (

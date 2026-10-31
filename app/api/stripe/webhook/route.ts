@@ -10,7 +10,8 @@ import { env, isStripeConfigured } from "@/lib/env";
 function mapStatus(s: Stripe.Subscription.Status): "active" | "trialing" | "past_due" | "canceled" {
   if (s === "trialing") return "trialing";
   if (s === "active") return "active";
-  if (s === "past_due" || s === "unpaid") return "past_due";
+  // past_due: Stripe is still retrying, the plan runs on. unpaid: it gave up, so the plan stops like a cancellation.
+  if (s === "past_due") return "past_due";
   return "canceled";
 }
 
@@ -83,7 +84,12 @@ export async function POST(req: Request): Promise<Response> {
       // Three days before the first charge: say when, how much, and how to cancel.
       const sub = event.data.object;
       const { data: c } = await sb.from("creators").select("*").eq("stripe_subscription_id", sub.id).maybeSingle<Creator>();
-      if (c && sub.trial_end) await sendTrialEndingEmail(sb, c, new Date(sub.trial_end * 1000), planOf(sub, sub.metadata?.interval));
+      const end = sub.trial_end ? new Date(sub.trial_end * 1000) : null;
+      // Stripe redelivers events: one reminder per trial end.
+      if (c && end && (!c.trial_reminder_for || new Date(c.trial_reminder_for).getTime() !== end.getTime())) {
+        await sendTrialEndingEmail(sb, c, end, planOf(sub, sub.metadata?.interval));
+        await sb.from("creators").update({ trial_reminder_for: end.toISOString() }).eq("id", c.id);
+      }
     }
   } catch (err) {
     console.warn(`[stripe] ${event.type} failed:`, (err as Error).message);

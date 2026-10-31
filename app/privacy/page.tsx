@@ -4,11 +4,13 @@ export const metadata = { title: "Privacy Policy — TRND for creators" };
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="Privacy Policy" updated="October 19, 2026">
+    <LegalShell title="Privacy Policy" updated="October 30, 2026">
       <h2>What we collect</h2>
       <p>
-        Your email and password (handled by our auth provider, Supabase), your TikTok handle, your goals, the creators you follow
-        in TRND, and billing details (handled by Stripe; we never see your card number).
+        Your email (sign-in is with Google or a code we email you, handled by our auth provider, Supabase; if you use Google we get
+        your name and email from it, nothing else), your TikTok handle, your goals, the creators you follow in TRND, and billing
+        details (handled by Stripe; we never see your card number). For the free preview, before you have an account, we keep a
+        one-way hash of your IP address for a day to limit how many previews one visitor can start.
       </p>
 
       <h2>What we read from public sources</h2>
@@ -33,12 +35,16 @@ export default function PrivacyPage() {
       </p>
 
       <h2>Emails</h2>
-      <p>Account emails (confirmations, password resets) and your weekly plan.</p>
+      <p>
+        Sign-in codes, billing emails (like the reminder before a trial&apos;s first charge) and your weekly plan. Turn the weekly
+        plan email off from the link in it or in Settings.
+      </p>
 
       <h2>Your choices</h2>
       <p>
-        Change your handle, goals and the creators you follow any time in Settings. To get a copy of your data or have your
-        account deleted, email hello@usetrnd.com.
+        Change your handle, goals and the creators you follow any time in Settings. Delete your account in Settings: your plans,
+        ideas and the numbers we kept are deleted, any subscription stops at once, and a TikTok connection is revoked. For a copy
+        of your data, email hello@usetrnd.com.
       </p>
     </LegalShell>
   );

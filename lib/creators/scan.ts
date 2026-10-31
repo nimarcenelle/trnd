@@ -9,6 +9,7 @@ import { adminSupabase } from "@/lib/db/supabase";
 import type { Creator, IdeaRun, Peer, PlanBody, ScanStage, Video } from "@/lib/db/types";
 import { MAX_PEERS } from "@/lib/db/types";
 import { sendPlanEmail } from "@/lib/email";
+import { friendlyScanError, RESUME_WITHIN_MS } from "./guards";
 import { env, isModelConfigured } from "@/lib/env";
 import { todayIso } from "@/lib/format";
 import { readConnected } from "@/lib/tiktok/connect";
@@ -396,7 +397,7 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
 /* --------------------------------- run ------------------------------------ */
 
 /** Where a hand-off is sent: this deployment on a preview, the site otherwise. */
-const selfUrl = () => (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : env.siteUrl);
+export const selfUrl = () => (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : env.siteUrl);
 
 /**
  * A request to this app's cron route with its secret. Redirects are followed
@@ -461,7 +462,9 @@ export async function scanCreator(creatorId: string, opts: { resume?: boolean; b
   }
   const fresh = c.scan_status === "running" && c.scan_started_at && Date.now() - Date.parse(c.scan_started_at) < SCAN_STALE_MS;
   if (fresh && !opts.resume) return { ...result, error: "Already running" };
-  const at = c.scan_status === "running" && c.scan_stage ? STAGES.indexOf(c.scan_stage) : -1;
+  // A read cut short resumes where it stopped; so does one that failed recently, so a failed plan doesn't pay for every read again.
+  const failedRecently = c.scan_status === "error" && c.scan_started_at && Date.now() - Date.parse(c.scan_started_at) < RESUME_WITHIN_MS;
+  const at = (c.scan_status === "running" || failedRecently) && c.scan_stage ? STAGES.indexOf(c.scan_stage) : -1;
   const from = Math.max(0, at);
   const handle = c.handle;
 
@@ -480,17 +483,24 @@ export async function scanCreator(creatorId: string, opts: { resume?: boolean; b
       else if (stage === "tag") await tagStage(sb, c);
       else {
         const first = !c.last_scan_at;
+        // Only the weekly plan is emailed: one asked for with "Read again now" is already on screen.
+        const requested = c.plan_requested;
         const body = await planStage(sb, c);
-        if (body && !first) await sendPlanEmail(sb, c, body).catch((e) => console.warn("[scan] email:", (e as Error).message));
+        if (body && !first && !requested) await sendPlanEmail(sb, c, body).catch((e) => console.warn("[scan] email:", (e as Error).message));
       }
       result.stages.push(stage);
     }
-    await sb.from("creators").update({ scan_status: "idle", scan_stage: null, scan_error: null, last_scan_at: new Date().toISOString() }).eq("id", c.id).eq("handle", handle);
+    await sb.from("creators").update({ scan_status: "idle", scan_stage: null, scan_error: null, scan_failures: 0, last_scan_at: new Date().toISOString() }).eq("id", c.id).eq("handle", handle);
     return result;
   } catch (err) {
     const message = (err as Error).message;
     console.warn(`[scan] @${handle}:`, message);
-    await sb.from("creators").update({ scan_status: "error", scan_stage: null, scan_error: message }).eq("id", c.id).eq("handle", handle);
+    // scan_stage stays on the stage that failed, so a retry picks up there; the creator sees a plain message, the log keeps the raw one.
+    await sb
+      .from("creators")
+      .update({ scan_status: "error", scan_error: friendlyScanError(message), scan_failures: (c.scan_failures ?? 0) + 1 })
+      .eq("id", c.id)
+      .eq("handle", handle);
     return { ...result, error: message };
   }
 }

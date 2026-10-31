@@ -187,8 +187,15 @@ describe("scanCreator", () => {
     await scanCreator("c1");
     expect(calls.plans).toBe(2);
     expect(creator().plan_requested).toBe(false);
+    // A plan asked for with "Read again now" is on screen already: no email.
+    expect(calls.emails).toBe(0);
+    // The weekly one is emailed.
+    for (const p of db.current.rows("plans")) p.created_at = ago(8);
+    await scanCreator("c1");
+    expect(calls.plans).toBe(3);
     expect(calls.emails).toBe(1);
   });
+
 
   it("re-reads the account weekly, not on every daily scan", async () => {
     seedCreator();
@@ -327,6 +334,40 @@ describe("scanCreator", () => {
     seedCreator({ handle: "ghost" });
     const res = await scanCreator("c1");
     expect(res.error).toMatch(/couldn't read @ghost/);
-    expect(creator()).toMatchObject({ scan_status: "error", scan_stage: null });
+    // The stage it failed on stays, so a retry starts there; failures in a row are counted for the daily backoff.
+    expect(creator()).toMatchObject({ scan_status: "error", scan_stage: "profile", scan_failures: 1 });
+  });
+
+  it("a failed plan resumes at the plan, without paying for the reads again", async () => {
+    seedCreator();
+    await scanCreator("c1");
+    const reads = calls.profiles.length;
+    creator().scan_status = "error";
+    creator().scan_stage = "plan";
+    creator().scan_started_at = new Date().toISOString();
+    creator().plan_requested = true;
+    await scanCreator("c1", { resume: true });
+    expect(calls.profiles.length).toBe(reads);
+    expect(calls.plans).toBe(2);
+    expect(creator()).toMatchObject({ scan_status: "idle", scan_failures: 0 });
+  });
+
+  it("an old failure starts the read over", async () => {
+    seedCreator();
+    await scanCreator("c1");
+    const reads = calls.profiles.length;
+    creator().scan_status = "error";
+    creator().scan_stage = "plan";
+    creator().scan_started_at = ago(1);
+    await scanCreator("c1", { resume: true });
+    expect(calls.profiles.length).toBeGreaterThan(reads);
+  });
+
+  it("shows a plain message, never a provider's raw error", async () => {
+    const { friendlyScanError } = await import("@/lib/creators/guards");
+    expect(friendlyScanError("Apify clockworks~tiktok-scraper answered 402")).toMatch(/paused on our side/);
+    expect(friendlyScanError("429 You exceeded your current quota, please check your plan")).toMatch(/Writing your plan failed/);
+    expect(friendlyScanError("Saving videos failed: duplicate key value violates unique constraint")).toMatch(/^Something went wrong on our side/);
+    expect(friendlyScanError("We couldn't read @ghost on TikTok. Check the handle, and that the account is public.")).toMatch(/@ghost/);
   });
 });

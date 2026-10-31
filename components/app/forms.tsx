@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 
-import { addPeerAction, saveGoalsAction, saveHashtagsAction, startAction, welcomeModelsAction, type FormState } from "@/lib/actions";
+import { addPeerAction, deleteAccountAction, saveGoalsAction, saveHashtagsAction, startAction, welcomeModelsAction, type FormState } from "@/lib/actions";
 import type { Goals } from "@/lib/db/types";
 import { GOALS } from "@/lib/goals";
 
@@ -126,6 +126,20 @@ export function HashtagsForm({ hashtags }: { hashtags: string[] }) {
       </div>
       {state.error && <p className="form-error !m-0">{state.error}</p>}
       {state.saved && <p className="text-[13px] text-pos">Saved. Trends and creators ahead of you are read from these on the next scan.</p>}
+    </form>
+  );
+}
+
+/** Delete the account: type "delete", then the button. */
+export function DeleteAccountForm() {
+  const [state, action] = useActionState<FormState, FormData>(deleteAccountAction, {});
+  return (
+    <form action={action} className="flex flex-col sm:flex-row sm:items-center gap-3">
+      <input className="input sm:max-w-[220px]" name="confirm" placeholder="Type delete" aria-label="Type delete to confirm" autoComplete="off" autoCapitalize="none" spellCheck={false} required />
+      <SubmitButton className="btn" pending="Deleting…">
+        Delete my account
+      </SubmitButton>
+      {state.error && <p className="form-error">{state.error}</p>}
     </form>
   );
 }

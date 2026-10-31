@@ -52,8 +52,15 @@ anything, then ask for one thing at a time.
      one with no numbers waits rather than getting a made-up verdict. When due, the plan is written from the
      creator's breakouts, peer videos ranked by **borrow score** and the early or rising trends. A source the model
      names must be one it was given, of the kind the idea claims, or it is dropped.
-3. **Every day**, Vercel Cron hits `/api/cron/scan`, which fans out one invocation per due creator. A new weekly plan is
-   emailed.
+3. **Every day**, Vercel Cron hits `/api/cron/scan`, which fans out one invocation per due creator, always through
+   `NEXT_PUBLIC_SITE_URL` (Vercel Cron calls the deployment's `*.vercel.app` address, which Vercel's login wall
+   redirects). A new weekly plan is emailed, with a one-click unsubscribe (`/unsubscribe`, `email_plans`); a plan asked
+   for with "Read again now" (once a day) is not. A read that fails keeps its stage and resumes there within 6 hours,
+   shows the creator a plain message (`friendlyScanError`), and an account that keeps failing is tried less often, up to
+   once a week (`scan_failures`, `lib/creators/guards.ts`). When reads are failing, stuck or not starting, the cron
+   emails a summary to `ALERT_EMAIL` (default hello@usetrnd.com, `lib/ops.ts`).
+4. **Settings** has the weekly email on/off and **Delete my account** (`lib/creators/delete.ts`): the Stripe
+   subscription is cancelled first, the TikTok connection revoked, then the user is deleted and everything cascades.
 
 **The numbers** (`lib/creators/stats.ts`) use public counts only. A creator's "usual" is the median and middle half of
 the views of their settled videos (48 hours or older). "×" is a video's views over its creator's median. The borrow score
@@ -69,7 +76,7 @@ pnpm dev
 ```
 
 This is its own product: give it a new Supabase project and paste `supabase/setup.sql` into its SQL editor (safe to
-re-run). It creates `creators`, `peers`, `videos`, `video_snapshots`, `follower_snapshots`, `trend_snapshots`, `plans`,
+re-run; an existing project takes the newer files in `supabase/migrations/` instead). It creates `creators`, `peers`, `videos`, `video_snapshots`, `follower_snapshots`, `trend_snapshots`, `plans`,
 `idea_runs` and `tiktok_connections`, with owner-read RLS on all but the last (tokens are service-role only). Every
 list read pages past PostgREST's 1,000-row cap (`lib/db/rows.ts`).
 

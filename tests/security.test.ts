@@ -6,6 +6,7 @@ import { FakeDb } from "./fakes/supabase";
 
 const db = { current: new FakeDb() };
 const stripe = { status: "active", event: null as unknown, retrieved: [] as string[] };
+const reminders: string[] = [];
 
 vi.mock("@/lib/db/supabase", () => ({ adminSupabase: () => db.current }));
 vi.mock("@/lib/env", () => ({
@@ -14,7 +15,7 @@ vi.mock("@/lib/env", () => ({
   isTiktokLoginConfigured: true,
   isModelConfigured: true,
 }));
-vi.mock("@/lib/email", () => ({ sendTrialEndingEmail: async () => undefined }));
+vi.mock("@/lib/email", () => ({ sendTrialEndingEmail: async (_sb: unknown, c: { id: string }) => void reminders.push(c.id) }));
 vi.mock("@/lib/billing/stripe", () => ({
   getStripe: () => ({
     webhooks: {
@@ -154,5 +155,22 @@ describe("Stripe webhook", () => {
     expect((await post("good")).status).toBe(200);
     expect(stripe.retrieved).toContain("sub_1");
     expect(db.current.rows("creators")[0]).toMatchObject({ plan_status: "past_due", plan: "monthly" });
+  });
+
+  it("sends the trial reminder once, however often Stripe redelivers it", async () => {
+    reminders.length = 0;
+    db.current.rows("creators").push({ id: "c1", owner_id: "u1", handle: "a", stripe_subscription_id: "sub_1", trial_reminder_for: null });
+    stripe.event = { id: "evt_1", type: "customer.subscription.trial_will_end", data: { object: { id: "sub_1", trial_end: 1_800_000_000, metadata: { interval: "monthly" } } } };
+    expect((await post("good")).status).toBe(200);
+    expect((await post("good")).status).toBe(200);
+    expect(reminders).toEqual(["c1"]);
+  });
+
+  it("stops the plan when Stripe gives up on a card (unpaid)", async () => {
+    db.current.rows("creators").push({ id: "c1", stripe_subscription_id: "sub_1", plan_status: "past_due" });
+    stripe.status = "unpaid";
+    stripe.event = { type: "customer.subscription.updated", data: { object: { id: "sub_1", status: "unpaid", metadata: { creator_id: "c1" } } } };
+    expect((await post("good")).status).toBe(200);
+    expect(db.current.rows("creators")[0]).toMatchObject({ plan_status: "canceled" });
   });
 });

@@ -8,7 +8,7 @@ const base = { plan: "trial", plan_status: "active" as const, trial_ends_at: "20
 describe("planState, card at trial start (default)", () => {
   it("locks a new account until a trial starts, and offers the trial", async () => {
     const { planState } = await import("@/lib/billing");
-    expect(planState(base, now)).toEqual({ paid: false, trialing: false, trialDaysLeft: 0, locked: true, canTrial: true });
+    expect(planState(base, now)).toEqual({ paid: false, trialing: false, trialDaysLeft: 0, locked: true, canTrial: true, pastDue: false });
   });
   it("runs while trialing, with the days left from Stripe's trial end", async () => {
     const { planState } = await import("@/lib/billing");
@@ -18,5 +18,9 @@ describe("planState, card at trial start (default)", () => {
     const { planState } = await import("@/lib/billing");
     expect(planState({ ...base, plan: "weekly", plan_status: "active", trial_used_at: "2026-09-01" }, now)).toMatchObject({ paid: true, locked: false });
     expect(planState({ ...base, plan: "weekly", plan_status: "canceled", trial_used_at: "2026-09-01" }, now)).toMatchObject({ locked: true, canTrial: false });
+  });
+  it("keeps a past-due plan running while Stripe retries the card", async () => {
+    const { planState } = await import("@/lib/billing");
+    expect(planState({ ...base, plan: "monthly", plan_status: "past_due", trial_used_at: "2026-09-01" }, now)).toMatchObject({ pastDue: true, locked: false });
   });
 });

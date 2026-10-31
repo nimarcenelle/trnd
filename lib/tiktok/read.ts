@@ -160,7 +160,8 @@ export const isTiktokConfigured = () => Boolean(env.apifyToken);
 
 async function runActor(actor: string, input: Obj): Promise<Obj[]> {
   // The token goes in a header, not the URL, so no request log or error message carries it.
-  const res = await fetch(`https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items`, {
+  // timeout: Apify stops the run itself at 115s, so a run we gave up on stops billing too.
+  const res = await fetch(`https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?timeout=115`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${env.apifyToken}` },
     body: JSON.stringify(input),

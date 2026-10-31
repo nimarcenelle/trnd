@@ -22,6 +22,8 @@ export const env = {
   stripePriceMonthly: process.env.STRIPE_PRICE_MONTHLY ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM || "TRND <plans@usetrnd.com>",
+  /** Where the daily cron sends a note when reads are failing or stuck. */
+  alertEmail: process.env.ALERT_EMAIL || "hello@usetrnd.com",
 };
 
 export const isModelConfigured = Boolean(env.openaiApiKey);

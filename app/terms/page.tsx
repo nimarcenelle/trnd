@@ -5,7 +5,7 @@ export const metadata = { title: "Terms of Service — TRND for creators" };
 /** Plain-English terms that match what the product does. Have counsel review before scale. */
 export default function TermsPage() {
   return (
-    <LegalShell title="Terms of Service" updated="October 19, 2026">
+    <LegalShell title="Terms of Service" updated="October 30, 2026">
       <h2>What TRND for creators is</h2>
       <p>
         TRND reads your public TikTok videos, the public videos of creators in your niche and the hashtags you post in, and writes
@@ -15,15 +15,18 @@ export default function TermsPage() {
 
       <h2>Your account</h2>
       <p>
-        Keep your password to yourself and tell us if you think someone else has it. Only track a TikTok account that is yours or
+        You sign in with Google or a code we email you; keep access to that email to yourself. Only track a TikTok account that is yours or
         that you are authorized to manage. One TikTok account per TRND account.
       </p>
 
       <h2>Trial and billing</h2>
       <p>
-        Every account starts with a 14-day free trial. After that, TRND is a weekly or monthly subscription, your choice, billed through Stripe until you
-        cancel. Cancel any time from Settings; you keep access until the end of the period you paid for. When a trial ends without
-        a plan, daily reads pause and what TRND already found stays readable.
+        Every account gets a free plan: your numbers, the creators ahead of you and one full script. The full plan (three scripts a
+        week and daily reads) starts with a 14-day free trial, with a card on file; we email you three days before the first charge.
+        After the trial it is a weekly or monthly subscription, your choice, billed through Stripe until you cancel. Cancel any time
+        from Settings, and nothing is charged if you cancel during the trial; after that you keep access until the end of the period
+        you paid for. If a payment fails, the plan keeps running while Stripe retries; if it can&apos;t be collected, daily reads
+        pause and what TRND already found stays readable.
       </p>
 
       <h2>Public data and generated plans</h2>
@@ -48,7 +51,7 @@ export default function TermsPage() {
 
       <h2>Ending things</h2>
       <p>
-        You can cancel and ask us to delete your account at any time. We may suspend accounts that break these terms. We&apos;ll
+        You can cancel, and delete your account from Settings, at any time. We may suspend accounts that break these terms. We&apos;ll
         tell you by email before any material change to these terms takes effect.
       </p>
     </LegalShell>

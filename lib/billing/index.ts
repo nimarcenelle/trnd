@@ -32,18 +32,22 @@ export interface PlanState {
   locked: boolean;
   /** Locked, and the free trial is still available to them. */
   canTrial: boolean;
+  /** A charge failed and Stripe is retrying it: the plan keeps running while they update their card. */
+  pastDue: boolean;
 }
 
 type Billing = Pick<Creator, "plan" | "plan_status" | "trial_ends_at" | "trial_used_at">;
 
 export function planState(c: Billing, now = Date.now()): PlanState {
-  const subscribed = intervalOf(c.plan) !== null && (c.plan_status === "active" || c.plan_status === "trialing");
+  // past_due is a grace period: Stripe retries the charge for a while, then cancels (or marks it unpaid, which we record as canceled).
+  const pastDue = intervalOf(c.plan) !== null && c.plan_status === "past_due";
+  const subscribed = intervalOf(c.plan) !== null && (c.plan_status === "active" || c.plan_status === "trialing" || pastDue);
   const daysLeft = (iso: string | null) => (iso ? Math.max(0, Math.ceil((Date.parse(iso) - now) / 86_400_000)) : 0);
-  if (!isStripeConfigured) return { paid: false, trialing: false, trialDaysLeft: 0, locked: false, canTrial: false };
+  if (!isStripeConfigured) return { paid: false, trialing: false, trialDaysLeft: 0, locked: false, canTrial: false, pastDue: false };
   if (cardFirst) {
     const trialing = subscribed && c.plan_status === "trialing";
-    return { paid: subscribed && !trialing, trialing, trialDaysLeft: trialing ? daysLeft(c.trial_ends_at) : 0, locked: !subscribed, canTrial: !subscribed && !c.trial_used_at };
+    return { paid: subscribed && !trialing, trialing, trialDaysLeft: trialing ? daysLeft(c.trial_ends_at) : 0, locked: !subscribed, canTrial: !subscribed && !c.trial_used_at, pastDue };
   }
   const left = daysLeft(c.trial_ends_at);
-  return { paid: subscribed, trialing: !subscribed && left > 0, trialDaysLeft: subscribed ? 0 : left, locked: !subscribed && left === 0, canTrial: false };
+  return { paid: subscribed, trialing: !subscribed && left > 0, trialDaysLeft: subscribed ? 0 : left, locked: !subscribed && left === 0, canTrial: false, pastDue };
 }

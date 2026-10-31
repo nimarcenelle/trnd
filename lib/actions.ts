@@ -8,10 +8,11 @@ import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
 import { normalOf } from "@/lib/creators/stats";
 import { createCreator } from "@/lib/creators/create";
-import { canRetry, switchBlocked } from "@/lib/creators/guards";
+import { deleteAccount } from "@/lib/creators/delete";
+import { canRetry, manualPlanBlocked, switchBlocked } from "@/lib/creators/guards";
 import { scanCreator } from "@/lib/creators/scan";
 import { getCreator } from "@/lib/data";
-import { adminSupabase } from "@/lib/db/supabase";
+import { adminSupabase, createServerSupabase } from "@/lib/db/supabase";
 import { MAX_PEERS, type Goal, type Goals, type Plan, type Video } from "@/lib/db/types";
 import { isStripeConfigured } from "@/lib/env";
 import { isScanning } from "@/lib/format";
@@ -106,6 +107,8 @@ export async function scanNowAction(): Promise<void> {
   if (planState(creator).locked) redirect("/app/settings#billing");
   if (isScanning(creator)) redirect("/app");
   if (creator.last_scan_at && Date.now() - Date.parse(creator.last_scan_at) < SCAN_MIN_GAP_MS) redirect("/app?scan=recent");
+  const { data: last } = await adminSupabase().from("plans").select("created_at").eq("creator_id", creator.id).order("created_at", { ascending: false }).limit(1);
+  if (manualPlanBlocked(last?.[0]?.created_at)) redirect("/app?scan=daily");
   await adminSupabase().from("creators").update({ scan_status: "running", scan_stage: "profile", scan_started_at: new Date().toISOString(), scan_error: null, plan_requested: true }).eq("id", creator.id);
   after(() => scanCreator(creator.id, { resume: true }).catch((e) => console.warn("[scan-now]:", (e as Error).message)));
   redirect("/app");
@@ -269,4 +272,26 @@ export async function welcomeModelsAction(_prev: FormState, formData: FormData):
     revalidatePath("/app", "layout");
   }
   redirect(next === "trial" ? "/app/welcome?step=trial" : "/app");
+}
+
+/** Settings: the weekly plan email on or off. */
+export async function setEmailPlansAction(formData: FormData): Promise<void> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  await adminSupabase().from("creators").update({ email_plans: formData.get("on") === "1" }).eq("id", creator.id);
+  revalidatePath("/app/settings");
+}
+
+/** Settings: delete the account and everything in it, after typing "delete". */
+export async function deleteAccountAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { user, creator } = await requireCreator();
+  if (String(formData.get("confirm") ?? "").trim().toLowerCase() !== "delete") return { error: "Type delete to confirm." };
+  try {
+    await deleteAccount(user.id, creator);
+  } catch (err) {
+    console.warn("[delete]", (err as Error).message);
+    return { error: "We couldn't delete your account just now. Nothing was charged. Try again, or email hello@usetrnd.com." };
+  }
+  await (await createServerSupabase()).auth.signOut();
+  redirect("/?deleted=1");
 }

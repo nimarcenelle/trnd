@@ -5,7 +5,7 @@ import { ModelsForm } from "@/components/app/forms";
 import SubmitButton from "@/components/app/submit-button";
 import { checkoutAction, welcomeAnswerAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
-import { cardFirst, planState, PRICES, TRIAL_DAYS } from "@/lib/billing";
+import { planState, PRICES, TRIAL_DAYS } from "@/lib/billing";
 import { getCreator, listPeers, listPlans } from "@/lib/data";
 import { isStripeConfigured } from "@/lib/env";
 import { dateIn } from "@/lib/format";
@@ -67,7 +67,8 @@ export default async function WelcomePage({ searchParams }: PageProps<"/app/welc
   if (!latest) redirect("/app/setup");
   const { step: raw } = await searchParams;
   const plan = planState(creator);
-  const needsTrial = isStripeConfigured && cardFirst && plan.locked;
+  // Locked with billing on: the last step is choosing a plan (with the trial when card-first, straight to paying after a no-card trial).
+  const needsTrial = isStripeConfigured && plan.locked;
   const of = needsTrial ? 4 : 3;
   const step = raw === "camera" || raw === "models" || raw === "trial" ? raw : creator.goals ? (creator.on_camera ? (needsTrial ? "trial" : "done") : "camera") : "goal";
   if (step === "done" || (step === "trial" && !needsTrial)) redirect("/app");

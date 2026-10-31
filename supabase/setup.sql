@@ -294,3 +294,11 @@ revoke insert, update, delete, truncate, references, trigger on
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('covers', 'covers', true, 524288, array['image/jpeg'])
 on conflict (id) do update set public = true, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+
+-- The weekly plan email can be turned off, from Settings or the link in the email itself.
+alter table public.creators add column if not exists email_plans boolean not null default true;
+-- The trial end the reminder was sent for: Stripe redelivers events, and a second copy sends nothing.
+alter table public.creators add column if not exists trial_reminder_for timestamptz;
+-- Failed reads in a row: the daily read backs off an account that keeps failing (a deleted or private handle).
+alter table public.creators add column if not exists scan_failures int not null default 0;

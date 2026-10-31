@@ -68,5 +68,6 @@ In `app/globals.css` under `@layer components`: `.btn` (+ `-primary` pink, `-gho
 
 ## Sample data
 
-The landing page uses invented creators only (`@marlow.studies`, `@fenn.explains`; `components/sample/creator.ts`).
+The landing page uses invented creators only (`@marlow.studies` and the creators ahead of them, `@fenn.explains`,
+`@tamsin.revises`, `@orla.annotates`; `components/sample/creator.ts`).
 Never put a real account's name on invented numbers.

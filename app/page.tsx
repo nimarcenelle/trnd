@@ -3,14 +3,17 @@ import Link from "next/link";
 import IdeaCard from "@/components/app/idea-card";
 import Brand from "@/components/brand";
 import StartForm from "@/components/preview/start-form";
-import { SAMPLE_HANDLE, SAMPLE_IDEA, SAMPLE_NORMAL, SAMPLE_SOURCE } from "@/components/sample/creator";
+import Avatar from "@/components/app/avatar";
+import { SAMPLE_AHEAD, SAMPLE_FOLLOWERS, SAMPLE_HANDLE, SAMPLE_IDEA, SAMPLE_NORMAL, SAMPLE_SOURCE } from "@/components/sample/creator";
 import SiteNav from "@/components/site-nav";
 import { PRICES, TRIAL_DAYS } from "@/lib/billing";
+import { aheadLine } from "@/lib/creators/stats";
+import { compact } from "@/lib/format";
 
 const STEPS = [
   { title: "Enter your handle", body: "No login, no password. We read your public videos: views, likes, comments, shares and saves." },
-  { title: "We read your niche", body: "Creators your size posting in your hashtags, what's beating their usual, and which sounds and hashtags are rising." },
-  { title: "Get three videos to make", body: "The hook, a script second by second, length, sound, when to post, the caption and hashtags, and the proof behind each." },
+  { title: "We find who's ahead of you", body: "Creators in your niche with 2 to 50 times your followers, and the videos that beat their usual. Want to be like someone? Add them." },
+  { title: "Get three videos to make", body: "What got them there, turned into your next three: the hook, a script second by second, sound, when to post, the caption and hashtags, and the video each builds on." },
 ];
 
 const GET = [
@@ -27,7 +30,11 @@ const FAQ = [
   },
   {
     q: "What does the free preview include?",
-    a: "Your typical views and best recent video, creators a step ahead of you, what's rising in your niche, and one fully scripted idea. The trial unlocks all three each week.",
+    a: "Your typical views and best recent video, creators a step ahead of you in your niche, what's rising, and one fully scripted idea. The trial gives you all three, every week.",
+  },
+  {
+    q: "Who are the creators ahead of me?",
+    a: "Accounts in your niche with 2 to 50 times your followers: the ones you could grow into next, not the biggest names on the app. We match them from your hashtags, and after you sign up you can add up to three creators you want to be like.",
   },
   {
     q: "What happens after the trial?",
@@ -39,7 +46,7 @@ const FAQ = [
   },
   {
     q: "Is it going to tell me to copy people?",
-    a: "No. Most ideas build on your own videos that beat your usual. A borrowed format always comes with how to make it yours.",
+    a: "No. Each idea builds on a video that already worked: one of yours that beat your usual, or one that helped a creator ahead of you get there. A borrowed format always comes with how to make it yours.",
   },
 ];
 
@@ -73,6 +80,7 @@ function PhoneShot() {
               <span className="pill !text-[10.5px]">11× their usual</span>
             </div>
             <p className="heading text-[14px] leading-snug">&ldquo;I tested 7 AI study tools for a week. Only 2 are worth it.&rdquo;</p>
+            <p className="caption !text-[11.5px]">From @{SAMPLE_SOURCE.video?.author}, {aheadLine(SAMPLE_AHEAD[0].followers, SAMPLE_FOLLOWERS)}</p>
             {[
               ["0–2s", "Seven paper app icons. Five get flicked off."],
               ["2–25s", "Tools 7 to 3, four seconds each."],
@@ -108,9 +116,9 @@ export default function Home() {
       <section id="start" className="wrap pt-[clamp(36px,7vw,84px)] pb-16 grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] items-center scroll-mt-14">
         <div className="grid grid-cols-[minmax(0,1fr)] gap-6 min-w-0">
           <span className="kicker">For TikTok creators</span>
-          <h1 className="display text-[clamp(34px,5.6vw,56px)]">Your next three TikToks, scripted from what&apos;s working in your niche.</h1>
+          <h1 className="display text-[clamp(34px,5.6vw,56px)]">Your next three TikToks, scripted from what got the creators ahead of you there.</h1>
           <p className="text-ink-2 text-[17.5px] max-w-[54ch] leading-[1.55]">
-            Enter your handle. In about a minute you get your numbers, creators a step ahead of you, what&apos;s rising in your niche, and a video to make, scripted second by second.
+            Enter your handle. We find creators a step or two ahead of you in your niche and what got them there. In about a minute you get your numbers, who&apos;s ahead of you, and a video to make, scripted second by second.
           </p>
           <div className="max-w-[580px]">
             <StartForm cta="Get my free plan" compact />
@@ -130,7 +138,7 @@ export default function Home() {
         <div className="wrap py-16 sm:py-20 grid gap-10">
           <div className="max-w-[640px]">
             <span className="kicker">How it works</span>
-            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">From your last 30 videos to your next three.</h2>
+            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">From the creators ahead of you to your next three videos.</h2>
           </div>
           <ol className="list-none m-0 p-0 grid gap-8 md:grid-cols-3">
             {STEPS.map((s, i) => (
@@ -149,7 +157,26 @@ export default function Home() {
           <div className="max-w-[640px]">
             <span className="kicker">What a plan looks like</span>
             <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">Every idea, ready to film.</h2>
-            <p className="text-ink-2 mt-3">An example plan for @{SAMPLE_HANDLE}, an invented study creator.</p>
+            <p className="text-ink-2 mt-3">
+              An example plan for @{SAMPLE_HANDLE}, an invented study creator with {compact(SAMPLE_FOLLOWERS)} followers. Its first idea borrows a format from one of the creators ahead of them.
+            </p>
+          </div>
+          <div className="card p-4 grid gap-3 content-start max-w-[560px]">
+            <div className="font-bold">Creators ahead of @{SAMPLE_HANDLE}</div>
+            {SAMPLE_AHEAD.map((x) => (
+              <div key={x.handle} className="flex items-center gap-2.5 min-w-0">
+                <Avatar name={x.handle} size={30} />
+                <div className="min-w-0 grid gap-0.5">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-semibold text-[14px]">@{x.handle}</span>
+                    <span className="pill pill-brand !text-[11.5px]">{aheadLine(x.followers, SAMPLE_FOLLOWERS)}</span>
+                  </div>
+                  <div className="caption line-clamp-2">
+                    {compact(x.followers)} followers · best recent: &ldquo;{x.best.hook}&rdquo;, {compact(x.best.views)} views
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
           <IdeaCard idea={SAMPLE_IDEA} rank={1} planId="sample" source={SAMPLE_SOURCE} normal={SAMPLE_NORMAL} run={null} open sample />
         </div>
@@ -177,7 +204,7 @@ export default function Home() {
           <div className="max-w-[640px]">
             <span className="kicker">Pricing</span>
             <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">Free for {TRIAL_DAYS} days. Then one simple plan.</h2>
-            <p className="text-ink-2 mt-3">Start with a free preview, no card. The trial unlocks everything; we remind you two days before it ends.</p>
+            <p className="text-ink-2 mt-3">Start with a free preview, no card. The trial gives you everything; we remind you two days before it ends.</p>
           </div>
           <div className="grid gap-3.5 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 max-w-[760px]">
             {(["monthly", "weekly"] as const).map((i) => (

@@ -34,6 +34,8 @@ export function compact(n: number | null | undefined): string {
 
 /** How many times something: 7.3 → "7.3×", 42.6 → "43×", 1796.4 → "1,796×". */
 export function times(x: number): string {
+  // A video far under its usual reads "<0.1×", never "0×": it got views, just very few.
+  if (x > 0 && x < 0.05) return "<0.1×";
   const tenths = Math.round(x * 10) / 10;
   const n = Math.abs(tenths) < 10 ? tenths : Math.round(x);
   return `${n.toLocaleString("en-US", { maximumFractionDigits: 1 })}×`;

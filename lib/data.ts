@@ -25,6 +25,12 @@ export async function listPeers(creatorId: string): Promise<Peer[]> {
  * creator's own (`self: true`), some authors' (`authors`), or everything read
  * including the niche hashtag sample.
  */
+/** The creator's own videos: the last 120 days, or the latest 12 for someone who posts rarely (same rule as the scan). */
+export async function listOwnVideos(creatorId: string): Promise<Video[]> {
+  const recent = await listVideos(creatorId, { days: 120, self: true });
+  return recent.length >= 5 ? recent : (await listVideos(creatorId, { days: 3650, self: true })).slice(0, 12);
+}
+
 export async function listVideos(creatorId: string, opts: { days?: number; self?: boolean; authors?: string[] } = {}): Promise<Video[]> {
   if (opts.authors && !opts.authors.length) return [];
   const sb = await createServerSupabase();

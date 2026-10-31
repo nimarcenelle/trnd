@@ -78,3 +78,35 @@ export const IconAd = (p: P) => (
     <path d="M11.5 5.5c.8.7 1.2 1.5 1.2 2.5s-.4 1.8-1.2 2.5" />
   </svg>
 );
+export const IconClock = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <circle cx="8" cy="8" r="5.75" />
+    <path d="M8 5v3.25l2 1.25" />
+  </svg>
+);
+export const IconMusic = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <path d="M6 11.5V3.5l7-1.25v7.5" />
+    <circle cx="4.5" cy="11.5" r="1.75" />
+    <circle cx="11.5" cy="9.75" r="1.75" />
+  </svg>
+);
+export const IconCalendar = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <rect x="2.5" y="3.5" width="11" height="10" rx="2" />
+    <path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" />
+  </svg>
+);
+export const IconFilm = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <rect x="3" y="2" width="10" height="12" rx="2" />
+    <path d="M3 5h2M3 8h2M3 11h2M11 5h2M11 8h2M11 11h2" />
+  </svg>
+);
+export const IconTarget = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <circle cx="8" cy="8" r="5.75" />
+    <circle cx="8" cy="8" r="2.75" />
+    <circle cx="8" cy="8" r=".5" fill="currentColor" />
+  </svg>
+);

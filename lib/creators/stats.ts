@@ -53,7 +53,9 @@ export function normalOf(videos: Pick<Video, "views" | "saves" | "comments" | "p
 /** How many times the account's normal this video got: 3.2 means 3.2× their median views. */
 export function timesNormal(views: number | null, normal: Pick<Normal, "views">): number | null {
   if (views === null || !normal.views) return null;
-  return Math.round((views / normal.views) * 10) / 10;
+  const x = Math.round((views / normal.views) * 10) / 10;
+  // Some views, far under the usual: a small number, not 0 (shown as "<0.1×").
+  return x === 0 && views > 0 ? 0.01 : x;
 }
 
 export type VideoRead = "do_more" | "talked_about" | "saved" | "below" | "typical" | "too_new";

@@ -94,6 +94,16 @@ async function snapFollowers(sb: SupabaseClient, creatorId: string, authors: Rea
   if (rows.length) await sb.from("follower_snapshots").upsert(rows, { onConflict: "creator_id,handle,captured_on" });
 }
 
+/**
+ * The creator's own videos the numbers are read from: the last 120 days, or, for
+ * someone who posts rarely (fewer than 5 in that window), their latest 12 whenever
+ * posted. One video is no "usual".
+ */
+export async function ownVideos(sb: SupabaseClient, creatorId: string): Promise<Video[]> {
+  const recent = await listVideos(sb, creatorId, 120, { self: true });
+  return recent.length >= 5 ? recent : (await listVideos(sb, creatorId, 3650, { self: true })).slice(0, 12);
+}
+
 /** Videos posted in the last `days`, newest first, every page of them; `self` and `authors` narrow it. */
 async function listVideos(sb: SupabaseClient, creatorId: string, days: number, opts: { self?: boolean; authors?: string[] } = {}): Promise<Video[]> {
   if (opts.authors && !opts.authors.length) return [];
@@ -152,7 +162,7 @@ async function profileStage(sb: SupabaseClient, c: Creator): Promise<void> {
   };
   const stale = !c.profile || !c.hashtags.length || !c.profile_read_at || Date.now() - Date.parse(c.profile_read_at) > PROFILE_EVERY_MS;
   if (stale && isModelConfigured) {
-    const own = await listVideos(sb, c.id, 180, { self: true });
+    const own = await ownVideos(sb, c.id);
     const normal = normalOf(own);
     const account = await readAccount({
       handle: c.handle,
@@ -276,7 +286,7 @@ async function trendsStage(sb: SupabaseClient, c: Creator): Promise<void> {
 /** When a plan is due: the format and opening line of the videos it will be written from, one model call's worth. */
 async function tagStage(sb: SupabaseClient, c: Creator): Promise<void> {
   if (!isModelConfigured || !(await planDue(sb, c))) return;
-  const own = await listVideos(sb, c.id, 120, { self: true });
+  const own = await ownVideos(sb, c.id);
   const peers = await livePeers(sb, c.id);
   const theirs = await listVideos(
     sb,
@@ -329,7 +339,7 @@ async function checkRuns(sb: SupabaseClient, c: Creator, own: Video[]): Promise<
 const trendKey = (k: string) => k.trim().replace(/^#/, "").toLowerCase();
 
 async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | null> {
-  const own = await listVideos(sb, c.id, 120, { self: true });
+  const own = await ownVideos(sb, c.id);
   const runs = await checkRuns(sb, c, own);
   if (!(await planDue(sb, c))) return null;
   if (!isModelConfigured) throw new Error("Plans aren't set up on this deployment yet (OPENAI_API_KEY).");

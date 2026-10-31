@@ -8,7 +8,7 @@ import { scanNowAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { planState } from "@/lib/billing";
 import { borrowScore, followerChange, normalOf, timesNormal, trendRows } from "@/lib/creators/stats";
-import { getCreator, listFollowers, listPeers, listPlans, listRuns, listVideos } from "@/lib/data";
+import { getCreator, listFollowers, listOwnVideos, listPeers, listPlans, listRuns, listVideos } from "@/lib/data";
 import type { ScanStage } from "@/lib/db/types";
 import { ago, compact, isScanning, withinDays } from "@/lib/format";
 
@@ -43,7 +43,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
 
   const [plans, own, peers, recent, runs, followers] = await Promise.all([
     listPlans(creator.id, 6),
-    listVideos(creator.id, { days: 120, self: true }),
+    listOwnVideos(creator.id),
     listPeers(creator.id),
     listVideos(creator.id, { days: 14 }),
     listRuns(creator.id),

@@ -3,12 +3,12 @@ import Link from "next/link";
 import { removeRunAction } from "@/lib/actions";
 import { perK, postsPerWeek, readVideo, timesNormal, type BorrowParts, type Normal, type TrendRow, type VideoRead } from "@/lib/creators/stats";
 import type { Creator, FollowerSnapshot, IdeaRun, Peer, Plan, Video } from "@/lib/db/types";
-import { compact, duration, shortDate, signed, times, withinDays } from "@/lib/format";
+import { compact, shortDate, signed, times, withinDays } from "@/lib/format";
 import { goalLabel } from "@/lib/goals";
 
 import Avatar from "./avatar";
 import { AddPeerForm } from "./forms";
-import IdeaCard, { BorrowScore, IDEA_TYPE, type IdeaSource } from "./idea-card";
+import IdeaCard, { BorrowScore, IDEA_TYPE, Thumb, type IdeaSource } from "./idea-card";
 import LockedIdea from "./locked-idea";
 import { StageBar, STAGE_LABEL } from "./stage";
 import ViewsStrip from "./views-strip";
@@ -147,7 +147,6 @@ const READ: Record<VideoRead, { label: string; cls: string }> = {
   too_new: { label: "Still counting", cls: "pill" },
 };
 
-const THUMBS = ["#e0245e", "#0b8fa3", "#7a5af0", "#a66206", "#16804a", "#b4322a"];
 
 /** A line of follower counts over the days we have read them. */
 function FollowerLine({ rows }: { rows: FollowerSnapshot[] }) {
@@ -171,16 +170,9 @@ export function MineView({ creator, own, normal, plan, followers }: { creator: C
     <>
       <Heading
         title={shown.length === 1 ? "Your last video" : `Your last ${shown.length} videos`}
-        sub={
-          normal.views !== null ? (
-            <>
-              Views tell you reach. <strong>Times your usual</strong> tells you which videos broke out, against your own median of {compact(normal.views)}. Saves per 1K views show what people keep to use later.
-            </>
-          ) : (
-            "Your usual views show once you have a few videos older than two days. Until then, each video is still counting."
-          )
-        }
+        sub={normal.views !== null ? <>Your usual: <strong>{compact(normal.views)} views</strong>. Pink is a breakout, twice that or more.</> : "Your usual shows once a few videos are two days old."}
       />
+      {normal.views !== null && shown.length >= 2 && <ViewsChart videos={shown} usual={normal.views} />}
       <div className="card overflow-x-auto">
         <table className="table min-w-[760px]">
           <thead>
@@ -195,16 +187,14 @@ export function MineView({ creator, own, normal, plan, followers }: { creator: C
             </tr>
           </thead>
           <tbody>
-            {shown.map((v, i) => {
+            {shown.map((v) => {
               const x = timesNormal(v.views, normal);
               const r = READ[readVideo(v, normal)];
               return (
                 <tr key={v.id}>
                   <td>
                     <a href={v.url ?? undefined} target="_blank" rel="noreferrer" className="flex gap-2.5 items-center min-w-[240px] hover:underline">
-                      <span className="w-[30px] h-[42px] rounded-[5px] shrink-0 grid place-items-center text-[10px] text-white font-bold" style={{ background: THUMBS[i % THUMBS.length] }}>
-                        {duration(v.duration_s)}
-                      </span>
+                      <Thumb video={v} className="w-[32px] h-[44px]" />
                       <span className="min-w-0">
                         <strong className="block line-clamp-1">{v.hook || v.caption || "Untitled"}</strong>
                         <span className="caption">{v.posted_at ? shortDate(v.posted_at) : ""}{v.format ? ` · ${v.format}` : ""}</span>
@@ -230,54 +220,87 @@ export function MineView({ creator, own, normal, plan, followers }: { creator: C
           </tbody>
         </table>
       </div>
-      <div className="grid gap-3.5 grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
-        <div className="card p-4 grid gap-2.5 content-start">
-          <span className="label">Patterns in your numbers</span>
+      <div className="grid gap-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-start">
+        <div className="grid gap-3">
+          <span className="label">What your numbers say</span>
           {plan.body.patterns.length ? (
-            <ul className="m-0 pl-[18px] grid gap-2 text-[14px]">
-              {plan.body.patterns.map((p, i) => (
-                <li key={i}>
-                  <strong>{p.title}.</strong> <span className="text-ink-2">{p.detail}</span>
-                  {p.videos.length > 0 && (
-                    <span className="caption block">
-                      Shown by:{" "}
-                      {p.videos
-                        .map((id) => byId.get(id))
-                        .filter((v): v is Video => Boolean(v))
-                        .slice(0, 3)
-                        .map((v) => `"${(v.hook || v.caption || "").slice(0, 40)}"`)
-                        .join(", ")}
-                    </span>
+            plan.body.patterns.map((p, i) => {
+              const vids = p.videos.map((id) => byId.get(id)).filter((v): v is Video => Boolean(v)).slice(0, 3);
+              return (
+                <div key={i} className="card p-4 flex gap-4 items-start">
+                  {vids.length > 0 && (
+                    <div className="flex -space-x-3 shrink-0 pt-0.5">
+                      {vids.map((v) => (
+                        <span key={v.id} className="relative">
+                          <Thumb video={v} className="w-[44px] h-[60px] ring-2 ring-surface" />
+                          {timesNormal(v.views, normal) !== null && (
+                            <span className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 pill !h-[18px] !px-1.5 !text-[10.5px] ${(timesNormal(v.views, normal) ?? 0) >= 2 ? "pill-pos" : ""}`}>{times(timesNormal(v.views, normal)!)}</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
                   )}
-                </li>
-              ))}
-            </ul>
+                  <div className="min-w-0">
+                    <strong className="block text-[15px] leading-snug">{p.title.replace(/[.\s]+$/, "")}</strong>
+                    <p className="text-ink-2 text-[13.5px] mt-1 line-clamp-3">{p.detail}</p>
+                  </div>
+                </div>
+              );
+            })
           ) : (
-            <p className="text-ink-2 text-[14px]">Patterns appear once you have a few more videos.</p>
+            <p className="card p-4 text-ink-2 text-[14px]">Patterns show once you have a few more videos.</p>
           )}
         </div>
-        <div className="card p-4 grid gap-2.5 content-start">
+        <div className="card p-4 grid gap-2 content-start">
           <span className="label">Followers</span>
+          <span className="stat-num">{compact(creator.followers)}</span>
           {followers.length >= 2 ? (
             <>
               <FollowerLine rows={followers} />
               <span className="caption">
-                {compact(followers[0].followers)} on {shortDate(followers[0].captured_on)} → {compact(followers[followers.length - 1].followers)} on {shortDate(followers[followers.length - 1].captured_on)}
+                {shortDate(followers[0].captured_on)} → {shortDate(followers[followers.length - 1].captured_on)}
               </span>
             </>
           ) : (
-            <p className="text-ink-2 text-[14px]">{compact(creator.followers)} today. TikTok doesn&apos;t show follower history, so we start counting from your first read; the line appears after the second.</p>
+            <span className="caption">The line starts after tomorrow&apos;s read.</span>
           )}
-          <p className="so-what text-[14px]">
-            Watch-through, where people swipe away and followers gained per video are private to your account.{" "}
-            <Link href="/app/settings#tiktok" className="text-brand font-semibold hover:underline">
-              Connecting TikTok
-            </Link>{" "}
-            is how those will come in.
-          </p>
         </div>
       </div>
     </>
+  );
+}
+
+/** Views per video, oldest left, on a square-root scale, with the creator's usual as a dashed line; breakouts in pink. */
+function ViewsChart({ videos, usual }: { videos: Video[]; usual: number }) {
+  const vs = [...videos].filter((v) => v.views !== null).reverse();
+  const top = Math.sqrt(Math.max(usual * 2, ...vs.map((v) => v.views ?? 0)));
+  const h = (n: number) => `${Math.max(3, (Math.sqrt(n) / top) * 100)}%`;
+  return (
+    <div className="card p-4 pb-3 grid gap-2">
+      <div className="relative h-[120px] flex items-end justify-evenly gap-[3px]">
+        <span className="absolute inset-x-0 border-t border-dashed border-ink-3/60" style={{ bottom: h(usual) }}>
+          <span className="absolute right-0 -top-5 caption bg-surface px-1">usual {compact(usual)}</span>
+        </span>
+        {vs.map((v) => {
+          const x = timesNormal(v.views, { views: usual }) ?? 0;
+          return (
+            <a
+              key={v.id}
+              href={v.url ?? undefined}
+              target="_blank"
+              rel="noreferrer"
+              title={`${compact(v.views)} views · ${times(x)} your usual${v.posted_at ? ` · ${shortDate(v.posted_at)}` : ""}`}
+              className={`flex-1 min-w-[4px] max-w-[48px] rounded-t-[5px] transition-opacity hover:opacity-80 ${x >= 2 ? "bg-[linear-gradient(180deg,var(--hot),var(--brand))]" : x <= 0.5 ? "bg-line-strong" : "bg-[color-mix(in_srgb,var(--cyan)_45%,var(--line))]"}`}
+              style={{ height: h(v.views ?? 0) }}
+            />
+          );
+        })}
+      </div>
+      <div className="flex justify-between caption">
+        <span>{vs[0]?.posted_at ? shortDate(vs[0].posted_at) : ""}</span>
+        <span>{vs[vs.length - 1]?.posted_at ? shortDate(vs[vs.length - 1].posted_at!) : ""}</span>
+      </div>
+    </div>
   );
 }
 

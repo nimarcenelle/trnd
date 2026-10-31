@@ -55,6 +55,11 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && /^\d+$/.test(v) ? Number(v) : null);
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
+/** A link from a read, shown as an href or an image: https only, so a scraped `javascript:` URL never reaches the page. */
+const link = (v: unknown): string | null => {
+  const s = str(v);
+  return s && /^https:\/\//i.test(s) ? s : null;
+};
 const when = (v: unknown): string | null => {
   if (typeof v === "number") return new Date(v > 1e12 ? v : v * 1000).toISOString();
   if (typeof v === "string" && !Number.isNaN(Date.parse(v))) return new Date(v).toISOString();
@@ -92,13 +97,13 @@ export function mapVideo(item: Obj): ReadVideo | null {
   return {
     videoId: id,
     author: handle,
-    url: str(item.webVideoUrl) ?? `https://www.tiktok.com/@${handle}/video/${id}`,
+    url: link(item.webVideoUrl) ?? `https://www.tiktok.com/@${handle}/video/${id}`,
     caption: caption ? safeText(caption.slice(0, 500)) : null,
     hashtags: [...new Set([...listed, ...captionTags(caption)])].filter(Boolean),
     sound: soundName ? [soundName, str(music.musicAuthor)].filter(Boolean).join(" · ") : null,
     soundOriginal: typeof music.musicOriginal === "boolean" ? music.musicOriginal : null,
     durationS: num(meta.duration),
-    coverUrl: str(meta.coverUrl) ?? str(meta.originalCoverUrl),
+    coverUrl: link(meta.coverUrl) ?? link(meta.originalCoverUrl),
     postedAt: when(item.createTimeISO ?? item.createTime),
     views: num(item.playCount),
     likes: num(item.diggCount),
@@ -116,7 +121,7 @@ export function mapAuthor(item: Obj): ReadAuthor | null {
   return {
     handle,
     displayName: str(a.nickName) ?? str(a.nickname),
-    avatarUrl: str(a.avatar) ?? str(a.originalAvatarUrl),
+    avatarUrl: link(a.avatar) ?? link(a.originalAvatarUrl),
     bio: str(a.signature),
     followers: num(a.fans),
     following: num(a.following),
@@ -152,10 +157,10 @@ export function mapCreativeCenter(items: Obj[]): CreativeCenterTag[] {
 export const isTiktokConfigured = () => Boolean(env.apifyToken);
 
 async function runActor(actor: string, input: Obj): Promise<Obj[]> {
-  const url = `https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`;
-  const res = await fetch(url, {
+  // The token goes in a header, not the URL, so no request log or error message carries it.
+  const res = await fetch(`https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", authorization: `Bearer ${env.apifyToken}` },
     body: JSON.stringify(input),
     // Bounded so a scan stage with one read fits in its 300s function; a read cut short retries on the next scan.
     signal: AbortSignal.timeout(120_000),

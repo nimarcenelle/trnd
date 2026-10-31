@@ -1,3 +1,4 @@
+import { bearerMatches } from "@/lib/auth/bearer";
 import { planState } from "@/lib/billing";
 import { fetchSelf, SCAN_STALE_MS, scanCreator } from "@/lib/creators/scan";
 import { allRows } from "@/lib/db/rows";
@@ -23,7 +24,7 @@ const PER_SECOND = 5;
 type Due = Pick<Creator, "id" | "plan" | "plan_status" | "trial_ends_at" | "trial_used_at" | "scan_status" | "scan_started_at" | "last_scan_at">;
 
 export async function GET(req: Request): Promise<Response> {
-  if (!env.cronSecret || req.headers.get("authorization") !== `Bearer ${env.cronSecret}`) {
+  if (!bearerMatches(req.headers.get("authorization"), env.cronSecret)) {
     return new Response("unauthorized", { status: 401 });
   }
   const url = new URL(req.url);

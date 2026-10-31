@@ -107,10 +107,10 @@ export default function Home() {
         <div className="rise grid grid-cols-[minmax(0,1fr)] gap-6 min-w-0">
           <span className="kicker">For TikTok creators</span>
           <h1 className="display text-[clamp(34px,5.6vw,56px)]">
-            Your next three TikToks, scripted from what got <span className="stat-up">the creators ahead of you</span> there.
+            Your next three TikToks, scripted. <span className="stat-up">Free in seconds.</span>
           </h1>
           <p className="text-ink-2 text-[17.5px] max-w-[54ch] leading-[1.55]">
-            Enter your handle. We find creators a step or two ahead of you in your niche and what got them there. In about a minute you get your numbers, who&apos;s ahead of you, and a video to make, scripted second by second.
+            Type your handle. We find the creators a step ahead of you in your niche, what got them there, and turn it into three videos you can film this week.
           </p>
           <div className="max-w-[580px]">
             <StartForm cta="Get my free plan" compact />
@@ -243,7 +243,7 @@ export default function Home() {
 
       <section className="border-t border-line">
         <div className="wrap py-16 sm:py-24 grid gap-6 justify-items-center text-center">
-          <h2 className="display text-[clamp(26px,4vw,40px)] max-w-[640px]">See what to post next. Free, in about a minute.</h2>
+          <h2 className="display text-[clamp(26px,4vw,40px)] max-w-[640px]">See what to post next. Free, in seconds.</h2>
           <div className="w-full max-w-[540px] text-left">
             <StartForm cta="Get my free plan" compact />
           </div>

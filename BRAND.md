@@ -87,6 +87,6 @@ In `app/globals.css` under `@layer components`: `.btn` (+ `-primary` pink, `-gho
 
 ## Sample data
 
-The landing page uses invented creators only (`@marlow.studies` and the creators ahead of them, `@fenn.explains`,
-`@tamsin.revises`, `@orla.annotates`; `components/sample/creator.ts`).
+The landing page shows a real free preview of @humm.app, snapshotted into `components/sample/humm-preview.json` by
+`scripts/snapshot-sample.mjs` and drawn by the same components as `/start/[id]`; it is never fetched live.
 Never put a real account's name on invented numbers.

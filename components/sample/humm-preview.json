@@ -1,0 +1,432 @@
+{
+ "id": "sample",
+ "handle": "humm.app",
+ "status": "ready",
+ "step_started_at": null,
+ "author": {
+  "bio": "Sound more attractive.\nFind out what your voice scores in 15 seconds, then hear yourself at your best.",
+  "handle": "humm.app",
+  "hearts": 25800,
+  "videos": 4,
+  "avatarUrl": "https://p19-common-sign.tiktokcdn-us.com/tos-useast5-avt-0068-tx/50fec7293164c1a8b3407adb79461f23~tplv-tiktokx-cropcenter:720:720.jpeg?dr=9640&refresh_token=4963ad57&x-expires=1793584800&x-signature=osRZMFGBAro5uMo2YmK0DTHGhkI%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=useast5",
+  "followers": 1299,
+  "following": 10,
+  "displayName": "humm.app"
+ },
+ "videos": [
+  {
+   "url": "https://www.tiktok.com/@humm.app/video/7696732238507019534",
+   "likes": 8,
+   "saves": 3,
+   "sound": "Another Love · Tom Odell",
+   "views": 582,
+   "author": "humm.app",
+   "shares": 1,
+   "caption": "Should he get her back?\n#looksmaxxing",
+   "videoId": "7696732238507019534",
+   "comments": 0,
+   "coverUrl": "https://p16-common-sign.tiktokcdn-us.com/tos-useast5-i-photomode-tx/5518d81af6554b57bb74aa8dfe9219e7~tplv-photomode-image.jpeg?dr=9616&x-expires=1793584800&x-signature=%2BxJnNSiZPCMcFBApNXSGBjdNd8U%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5&ftpl=1",
+   "hashtags": [
+    "looksmaxxing"
+   ],
+   "postedAt": "2026-10-15T03:32:25.000Z",
+   "durationS": 0,
+   "storedCover": "https://hqdximgvhcsarmhbgaaa.supabase.co/storage/v1/object/public/covers/7696732238507019534.jpg",
+   "soundOriginal": false
+  },
+  {
+   "url": "https://www.tiktok.com/@humm.app/video/7546259570952260877",
+   "likes": 132,
+   "saves": 19,
+   "sound": "suara asli - ˢᵃᵈⁿᵉˢˢ · ˢᵃᵈⁿᵉˢˢ",
+   "views": 8504,
+   "author": "humm.app",
+   "shares": 5,
+   "caption": "Sometimes healing is just about choosing yourself. The moment she let go, she found her glow. 🌅",
+   "videoId": "7546259570952260877",
+   "comments": 1,
+   "coverUrl": "https://p19-common-sign.tiktokcdn-us.com/tos-useast5-i-photomode-tx/ab089cf774dc459b82b3cd509e8e4393~tplv-photomode-image.jpeg?dr=9616&x-expires=1793584800&x-signature=5OYxNXkE0Q%2Bgcl7jq4JMcViGIpA%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5&ftpl=1",
+   "hashtags": [],
+   "postedAt": "2025-09-04T15:41:27.000Z",
+   "durationS": 0,
+   "storedCover": "https://hqdximgvhcsarmhbgaaa.supabase.co/storage/v1/object/public/covers/7546259570952260877.jpg",
+   "soundOriginal": true
+  },
+  {
+   "url": "https://www.tiktok.com/@humm.app/video/7545543643923270925",
+   "likes": 2143,
+   "saves": 339,
+   "sound": "Another Love (slowed down original sound) · Tom Odell",
+   "views": 148400,
+   "author": "humm.app",
+   "shares": 71,
+   "caption": "#breakup #glowup #motivation #selflove #selfcare",
+   "videoId": "7545543643923270925",
+   "comments": 8,
+   "coverUrl": "https://p19-common-sign.tiktokcdn-us.com/tos-useast5-i-photomode-tx/4ddbdb8bc6df4c7083f231ceb5c511cc~tplv-photomode-image.jpeg?dr=9616&x-expires=1793584800&x-signature=2mCiAHyySgWf%2FkcCqSITPdwPN%2BE%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5&ftpl=1",
+   "hashtags": [
+    "breakup",
+    "glowup",
+    "motivation",
+    "selflove",
+    "selfcare"
+   ],
+   "postedAt": "2025-09-02T17:23:48.000Z",
+   "durationS": 0,
+   "storedCover": "https://hqdximgvhcsarmhbgaaa.supabase.co/storage/v1/object/public/covers/7545543643923270925.jpg",
+   "soundOriginal": false
+  },
+  {
+   "url": "https://www.tiktok.com/@humm.app/video/7537905725620931895",
+   "likes": 20000,
+   "saves": 2284,
+   "sound": "Another Love (slowed down original sound) · Tom Odell",
+   "views": 307800,
+   "author": "humm.app",
+   "shares": 858,
+   "caption": "#motivation #breakup #selflove #discipline #",
+   "videoId": "7537905725620931895",
+   "comments": 254,
+   "coverUrl": "https://p16-common-sign.tiktokcdn-us.com/tos-useast5-i-photomode-tx/fe7f5f626a1e48e19f0c7de913a70977~tplv-photomode-image.jpeg?dr=9616&x-expires=1793584800&x-signature=TrOGTEPmo14dSgm2B2iRuD542%2B0%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5&ftpl=1",
+   "hashtags": [
+    "motivation",
+    "breakup",
+    "selflove",
+    "discipline"
+   ],
+   "postedAt": "2025-08-13T03:24:15.000Z",
+   "durationS": 0,
+   "storedCover": "https://hqdximgvhcsarmhbgaaa.supabase.co/storage/v1/object/public/covers/7537905725620931895.jpg",
+   "soundOriginal": false
+  }
+ ],
+ "profile": {
+  "niche": [
+   "Voice attractiveness app",
+   "Looksmaxxing",
+   "Breakup glow-ups",
+   "Self-improvement edits"
+  ],
+  "style": "Emotional glow-up edits built around breakup pain, self-love, and looksmaxxing, usually with sad audio and minimal captioning.",
+  "works": [
+   "Breakup-to-glow-up angle: 307,800 views and 3.9× usual on the Aug 13 post",
+   "Emotional self-love framing: 148,400 views and 1.9× usual on the Sep 2 post",
+   "Tom Odell slowed sound paired with transformation content worked on both top posts",
+   "Simple broad themes like breakup, discipline, self-love got the most saves: 2,284 and 339 saves"
+  ],
+  "doesnt": [
+   "Vague relationship question without a clear transformation: the Oct 15 post got 582 views",
+   "Generic healing caption without a sharp before/after: the Sep 4 post got 8,504 views, 0.1× usual",
+   "The actual voice app promise is not obvious in the best-performing captions"
+  ],
+  "audience": [
+   "Young men into looksmaxxing",
+   "People post-breakup",
+   "Self-improvement TikTok",
+   "Dating confidence viewers"
+  ]
+ },
+ "hashtags": [
+  "looksmaxxing",
+  "glowup",
+  "breakuptok",
+  "selfimprovement",
+  "selflovejourney",
+  "datingconfidence",
+  "voiceapp",
+  "masculinity"
+ ],
+ "peers": [
+  {
+   "best": {
+    "url": "https://www.tiktok.com/@jt.misc/video/7698253936171453717",
+    "hook": "6 months",
+    "views": 314100,
+    "videoId": "7698253936171453717"
+   },
+   "name": "jtanaka",
+   "handle": "jt.misc",
+   "followers": 12700
+  },
+  {
+   "best": {
+    "url": "https://www.tiktok.com/@reynamaynard/video/7701488732636974354",
+    "hook": "5 of my glow up tips! 😇✨",
+    "views": 41400,
+    "videoId": "7701488732636974354"
+   },
+   "name": "reyna🐆",
+   "handle": "reynamaynard",
+   "followers": 52000
+  },
+  {
+   "best": {
+    "url": "https://www.tiktok.com/@ranaryleigh/video/7701478090706341150",
+    "hook": "Just stay consistent.",
+    "views": 22300,
+    "videoId": "7701478090706341150"
+   },
+   "name": "ranaryleigh",
+   "handle": "ranaryleigh",
+   "followers": 60600
+  },
+  {
+   "best": {
+    "url": "https://www.tiktok.com/@vanessa.loft/video/7600159599446002951",
+    "hook": "A lot changes in 2 years",
+    "views": 15000000,
+    "videoId": "7600159599446002951"
+   },
+   "name": "Vanessa Loft",
+   "handle": "vanessa.loft",
+   "followers": 9953
+  },
+  {
+   "best": {
+    "url": "https://www.tiktok.com/@oliviabrooks_skincare/video/7630521440202165536",
+    "hook": "Luminence glow, rebuild your barrier",
+    "views": 3200000,
+    "videoId": "7630521440202165536"
+   },
+   "name": "oliviabrooks_skincare",
+   "handle": "oliviabrooks_skincare",
+   "followers": 7698
+  }
+ ],
+ "sample": [],
+ "trends": [
+  {
+   "key": "fyp",
+   "kind": "hashtag",
+   "label": "#fyp",
+   "prior": 1,
+   "stage": "rising",
+   "views": 265000,
+   "recent": 3,
+   "creators": 4
+  },
+  {
+   "key": "glowup",
+   "kind": "hashtag",
+   "label": "#glowup",
+   "prior": 2,
+   "stage": "peaking",
+   "views": 63700,
+   "recent": 2,
+   "creators": 4
+  },
+  {
+   "key": "advice",
+   "kind": "hashtag",
+   "label": "#advice",
+   "prior": 1,
+   "stage": "peaking",
+   "views": 201300,
+   "recent": 1,
+   "creators": 2
+  },
+  {
+   "key": "breakup",
+   "kind": "hashtag",
+   "label": "#breakup",
+   "prior": 1,
+   "stage": "peaking",
+   "views": 201300,
+   "recent": 1,
+   "creators": 2
+  }
+ ],
+ "plan": {
+  "ideas": [
+   {
+    "so": "Your Aug 13 breakup/self-love edit got 307,800 views, 20,000 likes, and 2,284 saves — 3.9× your usual views. The move now is not to change the emotion; it is to make the voice glow-up part impossible to miss.",
+    "why": [
+     "It keeps the exact emotional lane that gave you 307,800 views and 2,284 saves on Aug 13.",
+     "It fixes the weak spot in the account: the best posts work emotionally, but the voice app promise is not obvious enough.",
+     "It avoids the vague question problem from Oct 15, which only got 582 views, by giving a clear before/after."
+    ],
+    "hook": "\"She left. Now fix your voice.\"",
+    "type": "double_down",
+    "sound": "Another Love (slowed down original sound) · Tom Odell, low volume under voiceover",
+    "format": "Emotional breakup-to-glow-up edit with minimal white captions and one clear app screen moment",
+    "length": "24-28s",
+    "script": [
+     {
+      "t": "0-2s",
+      "say": "She left. Now fix your voice.",
+      "shot": "Black screen, then a low-light clip of a guy staring at old texts. Small white text: “day 1”."
+     },
+     {
+      "t": "2-7s",
+      "say": "Not for her. For the version of you that stopped speaking up.",
+      "shot": "Mirror clip, hoodie, tired face. Quick close-up of him deleting the chat."
+     },
+     {
+      "t": "7-13s",
+      "say": "Train your tone. Slow down. Stop mumbling.",
+      "shot": "Screen recording-style shot of humm.app voice feedback, then him recording one line."
+     },
+     {
+      "t": "13-20s",
+      "say": "The glow-up is not just your face. It is how you sound when you walk in.",
+      "shot": "Cut to cleaner outfit, haircut, posture change, walking outside at night."
+     },
+     {
+      "t": "20-26s",
+      "say": "If you are in your breakup era, start with your voice.",
+      "shot": "Before/after split: “mumbled / calm” and “chasing / chosen”. End on app logo or app screen for one second."
+     }
+    ],
+    "caption": "Should we make this a 7-day voice glow-up series? Comment “VOICE”.",
+    "hashtags": [
+     "#breakup",
+     "#voiceglowup",
+     "#looksmaxxing",
+     "#glowup",
+     "#selflove"
+    ],
+    "post_time": "Sunday 8:30 PM, when your audience is free before the week starts",
+    "source_trend": "",
+    "source_video": "7537905725620931895",
+    "make_it_yours": "Change only one thing from the winning format: keep the sad Tom Odell glow-up, but put the voice transformation in the first 3 seconds."
+   },
+   {
+    "so": "@vanessa.loft’s “A lot changes in 2 years” format got 15,000,000 views and 74,493 saves by making time feel emotional and visual. Adapt it to your niche with a male breakup arc: old voice, old posture, old self-respect — then the new version.",
+    "why": [
+     "The borrowed format is proven in the niche: a simple time-change hook drove 15,000,000 views and 74,493 saves for a creator ahead of you.",
+     "Your own best posts are also transformation edits, especially the Aug 13 and Sep 2 posts.",
+     "It gives viewers a reason to follow beyond one edit: they expect more steps in the glow-up."
+    ],
+    "hook": "\"A lot changes when you stop begging.\"",
+    "type": "borrow",
+    "sound": "original sound / soft voiceover with low sad piano",
+    "format": "Time-jump transformation edit: “6 months ago” to “now,” built around breakup recovery",
+    "length": "18-22s",
+    "script": [
+     {
+      "t": "0-2s",
+      "say": "A lot changes when you stop begging.",
+      "shot": "Old-looking selfie/video, messy room, text overlay: “6 months ago”."
+     },
+     {
+      "t": "2-6s",
+      "say": "You stop checking her location.",
+      "shot": "Close-up of thumb hovering over phone, then locking it."
+     },
+     {
+      "t": "6-10s",
+      "say": "You stop explaining yourself to people who already decided.",
+      "shot": "Gym bag, skincare shelf, haircut appointment clip, quiet montage."
+     },
+     {
+      "t": "10-15s",
+      "say": "You start fixing the things you avoided. Even your voice.",
+      "shot": "humm.app recording screen; waveform or score-style feedback without over-explaining."
+     },
+     {
+      "t": "15-19s",
+      "say": "Same guy. Different standard.",
+      "shot": "Clean final fit, eye contact with camera, one-second smile, cut to black."
+     }
+    ],
+    "caption": "What changed you more: the breakup or the silence after? Comment one word.",
+    "hashtags": [
+     "#glowup",
+     "#breakup",
+     "#looksmaxxing",
+     "#voiceglowup",
+     "#selfimprovement"
+    ],
+    "post_time": "Tuesday 9:00 PM, when people are scrolling after work or school",
+    "source_trend": "",
+    "source_video": "7600159599446002951",
+    "make_it_yours": "Do not copy the exact life story; make it a male breakup recovery edit where the surprise change is his voice confidence."
+   },
+   {
+    "so": "#fyp is rising in the niche this week: 3 videos this week versus 1 last week, across 4 creators. Use it on a post that still fits your account, because your broad breakup/discipline/self-love themes have already pulled your biggest numbers.",
+    "why": [
+     "It rides #fyp while it is rising in this niche, without abandoning your breakup glow-up lane.",
+     "It brings back the clear breakup framing that worked on Aug 13 and Sep 2, instead of the vague Oct 15 question.",
+     "The action is simple and app-native: record, hear the issue, improve the line."
+    ],
+    "hook": "\"If she left, do this tonight.\"",
+    "type": "ride",
+    "sound": "Another Love · Tom Odell, quiet under voiceover",
+    "format": "Fast emotional advice edit with a practical one-night action",
+    "length": "20-24s",
+    "script": [
+     {
+      "t": "0-2s",
+      "say": "If she left, do this tonight.",
+      "shot": "Dark room, phone face down, sad blue lighting. Text: “don’t text her”."
+     },
+     {
+      "t": "2-6s",
+      "say": "Record your voice saying one confident sentence.",
+      "shot": "Guy opens humm.app and records: “I’m not chasing what chose to leave.”"
+     },
+     {
+      "t": "6-11s",
+      "say": "Listen back. Fix the mumbling. Say it slower.",
+      "shot": "Replay moment, then second recording. Quick captions: “slower / deeper / clearer”."
+     },
+     {
+      "t": "11-17s",
+      "say": "Now go sleep. Tomorrow, become harder to ignore.",
+      "shot": "Phone goes on charger, shoes by the door, alarm set for morning gym/walk."
+     },
+     {
+      "t": "17-21s",
+      "say": "Breakups expose what needs work.",
+      "shot": "Morning shot, hoodie on, walking outside. End text: “day 1 starts now”."
+     }
+    ],
+    "caption": "Would you try this tonight or text her instead? Comment honestly.",
+    "hashtags": [
+     "#breakup",
+     "#voiceglowup",
+     "#looksmaxxing",
+     "#glowup",
+     "#fyp"
+    ],
+    "post_time": "Thursday 8:00 PM, when your audience is free and weekend feelings start hitting",
+    "source_trend": "fyp",
+    "source_video": "",
+    "make_it_yours": "Keep it quiet and emotional, not tutorial-heavy; the app should feel like part of the breakup recovery ritual."
+   }
+  ],
+  "summary": "Post three glow-up edits: one direct sequel to your best breakup edit, one borrowed “time changed me” transformation, and one #fyp ride with a sharper first line. All three turn the same emotion into a follow reason: guys should follow because this account shows the breakup-to-confidence path, including voice.",
+  "headline": "People come for *breakup pain turned into a glow-up*: your Aug 13 post got 307,800 views and 2,284 saves. This week, keep the sad edit style, but make the app promise obvious: *his voice changes too*.",
+  "patterns": [
+   {
+    "title": "Breakup-to-glow-up is the strongest lane.",
+    "detail": "The Aug 13 post hit 307,800 views, 20,000 likes, 858 shares, and 2,284 saves — 3.9× your usual views. The Sep 2 breakup/glow-up post also beat usual with 148,400 views.",
+    "videos": [
+     "7537905725620931895",
+     "7545543643923270925"
+    ]
+   },
+   {
+    "title": "Sad Tom Odell + transformation beats generic healing.",
+    "detail": "Both top posts used Tom Odell slowed/Another Love with transformation framing. The Sep 4 generic healing caption without a sharp before/after got 8,504 views, far below those two.",
+    "videos": [
+     "7537905725620931895",
+     "7545543643923270925",
+     "7546259570952260877"
+    ]
+   },
+   {
+    "title": "Vague relationship questions do not give people enough to follow for.",
+    "detail": "The Oct 15 post asked “Should he get her back?” and got 582 views, 8 likes, and 3 saves. The stronger posts give a clear identity shift: breakup, discipline, self-love, glow-up.",
+    "videos": [
+     "7696732238507019534",
+     "7537905725620931895"
+    ]
+   }
+  ]
+ },
+ "goal": null,
+ "reason": null,
+ "claimed_by": null,
+ "created_at": "2026-10-31T02:39:33.178407+00:00"
+}

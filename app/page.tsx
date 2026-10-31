@@ -1,14 +1,17 @@
 import Link from "next/link";
 
-import IdeaCard from "@/components/app/idea-card";
+import IdeaCard, { IDEA_TYPE } from "@/components/app/idea-card";
 import Brand from "@/components/brand";
 import StartForm from "@/components/preview/start-form";
 import Avatar from "@/components/app/avatar";
-import { SAMPLE_AHEAD, SAMPLE_FOLLOWERS, SAMPLE_HANDLE, SAMPLE_IDEA, SAMPLE_NORMAL, SAMPLE_SOURCE } from "@/components/sample/creator";
+import NextTikTok from "@/components/app/next-tiktok";
+import { Emphasis } from "@/components/app/views";
+import { SAMPLE, SAMPLE_BEST, SAMPLE_IDEA, SAMPLE_NORMAL, SAMPLE_SOURCE } from "@/components/sample/humm";
 import SiteNav from "@/components/site-nav";
 import { PRICES, TRIAL_DAYS } from "@/lib/billing";
 import { aheadLine } from "@/lib/creators/stats";
-import { compact } from "@/lib/format";
+import { compact, times } from "@/lib/format";
+import { nextTikTok } from "@/lib/preview/next-tiktok";
 
 const STEPS = [
   { title: "Enter your handle", body: "No login, no password. We read your public videos: views, likes, comments, shares and saves." },
@@ -58,7 +61,7 @@ function Check() {
   );
 }
 
-/** The hero's product shot: the first lines of a plan, as it looks on a phone. */
+/** The hero's product shot: the real free preview of @humm.app, as it looks on a phone. */
 function PhoneShot() {
   return (
     <div className="relative mx-auto w-[300px] max-w-full">
@@ -68,41 +71,26 @@ function PhoneShot() {
         <div className="rounded-[30px] bg-bg overflow-hidden border border-line">
           <div className="flex items-center justify-between px-4 pt-4 pb-3">
             <Brand href={null} size={14} sub={false} />
-            <span className="caption">@{SAMPLE_HANDLE}</span>
+            <span className="caption">@{SAMPLE.handle}</span>
           </div>
           <div className="mx-3 night p-3.5 !rounded-[16px]">
             <div className="label">Your answer this week</div>
-            <p className="heading text-[14.5px] mt-1.5">
-              People come for <em>one tool, one result</em>. Turn it into a ranked test.
+            <p className="heading text-[13.5px] leading-snug mt-1.5 line-clamp-4">
+              <Emphasis text={SAMPLE.plan.headline} />
             </p>
           </div>
-          <div className="m-3 card p-3.5 grid gap-2">
-            <div className="flex gap-1.5">
-              <span className="pill pill-brand !text-[10.5px]">Borrow a format</span>
-              <span className="pill !text-[10.5px]">11× their usual</span>
+          <div className="mx-3 mt-2.5 grid grid-cols-2 gap-2">
+            <div className="card px-3 py-2">
+              <div className="label !text-[11px]">Your typical video</div>
+              <div className="display text-[18px]">{compact(SAMPLE_NORMAL.views)}</div>
             </div>
-            <p className="heading text-[14px] leading-snug">&ldquo;I tested 7 AI study tools for a week. Only 2 are worth it.&rdquo;</p>
-            <p className="caption !text-[11.5px]">From @{SAMPLE_SOURCE.video?.author}, {aheadLine(SAMPLE_AHEAD[0].followers, SAMPLE_FOLLOWERS)}</p>
-            {[
-              ["0–2s", "Seven paper app icons. Five get flicked off."],
-              ["2–25s", "Tools 7 to 3, four seconds each."],
-              ["25–40s", "The top two, with a quick demo."],
-            ].map(([t, s]) => (
-              <div key={t} className="grid grid-cols-[46px_minmax(0,1fr)] gap-2 text-[12px]">
-                <span className="mono text-brand">{t}</span>
-                <span className="text-ink-2">{s}</span>
-              </div>
-            ))}
+            <div className="card px-3 py-2">
+              <div className="label !text-[11px]">Your best recent</div>
+              <div className="display text-[18px] stat-up">{SAMPLE_BEST ? times(SAMPLE_BEST) : "—"}</div>
+            </div>
           </div>
-          <div className="mx-3 mb-4 grid grid-cols-2 gap-2">
-            <div className="card px-3 py-2">
-              <div className="label !text-[11px]">Typical video</div>
-              <div className="display !font-semibold text-[15px]">48K</div>
-            </div>
-            <div className="card px-3 py-2">
-              <div className="label !text-[11px]">Rising</div>
-              <div className="mono text-[12.5px] text-cyan mt-0.5">#studytok</div>
-            </div>
+          <div className="m-3 mt-2.5">
+            <NextTikTok data={nextTikTok(SAMPLE.handle, SAMPLE_IDEA)} tint={IDEA_TYPE[SAMPLE_IDEA.type].tint} cover={SAMPLE_SOURCE.video?.cover_url ?? null} />
           </div>
         </div>
       </div>
@@ -161,22 +149,20 @@ export default function Home() {
           <div className="max-w-[640px]">
             <span className="kicker">What a plan looks like</span>
             <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">Every idea, ready to film.</h2>
-            <p className="text-ink-2 mt-3">
-              An example plan for @{SAMPLE_HANDLE}, an invented study creator with {compact(SAMPLE_FOLLOWERS)} followers. Its first idea borrows a format from one of the creators ahead of them.
-            </p>
+            <p className="text-ink-2 mt-3">A real plan for @humm.app, a 1,299-follower account with 4 videos.</p>
           </div>
           <div className="card p-4 grid gap-3 content-start max-w-[560px]">
-            <div className="font-bold">Creators ahead of @{SAMPLE_HANDLE}</div>
-            {SAMPLE_AHEAD.map((x) => (
+            <div className="font-bold">Creators ahead of @{SAMPLE.handle}</div>
+            {SAMPLE.peers.slice(0, 4).map((x) => (
               <div key={x.handle} className="flex items-center gap-2.5 min-w-0">
                 <Avatar name={x.handle} size={30} ring />
                 <div className="min-w-0 grid gap-0.5">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="font-semibold text-[14px]">@{x.handle}</span>
-                    <span className="pill pill-brand !text-[11.5px]">{aheadLine(x.followers, SAMPLE_FOLLOWERS)}</span>
+                    {aheadLine(x.followers, SAMPLE.author?.followers ?? null) && <span className="pill pill-brand !text-[11.5px]">{aheadLine(x.followers, SAMPLE.author?.followers ?? null)}</span>}
                   </div>
                   <div className="caption line-clamp-2">
-                    {compact(x.followers)} followers · best recent: &ldquo;{x.best.hook}&rdquo;, {compact(x.best.views)} views
+                    {compact(x.followers)} followers{x.best?.hook ? <> · best recent: &ldquo;{x.best.hook}&rdquo;, {compact(x.best.views)} views</> : null}
                   </div>
                 </div>
               </div>

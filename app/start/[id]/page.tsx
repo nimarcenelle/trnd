@@ -255,15 +255,15 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
 
         <section className="grid gap-3" aria-labelledby="next-tiktok">
           <div className="flex items-end justify-between gap-3 flex-wrap">
-            <div>
-              <h2 id="next-tiktok" className="heading text-[18px]">
-                Your next TikTok
-              </h2>
-              <p className="caption mt-1">What idea 1 looks like on your feed. Save it, show a friend, then film it.</p>
+            <h2 id="next-tiktok" className="heading text-[18px]">
+              Your next TikTok
+            </h2>
+            <div className="grid justify-items-end gap-1">
+              <a href={`/start/${p.id}/card`} download={cardFileName(p.handle)} className="btn btn-sm">
+                Save image
+              </a>
+              <p className="caption">Save it, send it to a friend, then film it.</p>
             </div>
-            <a href={`/start/${p.id}/card`} download={cardFileName(p.handle)} className="btn btn-sm">
-              Save image
-            </a>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 items-end">
             <div className="col-span-2 sm:col-span-1 w-full max-w-[340px] justify-self-center sm:max-w-none">

@@ -13,7 +13,7 @@ const H = 1920;
 const U = W / 100;
 
 // Satori can't read CSS variables: the tokens from app/globals.css this card uses, by value.
-const C = { night: "#1d1724", onNight: "#f7f5f8", tag: "#99ccd6", chip: "rgba(247, 245, 248, 0.15)", faint: "rgba(247, 245, 248, 0.6)" };
+const C = { night: "#1d1724", onNight: "#f7f5f8", tag: "#99ccd6", chip: "rgba(247, 245, 248, 0.15)", caption: "#8f879a" };
 
 const font = (file: string) => readFile(join(process.cwd(), "assets/fonts", file));
 const [figtree500, figtree700, unbounded600] = await Promise.all([font("figtree-latin-500-normal.woff"), font("figtree-latin-700-normal.woff"), font("unbounded-latin-600-normal.woff")]);
@@ -58,7 +58,7 @@ export function nextTikTokCard(t: NextTikTok): ImageResponse {
           </div>
         </div>
 
-        <div style={{ position: "absolute", right: 4.5 * U, bottom: 3.2 * U, display: "flex", fontSize: 2.6 * U, color: C.faint }}>creators.usetrnd.com</div>
+        <div style={{ position: "absolute", right: 8, bottom: 8, display: "flex", fontSize: 12, color: C.caption }}>plan by trnd</div>
       </div>
     ),
     {

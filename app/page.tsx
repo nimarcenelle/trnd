@@ -8,7 +8,7 @@ import NextTikTok from "@/components/app/next-tiktok";
 import { Emphasis } from "@/components/app/views";
 import { SAMPLE, SAMPLE_BEST, SAMPLE_IDEA, SAMPLE_NORMAL, SAMPLE_SOURCE } from "@/components/sample/humm";
 import SiteNav from "@/components/site-nav";
-import { PRICES, TRIAL_DAYS } from "@/lib/billing";
+import { PRICES } from "@/lib/billing";
 import { aheadLine } from "@/lib/creators/stats";
 import { compact, times } from "@/lib/format";
 import { nextTikTok } from "@/lib/preview/next-tiktok";
@@ -19,8 +19,8 @@ const FAQ = [
     a: "No. Enter your handle and we read your public profile. Nothing is posted, and we never see your password or your private analytics.",
   },
   {
-    q: "What does the free preview include?",
-    a: "Your typical views and best recent video, creators a step ahead of you in your niche, what's rising, and one fully scripted idea. The trial gives you all three, every week.",
+    q: "What do I get free?",
+    a: "Everything, for 14 days: your numbers, the creators ahead of you, what's rising, and three scripted ideas every week. No card to start.",
   },
   {
     q: "Who are the creators ahead of me?",
@@ -28,7 +28,7 @@ const FAQ = [
   },
   {
     q: "What happens after the trial?",
-    a: `Your plan continues at ${PRICES.monthly.label} (or ${PRICES.weekly.label} if you pick weekly). We email you two days before the trial ends, and you can cancel in two clicks before then.`,
+    a: `Pick monthly at ${PRICES.monthly.label} (or weekly at ${PRICES.weekly.label}) to keep your plan going. We email you two days before the trial ends. Nothing is charged unless you choose a plan; without one, daily reads and new plans pause and everything we found stays readable.`,
   },
   {
     q: "Where do the numbers come from?",
@@ -145,8 +145,8 @@ export default function Home() {
         <div className="wrap py-16 sm:py-20 grid grid-cols-[minmax(0,1fr)] gap-8">
           <div className="max-w-[640px]">
             <span className="kicker">Pricing</span>
-            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">Free for {TRIAL_DAYS} days. Then one simple plan.</h2>
-            <p className="text-ink-2 mt-3">Start with a free preview, no card. The trial gives you everything; we remind you two days before it ends.</p>
+            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">Free for 14 days. Then $24.99 a month.</h2>
+            <p className="text-ink-2 mt-3">No card to start. We email you two days before the trial ends.</p>
           </div>
           <div className="grid gap-3.5 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 max-w-[760px]">
             {(["monthly", "weekly"] as const).map((i) => (

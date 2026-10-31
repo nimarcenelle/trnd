@@ -5,7 +5,7 @@ import { ModelsForm } from "@/components/app/forms";
 import SubmitButton from "@/components/app/submit-button";
 import { checkoutAction, welcomeAnswerAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
-import { planState, PRICES, TRIAL_DAYS } from "@/lib/billing";
+import { cardFirst, planState, PRICES, TRIAL_DAYS } from "@/lib/billing";
 import { getCreator, listPeers, listPlans } from "@/lib/data";
 import { isStripeConfigured } from "@/lib/env";
 import { dateIn } from "@/lib/format";
@@ -69,9 +69,11 @@ export default async function WelcomePage({ searchParams }: PageProps<"/app/welc
   const plan = planState(creator);
   // Locked with billing on: the last step is choosing a plan (with the trial when card-first, straight to paying after a no-card trial).
   const needsTrial = isStripeConfigured && plan.locked;
+  // No-card trial: a plan can be picked any time during it (it starts charging when the trial ends), just never as a step they must take.
+  const canChoose = needsTrial || (isStripeConfigured && !cardFirst && plan.trialing);
   const of = needsTrial ? 4 : 3;
   const step = raw === "camera" || raw === "models" || raw === "trial" ? raw : creator.goals ? (creator.on_camera ? (needsTrial ? "trial" : "done") : "camera") : "goal";
-  if (step === "done" || (step === "trial" && !needsTrial)) redirect("/app");
+  if (step === "done" || (step === "trial" && !canChoose)) redirect("/app");
 
   const after = needsTrial ? "trial" : "done";
 
@@ -146,8 +148,12 @@ export default async function WelcomePage({ searchParams }: PageProps<"/app/welc
     <section className="max-w-[720px] mx-auto pt-4 sm:pt-10 grid gap-6">
       <Progress n={4} of={4} />
       <div>
-        <h1 className="display text-[clamp(26px,4.5vw,38px)]">{plan.canTrial ? `Your plan is ready. Try it free for ${TRIAL_DAYS} days.` : "Pick up where you left off"}</h1>
-        <p className="text-ink-2 mt-2">All three scripts this week, a new plan every week, and every idea checked after you post it.</p>
+        <h1 className="display text-[clamp(26px,4.5vw,38px)]">{plan.canTrial ? `Your plan is ready. Try it free for ${TRIAL_DAYS} days.` : plan.trialing ? "Keep it going after your trial" : "Pick up where you left off"}</h1>
+        <p className="text-ink-2 mt-2">
+          {plan.trialing && !cardFirst
+            ? `Your free trial runs ${plan.trialDaysLeft} more day${plan.trialDaysLeft === 1 ? "" : "s"}. Pick a plan now and the first charge waits until it ends.`
+            : "All three scripts this week, a new plan every week, and every idea checked after you post it."}
+        </p>
       </div>
       {plan.canTrial && (
         <ol className="list-none m-0 p-0 card divide-y divide-line">
@@ -177,7 +183,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/app/welc
             </div>
             <span className="caption">{i === "monthly" ? "$24.99 billed monthly · 42% less than weekly" : "$9.99 billed weekly"}</span>
             <SubmitButton className={i === "monthly" ? "btn btn-primary btn-lg w-full" : "btn btn-lg w-full"} pending="Opening checkout…">
-              {plan.canTrial ? "Start my free trial" : `Subscribe ${i}`}
+              {plan.canTrial ? "Start my free trial" : plan.trialing ? `Choose ${i}` : `Subscribe ${i}`}
             </SubmitButton>
           </form>
         ))}

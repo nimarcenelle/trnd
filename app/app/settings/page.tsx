@@ -167,7 +167,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
               {plan.paid
                 ? `TRND for creators · ${PRICES[intervalOf(creator.plan) ?? "monthly"].label}`
                 : plan.trialing
-                  ? `Free trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left, then ${PRICES[intervalOf(creator.plan) ?? "monthly"].label}`
+                  ? `Free trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left${creator.stripe_subscription_id ? `, then ${PRICES[intervalOf(creator.plan) ?? "monthly"].label}` : ""}`
                   : plan.canTrial
                     ? "Free plan · one script a week"
                     : plan.locked

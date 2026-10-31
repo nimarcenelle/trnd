@@ -39,6 +39,22 @@ export async function sendTrialEndingEmail(sb: SupabaseClient, creator: Creator,
   await sendEmail(to, `Your TRND trial ends ${day}`, html);
 }
 
+/** Two days before a no-card trial ends: nothing will be charged; pick a plan to keep the weekly plans coming. */
+export async function sendTrialEndingNoCardEmail(sb: SupabaseClient, creator: Creator, endsOn: Date): Promise<void> {
+  const { data } = await sb.auth.admin.getUserById(creator.owner_id);
+  const to = data.user?.email;
+  if (!to) return;
+  const day = endsOn.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
+  const html = `<div style="font-family:Figtree,system-ui,sans-serif;max-width:560px;margin:0 auto;color:#17131b">
+<p style="font-size:12px;color:#8f879a">TRND for creators · @${esc(creator.handle)}</p>
+<h1 style="font-size:22px;line-height:1.3;margin:0 0 12px">Your free trial ends ${esc(day)}</h1>
+<p style="line-height:1.6">After that, your daily reads and new plans pause. Everything we found stays readable.</p>
+<p style="line-height:1.6">To keep a new plan coming every week, pick monthly ($24.99) or weekly ($9.99). We don't have a card on file, so nothing is charged unless you choose a plan.</p>
+<p><a href="${env.siteUrl}/app/welcome?step=trial" style="display:inline-block;background:#e0245e;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:600">Pick my plan</a></p>
+</div>`;
+  await sendEmail(to, `Your TRND trial ends ${day}`, html);
+}
+
 const TYPE = { double_down: "Double down on you", borrow: "Borrow a format", ride: "Ride a trend early" } as const;
 
 /** This week's plan: the answer and the three hooks, sent after each weekly scan, unless the creator turned it off. */

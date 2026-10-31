@@ -3,7 +3,7 @@ import "server-only";
 import Stripe from "stripe";
 
 import type { Creator } from "@/lib/db/types";
-import { cardFirst, TRIAL_DAYS, type Interval } from "@/lib/billing";
+import { cardFirst, carriedTrialEnd, TRIAL_DAYS, type Interval } from "@/lib/billing";
 import { env, isStripeConfigured } from "@/lib/env";
 
 /** The only file that imports the Stripe SDK. */
@@ -23,8 +23,13 @@ export async function createCheckoutSession(creator: Creator, email: string, int
     client_reference_id: creator.id,
     ...(creator.stripe_customer_id ? { customer: creator.stripe_customer_id } : { customer_email: email }),
     metadata: { creator_id: creator.id, interval },
-    // The 14-day trial, once per creator: the card is taken now and charged on day 14 unless they cancel.
-    subscription_data: { metadata: { creator_id: creator.id, interval }, ...(cardFirst && !creator.trial_used_at ? { trial_period_days: TRIAL_DAYS } : {}) },
+    // Card-first: the 14-day trial, once per creator, the card taken now and charged on day 14 unless they cancel.
+    // No-card: a plan picked during the free trial starts charging when the trial ends, so no free day is lost.
+    subscription_data: {
+      metadata: { creator_id: creator.id, interval },
+      ...(cardFirst && !creator.trial_used_at ? { trial_period_days: TRIAL_DAYS } : {}),
+      ...(!cardFirst && carriedTrialEnd(creator) ? { trial_end: carriedTrialEnd(creator)! } : {}),
+    },
     payment_method_collection: "always",
     allow_promotion_codes: true,
     success_url: `${env.siteUrl}/app?welcome=1`,

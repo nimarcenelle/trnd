@@ -51,3 +51,32 @@ export function planState(c: Billing, now = Date.now()): PlanState {
   const left = daysLeft(c.trial_ends_at);
   return { paid: subscribed, trialing: !subscribed && left > 0, trialDaysLeft: subscribed ? 0 : left, locked: !subscribed && left === 0, canTrial: false, pastDue };
 }
+
+/** The reminder goes out this long before a no-card trial ends. */
+export const REMIND_BEFORE_MS = 2 * 86_400_000;
+
+type Remind = Billing & Pick<Creator, "trial_reminder_for">;
+
+/**
+ * Whether a no-card trial is due its "your trial ends soon" email: no plan picked,
+ * the trial ending within two days, and not reminded for this end date yet. A
+ * card-on-file trial is reminded by Stripe's trial_will_end instead.
+ */
+export function trialReminderDue(c: Remind, now = Date.now()): boolean {
+  if (cardFirst || !isStripeConfigured || intervalOf(c.plan) !== null) return false;
+  const end = Date.parse(c.trial_ends_at);
+  if (Number.isNaN(end) || end <= now || end - now > REMIND_BEFORE_MS) return false;
+  return !c.trial_reminder_for || Date.parse(c.trial_reminder_for) !== end;
+}
+
+/**
+ * When a plan picked during a no-card trial starts charging: at the trial's end, so
+ * the free days left aren't lost. Null (charge now) when there is no trial left
+ * worth keeping; Stripe needs a trial end at least 48 hours away.
+ */
+export function carriedTrialEnd(c: Pick<Creator, "trial_ends_at">, now = Date.now()): number | null {
+  if (cardFirst) return null;
+  const end = Date.parse(c.trial_ends_at);
+  return !Number.isNaN(end) && end - now > 48 * 3_600_000 ? Math.floor(end / 1000) : null;
+}
+

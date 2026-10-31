@@ -1,11 +1,11 @@
 import { bearerMatches } from "@/lib/auth/bearer";
-import { planState } from "@/lib/billing";
+import { planState, trialReminderDue } from "@/lib/billing";
 import { isDue } from "@/lib/creators/guards";
 import { fetchSelf, scanCreator, selfUrl } from "@/lib/creators/scan";
 import { allRows } from "@/lib/db/rows";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Creator } from "@/lib/db/types";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, sendTrialEndingNoCardEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 import { needsAttention, opsEmailHtml, opsSummary } from "@/lib/ops";
 
@@ -22,7 +22,7 @@ export const maxDuration = 300;
 /** Scans started per second, so a large list doesn't start every Apify run at once. */
 const PER_SECOND = 5;
 
-type Due = Pick<Creator, "id" | "plan" | "plan_status" | "trial_ends_at" | "trial_used_at" | "scan_status" | "scan_started_at" | "last_scan_at" | "scan_failures" | "handle" | "scan_error">;
+type Due = Pick<Creator, "id" | "owner_id" | "plan" | "plan_status" | "trial_ends_at" | "trial_used_at" | "trial_reminder_for" | "scan_status" | "scan_started_at" | "last_scan_at" | "scan_failures" | "handle" | "scan_error">;
 
 export async function GET(req: Request): Promise<Response> {
   if (!bearerMatches(req.headers.get("authorization"), env.cronSecret)) {
@@ -40,7 +40,7 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   const sb = adminSupabase();
-  const creators = await allRows<Due>((from, to) => sb.from("creators").select("id, handle, plan, plan_status, trial_ends_at, trial_used_at, scan_status, scan_started_at, scan_error, last_scan_at, scan_failures").order("id").range(from, to));
+  const creators = await allRows<Due>((from, to) => sb.from("creators").select("id, owner_id, handle, plan, plan_status, trial_ends_at, trial_used_at, trial_reminder_for, scan_status, scan_started_at, scan_error, last_scan_at, scan_failures").order("id").range(from, to));
   // Not locked, not mid-read, and 20 hours since the last read (longer for an account that keeps failing).
   const due = creators.filter((c) => !planState(c).locked && isDue(c));
   // Each scan runs in its own invocation; this one only starts them, a few a second, and does not wait for them to finish.
@@ -61,6 +61,16 @@ export async function GET(req: Request): Promise<Response> {
     );
     started += sent.filter(Boolean).length;
   }
+  // No-card trials ending within two days get their reminder, once per end date (card trials get Stripe's).
+  for (const c of creators.filter((x) => trialReminderDue(x))) {
+    try {
+      await sendTrialEndingNoCardEmail(sb, c as Creator, new Date(c.trial_ends_at));
+      await sb.from("creators").update({ trial_reminder_for: c.trial_ends_at }).eq("id", c.id);
+    } catch (e) {
+      console.warn(`[cron] trial reminder for ${c.id}:`, (e as Error).message);
+    }
+  }
+
   const summary = opsSummary(creators, due.length, started, (id) => planState(creators.find((c) => c.id === id)!).locked);
   if (needsAttention(summary)) {
     console.warn("[cron] needs attention:", JSON.stringify(summary));

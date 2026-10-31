@@ -21,11 +21,10 @@ export default function TermsPage() {
 
       <h2>Trial and billing</h2>
       <p>
-        Every account gets a free plan: your numbers, the creators ahead of you and one full script. The full plan (three scripts a
-        week and daily reads) starts with a 14-day free trial, with a card on file; we email you three days before the first charge.
-        After the trial it is a weekly or monthly subscription, your choice, billed through Stripe until you cancel. Cancel any time
-        from Settings, and nothing is charged if you cancel during the trial; after that you keep access until the end of the period
-        you paid for. If a payment fails, the plan keeps running while Stripe retries; if it can&apos;t be collected, daily reads
+        Every account starts with a 14-day free trial of the full plan (three scripts a week and daily reads), with no card. We
+        email you two days before it ends. To keep going, pick a weekly or monthly subscription, billed through Stripe until you
+        cancel; a plan picked during the trial starts charging when the trial ends. Nothing is charged unless you choose a plan.
+        Cancel any time from Settings; you keep access until the end of the period you paid for. If a payment fails, the plan keeps running while Stripe retries; if it can&apos;t be collected, daily reads
         pause and what TRND already found stays readable.
       </p>
 

@@ -12,9 +12,6 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
           <Brand />
           {links && (
             <nav className="hidden md:flex items-center gap-7 text-[14px] text-ink-2 font-semibold">
-              <Link href="/#how" className="hover:text-ink">
-                How it works
-              </Link>
               <Link href="/#pricing" className="hover:text-ink">
                 Pricing
               </Link>

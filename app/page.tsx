@@ -13,19 +13,6 @@ import { aheadLine } from "@/lib/creators/stats";
 import { compact, times } from "@/lib/format";
 import { nextTikTok } from "@/lib/preview/next-tiktok";
 
-const STEPS = [
-  { title: "Enter your handle", body: "No login, no password. We read your public videos: views, likes, comments, shares and saves." },
-  { title: "We find who's ahead of you", body: "Creators in your niche with 2 to 50 times your followers, and the videos that beat their usual. Want to be like someone? Add them." },
-  { title: "Get three videos to make", body: "What got them there, turned into your next three: the hook, a script second by second, sound, when to post, the caption and hashtags, and the video each builds on." },
-];
-
-const GET = [
-  { title: "Scripts, not stats", body: "Every week, three videos written for your niche, your style and your goal, ready to film." },
-  { title: "Proof for every idea", body: "Each idea shows the video it builds on and how far it beat its creator's usual views." },
-  { title: "Trends while they're early", body: "Hashtags and sounds counted this week against last in your niche, so you join before it's crowded." },
-  { title: "Did it work?", body: "Post an idea and we find it, then check its views 48 hours later against your typical video." },
-];
-
 const FAQ = [
   {
     q: "Do I have to log in with TikTok?",
@@ -126,24 +113,6 @@ export default function Home() {
         <PhoneShot />
       </section>
 
-      <section id="how" className="border-t border-line bg-surface scroll-mt-14">
-        <div className="wrap py-16 sm:py-20 grid gap-10">
-          <div className="max-w-[640px]">
-            <span className="kicker">How it works</span>
-            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">From the creators ahead of you to your next three videos.</h2>
-          </div>
-          <ol className="list-none m-0 p-0 grid gap-8 md:grid-cols-3">
-            {STEPS.map((s, i) => (
-              <li key={s.title} className="grid gap-2 content-start">
-                <span className="rank-badge">{i + 1}</span>
-                <h3 className="text-[18px] font-bold mt-2">{s.title}</h3>
-                <p className="text-ink-2 text-[15px] leading-[1.6]">{s.body}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
-
       <section className="border-t border-line">
         <div className="wrap py-16 sm:py-20 grid gap-8">
           <div className="max-w-[640px]">
@@ -169,23 +138,6 @@ export default function Home() {
             ))}
           </div>
           <IdeaCard idea={SAMPLE_IDEA} rank={1} planId="sample" source={SAMPLE_SOURCE} normal={SAMPLE_NORMAL} run={null} open sample />
-        </div>
-      </section>
-
-      <section className="border-t border-line bg-surface">
-        <div className="wrap py-16 sm:py-20 grid gap-10">
-          <div className="max-w-[640px]">
-            <span className="kicker">What you get</span>
-            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">Less guessing, more posting.</h2>
-          </div>
-          <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
-            {GET.map((g) => (
-              <div key={g.title} className="grid gap-1.5 content-start">
-                <h3 className="text-[18px] font-bold">{g.title}</h3>
-                <p className="text-ink-2 text-[15px] leading-[1.6]">{g.body}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -245,7 +197,7 @@ export default function Home() {
         <div className="wrap py-16 sm:py-24 grid gap-6 justify-items-center text-center">
           <h2 className="display text-[clamp(26px,4vw,40px)] max-w-[640px]">See what to post next. Free, in seconds.</h2>
           <div className="w-full max-w-[540px] text-left">
-            <StartForm cta="Get my free plan" compact />
+            <StartForm cta="Run it on my handle" compact />
           </div>
         </div>
       </section>
@@ -257,9 +209,6 @@ export default function Home() {
             <p className="text-ink-3 max-w-[40ch]">Weekly video plans for TikTok creators, from public data only.</p>
           </div>
           <nav className="flex flex-wrap gap-x-6 gap-y-2">
-            <Link href="/#how" className="hover:text-ink">
-              How it works
-            </Link>
             <Link href="/#pricing" className="hover:text-ink">
               Pricing
             </Link>

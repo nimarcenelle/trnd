@@ -10,6 +10,7 @@ import { Emphasis } from "@/components/app/views";
 import Brand from "@/components/brand";
 import PreviewRunner from "@/components/preview/runner";
 import StartForm from "@/components/preview/start-form";
+import Xray from "@/components/preview/xray";
 import { aheadLine, normalOf, timesNormal } from "@/lib/creators/stats";
 import { compact, times } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
@@ -164,21 +165,27 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
             )}
             {p.status !== "confirm" && <Steps p={p} />}
           </section>
-          {(p.status === "niche" || p.status === "idea") && (
-            <aside className="card p-5 grid gap-4">
-              <GoalChips p={p} action={previewGoalAction} submitLabel="Optional. Your three videos are written for it." />
-              {p.peers.length > 0 && (
-                <div className="grid gap-2.5">
-                  <div className="text-[14px] font-semibold">Creators ahead of you</div>
-                  <div className="flex flex-wrap gap-2">
-                    {p.peers.map((x) => (
-                      <span key={x.handle} className="chip gap-1.5">
-                        <Avatar name={x.handle} size={18} />@{x.handle}
-                      </span>
-                    ))}
-                  </div>
+          {/* One place from "Is this you?" to the plan, so the X-ray plays once and stays. */}
+          {p.status !== "reading" && (
+            <aside className="grid gap-4">
+              {(p.status === "niche" || p.status === "idea") && (
+                <div className="card p-5 grid gap-4">
+                  <GoalChips p={p} action={previewGoalAction} submitLabel="Optional. Your three videos are written for it." />
+                  {p.peers.length > 0 && (
+                    <div className="grid gap-2.5">
+                      <div className="text-[14px] font-semibold">Creators ahead of you</div>
+                      <div className="flex flex-wrap gap-2">
+                        {p.peers.map((x) => (
+                          <span key={x.handle} className="chip gap-1.5">
+                            <Avatar name={x.handle} size={18} />@{x.handle}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+              <Xray key="xray" videos={p.videos} />
             </aside>
           )}
         </div>

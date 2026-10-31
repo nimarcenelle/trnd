@@ -8,14 +8,20 @@ function hash(s: string): number {
   return h;
 }
 
-export default function Avatar({ name, size = 28 }: { name: string; size?: number }) {
+/** The letter and colors for a handle; the shareable card draws the same circle. */
+export function avatarTone(name: string): { letter: string; background: string; color: string } {
   const i = hash(name) % TONES.length;
   const letter = name.replace(/[^\p{L}\p{N}]/gu, "").charAt(0).toUpperCase() || "?";
+  return { letter, background: TONES[i], color: INKS[i] };
+}
+
+export default function Avatar({ name, size = 28 }: { name: string; size?: number }) {
+  const { letter, background, color } = avatarTone(name);
   return (
     <span
       aria-hidden="true"
       className="inline-grid place-items-center rounded-full font-bold shrink-0"
-      style={{ width: size, height: size, background: TONES[i], color: INKS[i], fontSize: Math.round(size * 0.42) }}
+      style={{ width: size, height: size, background, color, fontSize: Math.round(size * 0.42) }}
     >
       {letter}
     </span>

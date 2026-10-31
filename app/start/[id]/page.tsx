@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import Avatar from "@/components/app/avatar";
 import IdeaCard from "@/components/app/idea-card";
-import LockedIdea from "@/components/app/locked-idea";
+import NextTikTok from "@/components/app/next-tiktok";
 import { StageBar, STAGE_LABEL } from "@/components/app/stage";
 import SubmitButton from "@/components/app/submit-button";
 import { Emphasis } from "@/components/app/views";
@@ -15,6 +15,7 @@ import { aheadLine, normalOf, timesNormal } from "@/lib/creators/stats";
 import { compact, times } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
 import { confirmPreviewAction, previewGoalAction } from "@/lib/preview/actions";
+import { cardFileName, nextTikTok, onScreenHook } from "@/lib/preview/next-tiktok";
 import { asVideo, getPreview } from "@/lib/preview/run";
 import type { Preview } from "@/lib/preview/types";
 
@@ -233,6 +234,31 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
           </div>
         </div>
 
+        <section className="grid gap-3" aria-labelledby="next-tiktok">
+          <div className="flex items-end justify-between gap-3 flex-wrap">
+            <div>
+              <h2 id="next-tiktok" className="heading text-[18px]">
+                Your next TikTok
+              </h2>
+              <p className="caption mt-1">What idea 1 looks like on your feed. Save it, show a friend, then film it.</p>
+            </div>
+            <a href={`/start/${p.id}/card`} download={cardFileName(p.handle)} className="btn btn-sm">
+              Save image
+            </a>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 items-end">
+            <div className="col-span-2 sm:col-span-1 w-full max-w-[340px] justify-self-center sm:max-w-none">
+              <NextTikTok data={nextTikTok(p.handle, first)} />
+            </div>
+            {rest.map((i, n) => (
+              <Link key={n} href={signup} className="grid gap-2 rounded-[18px] focus-visible:outline-2 focus-visible:outline-brand" aria-label={`Idea ${n + 2}: ${onScreenHook(i.hook)}. Unlock my plan, free`}>
+                <NextTikTok data={{ handle: p.handle, hook: onScreenHook(i.hook) }} locked />
+                <span className="text-[13px] font-semibold text-brand text-center">Unlock my plan, free</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         <IdeaCard
           idea={first}
           rank={1}
@@ -243,9 +269,6 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
           open
           sample
         />
-        {rest.map((i, n) => (
-          <LockedIdea key={n} hook={i.hook} type={i.type} rank={n + 2} />
-        ))}
 
         <div className="grid gap-3.5 md:grid-cols-2">
           {p.peers.length > 0 && (

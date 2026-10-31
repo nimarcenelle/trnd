@@ -146,9 +146,7 @@ export default function IdeaCard({
                 <Icon className="text-brand mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <div className="label !text-[11.5px]">{k}</div>
-                  <div className="text-[13.5px] font-medium leading-snug sm:line-clamp-2" title={v}>
-                    {v}
-                  </div>
+                  <SpecValue text={v} />
                 </div>
               </div>
             ))}
@@ -297,5 +295,22 @@ function Evidence({ source, normal }: { source: IdeaSource; normal: Normal }) {
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * A spec line in full, never cut off: the part before the first ", ", " · ",
+ * " — " or "(" (the time, the sound's name, the format) reads first, the rest
+ * smaller beneath it.
+ */
+export function SpecValue({ text }: { text: string }) {
+  const m = text.match(/^(.{3,48}?)(?:,\s+|\s+·\s+|\s+[—–-]\s+|\s+(?=\())(.+)$/);
+  return m ? (
+    <div className="leading-snug">
+      <div className="text-[14px] font-semibold">{m[1]}</div>
+      <div className="text-[12.5px] text-ink-3 mt-0.5">{m[2]}</div>
+    </div>
+  ) : (
+    <div className="text-[14px] font-semibold leading-snug">{text}</div>
   );
 }

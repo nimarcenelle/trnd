@@ -53,6 +53,23 @@ Sentence case everywhere, including buttons.
 Buttons, pills, chips and the handle box are fully round (999px). Cards 14px, idea cards and the answer block 18px,
 wells 10px. 1px `--line` borders; shadows only on the handle box and popovers.
 
+## Depth and texture
+
+The page isn't flat. Every page has two soft glows at the top (pink left, cyan right) and a whisper of film grain
+(`body::after`, 3.5% light, 5% dark). Cards carry a brand-tinted shadow, never plain grey. The week's answer (`.night`) is
+lit by a pink glow top-left and a cyan one bottom-right, with grain; its emphasis runs pink to peach. The "Your next
+TikTok" phones glow in their idea type's color and show the cover of the video they build on, blurred, when we have it.
+
+- **Stats**: one card each, an oversized number (`.stat-num`), pink-to-peach when it's a win (`.stat-up`). "Your typical
+  video" carries the creator's recent views as a bar strip (`components/app/views-strip.tsx`), breakouts in pink.
+- **Ideas**: a header strip tinted by type and a numbered badge (`.idea-head`, `.rank-badge`, colored by `--tint`).
+- **Creators ahead of you**: a pink-to-cyan ring around the initial (`<Avatar ring />`).
+- **Hashtag chips**: stickers, a soft fill with a small bottom lip.
+- **Motion**: sections slide up a few pixels on load, a beat apart (`.rise`); movement only, never a fade, and none
+  with reduced motion.
+- Keep it rare: one tilted element per screen at most (the landing phone), glows only at the top of a page or behind
+  the one hero element, never behind body text.
+
 ## Components
 
 In `app/globals.css` under `@layer components`: `.btn` (+ `-primary` pink, `-ghost`, `-sm`, `-lg`), `.card`, `.night`,

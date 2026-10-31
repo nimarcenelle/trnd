@@ -38,15 +38,37 @@ function Note() {
  * TikTok-like, not TikTok: no logos, icons or fonts of theirs. Locked shows the
  * hook only; the rest is placeholder bars, so nothing paid sits in the page.
  */
-export default function NextTikTok({ data, locked = false }: { data: Pick<Data, "handle" | "hook"> & Partial<Data>; locked?: boolean }) {
+export default function NextTikTok({
+  data,
+  locked = false,
+  tint = "var(--brand)",
+  cover = null,
+}: {
+  data: Pick<Data, "handle" | "hook"> & Partial<Data>;
+  locked?: boolean;
+  /** The idea type's color: the glow behind the frame. */
+  tint?: string;
+  /** The cover of the video this idea builds on, blurred behind the hook; a broken or missing link leaves the glow. */
+  cover?: string | null;
+}) {
   const scale = hookScale(data.hook);
   return (
-    <figure className="@container relative m-0 aspect-[9/16] w-full overflow-hidden rounded-[18px] border border-line bg-night text-on-night select-none">
-      <span className="absolute left-[4.5cqw] top-[4.5cqw] rounded-full bg-on-night/15 px-[3cqw] py-[1.2cqw] text-[3.6cqw] font-semibold">Not posted yet</span>
+    <figure
+      className="@container relative m-0 aspect-[9/16] w-full overflow-hidden rounded-[20px] text-[#f7f5f8] select-none shadow-[0_24px_48px_-24px_rgba(23,19,27,0.55)]"
+      style={{
+        background: `radial-gradient(90% 55% at 15% 8%, color-mix(in srgb, ${tint} 55%, transparent), transparent 70%), radial-gradient(80% 50% at 95% 95%, color-mix(in srgb, #45c6d8 30%, transparent), transparent 70%), linear-gradient(165deg, #2a1d34, #120e16)`,
+      }}
+    >
+      {cover && (
+        // eslint-disable-next-line @next/next/no-img-element -- a stored cover, decorative and blurred
+        <img src={cover} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover opacity-45 blur-[3px] scale-110" />
+      )}
+      <span aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/65" />
+      <span className="absolute left-[4.5cqw] top-[4.5cqw] rounded-full bg-white/15 backdrop-blur-sm px-[3cqw] py-[1.2cqw] text-[3.6cqw] font-semibold">Not posted yet</span>
 
       <div className="absolute inset-x-[6cqw] top-[14%] bottom-[50%] flex items-center justify-center text-center">
         <p className="heading m-0 leading-[1.35]" style={{ fontSize: `${scale * 100}cqw` }}>
-          <span className="box-decoration-clone rounded-[1.4cqw] bg-on-night text-night px-[2cqw] py-[0.5cqw]">{data.hook}</span>
+          <span className="box-decoration-clone rounded-[1.4cqw] bg-[#f7f5f8] text-[#1d1724] px-[2cqw] py-[0.5cqw] shadow-[0_0.6cqw_0_rgba(0,0,0,0.25)]">{data.hook}</span>
         </p>
       </div>
 

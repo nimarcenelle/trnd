@@ -8,10 +8,10 @@ import CopyText from "./copy-text";
 import { StageBar, STAGE_LABEL } from "./stage";
 import SubmitButton from "./submit-button";
 
-export const IDEA_TYPE: Record<IdeaType, { label: string; cls: string }> = {
-  double_down: { label: "Double down on you", cls: "pill pill-pos" },
-  borrow: { label: "Borrow a format", cls: "pill pill-brand" },
-  ride: { label: "Ride a trend early", cls: "pill pill-cyan" },
+export const IDEA_TYPE: Record<IdeaType, { label: string; cls: string; tint: string }> = {
+  double_down: { label: "Double down on you", cls: "pill pill-pos", tint: "var(--pos)" },
+  borrow: { label: "Borrow a format", cls: "pill pill-brand", tint: "var(--brand)" },
+  ride: { label: "Ride a trend early", cls: "pill pill-cyan", tint: "var(--cyan)" },
 };
 
 const PART_LABEL: Record<keyof BorrowParts, string> = { beat: "Beat their normal", fit: "Fits your niche", fresh: "Still fresh", saved: "Saved a lot" };
@@ -95,9 +95,9 @@ export default function IdeaCard({
   const t = IDEA_TYPE[idea.type];
   const from = source.own ? "Your own video" : source.video ? `@${source.video.author}` : source.trend ? `Trending in your niche` : null;
   return (
-    <details id={`idea-${rank}`} open={open} className="card !rounded-[18px] overflow-hidden group scroll-mt-20">
-      <summary className="grid grid-cols-[auto_minmax(0,1fr)_auto] max-[560px]:grid-cols-[minmax(0,1fr)_auto] gap-3.5 items-start p-[18px] hover:bg-subtle">
-        <span className="display text-[26px] text-brand leading-none w-[22px] text-center max-[560px]:hidden">{rank}</span>
+    <details id={`idea-${rank}`} open={open} className="card !rounded-[20px] overflow-hidden group scroll-mt-20" style={{ "--tint": t.tint } as React.CSSProperties}>
+      <summary className="idea-head grid grid-cols-[auto_minmax(0,1fr)_auto] max-[560px]:grid-cols-[minmax(0,1fr)_auto] gap-3.5 items-start p-[18px] hover:bg-subtle/60">
+        <span className="rank-badge max-[560px]:hidden">{rank}</span>
         <div className="min-w-0">
           <div className="flex flex-wrap gap-1.5 mb-1.5">
             <span className={t.cls}>{t.label}</span>

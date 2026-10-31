@@ -15,9 +15,10 @@ export function avatarTone(name: string): { letter: string; background: string; 
   return { letter, background: TONES[i], color: INKS[i] };
 }
 
-export default function Avatar({ name, size = 28 }: { name: string; size?: number }) {
+/** `ring`: a creator ahead of you, drawn with the pink-to-cyan ring. */
+export default function Avatar({ name, size = 28, ring = false }: { name: string; size?: number; ring?: boolean }) {
   const { letter, background, color } = avatarTone(name);
-  return (
+  const dot = (
     <span
       aria-hidden="true"
       className="inline-grid place-items-center rounded-full font-bold shrink-0"
@@ -25,5 +26,12 @@ export default function Avatar({ name, size = 28 }: { name: string; size?: numbe
     >
       {letter}
     </span>
+  );
+  return ring ? (
+    <span className="ring-ahead" aria-hidden="true">
+      {dot}
+    </span>
+  ) : (
+    dot
   );
 }

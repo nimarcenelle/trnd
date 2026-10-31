@@ -11,6 +11,7 @@ import { AddPeerForm } from "./forms";
 import IdeaCard, { BorrowScore, IDEA_TYPE, type IdeaSource } from "./idea-card";
 import LockedIdea from "./locked-idea";
 import { StageBar, STAGE_LABEL } from "./stage";
+import ViewsStrip from "./views-strip";
 
 /** "*one tool, one result*" → the phrase in pink. The model marks at most two. */
 export function Emphasis({ text }: { text: string }) {
@@ -21,22 +22,20 @@ export function Emphasis({ text }: { text: string }) {
   );
 }
 
-function Tile({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint: React.ReactNode; tone?: "up" | "down" }) {
+/** One stat as its own card: an oversized number (or a short word, smaller), the label above, the hint below. */
+function Tile({ label, value, hint, tone, text = false, children }: { label: string; value: React.ReactNode; hint: React.ReactNode; tone?: "up" | "down"; text?: boolean; children?: React.ReactNode }) {
   return (
-    <div className="bg-surface px-3.5 py-3 min-w-0">
+    <div className="card px-4 py-3.5 min-w-0">
       <span className="label">{label}</span>
-      <strong className="block display !font-semibold text-[clamp(16px,2.2vw,20px)] leading-tight my-1 tnum break-words">{value}</strong>
-      <small className={`text-[12.5px] ${tone === "up" ? "text-pos" : tone === "down" ? "text-neg" : "text-ink-2"}`}>{hint}</small>
+      <strong className={`block my-1.5 break-words ${text ? "heading text-[clamp(16px,2vw,19px)] leading-tight" : `stat-num ${tone === "up" ? "stat-up" : ""}`}`}>{value}</strong>
+      <small className={`text-[12.5px] ${tone === "up" ? "text-pos font-semibold" : tone === "down" ? "text-neg font-semibold" : "text-ink-2"}`}>{hint}</small>
+      {children}
     </div>
   );
 }
 
 function Strip({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 gap-px bg-line border border-line rounded-[14px] overflow-hidden">
-      {children}
-    </div>
-  );
+  return <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))] max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 gap-3">{children}</div>;
 }
 
 function Heading({ title, sub }: { title: string; sub?: React.ReactNode }) {
@@ -77,9 +76,9 @@ export function NextView({
   const perWeek = postsPerWeek(own.slice(0, 30));
   return (
     <>
-      <div className="night grid gap-2.5 p-[22px]">
+      <div className="night grid gap-3 p-6 sm:p-8">
         <span className="label">This week&apos;s answer</span>
-        <h2 className="heading text-[clamp(18px,2.6vw,23px)]">
+        <h2 className="heading text-[clamp(20px,3vw,28px)] leading-[1.22] max-w-[40ch]">
           <Emphasis text={plan.body.headline} />
         </h2>
         <p className="opacity-80 max-w-[70ch]">{plan.body.summary}</p>
@@ -91,14 +90,16 @@ export function NextView({
           hint={followers ? `over ${followers.days} days` : "Growth shows after two daily reads"}
           tone={followers ? (followers.change >= 0 ? "up" : "down") : undefined}
         />
-        <Tile label="Your typical video" value={compact(normal.views)} hint={normal.low !== null ? `${compact(normal.low)}–${compact(normal.high)} views, middle half` : "Not enough videos yet"} />
+        <Tile label="Your typical video" value={compact(normal.views)} hint={normal.low !== null ? `${compact(normal.low)}–${compact(normal.high)} views, middle half` : "Not enough videos yet"}>
+          <ViewsStrip views={own.map((v) => v.views)} usual={normal.views} />
+        </Tile>
         <Tile
           label="Best this month"
           value={best?.x ? times(best.x) : "—"}
           hint={best?.x ? `your usual views · ${shortDate(best.v.posted_at!)}` : month.length ? "Not enough videos to compare yet" : "No videos in 30 days"}
           tone={best?.x && best.x >= 2 ? "up" : undefined}
         />
-        <Tile label="Goal" value={goalLabel(creator.goals?.goal) ?? "—"} hint={creator.goals?.target || (perWeek ? `You post ${perWeek}× a week` : "Set a target in settings")} />
+        <Tile text label="Goal" value={goalLabel(creator.goals?.goal) ?? "—"} hint={creator.goals?.target || (perWeek ? `You post ${perWeek}× a week` : "Set a target in settings")} />
       </Strip>
       {plan.body.ideas.map((idea, i) =>
         limited && i > 0 ? (
@@ -369,7 +370,7 @@ export function CreatorsView({ cards }: { cards: PeerCard[] }) {
           {cards.map(({ peer, best, growth }) => (
             <Link key={peer.id} href={`/app/creators/${peer.handle}`} className="card p-3.5 grid gap-2 content-start hover:border-brand transition-colors">
               <div className="flex gap-2.5 items-center min-w-0">
-                <Avatar name={peer.handle} size={36} />
+                <Avatar name={peer.handle} size={36} ring={peer.source === "match"} />
                 <div className="min-w-0">
                   <strong className="block break-all">@{peer.handle}</strong>
                   <span className="caption">

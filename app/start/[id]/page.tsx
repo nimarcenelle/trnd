@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import Avatar from "@/components/app/avatar";
-import IdeaCard from "@/components/app/idea-card";
+import IdeaCard, { IDEA_TYPE } from "@/components/app/idea-card";
 import NextTikTok from "@/components/app/next-tiktok";
 import { StageBar, STAGE_LABEL } from "@/components/app/stage";
 import SubmitButton from "@/components/app/submit-button";
 import { Emphasis } from "@/components/app/views";
+import ViewsStrip from "@/components/app/views-strip";
 import Brand from "@/components/brand";
 import PreviewRunner from "@/components/preview/runner";
 import StartForm from "@/components/preview/start-form";
@@ -178,7 +179,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
                       <div className="flex flex-wrap gap-2">
                         {p.peers.map((x) => (
                           <span key={x.handle} className="chip gap-1.5">
-                            <Avatar name={x.handle} size={18} />@{x.handle}
+                            <Avatar name={x.handle} size={18} ring />@{x.handle}
                           </span>
                         ))}
                       </div>
@@ -205,32 +206,40 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
 
   return (
     <Shell>
-      <div className="grid gap-5 max-w-[1000px]">
+      <div className="rise grid gap-5 max-w-[1000px]">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <Who p={p} />
           <span className="pill pill-pos">Free preview</span>
         </div>
-        <div className="night grid gap-2.5 p-[22px]">
+        <div className="night grid gap-3 p-6 sm:p-8">
           <span className="label">Your answer this week</span>
-          <h1 className="heading text-[clamp(19px,2.8vw,25px)]">
+          <h1 className="heading text-[clamp(21px,3.2vw,30px)] leading-[1.2] max-w-[38ch]">
             <Emphasis text={p.plan.headline} />
           </h1>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-line border border-line rounded-[14px] overflow-hidden max-sm:[&>*:last-child]:col-span-2">
-          <div className="bg-surface px-4 py-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-sm:[&>*:last-child]:col-span-2">
+          <div className="card px-4 py-3.5">
             <div className="label">Your typical video</div>
-            <div className="display !font-semibold text-[20px] mt-1">{compact(normal.views)}</div>
+            <div className="stat-num my-1.5">{compact(normal.views)}</div>
             <div className="caption">views, from your last {own.length}</div>
+            <ViewsStrip views={own.map((v) => v.views)} usual={normal.views} />
           </div>
-          <div className="bg-surface px-4 py-3">
+          <div className="card px-4 py-3.5">
             <div className="label">Your best recent</div>
-            <div className="display !font-semibold text-[20px] mt-1">{best?.x ? times(best.x) : "—"}</div>
+            <div className={`stat-num my-1.5 ${best?.x && best.x >= 2 ? "stat-up" : ""}`}>{best?.x ? times(best.x) : "—"}</div>
             <div className="caption">your usual views</div>
           </div>
-          <div className="bg-surface px-4 py-3">
+          <div className="card px-4 py-3.5">
             <div className="label">Your niche</div>
-            <div className="font-bold text-[15px] mt-1.5">{p.profile?.niche.slice(0, 2).join(" · ") || "—"}</div>
-            <div className="caption">{p.peers.length} creators ahead of you</div>
+            <div className="heading text-[17px] leading-snug mt-1.5">{p.profile?.niche.slice(0, 2).join(" · ") || "—"}</div>
+            <div className="flex items-center gap-1.5 mt-2.5">
+              <span className="flex -space-x-1.5">
+                {p.peers.slice(0, 4).map((x) => (
+                  <Avatar key={x.handle} name={x.handle} size={20} ring />
+                ))}
+              </span>
+              <span className="caption">{p.peers.length} creators ahead of you</span>
+            </div>
           </div>
         </div>
 
@@ -248,11 +257,11 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 items-end">
             <div className="col-span-2 sm:col-span-1 w-full max-w-[340px] justify-self-center sm:max-w-none">
-              <NextTikTok data={nextTikTok(p.handle, first)} />
+              <NextTikTok data={nextTikTok(p.handle, first)} tint={IDEA_TYPE[first.type].tint} cover={src?.cover_url ?? null} />
             </div>
             {rest.map((i, n) => (
               <Link key={n} href={signup} className="grid gap-2 rounded-[18px] focus-visible:outline-2 focus-visible:outline-brand" aria-label={`Idea ${n + 2}: ${onScreenHook(i.hook)}. Unlock my plan, free`}>
-                <NextTikTok data={{ handle: p.handle, hook: onScreenHook(i.hook) }} locked />
+                <NextTikTok data={{ handle: p.handle, hook: onScreenHook(i.hook) }} tint={IDEA_TYPE[i.type].tint} locked />
                 <span className="text-[13px] font-semibold text-brand text-center">Unlock my plan, free</span>
               </Link>
             ))}
@@ -276,7 +285,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
               <div className="font-bold">Creators ahead of you</div>
               {p.peers.slice(0, 4).map((x) => (
                 <div key={x.handle} className="flex items-center gap-2.5 min-w-0">
-                  <Avatar name={x.handle} size={30} />
+                  <Avatar name={x.handle} size={30} ring />
                   <div className="min-w-0">
                     <div className="font-semibold text-[14px]">@{x.handle}</div>
                     <div className="caption line-clamp-1">{[aheadLine(x.followers, p.author?.followers ?? null), x.best?.hook ? `“${x.best.hook}” · ${compact(x.best.views)} views` : `${compact(x.followers)} followers`].filter(Boolean).join(" · ")}</div>

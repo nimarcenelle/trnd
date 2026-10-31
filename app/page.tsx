@@ -62,7 +62,9 @@ function Check() {
 function PhoneShot() {
   return (
     <div className="relative mx-auto w-[300px] max-w-full">
-      <div className="rounded-[40px] border border-line bg-surface p-3 shadow-[var(--shadow-lg)]">
+      {/* A soft pink and cyan glow behind the phone, and a slight tilt, so the product shot reads as the hero. */}
+      <div aria-hidden className="absolute -inset-16 -z-10 rounded-full blur-3xl opacity-70 bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--brand)_28%,transparent),transparent),radial-gradient(closest-side_at_80%_80%,color-mix(in_srgb,var(--cyan)_24%,transparent),transparent)]" />
+      <div className="rounded-[40px] border border-line bg-surface p-3 shadow-[var(--shadow-lg),var(--shadow-pink)] lg:rotate-[2deg] transition-transform duration-500 hover:rotate-0">
         <div className="rounded-[30px] bg-bg overflow-hidden border border-line">
           <div className="flex items-center justify-between px-4 pt-4 pb-3">
             <Brand href={null} size={14} sub={false} />
@@ -113,10 +115,12 @@ export default function Home() {
     <div>
       <SiteNav />
 
-      <section id="start" className="wrap pt-[clamp(36px,7vw,84px)] pb-16 grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] items-center scroll-mt-14">
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 min-w-0">
+      <section id="start" className="wrap pt-[clamp(36px,7vw,84px)] pb-16 grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] items-center scroll-mt-14 isolate">
+        <div className="rise grid grid-cols-[minmax(0,1fr)] gap-6 min-w-0">
           <span className="kicker">For TikTok creators</span>
-          <h1 className="display text-[clamp(34px,5.6vw,56px)]">Your next three TikToks, scripted from what got the creators ahead of you there.</h1>
+          <h1 className="display text-[clamp(34px,5.6vw,56px)]">
+            Your next three TikToks, scripted from what got <span className="stat-up">the creators ahead of you</span> there.
+          </h1>
           <p className="text-ink-2 text-[17.5px] max-w-[54ch] leading-[1.55]">
             Enter your handle. We find creators a step or two ahead of you in your niche and what got them there. In about a minute you get your numbers, who&apos;s ahead of you, and a video to make, scripted second by second.
           </p>
@@ -143,7 +147,7 @@ export default function Home() {
           <ol className="list-none m-0 p-0 grid gap-8 md:grid-cols-3">
             {STEPS.map((s, i) => (
               <li key={s.title} className="grid gap-2 content-start">
-                <span className="w-9 h-9 rounded-full bg-brand-soft text-brand grid place-items-center font-bold">{i + 1}</span>
+                <span className="rank-badge">{i + 1}</span>
                 <h3 className="text-[18px] font-bold mt-2">{s.title}</h3>
                 <p className="text-ink-2 text-[15px] leading-[1.6]">{s.body}</p>
               </li>
@@ -165,7 +169,7 @@ export default function Home() {
             <div className="font-bold">Creators ahead of @{SAMPLE_HANDLE}</div>
             {SAMPLE_AHEAD.map((x) => (
               <div key={x.handle} className="flex items-center gap-2.5 min-w-0">
-                <Avatar name={x.handle} size={30} />
+                <Avatar name={x.handle} size={30} ring />
                 <div className="min-w-0 grid gap-0.5">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="font-semibold text-[14px]">@{x.handle}</span>

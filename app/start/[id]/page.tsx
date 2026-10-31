@@ -163,7 +163,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
                 </form>
               </div>
             ) : (
-              <p className="text-ink-2 text-[16px]">About a minute. We read your videos, find creators a step ahead of you and what&apos;s rising in your niche, then write three videos for you.</p>
+              <p className="text-ink-2 text-[16px]">Usually under a minute. We read your videos, find creators a step ahead of you and what&apos;s rising in your niche, then write three videos for you.</p>
             )}
             {p.status !== "confirm" && <Steps p={p} />}
           </section>

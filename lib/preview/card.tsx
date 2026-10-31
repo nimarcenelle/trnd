@@ -58,7 +58,8 @@ export function nextTikTokCard(t: NextTikTok): ImageResponse {
           </div>
         </div>
 
-        <div style={{ position: "absolute", right: 8, bottom: 8, display: "flex", fontSize: 12, color: C.caption }}>plan by trnd</div>
+        {/* 12px with an 8px inset at phone size: the image is 1080 wide, three times a 360pt screen, so both scale by 3. */}
+        <div style={{ position: "absolute", right: 24, bottom: 24, display: "flex", fontSize: 36, color: C.caption }}>plan by trnd</div>
       </div>
     ),
     {

@@ -66,3 +66,29 @@ export const dateIn = (days: number, now = Date.now()) => new Date(now + days * 
 export function safeText(text: string): string {
   return text.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "").replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
 }
+
+/**
+ * A video's caption as a title: hashtags at the start and end stripped, then cut
+ * to 60 characters with an ellipsis. A caption that is only hashtags shows its
+ * first three.
+ */
+export function videoTitle(text: string | null | undefined, max = 60): string {
+  const s = (text ?? "").replace(/\s+/g, " ").trim();
+  const tags = s.match(/#[\p{L}\p{N}_]+/gu) ?? [];
+  const core = s
+    .replace(/^(?:#[\p{L}\p{N}_]*\s*)+/u, "")
+    .replace(/(?:\s*#[\p{L}\p{N}_]*)+$/u, "")
+    .trim();
+  if (!core) return tags.slice(0, 3).join(" ");
+  return core.length > max ? `${core.slice(0, max).trimEnd()}…` : core;
+}
+
+/** How often someone posts, in words: "twice a week", "about once every 3 weeks", "less than once a month". */
+export function cadence(perWeek: number): string {
+  if (perWeek >= 2.5) return `${Math.round(perWeek)} times a week`;
+  if (perWeek >= 1.5) return "twice a week";
+  if (perWeek >= 0.75) return "once a week";
+  const weeks = Math.round(1 / perWeek);
+  return weeks > 4 ? "less than once a month" : `about once every ${weeks} weeks`;
+}
+

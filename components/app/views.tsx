@@ -3,7 +3,7 @@ import Link from "next/link";
 import { removeRunAction } from "@/lib/actions";
 import { callable, perK, postsPerWeek, readVideo, timesNormal, trendList, type BorrowParts, type Normal, type TrendRow, type VideoRead } from "@/lib/creators/stats";
 import type { Creator, FollowerSnapshot, IdeaRun, Peer, Plan, Video } from "@/lib/db/types";
-import { compact, shortDate, signed, times, withinDays } from "@/lib/format";
+import { cadence, compact, shortDate, signed, times } from "@/lib/format";
 import { goalLabel } from "@/lib/goals";
 
 import Avatar from "./avatar";
@@ -71,8 +71,6 @@ export function NextView({
   /** No trial yet: idea 1 in full, the rest by their hooks. */
   limited?: boolean;
 }) {
-  const month = own.filter((v) => v.posted_at && withinDays(v.posted_at, 30));
-  const best = month.map((v) => ({ v, x: timesNormal(v.views, normal) })).sort((a, b) => (b.x ?? 0) - (a.x ?? 0))[0];
   const perWeek = postsPerWeek(own.slice(0, 30));
   return (
     <>
@@ -93,13 +91,7 @@ export function NextView({
         <Tile label="Your typical video" value={compact(normal.views)} hint={normal.low !== null ? `${compact(normal.low)}–${compact(normal.high)} views, middle half` : "Not enough videos yet"}>
           <ViewsStrip views={own.map((v) => v.views)} usual={normal.views} />
         </Tile>
-        <Tile
-          label="Best this month"
-          value={best?.x ? times(best.x) : "—"}
-          hint={best?.x ? `your usual views · ${shortDate(best.v.posted_at!)}` : month.length ? "Not enough videos to compare yet" : "No videos in 30 days"}
-          tone={best?.x && best.x >= 2 ? "up" : undefined}
-        />
-        <Tile text label="Goal" value={goalLabel(creator.goals?.goal) ?? "—"} hint={creator.goals?.target || (perWeek ? `You post ${perWeek}× a week` : "Set a target in settings")} />
+        <Tile text label="Goal" value={goalLabel(creator.goals?.goal) ?? "—"} hint={creator.goals?.target || (perWeek ? `You post ${cadence(perWeek)}` : "Set a target in settings")} />
       </Strip>
       {plan.body.ideas.map((idea, i) =>
         limited && i > 0 ? (

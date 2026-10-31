@@ -112,6 +112,17 @@ export function callable(t: Pick<TrendRow, "recent" | "creators">): boolean {
 /** Hashtags every kind of video carries: not a signal about a niche. */
 const NOT_NICHE = new Set(["fyp"]);
 
+/** The hashtags an account uses most across its videos, most used first (ties in order of first use), without the generic ones. */
+export function topHashtags(videos: { hashtags: string[] }[], n = 3): string[] {
+  const count = new Map<string, number>();
+  for (const v of videos) for (const h of new Set(v.hashtags.map((t) => t.replace(/^#/, "").toLowerCase()).filter(Boolean))) count.set(h, (count.get(h) ?? 0) + 1);
+  return [...count.entries()]
+    .filter(([h]) => !NOT_NICHE.has(h))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([h]) => h);
+}
+
 /**
  * The trends to show a creator: without the generic tags, and the ones too small
  * to call moved to the bottom (the order is otherwise kept).

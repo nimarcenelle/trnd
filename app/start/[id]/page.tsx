@@ -12,7 +12,7 @@ import Brand from "@/components/brand";
 import PreviewRunner from "@/components/preview/runner";
 import StartForm from "@/components/preview/start-form";
 import Xray from "@/components/preview/xray";
-import { aheadLine, callable, normalOf, timesNormal, trendList } from "@/lib/creators/stats";
+import { aheadLine, callable, normalOf, timesNormal, topHashtags, trendList } from "@/lib/creators/stats";
 import { compact, times } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
 import { confirmPreviewAction, previewGoalAction } from "@/lib/preview/actions";
@@ -231,7 +231,17 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
           </div>
           <div className="card px-4 py-3.5">
             <div className="label">Your niche</div>
-            <div className="heading text-[17px] leading-snug mt-1.5">{p.profile?.niche.slice(0, 2).join(" · ") || "—"}</div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {topHashtags(p.videos).length ? (
+                topHashtags(p.videos).map((h) => (
+                  <span key={h} className="chip chip-tag">
+                    #{h}
+                  </span>
+                ))
+              ) : (
+                <span className="heading text-[17px]">—</span>
+              )}
+            </div>
             <div className="flex items-center gap-1.5 mt-2.5">
               <span className="flex -space-x-1.5">
                 {p.peers.slice(0, 4).map((x) => (
@@ -260,10 +270,9 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
               <NextTikTok data={nextTikTok(p.handle, first)} tint={IDEA_TYPE[first.type].tint} cover={src?.cover_url ?? null} />
             </div>
             {rest.map((i, n) => (
-              <Link key={n} href={signup} className="grid gap-2 rounded-[18px] focus-visible:outline-2 focus-visible:outline-brand" aria-label={`Idea ${n + 2}: ${onScreenHook(i.hook)}. Unlock my plan, free`}>
+              <div key={n}>
                 <NextTikTok data={{ handle: p.handle, hook: onScreenHook(i.hook) }} tint={IDEA_TYPE[i.type].tint} locked />
-                <span className="text-[13px] font-semibold text-brand text-center">Unlock my plan, free</span>
-              </Link>
+              </div>
             ))}
           </div>
         </section>

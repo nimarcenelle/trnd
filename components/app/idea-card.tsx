@@ -2,7 +2,7 @@ import { IconCalendar, IconCheck, IconClock, IconFilm, IconMusic, IconTarget } f
 import { addToWeekAction } from "@/lib/actions";
 import { BORROW_WEIGHTS, type BorrowParts, type Normal, type TrendRow } from "@/lib/creators/stats";
 import type { Idea, IdeaRun, IdeaType, Video } from "@/lib/db/types";
-import { compact, times } from "@/lib/format";
+import { compact, times, videoTitle } from "@/lib/format";
 
 import Avatar from "./avatar";
 import CopyText from "./copy-text";
@@ -172,7 +172,7 @@ export default function IdeaCard({
                 <span className="flex gap-1.5 items-center text-[13px] font-semibold">
                   <Avatar name={source.video.author} size={20} ring={!source.own} />@{source.video.author}
                 </span>
-                <span className="text-[13.5px] font-medium leading-snug line-clamp-2">&ldquo;{source.video.hook || source.video.caption || "Untitled video"}&rdquo;</span>
+                <span className="text-[13.5px] font-medium leading-snug">{videoTitle(source.video.hook || source.video.caption) || "Untitled video"}</span>
                 <span className="flex flex-wrap gap-1.5 items-center">
                   <span className="pill">{compact(source.video.views)} views</span>
                   {source.borrow && <BorrowScore score={source.borrow.score} parts={source.borrow.parts} />}

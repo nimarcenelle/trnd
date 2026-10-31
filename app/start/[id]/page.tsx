@@ -12,7 +12,7 @@ import Brand from "@/components/brand";
 import PreviewRunner from "@/components/preview/runner";
 import StartForm from "@/components/preview/start-form";
 import Xray from "@/components/preview/xray";
-import { aheadLine, normalOf, timesNormal } from "@/lib/creators/stats";
+import { aheadLine, callable, normalOf, timesNormal, trendList } from "@/lib/creators/stats";
 import { compact, times } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
 import { confirmPreviewAction, previewGoalAction } from "@/lib/preview/actions";
@@ -294,18 +294,26 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
               ))}
             </div>
           )}
-          {p.trends.length > 0 && (
+          {trendList(p.trends).length > 0 && (
             <div className="card p-4 grid gap-3 content-start">
               <div className="font-bold">Rising in your niche</div>
-              {p.trends.slice(0, 4).map((t) => (
-                <div key={`${t.kind}:${t.key}`} className="flex items-center justify-between gap-3">
-                  <span className={`min-w-0 ${t.kind === "hashtag" ? "mono text-[13.5px]" : "text-[14px]"}`}>{t.label}</span>
-                  <span className="flex items-center gap-2 shrink-0">
-                    <StageBar stage={t.stage} />
-                    <span className="caption w-14">{STAGE_LABEL[t.stage]}</span>
-                  </span>
-                </div>
-              ))}
+              {trendList(p.trends)
+                .slice(0, 4)
+                .map((t) => (
+                  <div key={`${t.kind}:${t.key}`} className="flex items-center justify-between gap-3">
+                    <span className={`min-w-0 ${t.kind === "hashtag" ? "mono text-[13.5px]" : "text-[14px]"}`}>{t.label}</span>
+                    {callable(t) ? (
+                      <span className="flex items-center gap-2 shrink-0">
+                        <StageBar stage={t.stage} />
+                        <span className="caption w-14">{STAGE_LABEL[t.stage]}</span>
+                      </span>
+                    ) : (
+                      <span className="caption shrink-0 text-right">
+                        {t.recent} video{t.recent === 1 ? "" : "s"} · {t.creators} creator{t.creators === 1 ? "" : "s"} · Too few videos to call
+                      </span>
+                    )}
+                  </div>
+                ))}
             </div>
           )}
         </div>

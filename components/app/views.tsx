@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { removeRunAction } from "@/lib/actions";
-import { perK, postsPerWeek, readVideo, timesNormal, type BorrowParts, type Normal, type TrendRow, type VideoRead } from "@/lib/creators/stats";
+import { callable, perK, postsPerWeek, readVideo, timesNormal, trendList, type BorrowParts, type Normal, type TrendRow, type VideoRead } from "@/lib/creators/stats";
 import type { Creator, FollowerSnapshot, IdeaRun, Peer, Plan, Video } from "@/lib/db/types";
 import { compact, shortDate, signed, times, withinDays } from "@/lib/format";
 import { goalLabel } from "@/lib/goals";
@@ -310,7 +310,7 @@ const ORDER = { early: 0, rising: 1, peaking: 2, fading: 3 } as const;
 const STAGE_ADVICE = { early: "Early: the best time to join.", rising: "Rising: still worth joining this week.", peaking: "At its peak: join only with a strong angle of your own.", fading: "Fading: skip it." } as const;
 
 export function TrendsView({ creator, trends, plan }: { creator: Creator; trends: TrendRow[]; plan: Plan }) {
-  const shown = [...trends].sort((a, b) => ORDER[a.stage] - ORDER[b.stage] || b.recent - a.recent).slice(0, 12);
+  const shown = trendList([...trends].sort((a, b) => ORDER[a.stage] - ORDER[b.stage] || b.recent - a.recent)).slice(0, 12);
   const usedBy = (key: string) => plan.body.ideas.findIndex((i) => i.source_trend === key) + 1;
   return (
     <>
@@ -332,17 +332,23 @@ export function TrendsView({ creator, trends, plan }: { creator: Creator; trends
                 <p className="caption">
                   {t.recent} videos this week · {t.prior} last week · {t.creators} creators
                 </p>
-                <div className="flex gap-2 items-center">
-                  <StageBar stage={t.stage} />
-                  <span className="mono text-[12px]">{STAGE_LABEL[t.stage]}</span>
-                </div>
+                {callable(t) ? (
+                  <div className="flex gap-2 items-center">
+                    <StageBar stage={t.stage} />
+                    <span className="mono text-[12px]">{STAGE_LABEL[t.stage]}</span>
+                  </div>
+                ) : (
+                  <span className="caption">Too few videos to call</span>
+                )}
                 <p className="so-what text-[14px]">
                   {idea > 0 ? (
                     <Link href={`/app?idea=${idea}#idea-${idea}`} className="hover:underline">
                       Idea #{idea} rides it.
                     </Link>
-                  ) : (
+                  ) : callable(t) ? (
                     STAGE_ADVICE[t.stage]
+                  ) : (
+                    "Watch it: not enough videos yet to say where it's going."
                   )}
                 </p>
               </div>

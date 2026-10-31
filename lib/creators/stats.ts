@@ -101,6 +101,29 @@ export interface TrendRow {
   stage: Stage;
 }
 
+/** Below this many videos this week, or this many distinct creators, a count is too small to call a stage. */
+export const TREND_MIN = 5;
+
+/** Whether a trend has enough videos and creators behind it to be labeled early, rising, peaking or fading. */
+export function callable(t: Pick<TrendRow, "recent" | "creators">): boolean {
+  return t.recent >= TREND_MIN && t.creators >= TREND_MIN;
+}
+
+/** Hashtags every kind of video carries: not a signal about a niche. */
+const NOT_NICHE = new Set(["fyp"]);
+
+/**
+ * The trends to show a creator: without the generic tags, and the ones too small
+ * to call moved to the bottom (the order is otherwise kept).
+ */
+export function trendList<T extends Pick<TrendRow, "kind" | "key" | "recent" | "creators">>(rows: T[]): T[] {
+  return rows
+    .filter((t) => !(t.kind === "hashtag" && NOT_NICHE.has(t.key.replace(/^#/, "").toLowerCase())))
+    .map((t, i) => ({ t, i, ok: callable(t) }))
+    .sort((a, b) => Number(b.ok) - Number(a.ok) || a.i - b.i)
+    .map(({ t }) => t);
+}
+
 /** Hashtags and sounds across a sample of videos, each with its stage, the most used first. */
 export function trendRows(videos: Pick<Video, "hashtags" | "sound" | "sound_original" | "posted_at" | "views" | "author">[], now = Date.now()): TrendRow[] {
   const rows = new Map<string, Omit<TrendRow, "stage" | "creators"> & { who: Set<string> }>();

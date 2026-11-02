@@ -46,7 +46,8 @@ export function asVideo(v: ReadVideo, self: string): Video {
     duration_s: v.durationS,
     subtitle_url: v.subtitleUrl ?? null,
     spoken: null,
-    cover_url: v.coverUrl,
+    // Our stored copy first: TikTok's cover links expire.
+    cover_url: v.storedCover ?? v.coverUrl,
     posted_at: v.postedAt,
     views: v.views,
     likes: v.likes,

@@ -14,17 +14,19 @@ if (!p || p.status !== "ready") throw new Error(`Preview ${id} is not ready`);
 // Only what the landing page draws: the plan, the account, its videos, the creators
 // ahead and the one sample video idea 1 builds on. No visitor or claim data.
 const src = p.plan.ideas[0]?.source_video;
+// TikTok's cover links expire and this file doesn't: only our stored copies are kept, the rest draw the tile.
+const lasting = (v) => ({ ...v, coverUrl: v.storedCover ?? null, subtitleUrl: null });
 const snap = {
   id: "sample",
   handle: p.handle,
   status: "ready",
   step_started_at: null,
-  author: p.author,
-  videos: p.videos,
+  author: { ...p.author, avatarUrl: null },
+  videos: p.videos.map(lasting),
   profile: p.profile,
   hashtags: p.hashtags,
   peers: p.peers,
-  sample: p.sample.filter((v) => v.videoId === src),
+  sample: p.sample.filter((v) => v.videoId === src).map(lasting),
   trends: p.trends,
   plan: p.plan,
   goal: null,

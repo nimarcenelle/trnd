@@ -24,6 +24,8 @@ export interface ReadVideo {
   sound: string | null;
   soundOriginal: boolean | null;
   durationS: number | null;
+  /** Where TikTok keeps this video's captions, when it has any. */
+  subtitleUrl?: string | null;
   coverUrl: string | null;
   /** Our own copy of the cover in Storage (lib/preview/covers.ts): set for a preview's own videos when it could be stored. */
   storedCover?: string | null;
@@ -85,6 +87,13 @@ export function captionTags(caption: string | null): string[] {
   return [...new Set((caption ?? "").match(/#[\p{L}\p{N}_]+/gu)?.map(normTag) ?? [])];
 }
 
+/** A video's captions in the language it was made in: never a machine translation when there's anything else. */
+function subtitleLink(meta: Obj): string | null {
+  const links = Array.isArray(meta.subtitleLinks) ? meta.subtitleLinks.filter(isObj) : [];
+  const best = links.find((l) => str(l.source) === "ASR") ?? links.find((l) => str(l.source) !== "MT");
+  return best ? (link(best.downloadLink) ?? link(best.tiktokLink)) : null;
+}
+
 /** One video item → a read, or null when it has no id or author. */
 export function mapVideo(item: Obj): ReadVideo | null {
   const id = str(item.id) ?? (num(item.id) !== null ? String(item.id) : null);
@@ -105,6 +114,7 @@ export function mapVideo(item: Obj): ReadVideo | null {
     sound: soundName ? [soundName, str(music.musicAuthor)].filter(Boolean).join(" · ") : null,
     soundOriginal: typeof music.musicOriginal === "boolean" ? music.musicOriginal : null,
     durationS: num(meta.duration),
+    subtitleUrl: subtitleLink(meta),
     coverUrl: link(meta.coverUrl) ?? link(meta.originalCoverUrl),
     postedAt: when(item.createTimeISO ?? item.createTime),
     views: num(item.playCount),
@@ -201,6 +211,48 @@ export async function readProfiles(handles: string[], perProfile = 30): Promise<
   const { videos, authors } = mapRun(runs.flatMap((r) => r.items));
   const unread = new Set(runs.filter((r) => !r.ok).flatMap((r) => r.chunk));
   return { videos, authors, failed: list.filter((h) => !authors.has(h) && !unread.has(h)), unread: list.filter((h) => !authors.has(h) && unread.has(h)) };
+}
+
+/** WebVTT → the words, one caption per line. */
+export function parseVtt(vtt: string): string {
+  const lines: string[] = [];
+  for (const raw of vtt.split(/\r?\n/)) {
+    const line = safeText(raw.replace(/<[^>]*>/g, "").trim());
+    if (!line || line.startsWith("WEBVTT") || line.includes("-->") || /^\d+$/.test(line)) continue;
+    if (lines[lines.length - 1] !== line) lines.push(line);
+  }
+  return lines.join("\n").slice(0, MAX_SPOKEN);
+}
+
+const MAX_SPOKEN = 1500;
+const SUBTITLE_HOST = /(^|\.)(tiktok|tiktokv|tiktokcdn(-[a-z0-9]+)?)\.com$/i;
+const SPOKEN_AT_ONCE = 8;
+
+/**
+ * The words said in each video, by video_id. "" when there is nothing to use: a
+ * borrowed sound's captions would be a song's lyrics, not what the creator said.
+ * A link that fails is left out, so the next read's fresh link tries again.
+ */
+export async function readSpoken(videos: { video_id: string; subtitle_url?: string | null; sound_original?: boolean | null }[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const todo = [...videos];
+  const one = async (v: (typeof videos)[number]) => {
+    if (v.sound_original === false) return void out.set(v.video_id, "");
+    if (!v.subtitle_url) return;
+    try {
+      if (!SUBTITLE_HOST.test(new URL(v.subtitle_url).hostname)) return;
+      const res = await fetch(v.subtitle_url, { signal: AbortSignal.timeout(5_000), cache: "no-store" });
+      if (res.ok) out.set(v.video_id, parseVtt(await res.text()));
+    } catch (e) {
+      console.warn(`[tiktok] captions for ${v.video_id}:`, (e as Error).message);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: SPOKEN_AT_ONCE }, async () => {
+      for (let v = todo.shift(); v; v = todo.shift()) await one(v);
+    }),
+  );
+  return out;
 }
 
 /** Recent videos posted under each hashtag. */

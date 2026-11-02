@@ -297,7 +297,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
                   <Avatar name={x.handle} size={30} ring />
                   <div className="min-w-0">
                     <div className="font-semibold text-[14px]">@{x.handle}</div>
-                    <div className="caption line-clamp-1">{[aheadLine(x.followers, p.author?.followers ?? null), x.best?.hook ? `“${x.best.hook}” · ${compact(x.best.views)} views` : `${compact(x.followers)} followers`].filter(Boolean).join(" · ")}</div>
+                    <div className="caption line-clamp-1">{[aheadLine(x.followers, p.author?.followers ?? null), x.best?.hook ? `${x.best.hook} · ${compact(x.best.views)} views` : `${compact(x.followers)} followers`].filter(Boolean).join(" · ")}</div>
                   </div>
                 </div>
               ))}

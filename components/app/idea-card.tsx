@@ -19,16 +19,17 @@ export const IDEA_TYPE: Record<IdeaType, { label: string; cls: string; tint: str
 const PART_LABEL: Record<keyof BorrowParts, string> = { beat: "Beat their normal", fit: "Fits your niche", fresh: "Still fresh", saved: "Saved a lot" };
 
 /** The borrow score as a pill that opens into what it is made of. */
-export function BorrowScore({ score, parts }: { score: number; parts: BorrowParts }) {
+export function BorrowScore({ score, parts, chosen = false }: { score: number; parts: BorrowParts; chosen?: boolean }) {
+  const label = (k: keyof BorrowParts) => (k === "fit" && chosen ? "You picked them" : PART_LABEL[k]);
   return (
     <details data-popover className="relative inline-block group">
       <summary className="pill pill-brand border border-brand">Borrow score {score} ⓘ</summary>
       <div className="absolute z-20 top-[calc(100%+6px)] left-0 w-[min(310px,80vw)] card p-3 shadow-[var(--shadow-lg)] text-[13px] grid gap-2">
         <strong>Is it worth borrowing for you?</strong>
-        <span className="text-ink-2">0–100, from public numbers only. High means it beat its creator&apos;s usual views, it is in your niche, and it is fresh enough that copying it won&apos;t look late.</span>
+        <span className="text-ink-2">0–100, from public numbers only. High means it beat its creator&apos;s usual views, {chosen ? "it's from a creator you picked" : "it is in your niche"}, and it is fresh enough that borrowing it won&apos;t look late.</span>
         {(Object.keys(PART_LABEL) as (keyof BorrowParts)[]).map((k) => (
           <div key={k} className="grid grid-cols-[110px_1fr_28px] gap-2 items-center text-[12px]">
-            <span>{PART_LABEL[k]}</span>
+            <span>{label(k)}</span>
             <span className="bar w-full">
               <i style={{ width: `${Math.round(parts[k] * 100)}%` }} />
             </span>
@@ -36,7 +37,7 @@ export function BorrowScore({ score, parts }: { score: number; parts: BorrowPart
           </div>
         ))}
         <span className="caption">
-          Weights: {(Object.keys(BORROW_WEIGHTS) as (keyof BorrowParts)[]).map((k) => `${PART_LABEL[k].toLowerCase()} ${Math.round(BORROW_WEIGHTS[k] * 100)}%`).join(", ")}.{" "}
+          Weights: {(Object.keys(BORROW_WEIGHTS) as (keyof BorrowParts)[]).map((k) => `${label(k).toLowerCase()} ${Math.round(BORROW_WEIGHTS[k] * 100)}%`).join(", ")}.{" "}
           {score >= 85 ? "85+: make it this week." : score >= 70 ? "70–84: worth a test." : score >= 50 ? "50–69: watch it." : "Under 50: skip it."}
         </span>
       </div>
@@ -47,9 +48,9 @@ export function BorrowScore({ score, parts }: { score: number; parts: BorrowPart
 /** The idea as text, for notes or a shoot list. */
 export function scriptText(i: Idea): string {
   return [
-    i.hook,
+    `Example opener: ${i.hook}`,
     "",
-    ...i.script.map((b) => `${b.t}  ${b.say}\n      ${b.shot}`),
+    ...i.script.map((b) => (b.point ? `${b.t}  ${b.point}\n      Example: ${b.say}\n      ${b.shot}` : `${b.t}  ${b.say}\n      ${b.shot}`)),
     "",
     `Length: ${i.length}`,
     `Sound: ${i.sound}`,
@@ -64,14 +65,14 @@ export function scriptText(i: Idea): string {
 export interface IdeaSource {
   video: Video | null;
   times: number | null;
-  borrow: { score: number; parts: BorrowParts } | null;
+  borrow: { score: number; parts: BorrowParts; chosen?: boolean } | null;
   trend: TrendRow | null;
   own: boolean;
 }
 
 /**
- * One idea, ranked. Closed: the hook and why now. Open: the script second by
- * second, the spec, caption and hashtags on the left; what it rests on, why it
+ * One idea, ranked. Closed: an example opener and why now. Open: the flow second
+ * by second, each beat with what it has to do and an example of saying it, the spec, caption and hashtags on the left; what it rests on, why it
  * works and how to make it yours on the right.
  */
 export default function IdeaCard({
@@ -106,6 +107,7 @@ export default function IdeaCard({
             {from && <span className="pill">{from}</span>}
             {run && <span className="pill pill-pos">In your week</span>}
           </div>
+          <span className="label">Example opener</span>
           <p className="heading text-[clamp(18px,2.6vw,23px)] leading-[1.22]">{idea.hook}</p>
           <p className="text-ink-2 text-[14px] mt-1.5 max-w-[68ch] line-clamp-2">{idea.so}</p>
           <Evidence source={source} normal={normal} />
@@ -118,16 +120,18 @@ export default function IdeaCard({
       <div className="border-t border-line grid md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <section className="p-[18px] grid gap-3.5 content-start min-w-0">
           <div className="flex items-center justify-between gap-3">
-            <h4 className="label">The script</h4>
+            <h4 className="label">The flow</h4>
             <span className="caption">{idea.script.length} beats</span>
           </div>
+          <p className="caption">Say it your way. The wording is only an example.</p>
           <ScriptTimeline beats={idea.script} />
           <ol className="m-0 p-0 list-none grid gap-2">
             {idea.script.map((b, i) => (
               <li key={i} className="grid grid-cols-[64px_minmax(0,1fr)] max-[560px]:grid-cols-[54px_minmax(0,1fr)] gap-3 items-start">
                 <span className={`mono text-[11.5px] font-medium rounded-full text-center py-1 ${i === 0 ? "bg-brand text-on-brand" : "bg-muted text-ink-2"}`}>{b.t}</span>
                 <div>
-                  <div className="font-semibold leading-snug">{b.say}</div>
+                  <div className="font-semibold leading-snug">{b.point || b.say}</div>
+                  {b.point && <div className="text-[14px] text-ink-2 mt-0.5">For example: &ldquo;{b.say.replace(/^["“]|["”]$/g, "")}&rdquo;</div>}
                   <div className="text-[13px] text-ink-3 mt-0.5">{b.shot}</div>
                 </div>
               </li>
@@ -175,7 +179,7 @@ export default function IdeaCard({
                 <span className="text-[13.5px] font-medium leading-snug">{videoTitle(source.video.hook || source.video.caption) || "Untitled video"}</span>
                 <span className="flex flex-wrap gap-1.5 items-center">
                   <span className="pill">{compact(source.video.views)} views</span>
-                  {source.borrow && <BorrowScore score={source.borrow.score} parts={source.borrow.parts} />}
+                  {source.borrow && <BorrowScore score={source.borrow.score} parts={source.borrow.parts} chosen={source.borrow.chosen} />}
                 </span>
               </div>
             </a>
@@ -216,7 +220,7 @@ export default function IdeaCard({
       </div>
       <div className="border-t border-line px-[18px] py-3.5 bg-[color-mix(in_srgb,var(--tint)_7%,var(--surface))] flex flex-wrap gap-2.5 items-center">
         {sample ? null : run ? (
-          <span className="text-[13.5px] font-semibold text-ink">In your week. Post it, and we find it by its words on the next read.</span>
+          <span className="text-[13.5px] font-semibold text-ink">In your week. Post it your way. We look for it on the next read, and you can pick it under Did it work?</span>
         ) : (
           <form action={addToWeekAction}>
             <input type="hidden" name="plan" value={planId} />

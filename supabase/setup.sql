@@ -74,9 +74,12 @@ create table if not exists public.videos (
   comments bigint,
   shares bigint,
   saves bigint,
-  -- The model's read: the format (e.g. "ranked list") and the opening line.
+  -- The model's read: the format (e.g. "ranked list") and what the video is about.
   format text,
   hook text,
+  -- TikTok's captions: the link (it expires; each read brings a fresh one) and the words said.
+  subtitle_url text,
+  spoken text,
   first_seen_at timestamptz not null default now(),
   last_read_at timestamptz not null default now(),
   unique (creator_id, video_id)

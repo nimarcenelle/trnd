@@ -68,10 +68,10 @@ describe("trends", () => {
 describe("borrowScore", () => {
   const normal = { n: 12, views: 50000, low: 30000, high: 80000, savesPerK: 8, commentsPerK: 3 };
   it("scores a fresh, saved, in-niche breakout high and an old off-niche flat one low", () => {
-    const hit = borrowScore({ views: 400000, saves: 8000, hashtags: ["studytok", "aitools"], posted_at: daysAgo(4) }, normal, ["studytok", "aitools"], now);
+    const hit = borrowScore({ views: 400000, saves: 8000, hashtags: ["studytok", "aitools"], posted_at: daysAgo(4) }, normal, ["studytok", "aitools"], { now });
     expect(hit.times).toBe(8);
     expect(hit.score).toBeGreaterThanOrEqual(95);
-    const flat = borrowScore({ views: 50000, saves: 100, hashtags: ["vibes"], posted_at: daysAgo(40) }, normal, ["studytok"], now);
+    const flat = borrowScore({ views: 50000, saves: 100, hashtags: ["vibes"], posted_at: daysAgo(40) }, normal, ["studytok"], { now });
     expect(flat.score).toBeLessThan(15);
   });
 });

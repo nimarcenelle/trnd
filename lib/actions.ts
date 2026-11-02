@@ -152,6 +152,26 @@ export async function removeRunAction(formData: FormData): Promise<void> {
   revalidatePath("/app");
 }
 
+/** "This is the one I posted": for when the words they used didn't match the idea's closely enough for us to find it. */
+export async function markPostedAction(formData: FormData): Promise<void> {
+  const { creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  const video = String(formData.get("video") ?? "");
+  const sb = adminSupabase();
+  const { data: own } = await sb.from("videos").select("id").eq("id", video).eq("creator_id", creator.id).eq("is_self", true).maybeSingle();
+  if (!own) return;
+  // One video, one idea: a video already matched to another idea stays there.
+  const { data: taken } = await sb.from("idea_runs").select("id").eq("creator_id", creator.id).eq("video_id", video).limit(1);
+  if (taken?.length) return;
+  await sb
+    .from("idea_runs")
+    .update({ video_id: video, status: "posted", matched_at: new Date().toISOString() })
+    .eq("id", String(formData.get("id") ?? ""))
+    .eq("creator_id", creator.id)
+    .eq("status", "planned");
+  revalidatePath("/app");
+}
+
 export async function addPeerAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const { creator } = await requireCreator();
   if (!creator) redirect("/app/setup");

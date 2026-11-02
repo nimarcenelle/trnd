@@ -26,7 +26,7 @@ export default async function PeerPage({ params }: PageProps<"/app/creators/[han
   const growth = followerChange(followers.filter((f) => f.handle === peer.handle));
   const rows = videos
     .filter((v) => v.posted_at && withinDays(v.posted_at, 30))
-    .map((v) => ({ v, ...borrowScore(v, normal, creator.hashtags) }))
+    .map((v) => ({ v, ...borrowScore(v, normal, creator.hashtags, { chosen: peer.source === "owner" }) }))
     .sort((a, b) => b.score - a.score);
 
   return (

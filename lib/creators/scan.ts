@@ -13,9 +13,9 @@ import { friendlyScanError, RESUME_WITHIN_MS } from "./guards";
 import { env, isModelConfigured } from "@/lib/env";
 import { todayIso } from "@/lib/format";
 import { readConnected } from "@/lib/tiktok/connect";
-import { isTiktokConfigured, readCreativeCenter, readHashtags, readProfiles, type ReadAuthor, type ReadVideo } from "@/lib/tiktok/read";
+import { isTiktokConfigured, readCreativeCenter, readHashtags, readProfiles, readSpoken, type ReadAuthor, type ReadVideo } from "@/lib/tiktok/read";
 
-import { aheadBand, aheadLine, borrowScore, matchIdea, normalOf, outcomeOf, postsPerWeek, rankPeers, SETTLE_HOURS, timesNormal, trendRows, type PeerCandidate } from "./stats";
+import { aheadBand, aheadLine, borrowScore, matchIdea, normalOf, outcomeOf, pickBorrow, postsPerWeek, rankPeers, SETTLE_HOURS, timesNormal, trendRows, type PeerCandidate } from "./stats";
 
 /**
  * One scan, in six stages, each saved before the next starts so a scan cut
@@ -24,7 +24,7 @@ import { aheadBand, aheadLine, borrowScore, matchIdea, normalOf, outcomeOf, post
  *   niche:   videos under the niche hashtags; creators ahead of them picked from those
  *   peers:   each peer's recent videos
  *   trends:  hashtags and sounds across everything read in the last 14 days, staged and snapshotted
- *   tag:     when a plan is due, the format and hook of videos not yet tagged
+ *   tag:     when a plan is due, the words said in videos not yet read, and their format and subject
  *   plan:    ideas posted since the last scan matched and checked; when due, the plan written
  * Each stage makes at most one slow call (an Apify read or a model call, each
  * bounded near two minutes), so any one stage fits in a 300s function. A
@@ -72,6 +72,7 @@ async function saveVideos(sb: SupabaseClient, creatorId: string, videos: ReadVid
     sound: v.sound,
     sound_original: v.soundOriginal,
     duration_s: v.durationS,
+    subtitle_url: v.subtitleUrl ?? null,
     cover_url: v.coverUrl,
     posted_at: v.postedAt,
     views: v.views,
@@ -283,7 +284,11 @@ async function trendsStage(sb: SupabaseClient, c: Creator): Promise<void> {
   if (error) throw new Error(`Saving trends failed: ${error.message}`);
 }
 
-/** When a plan is due: the format and opening line of the videos it will be written from, one model call's worth. */
+/**
+ * When a plan is due: the words said in the videos it will be written from, and
+ * their format and subject, one model call's worth. The creators the owner
+ * picked go first, then their own videos, then the rest.
+ */
 async function tagStage(sb: SupabaseClient, c: Creator): Promise<void> {
   if (!isModelConfigured || !(await planDue(sb, c))) return;
   const own = await ownVideos(sb, c.id);
@@ -294,10 +299,19 @@ async function tagStage(sb: SupabaseClient, c: Creator): Promise<void> {
     21,
     { authors: peers.map((p) => p.handle) },
   );
-  const untagged = [...own.slice(0, 40), ...theirs].filter((v) => !v.format).slice(0, TAG_PER_SCAN);
+  const chosen = new Set(peers.filter((p) => p.source === "owner").map((p) => p.handle));
+  const ordered = [...theirs.filter((v) => chosen.has(v.author)), ...own.slice(0, 40), ...theirs.filter((v) => !chosen.has(v.author))];
+  const untagged = ordered.filter((v) => !v.format || (v.subtitle_url && v.spoken === null)).slice(0, TAG_PER_SCAN);
   if (!untagged.length) return;
-  const tags = await tagVideos(untagged);
-  await Promise.all([...tags].map(([videoId, t]) => sb.from("videos").update(t).eq("creator_id", c.id).eq("video_id", videoId)));
+  const spoken = await readSpoken(untagged);
+  const tags = await tagVideos(untagged.map((v) => ({ ...v, spoken: spoken.get(v.video_id) ?? v.spoken })));
+  await Promise.all(
+    untagged.map((v) => {
+      const said = spoken.get(v.video_id);
+      const update = { ...tags.get(v.video_id), ...(said !== undefined ? { spoken: said } : {}) };
+      return Object.keys(update).length ? sb.from("videos").update(update).eq("creator_id", c.id).eq("video_id", v.video_id) : null;
+    }),
+  );
 }
 
 /** Ideas the creator added: matched to the video they became, then checked once it has had 48 hours. */
@@ -361,11 +375,8 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
     .sort((a, b) => (b.x ?? 0) - (a.x ?? 0));
   const ownLines = [...ranked.slice(0, 12), ...ranked.slice(-5)].filter((r, i, all) => all.findIndex((o) => o.v.id === r.v.id) === i).map((r) => videoLine(r.v, r.x));
   const normals = new Map(peers.map((p) => [p.handle, normalOf(peerVideos.filter((v) => v.author === p.handle))]));
-  const borrow = recentPeer
-    .map((v) => ({ v, ...borrowScore(v, normals.get(v.author)!, c.hashtags) }))
-    .filter((b) => b.score >= 45)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 8);
+  const named = peers.filter((p) => p.source === "owner").map((p) => p.handle);
+  const borrow = pickBorrow(recentPeer.map((v) => ({ v, ...borrowScore(v, normals.get(v.author)!, c.hashtags, { chosen: named.includes(v.author) }) })));
   const rising = trendRows(recent)
     .filter((t) => t.stage === "early" || t.stage === "rising" || t.stage === "peaking")
     .slice(0, 14);
@@ -383,6 +394,7 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
     normal: { views: normal.views, low: normal.low, high: normal.high, perWeek: postsPerWeek(own.slice(0, 30)) },
     own: ownLines,
     borrow: borrow.map((b) => `${videoLine(b.v, b.times)} · borrow score ${b.score}`),
+    named,
     trends: rising.map((t) => `[${t.key}] ${t.kind} ${t.label}: ${t.recent} videos this week, ${t.prior} last week, ${t.creators} creators, ${t.stage}`),
     past,
   });

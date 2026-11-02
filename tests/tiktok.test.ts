@@ -43,6 +43,7 @@ describe("mapVideo", () => {
       sound: "original sound · Marlow",
       soundOriginal: true,
       durationS: 44,
+      subtitleUrl: null,
       coverUrl: "https://p16.example/cover.jpg",
       postedAt: "2026-10-12T18:00:00.000Z",
       views: 240000,

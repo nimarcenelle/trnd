@@ -1,9 +1,9 @@
 import Link from "next/link";
 
-import { removeRunAction } from "@/lib/actions";
+import { markPostedAction, removeRunAction } from "@/lib/actions";
 import { callable, perK, postsPerWeek, readVideo, timesNormal, trendList, type BorrowParts, type Normal, type TrendRow, type VideoRead } from "@/lib/creators/stats";
 import type { Creator, FollowerSnapshot, IdeaRun, Peer, Plan, Video } from "@/lib/db/types";
-import { cadence, compact, shortDate, signed, times } from "@/lib/format";
+import { cadence, compact, shortDate, signed, times, videoLead, videoTitle } from "@/lib/format";
 import { goalLabel } from "@/lib/goals";
 
 import Avatar from "./avatar";
@@ -11,6 +11,7 @@ import { AddPeerForm } from "./forms";
 import IdeaCard, { BorrowScore, IDEA_TYPE, Thumb, type IdeaSource } from "./idea-card";
 import LockedIdea from "./locked-idea";
 import { StageBar, STAGE_LABEL } from "./stage";
+import SubmitButton from "./submit-button";
 import ViewsStrip from "./views-strip";
 
 /** "*one tool, one result*" → the phrase in pink. The model marks at most two. */
@@ -375,8 +376,14 @@ export function TrendsView({ creator, trends, plan }: { creator: Creator; trends
 export interface PeerCard {
   peer: Peer;
   normal: Normal;
-  best: { v: Video; score: number; parts: BorrowParts; times: number | null } | null;
+  best: { v: Video; score: number; parts: BorrowParts; times: number | null; chosen: boolean } | null;
   growth: { change: number; days: number } | null;
+}
+
+/** A video's name on the page: in quotation marks only when they are words it really says. */
+function VideoLead({ v }: { v: Video }) {
+  const { text, quoted } = videoLead(v);
+  return quoted ? <>&ldquo;{text}&rdquo;</> : <>{text || "Untitled"}</>;
 }
 
 export function CreatorsView({ cards }: { cards: PeerCard[] }) {
@@ -406,10 +413,10 @@ export function CreatorsView({ cards }: { cards: PeerCard[] }) {
                     {best.times !== null && <span className={best.times >= 2 ? "pill pill-pos" : "pill"}>Best: {times(best.times)} their usual</span>}
                     <span className={best.score >= 70 ? "pill pill-brand" : "pill"}>Borrow score {best.score}</span>
                   </div>
-                  <p className="text-[14px] font-semibold line-clamp-2">{best.v.format ? `${best.v.format[0].toUpperCase()}${best.v.format.slice(1)}: ` : ""}&ldquo;{best.v.hook || best.v.caption}&rdquo;</p>
+                  <p className="text-[14px] font-semibold line-clamp-2">{best.v.format ? `${best.v.format[0].toUpperCase()}${best.v.format.slice(1)}: ` : ""}<VideoLead v={best.v} /></p>
                 </>
               ) : (
-                <p className="caption">{peer.last_error ?? (peer.last_read_at ? "No videos in the last three weeks." : "Read on the next scan.")}</p>
+                <p className="caption">{peer.last_error ?? (peer.last_read_at ? "We found no videos from the last three weeks." : "Read on the next scan.")}</p>
               )}
               <span className="caption">{peer.source === "owner" ? "Added by you" : peer.reason} · View →</span>
             </Link>
@@ -427,19 +434,19 @@ export function CreatorsView({ cards }: { cards: PeerCard[] }) {
 }
 
 /** One peer's videos, ranked by borrow score: the page behind a creator card. */
-export function PeerVideos({ rows }: { rows: { v: Video; score: number; parts: BorrowParts; times: number | null }[] }) {
+export function PeerVideos({ rows }: { rows: { v: Video; score: number; parts: BorrowParts; times: number | null; chosen: boolean }[] }) {
   return (
     <div className="grid gap-2.5">
-      {rows.map(({ v, score, parts, times: x }) => (
+      {rows.map(({ v, score, parts, times: x, chosen }) => (
         <div key={v.id} className="card p-3.5 grid gap-2">
           <a href={v.url ?? undefined} target="_blank" rel="noreferrer" className="font-semibold hover:underline">
-            &ldquo;{v.hook || v.caption || "Untitled"}&rdquo;
+            <VideoLead v={v} />
           </a>
           <div className="flex flex-wrap gap-1.5 items-center">
             <span className="pill">{compact(v.views)} views</span>
             {x !== null && <span className={x >= 2 ? "pill pill-pos" : "pill"}>{times(x)} their usual</span>}
             {v.format && <span className="pill">{v.format}</span>}
-            <BorrowScore score={score} parts={parts} />
+            <BorrowScore score={score} parts={parts} chosen={chosen} />
             {v.posted_at && <span className="caption">{shortDate(v.posted_at)}</span>}
           </div>
           {v.hashtags.length > 0 && (
@@ -472,11 +479,14 @@ export function LoopView({ runs, videos }: { runs: IdeaRun[]; videos: Video[] })
   const judged = checked.filter((r) => r.result!.read !== "unknown");
   const beat = checked.filter((r) => r.result!.read === "beat").length;
   const inRange = checked.filter((r) => r.result!.read === "in_range").length;
+  const taken = new Set(runs.map((r) => r.video_id));
+  /** Your videos a run could be: not already another idea's, posted since a week before you added it, in case you posted first. */
+  const pickable = (r: IdeaRun) => videos.filter((v) => v.is_self && !taken.has(v.id) && v.posted_at && Date.parse(v.posted_at) >= Date.parse(r.added_at) - 7 * 86_400_000).slice(0, 12);
   return (
     <>
       <Heading
         title="Did the ideas work?"
-        sub="Every idea you add to your week is measured against your typical video. When you post it we find it by its words, and 48 hours later we check its views. That's how you know whether the advice is any good."
+        sub="Every idea you add to your week is measured against your typical video. When you post it we look for it, or you can pick it here, and 48 hours later we check its views. That's how you know whether the advice is any good."
       />
       <Strip>
         <Tile label="Ideas added" value={runs.length} hint="from your plans" />
@@ -499,6 +509,25 @@ export function LoopView({ runs, videos }: { runs: IdeaRun[]; videos: Video[] })
                     {r.expected ? `Your usual then: ${compact(r.expected.low)}–${compact(r.expected.high)} views` : "No usual range yet"}
                     {v ? ` · posted ${v.posted_at ? shortDate(v.posted_at) : ""}` : ""}
                   </span>
+                  {r.status === "planned" && pickable(r).length > 0 && (
+                    <form action={markPostedAction} className="flex flex-wrap gap-2 items-center mt-2">
+                      <input type="hidden" name="id" value={r.id} />
+                      <select name="video" required defaultValue="" className="input !w-auto !py-1.5 text-[13px] max-w-full" aria-label="The video you posted for this idea">
+                        <option value="" disabled>
+                          Posted it? Pick the video
+                        </option>
+                        {pickable(r).map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.posted_at ? `${shortDate(o.posted_at)} · ` : ""}
+                            {videoTitle(o.caption || o.hook) || "Untitled"}
+                          </option>
+                        ))}
+                      </select>
+                      <SubmitButton className="btn btn-sm" pending="Saving…">
+                        This is the one
+                      </SubmitButton>
+                    </form>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 justify-end">
                   {r.status === "checked" && r.result ? (

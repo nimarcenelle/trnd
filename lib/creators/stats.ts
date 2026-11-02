@@ -176,7 +176,8 @@ export interface BorrowParts {
 /**
  * Is a peer's video worth borrowing, 0-100. Mostly how far it beat its own
  * creator's normal (it works for them), then whether it is in your niche,
- * still fresh, and saved. Weights sum to 1.
+ * still fresh, and saved. Weights sum to 1. A creator the owner picked fits by
+ * being picked: the hashtags they use don't count against them.
  */
 export const BORROW_WEIGHTS: BorrowParts = { beat: 0.45, fit: 0.25, fresh: 0.15, saved: 0.15 };
 
@@ -184,21 +185,53 @@ export function borrowScore(
   v: Pick<Video, "views" | "saves" | "hashtags" | "posted_at">,
   normal: Normal,
   niche: string[],
-  now = Date.now(),
-): { score: number; parts: BorrowParts; times: number | null } {
+  { now = Date.now(), chosen = false }: { now?: number; chosen?: boolean } = {},
+): { score: number; parts: BorrowParts; times: number | null; chosen: boolean } {
   const times = timesNormal(v.views, normal);
   // 1× normal scores 0, 8× or more scores 1, on a log scale.
   const beat = times === null ? 0 : Math.max(0, Math.min(1, Math.log2(Math.max(times, 1)) / 3));
   const tags = new Set(niche);
   const shared = v.hashtags.filter((t) => tags.has(t)).length;
-  const fit = Math.min(1, shared / 2);
+  const fit = chosen ? 1 : Math.min(1, shared / 2);
   const age = v.posted_at ? (now - Date.parse(v.posted_at)) / DAY : 30;
   const fresh = Math.max(0, Math.min(1, 1 - (age - 3) / 25));
   const s = perK(v.saves, v.views);
   const saved = s === null || !normal.savesPerK ? 0.5 : Math.max(0, Math.min(1, s / (2 * normal.savesPerK)));
   const parts = { beat, fit, fresh, saved };
   const score = Math.round(100 * (Object.keys(BORROW_WEIGHTS) as (keyof BorrowParts)[]).reduce((sum, k) => sum + BORROW_WEIGHTS[k] * parts[k], 0));
-  return { score, parts, times };
+  return { score, parts, times, chosen };
+}
+
+/** A video this score or better is worth showing the plan; the owner's picks skip the bar. */
+const BORROW_MIN = 45;
+
+/**
+ * The videos a plan is written from: half the seats go to the creators the owner
+ * picked, shared between them, best video first, and always at least their best;
+ * the other half to the best of the rest. Seats one side can't fill go to the other.
+ */
+export function pickBorrow<T extends { v: { author: string }; score: number; chosen: boolean }>(rows: T[], seats = 8): T[] {
+  const best = [...rows].sort((a, b) => b.score - a.score);
+  const picks: T[] = [];
+  const byAuthor = new Map<string, T[]>();
+  for (const r of best.filter((r) => r.chosen)) byAuthor.set(r.v.author, [...(byAuthor.get(r.v.author) ?? []), r]);
+  const queues = [...byAuthor.values()];
+  const takeChosen = (n: number) => {
+    for (let taken = 0; taken < n && queues.some((q) => q.length); ) {
+      for (const q of queues) {
+        const r = q.shift();
+        if (r && taken < n) {
+          picks.push(r);
+          taken++;
+        } else if (r) q.unshift(r);
+      }
+    }
+  };
+  takeChosen(Math.ceil(seats / 2));
+  const rest = best.filter((r) => !r.chosen && r.score >= BORROW_MIN);
+  picks.push(...rest.slice(0, seats - picks.length));
+  takeChosen(seats - picks.length);
+  return picks.sort((a, b) => b.score - a.score);
 }
 
 export interface PeerCandidate {

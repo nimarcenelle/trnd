@@ -131,7 +131,7 @@ export default function Home() {
                     {aheadLine(x.followers, SAMPLE.author?.followers ?? null) && <span className="pill pill-brand !text-[11.5px]">{aheadLine(x.followers, SAMPLE.author?.followers ?? null)}</span>}
                   </div>
                   <div className="caption line-clamp-2">
-                    {compact(x.followers)} followers{x.best?.hook ? <> · best recent: &ldquo;{x.best.hook}&rdquo;, {compact(x.best.views)} views</> : null}
+                    {compact(x.followers)} followers{x.best?.hook ? <> · best recent: {x.best.hook}, {compact(x.best.views)} views</> : null}
                   </div>
                 </div>
               </div>

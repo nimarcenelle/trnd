@@ -47,10 +47,13 @@ anything, then ask for one thing at a time.
    - **peers**: each peer's last 15 videos.
    - **trends**: every hashtag and borrowed sound in the last 14 days of videos read, counted this week against last
      and staged early, rising, peaking or fading (`trendRows`, `stageOf`), snapshotted daily.
-   - **tag**: when a plan is due (weekly, or on "Read again now"), the format and hook of up to 60 untagged videos.
+   - **tag**: when a plan is due (weekly, or on "Read again now"), up to 60 videos not yet read: the words said, from
+     TikTok's captions (`readSpoken`), and the format and subject from the model. Creators the owner picked go first.
+     Only words a video really says are shown in quotation marks (`videoLead`).
    - **plan**: ideas posted since the last scan are matched (`matchIdea`) and checked after 48 hours (`outcomeOf`);
      one with no numbers waits rather than getting a made-up verdict. When due, the plan is written from the
-     creator's breakouts, peer videos ranked by **borrow score** and the early or rising trends. A source the model
+     creator's breakouts, peer videos ranked by **borrow score** (half the seats held for creators the owner picked,
+     `pickBorrow`) and the early or rising trends. A source the model
      names must be one it was given, of the kind the idea claims, or it is dropped.
 3. **Every day**, Vercel Cron hits `/api/cron/scan`, which fans out one invocation per due creator, always through
    `NEXT_PUBLIC_SITE_URL` (Vercel Cron calls the deployment's `*.vercel.app` address, which Vercel's login wall

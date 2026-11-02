@@ -6,7 +6,7 @@ import { adminSupabase } from "@/lib/db/supabase";
 import type { Creator, Goal, Video } from "@/lib/db/types";
 import { isModelConfigured } from "@/lib/env";
 import { safeText, todayIso } from "@/lib/format";
-import { normHandle, readHashtags, readProfiles, type ReadVideo } from "@/lib/tiktok/read";
+import { normHandle, readHashtags, readProfiles, readSpoken, type ReadVideo } from "@/lib/tiktok/read";
 
 import { storeCovers } from "./covers";
 import { DAILY_BUDGET, gate, PER_VISITOR_PER_DAY, visitorKey, type Gate } from "./limits";
@@ -44,6 +44,8 @@ export function asVideo(v: ReadVideo, self: string): Video {
     sound: v.sound,
     sound_original: v.soundOriginal,
     duration_s: v.durationS,
+    subtitle_url: v.subtitleUrl ?? null,
+    spoken: null,
     cover_url: v.coverUrl,
     posted_at: v.postedAt,
     views: v.views,
@@ -223,11 +225,15 @@ async function ideaStep(p: Preview): Promise<void> {
   const normal = normalOf(own);
   const ranked = own.map((v) => ({ v, x: timesNormal(v.views, normal) })).sort((a, b) => (b.x ?? 0) - (a.x ?? 0));
   const peerSet = new Set(p.peers.map((x) => x.handle));
-  const borrow = p.sample
+  const top = [...ranked.slice(0, 10), ...ranked.slice(-4)];
+  const borrowed = p.sample
     .filter((v) => peerSet.has(v.author))
     .sort((a, b) => (b.views ?? 0) - (a.views ?? 0))
     .slice(0, 6)
-    .map((v) => videoLine(asVideo(v, p.handle)));
+    .map((v) => asVideo(v, p.handle));
+  const spoken = await readSpoken([...top.map((r) => r.v), ...borrowed]);
+  const said = (v: Video) => ({ ...v, spoken: spoken.get(v.video_id) ?? null });
+  const borrow = borrowed.map((v) => videoLine(said(v)));
   const body = await writePlan({
     handle: p.handle,
     followers: p.author?.followers ?? null,
@@ -235,7 +241,7 @@ async function ideaStep(p: Preview): Promise<void> {
     goals: { goal: (p.goal as Goal | null) ?? "followers", posts_per_week: "", target: "", notes: "" },
     today: todayIso(),
     normal: { views: normal.views, low: normal.low, high: normal.high, perWeek: postsPerWeek(own) },
-    own: [...ranked.slice(0, 10), ...ranked.slice(-4)].map((r) => videoLine(r.v, r.x)),
+    own: top.map((r) => videoLine(said(r.v), r.x)),
     borrow,
     trends: p.trends.map((t) => `[${t.key}] ${t.kind} ${t.label}: ${t.recent} videos this week, ${t.prior} last week, ${t.creators} creators, ${t.stage}`),
     past: [],

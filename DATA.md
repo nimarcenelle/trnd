@@ -27,6 +27,10 @@ needs checking in TikTok's developer portal before we build on it.
 - **Everything on the page comes from public reads.** Apify's `clockworks~tiktok-scraper` (`lib/tiktok/read.ts`) reads
   the creator's last 30 videos, each peer's last 15, and recent videos under the niche hashtags, every day. Saves come
   from `collectCount`. Mappers tolerate renamed fields, which degrade to "—".
+- **What a video says** comes from TikTok's own captions, linked on the same read (`videoMeta.subtitleLinks`, no extra
+  actor cost). They are auto-captions, so they can have small errors. Videos with no speech have none, and a borrowed
+  sound's are ignored because they would be a song's lyrics. We never watch the video: with no captions, we only have the
+  caption text and the numbers, and the prompt and page say no more than that.
 - **History is ours.** `video_snapshots`, `follower_snapshots` and `trend_snapshots` are written every read, so growth
   and "48 hours later" work from day one forward.
 - **Trends** are counted from the niche videos we read: this week against last, by hashtag and by borrowed sound

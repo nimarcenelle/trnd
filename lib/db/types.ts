@@ -108,8 +108,14 @@ export interface Video {
   comments: number | null;
   shares: number | null;
   saves: number | null;
+  /** Our read of the kind of video, e.g. "ranked list". */
   format: string | null;
+  /** What the video is about, in our words: never a quote. Older rows hold a guess at the opening line, so it is never shown as one. */
   hook: string | null;
+  /** Where TikTok keeps its captions for this video. These links expire; each read brings a fresh one. */
+  subtitle_url: string | null;
+  /** The words said, one caption per line, from TikTok's captions. "" when there are none to use; null when not read yet. */
+  spoken: string | null;
   first_seen_at: string;
   last_read_at: string;
 }
@@ -147,9 +153,11 @@ export interface TrendSnapshot {
 
 export type IdeaType = "double_down" | "borrow" | "ride";
 
-/** One beat of a script: the seconds it covers, what is said, what is on screen. */
+/** One beat of the flow: the seconds it covers, what it has to do, an example of saying it, what is on screen. */
 export interface Beat {
   t: string;
+  /** What the beat has to get across. Plans written before this existed don't have it. */
+  point?: string;
   say: string;
   shot: string;
 }
@@ -157,6 +165,7 @@ export interface Beat {
 /** A video to make next, with the evidence it rests on. */
 export interface Idea {
   type: IdeaType;
+  /** One way to open the video, not the words they have to use. */
   hook: string;
   /** One or two sentences: why this, why now, for this creator. */
   so: string;

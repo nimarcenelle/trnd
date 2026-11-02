@@ -72,6 +72,26 @@ export function safeText(text: string): string {
  * to 60 characters with an ellipsis. A caption that is only hashtags shows its
  * first three.
  */
+/** The real first thing said: whole captions up to a usable line, at most 15 words. Null when we have no words. */
+export function openingLine(spoken: string | null | undefined): string | null {
+  const words: string[] = [];
+  for (const line of (spoken ?? "").split("\n")) {
+    words.push(...line.split(/\s+/).filter(Boolean));
+    if (words.length >= 4) break;
+  }
+  if (!words.length) return null;
+  return words.length > 15 ? `${words.slice(0, 15).join(" ")}…` : words.join(" ");
+}
+
+/**
+ * How a video is named on the page. Only words it really says get quotation
+ * marks; our read of it, or its caption, is shown as plain text.
+ */
+export function videoLead(v: { spoken?: string | null; hook?: string | null; caption?: string | null }): { text: string; quoted: boolean } {
+  const said = openingLine(v.spoken);
+  return said ? { text: said, quoted: true } : { text: videoTitle(v.hook || v.caption, 120), quoted: false };
+}
+
 export function videoTitle(text: string | null | undefined, max = 60): string {
   const s = (text ?? "").replace(/\s+/g, " ").trim();
   const tags = s.match(/#[\p{L}\p{N}_]+/gu) ?? [];

@@ -64,17 +64,19 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
   // The numbers every view leans on, computed once.
   const normal = normalOf(own);
   const peerSet = new Set(peers.map((p) => p.handle));
+  const picked = new Set(peers.filter((p) => p.source === "owner").map((p) => p.handle));
   const byAuthor = new Map<string, typeof videos>();
   for (const v of videos) byAuthor.set(v.author, [...(byAuthor.get(v.author) ?? []), v]);
   const normals = new Map([...byAuthor].map(([h, vs]) => [h, normalOf(vs)]));
   const trends = trendRows(recent);
   const myFollowers = followerChange(followers.filter((f) => f.handle === creator.handle));
 
-  const peerCards: PeerCard[] = peers.map((p) => {
+  // The creators the owner picked come first.
+  const peerCards: PeerCard[] = [...peers].sort((a, b) => Number(picked.has(b.handle)) - Number(picked.has(a.handle))).map((p) => {
     const theirs = (byAuthor.get(p.handle) ?? []).filter((v) => v.posted_at && withinDays(v.posted_at, 21));
     const n = normals.get(p.handle) ?? normalOf([]);
     const best = theirs
-      .map((v) => ({ v, ...borrowScore(v, n, creator.hashtags) }))
+      .map((v) => ({ v, ...borrowScore(v, n, creator.hashtags, { chosen: picked.has(p.handle) }) }))
       .sort((a, b) => b.score - a.score)[0];
     return { peer: p, normal: n, best: best ?? null, growth: followerChange(followers.filter((f) => f.handle === p.handle)) };
   });
@@ -87,7 +89,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
       video,
       own: isOwn,
       times: video && n ? timesNormal(video.views, n) : null,
-      borrow: video && n && !isOwn && peerSet.has(video.author) ? borrowScore(video, n, creator.hashtags) : null,
+      borrow: video && n && !isOwn && peerSet.has(video.author) ? borrowScore(video, n, creator.hashtags, { chosen: picked.has(video.author) }) : null,
       trend: i.source_trend ? (trends.find((t) => t.key === i.source_trend) ?? null) : null,
     };
   };

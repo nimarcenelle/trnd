@@ -17,6 +17,7 @@ describe("videoTitle", () => {
   });
   it("drops a closing run of tags and handles, but keeps a lone handle in the sentence", () => {
     expect(videoTitle("on the cost of outsourcing #growth #glowup @apple @")).toBe("on the cost of outsourcing");
+    expect(videoTitle("on the cost of outsourcing #growth #glowup @apple and a long credit list")).toBe("on the cost of outsourcing");
     expect(videoTitle("The only Ghostface I wouldn't run from @vampfinalboss")).toBe("The only Ghostface I wouldn't run from @vampfinalboss");
   });
   it("keeps hashtags in the middle", () => expect(videoTitle("My #1 tip for sleep")).toBe("My #1 tip for sleep"));

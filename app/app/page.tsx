@@ -79,8 +79,8 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
       .sort((a, b) => b.score - a.score)[0];
     return { peer: p, normal: n, best: best ?? null, growth: followerChange(followers.filter((f) => f.handle === p.handle)) };
   });
-  // The creators the owner picked come first, then anyone with something recent to show.
-  peerCards.sort((a, b) => Number(picked.has(b.peer.handle)) - Number(picked.has(a.peer.handle)) || Number(Boolean(b.best)) - Number(Boolean(a.best)));
+  // The creators the owner picked come first, then the most worth borrowing from; nothing recent goes last.
+  peerCards.sort((a, b) => Number(picked.has(b.peer.handle)) - Number(picked.has(a.peer.handle)) || (b.best?.score ?? -1) - (a.best?.score ?? -1));
 
   const ideaSource = (i: (typeof latest.body.ideas)[number]) => {
     const video = i.source_video ? (videos.find((v) => v.video_id === i.source_video) ?? null) : null;

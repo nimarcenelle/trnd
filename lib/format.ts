@@ -98,6 +98,8 @@ export function videoTitle(text: string | null | undefined, max = 60): string {
   const core = s
     .replace(/^(?:#[\p{L}\p{N}_]*\s*)+/u, "")
     .replace(/(?:\s*#[\p{L}\p{N}_]*)+$/u, "")
+    // A closing run of tags and handles is credits, not the title; one handle alone can be part of the sentence.
+    .replace(/(?:\s*[#@][\p{L}\p{N}_.]*){2,}$/u, "")
     .trim();
   if (!core) return tags.slice(0, 3).join(" ");
   return core.length > max ? `${core.slice(0, max).trimEnd()}…` : core;

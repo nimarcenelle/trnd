@@ -71,8 +71,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
   const trends = trendRows(recent);
   const myFollowers = followerChange(followers.filter((f) => f.handle === creator.handle));
 
-  // The creators the owner picked come first.
-  const peerCards: PeerCard[] = [...peers].sort((a, b) => Number(picked.has(b.handle)) - Number(picked.has(a.handle))).map((p) => {
+  const peerCards: PeerCard[] = peers.map((p) => {
     const theirs = (byAuthor.get(p.handle) ?? []).filter((v) => v.posted_at && withinDays(v.posted_at, 21));
     const n = normals.get(p.handle) ?? normalOf([]);
     const best = theirs
@@ -80,6 +79,8 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
       .sort((a, b) => b.score - a.score)[0];
     return { peer: p, normal: n, best: best ?? null, growth: followerChange(followers.filter((f) => f.handle === p.handle)) };
   });
+  // The creators the owner picked come first, then anyone with something recent to show.
+  peerCards.sort((a, b) => Number(picked.has(b.peer.handle)) - Number(picked.has(a.peer.handle)) || Number(Boolean(b.best)) - Number(Boolean(a.best)));
 
   const ideaSource = (i: (typeof latest.body.ideas)[number]) => {
     const video = i.source_video ? (videos.find((v) => v.video_id === i.source_video) ?? null) : null;

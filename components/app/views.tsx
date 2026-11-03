@@ -86,8 +86,8 @@ export function NextView({
         <Tile
           label="Followers"
           value={followers ? signed(followers.change) : compact(creator.followers)}
-          hint={followers ? `over ${followers.days} days` : "Growth shows after two daily reads"}
-          tone={followers ? (followers.change >= 0 ? "up" : "down") : undefined}
+          hint={followers ? (followers.change === 0 ? `No change over ${followers.days} days` : `over ${followers.days} days`) : "Growth shows after two daily reads"}
+          tone={followers && followers.change !== 0 ? (followers.change > 0 ? "up" : "down") : undefined}
         />
         <Tile label="Your typical video" value={compact(normal.views)} hint={normal.low !== null ? `${compact(normal.low)}–${compact(normal.high)} views, middle half` : "Not enough videos yet"}>
           <ViewsStrip views={own.map((v) => v.views)} usual={normal.views} />

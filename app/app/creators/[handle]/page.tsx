@@ -51,7 +51,7 @@ export default async function PeerPage({ params }: PageProps<"/app/creators/[han
           </button>
         </form>
       </div>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-px bg-line border border-line rounded-[14px] overflow-hidden">
+      <div className="grid grid-cols-2 min-[640px]:grid-cols-4 gap-px bg-line border border-line rounded-[14px] overflow-hidden">
         {[
           ["Followers", compact(peer.followers)],
           ["30 days", growth ? signed(growth.change) : "—"],

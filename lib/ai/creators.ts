@@ -229,6 +229,7 @@ Return:
     short reason; say "when your audience is free" rather than claiming analytics you don't have), format (in their style).
   - caption: one line that asks for a comment. hashtags: 3-5, with #, specific ones first.
   - why: 2-3 reasons it works, each tied to something in the evidence. Never make a reason depend on using the example wording.
+  Never build an idea on a video about a death, a memorial, a serious illness or a tragedy, however well it did.
   Ids are only for source_video and patterns.videos: in anything the creator reads, name a video by its topic or caption, never its id.
   - make_it_yours: one sentence on keeping it theirs, not a copy (or, for double_down, the one thing to change).
 - patterns: 2-3 things their own numbers show (e.g. "Saves are 3x higher on tutorials"), each with the ids of the videos

@@ -71,6 +71,29 @@ beforeEach(() => {
   );
 });
 
+describe("nicheStage and creators who have stopped posting", () => {
+  const read = "2026-11-01T00:00:00Z";
+  const quiet = (handle: string, followers: number, source: "owner" | "match" = "match") => ({ ...peer(handle, followers, source), last_read_at: read });
+
+  beforeEach(() => {
+    db.rows("peers").splice(0, db.rows("peers").length, quiet("silent", 150_000), quiet("mine", 150_000, "owner"), quiet("active", 150_000), peer("unread", 150_000), ...["e", "f", "g", "h"].map((h) => quiet(h, 150_000)));
+    db.rows("videos").push({ creator_id: "c1", author: "active", posted_at: new Date().toISOString() }, ...["e", "f", "g", "h"].map((author) => ({ creator_id: "c1", author, posted_at: new Date().toISOString() })), { creator_id: "c1", author: "silent", posted_at: "2026-01-01T00:00:00Z" });
+  });
+
+  it("replaces a matched creator gone quiet, but never one you picked or one not read yet", async () => {
+    inSample({ fresh: 500_000 });
+    await nicheStage(db as never, me);
+    expect(live()).toEqual(["active", "e", "f", "fresh", "g", "h", "mine", "unread"]);
+    expect(db.rows("peers").find((p) => p.handle === "silent")?.removed_at).toBeTruthy();
+  });
+
+  it("keeps them when there is nobody to replace them with", async () => {
+    inSample({});
+    await nicheStage(db as never, me);
+    expect(live()).toContain("silent");
+  });
+});
+
 describe("nicheStage on a full list", () => {
   it("swaps matched creators behind for ones ahead, one for one, smallest out first", async () => {
     inSample({ ahead1: 500_000, ahead2: 800_000, equal: 55_000, gone: 600_000, own1: 900_000 });

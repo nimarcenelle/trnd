@@ -39,6 +39,8 @@ const PROFILE_EVERY_MS = 7 * 86_400_000;
 /** Matched peers are looked for again when fewer than this remain. */
 const MIN_PEERS = 4;
 const NICHE_TAGS_READ = 4;
+/** A matched creator with no video this recent has gone quiet. */
+const QUIET_DAYS = 21;
 /** Reads are daily; a new plan (and its email) is weekly, unless the creator asks for one. */
 const PLAN_EVERY_MS = 6.5 * 86_400_000;
 /** Videos tagged per scan: one model call. The rest are tagged on the next. */
@@ -186,9 +188,10 @@ const BROAD = new Set(["fyp", "foryou", "foryoupage", "viral", "trending", "tikt
 
 /**
  * The niche sample: recent videos under the niche hashtags, and creators ahead
- * of you picked from it. A short list is filled; a full one swaps matched
- * creators no bigger than you for ones ahead of you, one for one, smallest out
- * first. Creators the owner added are never swapped.
+ * of you picked from it. A short list is filled. Matched creators who have
+ * stopped posting make way for ones who haven't, then matched creators no bigger
+ * than you make way for ones ahead of you, one for one, smallest out first.
+ * Creators the owner added are never swapped.
  */
 export async function nicheStage(sb: SupabaseClient, c: Creator): Promise<void> {
   const tags = c.hashtags.slice(0, NICHE_TAGS_READ);
@@ -196,8 +199,8 @@ export async function nicheStage(sb: SupabaseClient, c: Creator): Promise<void> 
   const sample = await readHashtags(tags, 30);
   await saveVideos(sb, c.id, sample.videos, c.handle);
 
-  const { data: all } = await sb.from("peers").select("id, handle, source, followers, removed_at").eq("creator_id", c.id);
-  const known = (all ?? []) as Pick<Peer, "id" | "handle" | "source" | "followers" | "removed_at">[];
+  const { data: all } = await sb.from("peers").select("id, handle, source, followers, removed_at, last_read_at").eq("creator_id", c.id);
+  const known = (all ?? []) as Pick<Peer, "id" | "handle" | "source" | "followers" | "removed_at" | "last_read_at">[];
   const live = known.filter((p) => !p.removed_at);
   const niche = new Set(c.hashtags);
   const byAuthor = new Map<string, PeerCandidate & { seen: Set<string> }>();
@@ -214,10 +217,17 @@ export async function nicheStage(sb: SupabaseClient, c: Creator): Promise<void> 
   const fill = live.length < MIN_PEERS ? ranked.slice(0, MAX_PEERS - live.length) : [];
   const band = aheadBand(c.followers);
   const isAhead = (followers: number | null) => followers !== null && followers >= band.min;
-  const behind = live.filter((p) => p.source !== "owner" && !isAhead(p.followers)).sort((a, b) => (a.followers ?? 0) - (b.followers ?? 0));
-  const swapIn = ranked.filter((p) => isAhead(p.followers) && !fill.includes(p)).slice(0, behind.length);
-  const out = behind.slice(0, swapIn.length);
-  const picks = [...fill, ...swapIn];
+  const matched = live.filter((p) => p.source !== "owner");
+  // Read at least once and nothing recent: there is nothing of theirs to learn from this week.
+  const { data: recent } = matched.length ? await sb.from("videos").select("author").eq("creator_id", c.id).in("author", matched.map((p) => p.handle)).gte("posted_at", since(QUIET_DAYS)) : { data: [] };
+  const posting = new Set((recent ?? []).map((v) => v.author as string));
+  const quiet = matched.filter((p) => p.last_read_at && !posting.has(p.handle));
+  const behind = matched.filter((p) => !quiet.includes(p) && !isAhead(p.followers)).sort((a, b) => (a.followers ?? 0) - (b.followers ?? 0));
+  const spare = ranked.filter((p) => !fill.includes(p));
+  const replaceQuiet = spare.slice(0, quiet.length);
+  const swapIn = spare.filter((p) => !replaceQuiet.includes(p) && isAhead(p.followers)).slice(0, behind.length);
+  const out = [...quiet.slice(0, replaceQuiet.length), ...behind.slice(0, swapIn.length)];
+  const picks = [...fill, ...replaceQuiet, ...swapIn];
   if (!picks.length) return;
   if (out.length) {
     const { error } = await sb.from("peers").update({ removed_at: new Date().toISOString() }).in("id", out.map((p) => p.id));
@@ -248,6 +258,7 @@ async function peersStage(sb: SupabaseClient, c: Creator): Promise<void> {
   const now = new Date().toISOString();
   // A peer whose run died keeps its last read and note: it is not "private or renamed" on that alone.
   const unread = new Set(read.unread);
+  const withVideos = new Set(read.videos.map((v) => v.author));
   await Promise.all(
     peers
       .filter((p) => !unread.has(p.handle))
@@ -255,7 +266,7 @@ async function peersStage(sb: SupabaseClient, c: Creator): Promise<void> {
         const a = read.authors.get(p.handle);
         return sb
           .from("peers")
-          .update(a ? { display_name: a.displayName, avatar_url: a.avatarUrl, followers: a.followers, last_read_at: now, last_error: null } : { last_error: "Couldn't read this account. It may be private or renamed." })
+          .update(a ? { display_name: a.displayName, avatar_url: a.avatarUrl, followers: a.followers, last_read_at: now, last_error: withVideos.has(p.handle) ? null : "TikTok isn't showing us this account's videos right now, so it can't shape your plan yet." } : { last_error: "Couldn't read this account. It may be private or renamed." })
           .eq("id", p.id);
       }),
   );

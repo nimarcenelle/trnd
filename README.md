@@ -42,7 +42,8 @@ anything, then ask for one thing at a time.
      equals but accounts a step or two ahead in the same niche, two to fifty times their followers (5K to 250K for small
      accounts), best niche fit first, then the closest to five times their size (`rankPeers`, `aheadBand`). Too few
      ahead in the sample and the list is topped up from around their size, biggest first (`nearBand`). Creators the
-     owner names ("Who do you want to be like?" in welcome, or Settings) always stay and come first. A peer the owner
+     owner names ("Who do you want to be like?" in welcome, or Settings) always stay and come first. Matched creators
+     with nothing in the last 21 days are replaced by ones still posting. A peer the owner
      removed is never matched again.
    - **peers**: each peer's last 15 videos.
    - **trends**: every hashtag and borrowed sound in the last 14 days of videos read, counted this week against last

@@ -1,83 +1,71 @@
 import Link from "next/link";
 
-import AdPreview from "@/components/app/ad-preview";
-import Avatar from "@/components/app/avatar";
+import ProductShot from "@/components/admitted/product-shot";
+import OddsStart from "@/components/admitted/odds-start";
+import { APPLICANT, ESSAY, FACTORS, MOVES, SCHOOLS } from "@/components/admitted/sample";
+import { MovePill, SplitBar, SplitLegend } from "@/components/admitted/split";
 import Brand from "@/components/brand";
 import { IconCheck } from "@/components/icons";
-import SampleCreative from "@/components/sample/creative";
-import { SAMPLE_ADS, type SampleAd } from "@/components/sample/market";
-import ProductShot from "@/components/sample/product-shot";
 import SiteNav from "@/components/site-nav";
-import UrlStart from "@/components/url-start";
-import { PRICE_LABEL } from "@/lib/billing";
 
 const STEPS = [
-  { title: "Tell us your business", body: "Enter your website. TRND learns what you sell, who you serve, how you're priced and what makes you different. Correct anything, and add your goals." },
-  { title: "We watch them every day", body: "TRND follows your competitors' public marketing daily: what they launch, what they promote, what they change and what they keep paying for." },
-  { title: "We connect the dots", body: "Moves rarely come alone. A new message, a bundle offer and a run of savings ads are one push, not three events. TRND links them and reads them through your business." },
-  { title: "You get your next move", body: "Each move ranked: get ahead, win the choice, counter, or ignore. With a campaign brief ready to test: angle, hook, offer, creative and audience." },
+  { title: "Enter your numbers", body: "GPA, SAT or ACT, and the schools on your list. No account." },
+  { title: "See the split", body: "Odds at each school, split into the part your stats already decided and the part your application can still change." },
+  { title: "Get the top fix, free", body: "The single change worth the most points, named and sized. Yours to act on, with or without us." },
+  { title: "We do the movable part", body: "Pay once for the cycle. The essays rewritten from your drafts, the list rebalanced, the rounds planned, re-run whenever anything changes." },
+];
+
+const TRACKS = [
+  { name: "Undergrad", inputs: "GPA · SAT or ACT · course rigor", note: "Available first" },
+  { name: "MBA", inputs: "GPA · GMAT or GRE · years of work", note: "Same engine" },
+  { name: "Law", inputs: "GPA · LSAT · cycle timing", note: "Same engine" },
+  { name: "Med", inputs: "Science GPA · MCAT · state of residence", note: "Same engine" },
+];
+
+const PROOF = [
+  { value: "[X]", label: "colleges with a Common Data Set on file" },
+  { value: "[X]", label: "admission cycles of published ranges" },
+  { value: "1 click", label: "from any number to its source page" },
+  { value: "0", label: "numbers from surveys or forum self-reports" },
 ];
 
 const INCLUDED = [
-  "Up to 10 competitors, checked daily",
-  "Every public move, tracked daily",
-  "Opportunities ranked for your business",
-  "Campaign briefs ready to test",
-  "Instagram and TikTok tracking",
-  "An email when something changes",
+  "Essay rewrites from your own drafts, unlimited revisions",
+  "A rebalanced college list",
+  "An ED, EA and RD plan with every deadline",
+  "Unlimited re-runs through the cycle",
+  "Every number linked to its source",
 ];
 
 const FAQ = [
   {
-    q: "Where does the data come from?",
-    a: "Public information only: what your competitors put out to win customers. TRND reads it every day, keeps the history, and never touches anything private.",
+    q: "Where do the odds come from?",
+    a: "From each college's Common Data Set: the admission ranges, admit rates by round and test-score bands the college publishes itself. Every number links back to the section it came from, so you can check it.",
   },
   {
-    q: "How do you know what's working for them?",
-    a: "We don't, exactly, and we say so. Competitors don't publish their results. What we can see is what they keep paying for and keep repeating: an ad still running after weeks, several versions of one idea, an offer pushed again and again. TRND reads those signals, tells you how confident it is, and never claims more than they show.",
+    q: "What does locked and movable mean?",
+    a: "Locked is the part of your odds set by things you can no longer change this cycle: GPA, scores, the courses you took. Movable is the part your application still decides: which round you apply in, your essays, how your activities read, and which schools are on the list.",
   },
   {
-    q: "How are my competitors chosen?",
-    a: "TRND suggests them from your website, and you confirm the list before anything is tracked. Add or remove competitors any time.",
+    q: "Do you write my essay for me?",
+    a: "We rewrite it from your draft. Your story, your details and most of your sentences stay; the structure and the opening change. You see what was kept and can revise as many times as you like.",
   },
   {
-    q: "Do I need to connect my ad account?",
-    a: "No. TRND reads public ads, so nothing touches your Meta account. If you want advice tuned to what has worked for you, upload an Ads Manager export (CSV) on the Business DNA page.",
+    q: "Are the odds a guarantee?",
+    a: "No. They are the published numbers applied to your profile, and they say how sure they are. Colleges read applications as people; no tool can promise an admit.",
+  },
+  {
+    q: "What about MBA, law and med?",
+    a: "Same engine, different inputs. Undergrad comes first; the other tracks open after it.",
   },
 ];
 
-function SampleAdCard({ ad, i }: { ad: SampleAd; i: number }) {
-  const status =
-    ad.status === "new" ? (
-      <span className="badge badge-pos">
-        <span className="status-dot" />
-        New
-      </span>
-    ) : ad.days >= 21 ? (
-      <span className="badge badge-warn">
-        <span className="status-dot" />
-        Proven
-      </span>
-    ) : (
-      <span className="badge badge-pos">
-        <span className="status-dot" />
-        Active
-      </span>
-    );
+function Check({ children }: { children: React.ReactNode }) {
   return (
-    <div className="card overflow-hidden">
-      <div className="flex items-center justify-between px-3.5 h-11 border-b border-line">
-        {status}
-        <span className="text-[12px] text-ink-3 tnum">
-          {ad.days} days{ad.versions > 1 ? ` · ${ad.versions} versions` : ""}
-        </span>
-      </div>
-      <AdPreview page={ad.rival} body={ad.body} title={ad.title} cta={ad.cta} domain={ad.domain} media={<SampleCreative spec={ad.creative} id={`card-${i}`} />} />
-      <div className="px-3.5 py-3 border-t border-line flex gap-1.5">
-        <span className="badge badge-outline">{ad.angle}</span>
-        {ad.offer && <span className="badge badge-outline">{ad.offer}</span>}
-      </div>
-    </div>
+    <li className="flex gap-2.5 text-[14.5px]">
+      <IconCheck className="text-brand mt-[3px] shrink-0" />
+      {children}
+    </li>
   );
 }
 
@@ -86,14 +74,11 @@ function Feature({ kicker, title, body, points, visual, flip = false }: { kicker
     <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:gap-16 lg:grid-cols-2 items-center">
       <div className={flip ? "lg:order-2" : ""}>
         <p className="kicker">{kicker}</p>
-        <h3 className="display text-[30px] sm:text-[34px] mt-3">{title}</h3>
+        <h3 className="section-title text-[30px] sm:text-[36px] mt-3">{title}</h3>
         <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[480px]">{body}</p>
         <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-2.5">
           {points.map((p) => (
-            <li key={p} className="flex gap-2.5 text-[14.5px]">
-              <IconCheck className="text-brand mt-[3px] shrink-0" />
-              {p}
-            </li>
+            <Check key={p}>{p}</Check>
           ))}
         </ul>
       </div>
@@ -102,36 +87,177 @@ function Feature({ kicker, title, body, points, visual, flip = false }: { kicker
   );
 }
 
+function SplitCard() {
+  return (
+    <div className="card p-6 w-full max-w-[520px] lg:ml-auto">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="caption">{FACTORS.school}</div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-[30px] font-semibold tnum tracking-tight">{FACTORS.odds}%</span>
+            <span className="text-[13px] text-ink-3 tnum">
+              → <span className="text-brand font-semibold">{FACTORS.withFixes}%</span> with fixes
+            </span>
+          </div>
+        </div>
+        <SplitLegend className="mt-1" />
+      </div>
+      <SplitBar className="mt-4 !h-2" locked={61} movable={39} />
+      <div className="mt-5 grid gap-5 sm:grid-cols-2">
+        <div>
+          <div className="text-[12px] font-medium text-ink-3">Locked · 61%</div>
+          <ul className="list-none p-0 m-0 mt-2 flex flex-col gap-2 text-[13px]">
+            {FACTORS.locked.map((f) => (
+              <li key={f.label} className="flex justify-between gap-3">
+                <span className="text-ink-2">{f.label}</span>
+                <span className="tnum text-ink-3">{f.share}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <div className="text-[12px] font-medium text-brand">Movable · 39%</div>
+          <ul className="list-none p-0 m-0 mt-2 flex flex-col gap-2 text-[13px]">
+            {FACTORS.movable.map((f) => (
+              <li key={f.label} className="flex justify-between gap-3">
+                <span>{f.label}</span>
+                <span className="tnum text-brand font-medium whitespace-nowrap">+{f.gain} pts</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EssayCard() {
+  return (
+    <div className="card w-full max-w-[520px] overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-line flex items-center justify-between gap-3">
+        <span className="text-[13.5px] font-semibold">{ESSAY.prompt}</span>
+        <span className="badge badge-pos">Revision {ESSAY.revision}</span>
+      </div>
+      <div className="p-5 flex flex-col gap-4">
+        <div className="well p-4">
+          <div className="text-[12px] text-ink-3">Your draft</div>
+          <p className="text-[14px] text-ink-2 leading-[1.65] mt-1.5">{ESSAY.draft}</p>
+        </div>
+        <div>
+          <div className="text-[12px] text-ink-3">Rewrite</div>
+          <p className="text-[14px] leading-[1.65] mt-1.5 border-l-2 border-brand pl-3">{ESSAY.rewrite}</p>
+        </div>
+      </div>
+      <div className="px-5 py-3 border-t border-line flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-ink-3 tnum">
+        <span>{ESSAY.words} words</span>
+        <span>{ESSAY.kept}% of sentences yours</span>
+        <span className="text-brand font-medium">+3 pts at Calder</span>
+      </div>
+    </div>
+  );
+}
+
+function ListCard() {
+  return (
+    <div className="card w-full max-w-[520px] lg:ml-auto overflow-hidden">
+      <div className="px-5 py-4 border-b border-line flex items-baseline justify-between gap-3">
+        <span className="text-[13px] text-ink-2">Chance of at least one admit</span>
+        <span className="tnum text-[14px]">
+          <span className="text-ink-3">91%</span> → <span className="text-brand font-semibold text-[20px]">98%</span>
+        </span>
+      </div>
+      <table className="table">
+        <thead>
+          <tr>
+            <th>School</th>
+            <th>Band</th>
+            <th className="text-right">Odds</th>
+          </tr>
+        </thead>
+        <tbody>
+          {SCHOOLS.map((s) => (
+            <tr key={s.name}>
+              <td className="font-medium">
+                {s.name}
+                {s.name === "Ashby College" && <span className="badge badge-pos ml-2 !h-5 !text-[11px]">Added</span>}
+              </td>
+              <td className="text-ink-2">{s.band}</td>
+              <td className="text-right tnum font-semibold">{s.odds}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PlanCard() {
+  return (
+    <div className="card w-full max-w-[520px] p-5">
+      <div className="caption">Next moves, by points gained</div>
+      <ol className="list-none p-0 m-0 mt-3 flex flex-col divide-y divide-line">
+        {MOVES.map((m) => (
+          <li key={m.rank} className="flex items-center gap-3 py-3">
+            <span className="text-[12px] text-ink-3 tnum w-3">{m.rank}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[14px] font-medium leading-snug">{m.title}</div>
+              <div className="text-[12px] text-ink-3 mt-0.5">
+                <span className="text-brand font-semibold tnum">{m.gain} pts</span> {m.where}
+              </div>
+            </div>
+            <MovePill move={m} />
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 export default function Home() {
-  const [clearwell, tidewell, , fenn] = SAMPLE_ADS;
   return (
     <div className="min-h-dvh flex flex-col">
       <SiteNav />
 
-      <section className="relative">
-        <div className="absolute inset-x-0 bottom-0 h-[55%] bg-subtle border-t border-line" aria-hidden />
-        <div className="wrap relative pt-20 sm:pt-28 pb-16 sm:pb-24 flex flex-col items-center text-center">
+      <section id="start" className="scroll-mt-14">
+        <div className="wrap pt-20 sm:pt-28 pb-16 sm:pb-20 flex flex-col items-center text-center">
           <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full border border-line bg-bg text-[12.5px] text-ink-2 shadow-[var(--shadow-sm)]">
-            <span className="live-dot !w-1.5 !h-1.5" /> Competitive intelligence for marketers
+            <i className="w-1.5 h-1.5 rounded-full bg-brand" /> Admit odds from published college data
           </span>
-          <h1 className="display text-[40px] sm:text-[56px] lg:text-[64px] mt-6 max-w-[900px]">Know what your competitors are doing. Know what to do next.</h1>
-          <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[660px]">
-            Your competitors are constantly changing what they sell, what they say, and how they advertise. TRND watches every move they make, then shows you where your business can get ahead, stand out, or fight back.
-          </p>
+          <h1 className="display text-[40px] sm:text-[56px] lg:text-[66px] mt-6 max-w-[920px]">
+            Your real odds.
+            <br />
+            And the part you can still move.
+          </h1>
+          <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[600px]">Every school on your list, split into what your stats decided and what your application can change. Then we change it.</p>
           <div className="mt-8 w-full flex justify-center">
-            <UrlStart />
+            <OddsStart />
           </div>
-          <p className="caption mt-3">Free for 14 days. No credit card required.</p>
-          <div className="mt-14 sm:mt-16 w-full max-w-[1080px]">
+          <div className="mt-14 sm:mt-16 w-full max-w-[1120px]">
             <ProductShot />
+            <p className="caption mt-3">Sample applicant, invented schools. Click the side nav to see each view.</p>
           </div>
         </div>
       </section>
 
-      <section id="how" className="border-t border-line">
+      <section className="border-t border-line">
+        <div className="wrap py-16 sm:py-20 grid gap-10 sm:grid-cols-3">
+          {[
+            [`${APPLICANT.locked}%`, "of the sample applicant's odds is locked by GPA and scores"],
+            [`${APPLICANT.movable}%`, "is movable: round, essays, activities and list"],
+            ["+8 pts", "from the top fix alone: ED II to Calder"],
+          ].map(([v, l]) => (
+            <div key={v}>
+              <div className="text-[52px] sm:text-[60px] font-medium tracking-[-0.04em] leading-none tnum">{v}</div>
+              <div className="text-[14px] text-ink-3 mt-3 max-w-[260px]">{l}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="how" className="border-t border-line scroll-mt-14">
         <div className="wrap py-20 sm:py-28">
           <p className="kicker">How it works</p>
-          <h2 className="display text-[30px] sm:text-[38px] mt-3 max-w-[640px]">From competitor moves to your next campaign.</h2>
+          <h2 className="section-title text-[32px] sm:text-[40px] mt-3 max-w-[640px]">From your numbers to a plan.</h2>
           <ol className="list-none p-0 m-0 mt-12 grid gap-10 md:grid-cols-2 lg:grid-cols-4 md:gap-8">
             {STEPS.map((s, i) => (
               <li key={s.title} className="border-t border-line pt-6">
@@ -144,174 +270,112 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="features" className="border-t border-line bg-subtle">
+      <section id="features" className="border-t border-line bg-subtle scroll-mt-14">
         <div className="wrap py-20 sm:py-28 flex flex-col gap-24 sm:gap-32">
           <Feature
-            kicker="What's working"
-            title="Know which ads they keep paying for."
-            body="An ad that's still running after months is one a competitor keeps funding. TRND reads every competitor ad, tags its angle, hook and offer, and marks what they're testing and what they're scaling."
-            points={["Every active ad, longest-running first", "Testing vs. scaling, from age and versions", "The patterns the long-running ads share"]}
-            visual={
-              <div className="grid grid-cols-2 gap-4 max-w-[560px] lg:ml-auto">
-                <SampleAdCard ad={fenn} i={0} />
-                <div className="pt-10">
-                  <SampleAdCard ad={clearwell} i={1} />
-                </div>
-              </div>
-            }
+            kicker="Odds"
+            title="Every number, split in two."
+            body="Odds at each school, from the ranges that school publishes. Then the split: how much your stats already decided, and how much is still yours to move, factor by factor."
+            points={["Odds per school, with the source one click away", "Locked and movable, as shares of the number", "Each movable factor sized in points"]}
+            visual={<SplitCard />}
           />
           <Feature
             flip
-            kicker="Connect the dots"
-            title="See the strategy, not just the moves."
-            body="One move is noise. A new message, a bundle offer and a run of savings ads in the same week is a strategy. TRND groups related moves, tells repeated messaging from new pushes, and emails you when it matters."
-            points={["One timeline of every move they make", "Related moves grouped into one pattern", "New pushes told apart from the same old offer"]}
-            visual={
-              <div className="card overflow-hidden max-w-[520px]">
-                <div className="px-5 py-4 border-b border-line">
-                  <div className="flex items-center gap-2">
-                    <span className="badge badge-pos">New push</span>
-                    <span className="text-[12px] text-ink-3">This week · 3 signals</span>
-                  </div>
-                  <div className="text-[15px] font-semibold mt-2 leading-snug">Tidewell looks to be making an affordability push</div>
-                </div>
-                <div className="divide-y divide-line">
-                  {[
-                    { icon: <Avatar name="Tidewell" size={24} />, tag: "New message", badge: "badge badge-info", line: "Now leading with “Clean water, half the price”" },
-                    { icon: <Avatar name="Tidewell" size={24} />, tag: "New offer", badge: "badge badge-warn", line: "“3 filters for $79”, pushed twice since Monday" },
-                    { icon: <SampleCreative spec={tidewell.creative} id="dots-0" />, tag: "New ads", badge: "badge badge-pos", line: "4 savings-themed ads launched in 6 days" },
-                  ].map(({ icon, tag, badge, line }, i) => (
-                    <div key={i} className="flex items-center gap-3 px-5 py-3.5">
-                      <div className="w-11 h-11 rounded-md overflow-hidden border border-line shrink-0 grid place-items-center bg-subtle text-ink-2">{icon}</div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[13.5px] font-semibold">Tidewell</span>
-                          <span className={badge}>{tag}</span>
-                        </div>
-                        <div className="text-[13px] text-ink-2 truncate mt-0.5">{line}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            }
+            kicker="Essays"
+            title="Your essay, rewritten from your draft."
+            body="Not a template and not a stranger's story. We keep your details and most of your sentences, and change what costs you points: the opening, the structure, the parts that could be anyone's."
+            points={["Personal statement and every supplement", "Unlimited revisions through the cycle", "What was kept and what changed, shown side by side"]}
+            visual={<EssayCard />}
           />
           <Feature
-            kicker="Built around your business"
-            title="Intelligence built around your business."
-            body="TRND learns what you sell, who you serve, what makes you different and what you want to achieve. Every competitor move is read through that, so the question it answers is yours: what is the smartest marketing move for my business right now?"
-            points={["Your business profile and goals, which you control", "Your ads and social, side by side with theirs", "Gaps in competitor positioning you could own"]}
-            visual={
-              <div className="card p-5 max-w-[520px] lg:ml-auto">
-                <div className="caption">You vs. your competitors</div>
-                <div className="grid grid-cols-3 gap-3 mt-3">
-                  {[
-                    { t: "Only you", c: "text-pos", items: ["Built-in refill subscription", "Vitamin C claim"] },
-                    { t: "Only them", c: "text-neg", items: ["Customer testimonials", "Video ads"] },
-                    { t: "Open lanes", c: "text-warn", items: ["Before/after for skin", "Renters, no-tools install"] },
-                  ].map((col) => (
-                    <div key={col.t}>
-                      <div className={`text-[12.5px] font-semibold ${col.c}`}>{col.t}</div>
-                      <ul className="list-disc pl-4 m-0 mt-2 flex flex-col gap-1 text-[12.5px] text-ink-2 leading-[1.45]">
-                        {col.items.map((x) => (
-                          <li key={x}>{x}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-5 border-t border-line pt-4 grid grid-cols-3 gap-3 text-[12.5px]">
-                  {[
-                    ["Halo (you)", "8.4K", "2 ads"],
-                    ["Clearwell", "46.2K", "14 ads"],
-                    ["Fenn", "15.9K", "8 ads"],
-                  ].map(([n, f, a]) => (
-                    <div key={n}>
-                      <div className="font-medium">{n}</div>
-                      <div className="text-ink-3 tnum">
-                        {f} followers · {a}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            }
+            kicker="College list"
+            title="A list built to get you in somewhere you want."
+            body="Too many reaches is the most common way a strong applicant ends up with no admits. We rebalance the list against your odds and show what the change does to your chance of at least one admit."
+            points={["Reaches, targets and likelies, from your numbers", "Swaps and additions, each with its effect", "Re-run when a score or a school changes"]}
+            visual={<ListCard />}
           />
           <Feature
             flip
-            kicker="Your next move"
-            title="Get ahead, stand out, or fight back."
-            body="Every move is classified for you: get ahead of an opening, win the choice where everyone sounds the same, counter a threat with something only you can say, or ignore what doesn't fit. Each comes ranked by relevance, urgency and confidence, with a campaign brief ready to test."
-            points={["Get ahead · Win the choice · Counter · Ignore", "Ranked for your customers, economics and goals", "Angle, hook, offer, creative, audience and the test to run"]}
-            visual={
-              <div className="card p-6 max-w-[520px]">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="badge badge-warn">Counter</span>
-                  <span className="caption">Urgency high · Confidence medium</span>
-                </div>
-                <div className="text-[17px] font-semibold mt-3">Answer Tidewell&apos;s price push with proof, not a discount</div>
-                <dl className="m-0 mt-3 flex flex-col gap-2.5 text-[13.5px] leading-[1.6]">
-                  <div>
-                    <dt className="text-[12px] font-medium text-ink-3">What we saw</dt>
-                    <dd className="m-0">A new “half the price” message, a 3-for-$79 bundle pushed twice in a week, 4 savings ads.</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[12px] font-medium text-ink-3">For you</dt>
-                    <dd className="m-0 text-ink-2">Your margin can&apos;t match $79, but your filter lasts twice as long. Cost per month is your win.</dd>
-                  </div>
-                </dl>
-                <blockquote className="m-0 mt-4 border-l-2 border-ink pl-3 text-[15px] font-medium leading-[1.45]">&ldquo;Cheaper filters, twice the refills. Do the math.&rdquo;</blockquote>
-                <dl className="m-0 mt-4 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-2 text-[13px] leading-[1.5]">
-                  {[
-                    ["Offer", "Free first refill"],
-                    ["Format", "Static comparison + 9:16 cost breakdown"],
-                    ["Test", "Cost-per-month vs. your best ad, 7 days"],
-                  ].map(([k, v]) => (
-                    <div key={k} className="contents">
-                      <dt className="text-ink-3">{k}</dt>
-                      <dd className="m-0 text-ink-2">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            }
+            kicker="Deadlines"
+            title="ED, EA or RD, decided by the numbers."
+            body="The round you apply in is often the largest movable factor. We set one plan across the list, respect each school's early rules, and rank every remaining move by the points it adds."
+            points={["One binding round, chosen where it gains the most", "Early-action rules checked school by school", "Every deadline on one calendar"]}
+            visual={<PlanCard />}
           />
         </div>
       </section>
 
-      <section id="pricing" className="border-t border-line">
+      <section className="border-t border-line">
+        <div className="wrap py-20 sm:py-28">
+          <p className="kicker">Tracks</p>
+          <h2 className="section-title text-[32px] sm:text-[40px] mt-3 max-w-[680px]">Undergrad first. MBA, law and med on the same engine.</h2>
+          <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {TRACKS.map((t) => (
+              <div key={t.name} className="well p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[16px] font-semibold">{t.name}</span>
+                  <span className="caption">{t.note}</span>
+                </div>
+                <div className="text-[13.5px] text-ink-2 mt-6">{t.inputs}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="data" className="scroll-mt-14 pb-20 sm:pb-28">
+        <div className="wrap">
+          <div className="rounded-[20px] bg-band text-band-ink px-6 py-14 sm:px-12 sm:py-20">
+            <p className="text-[13px] font-medium text-band-ink-3">The data</p>
+            <h2 className="section-title text-[34px] sm:text-[48px] mt-3 max-w-[720px] font-[400]">Where the numbers come from.</h2>
+            <p className="text-[16px] text-band-ink-3 leading-[1.65] mt-5 max-w-[600px]">
+              Most four-year colleges publish a Common Data Set each year: admit rates by round, GPA and test-score ranges, and what they weigh. Our odds are those numbers applied to you. Nothing rests on trusting us.
+            </p>
+            <div className="mt-12 grid gap-3 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 lg:grid-cols-4">
+              {PROOF.map((p) => (
+                <div key={p.label} className="rounded-[12px] bg-band-2 border border-band-line p-5 sm:p-6">
+                  <div className="text-[40px] sm:text-[44px] font-[400] tracking-[-0.04em] leading-none tnum">{p.value}</div>
+                  <div className="text-[13.5px] text-band-ink-3 mt-4 leading-[1.5]">{p.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" className="border-t border-line scroll-mt-14">
         <div className="wrap py-20 sm:py-28">
           <div className="text-center">
             <p className="kicker">Pricing</p>
-            <h2 className="display text-[30px] sm:text-[38px] mt-3">One plan, everything included.</h2>
-            <p className="text-[16px] text-ink-2 mt-3">Try it free for 14 days. No credit card required.</p>
+            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">One price for the cycle.</h2>
+            <p className="text-[16px] text-ink-2 mt-3">The odds, the split and your top fix are free. No account.</p>
           </div>
           <div className="card mt-12 max-w-[440px] mx-auto p-8 shadow-[var(--shadow-md)]">
-            <div className="text-[14px] font-semibold">TRND</div>
+            <div className="text-[14px] font-semibold">The fixes, done</div>
             <div className="mt-3 flex items-baseline gap-1.5">
-              <span className="display text-[44px] tnum">{PRICE_LABEL.replace("/mo", "")}</span>
-              <span className="text-ink-3 text-[14px]">per month</span>
+              <span className="display text-[44px] tnum">[PRICE]</span>
+              <span className="text-ink-3 text-[14px]">per cycle</span>
             </div>
             <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3">
               {INCLUDED.map((f) => (
-                <li key={f} className="flex gap-2.5 text-[14px]">
-                  <IconCheck className="text-brand mt-[3px] shrink-0" />
-                  {f}
-                </li>
+                <Check key={f}>
+                  <span className="text-[14px]">{f}</span>
+                </Check>
               ))}
             </ul>
-            <Link href="/signup" className="btn btn-primary btn-lg w-full mt-8">
-              Start free trial
+            <Link href="/#start" className="btn btn-primary btn-lg w-full mt-8">
+              Start with your free odds
             </Link>
+            <p className="caption text-center mt-3">Paid once per cycle. No subscription.</p>
           </div>
         </div>
       </section>
 
-      <section id="faq" className="border-t border-line bg-subtle">
+      <section id="faq" className="border-t border-line bg-subtle scroll-mt-14">
         <div className="wrap py-20 sm:py-28 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
           <div>
             <p className="kicker">FAQ</p>
-            <h2 className="display text-[30px] sm:text-[38px] mt-3">Questions</h2>
+            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Questions</h2>
             <p className="text-[15px] text-ink-2 mt-3">
               Anything else?{" "}
               <a className="text-ink underline" href="mailto:hello@usetrnd.com">
@@ -335,21 +399,14 @@ export default function Home() {
 
       <section className="border-t border-line">
         <div className="wrap py-20 sm:py-28 flex flex-col items-center text-center">
-          <div className="flex -space-x-2">
-            {["Clearwell", "Tidewell", "Marlow", "Fenn"].map((n) => (
-              <span key={n} className="rounded-full ring-2 ring-bg">
-                <Avatar name={n} size={32} />
-              </span>
-            ))}
-          </div>
-          <h2 className="display text-[30px] sm:text-[40px] mt-6 max-w-[680px]">Stop watching competitors. Start outmaneuvering them.</h2>
+          <h2 className="section-title text-[32px] sm:text-[44px] max-w-[680px]">See what is still yours to move.</h2>
           <div className="mt-8 w-full flex justify-center">
-            <UrlStart cta="Start free trial" />
+            <OddsStart />
           </div>
         </div>
       </section>
 
-      <footer className="border-t border-line">
+      <footer className="border-t border-line mt-auto">
         <div className="wrap py-8 flex flex-col sm:flex-row gap-4 justify-between sm:items-center text-[13px] text-ink-3">
           <div className="flex items-center gap-4">
             <Brand size={12} />

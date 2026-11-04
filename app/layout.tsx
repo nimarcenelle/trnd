@@ -6,24 +6,24 @@ import "@fontsource-variable/inter/opsz.css";
 
 import "./globals.css";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://usetrnd.com";
-const TITLE = "TRND: Competitor ad intelligence for Meta";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://admitted.usetrnd.com";
+const TITLE = "Admitted: your real admit odds, and the part you can still move";
 const DESCRIPTION =
-  "TRND watches what your competitors do every day and tells you what to do next: where to get ahead, stand out, or fight back.";
+  "Admit odds at every school on your list from published college data, split into what your stats decided and what your application can still change.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: TITLE,
   description: DESCRIPTION,
   // og:image comes from app/opengraph-image.tsx.
-  openGraph: { title: TITLE, description: DESCRIPTION, url: "/", siteName: "TRND", type: "website" },
+  openGraph: { title: TITLE, description: DESCRIPTION, url: "/", siteName: "Admitted", type: "website" },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0b0c" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f5f0" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d0d0c" },
   ],
 };
 
@@ -35,10 +35,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
-        {/* Jost draws the TRND wordmark only. */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500&display=swap" />
       </head>
       <body>{children}</body>
     </html>

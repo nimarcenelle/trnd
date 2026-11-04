@@ -78,3 +78,29 @@ export const IconAd = (p: P) => (
     <path d="M11.5 5.5c.8.7 1.2 1.5 1.2 2.5s-.4 1.8-1.2 2.5" />
   </svg>
 );
+export const IconOdds = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <path d="M2.5 13.5h11" />
+    <path d="M4 11V8M7 11V4.5M10 11V6.5M13 11V9" />
+  </svg>
+);
+export const IconEssay = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <path d="M9.5 2.5h-5a1.5 1.5 0 0 0-1.5 1.5v8a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 13 12V6Z" />
+    <path d="M9.5 2.5V6H13M5.5 8.5h5M5.5 11H8.5" />
+  </svg>
+);
+export const IconList = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <path d="M6 4h7.5M6 8h7.5M6 12h7.5" />
+    <circle cx="3" cy="4" r=".75" />
+    <circle cx="3" cy="8" r=".75" />
+    <circle cx="3" cy="12" r=".75" />
+  </svg>
+);
+export const IconCalendar = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" />
+    <path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" />
+  </svg>
+);

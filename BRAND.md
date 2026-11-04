@@ -1,99 +1,65 @@
-# TRND brand
+# Admitted: brand
 
-This is the look of TRND as shipped: the landing page, the briefing, the rival and brand pages. Any new UI follows it.
-The source of truth for values is `app/globals.css` (tokens and component classes) and `components/brand.tsx` (the
-wordmark). If this file and those disagree, fix whichever is wrong in the same change.
+How Admitted looks and talks. Any new UI follows it. Forked from TRND's brand: same type, same components, same
+restraint, on a warm ground with a muted green. The source of truth for values is `app/globals.css` (tokens and
+component classes) and `components/brand.tsx` (the wordmark). If this file and those disagree, fix whichever is wrong in
+the same change.
 
 ## Principles
 
-- **Quiet on purpose.** White and near-black, one typeface, hairline borders. The ads and the findings are the
-  color on the page; the chrome stays out of the way.
-- **Color only where it means something.** Green: a new ad, growth. Red: an ad that stopped, a failure. Amber: an ad
-  that has proven itself (21+ days live). Teal (`--brand`): the TRND mark, links, focus rings, "testing". Never
-  decoration.
-- **Not AI-looking.** No gradients, glows, glassmorphism, sparkle icons, emoji, purple, or "magic" language. No
-  rounded-everything pill soup. It should read like a well-made analytics tool (Linear, Stripe Dashboard, Vercel),
-  not a chatbot.
-- **Evidence first.** Every claim sits next to the ad that shows it: a thumbnail, days running, versions, a link to
-  the Ad Library.
+- **Financial-grade, not salesy.** A calm tool for a decision that feels bigger than money. Numbers first; the product
+  itself does the convincing. If it would look at home on a crypto or AI-template landing page, it is wrong.
+- **The split is the idea.** Every odds number can be shown as locked (ink) and movable (green). Keep that pairing
+  everywhere: the bar, the legend, the KPI tiles.
+- **Color only where it means something.** Green (`--brand`): the movable part, points gained, a fix that is ready,
+  check bullets. Ink (`--locked`): the locked part. Amber: a deadline. Red: an error. Never decoration.
+- **No pressure.** No countdown timers, testimonial walls, urgency banners or "spots left". The product never scolds;
+  it quantifies and offers the fix.
+- **Checkable.** Every number points at its source (the college's Common Data Set). Never invent a number about a real
+  college; samples use invented schools (Hollis, Calder, Wrenfield, Marrow, Ashby, Linden State;
+  `components/admitted/sample.ts`). Where a real figure does not exist yet, write a literal placeholder: `[X]`, `[PRICE]`.
 - **Light by default**, with a dark theme from the toggle (`[data-theme="dark"]`).
 
 ## Wordmark
 
-`components/brand.tsx`: a teal dot (`--brand`, 0.46× the type size) and **TRND** in Jost 500, tracked 0.3em, in ink.
-Always uppercase, never with a tagline lockup, never recolored except ink on light and ink on dark. Minimum size 13px.
+`components/brand.tsx`: a muted-green dot (0.46× the type size) and **Admitted** in Inter 600, −0.02em, in ink. Never
+recolored except ink on light and ink on dark. Minimum size 13px.
 
 ## Color
 
 | Token | Light | Dark | Use |
 | --- | --- | --- | --- |
-| `--bg` | `#ffffff` | `#0b0b0c` | page, cards |
-| `--subtle` | `#fafaf9` | `#111113` | wells, table hover, secondary hover |
-| `--muted` | `#f3f3f1` | `#19191c` | ghost hover, skeletons |
-| `--line` | `#e9e9e6` | `#232327` | hairline borders, dividers |
-| `--line-strong` | `#d6d6d2` | `#323237` | inputs, secondary buttons |
-| `--ink` | `#111110` | `#ededec` | text, primary buttons |
-| `--ink-2` | `#51514d` | `#a3a3a0` | body copy, labels |
-| `--ink-3` | `#868680` | `#6f6f6c` | captions, metadata |
-| `--brand` | `#0f8a78` | `#4fd1bb` | mark, links, focus, testing |
-| `--pos` / `--pos-bg` | `#067647` / `#ecfdf3` | `#47cd89` / 10% | launched, growth |
-| `--neg` / `--neg-bg` | `#b42318` / `#fef3f2` | `#f97066` / 10% | stopped, errors |
-| `--warn` / `--warn-bg` | `#b54708` / `#fffaeb` | `#fdb022` / 10% | proven, scaling |
+| `--ground` | `#f7f5f0` | `#0d0d0c` | page background (warm off-white) |
+| `--bg` | `#ffffff` | `#141413` | cards, inputs |
+| `--subtle` | `#f9f8f5` | `#191917` | alternate sections, wells, table headers |
+| `--muted` | `#efede7` | `#21211e` | hover, empty bar track |
+| `--line` / `--line-strong` | `#e6e3db` / `#d5d1c6` | `#2a2a26` / `#3a3934` | hairlines / inputs |
+| `--ink` / `--ink-2` / `--ink-3` | `#111110` / `#4f4d47` / `#85827a` | `#eeede8` / `#a8a69f` / `#75736c` | text |
+| `--brand` | `#3d6b4f` | `#8fbf9c` | movable, points gained, checks, kicker |
+| `--locked` | `#2b2a27` | `#d9d7cf` | the locked part of a split |
+| `--pos` / `--warn` / `--neg` (+ `-bg`) | | | ready / deadline / error pills |
+| `--band`, `--band-2`, `--band-line`, `--band-ink`, `--band-ink-3` | `#121211` … | | the one dark proof band |
 
-In Tailwind these are `bg-bg`, `text-ink-2`, `border-line`, `text-pos`, `bg-neg-bg` and so on. Never write a hex value
-in a component.
-
-A note that is a fact rather than a failure ("not running Meta ads right now") is ink on a plain card, not red.
+In Tailwind: `bg-ground`, `bg-band`, `bg-locked`, `text-brand` and so on. Never write a hex value in a component.
 
 ## Type
 
-One family: **Inter Variable** (self-hosted, optical sizes, `cv11` and `ss01` on). Jost is for the wordmark only.
+One family: **Inter Variable**. `.display` (600, −0.035em) for the hero headline only, two lines. `.section-title`
+(500, −0.03em) for section headings; inside the dark band it drops to 400. Big stats are plain numbers (40–60px, 400–500,
+−0.04em) with a small muted label beneath, no boxes or icons around them unless they sit in the band's tiles. `.tnum`
+on every number. Sentence case everywhere.
 
-| Class | Size / weight | Use |
-| --- | --- | --- |
-| `.display` | 40–64px / 600, −0.035em, 1.04 | landing headline only |
-| `.heading` | 15–28px / 600, −0.02em, 1.2 | page titles (22px), section titles (15px) |
-| body | 14px / 400, 1.55 | default; long reads at 13.5–15px |
-| `.kicker` | 13px / 500, teal | a label above a landing section |
-| `.caption` | 12px, `--ink-3` | metadata, hints, timestamps |
-| `.tnum` | tabular figures | every number in a table or KPI |
+## Layout
 
-KPIs are 26px / 600 / tight tracking with a 13px label above and a caption below. Sentence case everywhere, including
-buttons and headings.
-
-## Shape and space
-
-- Radius: cards 12px, wells 10px, buttons and inputs 8px (small 7px, large 9px), badges 6px.
-- Borders: 1px `--line`. Shadows are barely there (`--shadow-sm` on cards and buttons, `--shadow-lg` only for the
-  landing product shot).
-- Layout: `.wrap` is 1160px with 24px gutters (16px on phones). App: 248px side nav, content in a single column.
-  Sections are 40px apart (`mt-10`), cards in a grid with 12–16px gaps.
-- Mobile: no horizontal scroll. Grids use `grid-cols-[minmax(0,1fr)]` so a long word cannot widen a track.
-
-## Components
-
-All in `app/globals.css` under `@layer components`, used as plain classes:
-
-- Buttons: `.btn` + `.btn-primary` (ink, one per view), `.btn-secondary` (outlined), `.btn-ghost`; sizes `.btn-sm`,
-  `.btn-lg`. 36px tall by default.
-- `.card`, `.well`, `.input`, `.field`, `.sitebox` (the URL box on the landing and setup pages), `.form-error`.
-- `.badge` with `-pos`, `-neg`, `-warn`, `-info`, `-outline`. Short words: "New", "Stopped", "Proven", "Testing",
-  "Scaling", "No ads".
-- `.table` for every list of companies or ads: 13.5px cells, a 12px sentence-case header in `--ink-3` on `--subtle`, 16px cell padding, row hover in
-  `--subtle`.
-- `.nav-item` for the side nav, `.status-dot` for live state, `.theme-toggle`.
-- Ad cards (`components/app/ad-card.tsx`) show the creative, the Page, days running, versions and a stage badge.
+- The landing page follows TRND's: pill tag, two-line headline, one-line sub, the inline odds box, then the product in
+  a browser frame (side nav · view · ranked next moves). Stats row, four numbered "How it works" columns on hairlines,
+  alternating text/card feature rows with green checks, quiet grey track cards, **exactly one** near-black rounded band
+  ("Where the numbers come from"), one pricing card, plus-accordion FAQ, minimal footer.
+- Cards 12px radius, wells 10px, the band 20px. `.wrap` is 1160px. No horizontal scroll on phones.
 
 ## Voice
 
-- Plain and specific. Name the rival, quote the ad, give the number. "Sproos! has run this ad for 485 days", not
-  "competitors are leveraging long-running creatives".
-- Never invent performance. The Ad Library has no spend or results for commercial ads: say "still running after 60
-  days", never "their best performer".
-- No hype words: no "unlock", "supercharge", "AI-powered", "magic", "insights at your fingertips".
-- Errors say what happened and what to do next, in one or two sentences.
-
-## Sample data
-
-Screenshots, the landing product shot and empty-state examples use invented brands (Clearwell, Tidewell, Marlow,
-Fenn, Halo; see `components/sample/`). Never put a real company's name on an invented ad.
+- Short declaratives. "64% of this is locked. 36% is movable." Not "unlock your dream school".
+- Give the number and its unit: "+8 pts at Calder", "chance of at least one admit: 91% → 98%".
+- Never promise an admit. Odds say how sure they are.
+- No hype words: no "unlock", "supercharge", "AI-powered", "magic", "dream school", "guaranteed".

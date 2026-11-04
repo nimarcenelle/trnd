@@ -36,7 +36,7 @@ export default function OddsStart({ cta = "See my odds" }: { cta?: string }) {
         </button>
       </form>
       <p className="caption mt-3" role="status">
-        {sent ? "Free odds open on [LAUNCH DATE]. Until then, the numbers below are a sample applicant." : "Free, no account: your odds, the locked/movable split and your top fix."}
+        {sent ? "Free odds are not open yet. Until then, the numbers below are a sample applicant." : "Free, no account: your odds, the locked/movable split and your top fix."}
       </p>
     </div>
   );

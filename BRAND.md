@@ -17,7 +17,7 @@ the same change.
   it quantifies and offers the fix.
 - **Checkable.** Every number points at its source (the college's Common Data Set). Never invent a number about a real
   college; samples use invented schools (Hollis, Calder, Wrenfield, Marrow, Ashby, Linden State;
-  `components/admitted/sample.ts`). Where a real figure does not exist yet, write a literal placeholder: `[X]`, `[PRICE]`.
+  `components/admitted/sample.ts`). Where a real figure does not exist yet, leave it out of the live page; never ship a placeholder like `[X]` or `[PRICE]`.
 - **Light by default**, with a dark theme from the toggle (`[data-theme="dark"]`).
 
 ## Wordmark

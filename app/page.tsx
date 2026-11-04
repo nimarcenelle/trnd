@@ -23,8 +23,6 @@ const TRACKS = [
 ];
 
 const PROOF = [
-  { value: "[X]", label: "colleges with a Common Data Set on file" },
-  { value: "[X]", label: "admission cycles of published ranges" },
   { value: "1 click", label: "from any number to its source page" },
   { value: "0", label: "numbers from surveys or forum posts" },
 ];
@@ -336,7 +334,7 @@ export default function Home() {
             <p className="text-[16px] text-band-ink-3 leading-[1.65] mt-5 max-w-[620px]">
               Most four-year colleges publish a Common Data Set each year: admit rates by round, GPA and test-score ranges, and what they weigh. Our odds are those numbers applied to you. Check any of them yourself.
             </p>
-            <div className="mt-12 grid gap-3 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-12 grid gap-3 grid-cols-[minmax(0,1fr)] sm:grid-cols-2">
               {PROOF.map((p) => (
                 <div key={p.label} className="rounded-[12px] bg-band-2 border border-band-line p-5 sm:p-6">
                   <div className="text-[40px] sm:text-[44px] font-[400] tracking-[-0.04em] leading-none tnum">{p.value}</div>
@@ -357,10 +355,7 @@ export default function Home() {
           </div>
           <div className="card mt-12 max-w-[440px] mx-auto p-8 shadow-[var(--shadow-md)]">
             <div className="text-[14px] font-semibold">The fixes, done</div>
-            <div className="mt-3 flex items-baseline gap-1.5">
-              <span className="display text-[44px] tnum">[PRICE]</span>
-              <span className="text-ink-3 text-[14px]">per cycle</span>
-            </div>
+            <div className="display text-[32px] mt-3">Price set at launch</div>
             <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3">
               {INCLUDED.map((f) => (
                 <Check key={f}>

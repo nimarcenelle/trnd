@@ -9,30 +9,30 @@ import { IconCheck } from "@/components/icons";
 import SiteNav from "@/components/site-nav";
 
 const STEPS = [
-  { title: "Enter your numbers", body: "GPA, SAT or ACT, and the schools on your list. No account." },
-  { title: "See the split", body: "Odds at each school, split into the part your stats already decided and the part your application can still change." },
-  { title: "Get the top fix, free", body: "The single change worth the most points, named and sized. Yours to act on, with or without us." },
-  { title: "We do the movable part", body: "Pay once for the cycle. The essays rewritten from your drafts, the list rebalanced, the rounds planned, re-run whenever anything changes." },
+  { title: "Enter your numbers", body: "GPA, SAT or ACT, and up to 20 schools. No account, no email." },
+  { title: "See the split", body: "Your odds at each school, and how much of each number is locked and how much is still movable." },
+  { title: "Get the top fix, free", body: "The one change worth the most points, named and sized. Act on it with us or without us." },
+  { title: "We do the movable part", body: "Pay once for the cycle. We rewrite the essays from your drafts, rebalance the list and plan the rounds, and re-run it all when anything changes." },
 ];
 
 const TRACKS = [
-  { name: "Undergrad", inputs: "GPA · SAT or ACT · course rigor", note: "Available first" },
-  { name: "MBA", inputs: "GPA · GMAT or GRE · years of work", note: "Same engine" },
-  { name: "Law", inputs: "GPA · LSAT · cycle timing", note: "Same engine" },
-  { name: "Med", inputs: "Science GPA · MCAT · state of residence", note: "Same engine" },
+  { name: "Undergrad", inputs: "GPA · SAT or ACT · course rigor", note: "First" },
+  { name: "MBA", inputs: "GPA · GMAT or GRE · years of work", note: "Next" },
+  { name: "Law", inputs: "GPA · LSAT · cycle timing", note: "Next" },
+  { name: "Med", inputs: "Science GPA · MCAT · state of residence", note: "Next" },
 ];
 
 const PROOF = [
   { value: "[X]", label: "colleges with a Common Data Set on file" },
   { value: "[X]", label: "admission cycles of published ranges" },
   { value: "1 click", label: "from any number to its source page" },
-  { value: "0", label: "numbers from surveys or forum self-reports" },
+  { value: "0", label: "numbers from surveys or forum posts" },
 ];
 
 const INCLUDED = [
-  "Essay rewrites from your own drafts, unlimited revisions",
-  "A rebalanced college list",
-  "An ED, EA and RD plan with every deadline",
+  "Essays rewritten from your drafts, unlimited revisions",
+  "Your college list, rebalanced",
+  "An ED, EA and RD plan, with every deadline",
   "Unlimited re-runs through the cycle",
   "Every number linked to its source",
 ];
@@ -40,23 +40,27 @@ const INCLUDED = [
 const FAQ = [
   {
     q: "Where do the odds come from?",
-    a: "From each college's Common Data Set: the admission ranges, admit rates by round and test-score bands the college publishes itself. Every number links back to the section it came from, so you can check it.",
+    a: "From each college's Common Data Set: the GPA and test-score ranges, admit rates by round and admission factors the college publishes about itself. Every number links to the section it came from, so you can check it.",
   },
   {
     q: "What does locked and movable mean?",
-    a: "Locked is the part of your odds set by things you can no longer change this cycle: GPA, scores, the courses you took. Movable is the part your application still decides: which round you apply in, your essays, how your activities read, and which schools are on the list.",
+    a: "Locked is the part of your odds set by what you can no longer change this cycle: GPA, scores, the courses you took. Movable is the part your application still decides: the round you apply in, your essays, how your activities read and which schools are on the list.",
   },
   {
     q: "Do you write my essay for me?",
-    a: "We rewrite it from your draft. Your story, your details and most of your sentences stay; the structure and the opening change. You see what was kept and can revise as many times as you like.",
+    a: "No. We rewrite it from your draft. Your story, your details and most of your sentences stay; the opening and the structure change. You see what was kept, and you can revise as often as you like.",
   },
   {
     q: "Are the odds a guarantee?",
-    a: "No. They are the published numbers applied to your profile, and they say how sure they are. Colleges read applications as people; no tool can promise an admit.",
+    a: "No. They are the published numbers applied to your profile, with how sure we are shown beside them. People read applications, and no tool can promise an admit.",
+  },
+  {
+    q: "What if my scores or my list change?",
+    a: "Re-run it. A new score, school or draft updates every number. The paid plan includes unlimited re-runs through the cycle.",
   },
   {
     q: "What about MBA, law and med?",
-    a: "Same engine, different inputs. Undergrad comes first; the other tracks open after it.",
+    a: "Same engine, different inputs: GMAT or GRE and work years for MBA, LSAT for law, MCAT and science GPA for med. Undergrad opens first.",
   },
 ];
 
@@ -228,23 +232,24 @@ export default function Home() {
             <br />
             And the part you can still move.
           </h1>
-          <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[600px]">Every school on your list, split into what your stats decided and what your application can change. Then we change it.</p>
+          <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[620px]">Admit odds at every school on your list, split into what your stats already decided and what your application can still change. Then we change it.</p>
           <div className="mt-8 w-full flex justify-center">
             <OddsStart />
           </div>
           <div className="mt-14 sm:mt-16 w-full max-w-[1120px]">
             <ProductShot />
-            <p className="caption mt-3">Sample applicant, invented schools. Click the side nav to see each view.</p>
+            <p className="caption mt-3">A sample applicant and invented schools. Use the side nav to see each view.</p>
           </div>
         </div>
       </section>
 
       <section className="border-t border-line">
-        <div className="wrap py-16 sm:py-20 grid gap-10 sm:grid-cols-3">
+        <div className="wrap pt-14 sm:pt-16"><p className="caption">The sample applicant, across six schools</p></div>
+        <div className="wrap pt-8 pb-16 sm:pb-20 grid gap-10 sm:grid-cols-3">
           {[
-            [`${APPLICANT.locked}%`, "of the sample applicant's odds is locked by GPA and scores"],
-            [`${APPLICANT.movable}%`, "is movable: round, essays, activities and list"],
-            ["+8 pts", "from the top fix alone: ED II to Calder"],
+            [`${APPLICANT.locked}%`, "Locked. Set by GPA, scores and the courses already taken."],
+            [`${APPLICANT.movable}%`, "Movable. Decided by round, essays, activities and list."],
+            ["+8 pts", "From the top fix alone: apply ED II to Calder."],
           ].map(([v, l]) => (
             <div key={v}>
               <div className="text-[52px] sm:text-[60px] font-medium tracking-[-0.04em] leading-none tnum">{v}</div>
@@ -275,7 +280,7 @@ export default function Home() {
           <Feature
             kicker="Odds"
             title="Every number, split in two."
-            body="Odds at each school, from the ranges that school publishes. Then the split: how much your stats already decided, and how much is still yours to move, factor by factor."
+            body="Odds at each school, from the ranges that school publishes. Then the split: how much your stats already decided, how much is still yours to move, and what each movable factor is worth."
             points={["Odds per school, with the source one click away", "Locked and movable, as shares of the number", "Each movable factor sized in points"]}
             visual={<SplitCard />}
           />
@@ -283,14 +288,14 @@ export default function Home() {
             flip
             kicker="Essays"
             title="Your essay, rewritten from your draft."
-            body="Not a template and not a stranger's story. We keep your details and most of your sentences, and change what costs you points: the opening, the structure, the parts that could be anyone's."
+            body="Not a template, and not a stranger's story. We keep your details and most of your sentences, and change what costs you points: the opening, the structure, the lines that could be anyone's."
             points={["Personal statement and every supplement", "Unlimited revisions through the cycle", "What was kept and what changed, shown side by side"]}
             visual={<EssayCard />}
           />
           <Feature
             kicker="College list"
             title="A list built to get you in somewhere you want."
-            body="Too many reaches is the most common way a strong applicant ends up with no admits. We rebalance the list against your odds and show what the change does to your chance of at least one admit."
+            body="A list heavy on reaches is how strong applicants end up with no admits. We rebalance it against your odds and show what each change does to your chance of at least one admit."
             points={["Reaches, targets and likelies, from your numbers", "Swaps and additions, each with its effect", "Re-run when a score or a school changes"]}
             visual={<ListCard />}
           />
@@ -298,7 +303,7 @@ export default function Home() {
             flip
             kicker="Deadlines"
             title="ED, EA or RD, decided by the numbers."
-            body="The round you apply in is often the largest movable factor. We set one plan across the list, respect each school's early rules, and rank every remaining move by the points it adds."
+            body="The round you apply in can be the largest movable factor on the list. We set one plan across every school, check each school's early rules, and rank what's left by the points it adds."
             points={["One binding round, chosen where it gains the most", "Early-action rules checked school by school", "Every deadline on one calendar"]}
             visual={<PlanCard />}
           />
@@ -328,8 +333,8 @@ export default function Home() {
           <div className="rounded-[20px] bg-band text-band-ink px-6 py-14 sm:px-12 sm:py-20">
             <p className="text-[13px] font-medium text-band-ink-3">The data</p>
             <h2 className="section-title text-[34px] sm:text-[48px] mt-3 max-w-[720px] font-[400]">Where the numbers come from.</h2>
-            <p className="text-[16px] text-band-ink-3 leading-[1.65] mt-5 max-w-[600px]">
-              Most four-year colleges publish a Common Data Set each year: admit rates by round, GPA and test-score ranges, and what they weigh. Our odds are those numbers applied to you. Nothing rests on trusting us.
+            <p className="text-[16px] text-band-ink-3 leading-[1.65] mt-5 max-w-[620px]">
+              Most four-year colleges publish a Common Data Set each year: admit rates by round, GPA and test-score ranges, and what they weigh. Our odds are those numbers applied to you. Check any of them yourself.
             </p>
             <div className="mt-12 grid gap-3 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 lg:grid-cols-4">
               {PROOF.map((p) => (
@@ -348,7 +353,7 @@ export default function Home() {
           <div className="text-center">
             <p className="kicker">Pricing</p>
             <h2 className="section-title text-[32px] sm:text-[40px] mt-3">One price for the cycle.</h2>
-            <p className="text-[16px] text-ink-2 mt-3">The odds, the split and your top fix are free. No account.</p>
+            <p className="text-[16px] text-ink-2 mt-3">Your odds, the split and the top fix are free, with no account. Pay when you want the fixes done.</p>
           </div>
           <div className="card mt-12 max-w-[440px] mx-auto p-8 shadow-[var(--shadow-md)]">
             <div className="text-[14px] font-semibold">The fixes, done</div>

@@ -1,0 +1,302 @@
+<!doctype html>
+<!--
+  ANATOMY OF A WINNING ESSAY: the source for public/guides/anatomy-of-a-winning-essay.pdf
+
+  To edit: change the words between the tags. Each page is a <section class="page">.
+  Keep each page's text about as long as it is now, or it will run off the page.
+  To rebuild the PDF:  pnpm guide
+  Then check the PDF and commit both files.
+-->
+<html lang="en"><head><meta charset="utf-8"><title>Anatomy of a winning essay</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+<style>
+@page { size: Letter; margin: 0; }
+:root {
+  --ink:#101b30; --ink2:#45516a; --ink3:#68738a; --line:#e2e7ee; --line2:#cbd3df; --subtle:#f5f7fa; --muted:#e9edf3;
+  --navy:#14233f; --green:#0e7c4f; --green-bg:#e3f4eb; --red:#b42318; --red-bg:#fdecea;
+  /* One color per part of an essay, used everywhere that part appears. */
+  --p1:#2b4a80; --p1b:#e6edf8;
+  --p2:#0e7c4f; --p2b:#e3f4eb;
+  --p3:#b26b00; --p3b:#fdf1dc;
+  --p4:#7a3db8; --p4b:#f1e9fb;
+  --p5:#14233f; --p5b:#e7eaf0;
+}
+* { box-sizing: border-box; }
+body { margin:0; font-family: Inter, sans-serif; color: var(--ink); font-size: 10.5pt; line-height: 1.55; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 8.5in; height: 11in; padding: 0.75in 0.8in 0.9in; position: relative; page-break-after: always; overflow: hidden; }
+.page:last-child { page-break-after: auto; }
+.foot { position:absolute; bottom:0.45in; left:0.8in; right:0.8in; display:flex; justify-content:space-between; font-size:8pt; color:var(--ink3); border-top:1px solid var(--line); padding-top:8pt; }
+.brand { display:inline-flex; align-items:center; gap:6px; font-weight:600; letter-spacing:-0.02em; color: var(--ink); }
+.brand i { width:7px; height:7px; border-radius:50%; background:var(--green); display:inline-block; }
+.kicker { font-size: 9pt; font-weight: 600; color: var(--p1); letter-spacing: 0.02em; margin-bottom: 6pt; }
+h1 { font-size: 50pt; line-height: 1; letter-spacing: -0.04em; margin: 0; font-weight: 700; }
+h2 { font-size: 25pt; line-height: 1.08; letter-spacing: -0.03em; margin: 0 0 8pt; font-weight: 700; }
+h3 { font-size: 12pt; margin: 0 0 3pt; font-weight: 600; letter-spacing: -0.01em; }
+p { margin: 0 0 8pt; color: var(--ink2); }
+.lede { font-size: 12pt; color: var(--ink2); max-width: 5.6in; }
+.small { font-size: 8.5pt; color: var(--ink3); }
+.grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 10pt; }
+.grid3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10pt; }
+.card { border:1px solid var(--line); border-radius: 10px; padding: 12pt 13pt; background: #fff; }
+.chip { display:inline-flex; align-items:center; gap:5pt; font-size:8pt; font-weight:600; padding: 2pt 7pt; border-radius: 99px; }
+.dot { width: 18pt; height: 18pt; border-radius: 50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size: 9pt; color:#fff; flex-shrink:0; }
+.c1{background:var(--p1)} .c2{background:var(--p2)} .c3{background:var(--p3)} .c4{background:var(--p4)} .c5{background:var(--p5)}
+.t1{color:var(--p1)} .t2{color:var(--p2)} .t3{color:var(--p3)} .t4{color:var(--p4)} .t5{color:var(--p5)}
+.b1{background:var(--p1b)} .b2{background:var(--p2b)} .b3{background:var(--p3b)} .b4{background:var(--p4b)} .b5{background:var(--p5b)}
+
+/* cover */
+.cover { background: var(--navy); color: #eef2f8; }
+.cover .brand { color:#eef2f8; font-size: 12pt; }
+.cover .brand i { background:#4fd08f; }
+.cover h1 span { color:#4fd08f; display:block; }
+.cover p { color:#a9b4c6; }
+
+/* criteria */
+.crit .card { display:flex; flex-direction:column; gap: 6pt; }
+.crit .icon { width: 26pt; height: 26pt; border-radius: 8px; background: var(--subtle); display:flex; align-items:center; justify-content:center; }
+.crit p { font-size: 9pt; margin:0; }
+.scale { display:flex; gap:3pt; margin-top: auto; }
+.scale span { flex:1; height: 4pt; border-radius: 3pt; background: var(--muted); }
+.scale span.on { background: var(--navy); }
+.scalelabels { display:flex; justify-content:space-between; font-size:7pt; color: var(--ink3); }
+
+/* weak / strong */
+.vs { display:grid; grid-template-columns: 1fr 1fr; gap: 0; border:1px solid var(--line); border-radius: 10px; overflow:hidden; margin: 8pt 0; }
+.vs > div { padding: 10pt 12pt; }
+.vs .w { background: var(--red-bg); }
+.vs .s { background: var(--green-bg); border-left: 1px solid var(--line); }
+.vs .lab { font-size: 7.5pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 3pt; }
+.vs .w .lab { color: var(--red); } .vs .s .lab { color: var(--green); }
+.vs p { color: var(--ink); margin:0; font-size: 9.5pt; }
+.vs .why { font-size: 8.5pt; color: var(--ink2); margin-top: 5pt; }
+
+/* essay */
+.essay { display:grid; grid-template-columns: 1fr 2.1in; gap: 0 14pt; font-size: 9.6pt; }
+.essay .text p { color: var(--ink); margin: 0 0 7pt; line-height: 1.6; }
+.essay mark { padding: 0 2px; border-radius: 3px; color: var(--ink); }
+.essay sup { font-size: 7pt; font-weight: 700; margin-left: 1px; }
+.callout { display:flex; gap: 7pt; margin-bottom: 8pt; font-size: 8.5pt; color: var(--ink2); line-height: 1.45; }
+.callout b { color: var(--ink); display:block; }
+
+/* checklist */
+.check { list-style:none; padding:0; margin: 0; }
+.check li { display:flex; gap: 9pt; align-items:flex-start; padding: 6.5pt 0; border-bottom: 1px solid var(--line); color: var(--ink); font-size: 10pt; }
+.box { width: 11pt; height: 11pt; border: 1.5px solid var(--line2); border-radius: 3px; flex-shrink:0; margin-top: 2pt; }
+.cta { background: var(--navy); color:#eef2f8; border-radius: 14px; padding: 18pt 20pt; }
+.cta p { color:#a9b4c6; margin: 4pt 0 0; }
+.cta b { color:#eef2f8; }
+</style></head><body>
+
+<!-- ============ PAGE 1: COVER ============ -->
+<section class="page cover" style="display:flex; flex-direction:column; justify-content:space-between">
+  <div class="brand"><i></i>Admitted</div>
+  <div>
+    <!-- The five parts, as the essay's spine -->
+    <svg width="330" height="120" viewBox="0 0 330 120" style="margin-bottom:28pt">
+      <g font-family="Inter" font-size="9" fill="#a9b4c6">
+        <rect x="0" y="40" width="34" height="14" rx="7" fill="#6f8fca"/><text x="0" y="72">Moment</text>
+        <rect x="40" y="40" width="80" height="14" rx="7" fill="#4fd08f"/><text x="40" y="72">Detail</text>
+        <rect x="126" y="40" width="44" height="14" rx="7" fill="#e8b45a"/><text x="126" y="72">Turn</text>
+        <rect x="176" y="40" width="104" height="14" rx="7" fill="#b48ae6"/><text x="176" y="72">Change</text>
+        <rect x="286" y="40" width="44" height="14" rx="7" fill="#eef2f8"/><text x="286" y="72">Ending</text>
+      </g>
+    </svg>
+    <div style="font-size:9.5pt; font-weight:600; color:#8fa8d6; margin-bottom:10pt">A free guide for college applicants</div>
+    <h1>Anatomy of a<span>winning essay.</span></h1>
+    <p style="font-size:13pt; margin-top:18pt; max-width:5in">What admissions readers look for, the shape of an essay that works, one example taken apart, and a checklist for before you submit.</p>
+  </div>
+  <div style="display:flex; justify-content:space-between; font-size:9pt; color:#a9b4c6"><span>admitted.usetrnd.com</span><span>7 pages</span></div>
+</section>
+
+<!-- ============ PAGE 2: THE SIX QUESTIONS ============ -->
+<section class="page">
+  <div class="kicker">01 · What readers look for</div>
+  <h2>Every reader is asking six questions.</h2>
+  <p class="lede">Your grades and scores already told them what you've done. The essay is the one place they hear how you think. These six decide whether it lands.</p>
+  <div class="grid3 crit" style="margin-top:14pt">
+    <div class="card"><div class="icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#14233f" stroke-width="1.6"><circle cx="8" cy="6" r="3"/><path d="M2.5 14c1-3 3.2-4.5 5.5-4.5s4.5 1.5 5.5 4.5"/></svg></div>
+      <h3>Could only you have written it?</h3><p>Details and observations no other applicant has. Swap in a classmate's name: if it still works, it's not there yet.</p></div>
+    <div class="card"><div class="icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#14233f" stroke-width="1.6"><path d="M3 4h10v6H8l-3 3v-3H3z"/></svg></div>
+      <h3>Does it sound like a person?</h3><p>Plain, specific sentences in your own voice. No brochure language, no thesaurus words.</p></div>
+    <div class="card"><div class="icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#14233f" stroke-width="1.6"><path d="M8 2.5a4 4 0 0 0-2 7.5V12h4v-2a4 4 0 0 0-2-7.5zM6.5 14h3"/></svg></div>
+      <h3>Does it show how you think?</h3><p>A real change in how you see or act, earned by what happened. Not a lesson announced at the end.</p></div>
+    <div class="card"><div class="icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#14233f" stroke-width="1.6"><path d="M3 8h8M8 4l4 4-4 4"/></svg></div>
+      <h3>Does the opening pull you in?</h3><p>The first lines put the reader inside a moment or idea they want to follow. No quotes, no definitions.</p></div>
+    <div class="card"><div class="icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#14233f" stroke-width="1.6"><path d="M3 4h10M3 8h7M3 12h4"/></svg></div>
+      <h3>Does it earn its length?</h3><p>Every paragraph moves it forward. The ending lands without restating the point.</p></div>
+    <div class="card"><div class="icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#14233f" stroke-width="1.6"><circle cx="8" cy="8" r="5.5"/><path d="M5.5 8l1.7 1.7L10.5 6.3"/></svg></div>
+      <h3>Does it answer the prompt?</h3><p>Especially in supplements: the question that was asked, answered throughout, not just in the last line.</p></div>
+  </div>
+  <div class="card" style="margin-top:14pt; display:grid; grid-template-columns: 1.1fr 1fr; gap: 18pt; align-items:center; background: var(--subtle)">
+    <div>
+      <h3>Most drafts score in the middle.</h3>
+      <p style="margin:0; font-size:9.5pt">On each question a draft lands somewhere from 1 to 5. Most first drafts sit at 2 or 3. A 5 is rare, and it never comes from a bigger topic: it comes from sharper detail and real thinking.</p>
+    </div>
+    <div>
+      <div class="scale"><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div>
+      <div class="scalelabels" style="margin-top:4pt"><span>1 · could be anyone's</span><span>5 · only you</span></div>
+      <div class="scale" style="margin-top:10pt"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div>
+      <div class="scalelabels" style="margin-top:4pt"><span>The draft you're aiming for</span><span></span></div>
+    </div>
+  </div>
+  <p style="margin-top:12pt">Notice what isn't on the list: an impressive topic. A Saturday job can carry an essay further than a tragedy, if the thinking is yours.</p>
+  <div class="foot"><span class="brand"><i></i>Admitted</span><span>Anatomy of a winning essay · 2</span></div>
+</section>
+
+<!-- ============ PAGE 3: THE SHAPE ============ -->
+<section class="page">
+  <div class="kicker">02 · The shape</div>
+  <h2>Five parts, in roughly this proportion.</h2>
+  <p class="lede">Most essays that work share a shape. It's not a formula, just a skeleton to check your draft against.</p>
+  <!-- proportion bar -->
+  <div style="display:flex; height: 30pt; border-radius: 8px; overflow:hidden; margin: 14pt 0 4pt; font-size:8.5pt; font-weight:600; color:#fff">
+    <div class="c1" style="width:10%; display:flex; align-items:center; justify-content:center">1</div>
+    <div class="c2" style="width:25%; display:flex; align-items:center; justify-content:center">2</div>
+    <div class="c3" style="width:15%; display:flex; align-items:center; justify-content:center">3</div>
+    <div class="c4" style="width:35%; display:flex; align-items:center; justify-content:center">4</div>
+    <div class="c5" style="width:15%; display:flex; align-items:center; justify-content:center">5</div>
+  </div>
+  <div class="small" style="display:flex; justify-content:space-between"><span>First line</span><span>About how much of a 650-word essay each part takes</span><span>Last line</span></div>
+
+  <div style="display:grid; grid-template-columns: 1fr; gap: 0; margin-top: 14pt">
+    <div style="display:grid; grid-template-columns: 22pt 1fr 1.3in; gap: 10pt; padding: 6pt 0; border-bottom:1px solid var(--line)"><span class="dot c1">1</span><div><h3 class="t1">A moment, not a summary</h3><p style="margin:0">Start inside something specific: a sound, a sentence someone said, a mistake. The reader shouldn't know the moral yet.</p></div><div class="small">~60 words<br>The first two sentences</div></div>
+    <div style="display:grid; grid-template-columns: 22pt 1fr 1.3in; gap: 10pt; padding: 6pt 0; border-bottom:1px solid var(--line)"><span class="dot c2">2</span><div><h3 class="t2">The detail only you have</h3><p style="margin:0">What you noticed that someone passing through wouldn't. This is what makes the essay yours.</p></div><div class="small">~160 words<br>The world, through your eyes</div></div>
+    <div style="display:grid; grid-template-columns: 22pt 1fr 1.3in; gap: 10pt; padding: 6pt 0; border-bottom:1px solid var(--line)"><span class="dot c3">3</span><div><h3 class="t3">The turn</h3><p style="margin:0">The point where what you believed stopped being true, or got more complicated. Most weak essays skip it.</p></div><div class="small">~100 words<br>Often one short sentence</div></div>
+    <div style="display:grid; grid-template-columns: 22pt 1fr 1.3in; gap: 10pt; padding: 6pt 0; border-bottom:1px solid var(--line)"><span class="dot c4">4</span><div><h3 class="t4">What you do differently now</h3><p style="margin:0">Show the change in action: a decision, a habit, a question you now ask. Don't name the virtue.</p></div><div class="small">~230 words<br>The heart of the essay</div></div>
+    <div style="display:grid; grid-template-columns: 22pt 1fr 1.3in; gap: 10pt; padding: 6pt 0"><span class="dot c5">5</span><div><h3 class="t5">An ending that lands</h3><p style="margin:0">Return to an image or leave a question open. Never repeat the lesson or predict your success.</p></div><div class="small">~100 words<br>Stop one line early</div></div>
+  </div>
+
+  <!-- interest curve -->
+  <div class="card" style="margin-top:10pt; padding: 10pt 14pt 8pt">
+    <div style="display:flex; justify-content:space-between; align-items:baseline"><h3>Where the reader's attention goes</h3><span class="small">Illustrative</span></div>
+    <svg width="100%" height="84" viewBox="0 0 600 120" preserveAspectRatio="none">
+      <line x1="0" y1="110" x2="600" y2="110" stroke="#e2e7ee"/>
+      <g stroke="#e2e7ee" stroke-dasharray="3 3"><line x1="60" y1="8" x2="60" y2="110"/><line x1="210" y1="8" x2="210" y2="110"/><line x1="300" y1="8" x2="300" y2="110"/><line x1="510" y1="8" x2="510" y2="110"/></g>
+      <path d="M0 70 C 40 72, 80 80, 140 86 S 260 92, 330 95 S 470 99, 600 100" fill="none" stroke="#b42318" stroke-width="2.5" stroke-dasharray="6 4"/>
+      <path d="M0 30 C 40 18, 90 34, 170 38 S 260 26, 300 18 S 420 22, 490 28 S 560 20, 600 14" fill="none" stroke="#0e7c4f" stroke-width="3"/>
+      <circle cx="300" cy="18" r="4" fill="#b26b00"/>
+    </svg>
+    <div style="display:flex; gap:16pt; font-size:8.5pt; color:var(--ink2); margin-top:2pt">
+      <span><span style="display:inline-block;width:16pt;height:2.5pt;background:#0e7c4f;vertical-align:middle;margin-right:4pt"></span>A strong draft</span>
+      <span><span style="display:inline-block;width:16pt;border-top:2.5pt dashed #b42318;vertical-align:middle;margin-right:4pt"></span>A quote, a list, a lesson</span>
+      <span><span style="display:inline-block;width:7pt;height:7pt;border-radius:50%;background:#b26b00;vertical-align:middle;margin-right:4pt"></span>The turn</span>
+    </div>
+  </div>
+  <div class="foot"><span class="brand"><i></i>Admitted</span><span>Anatomy of a winning essay · 3</span></div>
+</section>
+
+<!-- ============ PAGE 4: SHOW, DON'T ANNOUNCE ============ -->
+<section class="page">
+  <div class="kicker">03 · Show, don't announce</div>
+  <h2>Climb down the ladder.</h2>
+  <p class="lede">Abstract claims ask the reader to trust you. Specific details let them see it. Every sentence about yourself sits somewhere on this ladder. Climb down.</p>
+  <!-- ladder: vague at the top, specific at the bottom -->
+  <div style="display:grid; grid-template-columns: 54pt 1fr; gap: 0 12pt; margin: 14pt 0 8pt">
+    <div style="display:flex; flex-direction:column; align-items:center; font-size:7.5pt; font-weight:700; letter-spacing:0.06em; text-transform:uppercase">
+      <span style="color:var(--red)">Vague</span>
+      <span style="flex:1; width:3pt; background:var(--line2); border-radius:2pt; margin:5pt 0 0"></span>
+      <svg width="14" height="10" viewBox="0 0 14 10" style="margin-bottom:5pt"><path d="M0 0 L7 10 L14 0z" fill="#0e7c4f"/></svg>
+      <span style="color:var(--green)">Specific</span>
+    </div>
+    <div style="display:flex; flex-direction:column; gap: 8pt">
+      <div class="card" style="padding:9pt 12pt"><span class="chip" style="background:var(--red-bg);color:var(--red)">Abstract</span><p style="color:var(--ink); margin:4pt 0 0">"I am a hardworking and responsible person."</p></div>
+      <div class="card" style="padding:9pt 12pt"><span class="chip" style="background:var(--p3b);color:var(--p3)">General</span><p style="color:var(--ink); margin:4pt 0 0">"I worked hard at my grandfather's shop after his stroke."</p></div>
+      <div class="card" style="padding:9pt 12pt; border-color:#bfe2cf"><span class="chip" style="background:var(--green-bg);color:var(--green)">Specific</span><p style="color:var(--ink); margin:4pt 0 0">"I ruined two soles that April and paid for them out of my own envelope, which he noticed and did not mention."</p></div>
+    </div>
+  </div>
+  <p>The last one never says "hardworking" or "responsible". It doesn't have to.</p>
+
+  <h3 style="margin-top:12pt">Openings</h3>
+  <div class="vs"><div class="w"><div class="lab">Instead of</div><p>Ever since I was young, I have always been passionate about helping others. As Gandhi said, "Be the change you wish to see in the world."</p><div class="why">Tells the moral first, borrows someone else's words.</div></div>
+  <div class="s"><div class="lab">Try</div><p>The left boot always comes in worse. Mrs. Alvarez drags that foot a little, and the heel wears to a slant you can feel with your thumb.</p><div class="why">Drops the reader into a moment and makes them wonder.</div></div></div>
+  <h3 style="margin-top:10pt">Endings</h3>
+  <div class="vs"><div class="w"><div class="lab">Instead of</div><p>This experience taught me the value of hard work, and I know these skills will help me succeed in college and beyond.</p><div class="why">Restates the lesson, predicts success. Could end any essay.</div></div>
+  <div class="s"><div class="lab">Try</div><p>"Show me on the other one first," she said, and put her foot up on the bench.</p><div class="why">Ends on an action that carries the meaning. Stops early.</div></div></div>
+  <div class="foot"><span class="brand"><i></i>Admitted</span><span>Anatomy of a winning essay · 4</span></div>
+</section>
+
+<!-- ============ PAGE 5: ANNOTATED ESSAY ============ -->
+<section class="page">
+  <div class="kicker">04 · One essay, taken apart</div>
+  <h2>See the five parts at work.</h2>
+  <p class="small" style="margin-bottom:12pt">Written for this guide to show the parts in action. Not a real applicant's essay.</p>
+  <div class="essay">
+    <div class="text">
+      <p><mark class="b1">The left boot always comes in worse.<sup class="t1">1</sup></mark> Mrs. Alvarez drags that foot, a little, and the outside of the heel wears to a slant you can feel with your thumb before you see it. I knew this about her before I knew her first name.</p>
+      <p>I was fifteen, and my grandfather's left hand had stopped closing the spring before, so the awl was mine now. He sat on the stool by the register and <mark class="b2">corrected me with his chin.<sup class="t2">2</sup></mark> Too deep. Again. I ruined two soles that April and paid for them out of my own envelope, which he noticed and did not mention.</p>
+      <p>What I liked, it turned out, was the ledger. <mark class="b2">Forty percent of our Saturday money came from eleven people,<sup class="t2">2</sup></mark> and I could tell you which of them walked to work. I raised the price of a heel by two dollars and told my grandfather afterward. He looked at the page for a long time, then pushed it back to me, and I still can't say whether that meant yes.</p>
+      <p>Mrs. Alvarez could buy new boots. He told me that the first year, and also that her husband had bought these ones, and I took it as a sweet fact about her. <mark class="b3">I don't anymore.<sup class="t3">3</sup></mark> I think she comes in every four months because this is a thing she can still do for him that has a beginning and an end. <mark class="b4">When I look at a business now I don't ask what it sells. I ask what its eleven people would have to do without.<sup class="t4">4</sup></mark></p>
+      <p>Last month I told her the left heel couldn't take another nail. She thought about it. <mark class="b5">"Show me on the other one first," she said, and put her foot up on the bench.<sup class="t5">5</sup></mark></p>
+    </div>
+    <div>
+      <div class="callout"><span class="dot c1">1</span><div><b>The moment</b>Seven words, no context, and the reader is already inside a shop.</div></div>
+      <div class="callout"><span class="dot c2">2</span><div><b>The detail only they have</b>Nobody invents "corrected me with his chin". A ledger number says more than "I learned business skills".</div></div>
+      <div class="callout"><span class="dot c3">3</span><div><b>The turn</b>Four words mark where the old belief stopped being true.</div></div>
+      <div class="callout"><span class="dot c4">4</span><div><b>The change, in action</b>A question they now ask, instead of a virtue they claim.</div></div>
+      <div class="callout"><span class="dot c5">5</span><div><b>An ending that lands</b>No lesson restated. A small act of trust, and the essay stops.</div></div>
+      <div class="card" style="margin-top:10pt; background:var(--subtle); padding:9pt 10pt">
+        <div class="small" style="margin-bottom:5pt">Where the words go</div>
+        <div style="display:flex; height:9pt; border-radius:4pt; overflow:hidden"><div class="c1" style="width:12%"></div><div class="c2" style="width:30%"></div><div class="c3" style="width:8%"></div><div class="c4" style="width:38%"></div><div class="c5" style="width:12%"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="brand"><i></i>Admitted</span><span>Anatomy of a winning essay · 5</span></div>
+</section>
+
+<!-- ============ PAGE 6: THE FOUR TRAPS ============ -->
+<section class="page">
+  <div class="kicker">05 · The four traps</div>
+  <h2>What sinks most first drafts.</h2>
+  <p class="lede">Nearly every weak essay falls into at least one of these. Each one has a fix you can make in an afternoon.</p>
+  <div class="grid2" style="margin-top:14pt">
+    <div class="card"><span class="chip" style="background:var(--red-bg);color:var(--red)">Trap 1</span><h3 style="margin-top:7pt">The borrowed opening</h3><p>A famous quote, a dictionary definition, "Ever since I was young". It tells the reader you're about to say what everyone says.</p><p style="color:var(--green); font-weight:600; margin:0">Fix: cut your first paragraph. Start where the story actually starts.</p></div>
+    <div class="card"><span class="chip" style="background:var(--red-bg);color:var(--red)">Trap 2</span><h3 style="margin-top:7pt">The résumé in paragraphs</h3><p>Club, captain, volunteer, award. Your activities list already did this, and better.</p><p style="color:var(--green); font-weight:600; margin:0">Fix: pick one experience and go deep. Cut the rest.</p></div>
+    <div class="card"><span class="chip" style="background:var(--red-bg);color:var(--red)">Trap 3</span><h3 style="margin-top:7pt">The announced lesson</h3><p>"This taught me that failure is a stepping stone to success." If you have to say it, the essay didn't show it.</p><p style="color:var(--green); font-weight:600; margin:0">Fix: replace the lesson with what you now do differently.</p></div>
+    <div class="card"><span class="chip" style="background:var(--red-bg);color:var(--red)">Trap 4</span><h3 style="margin-top:7pt">The thesaurus voice</h3><p>"Myriad", "invaluable", "plethora". Words you'd never say out loud make you sound like someone else.</p><p style="color:var(--green); font-weight:600; margin:0">Fix: read it aloud. Rewrite every line you'd never say.</p></div>
+  </div>
+  <!-- simple bar diagram: where effort goes -->
+  <div class="card" style="margin-top:14pt">
+    <h3>Where to spend your next revision</h3>
+    <p style="font-size:9pt">If you only have time for one pass, work down this list. The top fixes change the most.</p>
+    <div style="display:grid; grid-template-columns: 1.7in 1fr; gap: 7pt 10pt; align-items:center; font-size:9pt">
+      <span>Rewrite the opening</span><div style="height:9pt; border-radius:5pt; background:var(--muted)"><div style="width:92%; height:100%; border-radius:5pt; background:var(--navy)"></div></div>
+      <span>Add one detail only you know</span><div style="height:9pt; border-radius:5pt; background:var(--muted)"><div style="width:84%; height:100%; border-radius:5pt; background:var(--navy)"></div></div>
+      <span>Cut the lesson at the end</span><div style="height:9pt; border-radius:5pt; background:var(--muted)"><div style="width:70%; height:100%; border-radius:5pt; background:var(--navy)"></div></div>
+      <span>Cut a second activity</span><div style="height:9pt; border-radius:5pt; background:var(--muted)"><div style="width:55%; height:100%; border-radius:5pt; background:var(--navy)"></div></div>
+      <span>Swap fancy words for plain ones</span><div style="height:9pt; border-radius:5pt; background:var(--muted)"><div style="width:38%; height:100%; border-radius:5pt; background:var(--navy)"></div></div>
+    </div>
+    <p class="small" style="margin:8pt 0 0">Our order of priority, not a measurement.</p>
+  </div>
+  <div class="foot"><span class="brand"><i></i>Admitted</span><span>Anatomy of a winning essay · 6</span></div>
+</section>
+
+<!-- ============ PAGE 7: CHECKLIST + CTA ============ -->
+<section class="page">
+  <div class="kicker">06 · Before you submit</div>
+  <h2>Ten checks for your draft.</h2>
+  <p class="lede" style="margin-bottom:10pt">Print this page. Tick each one, or fix it.</p>
+  <ul class="check">
+    <li><span class="box"></span><span class="dot c1" style="width:14pt;height:14pt;font-size:7pt">1</span>My first sentence puts the reader in a moment, not a summary of my life.</li>
+    <li><span class="box"></span><span class="dot c1" style="width:14pt;height:14pt;font-size:7pt">1</span>There's no famous quote and no dictionary definition.</li>
+    <li><span class="box"></span><span class="dot c2" style="width:14pt;height:14pt;font-size:7pt">2</span>I couldn't swap my name for a classmate's and keep the essay true.</li>
+    <li><span class="box"></span><span class="dot c2" style="width:14pt;height:14pt;font-size:7pt">2</span>Every claim about myself ("hardworking", "passionate") is shown, or cut.</li>
+    <li><span class="box"></span><span class="dot c3" style="width:14pt;height:14pt;font-size:7pt">3</span>There's a point where something I believed changed, and I can underline it.</li>
+    <li><span class="box"></span><span class="dot c4" style="width:14pt;height:14pt;font-size:7pt">4</span>The change shows up as something I do now, not a lesson I state.</li>
+    <li><span class="box"></span><span class="dot c4" style="width:14pt;height:14pt;font-size:7pt">4</span>I read it aloud and it sounds like me talking to someone I respect.</li>
+    <li><span class="box"></span><span class="dot c4" style="width:14pt;height:14pt;font-size:7pt">4</span>Each paragraph does something the one before it didn't.</li>
+    <li><span class="box"></span><span class="dot c5" style="width:14pt;height:14pt;font-size:7pt">5</span>My last line doesn't repeat the lesson or predict my success.</li>
+    <li><span class="box"></span><span class="dot c5" style="width:14pt;height:14pt;font-size:7pt">5</span>It answers exactly what the prompt asked, and it's under the word limit.</li>
+  </ul>
+  <div class="cta" style="margin-top:18pt; display:grid; grid-template-columns: 1fr auto; gap: 16pt; align-items:center">
+    <div>
+      <div style="font-size:14pt; font-weight:600">Want your draft checked against all of this?</div>
+      <p>Admitted is an AI tool that rates your essay on these six questions, marks the lines costing you most and helps you rewrite them in your own voice.</p>
+      <p style="margin-top:8pt"><b>admitted.usetrnd.com/essay</b> · $9.99 a week, cancel anytime</p>
+    </div>
+    <div style="display:grid; grid-template-columns: repeat(5, 9pt); gap: 4pt">
+      <span class="dot c1" style="width:9pt;height:9pt"></span><span class="dot c2" style="width:9pt;height:9pt"></span><span class="dot c3" style="width:9pt;height:9pt"></span><span class="dot c4" style="width:9pt;height:9pt"></span><span class="dot" style="width:9pt;height:9pt;background:#eef2f8"></span>
+    </div>
+  </div>
+  <div class="foot"><span class="brand"><i></i>Admitted</span><span>Anatomy of a winning essay · 7</span></div>
+</section>
+</body></html>

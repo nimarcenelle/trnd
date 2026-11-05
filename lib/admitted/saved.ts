@@ -61,3 +61,17 @@ export async function sealedStoreWorks(): Promise<boolean> {
     return false;
   }
 }
+
+/** One subscriber's requests of a kind today, so a single shared link can't run up the bill. */
+export async function subscriberUsedToday(kind: string, subscriber: string): Promise<number> {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  const { count, error } = await adminSupabase().from("ai_results").select("key", { count: "exact", head: true }).eq("kind", kind).like("key", `${kind}:${subscriber}:%`).gte("created_at", start.toISOString());
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function recordSubscriberUse(kind: string, subscriber: string): Promise<void> {
+  const { error } = await adminSupabase().from("ai_results").insert({ kind, key: `${kind}:${subscriber}:${crypto.randomUUID()}`, value: {} });
+  if (error) console.warn("[saved] could not record use", error.message);
+}

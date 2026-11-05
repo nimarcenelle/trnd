@@ -17,7 +17,7 @@ const CRITERIA = ["Only you could have written it", "Sounds like a person", "Sho
 const errorFor = (status?: number) => {
   if (status === 400) return "Paste a draft between 50 and 1,000 words.";
   if (status === 402) return "Your access could not be confirmed. Open your access link and try again.";
-  if (status === 429) return "We have reached today's limit. Try again tomorrow.";
+  if (status === 429) return "You've reached today's limit. It resets at midnight UTC.";
   return "That did not go through. Try again in a minute.";
 };
 

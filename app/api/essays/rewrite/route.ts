@@ -1,0 +1,22 @@
+import { RewriteCapReached, rewriteEssay } from "@/lib/admitted/rewrite";
+import { wordCount } from "@/lib/admitted/rewrite-core";
+import { env, isModelConfigured } from "@/lib/env";
+
+export const maxDuration = 180;
+
+/** Off until ESSAY_REWRITES_ENABLED=1: rewrites use the costliest model and have no paywall yet. */
+export async function POST(request: Request): Promise<Response> {
+  if (!env.essayRewritesEnabled || !isModelConfigured || !env.supabaseServiceRoleKey) return Response.json({ error: "not_open" }, { status: 404 });
+  const body = (await request.json().catch(() => null)) as { draft?: unknown; prompt?: unknown; revision?: unknown } | null;
+  const draft = String(body?.draft ?? "").trim();
+  const words = wordCount(draft);
+  if (words < 50 || words > 1000) return Response.json({ error: "length" }, { status: 400 });
+  const revision = Math.min(20, Math.max(0, Math.floor(Number(body?.revision) || 0)));
+  try {
+    return Response.json(await rewriteEssay(draft, String(body?.prompt ?? "").trim().slice(0, 500), revision));
+  } catch (err) {
+    if (err instanceof RewriteCapReached) return Response.json({ error: "busy" }, { status: 429 });
+    console.error("[rewrite]", err);
+    return Response.json({ error: "failed" }, { status: 500 });
+  }
+}

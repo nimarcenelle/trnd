@@ -9,6 +9,13 @@ export const env = {
   openaiApiKey: process.env.OPENAI_API_KEY ?? "",
   /** OPENAI_MODEL_PRO is the old name, still read so a live deploy keeps its pin. */
   openaiModel: process.env.OPENAI_MODEL || process.env.OPENAI_MODEL_PRO || "gpt-5.5",
+  /** Lower tier: chances. Higher tier: essay rewrites. */
+  openaiModelFast: process.env.OPENAI_MODEL_FAST || "gpt-6-luna",
+  openaiModelWriting: process.env.OPENAI_MODEL_WRITING || "gpt-6.1-sol",
+  essayRewritesEnabled: process.env.ESSAY_REWRITES_ENABLED === "1",
+  /** New AI results allowed per day; saved results never count. */
+  oddsDailyCap: Number(process.env.ODDS_DAILY_CAP) || 2000,
+  rewriteDailyCap: Number(process.env.REWRITE_DAILY_CAP) || 200,
   /** Social reads (Instagram, TikTok, Facebook posts) cost Apify credit per run: on with the token, APIFY_SOCIAL=0 turns them off. */
   apifySocial: Boolean(process.env.APIFY_TOKEN) && process.env.APIFY_SOCIAL !== "0",
   /** Optional fallback for the Ad Library read when Meta walls our fetch. */
@@ -30,6 +37,7 @@ export const env = {
 };
 
 export const isModelConfigured = Boolean(env.openaiApiKey);
+export const isOddsConfigured = Boolean(env.openaiApiKey && env.supabaseUrl && env.supabaseServiceRoleKey);
 export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePrice);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isInboxConfigured = Boolean(env.inboundDomain && env.inboundSecret);

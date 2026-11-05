@@ -28,8 +28,9 @@ export async function generateJson<S extends z.ZodType>(opts: {
   prompt: string;
   schema: S;
   effort?: "low" | "medium" | "high";
+  model?: string;
 }): Promise<z.infer<S>> {
-  const model = env.openaiModel;
+  const model = opts.model ?? env.openaiModel;
   const format = { type: "json_schema" as const, name: "reply", strict: true, schema: strictJsonSchema(opts.schema) };
   let feedback = "";
   let lastError: unknown;

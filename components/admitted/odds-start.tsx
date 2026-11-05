@@ -21,15 +21,15 @@ export default function OddsStart({ cta = "See my odds" }: { cta?: string }) {
       >
         <label className="flex flex-col justify-center px-3 py-1.5 sm:w-[92px] border-b sm:border-b-0 sm:border-r border-line text-left">
           <span className="text-[11px] text-ink-3">GPA</span>
-          <input name="gpa" inputMode="decimal" placeholder="3.82" aria-label="GPA" className="!h-6 !text-[15px] tnum" required />
+          <input name="gpa" inputMode="decimal" placeholder="3.95" aria-label="GPA" className="!h-6 !text-[14px] tnum" required />
         </label>
         <label className="flex flex-col justify-center px-3 py-1.5 sm:w-[118px] border-b sm:border-b-0 sm:border-r border-line text-left">
           <span className="text-[11px] text-ink-3">SAT or ACT</span>
-          <input name="test" inputMode="numeric" placeholder="1480" aria-label="SAT or ACT score" className="!h-6 !text-[15px] tnum" />
+          <input name="test" inputMode="numeric" placeholder="1530" aria-label="SAT or ACT score" className="!h-6 !text-[14px] tnum" />
         </label>
         <label className="flex flex-col justify-center px-3 py-1.5 flex-1 min-w-0 text-left">
           <span className="text-[11px] text-ink-3">Schools</span>
-          <input name="schools" placeholder="Up to 20, separated by commas" aria-label="Schools" className="!h-6 !text-[15px]" required />
+          <input name="schools" placeholder="Dartmouth, Cornell, up to 20" aria-label="Schools" className="!h-6 !text-[14px]" required />
         </label>
         <button className="btn btn-primary btn-lg mt-1.5 sm:mt-0" type="submit">
           {cta} <IconArrowRight />

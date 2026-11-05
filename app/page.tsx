@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import ProductShot from "@/components/admitted/product-shot";
 import OddsStart from "@/components/admitted/odds-start";
-import { APPLICANT, ESSAY, FACTORS, MOVES, SCHOOLS } from "@/components/admitted/sample";
+import OddsToy from "@/components/admitted/odds-toy";
+import { ESSAY, FACTORS, MOVES, SCHOOLS, SOURCES } from "@/components/admitted/sample";
 import { MovePill, SplitBar, SplitLegend } from "@/components/admitted/split";
 import Brand from "@/components/brand";
 import { IconCheck } from "@/components/icons";
@@ -13,13 +14,6 @@ const STEPS = [
   { title: "See the split", body: "Your odds at each school, and how much of each number is locked and how much is still movable." },
   { title: "Get the top fix, free", body: "The one change worth the most points, named and sized. Act on it with us or without us." },
   { title: "We do the movable part", body: "Pay once for the cycle. We rewrite the essays from your drafts, rebalance the list and plan the rounds, and re-run it all when anything changes." },
-];
-
-const TRACKS = [
-  { name: "Undergrad", inputs: "GPA · SAT or ACT · course rigor", note: "First" },
-  { name: "MBA", inputs: "GPA · GMAT or GRE · years of work", note: "Next" },
-  { name: "Law", inputs: "GPA · LSAT · cycle timing", note: "Next" },
-  { name: "Med", inputs: "Science GPA · MCAT · state of residence", note: "Next" },
 ];
 
 const PROOF = [
@@ -64,7 +58,7 @@ const FAQ = [
 
 function Check({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex gap-2.5 text-[14.5px]">
+    <li className="flex gap-2.5 text-[14px]">
       <IconCheck className="text-brand mt-[3px] shrink-0" />
       {children}
     </li>
@@ -76,7 +70,7 @@ function Feature({ kicker, title, body, points, visual, flip = false }: { kicker
     <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:gap-16 lg:grid-cols-2 items-center">
       <div className={flip ? "lg:order-2" : ""}>
         <p className="kicker">{kicker}</p>
-        <h3 className="section-title text-[30px] sm:text-[36px] mt-3">{title}</h3>
+        <h3 className="section-title text-[32px] sm:text-[40px] mt-3">{title}</h3>
         <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[480px]">{body}</p>
         <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-2.5">
           {points.map((p) => (
@@ -84,7 +78,7 @@ function Feature({ kicker, title, body, points, visual, flip = false }: { kicker
           ))}
         </ul>
       </div>
-      <div className={flip ? "lg:order-1" : ""}>{visual}</div>
+      <div className={`stage ${flip ? "lg:order-1" : ""}`}>{visual}</div>
     </div>
   );
 }
@@ -92,12 +86,12 @@ function Feature({ kicker, title, body, points, visual, flip = false }: { kicker
 function SplitCard() {
   return (
     <div className="card p-6 w-full max-w-[520px] lg:ml-auto">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="caption">{FACTORS.school}</div>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-[30px] font-semibold tnum tracking-tight">{FACTORS.odds}%</span>
-            <span className="text-[13px] text-ink-3 tnum">
+            <span className="text-[13px] text-ink-3 tnum whitespace-nowrap">
               → <span className="text-brand font-semibold">{FACTORS.withFixes}%</span> with fixes
             </span>
           </div>
@@ -137,7 +131,7 @@ function EssayCard() {
   return (
     <div className="card w-full max-w-[520px] overflow-hidden">
       <div className="px-5 py-3.5 border-b border-line flex items-center justify-between gap-3">
-        <span className="text-[13.5px] font-semibold">{ESSAY.prompt}</span>
+        <span className="text-[14px] font-semibold">{ESSAY.prompt}</span>
         <span className="badge badge-pos">Revision {ESSAY.revision}</span>
       </div>
       <div className="p-5 flex flex-col gap-4">
@@ -150,10 +144,10 @@ function EssayCard() {
           <p className="text-[14px] leading-[1.65] mt-1.5 border-l-2 border-brand pl-3">{ESSAY.rewrite}</p>
         </div>
       </div>
-      <div className="px-5 py-3 border-t border-line flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-ink-3 tnum">
+      <div className="px-5 py-3 border-t border-line flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-ink-3 tnum">
         <span>{ESSAY.words} words</span>
         <span>{ESSAY.kept}% of sentences yours</span>
-        <span className="text-brand font-medium">+3 pts at Calder</span>
+        <span className="text-brand font-medium">+1 pts at Dartmouth</span>
       </div>
     </div>
   );
@@ -165,7 +159,7 @@ function ListCard() {
       <div className="px-5 py-4 border-b border-line flex items-baseline justify-between gap-3">
         <span className="text-[13px] text-ink-2">Chance of at least one admit</span>
         <span className="tnum text-[14px]">
-          <span className="text-ink-3">91%</span> → <span className="text-brand font-semibold text-[20px]">98%</span>
+          <span className="text-ink-3">19%</span> → <span className="text-brand font-semibold text-[20px]">29%</span>
         </span>
       </div>
       <table className="table">
@@ -181,7 +175,7 @@ function ListCard() {
             <tr key={s.name}>
               <td className="font-medium">
                 {s.name}
-                {s.name === "Ashby College" && <span className="badge badge-pos ml-2 !h-5 !text-[11px]">Added</span>}
+                {s.name === "Cornell University" && <span className="badge badge-pos ml-2 !h-5 !text-[11px]">Added</span>}
               </td>
               <td className="text-ink-2">{s.band}</td>
               <td className="text-right tnum font-semibold">{s.odds}%</td>
@@ -220,40 +214,29 @@ export default function Home() {
     <div className="min-h-dvh flex flex-col">
       <SiteNav />
 
-      <section id="start" className="scroll-mt-14">
-        <div className="wrap pt-20 sm:pt-28 pb-16 sm:pb-20 flex flex-col items-center text-center">
-          <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full border border-line bg-bg text-[12.5px] text-ink-2 shadow-[var(--shadow-sm)]">
-            <i className="w-1.5 h-1.5 rounded-full bg-brand" /> Admit odds from published college data
-          </span>
-          <h1 className="display text-[40px] sm:text-[56px] lg:text-[66px] mt-6 max-w-[920px]">
-            Your real odds.
-            <br />
-            And the part you can still move.
-          </h1>
-          <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[620px]">Admit odds at every school on your list, split into what your stats already decided and what your application can still change. Then we change it.</p>
-          <div className="mt-8 w-full flex justify-center">
-            <OddsStart />
-          </div>
-          <div className="mt-14 sm:mt-16 w-full max-w-[1120px]">
-            <ProductShot />
-            <p className="caption mt-3">A sample applicant and invented schools. Use the side nav to see each view.</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-line">
-        <div className="wrap pt-14 sm:pt-16"><p className="caption">The sample applicant, across six schools</p></div>
-        <div className="wrap pt-8 pb-16 sm:pb-20 grid gap-10 sm:grid-cols-3">
-          {[
-            [`${APPLICANT.locked}%`, "Locked. Set by GPA, scores and the courses already taken."],
-            [`${APPLICANT.movable}%`, "Movable. Decided by round, essays, activities and list."],
-            ["+8 pts", "From the top fix alone: apply ED II to Calder."],
-          ].map(([v, l]) => (
-            <div key={v}>
-              <div className="text-[52px] sm:text-[60px] font-medium tracking-[-0.04em] leading-none tnum">{v}</div>
-              <div className="text-[14px] text-ink-3 mt-3 max-w-[260px]">{l}</div>
+      <section id="start" className="relative scroll-mt-14 wash-top">
+        <div className="dot-grid absolute inset-0 pointer-events-none" aria-hidden="true" />
+        <div className="relative wrap pt-14 sm:pt-20 pb-16 sm:pb-20">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-14 items-center">
+            <div>
+              <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full bg-[var(--soft)] text-[13px] font-medium text-[var(--soft-ink)]">
+                <i className="w-1.5 h-1.5 rounded-full bg-[var(--soft-ink)]" /> For college applicants and their parents
+              </span>
+              <h1 className="display text-[44px] sm:text-[56px] mt-6">
+                Your real odds.
+                <span className="block text-[var(--headline-2)] [text-wrap:balance]">And the part you can still move.</span>
+              </h1>
+              <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[560px]">Admit odds at every school on your list, from the numbers colleges publish, split into what your stats already decided and what your application can still change. Then we change it.</p>
+              <div className="mt-8">
+                <OddsStart />
+              </div>
             </div>
-          ))}
+            <OddsToy />
+          </div>
+          <div className="mt-16 sm:mt-20">
+            <ProductShot />
+            <p className="caption mt-3 text-center">A sample applicant on a real list. Use the side nav to see each view.</p>
+          </div>
         </div>
       </section>
 
@@ -264,16 +247,16 @@ export default function Home() {
           <ol className="list-none p-0 m-0 mt-12 grid gap-10 md:grid-cols-2 lg:grid-cols-4 md:gap-8">
             {STEPS.map((s, i) => (
               <li key={s.title} className="border-t border-line pt-6">
-                <span className="text-[13px] font-medium text-ink-3 tnum">0{i + 1}</span>
-                <h3 className="heading text-[17px] mt-3">{s.title}</h3>
-                <p className="text-[14.5px] text-ink-2 leading-[1.65] mt-2">{s.body}</p>
+                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[var(--soft)] text-[13px] font-semibold text-[var(--soft-ink)] tnum">{i + 1}</span>
+                <h3 className="heading text-[16px] mt-3">{s.title}</h3>
+                <p className="text-[14px] text-ink-2 leading-[1.65] mt-2">{s.body}</p>
               </li>
             ))}
           </ol>
         </div>
       </section>
 
-      <section id="features" className="border-t border-line bg-subtle scroll-mt-14">
+      <section id="features" className="border-t border-line scroll-mt-14">
         <div className="wrap py-20 sm:py-28 flex flex-col gap-24 sm:gap-32">
           <Feature
             kicker="Odds"
@@ -308,37 +291,39 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="border-t border-line">
-        <div className="wrap py-20 sm:py-28">
-          <p className="kicker">Tracks</p>
-          <h2 className="section-title text-[32px] sm:text-[40px] mt-3 max-w-[680px]">Undergrad first. MBA, law and med on the same engine.</h2>
-          <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {TRACKS.map((t) => (
-              <div key={t.name} className="well p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[16px] font-semibold">{t.name}</span>
-                  <span className="caption">{t.note}</span>
-                </div>
-                <div className="text-[13.5px] text-ink-2 mt-6">{t.inputs}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <section id="data" className="scroll-mt-14 pb-20 sm:pb-28">
         <div className="wrap">
           <div className="rounded-[20px] bg-band text-band-ink px-6 py-14 sm:px-12 sm:py-20">
-            <p className="text-[13px] font-medium text-band-ink-3">The data</p>
-            <h2 className="section-title text-[34px] sm:text-[48px] mt-3 max-w-[720px] font-[400]">Where the numbers come from.</h2>
-            <p className="text-[16px] text-band-ink-3 leading-[1.65] mt-5 max-w-[620px]">
-              Most four-year colleges publish a Common Data Set each year: admit rates by round, GPA and test-score ranges, and what they weigh. Our odds are those numbers applied to you. Check any of them yourself.
-            </p>
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,430px)] lg:gap-14 items-center">
+              <div>
+                <p className="text-[13px] font-medium text-band-ink-3">The data</p>
+                <h2 className="section-title text-[32px] sm:text-[40px] mt-3 [text-wrap:balance]">Where the numbers come from.</h2>
+                <p className="text-[16px] text-band-ink-3 leading-[1.65] mt-5 max-w-[520px]">
+                  Most four-year colleges publish a Common Data Set each year: admit rates by round, GPA and test-score ranges, and what they weigh. Our odds are those numbers applied to you. Check any of them yourself.
+                </p>
+              </div>
+              <div className="rounded-[12px] bg-band-2 border border-band-line p-5 sm:p-6">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                  <span className="text-[14px] font-medium whitespace-nowrap">{SOURCES.school}</span>
+                  <span className="text-[12px] text-band-ink-3 whitespace-nowrap">{SOURCES.edition}</span>
+                </div>
+                <ul className="list-none p-0 m-0 mt-4 divide-y divide-band-line text-[13px]">
+                  {SOURCES.rows.map((r) => (
+                    <li key={r.label} className="flex items-baseline gap-3 py-2.5">
+                      <span className="flex-1 min-w-0 text-band-ink-3">{r.label}</span>
+                      <span className="tnum font-medium whitespace-nowrap">{r.value}</span>
+                      <span className="tnum text-[12px] text-band-ink-3 w-8 text-right">{r.section}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[12px] text-band-ink-3 mt-3">Published by Dartmouth. Section numbers on the right.</p>
+              </div>
+            </div>
             <div className="mt-12 grid gap-3 grid-cols-[minmax(0,1fr)] sm:grid-cols-2">
               {PROOF.map((p) => (
                 <div key={p.label} className="rounded-[12px] bg-band-2 border border-band-line p-5 sm:p-6">
-                  <div className="text-[40px] sm:text-[44px] font-[400] tracking-[-0.04em] leading-none tnum">{p.value}</div>
-                  <div className="text-[13.5px] text-band-ink-3 mt-4 leading-[1.5]">{p.label}</div>
+                  <div className="text-[40px] font-semibold tracking-[-0.04em] leading-none tnum">{p.value}</div>
+                  <div className="text-[14px] text-band-ink-3 mt-4 leading-[1.5]">{p.label}</div>
                 </div>
               ))}
             </div>
@@ -353,8 +338,8 @@ export default function Home() {
             <h2 className="section-title text-[32px] sm:text-[40px] mt-3">One price for the cycle.</h2>
             <p className="text-[16px] text-ink-2 mt-3">Your odds, the split and the top fix are free, with no account. Pay when you want the fixes done.</p>
           </div>
-          <div className="card mt-12 max-w-[440px] mx-auto p-8 shadow-[var(--shadow-md)]">
-            <div className="text-[14px] font-semibold">The fixes, done</div>
+          <div className="card mt-12 max-w-[440px] mx-auto p-8 shadow-[var(--shadow-lg)]">
+            <div className="text-[14px] font-semibold text-[var(--kicker)]">The fixes, done</div>
             <div className="display text-[32px] mt-3">Price set at launch</div>
             <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3">
               {INCLUDED.map((f) => (
@@ -376,7 +361,7 @@ export default function Home() {
           <div>
             <p className="kicker">FAQ</p>
             <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Questions</h2>
-            <p className="text-[15px] text-ink-2 mt-3">
+            <p className="text-[14px] text-ink-2 mt-3">
               Anything else?{" "}
               <a className="text-ink underline" href="mailto:hello@usetrnd.com">
                 hello@usetrnd.com
@@ -386,20 +371,20 @@ export default function Home() {
           <div className="card divide-y divide-line">
             {FAQ.map((f) => (
               <details key={f.q} className="group px-6 py-5">
-                <summary className="flex items-center justify-between gap-4 text-[15px] font-medium">
+                <summary className="flex items-center justify-between gap-4 text-[14px] font-medium">
                   {f.q}
                   <span className="text-ink-3 text-[18px] leading-none transition-transform group-open:rotate-45">+</span>
                 </summary>
-                <p className="text-[14.5px] text-ink-2 leading-[1.7] mt-3">{f.a}</p>
+                <p className="text-[14px] text-ink-2 leading-[1.7] mt-3">{f.a}</p>
               </details>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="border-t border-line">
+      <section className="border-t border-line wash-bottom">
         <div className="wrap py-20 sm:py-28 flex flex-col items-center text-center">
-          <h2 className="section-title text-[32px] sm:text-[44px] max-w-[680px]">See what is still yours to move.</h2>
+          <h2 className="section-title text-[32px] sm:text-[40px] max-w-[760px]">See what is still yours to move.</h2>
           <div className="mt-8 w-full flex justify-center">
             <OddsStart />
           </div>

@@ -5,22 +5,20 @@ export const metadata = { title: "Terms of Service · Admitted" };
 /** Plain-English terms that match what the product does. Have counsel review before scale. */
 export default function TermsPage() {
   return (
-    <LegalShell title="Terms of Service" updated="November 4, 2026">
+    <LegalShell title="Terms of Service" updated="November 5, 2026">
       <h2>What Admitted is</h2>
       <p>
-        Admitted estimates your odds at selected colleges from figures those colleges publish, and reviews and rewrites your
+        Admitted estimates your odds at selected colleges from figures those colleges publish, and rates and rewrites your
         application essays using AI models. It is a decision-support tool. Odds are estimates, and essay scores are an AI
         model&apos;s reading against our rubric. Neither predicts or guarantees an admission, and no college is affiliated with
         Admitted.
       </p>
 
-      <h2>Who can buy</h2>
-      <p>If you are under 18, a parent or guardian must make the purchase and agree to these terms.</p>
-
-      <h2>Payment and refunds</h2>
+      <h2>Subscription and payment</h2>
       <p>
-        Essay review and rewrites cost one payment for the application cycle, billed through Stripe. It is not a subscription. If
-        it isn&apos;t for you, email us within 14 days of paying for a full refund.
+        Essay rating and rewrites are a subscription of $9.99 a week, billed through Stripe until you cancel. Cancel anytime from
+        Account on the essay page; you keep access until the end of the week you paid for. Payments are non-refundable, except where
+        the law requires otherwise.
       </p>
 
       <h2>Your access</h2>

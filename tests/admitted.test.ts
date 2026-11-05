@@ -4,6 +4,7 @@ import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regular
 import { segments } from "@/lib/admitted/highlight";
 import { scoreKind, STATES, validGpa } from "@/lib/admitted/flow";
 import { schoolQuery, shortName } from "@/lib/admitted/list";
+import { parseEmail } from "@/lib/admitted/leads";
 import { parseSchoolRequest } from "@/lib/admitted/school-request";
 import { buildReview, maxNotes, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
 import { answersText, bestAttempt, keptShare, parseAnswers, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
@@ -326,5 +327,13 @@ describe("flow inputs", () => {
     expect(scoreKind("29")).toBe("ACT");
     expect(scoreKind("")).toBe("");
     expect(scoreKind("200")).toBeNull();
+  });
+});
+
+describe("the guide email", () => {
+  it("takes a real-looking address", () => {
+    expect(parseEmail(" Me@Example.com ")).toBe("me@example.com");
+    expect(parseEmail("nope")).toBeNull();
+    expect(parseEmail("")).toBeNull();
   });
 });

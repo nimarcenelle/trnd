@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Anatomy of a winning essay</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+<style>
+@page { size: Letter; margin: 0; }
+:root { --ink:#101b30; --ink2:#45516a; --ink3:#68738a; --line:#e2e7ee; --subtle:#f5f7fa; --brand:#0e7c4f; --navy:#14233f; --soft:#e9eef6; --soft-ink:#1f3a6b; --pos:#e3f4eb; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: Inter, sans-serif; color: var(--ink); font-size: 11pt; line-height: 1.6; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 8.5in; height: 11in; padding: 0.85in 0.9in; position: relative; page-break-after: always; overflow: hidden; }
+.page:last-child { page-break-after: auto; }
+.foot { position:absolute; bottom:0.5in; left:0.9in; right:0.9in; display:flex; justify-content:space-between; font-size:8.5pt; color:var(--ink3); }
+.brand { display:inline-flex; align-items:center; gap:7px; font-weight:600; letter-spacing:-0.02em; }
+.brand i { width:7px; height:7px; border-radius:50%; background:var(--brand); display:inline-block; }
+h1 { font-size: 46pt; line-height: 1.02; letter-spacing: -0.035em; margin: 0; font-weight: 700; }
+h2 { font-size: 24pt; line-height: 1.1; letter-spacing: -0.03em; margin: 0 0 10pt; font-weight: 700; }
+h3 { font-size: 12.5pt; margin: 18pt 0 4pt; font-weight: 600; }
+p { margin: 0 0 9pt; color: var(--ink2); }
+.kicker { font-size: 9.5pt; font-weight: 600; color: #2b4a80; margin-bottom: 8pt; }
+.cover { background: var(--navy); color: #eef2f8; display:flex; flex-direction:column; justify-content:space-between; }
+.cover p { color: #a9b4c6; }
+.cover .brand { color:#eef2f8; font-size: 13pt; }
+.cover .brand i { background:#4fd08f; }
+.cover h1 span { color:#4fd08f; display:block; }
+.box { border:1px solid var(--line); border-radius:10px; padding: 12pt 14pt; margin: 10pt 0; }
+.weak { background: var(--subtle); }
+.strong { background: var(--pos); border-color: #cde9d9; }
+.tag { font-size: 8.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink3); margin-bottom: 3pt; }
+.strong .tag { color: var(--brand); }
+.box p { color: var(--ink); margin: 0; }
+.parts { display:grid; grid-template-columns: 26pt 1fr; gap: 10pt 12pt; margin-top: 14pt; }
+.num { width: 22pt; height: 22pt; border-radius: 50%; background: var(--soft); color: var(--soft-ink); font-weight: 600; font-size: 10pt; display:flex; align-items:center; justify-content:center; }
+.parts h3 { margin: 1pt 0 2pt; }
+.parts p { margin: 0; }
+.essay { display:grid; grid-template-columns: 1fr 2.05in; gap: 0 16pt; font-size: 10pt; }
+.essay .text p { color: var(--ink); margin: 0 0 8pt; line-height: 1.55; }
+mark { background: var(--soft); padding: 0 2px; border-radius: 3px; color: var(--ink); }
+.note { font-size: 8.8pt; color: var(--ink2); border-left: 2px solid var(--brand); padding-left: 8pt; margin-bottom: 9pt; line-height: 1.45; }
+.note b { color: var(--ink); }
+ul.check { list-style:none; padding:0; margin: 8pt 0 0; }
+ul.check li { padding: 7pt 0 7pt 26pt; border-bottom: 1px solid var(--line); position:relative; color: var(--ink); }
+ul.check li::before { content:""; position:absolute; left:2pt; top:9pt; width:12pt; height:12pt; border:1.5px solid #cbd3df; border-radius:3px; }
+.crit { display:grid; grid-template-columns: 1fr 1fr; gap: 10pt; margin-top: 12pt; }
+.crit .box { margin: 0; }
+.crit h3 { margin: 0 0 3pt; font-size: 11pt; }
+.crit p { font-size: 9.5pt; margin: 0; }
+.cta { background: var(--navy); color:#eef2f8; border-radius: 14px; padding: 20pt 22pt; margin-top: 18pt; }
+.cta p { color:#a9b4c6; margin: 4pt 0 0; }
+.cta b { color:#eef2f8; }
+</style></head><body>
+
+<section class="page cover">
+  <div class="brand"><i></i>Admitted</div>
+  <div>
+    <div class="kicker" style="color:#8fa8d6">A free guide for college applicants</div>
+    <h1>Anatomy of a<span>winning essay.</span></h1>
+    <p style="font-size:14pt; margin-top:18pt; max-width:5in">What admissions readers look for, the five parts of an essay that works, one example taken apart line by line, and a checklist for before you hit submit.</p>
+  </div>
+  <p style="font-size:9pt">admitted.usetrnd.com</p>
+</section>
+
+<section class="page">
+  <div class="kicker">1. What a reader is looking for</div>
+  <h2>A reader has a few minutes and a stack of files.</h2>
+  <p>Your grades and scores already told them what you've done. The essay is the one place they hear how you think. Six things decide whether it lands, and they're the same six Admitted rates every draft on.</p>
+  <div class="crit">
+    <div class="box"><h3>Only you could have written it</h3><p>Details and observations no other applicant has. If you could swap your name for a classmate's, it isn't there yet.</p></div>
+    <div class="box"><h3>It sounds like a person</h3><p>Plain, specific sentences in your own voice, not brochure language or thesaurus words.</p></div>
+    <div class="box"><h3>It shows how you think</h3><p>A real change in how you see or act, earned by what happened, not a lesson announced at the end.</p></div>
+    <div class="box"><h3>The opening holds attention</h3><p>The first lines put the reader inside a moment or an idea they want to follow. No quotes, no definitions.</p></div>
+    <div class="box"><h3>It earns its length</h3><p>Every paragraph moves it forward, and the ending lands without restating the point.</p></div>
+    <div class="box"><h3>It answers the prompt</h3><p>Especially for supplements: the question asked, answered throughout, not just in the last line.</p></div>
+  </div>
+  <p style="margin-top:16pt">Notice what isn't on the list: an impressive topic. A Saturday job can carry an essay further than a tragedy, if the thinking is yours.</p>
+  <div class="foot"><span class="brand"><i></i>Admitted</span><span>Anatomy of a winning essay · 2</span></div>
+</section>
+
+<section class="page">
+  <div class="kicker">2. The five parts</div>
+  <h2>Most essays that work are built the same way.</h2>
+  <div class="parts">
+    <div class="num">1</div><div><h3>A moment, not a summary</h3><p>Start inside something specific: a sound, a sentence someone said, a mistake. The reader should not know the moral yet.</p></div>
+    <div class="num">2</div><div><h3>The detail only you have</h3><p>The thing you noticed that someone passing through wouldn't. This is what makes the essay yours.</p></div>
+    <div class="num">3</div><div><h3>The turn</h3><p>The point where what you believed stopped being true, or got more complicated. Most weak essays skip this.</p></div>
+    <div class="num">4</div><div><h3>What you do differently now</h3><p>Show the change in action: a decision, a habit, a question you now ask. Don't name the virtue.</p></div>
+    <div class="num">5</div><div><h3>An ending that lands</h3><p>Return to an image or leave a question open. Never close by repeating the lesson or predicting your success.</p></div>
+  </div>
+  <h3 style="margin-top:24pt">The same idea, two ways</h3>
+  <div class="box weak"><div class="tag">Weak opening</div><p>Ever since I was young, I have always been passionate about helping others. As Gandhi said, "Be the change you wish to see in the world."</p></div>
+  <div class="box strong"><div class="tag">Strong opening</div><p>The left boot always comes in worse. Mrs. Alvarez drags that foot a little, and the outside of the heel wears to a slant you can feel with your thumb before you see it.</p></div>
+  <p>The second gives the reader nothing to agree with and everything to wonder about. That is the job of a first line.</p>
+  <div class="foot"><span class="brand"><i></i>Admitted</span><span>Anatomy of a winning essay · 3</span></div>
+</section>
+
+<section class="page">
+  <div class="kicker">3. One essay, taken apart</div>
+  <h2>An example, annotated.</h2>
+  <p style="font-size:9.5pt">This essay was written for this guide to show the parts in action. It is not a real applicant's essay.</p>
+  <div class="essay">
+    <div class="text">
+      <p><mark>The left boot always comes in worse.</mark> Mrs. Alvarez drags that foot, a little, and the outside of the heel wears to a slant you can feel with your thumb before you see it. I knew this about her before I knew her first name.</p>
+      <p>I was fifteen, and my grandfather's left hand had stopped closing the spring before, so the awl was mine now. He sat on the stool by the register and <mark>corrected me with his chin</mark>. Too deep. Again. I ruined two soles that April and paid for them out of my own envelope, which he noticed and did not mention.</p>
+      <p>What I liked, it turned out, was the ledger. <mark>Forty percent of our Saturday money came from eleven people</mark>, and I could tell you which of them walked to work. I raised the price of a heel by two dollars and told my grandfather afterward. He looked at the page for a long time, then pushed it back to me, and I still can't say whether that meant yes.</p>
+      <p>Mrs. Alvarez could buy new boots. He told me that the first year, and also that her husband had bought these ones, and I took it as a sweet fact about her. <mark>I don't anymore.</mark> I think she comes in every four months because this is a thing she can still do for him that has a beginning and an end. <mark>When I look at a business now I don't ask what it sells. I ask what its eleven people would have to do without.</mark></p>
+      <p>Last month I told her the left heel couldn't take another nail. She thought about it. <mark>"Show me on the other one first," she said</mark>, and put her foot up on the bench.</p>
+    </div>
+    <div>
+      <div class="note"><b>The moment.</b> Seven words, no context, and the reader is already inside a shop.</div>
+      <div class="note"><b>The detail only they have.</b> Nobody invents "corrected me with his chin". It sounds like a person.</div>
+      <div class="note"><b>Specific, not impressive.</b> A number from a ledger says more about how they think than "I learned business skills".</div>
+      <div class="note"><b>The turn.</b> Four words mark where the old belief stopped being true.</div>
+      <div class="note"><b>What changed, in action.</b> A question they now ask, instead of a virtue they claim.</div>
+      <div class="note"><b>An ending that lands.</b> No lesson restated. A small act of trust, and the essay stops.</div>
+    </div>
+  </div>
+  <div class="foot"><span class="brand"><i></i>Admitted</span><span>Anatomy of a winning essay · 4</span></div>
+</section>
+
+<section class="page">
+  <div class="kicker">4. Before you submit</div>
+  <h2>Ten checks for your draft.</h2>
+  <ul class="check">
+    <li>My first sentence puts the reader in a moment, not a summary of my life.</li>
+    <li>There's no quote from a famous person and no dictionary definition.</li>
+    <li>I could not swap my name for a classmate's and keep the essay true.</li>
+    <li>Every claim about myself ("hardworking", "passionate") is shown, or cut.</li>
+    <li>There's a point where something I believed changed, and I can underline it.</li>
+    <li>The change shows up as something I do now, not a lesson I state.</li>
+    <li>I read it aloud and it sounds like me talking to someone I respect.</li>
+    <li>Each paragraph does something the one before it didn't.</li>
+    <li>My last line doesn't repeat the lesson or predict my future success.</li>
+    <li>It answers exactly what the prompt asked, and it's under the word limit.</li>
+  </ul>
+  <div class="cta">
+    <div style="font-size:15pt; font-weight:600">Want your draft checked against all of this?</div>
+    <p>Admitted is an AI tool that rates your essay on these six criteria, marks the lines costing you most, and helps you rewrite them in your own voice. <b>$9.99 a week, cancel anytime.</b></p>
+    <p style="margin-top:8pt"><b>admitted.usetrnd.com/essay</b></p>
+  </div>
+  <div class="foot"><span class="brand"><i></i>Admitted</span><span>Anatomy of a winning essay · 5</span></div>
+</section>
+</body></html>

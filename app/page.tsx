@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import EssaySample from "@/components/admitted/essay-sample";
 import OddsToy from "@/components/admitted/odds-toy";
+import GuideOffer from "@/components/admitted/guide-offer";
 import ProductShot from "@/components/admitted/product-shot";
 import RequestSchool from "@/components/admitted/request-school";
 import { FACTORS, SOURCES } from "@/components/admitted/sample";
@@ -16,7 +17,7 @@ const STEPS = [
   { title: "Enter your numbers", body: "Your schools, GPA, SAT or ACT and home state. No account, no email." },
   { title: "See the split", body: "Your odds at each school, and how much of each number is locked and how much is still movable." },
   { title: "Get the top fix, free", body: "The next move at each school, named. Act on it with us or without us." },
-  { title: "We do the movable part", body: "Pay once for the cycle. We review every draft line by line and rewrite it from your own words, as often as you need." },
+  { title: "Fix the movable part", body: "Our AI rates every draft, marks what costs you most and helps you rewrite it in your voice. $9.99 a week." },
 ];
 
 const PROOF = [
@@ -26,7 +27,7 @@ const PROOF = [
 
 const FREE = ["Per-school odds with sources", "Locked and movable split", "Your top fix, named"];
 
-const INCLUDED = ["Line-by-line review of your draft", "Rewrite in your voice", "Unlimited revisions through the cycle", "Re-run odds whenever your numbers change"];
+const INCLUDED = ["AI rates your essay against six criteria", "Line-by-line fixes for what costs you most", "Rewrites in your voice", "Unlimited essays and revisions"];
 
 const FAQ = [
   {
@@ -39,7 +40,7 @@ const FAQ = [
   },
   {
     q: "Do you write my essay for me?",
-    a: "No. We rewrite it from your draft. Your story, your details and most of your sentences stay; the opening and the structure change. You see how much stayed yours, and you can ask for more revisions.",
+    a: "No. Admitted is an AI tool: it rates your draft, shows what to fix, and rewrites from your own details and sentences. You decide what to keep.",
   },
   {
     q: "Are the odds a guarantee?",
@@ -47,15 +48,15 @@ const FAQ = [
   },
   {
     q: "How does the essay review work?",
-    a: "AI reads your draft line by line, marks what costs you most, and says what to do about each line. Then it asks you for the details only you know and rewrites from those and your draft, in your voice. The same draft always gets the same result.",
+    a: "Our AI rates your draft against six criteria, marks the lines costing you most and says what to fix. Then it asks for the details only you know and rewrites from those and your draft, in your voice. The same draft always gets the same rating.",
   },
   {
     q: "Who sees my essays?",
     a: "Reviews and rewrites are saved encrypted, and we never sell your writing. OpenAI processes each draft to review it and does not train on it. The privacy policy has the details.",
   },
   {
-    q: "What if it isn't for me?",
-    a: "Email us within 14 days of paying for a full refund.",
+    q: "Can I cancel?",
+    a: "Anytime, from Account on the essay page. You keep access until the end of the week you paid for.",
   },
   {
     q: "What if my scores or my list change?",
@@ -202,9 +203,9 @@ export default function Home() {
           <Feature
             flip
             kicker="Essays"
-            title="Your essay, reviewed line by line."
-            body="Not a template, and not a stranger's story. The lines costing you most are marked in place, each with what to do. You add the details only you know, and we rewrite it in your voice."
-            points={["A line-by-line review of every draft", "Personal statement and every supplement, revised through the cycle", "What changed, and how much stayed yours"]}
+            title="Your essay, rated and improved."
+            body="An AI tool that rates your essay and helps you improve it. The lines costing you most are marked in place, each with what to do. You add the details only you know, and it rewrites in your voice."
+            points={["An AI rating of every draft, line by line", "Personal statement and every supplement, revised through the cycle", "What changed, and how much stayed yours"]}
             visual={<EssaySample />}
           />
         </div>
@@ -250,12 +251,31 @@ export default function Home() {
         </div>
       </section>
 
+      <section id="guide" className="border-t border-line bg-subtle scroll-mt-14">
+        <div className="wrap py-20 sm:py-24 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-16 items-center">
+          <div>
+            <p className="kicker">Free guide</p>
+            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Anatomy of a winning essay.</h2>
+            <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[520px]">What readers look for, the five parts of an essay that works, one example taken apart line by line, and ten checks for before you submit.</p>
+            <GuideOffer />
+            <p className="caption mt-3">We&apos;ll also send occasional essay tips. Unsubscribe anytime.</p>
+          </div>
+          <div className="hidden lg:block rounded-[12px] bg-band text-band-ink p-8 shadow-[var(--shadow-lg)] aspect-[8.5/11]">
+            <div className="text-[12px] font-medium text-band-ink-3">A free guide for college applicants</div>
+            <div className="text-[32px] font-semibold tracking-[-0.03em] leading-[1.05] mt-24">
+              Anatomy of a <span className="block text-brand">winning essay.</span>
+            </div>
+            <div className="text-[12px] text-band-ink-3 mt-6">5 pages · PDF</div>
+          </div>
+        </div>
+      </section>
+
       <section id="pricing" className="border-t border-line scroll-mt-14">
         <div className="wrap py-20 sm:py-28">
           <div className="text-center">
             <p className="kicker">Pricing</p>
-            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Odds are free. Essays are one price.</h2>
-            <p className="text-[16px] text-ink-2 mt-3">Pay once for the cycle, and only when you want your essays reviewed and rewritten.</p>
+            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Odds are free. Essays are $9.99 a week.</h2>
+            <p className="text-[16px] text-ink-2 mt-3">Subscribe when you want your essays rated and improved. Cancel anytime.</p>
           </div>
           <div className="mt-12 grid grid-cols-[minmax(0,1fr)] md:grid-cols-2 gap-4 max-w-[880px] mx-auto items-stretch">
             <div className="card p-8 flex flex-col">
@@ -275,8 +295,8 @@ export default function Home() {
             </div>
             <div className="card p-8 flex flex-col shadow-[var(--shadow-lg)]">
               <div className="text-[14px] font-semibold text-[var(--kicker)]">Essays</div>
-              <div className="text-[40px] font-semibold tnum mt-3">$299</div>
-              <p className="text-[13px] text-ink-2 mt-1">Pay once per cycle. No subscription. Full refund within 14 days.</p>
+              <div className="mt-3 flex items-baseline gap-1.5"><span className="text-[40px] font-semibold tnum">$9.99</span><span className="text-[14px] text-ink-3">a week</span></div>
+              <p className="text-[13px] text-ink-2 mt-1">Billed weekly. Cancel anytime.</p>
               <ul className="list-none p-0 m-0 mt-6 mb-8 flex flex-col gap-3">
                 {INCLUDED.map((f) => (
                   <Check key={f}>
@@ -287,7 +307,7 @@ export default function Home() {
               <Link href="/essay" className="btn btn-primary btn-lg w-full mt-auto">
                 Fix the movable part
               </Link>
-              <p className="caption text-center mt-3">Pay once. No subscription.</p>
+              
             </div>
           </div>
         </div>

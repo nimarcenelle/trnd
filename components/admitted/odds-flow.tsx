@@ -11,6 +11,7 @@ import { schoolQuery, shortName } from "@/lib/admitted/list";
 import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 
 import EssaySample from "./essay-sample";
+import GuideOffer from "./guide-offer";
 import OddsTable from "./odds-table";
 import { SplitLegend } from "./split";
 import RequestSchool from "./request-school";
@@ -343,17 +344,23 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
             <div className="w-full max-w-[1000px] mx-auto grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 items-center">
               <div className="rise min-w-0">
                 <h1 className="display text-[40px] sm:text-[56px]">How far this moves depends on your essays.</h1>
-                <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.55] mt-4">Nobody can size an essay without reading it. We read your draft line by line, mark what costs you most, ask for the details only you know, and rewrite it in your voice.</p>
+                <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.55] mt-4">Nobody can size an essay without reading it. Admitted's AI rates your draft, marks what costs you most, asks for the details only you know and rewrites it in your voice.</p>
                 <div className="mt-8">
                   <EssaySample />
+                </div>
+                <div className="mt-8 border-t border-line pt-6">
+                  <p className="text-[14px] font-medium">Not ready? Get the free guide, Anatomy of a winning essay.</p>
+                  <div className="mt-3">
+                    <GuideOffer compact />
+                  </div>
                 </div>
               </div>
               <div className="rise rounded-[20px] bg-band text-band-ink p-8 shadow-[var(--shadow-lg)]" style={{ animationDelay: "0.15s" }}>
                 <div className="text-[14px] font-medium text-band-ink-3">Essays</div>
-                <div className="text-[56px] font-semibold tnum tracking-[-0.03em] mt-2 leading-none">$299</div>
-                <p className="text-[13px] text-band-ink-3 leading-[1.5] mt-3">Pay once per cycle. No subscription. Full refund within 14 days.</p>
+                <div className="mt-2 flex items-baseline gap-2 leading-none"><span className="text-[56px] font-semibold tnum tracking-[-0.03em]">$9.99</span><span className="text-[16px] text-band-ink-3">a week</span></div>
+                <p className="text-[13px] text-band-ink-3 leading-[1.5] mt-3">Billed weekly. Cancel anytime.</p>
                 <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3 text-[14px] border-t border-band-line pt-6">
-                  {["Line-by-line review of your draft", "Rewrite in your voice", "Unlimited revisions through the cycle"].map((item) => (
+                  {["AI rates your essay against six criteria", "Line-by-line fixes for what costs you most", "Rewrites in your voice", "Unlimited essays and revisions"].map((item) => (
                     <li key={item} className="flex gap-2.5">
                       <IconCheck className="mt-[3px] shrink-0" />
                       {item}
@@ -371,8 +378,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                         Fix the movable part
                       </button>
                     </form>
-                    <p className="text-[12px] text-band-ink-3 text-center mt-3">Pay once. No subscription.</p>
-                    <p className="text-[12px] text-band-ink-3 text-center mt-1 leading-[1.5]">
+                                        <p className="text-[12px] text-band-ink-3 text-center mt-3 leading-[1.5]">
                       By paying you agree to the{" "}
                       <Link className="underline" href="/terms">
                         Terms
@@ -381,7 +387,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                       <Link className="underline" href="/privacy">
                         Privacy Policy
                       </Link>
-                      . Under 18? A parent or guardian must pay.
+                      .
                     </p>
                   </>
                 )}

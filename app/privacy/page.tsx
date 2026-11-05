@@ -4,11 +4,11 @@ export const metadata = { title: "Privacy Policy · Admitted" };
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="Privacy Policy" updated="November 4, 2026">
+    <LegalShell title="Privacy Policy" updated="November 5, 2026">
       <h2>What we collect</h2>
       <p>
-        The GPA, test score and schools you enter for odds, without an account or your name. If you buy essay review, the essays
-        and prompts you submit. If you request a school, that school and your email, used only to tell you when it opens. Stripe handles payment and collects your email and card details; we never see your card number.
+        The GPA, test score and schools you enter for odds, without an account or your name. If you subscribe, the essays and prompts
+        you submit. If you request a school, that school and your email, used only to tell you when it opens. If you ask for the free guide, your email, used to send Admitted updates and essay tips until you unsubscribe. Stripe handles payment and collects your email and card details; we never see your card number.
       </p>
 
       <h2>How your essays are stored</h2>
@@ -26,7 +26,7 @@ export default function PrivacyPage() {
       </p>
 
       <h2>Cookies</h2>
-      <p>A cookie that remembers your purchase, and a local setting for light or dark mode.</p>
+      <p>A cookie that remembers your subscription, and a local setting for light or dark mode.</p>
 
       <h2>Your controls</h2>
       <p>To get a copy of your saved results or have them deleted, email us with your access link and we&apos;ll do it within 30 days.</p>

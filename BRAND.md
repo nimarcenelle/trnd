@@ -69,6 +69,9 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
 - Public page numbers: percent odds per school and +N points on the application round only. Nobody can size an essay, a letter
   or an activity list without reading it, so those say "depends on what's in them", never a number. The essay score lives
   inside the paid workspace, after we have read the draft.
+- Pricing: odds free; essays $9.99 a week, cancel anytime, no refunds promised. The free giveaway is the guide PDF
+  (`public/guides/`, source in the scratchpad's guide.html), for an email. Admitted is described as an AI tool that rates and
+  improves essays, never as a person reading them.
 - Only sell what exists. A feature joins the page and the price list when it ships.
 - The essay page is a workspace, not a marketing page: its own slim bar, the draft on the left with cited lines marked, results
   on the right.

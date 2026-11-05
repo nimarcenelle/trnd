@@ -270,7 +270,7 @@ export default function Home() {
             kicker="Essays"
             title="Your essay, rewritten from your draft."
             body="Not a template, and not a stranger's story. We keep your details and most of your sentences, and change what costs you points: the opening, the structure, the lines that could be anyone's."
-            points={["Personal statement and every supplement", "Unlimited revisions through the cycle", "What was kept and what changed, shown side by side"]}
+            points={["A scored review of every draft, line by line", "Personal statement and every supplement, unlimited revisions", "What was kept and what changed, shown side by side"]}
             visual={<EssayCard />}
           />
           <Feature

@@ -1,13 +1,14 @@
 import { createHash } from "node:crypto";
 
-/** Pure rules for essay rewrites: the saved-result key and how much of the draft survived. */
-export const REWRITE_VERSION = "1";
-export const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+import { wordCount } from "./review-core";
+
+/** Pure rules for essay rewrites: the saved-result key, how much of the draft survived, what must be fixed. */
+export const REWRITE_VERSION = "2";
 
 const clean = (text: string) => text.replace(/\s+/g, " ").trim();
 
-export function rewriteKey(draft: string, prompt: string, revision: number): string {
-  return "rewrite:" + createHash("sha256").update([REWRITE_VERSION, clean(draft), clean(prompt), String(revision)].join("|")).digest("hex");
+export function rewriteKey(draft: string, prompt: string, limit: number, revision: number): string {
+  return "rewrite:" + createHash("sha256").update([REWRITE_VERSION, clean(draft), clean(prompt), String(limit), String(revision)].join("|")).digest("hex");
 }
 
 const sentences = (text: string) => (clean(text).match(/[^.!?]+[.!?]*/g) ?? []).map((s) => s.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim()).filter(Boolean);
@@ -18,4 +19,17 @@ export function keptShare(draft: string, rewrite: string): number {
   const to = sentences(rewrite);
   if (!to.length) return 0;
   return Math.round((to.filter((s) => from.has(s)).length / to.length) * 100);
+}
+
+/** A rewrite may tighten a draft, not gut it. */
+const MIN_LENGTH_SHARE = 0.7;
+
+export function rewriteProblems(rewrite: string, draftWords: number, limit: number, flagged: string[]): string[] {
+  const words = wordCount(rewrite);
+  const floor = Math.round(Math.min(draftWords, limit) * MIN_LENGTH_SHARE);
+  return [
+    ...flagged.map((line) => `Not in the draft: ${line}`),
+    ...(words > limit ? [`${words} words is over the ${limit} word limit.`] : []),
+    ...(words < floor ? [`${words} words is too short. Keep at least ${floor} words of the student's material.`] : []),
+  ];
 }

@@ -9,7 +9,7 @@ export const env = {
   openaiApiKey: process.env.OPENAI_API_KEY ?? "",
   /** OPENAI_MODEL_PRO is the old name, still read so a live deploy keeps its pin. */
   openaiModel: process.env.OPENAI_MODEL || process.env.OPENAI_MODEL_PRO || "gpt-5.5",
-  /** Lower tier: chances. Higher tier: essay rewrites. */
+  /** Lower tier: chances. Higher tier: essay review and rewrites. */
   openaiModelFast: process.env.OPENAI_MODEL_FAST || "gpt-6-luna",
   openaiModelWriting: process.env.OPENAI_MODEL_WRITING || "gpt-6.1-sol",
   essayRewritesEnabled: process.env.ESSAY_REWRITES_ENABLED === "1",

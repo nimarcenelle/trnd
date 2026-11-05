@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regularRate, satEquivalent, type Profile } from "@/lib/admitted/odds-core";
-import { keptShare, rewriteKey } from "@/lib/admitted/rewrite-core";
+import { buildReview, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
+import { keptShare, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
 import { admitRate, SCHOOLS } from "@/lib/admitted/schools";
 
 const dartmouth = SCHOOLS.find((s) => s.id === "dartmouth")!;
@@ -36,8 +37,8 @@ describe("same input, same result", () => {
     expect(oddsKey(p(3.95, 1530), dartmouth)).toBe(oddsKey(parseProfile("3.950", " 1530 ")!, dartmouth));
     expect(oddsKey(p(3.95, 1530), dartmouth)).not.toBe(oddsKey(p(3.95, 1540), dartmouth));
     expect(oddsKey(p(3.95, 1530), dartmouth)).not.toBe(oddsKey(p(3.95, 1530), SCHOOLS[0]));
-    expect(rewriteKey("A  draft.", "", 0)).toBe(rewriteKey("A draft.", "", 0));
-    expect(rewriteKey("A draft.", "", 0)).not.toBe(rewriteKey("A draft.", "", 1));
+    expect(rewriteKey("A  draft.", "", 650, 0)).toBe(rewriteKey("A draft.", "", 650, 0));
+    expect(rewriteKey("A draft.", "", 650, 0)).not.toBe(rewriteKey("A draft.", "", 650, 1));
   });
 });
 
@@ -90,5 +91,62 @@ describe("calculated odds", () => {
 describe("essays", () => {
   it("counts sentences kept word for word", () => {
     expect(keptShare("I ran. I fell. I rose.", "I ran. Then I fell hard.")).toBe(50);
+  });
+});
+
+describe("essay review", () => {
+  const essay = "The left boot always comes in worse. I knew this before I knew her name.";
+  const grades = { specific: 3, voice: 3, reflection: 3, opening: 3, structure: 3, prompt: 3 };
+  const reply = (over: Partial<ReviewReply> = {}): ReviewReply => ({ grades, notes: [], keep: [], ...over });
+
+  it("calculates the score from the grades", () => {
+    expect(reviewScore(grades)).toBe(50);
+    expect(reviewScore({ ...grades, specific: 1, voice: 1, reflection: 1, opening: 1, structure: 1, prompt: 1 })).toBe(0);
+    expect(reviewScore({ ...grades, specific: 5, voice: 5, reflection: 5, opening: 5, structure: 5, prompt: 5 })).toBe(100);
+  });
+
+  it("keeps the middle grade, so one odd read does not move the score", () => {
+    const review = buildReview(essay, 650, [reply(), reply({ grades: { ...grades, reflection: 5 } }), reply({ grades: { ...grades, opening: 1 } })]);
+    expect(review.score).toBe(50);
+    expect(buildReview(essay, 650, [reply(), reply({ grades: { ...grades, reflection: 5 } })]).score).toBe(50);
+  });
+
+  it("drops notes citing a line that is not in the essay", () => {
+    const review = buildReview(essay, 650, [
+      reply({
+        notes: [
+          { quote: "the left  boot always comes in worse.", problem: "p", fix: "f" },
+          { quote: "My grandmother taught me everything.", problem: "p", fix: "f" },
+          { quote: "", problem: "p", fix: "f" },
+        ],
+      }),
+    ]);
+    expect(review.notes.map((n) => n.quote)).toEqual(["the left  boot always comes in worse."]);
+  });
+
+  it("matches quotes across curly and straight punctuation", () => {
+    expect(quotedIn("I can\u2019t say", "I can't say")).toBe(true);
+  });
+
+  it("keeps the same key for the same essay and changes it with any input", () => {
+    expect(reviewKey("a  b", "p", 650)).toBe(reviewKey("a b", "p", 650));
+    expect(reviewKey("a b", "p", 650)).not.toBe(reviewKey("a b c", "p", 650));
+    expect(reviewKey("a b", "p", 650)).not.toBe(reviewKey("a b", "q", 650));
+    expect(reviewKey("a b", "p", 650)).not.toBe(reviewKey("a b", "p", 250));
+  });
+
+  it("falls back to the Common App limit on a bad word limit", () => {
+    expect(parseWordLimit("250")).toBe(250);
+    expect(parseWordLimit("")).toBe(650);
+    expect(parseWordLimit(5000)).toBe(650);
+  });
+
+  it("names what a rewrite must fix before it is shown", () => {
+    const rewrite = "My coach cried. I won state.";
+    expect(rewriteProblems(rewrite, 6, 650, ["My coach cried."])).toEqual(["Not in the draft: My coach cried."]);
+    expect(rewriteProblems(rewrite, 6, 3, [])[0]).toContain("over the 3 word limit");
+    expect(rewriteProblems(rewrite, 6, 650, [])).toEqual([]);
+    expect(rewriteProblems(rewrite, 200, 650, [])[0]).toContain("too short");
+    expect(rewriteProblems(rewrite, 200, 8, [])).toEqual([]);
   });
 });

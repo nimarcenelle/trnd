@@ -15,7 +15,7 @@ import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 const STEPS = [
   { title: "Enter your numbers", body: "Your schools, GPA, SAT or ACT and home state. No account, no email." },
   { title: "See the split", body: "Your odds at each school, and how much of each number is locked and how much is still movable." },
-  { title: "Get the top fix, free", body: "The one change worth the most points, named and sized. Act on it with us or without us." },
+  { title: "Get the top fix, free", body: "The next move at each school, named. Act on it with us or without us." },
   { title: "We do the movable part", body: "Pay once for the cycle. We review every draft line by line and rewrite it from your own words, as often as you need." },
 ];
 
@@ -35,7 +35,7 @@ const FAQ = [
   },
   {
     q: "What does locked and movable mean?",
-    a: "Locked is the part of your odds set by what you can no longer change this cycle: GPA, scores, the courses you took. Movable is the part your application still decides: the round you apply in, your essays, how your activities read and which schools are on the list.",
+    a: "Locked is the part of your odds set by what you can no longer change this cycle: GPA, scores, the courses you took. Movable is the part your application still decides: the round you apply in, your essays, your recommendation letters and how your activities read. How far essays and letters move it depends on what they say.",
   },
   {
     q: "Do you write my essay for me?",
@@ -103,7 +103,7 @@ function SplitCard() {
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-[30px] font-semibold tnum tracking-tight">{FACTORS.odds}%</span>
             <span className="text-[13px] text-ink-3 tnum whitespace-nowrap">
-              → <span className="text-brand font-semibold">{FACTORS.withFixes}%</span> with fixes
+              → up to <span className="text-brand font-semibold">{FACTORS.withFixes}%</span>
             </span>
           </div>
         </div>
@@ -127,7 +127,7 @@ function SplitCard() {
             {FACTORS.movable.map((f) => (
               <li key={f.label} className="flex justify-between gap-3">
                 <span>{f.label}</span>
-                <span className="tnum text-brand font-medium whitespace-nowrap">+{f.gain} pts</span>
+                {f.kind === "round" && <span className="tnum text-brand font-medium whitespace-nowrap">+{f.gain} pts</span>}
               </li>
             ))}
           </ul>
@@ -195,8 +195,8 @@ export default function Home() {
           <Feature
             kicker="Odds"
             title="Every number, split in two."
-            body="Odds at each school, from the ranges that school publishes. Then the split: how much your stats already decided, how much is still yours to move, and what each movable factor is worth."
-            points={["Odds per school, with the source one click away", "Locked and movable, split on one bar", "Each movable factor sized in points"]}
+            body="Odds at each school, from the ranges that school publishes. Then the split: how much your stats already decided, how much is still yours to move, and what moves it."
+            points={["Odds per school, with the source one click away", "Locked and movable, split on one bar", "The round sized in points. Essays and letters depend on what's in them."]}
             visual={<SplitCard />}
           />
           <Feature

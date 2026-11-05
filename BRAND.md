@@ -64,10 +64,11 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
   alternating text/card feature rows with green checks, each card on a tinted panel (`.stage`), **exactly one** deep navy
   rounded band ("Where the numbers come from", with a sample number traced to its Common Data Set sections), free and paid
   pricing cards, plus-accordion FAQ, minimal footer.
-- `/odds` is one question per screen: schools, GPA, score, home state. Then the odds, then one sell screen with that student's
-  own essay points. Nothing asks for an email before the odds, and the essay workspace stays side by side.
-- Public page numbers: percent odds per school and +N points per fix, nothing else. The essay score lives inside the paid
-  workspace only. In samples, essays must lead or tie the largest lever, using real results (`tests/admitted.test.ts` checks it).
+- `/odds` is one question per screen: schools, GPA, score, home state. Then the odds, then one sell screen  Nothing asks for an email before the odds, and the essay workspace stays side by side. Questions use `.display`
+  and a large `.flow-input`, "Your file" fills in beside them on desktop, the odds land on one big number, and the price sits on the navy band color.
+- Public page numbers: percent odds per school and +N points on the application round only. Nobody can size an essay, a letter
+  or an activity list without reading it, so those say "depends on what's in them", never a number. The essay score lives
+  inside the paid workspace, after we have read the draft.
 - Only sell what exists. A feature joins the page and the price list when it ships.
 - The essay page is a workspace, not a marketing page: its own slim bar, the draft on the left with cited lines marked, results
   on the right.

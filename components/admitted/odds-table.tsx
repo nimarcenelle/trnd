@@ -1,8 +1,8 @@
 import { SplitBar, SplitLegend } from "./split";
 
-export type OddsRow = { key: string; name: string; odds: number; withFixes: number; locked: number; movable: number; fix?: { label: string; gain: number }; source?: { href: string; edition: string }; note?: string };
+export type OddsRow = { key: string; name: string; odds: number; withFixes: number; locked: number; movable: number; fix?: { kind: string; label: string; gain: number }; source?: { href: string; edition: string }; note?: string };
 
-/** One row per school: odds, the split, and the top fix in points. The live results and the sample are the same view. */
+/** One row per school: odds, the split, and the next move. The live results and the sample are the same view. */
 export default function OddsTable({ rows }: { rows: OddsRow[] }) {
   return (
     <div className="card overflow-hidden">
@@ -14,7 +14,7 @@ export default function OddsTable({ rows }: { rows: OddsRow[] }) {
             <th className="!px-4 hidden md:table-cell w-[30%]">
               <SplitLegend />
             </th>
-            <th className="!px-4 text-right w-[92px]">With fixes</th>
+            <th className="!px-4 text-right w-[92px]">Up to</th>
           </tr>
         </thead>
         <tbody>
@@ -32,7 +32,8 @@ export default function OddsTable({ rows }: { rows: OddsRow[] }) {
                 </div>
                 {r.fix && (
                   <div className="text-[13px] text-ink-2 mt-0.5">
-                    {r.fix.label} <span className="tnum font-medium text-brand whitespace-nowrap">+{r.fix.gain} pts</span>
+                    {r.fix.label}
+                    {r.fix.kind === "round" && <span className="tnum font-medium text-brand whitespace-nowrap"> +{r.fix.gain} pts</span>}
                   </div>
                 )}
                 {r.note && <div className="text-[12px] text-ink-3 mt-0.5">{r.note}</div>}

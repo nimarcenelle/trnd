@@ -30,12 +30,12 @@ function useCount(target: number) {
   return shown;
 }
 
-/** The hero's working sample: flip each movable fix and watch one school's odds change. */
+/** The hero's working sample: the round is a sized switch; what essays and letters do depends on what's in them. */
 export default function OddsToy() {
-  const [on, setOn] = useState(() => FACTORS.movable.map(() => false));
-  const gained = FACTORS.movable.reduce((sum, f, i) => sum + (on[i] ? f.gain : 0), 0);
+  const round = FACTORS.movable.find((f) => f.kind === "round")!;
+  const [on, setOn] = useState(false);
+  const gained = on ? (round.gain ?? 0) : 0;
   const odds = useCount(FACTORS.odds + gained);
-
   return (
     <div className="card w-full p-6 shadow-[var(--shadow-lg)]">
       <div className="flex items-center justify-between gap-3">
@@ -49,33 +49,33 @@ export default function OddsToy() {
         <div className="text-[13px] text-ink-3 text-right tnum">
           {FACTORS.odds}% today
           <br />
-          {FACTORS.withFixes}% with all three
+          up to {FACTORS.withFixes}%
         </div>
       </div>
-      <div className="mt-5 flex h-3 w-full rounded-full overflow-hidden bg-muted" role="img" aria-label={`${FACTORS.odds} points today, ${gained} added by fixes`}>
+      <div className="mt-5 flex h-3 w-full rounded-full overflow-hidden bg-muted" role="img" aria-label={`${FACTORS.odds} points today, ${gained} added`}>
         <span className="bg-locked" style={{ width: `${FACTORS.odds}%` }} />
         <span className="bg-brand transition-[width] duration-300 ease-out" style={{ width: `${gained}%`, marginLeft: gained ? 1 : 0 }} />
       </div>
       <ul className="list-none p-0 m-0 mt-5 divide-y divide-line">
-        {FACTORS.movable.map((f, i) => (
-          <li key={f.label}>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={on[i]}
-              onClick={() => setOn((prev) => prev.map((v, j) => (j === i ? !v : v)))}
-              className="w-full flex items-center gap-3 py-3 text-left cursor-pointer bg-transparent border-0 px-0 text-ink"
-            >
-              <span className={`relative shrink-0 w-8 h-[18px] rounded-full transition-colors ${on[i] ? "bg-brand" : "bg-line-strong"}`}>
-                <span className={`absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-bg transition-transform ${on[i] ? "translate-x-[14px]" : ""}`} />
-              </span>
-              <span className="flex-1 min-w-0 text-[14px]">{f.label}</span>
-              <span className={`text-[13px] tnum font-medium whitespace-nowrap ${on[i] ? "text-brand" : "text-ink-3"}`}>+{f.gain} pts</span>
-            </button>
-          </li>
-        ))}
+        {FACTORS.movable.map((f) =>
+          f.kind === "round" ? (
+            <li key={f.label}>
+              <button type="button" role="switch" aria-checked={on} onClick={() => setOn(!on)} className="w-full flex items-center gap-3 py-3 text-left cursor-pointer bg-transparent border-0 px-0 text-ink">
+                <span className={`relative shrink-0 w-8 h-[18px] rounded-full transition-colors ${on ? "bg-brand" : "bg-line-strong"}`}>
+                  <span className={`absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-bg transition-transform ${on ? "translate-x-[14px]" : ""}`} />
+                </span>
+                <span className="flex-1 min-w-0 text-[14px]">{f.label}</span>
+                <span className={`text-[13px] tnum font-medium whitespace-nowrap ${on ? "text-brand" : "text-ink-3"}`}>+{f.gain} pts</span>
+              </button>
+            </li>
+          ) : (
+            <li key={f.label} className="flex items-baseline justify-between gap-3 py-3 text-[14px]">
+              <span>{f.label}</span>
+              <span className="text-[13px] text-ink-3 whitespace-nowrap">Depends on what&apos;s in them</span>
+            </li>
+          ),
+        )}
       </ul>
-      <p className="caption mt-2">Essays are the biggest lever you still control at {FACTORS.short}. Flip a fix to see what it is worth.</p>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { schoolQuery, shortName } from "@/lib/admitted/list";
 import { parseSchoolRequest } from "@/lib/admitted/school-request";
 import { buildReview, maxNotes, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
 import { answersText, bestAttempt, keptShare, parseAnswers, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
-import { APPLICANTS } from "@/components/admitted/sample";
+import { APPLICANTS, FACTORS } from "@/components/admitted/sample";
 import { admitRate, SCHOOLS } from "@/lib/admitted/schools";
 import { isSealed, seal, unseal } from "@/lib/admitted/seal";
 
@@ -246,15 +246,16 @@ describe("a school request", () => {
 });
 
 describe("the public samples", () => {
-  it("never show a free lever above essays, and match the calculation", () => {
+  it("put no number on essays, letters or activities", () => {
+    for (const f of FACTORS.movable) expect(f.kind === "round" ? f.gain : undefined).toBe(f.kind === "round" ? 6 : undefined);
+    expect(FACTORS.movable.filter((f) => "gain" in f).map((f) => f.kind)).toEqual(["round"]);
+  });
+  it("match the calculation", () => {
     for (const a of APPLICANTS)
       for (const row of a.schools) {
         const school = SCHOOLS.find((s) => s.name === row.name)!;
         const live = calculateOdds(parseProfile(a.gpa, a.test.replace("SAT ", ""), a.home)!, school);
         expect([live.odds, live.withFixes, live.locked, live.movable]).toEqual([row.odds, row.withFixes, row.locked, row.movable]);
-        const essays = live.fixes.find((f) => f.kind === "essays")!;
-        expect(essays.gain).toBe(row.fix.gain);
-        for (const f of live.fixes) expect(essays.gain).toBeGreaterThanOrEqual(f.gain);
       }
   });
 });

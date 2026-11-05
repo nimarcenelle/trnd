@@ -4,7 +4,7 @@ import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regular
 import { segments } from "@/lib/admitted/highlight";
 import { atLeastOne, shortName } from "@/lib/admitted/list";
 import { buildReview, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
-import { keptShare, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
+import { bestAttempt, keptShare, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
 import { admitRate, SCHOOLS } from "@/lib/admitted/schools";
 import { isSealed, seal, unseal } from "@/lib/admitted/seal";
 
@@ -192,5 +192,18 @@ describe("a list of schools", () => {
   it("shortens school names", () => {
     expect(SCHOOLS.map((s) => shortName(s.name))).toEqual(expect.arrayContaining(["Harvard", "Dartmouth", "Penn", "UChicago"]));
     expect(shortName("MIT")).toBe("MIT");
+  });
+});
+
+describe("choosing between two rewrites", () => {
+  const a = (name: string, after: number, flagged: string[] = []) => ({ name, after, flagged });
+  it("keeps the higher score, and the first on a tie", () => {
+    expect(bestAttempt([a("first", 50), a("second", 60)]).name).toBe("second");
+    expect(bestAttempt([a("first", 60), a("second", 50)]).name).toBe("first");
+    expect(bestAttempt([a("first", 50), a("second", 50)]).name).toBe("first");
+  });
+  it("never trades an invented line for a higher score", () => {
+    expect(bestAttempt([a("first", 50), a("second", 80, ["My coach cried."])]).name).toBe("first");
+    expect(bestAttempt([a("first", 80, ["My coach cried."]), a("second", 50)]).name).toBe("second");
   });
 });

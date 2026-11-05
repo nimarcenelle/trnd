@@ -7,7 +7,7 @@ import { env } from "@/lib/env";
 
 import { EssayCapReached, reviewEssay } from "./review";
 import { wordCount, type Review } from "./review-core";
-import { keptShare, rewriteKey, rewriteProblems } from "./rewrite-core";
+import { bestAttempt, keptShare, rewriteKey, rewriteProblems } from "./rewrite-core";
 import { countToday, readSaved, saveFirst } from "./saved";
 
 export type Rewrite = { rewrite: string; changes: string[]; kept: number; words: number; limit: number; before: number; after: number; check: string[] };
@@ -24,11 +24,15 @@ const CHECK_SYSTEM = `You compare a rewritten college essay with the student's d
 
 export { EssayCapReached };
 
+/** The route is cut off at 5 minutes and a second try can take about 2. */
+const RETRY_WITHIN_MS = 170_000;
+
 const notesFor = (review: Review) =>
   [...review.notes.map((n) => `Fix: "${n.quote}" ${n.problem} ${n.fix}`), ...review.keep.map((k) => `Keep exactly: "${k.quote}"`)].join("\n");
 
 /** The same draft, prompt, word limit and revision number always return the saved rewrite. */
 export async function rewriteEssay(draft: string, prompt: string, limit: number, revision: number): Promise<Rewrite> {
+  const started = Date.now();
   const key = rewriteKey(draft, prompt, limit, revision);
   const hit = (await readSaved<Rewrite>([key])).get(key);
   if (hit) return hit;
@@ -39,15 +43,28 @@ export async function rewriteEssay(draft: string, prompt: string, limit: number,
   const write = (extra = "") => generateJson({ model: env.openaiModelWriting, effort: "high", system: SYSTEM, prompt: base + extra, schema: Reply });
   const check = async (rewrite: string) => (await generateJson({ model: env.openaiModelWriting, effort: "high", system: CHECK_SYSTEM, prompt: `Draft:\n${draft}\n\nRewrite:\n${rewrite}`, schema: Check })).invented;
 
-  let reply = await write();
-  let flagged = await check(reply.rewrite);
-  const problems = rewriteProblems(reply.rewrite, wordCount(draft), limit, flagged);
-  if (problems.length) {
-    reply = await write(`\n\nYour last rewrite was rejected. Fix these:\n${problems.join("\n")}\n\nLast rewrite:\n${reply.rewrite}`);
-    flagged = await check(reply.rewrite);
-  }
+  const attempt = async (extra = "") => {
+    let reply = await write(extra);
+    let flagged = await check(reply.rewrite);
+    const problems = rewriteProblems(reply.rewrite, wordCount(draft), limit, flagged);
+    if (problems.length) {
+      reply = await write(`\n\nYour last rewrite was rejected. Fix these:\n${problems.join("\n")}\n\nLast rewrite:\n${reply.rewrite}`);
+      flagged = await check(reply.rewrite);
+    }
+    return { reply, flagged, after: (await reviewEssay(reply.rewrite, prompt, limit)).score };
+  };
 
-  const after = await reviewEssay(reply.rewrite, prompt, limit);
-  const value: Rewrite = { rewrite: reply.rewrite.trim(), changes: reply.changes.slice(0, 5), kept: keptShare(draft, reply.rewrite), words: wordCount(reply.rewrite), limit, before: before.score, after: after.score, check: flagged };
+  const first = await attempt();
+  const attempts = [first];
+  // A second try only when the first scored below the draft and there is time left. If it fails, the first stands.
+  if (first.after < before.score && Date.now() - started < RETRY_WITHIN_MS) {
+    try {
+      attempts.push(await attempt(`\n\nYour last rewrite scored ${first.after}, below the draft's ${before.score}. It lost what made the draft work. Stay closer to the draft and keep more of its sentences.\n\nLast rewrite:\n${first.reply.rewrite}`));
+    } catch (err) {
+      console.warn("[rewrite] second try failed", (err as Error).message);
+    }
+  }
+  const { reply, flagged, after } = bestAttempt(attempts);
+  const value: Rewrite = { rewrite: reply.rewrite.trim(), changes: reply.changes.slice(0, 5), kept: keptShare(draft, reply.rewrite), words: wordCount(reply.rewrite), limit, before: before.score, after, check: flagged };
   return (await saveFirst("rewrite", [{ key, value }])).get(key) ?? value;
 }

@@ -52,7 +52,7 @@ function Working({ step }: { step: "review" | "rewrite" }) {
   return (
     <div className="max-w-[440px]" role="status">
       <h2 className="text-[16px] font-semibold">{step === "review" ? "Reading your draft" : "Rewriting from your draft"}</h2>
-      <p className="text-[14px] text-ink-2 mt-1.5">{step === "review" ? "This takes about 40 seconds." : "This takes about 2 minutes. Keep this page open."}</p>
+      <p className="text-[14px] text-ink-2 mt-1.5">{step === "review" ? "This takes about 40 seconds." : "This takes 2 to 4 minutes. Keep this page open."}</p>
       <div className="mt-6 flex flex-col gap-3 animate-pulse">
         {CRITERIA.map((label) => (
           <div key={label} className="h-3 rounded-full bg-muted" />
@@ -140,6 +140,9 @@ function RewritePane({ rewrite, revision, busy, onRevise, onUse }: { rewrite: Re
         <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">
           We only use what is in your draft, and a rewrite of this one scored below your <span className="tnum">{rewrite.before}</span>. Add what the fixes ask for, then review it again.
         </p>
+        <button className="btn btn-secondary mt-5" type="button" disabled={busy} onClick={onRevise}>
+          Try another revision
+        </button>
       </div>
     );
   }

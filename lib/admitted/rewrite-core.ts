@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { wordCount } from "./review-core";
 
 /** Pure rules for essay rewrites: the saved-result key, how much of the draft survived, what must be fixed. */
-export const REWRITE_VERSION = "2";
+export const REWRITE_VERSION = "3";
 
 const clean = (text: string) => text.replace(/\s+/g, " ").trim();
 
@@ -32,4 +32,17 @@ export function rewriteProblems(rewrite: string, draftWords: number, limit: numb
     ...(words > limit ? [`${words} words is over the ${limit} word limit.`] : []),
     ...(words < floor ? [`${words} words is too short. Keep at least ${floor} words of the student's material.`] : []),
   ];
+}
+
+/** One finished attempt at a rewrite: its score, and any lines the checker says are not in the draft. */
+export type Attempt = { after: number; flagged: string[] };
+
+/** An attempt with no invented lines beats one with them, then the higher score wins. A tie keeps the first. */
+export function bestAttempt<T extends Attempt>(attempts: T[]): T {
+  return attempts.reduce((best, a) => {
+    const clean = !a.flagged.length;
+    const bestClean = !best.flagged.length;
+    if (clean !== bestClean) return clean ? a : best;
+    return a.after > best.after ? a : best;
+  });
 }

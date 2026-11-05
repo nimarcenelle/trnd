@@ -143,7 +143,7 @@ function Reveal({ rows, profile, onNext, open }: { rows: Row[]; profile: string;
       </section>
       {others.length > 0 && (
         <div className="rise mt-4" style={{ animationDelay: "0.25s" }}>
-          <OddsTable rows={others.map((r) => ({ key: r.schoolId, name: r.school.name, odds: r.odds, upTo: upTo(r.odds, r.fixes), locked: r.locked, movable: r.movable, fix: r.fixes[0], source: { href: r.school.source, edition: r.school.edition }, note: r.school.note }))} />
+          <OddsTable rows={others.map((r) => ({ key: r.schoolId, name: r.school.name, odds: r.odds, upTo: upTo(r.odds, r.fixes), locked: r.locked, movable: r.movable, fix: r.fixes.find((f) => f.kind === "round") ?? r.fixes[0], source: { href: r.school.source, edition: r.school.edition }, note: r.school.note }))} />
         </div>
       )}
       <p className="caption mt-3">Each school name links to the Common Data Set behind its number. These are estimates, not a promise of an admit.</p>

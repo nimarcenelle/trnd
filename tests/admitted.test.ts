@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regularRate, satEquivalent, type Profile } from "@/lib/admitted/odds-core";
+import { segments } from "@/lib/admitted/highlight";
 import { buildReview, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
 import { keptShare, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
 import { admitRate, SCHOOLS } from "@/lib/admitted/schools";
@@ -161,5 +162,22 @@ describe("sealed essay results", () => {
     expect(unseal(sealed, key)).toEqual({ quote: "The left boot always comes in worse." });
     expect(() => unseal(sealed, Buffer.alloc(32, 8).toString("base64"))).toThrow();
     expect(() => seal({}, "short")).toThrow();
+  });
+});
+
+describe("marking cited lines in a draft", () => {
+  const text = "I can\u2019t say. The left boot always comes in worse.\nShe laughed.";
+  it("marks each line in place and loses no text", () => {
+    const out = segments(text, [{ id: "a", quote: "The left boot always comes in worse." }, { id: "b", quote: "She laughed." }]);
+    expect(out.map((s) => s.id)).toEqual([null, "a", null, "b"]);
+    expect(out.map((s) => s.text).join("")).toBe(text);
+  });
+  it("matches across straight and curly punctuation and ignores what it cannot find", () => {
+    expect(segments(text, [{ id: "a", quote: "I can't say." }, { id: "c", quote: "Not in here (at all)." }]).filter((s) => s.id).map((s) => s.id)).toEqual(["a"]);
+  });
+  it("keeps the earlier mark when two lines overlap", () => {
+    const out = segments("one two three", [{ id: "a", quote: "one two" }, { id: "b", quote: "two three" }]);
+    expect(out.filter((s) => s.id).map((s) => s.id)).toEqual(["a"]);
+    expect(out.map((s) => s.text).join("")).toBe("one two three");
   });
 });

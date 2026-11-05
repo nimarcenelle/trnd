@@ -64,6 +64,8 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
   alternating text/card feature rows with green checks, each card on a tinted panel (`.stage`), **exactly one** deep navy
   rounded band ("Where the numbers come from", with a sample number traced to its Common Data Set sections), one pricing
   card, plus-accordion FAQ, minimal footer.
+- The essay page is a workspace, not a marketing page: its own slim bar, the draft on the left with cited lines marked, results
+  on the right.
 - Cards 12px radius, wells 10px, the band 20px. `.wrap` is 1160px. No horizontal scroll on phones.
 
 ## Voice

@@ -68,7 +68,8 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
   and a large `.flow-input`, "Your file" fills in beside them on desktop, the odds land on one big number, and the price sits on the navy band color.
 - Public page numbers: percent odds per school and +N points on the application round only. Nobody can size an essay, a letter
   or an activity list without reading it, so those say "depends on what's in them", never a number. The essay score lives
-  inside the paid workspace, after we have read the draft.
+  inside the paid workspace, after we have read the draft. "Up to" is today's odds plus the round only, and blank where a
+  school has no early round.
 - Pricing: odds free; essays $9.99 a week, cancel anytime, no refunds promised. The free giveaway is the guide PDF
   (`public/guides/`, source in the scratchpad's guide.html), for an email. Admitted is described as an AI tool that rates and
   improves essays, never as a person reading them.

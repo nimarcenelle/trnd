@@ -104,7 +104,7 @@ function SplitCard() {
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-[30px] font-semibold tnum tracking-tight">{FACTORS.odds}%</span>
             <span className="text-[13px] text-ink-3 tnum whitespace-nowrap">
-              → up to <span className="text-brand font-semibold">{FACTORS.withFixes}%</span>
+              → up to <span className="text-brand font-semibold">{FACTORS.upTo}%</span> by round
             </span>
           </div>
         </div>

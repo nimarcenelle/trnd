@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import Brand from "@/components/brand";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 import { scoreKind, STATES, validGpa } from "@/lib/admitted/flow";
-import { schoolQuery, shortName } from "@/lib/admitted/list";
+import { schoolQuery, shortName, upTo } from "@/lib/admitted/list";
 import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 
 import EssaySample from "./essay-sample";
@@ -87,7 +87,9 @@ function CountUp({ to }: { to: number }) {
   return <>{shown}</>;
 }
 
-const biggestMove = (rows: Row[]) => [...rows].sort((a, b) => b.withFixes - b.odds - (a.withFixes - a.odds))[0];
+const roundGain = (r: Row) => r.fixes.find((f) => f.kind === "round")?.gain ?? 0;
+/** The school where the round moves the number most, or the most movable one where none has a round. */
+const biggestMove = (rows: Row[]) => [...rows].sort((a, b) => roundGain(b) - roundGain(a) || b.movable - a.movable)[0];
 
 function Reveal({ rows, profile, onNext, open }: { rows: Row[]; profile: string; onNext: () => void; open: boolean }) {
   const lead = biggestMove(rows);
@@ -106,14 +108,14 @@ function Reveal({ rows, profile, onNext, open }: { rows: Row[]; profile: string;
           <a className="text-[16px] font-semibold hover:underline" href={lead.school.source} target="_blank" rel="noreferrer">
             {lead.school.name}
           </a>
-          <span className="text-[13px] text-ink-3">Where you can move the most</span>
+          <span className="text-[13px] text-ink-3">Where the round moves you most</span>
         </div>
         <div className="mt-5 flex flex-wrap items-end gap-x-5 gap-y-2 tnum">
           <div className="text-[72px] sm:text-[96px] font-semibold tracking-[-0.04em] leading-[0.9]">
             <CountUp to={lead.odds} />%
           </div>
           <div className="text-[16px] text-ink-2 pb-1">
-            today, up to <span className="font-semibold text-brand">{lead.withFixes}%</span>
+            {upTo(lead.odds, lead.fixes) === null ? "today" : <>today, up to <span className="font-semibold text-brand">{upTo(lead.odds, lead.fixes)}%</span> by round</>}
           </div>
         </div>
         <div className="mt-6 flex h-3 w-full rounded-full overflow-hidden bg-muted">
@@ -141,7 +143,7 @@ function Reveal({ rows, profile, onNext, open }: { rows: Row[]; profile: string;
       </section>
       {others.length > 0 && (
         <div className="rise mt-4" style={{ animationDelay: "0.25s" }}>
-          <OddsTable rows={others.map((r) => ({ key: r.schoolId, name: r.school.name, odds: r.odds, withFixes: r.withFixes, locked: r.locked, movable: r.movable, fix: r.fixes[0], source: { href: r.school.source, edition: r.school.edition }, note: r.school.note }))} />
+          <OddsTable rows={others.map((r) => ({ key: r.schoolId, name: r.school.name, odds: r.odds, upTo: upTo(r.odds, r.fixes), locked: r.locked, movable: r.movable, fix: r.fixes[0], source: { href: r.school.source, edition: r.school.edition }, note: r.school.note }))} />
         </div>
       )}
       <p className="caption mt-3">Each school name links to the Common Data Set behind its number. These are estimates, not a promise of an admit.</p>

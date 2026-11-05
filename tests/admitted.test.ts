@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regularRate, satEquivalent, type Profile } from "@/lib/admitted/odds-core";
 import { segments } from "@/lib/admitted/highlight";
 import { scoreKind, STATES, validGpa } from "@/lib/admitted/flow";
-import { schoolQuery, shortName } from "@/lib/admitted/list";
+import { schoolQuery, shortName, upTo } from "@/lib/admitted/list";
 import { parseEmail } from "@/lib/admitted/leads";
 import { parseSchoolRequest } from "@/lib/admitted/school-request";
 import { buildReview, maxNotes, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
@@ -257,6 +257,7 @@ describe("the public samples", () => {
         const school = SCHOOLS.find((s) => s.name === row.name)!;
         const live = calculateOdds(parseProfile(a.gpa, a.test.replace("SAT ", ""), a.home)!, school);
         expect([live.odds, live.withFixes, live.locked, live.movable]).toEqual([row.odds, row.withFixes, row.locked, row.movable]);
+        expect(row.round).toBe(live.fixes.find((f) => f.kind === "round")?.gain ?? null);
       }
   });
 });
@@ -335,5 +336,13 @@ describe("the guide email", () => {
     expect(parseEmail(" Me@Example.com ")).toBe("me@example.com");
     expect(parseEmail("nope")).toBeNull();
     expect(parseEmail("")).toBeNull();
+  });
+});
+
+describe("up to", () => {
+  it("counts the round only, and nothing where there is no round", () => {
+    expect(upTo(30, [{ kind: "essays", gain: 7 }, { kind: "round", gain: 6 }, { kind: "activities", gain: 4 }])).toBe(36);
+    expect(upTo(6, [{ kind: "essays", gain: 1 }])).toBeNull();
+    expect(FACTORS.upTo).toBe(FACTORS.odds + FACTORS.movable.find((f) => f.kind === "round")!.gain!);
   });
 });

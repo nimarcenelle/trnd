@@ -52,7 +52,7 @@ export default function ProductShot() {
         </aside>
         <div className="p-5 sm:p-6 min-w-0">
           {tab === "odds" ? (
-            <OddsTable rows={applicant.schools.map((s) => ({ ...s, key: s.name }))} />
+            <OddsTable rows={applicant.schools.map((s) => ({ ...s, key: s.name, upTo: s.round === null ? null : s.odds + s.round }))} />
           ) : (
             <div className="flex justify-center md:pt-2">
               <EssaySample />

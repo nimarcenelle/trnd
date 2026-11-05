@@ -49,7 +49,7 @@ export default function OddsToy() {
         <div className="text-[13px] text-ink-3 text-right tnum">
           {FACTORS.odds}% today
           <br />
-          up to {FACTORS.withFixes}%
+          up to {FACTORS.upTo}% by round
         </div>
       </div>
       <div className="mt-5 flex h-3 w-full rounded-full overflow-hidden bg-muted" role="img" aria-label={`${FACTORS.odds} points today, ${gained} added`}>

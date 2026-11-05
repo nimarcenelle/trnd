@@ -1,8 +1,8 @@
 import { SplitBar, SplitLegend } from "./split";
 
-export type OddsRow = { key: string; name: string; odds: number; withFixes: number; locked: number; movable: number; fix?: { kind: string; label: string; gain: number }; source?: { href: string; edition: string }; note?: string };
+export type OddsRow = { key: string; name: string; odds: number; upTo: number | null; locked: number; movable: number; fix?: { kind: string; label: string; gain: number }; source?: { href: string; edition: string }; note?: string };
 
-/** One row per school: odds, the split, and the next move. The live results and the sample are the same view. */
+/** One row per school: odds, the split, the next move, and how far the round alone can take it. The live results and the sample are the same view. */
 export default function OddsTable({ rows }: { rows: OddsRow[] }) {
   return (
     <div className="card overflow-hidden">
@@ -42,7 +42,7 @@ export default function OddsTable({ rows }: { rows: OddsRow[] }) {
               <td className="!px-4 !py-3 hidden md:table-cell">
                 <SplitBar locked={r.locked} movable={r.movable} />
               </td>
-              <td className="!px-4 !py-3 text-right tnum font-semibold text-brand">{r.withFixes}%</td>
+              <td className={`!px-4 !py-3 text-right tnum font-semibold ${r.upTo === null ? "text-ink-3" : "text-brand"}`}>{r.upTo === null ? "—" : `${r.upTo}%`}</td>
             </tr>
           ))}
         </tbody>

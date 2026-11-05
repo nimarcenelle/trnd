@@ -7,3 +7,9 @@ export const shortName = (name: string) => SHORT[name] ?? name.replace(/ (Univer
 
 /** How the picker names a school to the odds route. The route splits on commas, and one full name has a comma. */
 export const schoolQuery = (name: string) => SCHOOLS.find((s) => s.name === name)?.aliases[0] ?? name;
+
+/** "Up to" counts only the round, which comes from published rates. Essays and letters can't be sized unread. */
+export const upTo = (odds: number, fixes: { kind: string; gain: number }[]): number | null => {
+  const round = fixes.find((f) => f.kind === "round");
+  return round ? odds + round.gain : null;
+};

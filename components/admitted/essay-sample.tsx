@@ -1,7 +1,7 @@
 import { ESSAY } from "./sample";
 
 /** One essay opening, before and after, and what the change is worth in points. */
-export default function EssaySample() {
+export default function EssaySample({ gain = ESSAY.gain, where = ESSAY.where }: { gain?: number; where?: string }) {
   return (
     <div className="card w-full max-w-[520px] overflow-hidden text-left">
       <div className="px-5 py-3.5 border-b border-line flex items-center justify-between gap-3">
@@ -19,7 +19,7 @@ export default function EssaySample() {
         </div>
       </div>
       <div className="px-5 py-3 border-t border-line text-[14px]">
-        <span className="tnum font-semibold text-brand">+{ESSAY.gain} pts</span> <span className="text-ink-2">at {ESSAY.where}</span>
+        <span className="tnum font-semibold text-brand">+{gain} pts</span> <span className="text-ink-2">at {where}</span>
       </div>
     </div>
   );

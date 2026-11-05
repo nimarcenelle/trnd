@@ -28,7 +28,7 @@ export default async function EssayPage({ searchParams }: PageProps<"/essay">) {
             <span className="hidden sm:block text-[13px] text-ink-2">Essays</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Link href="/#start" className="btn btn-ghost btn-sm">
+            <Link href="/odds" className="btn btn-ghost btn-sm">
               Odds
             </Link>
             {session && <AccessLink url={accessLink(session, env.siteUrl)} welcome={welcome === "1"} />}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regularRate, satEquivalent, type Profile } from "@/lib/admitted/odds-core";
 import { segments } from "@/lib/admitted/highlight";
+import { scoreKind, STATES, validGpa } from "@/lib/admitted/flow";
 import { schoolQuery, shortName } from "@/lib/admitted/list";
 import { parseSchoolRequest } from "@/lib/admitted/school-request";
 import { buildReview, maxNotes, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
@@ -249,9 +250,9 @@ describe("the public samples", () => {
     for (const a of APPLICANTS)
       for (const row of a.schools) {
         const school = SCHOOLS.find((s) => s.name === row.name)!;
-        const live = calculateOdds(parseProfile(a.gpa, a.test.replace("SAT ", ""))!, school);
+        const live = calculateOdds(parseProfile(a.gpa, a.test.replace("SAT ", ""), a.home)!, school);
         expect([live.odds, live.withFixes, live.locked, live.movable]).toEqual([row.odds, row.withFixes, row.locked, row.movable]);
-        const essays = live.fixes.find((f) => f.label === "Strengthen your essays")!;
+        const essays = live.fixes.find((f) => f.kind === "essays")!;
         expect(essays.gain).toBe(row.fix.gain);
         for (const f of live.fixes) expect(essays.gain).toBeGreaterThanOrEqual(f.gain);
       }
@@ -281,5 +282,48 @@ describe("the school picker", () => {
   it("has no alias shared by two schools", () => {
     const aliases = SCHOOLS.flatMap((s) => s.aliases);
     expect(new Set(aliases).size).toBe(aliases.length);
+  });
+});
+
+describe("home state", () => {
+  const unc = SCHOOLS.find((s) => s.id === "unc")!;
+  const yale = SCHOOLS.find((s) => s.id === "yale")!;
+  const at = (home: string | null, s = unc) => calculateOdds({ gpa: 3.9, test: { kind: "SAT", score: 1450 }, home }, s).odds;
+  it("moves the number at a public school with a split", () => {
+    expect(at("NC")).toBeGreaterThan(at(null));
+    expect(at("GA")).toBeLessThan(at(null));
+    expect(at("INTL")).toBeLessThan(at("NC"));
+  });
+  it("does nothing at a school without one, and keeps its saved result", () => {
+    expect(at("NC", yale)).toBe(at(null, yale));
+    expect(oddsKey({ gpa: 3.9, test: null, home: "NC" }, yale)).toBe(oddsKey({ gpa: 3.9, test: null }, yale));
+    expect(oddsKey({ gpa: 3.9, test: null, home: "NC" }, unc)).not.toBe(oddsKey({ gpa: 3.9, test: null, home: "GA" }, unc));
+    expect(oddsKey({ gpa: 3.9, test: null, home: "GA" }, unc)).toBe(oddsKey({ gpa: 3.9, test: null, home: "TX" }, unc));
+  });
+  it("reads a home from the request, and refuses nonsense", () => {
+    expect(parseProfile("3.9", "1450", "nc")?.home).toBe("NC");
+    expect(parseProfile("3.9", "1450", "INTL")?.home).toBe("INTL");
+    expect(parseProfile("3.9", "1450", "North Carolina")).toBeNull();
+    expect(STATES).toHaveLength(52);
+  });
+  it("has residency figures close to each school's totals", () => {
+    for (const s of SCHOOLS) {
+      if (!s.residency) continue;
+      const r = s.residency;
+      expect(Math.abs(r.inState[0] + r.outOfState[0] + r.international[0] - s.applicants)).toBeLessThanOrEqual(s.applicants * 0.11);
+      expect(Math.abs(r.inState[1] + r.outOfState[1] + r.international[1] - s.admitted)).toBeLessThanOrEqual(s.admitted * 0.11);
+    }
+  });
+});
+
+describe("flow inputs", () => {
+  it("checks a GPA and names the test", () => {
+    expect(validGpa("3.7")).toBe(true);
+    expect(validGpa("")).toBe(false);
+    expect(validGpa("9")).toBe(false);
+    expect(scoreKind("1350")).toBe("SAT");
+    expect(scoreKind("29")).toBe("ACT");
+    expect(scoreKind("")).toBe("");
+    expect(scoreKind("200")).toBeNull();
   });
 });

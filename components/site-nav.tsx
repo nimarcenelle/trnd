@@ -32,7 +32,7 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
         </div>
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
-          <Link href="/#start" className="btn btn-primary btn-sm">
+          <Link href="/odds" className="btn btn-primary btn-sm">
             See my odds
           </Link>
         </div>

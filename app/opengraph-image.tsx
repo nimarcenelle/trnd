@@ -21,8 +21,8 @@ export default function Image() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 28, color: "#45516a" }}>
             <div style={{ display: "flex", width: 360, height: 14, borderRadius: 999, overflow: "hidden" }}>
-              <div style={{ width: "62%", background: "#14233f", display: "flex" }} />
-              <div style={{ width: "38%", background: "#0e7c4f", marginLeft: 3, display: "flex" }} />
+              <div style={{ width: "64%", background: "#14233f", display: "flex" }} />
+              <div style={{ width: "36%", background: "#0e7c4f", marginLeft: 3, display: "flex" }} />
             </div>
             <span>Locked, and movable</span>
           </div>

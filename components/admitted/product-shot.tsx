@@ -45,7 +45,7 @@ export default function ProductShot() {
             <div className="text-[12px] text-ink-3 px-2 hidden md:block">Sample applicant</div>
             {APPLICANTS.map((a) => (
               <button key={a.key} type="button" aria-pressed={who === a.key} onClick={() => setWho(a.key)} className={`px-2 py-1.5 rounded-[7px] text-left text-[12px] tnum cursor-pointer border-0 font-[inherit] ${who === a.key ? "bg-[var(--soft)] text-ink font-medium" : "bg-transparent text-ink-2 hover:bg-muted"}`}>
-                {a.gpa} · {a.test}
+                {a.gpa} · {a.test}{a.place ? ` · ${a.place}` : ""}
               </button>
             ))}
           </div>

@@ -1,19 +1,19 @@
 import Link from "next/link";
 
 import EssaySample from "@/components/admitted/essay-sample";
-import HeroOdds from "@/components/admitted/hero-odds";
+import OddsToy from "@/components/admitted/odds-toy";
 import ProductShot from "@/components/admitted/product-shot";
 import RequestSchool from "@/components/admitted/request-school";
 import { FACTORS, SOURCES } from "@/components/admitted/sample";
 import { SplitBar, SplitLegend } from "@/components/admitted/split";
 import Brand from "@/components/brand";
-import { IconCheck } from "@/components/icons";
+import { IconArrowRight, IconCheck } from "@/components/icons";
 import SiteNav from "@/components/site-nav";
 import { shortName } from "@/lib/admitted/list";
 import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 
 const STEPS = [
-  { title: "Enter your numbers", body: "Your GPA, your SAT or ACT, and your schools. No account, no email." },
+  { title: "Enter your numbers", body: "Your schools, GPA, SAT or ACT and home state. No account, no email." },
   { title: "See the split", body: "Your odds at each school, and how much of each number is locked and how much is still movable." },
   { title: "Get the top fix, free", body: "The one change worth the most points, named and sized. Act on it with us or without us." },
   { title: "We do the movable part", body: "Pay once for the cycle. We review every draft line by line and rewrite it from your own words, as often as you need." },
@@ -109,7 +109,7 @@ function SplitCard() {
         </div>
         <SplitLegend className="mt-1" />
       </div>
-      <SplitBar className="mt-4 !h-2" locked={62} movable={38} />
+      <SplitBar className="mt-4 !h-2" locked={64} movable={36} />
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <div>
           <div className="text-[12px] font-medium text-ink-3">Locked</div>
@@ -145,16 +145,23 @@ export default function Home() {
       <section id="start" className="relative scroll-mt-14 wash-top">
         <div className="dot-grid absolute inset-0 pointer-events-none" aria-hidden="true" />
         <div className="relative wrap pt-14 sm:pt-20 pb-16 sm:pb-20">
-          <HeroOdds>
-            <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full bg-[var(--soft)] text-[13px] font-medium text-[var(--soft-ink)]">
-              <i className="w-1.5 h-1.5 rounded-full bg-[var(--soft-ink)]" /> For college applicants and their parents
-            </span>
-            <h1 className="display text-[44px] sm:text-[56px] mt-6">
-              Your real odds.
-              <span className="block text-[var(--headline-2)] [text-wrap:balance]">And the part you can still move.</span>
-            </h1>
-            <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[560px]">Admit odds at every school on your list, from the numbers colleges publish, split into what your stats already decided and what your application can still change. Then we change it.</p>
-          </HeroOdds>
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-14 items-center">
+            <div>
+                  <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full bg-[var(--soft)] text-[13px] font-medium text-[var(--soft-ink)]">
+                    <i className="w-1.5 h-1.5 rounded-full bg-[var(--soft-ink)]" /> For college applicants and their parents
+                  </span>
+                  <h1 className="display text-[44px] sm:text-[56px] mt-6">
+                    Your real odds.
+                    <span className="block text-[var(--headline-2)] [text-wrap:balance]">And the part you can still move.</span>
+                  </h1>
+                  <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[560px]">Admit odds at every school on your list, from the numbers colleges publish, split into what your stats already decided and what your application can still change. Then we change it.</p>
+              <Link href="/odds" className="btn btn-primary btn-lg mt-8 w-full sm:w-auto">
+                See my odds <IconArrowRight />
+              </Link>
+              <p className="caption mt-3">Four questions. Free, no account: your odds, the locked and movable split, and your top fix.</p>
+            </div>
+            <OddsToy />
+          </div>
           <div className="mt-14 border-t border-line pt-6 flex flex-col lg:flex-row lg:items-baseline justify-between gap-x-8 gap-y-2 text-[14px]">
             <p className="text-ink-2 tnum">{SCHOOLS.map((s) => shortName(s.name)).join(" · ")}</p>
             <p className="text-ink-3 shrink-0">{PENDING_SCHOOLS.map((s) => shortName(s.name)).join(", ").replace(/, ([^,]*)$/, " and $1")} are next.</p>
@@ -261,7 +268,7 @@ export default function Home() {
                   </Check>
                 ))}
               </ul>
-              <Link href="/#start" className="btn btn-secondary btn-lg w-full mt-auto">
+              <Link href="/odds" className="btn btn-secondary btn-lg w-full mt-auto">
                 See my odds
               </Link>
               <p className="caption text-center mt-3">No account, no email.</p>
@@ -315,7 +322,7 @@ export default function Home() {
       <section className="border-t border-line wash-bottom">
         <div className="wrap py-20 sm:py-28 flex flex-col items-center text-center">
           <h2 className="section-title text-[32px] sm:text-[40px] max-w-[760px]">See what is still yours to move.</h2>
-          <Link href="/#start" className="btn btn-primary btn-lg mt-8">
+          <Link href="/odds" className="btn btn-primary btn-lg mt-8">
             See my odds
           </Link>
         </div>

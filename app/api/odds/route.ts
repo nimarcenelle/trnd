@@ -8,13 +8,13 @@ export const maxDuration = 120;
 /** Odds for a typed list of schools. Unchanged inputs return their saved numbers. */
 export async function POST(request: Request): Promise<Response> {
   if (!isOddsConfigured) return Response.json({ error: "not_open" }, { status: 503 });
-  const body = (await request.json().catch(() => null)) as { gpa?: unknown; test?: unknown; schools?: unknown } | null;
-  const profile = body && parseProfile(body.gpa, body.test);
+  const body = (await request.json().catch(() => null)) as { gpa?: unknown; test?: unknown; schools?: unknown; home?: unknown } | null;
+  const profile = body && parseProfile(body.gpa, body.test, body.home);
   if (!profile) return Response.json({ error: "bad_input" }, { status: 400 });
   const { found, pending, unknown } = matchSchools(String(body?.schools ?? ""));
   try {
     const results = found.length ? await oddsFor(profile, found) : [];
-    const names = Object.fromEntries(SCHOOLS.map((s) => [s.id, { name: s.name, sat: s.sat, edition: s.edition, source: s.source, satNote: s.satNote }]));
+    const names = Object.fromEntries(SCHOOLS.map((s) => [s.id, { name: s.name, sat: s.sat, edition: s.edition, source: s.source, note: s.oddsNote }]));
     return Response.json({ results: results.map((r) => ({ ...r, school: names[r.schoolId] })), pending, unknown });
   } catch (err) {
     console.error("[odds]", err);

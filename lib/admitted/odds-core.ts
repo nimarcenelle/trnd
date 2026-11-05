@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { admitRate, earlyRate, PENDING_SCHOOLS, SCHOOLS, type School } from "./schools";
+import { admitRate, earlyRate, PENDING_SCHOOLS, residentRate, SCHOOLS, type School } from "./schools";
 
 /**
  * Pure rules for odds. The number is calculated here from published figures, so similar
@@ -8,12 +8,13 @@ import { admitRate, earlyRate, PENDING_SCHOOLS, SCHOOLS, type School } from "./s
  * writes the wording of two fixes.
  */
 export type Test = { kind: "SAT" | "ACT"; score: number } | null;
-export type Profile = { gpa: number; test: Test };
-export type OddsFix = { label: string; gain: number };
+/** `home` is a two-letter state or "INTL". It only changes the number at schools publishing a residency split. */
+export type Profile = { gpa: number; test: Test; home?: string | null };
+export type OddsFix = { kind: "round" | "essays" | "activities"; label: string; gain: number };
 export type SchoolOdds = { schoolId: string; odds: number; withFixes: number; locked: number; movable: number; fixes: OddsFix[] };
 
 /** Bump when the calculation or wording prompt changes: it replaces every saved number. */
-export const ODDS_VERSION = "2";
+export const ODDS_VERSION = "3";
 
 /** Our assumptions, not published figures. Change them here and bump ODDS_VERSION. */
 export const ASSUMPTIONS = {
@@ -27,15 +28,19 @@ export const ASSUMPTIONS = {
   activitiesGain: 0.15,
 };
 
-export function parseProfile(gpa: unknown, test: unknown): Profile | null {
+export function parseProfile(gpa: unknown, test: unknown, home?: unknown): Profile | null {
   const g = Number(gpa);
   if (!Number.isFinite(g) || g <= 0 || g > 5) return null;
+  const rounded = Math.round(g * 100) / 100;
+  const h = String(home ?? "").trim().toUpperCase();
+  if (h && !/^([A-Z]{2}|INTL)$/.test(h)) return null;
+  const place = h ? { home: h } : {};
   const raw = String(test ?? "").trim();
-  if (!raw) return { gpa: Math.round(g * 100) / 100, test: null };
+  if (!raw) return { gpa: rounded, test: null, ...place };
   const n = Number(raw);
   if (!Number.isInteger(n)) return null;
-  if (n >= 400 && n <= 1600) return { gpa: Math.round(g * 100) / 100, test: { kind: "SAT", score: n } };
-  if (n >= 1 && n <= 36) return { gpa: Math.round(g * 100) / 100, test: { kind: "ACT", score: n } };
+  if (n >= 400 && n <= 1600) return { gpa: rounded, test: { kind: "SAT", score: n }, ...place };
+  if (n >= 1 && n <= 36) return { gpa: rounded, test: { kind: "ACT", score: n }, ...place };
   return null;
 }
 
@@ -63,7 +68,9 @@ export function matchSchools(text: string): { found: School[]; pending: string[]
 /** Same inputs at the same school always reach the same saved result. */
 export function oddsKey(p: Profile, s: School): string {
   const test = p.test ? `${p.test.kind}${p.test.score}` : "none";
-  return "odds:" + createHash("sha256").update([ODDS_VERSION, p.gpa.toFixed(2), test, s.id, s.edition].join("|")).digest("hex");
+  // Only schools with a split get a separate saved result per residency group.
+  const group = s.residency && p.home ? (p.home === "INTL" ? "intl" : p.home === s.residency.state ? "in" : "out") : "";
+  return "odds:" + createHash("sha256").update([ODDS_VERSION, p.gpa.toFixed(2), test, s.id, s.edition, group].join("|")).digest("hex");
 }
 
 /** Straight lines between points, flat past both ends. */
@@ -111,10 +118,11 @@ export const gpaFactor = (gpa: number) =>
   ]);
 
 /** The rate outside the early round, where a school publishes enough to separate them. */
-export function regularRate(s: School): number {
+export function regularRate(s: School, home?: string | null): number {
   const applicants = s.early?.applicants;
   const admitted = s.early?.admitted;
-  return applicants && admitted ? ((s.admitted - admitted) / (s.applicants - applicants)) * 100 : admitRate(s);
+  const base = applicants && admitted ? ((s.admitted - admitted) / (s.applicants - applicants)) * 100 : admitRate(s);
+  return base * (residentRate(s, home) / admitRate(s));
 }
 
 /** How much applying early multiplies this applicant's odds. */
@@ -126,8 +134,8 @@ export function earlyBoost(s: School): number {
 }
 
 /** Keeps a calculated number inside what the school's published rates can support. */
-export function oddsBounds(s: School): { floor: number; cap: number } {
-  const rate = admitRate(s);
+export function oddsBounds(s: School, home?: string | null): { floor: number; cap: number } {
+  const rate = residentRate(s, home);
   return { floor: 1, cap: Math.min(85, Math.round(Math.max(rate * 4, (earlyRate(s) ?? rate) * 1.5))) };
 }
 
@@ -135,20 +143,20 @@ export type FixWording = { essays: string; activities: string };
 export const DEFAULT_WORDING: FixWording = { essays: "Strengthen your essays", activities: "Lead with your strongest activity" };
 
 export function calculateOdds(p: Profile, s: School, wording: FixWording = DEFAULT_WORDING): SchoolOdds {
-  const { floor, cap } = oddsBounds(s);
-  const exact = regularRate(s) * testFactor(p.test, s) * gpaFactor(p.gpa);
+  const { floor, cap } = oddsBounds(s, p.home);
+  const exact = regularRate(s, p.home) * testFactor(p.test, s) * gpaFactor(p.gpa);
   const odds = Math.min(cap, Math.max(floor, Math.round(exact)));
   const raw: OddsFix[] = [
-    ...(s.early ? [{ label: `Apply ${s.early.plan} instead of RD`, gain: exact * (earlyBoost(s) - 1) }] : []),
-    { label: wording.essays, gain: exact * ASSUMPTIONS.essayGain },
-    { label: wording.activities, gain: exact * ASSUMPTIONS.activitiesGain },
+    ...(s.early ? [{ kind: "round" as const, label: `Apply ${s.early.plan} instead of RD`, gain: exact * (earlyBoost(s) - 1) }] : []),
+    { kind: "essays", label: wording.essays, gain: exact * ASSUMPTIONS.essayGain },
+    { kind: "activities", label: wording.activities, gain: exact * ASSUMPTIONS.activitiesGain },
   ];
   const fixes: OddsFix[] = [];
   let room = cap - odds;
   for (const f of raw.sort((a, b) => b.gain - a.gain)) {
     const gain = Math.min(room, Math.max(1, Math.round(f.gain)));
     if (gain <= 0) continue;
-    fixes.push({ label: f.label, gain });
+    fixes.push({ kind: f.kind, label: f.label, gain });
     room -= gain;
   }
   const withFixes = odds + fixes.reduce((sum, f) => sum + f.gain, 0);

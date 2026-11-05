@@ -13,7 +13,7 @@ const STEPS = [
   { title: "Enter your numbers", body: "GPA, SAT or ACT, and up to 20 schools. No account, no email." },
   { title: "See the split", body: "Your odds at each school, and how much of each number is locked and how much is still movable." },
   { title: "Get the top fix, free", body: "The one change worth the most points, named and sized. Act on it with us or without us." },
-  { title: "We do the movable part", body: "Pay once for the cycle. We rewrite the essays from your drafts, rebalance the list and plan the rounds, and re-run it all when anything changes." },
+  { title: "We do the movable part", body: "Pay once for the cycle. We review every draft line by line and rewrite it from your own words, as often as you need." },
 ];
 
 const PROOF = [
@@ -22,11 +22,10 @@ const PROOF = [
 ];
 
 const INCLUDED = [
-  "Essays rewritten from your drafts, unlimited revisions",
-  "Your college list, rebalanced",
-  "An ED, EA and RD plan, with every deadline",
-  "Unlimited re-runs through the cycle",
-  "Every number linked to its source",
+  "A scored review of every draft, line by line",
+  "Essays rewritten from your drafts, with revisions through the cycle",
+  "Personal statement and every supplement",
+  "What changed, and how much stayed yours",
 ];
 
 const FAQ = [
@@ -40,7 +39,7 @@ const FAQ = [
   },
   {
     q: "Do you write my essay for me?",
-    a: "No. We rewrite it from your draft. Your story, your details and most of your sentences stay; the opening and the structure change. You see what was kept, and you can revise as often as you like.",
+    a: "No. We rewrite it from your draft. Your story, your details and most of your sentences stay; the opening and the structure change. You see how much stayed yours, and you can ask for more revisions.",
   },
   {
     q: "Are the odds a guarantee?",
@@ -48,7 +47,7 @@ const FAQ = [
   },
   {
     q: "What if my scores or my list change?",
-    a: "Re-run it. A new score, school or draft updates every number. The paid plan includes unlimited re-runs through the cycle.",
+    a: "Re-run it. A new score, school or draft updates every number. Odds are free to re-run.",
   },
   {
     q: "What about MBA, law and med?",
@@ -270,11 +269,11 @@ export default function Home() {
             kicker="Essays"
             title="Your essay, rewritten from your draft."
             body="Not a template, and not a stranger's story. We keep your details and most of your sentences, and change what costs you points: the opening, the structure, the lines that could be anyone's."
-            points={["A scored review of every draft, line by line", "Personal statement and every supplement, unlimited revisions", "What was kept and what changed, shown side by side"]}
+            points={["A scored review of every draft, line by line", "Personal statement and every supplement, revised through the cycle", "What changed, and how much stayed yours"]}
             visual={<EssayCard />}
           />
           <Feature
-            kicker="College list"
+            kicker="College list, coming next"
             title="A list built to get you in somewhere you want."
             body="A list heavy on reaches is how strong applicants end up with no admits. We rebalance it against your odds and show what each change does to your chance of at least one admit."
             points={["Reaches, targets and likelies, from your numbers", "Swaps and additions, each with its effect", "Re-run when a score or a school changes"]}
@@ -282,7 +281,7 @@ export default function Home() {
           />
           <Feature
             flip
-            kicker="Deadlines"
+            kicker="Deadlines, coming next"
             title="ED, EA or RD, decided by the numbers."
             body="The round you apply in can be the largest movable factor on the list. We set one plan across every school, check each school's early rules, and rank what's left by the points it adds."
             points={["One binding round, chosen where it gains the most", "Early-action rules checked school by school", "Every deadline on one calendar"]}
@@ -336,11 +335,11 @@ export default function Home() {
           <div className="text-center">
             <p className="kicker">Pricing</p>
             <h2 className="section-title text-[32px] sm:text-[40px] mt-3">One price for the cycle.</h2>
-            <p className="text-[16px] text-ink-2 mt-3">Your odds, the split and the top fix are free, with no account. Pay when you want the fixes done.</p>
+            <p className="text-[16px] text-ink-2 mt-3">Your odds, the split and the top fix are free, with no account. Pay when you want your essays reviewed and rewritten.</p>
           </div>
           <div className="card mt-12 max-w-[440px] mx-auto p-8 shadow-[var(--shadow-lg)]">
-            <div className="text-[14px] font-semibold text-[var(--kicker)]">The fixes, done</div>
-            <div className="display text-[32px] mt-3">Price set at launch</div>
+            <div className="text-[14px] font-semibold text-[var(--kicker)]">Essays, reviewed and rewritten</div>
+            <div className="text-[40px] font-semibold tnum mt-3">$299</div>
             <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3">
               {INCLUDED.map((f) => (
                 <Check key={f}>
@@ -348,8 +347,8 @@ export default function Home() {
                 </Check>
               ))}
             </ul>
-            <Link href="/#start" className="btn btn-primary btn-lg w-full mt-8">
-              Start with your free odds
+            <Link href="/essay" className="btn btn-primary btn-lg w-full mt-8">
+              Get your essays reviewed
             </Link>
             <p className="caption text-center mt-3">Paid once per cycle. No subscription.</p>
           </div>

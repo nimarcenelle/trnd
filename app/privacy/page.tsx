@@ -1,51 +1,41 @@
 import LegalShell from "@/components/legal/legal-shell";
 
-export const metadata = { title: "Privacy Policy — TRND" };
+export const metadata = { title: "Privacy Policy — Admitted" };
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="Privacy Policy" updated="October 12, 2026">
+    <LegalShell title="Privacy Policy" updated="November 4, 2026">
       <h2>What we collect</h2>
       <p>
-        Your email and password (handled by our auth provider, Supabase), your website address, the competitors you watch, and
-        billing details (handled by Stripe; we never see your card number).
+        The GPA, test score and schools you enter for odds, without an account or your name. If you buy essay review, the essays
+        and prompts you submit. Stripe handles payment and collects your email and card details; we never see your card number.
       </p>
 
-      <h2>What we read from public sources</h2>
+      <h2>How your essays are stored</h2>
       <p>
-        Your public website, to say what you sell and who you compete with; the active ads of your brand and the competitors you
-        watch, from Meta&apos;s public Ad Library; and public Instagram and TikTok profile and post counts for the same companies.
-        Nothing is watched until you confirm the competitor list.
+        We don&apos;t save your draft as you typed it. We save a fingerprint of it, so the same draft gets the same result, and
+        the review and rewrite we produced, encrypted with a key held only by Admitted. Reviews quote lines from your draft and
+        rewrites contain your text. They sit in a database operated by TRND, Admitted&apos;s parent product, and are unreadable
+        without that key.
       </p>
 
       <h2>Who else handles it</h2>
       <p>
-        Supabase stores your account and data. OpenAI receives your website text and your competitors&apos; public ads to name
-        competitors and write reports; it does not train on API data. Stripe handles billing, Resend sends our emails, and Vercel
-        hosts the app. Apify fetches public Instagram and TikTok profiles for us, and the same public Ad Library pages if Meta blocks our direct read. We don&apos;t sell
-        your data.
+        OpenAI receives your essays to review and rewrite them, and it does not train on API data. Supabase hosts our database,
+        Stripe handles payment and Vercel hosts the site. We don&apos;t sell your data.
       </p>
-
-      <h2>Emails</h2>
-      <p>Account emails (confirmations, password resets) and an email when your competitors&apos; ads change.</p>
 
       <h2>Cookies</h2>
-      <p>Only the cookies that keep you signed in, and a local setting for light or dark mode.</p>
+      <p>A cookie that remembers your purchase, and a local setting for light or dark mode.</p>
 
       <h2>Your controls</h2>
-      <p>
-        Change the competitors you watch any time in Settings. To get a copy of your data or have your account deleted, email
-        us and we&apos;ll do it within 30 days.
-      </p>
+      <p>To get a copy of your saved results or have them deleted, email us with your access link and we&apos;ll do it within 30 days.</p>
 
-      <h2>Security &amp; retention</h2>
-      <p>
-        Data is encrypted in transit and at rest, and each account can read only its own rows. We keep your data while your
-        account is open and delete it within 30 days of a deletion request.
-      </p>
+      <h2>Students</h2>
+      <p>Admitted is for students applying to college and isn&apos;t directed at children under 13.</p>
 
       <h2>Changes</h2>
-      <p>We&apos;ll email you before any material change to this policy.</p>
+      <p>We may update this policy and will change the date above when we do.</p>
     </LegalShell>
   );
 }

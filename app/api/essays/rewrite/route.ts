@@ -1,12 +1,13 @@
+import { paidSession } from "@/lib/admitted/access";
 import { parseWordLimit, wordCount } from "@/lib/admitted/review-core";
 import { EssayCapReached, rewriteEssay } from "@/lib/admitted/rewrite";
-import { env, isModelConfigured } from "@/lib/env";
+import { isEssayOpen } from "@/lib/env";
 
 export const maxDuration = 300;
 
-/** Off until ESSAY_REWRITES_ENABLED=1: rewrites use the costliest model and have no paywall yet. */
 export async function POST(request: Request): Promise<Response> {
-  if (!env.essayRewritesEnabled || !isModelConfigured || !env.supabaseServiceRoleKey) return Response.json({ error: "not_open" }, { status: 404 });
+  if (!isEssayOpen) return Response.json({ error: "not_open" }, { status: 404 });
+  if (!(await paidSession())) return Response.json({ error: "payment_required" }, { status: 402 });
   const body = (await request.json().catch(() => null)) as { draft?: unknown; prompt?: unknown; limit?: unknown; revision?: unknown } | null;
   const draft = String(body?.draft ?? "").trim();
   const words = wordCount(draft);

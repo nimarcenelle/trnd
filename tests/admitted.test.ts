@@ -4,6 +4,7 @@ import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regular
 import { buildReview, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
 import { keptShare, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
 import { admitRate, SCHOOLS } from "@/lib/admitted/schools";
+import { isSealed, seal, unseal } from "@/lib/admitted/seal";
 
 const dartmouth = SCHOOLS.find((s) => s.id === "dartmouth")!;
 const p = (gpa: number, score: number): Profile => ({ gpa, test: { kind: "SAT", score } });
@@ -148,5 +149,17 @@ describe("essay review", () => {
     expect(rewriteProblems(rewrite, 6, 650, [])).toEqual([]);
     expect(rewriteProblems(rewrite, 200, 650, [])[0]).toContain("too short");
     expect(rewriteProblems(rewrite, 200, 8, [])).toEqual([]);
+  });
+});
+
+describe("sealed essay results", () => {
+  const key = Buffer.alloc(32, 7).toString("base64");
+  it("reads back only with the right key, and never holds the text in the clear", () => {
+    const sealed = seal({ quote: "The left boot always comes in worse." }, key);
+    expect(isSealed(sealed)).toBe(true);
+    expect(JSON.stringify(sealed)).not.toContain("boot");
+    expect(unseal(sealed, key)).toEqual({ quote: "The left boot always comes in worse." });
+    expect(() => unseal(sealed, Buffer.alloc(32, 8).toString("base64"))).toThrow();
+    expect(() => seal({}, "short")).toThrow();
   });
 });

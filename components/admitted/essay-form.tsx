@@ -6,7 +6,12 @@ import type { Review } from "@/lib/admitted/review-core";
 
 type Rewrite = { rewrite: string; changes: string[]; kept: number; words: number; limit: number; before: number; after: number; check: string[] };
 
-const errorFor = (status?: number) => (status === 400 ? "Paste a draft between 50 and 1,000 words." : "That did not go through. Try again in a minute.");
+const errorFor = (status?: number) => {
+  if (status === 400) return "Paste a draft between 50 and 1,000 words.";
+  if (status === 402) return "Your access could not be confirmed. Open your access link and try again.";
+  if (status === 429) return "We have reached today's limit. Try again tomorrow.";
+  return "That did not go through. Try again in a minute.";
+};
 
 function ReviewCard({ review }: { review: Review }) {
   return (

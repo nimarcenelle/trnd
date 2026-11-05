@@ -13,6 +13,7 @@ export const env = {
   openaiModelFast: process.env.OPENAI_MODEL_FAST || "gpt-6-luna",
   openaiModelWriting: process.env.OPENAI_MODEL_WRITING || "gpt-6.1-sol",
   essayRewritesEnabled: process.env.ESSAY_REWRITES_ENABLED === "1",
+  essayEncryptionKey: process.env.ESSAY_ENCRYPTION_KEY ?? "",
   /** New AI results allowed per day; saved results never count. */
   oddsDailyCap: Number(process.env.ODDS_DAILY_CAP) || 2000,
   rewriteDailyCap: Number(process.env.REWRITE_DAILY_CAP) || 200,
@@ -38,6 +39,8 @@ export const env = {
 
 export const isModelConfigured = Boolean(env.openaiApiKey);
 export const isOddsConfigured = Boolean(env.openaiApiKey && env.supabaseUrl && env.supabaseServiceRoleKey);
+/** Essays take every one of these: the model, somewhere encrypted to save, and a way to pay. */
+export const isEssayOpen = Boolean(env.essayRewritesEnabled && env.openaiApiKey && env.supabaseUrl && env.supabaseServiceRoleKey && env.essayEncryptionKey && env.stripeSecretKey);
 export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePrice);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isInboxConfigured = Boolean(env.inboundDomain && env.inboundSecret);

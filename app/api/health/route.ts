@@ -1,6 +1,7 @@
-import { env, isEmailConfigured, isModelConfigured, isStripeConfigured } from "@/lib/env";
+import { sealedStoreWorks } from "@/lib/admitted/saved";
+import { env, isEmailConfigured, isEssayOpen, isModelConfigured, isStripeConfigured } from "@/lib/env";
 
-/** Which integrations are configured. Presence only, never values. */
+/** Which integrations are configured, and whether essay results can be saved encrypted. Never values. */
 export async function GET(): Promise<Response> {
   return Response.json(
     {
@@ -14,6 +15,7 @@ export async function GET(): Promise<Response> {
         email: isEmailConfigured,
         cron: Boolean(env.cronSecret),
       },
+      essays: { open: isEssayOpen, sealedStore: isEssayOpen ? await sealedStoreWorks() : false },
     },
     { headers: { "cache-control": "no-store" } },
   );

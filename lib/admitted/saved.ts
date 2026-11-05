@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 import { isSealed, seal, unseal } from "./seal";
 
 /** Results that quote a student's essay. They are never written in the clear. */
-const SEALED_KINDS = new Set(["review", "rewrite"]);
+const SEALED_KINDS = new Set(["review", "rewrite", "healthcheck"]);
 
 /**
  * Every AI result is saved under a key built from its inputs, so unchanged inputs show the
@@ -49,4 +49,15 @@ export async function countToday(kind: string): Promise<number> {
   const { count, error } = await adminSupabase().from("ai_results").select("key", { count: "exact", head: true }).eq("kind", kind).gte("created_at", start.toISOString());
   if (error) throw error;
   return count ?? 0;
+}
+
+/** Encrypts one fixed row, stores it and reads it back. Uses one row however often it runs. */
+export async function sealedStoreWorks(): Promise<boolean> {
+  try {
+    const key = "healthcheck:sealed";
+    return (await saveFirst<{ ok: boolean }>("healthcheck", [{ key, value: { ok: true } }])).get(key)?.ok === true;
+  } catch (err) {
+    console.error("[health] sealed store", err);
+    return false;
+  }
 }

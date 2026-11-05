@@ -39,6 +39,14 @@ describe("saved results", () => {
     expect((await readSaved(["k"])).has("k")).toBe(false);
   });
 
+  it("health check stores one sealed row however often it runs", async () => {
+    const { sealedStoreWorks } = await import("@/lib/admitted/saved");
+    expect(await sealedStoreWorks()).toBe(true);
+    expect(await sealedStoreWorks()).toBe(true);
+    expect(table.size).toBe(1);
+    expect(JSON.stringify(table.get("healthcheck:sealed"))).toContain("sealed");
+  });
+
   it("leaves odds readable as before", async () => {
     const { saveFirst } = await import("@/lib/admitted/saved");
     await saveFirst("odds", [{ key: "k", value: { odds: 6 } }]);

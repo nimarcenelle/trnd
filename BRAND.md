@@ -23,7 +23,7 @@ the same change.
   `components/admitted/sample.ts` must match what the live tool returns for GPA 3.95, SAT 1530.
 - **Essay scores are calculated.** A model grades six criteria on described bands, three reads, middle grade kept, in
   `lib/admitted/review-core.ts`. Every line a review cites must exist in the essay. A rewrite that scores lower than its
-  draft gets one more try. Every rewrite is shown with its score change, green only when the score rose.
+  draft gets one more try. Every rewrite is shown with its score change, green only when the score rose. Before a rewrite the student can answer the review's fixes; those answers count as their own material.
 - **Light by default**, with a dark theme from the toggle (`[data-theme="dark"]`).
 
 ## Wordmark

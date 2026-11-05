@@ -62,7 +62,7 @@ function Working({ step }: { step: "review" | "rewrite" }) {
   );
 }
 
-function ReviewPane({ review, active, onSelect }: { review: Review; active: string | null; onSelect: (id: string) => void }) {
+function ReviewPane({ review, active, onSelect, onNext }: { review: Review; active: string | null; onSelect: (id: string) => void; onNext: () => void }) {
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
@@ -127,11 +127,14 @@ function ReviewPane({ review, active, onSelect }: { review: Review; active: stri
           </ul>
         </section>
       )}
+      <button className="btn btn-primary mt-8" type="button" onClick={onNext}>
+        {review.notes.some((n) => n.ask.trim()) ? "Add your details and rewrite" : "Rewrite my draft"}
+      </button>
     </div>
   );
 }
 
-function RewritePane({ rewrite, revision, busy, onRevise, onUse }: { rewrite: Rewrite; revision: number; busy: boolean; onRevise: () => void; onUse: () => void }) {
+function RewritePane({ rewrite, revision, busy, onRevise, onUse, onDetails }: { rewrite: Rewrite; revision: number; busy: boolean; onRevise: () => void; onUse: () => void; onDetails: (() => void) | null }) {
   const [copied, setCopied] = useState(false);
   return (
     <div>
@@ -181,6 +184,11 @@ function RewritePane({ rewrite, revision, busy, onRevise, onUse }: { rewrite: Re
         <button className="btn btn-ghost" type="button" disabled={busy} onClick={onRevise}>
           Another revision
         </button>
+        {onDetails && (
+          <button className="btn btn-ghost" type="button" disabled={busy} onClick={onDetails}>
+            Add more details
+          </button>
+        )}
       </div>
       {rewrite.changes.length > 0 && (
         <section className="mt-8">
@@ -196,37 +204,67 @@ function RewritePane({ rewrite, revision, busy, onRevise, onUse }: { rewrite: Re
   );
 }
 
+function DetailsPane({ asks, answers, busy, onChange, onRewrite }: { asks: string[]; answers: Record<string, string>; busy: boolean; onChange: (ask: string, value: string) => void; onRewrite: () => void }) {
+  const filled = asks.filter((ask) => answers[ask]?.trim()).length;
+  return (
+    <div>
+      <h2 className="text-[16px] font-semibold">Add what only you know</h2>
+      <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">A rewrite only uses what you give it, so these details are what make it better. Answer in your own words. Rough notes are fine.</p>
+      <div className="mt-5 flex flex-col gap-4">
+        {asks.map((ask) => (
+          <label key={ask} className="block text-[14px] font-medium leading-[1.5]">
+            {ask}
+            <textarea className="input mt-1.5 w-full !h-20 !py-2 font-normal leading-[1.55]" value={answers[ask] ?? ""} onChange={(e) => onChange(ask, e.target.value)} />
+          </label>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 mt-5">
+        <button className="btn btn-primary" type="button" disabled={busy || !filled} onClick={onRewrite}>
+          Rewrite with my details
+        </button>
+        <button className="btn btn-ghost" type="button" disabled={busy} onClick={onRewrite}>
+          Rewrite without them
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function EssayWorkspace() {
   const [draft, setDraft] = useState("");
   const [prompt, setPrompt] = useState("");
   const [limit, setLimit] = useState("650");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [review, setReview] = useState<Review | null>(null);
   const [rewrite, setRewrite] = useState<Rewrite | null>(null);
   const [revision, setRevision] = useState(0);
   const [tab, setTab] = useState<"review" | "rewrite">("review");
   const [reading, setReading] = useState(false);
   const [active, setActive] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
   const [busy, setBusy] = useState<Busy>("");
   const [error, setError] = useState("");
   const results = useRef<HTMLDivElement>(null);
 
   const words = countWords(draft);
+  const asks = [...new Set((review?.notes ?? []).map((n) => n.ask.trim()).filter(Boolean))];
   const maxWords = Number(limit) || 650;
 
   // A browser convenience: a reload should not cost a student their draft.
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORE) ?? "null") as { draft?: string; prompt?: string; limit?: string } | null;
+      const saved = JSON.parse(localStorage.getItem(STORE) ?? "null") as { draft?: string; prompt?: string; limit?: string; answers?: Record<string, string> } | null;
       if (saved?.draft) setDraft(saved.draft);
       if (saved?.prompt) setPrompt(saved.prompt);
       if (saved?.limit) setLimit(saved.limit);
+      if (saved?.answers) setAnswers(saved.answers);
     } catch {}
   }, []);
   useEffect(() => {
     try {
-      localStorage.setItem(STORE, JSON.stringify({ draft, prompt, limit }));
+      localStorage.setItem(STORE, JSON.stringify({ draft, prompt, limit, answers }));
     } catch {}
-  }, [draft, prompt, limit]);
+  }, [draft, prompt, limit, answers]);
 
   // A review belongs to the exact text it read.
   function edited(set: (value: string) => void, value: string) {
@@ -236,6 +274,7 @@ export default function EssayWorkspace() {
     setRevision(0);
     setTab("review");
     setActive(null);
+    setShowDetails(false);
   }
 
   async function post(path: string, body: object, step: "review" | "rewrite"): Promise<Response | null> {
@@ -261,9 +300,11 @@ export default function EssayWorkspace() {
 
   async function runRewrite(next: number) {
     setTab("rewrite");
-    const res = await post("/api/essays/rewrite", { draft, prompt, limit, revision: next }, "rewrite");
+    const sent = asks.map((ask) => ({ ask, answer: answers[ask] ?? "" })).filter((a) => a.answer.trim());
+    const res = await post("/api/essays/rewrite", { draft, prompt, limit, revision: next, answers: sent }, "rewrite");
     if (!res) return;
     setRevision(next);
+    setShowDetails(false);
     setRewrite((await res.json()) as Rewrite);
   }
 
@@ -276,6 +317,7 @@ export default function EssayWorkspace() {
     if (!rewrite) return;
     const text = rewrite.rewrite;
     edited(setDraft, text);
+    setAnswers({});
     void runReview(text);
   }
 
@@ -371,14 +413,18 @@ export default function EssayWorkspace() {
             <Empty />
           ) : tab === "review" ? (
             <div className="fade-in">
-              <ReviewPane review={review} active={active} onSelect={select} />
+              <ReviewPane review={review} active={active} onSelect={select} onNext={() => setTab("rewrite")} />
             </div>
-          ) : rewrite ? (
-            <RewritePane key={revision} rewrite={rewrite} revision={revision} busy={Boolean(busy)} onRevise={() => void runRewrite(revision + 1)} onUse={useRewrite} />
+          ) : rewrite && !showDetails ? (
+            <div className="fade-in">
+              <RewritePane key={revision} rewrite={rewrite} revision={revision} busy={Boolean(busy)} onRevise={() => void runRewrite(revision + 1)} onUse={useRewrite} onDetails={asks.length ? () => setShowDetails(true) : null} />
+            </div>
+          ) : asks.length ? (
+            <DetailsPane asks={asks} answers={answers} busy={Boolean(busy)} onChange={(ask, value) => setAnswers((a) => ({ ...a, [ask]: value }))} onRewrite={() => void runRewrite(rewrite ? revision + 1 : 0)} />
           ) : (
             <div className="max-w-[440px]">
               <h2 className="text-[16px] font-semibold">Rewrite from this review</h2>
-              <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">We work from the marked lines and keep your details. Any fact that was not in your draft gets flagged, and you see the score change before you use it.</p>
+              <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">We keep your details, and any fact that was not in your draft gets flagged.</p>
               <button className="btn btn-primary mt-5" type="button" disabled={Boolean(busy)} onClick={() => void runRewrite(0)}>
                 Rewrite my draft
               </button>

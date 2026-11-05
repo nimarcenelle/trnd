@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regularRate, satEquivalent, type Profile } from "@/lib/admitted/odds-core";
 import { segments } from "@/lib/admitted/highlight";
 import { atLeastOne, shortName } from "@/lib/admitted/list";
-import { buildReview, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
-import { bestAttempt, keptShare, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
+import { buildReview, maxNotes, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
+import { answersText, bestAttempt, keptShare, parseAnswers, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
 import { admitRate, SCHOOLS } from "@/lib/admitted/schools";
 import { isSealed, seal, unseal } from "@/lib/admitted/seal";
 
@@ -118,9 +118,9 @@ describe("essay review", () => {
     const review = buildReview(essay, 650, [
       reply({
         notes: [
-          { quote: "the left  boot always comes in worse.", problem: "p", fix: "f" },
-          { quote: "My grandmother taught me everything.", problem: "p", fix: "f" },
-          { quote: "", problem: "p", fix: "f" },
+          { quote: "the left  boot always comes in worse.", problem: "p", fix: "f", ask: "" },
+          { quote: "My grandmother taught me everything.", problem: "p", fix: "f", ask: "" },
+          { quote: "", problem: "p", fix: "f", ask: "" },
         ],
       }),
     ]);
@@ -146,7 +146,7 @@ describe("essay review", () => {
 
   it("names what a rewrite must fix before it is shown", () => {
     const rewrite = "My coach cried. I won state.";
-    expect(rewriteProblems(rewrite, 6, 650, ["My coach cried."])).toEqual(["Not in the draft: My coach cried."]);
+    expect(rewriteProblems(rewrite, 6, 650, ["My coach cried."])).toEqual(["Not in the draft or the student's details: My coach cried."]);
     expect(rewriteProblems(rewrite, 6, 3, [])[0]).toContain("over the 3 word limit");
     expect(rewriteProblems(rewrite, 6, 650, [])).toEqual([]);
     expect(rewriteProblems(rewrite, 200, 650, [])[0]).toContain("too short");
@@ -205,5 +205,25 @@ describe("choosing between two rewrites", () => {
   it("never trades an invented line for a higher score", () => {
     expect(bestAttempt([a("first", 50), a("second", 80, ["My coach cried."])]).name).toBe("first");
     expect(bestAttempt([a("first", 80, ["My coach cried."]), a("second", 50)]).name).toBe("second");
+  });
+});
+
+describe("details a student adds", () => {
+  it("keeps only real answers, within limits", () => {
+    expect(parseAnswers("nope")).toEqual([]);
+    expect(parseAnswers([{ ask: "Say what she said", answer: "  " }, null, { ask: "What failed?", answer: " The bearing " }])).toEqual([{ ask: "What failed?", answer: "The bearing" }]);
+    expect(parseAnswers(Array.from({ length: 9 }, () => ({ ask: "a", answer: "b" })))).toHaveLength(6);
+    expect(parseAnswers([{ ask: "a", answer: "x".repeat(5000) }])[0].answer).toHaveLength(1500);
+  });
+  it("gives a different saved rewrite for different details", () => {
+    const one = [{ ask: "a", answer: "b" }];
+    expect(rewriteKey("d", "", 650, 0, one)).not.toBe(rewriteKey("d", "", 650, 0));
+    expect(rewriteKey("d", "", 650, 0, one)).toBe(rewriteKey("d", "", 650, 0, [{ ask: "a", answer: "b" }]));
+    expect(answersText(one)).toBe("a\nb");
+  });
+  it("marks fewer lines on a short draft", () => {
+    expect(maxNotes(60)).toBe(2);
+    expect(maxNotes(136)).toBe(3);
+    expect(maxNotes(650)).toBe(6);
   });
 });

@@ -133,19 +133,6 @@ function ReviewPane({ review, active, onSelect }: { review: Review; active: stri
 
 function RewritePane({ rewrite, revision, busy, onRevise, onUse }: { rewrite: Rewrite; revision: number; busy: boolean; onRevise: () => void; onUse: () => void }) {
   const [copied, setCopied] = useState(false);
-  if (rewrite.after < rewrite.before) {
-    return (
-      <div className="max-w-[440px]">
-        <h2 className="text-[16px] font-semibold">This draft needs your details first.</h2>
-        <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">
-          We only use what is in your draft, and a rewrite of this one scored below your <span className="tnum">{rewrite.before}</span>. Add what the fixes ask for, then review it again.
-        </p>
-        <button className="btn btn-secondary mt-5" type="button" disabled={busy} onClick={onRevise}>
-          Try another revision
-        </button>
-      </div>
-    );
-  }
   return (
     <div>
       {rewrite.after === rewrite.before ? (
@@ -157,7 +144,7 @@ function RewritePane({ rewrite, revision, busy, onRevise, onUse }: { rewrite: Re
         <div className="tnum">
           <span className="text-[14px] text-ink-3">Score </span>
           <span className="text-[14px] text-ink-3">{rewrite.before} → </span>
-          <span className="text-[40px] font-semibold leading-none text-brand">{rewrite.after}</span>
+          <span className={`text-[40px] font-semibold leading-none ${rewrite.after > rewrite.before ? "text-brand" : ""}`}>{rewrite.after}</span>
         </div>
       )}
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-ink-3 tnum mt-2">

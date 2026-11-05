@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 
 import { IconArrowRight } from "@/components/icons";
 
@@ -14,7 +14,6 @@ export default function OddsStart({ cta = "See my odds" }: { cta?: string }) {
   const [reply, setReply] = useState<Reply | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const prior = useRef<{ gpa: string; test: string } | null>(null);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -22,11 +21,10 @@ export default function OddsStart({ cta = "See my odds" }: { cta?: string }) {
     const input = { gpa: String(form.get("gpa") ?? ""), test: String(form.get("test") ?? ""), schools: String(form.get("schools") ?? "") };
     setBusy(true);
     setMessage("");
-    const res = await fetch("/api/odds", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...input, prior: prior.current }) }).catch(() => null);
+    const res = await fetch("/api/odds", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }).catch(() => null);
     setBusy(false);
     if (res?.ok) {
       setReply((await res.json()) as Reply);
-      prior.current = { gpa: input.gpa, test: input.test };
       return;
     }
     setReply(null);

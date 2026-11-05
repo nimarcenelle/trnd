@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compareProfiles, keepDirection, matchSchools, oddsBounds, oddsKey, parseProfile, tidyOdds, type Profile } from "@/lib/admitted/odds-core";
+import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regularRate, satEquivalent, type Profile } from "@/lib/admitted/odds-core";
 import { keptShare, rewriteKey } from "@/lib/admitted/rewrite-core";
 import { admitRate, SCHOOLS } from "@/lib/admitted/schools";
 
@@ -41,22 +41,49 @@ describe("same input, same result", () => {
   });
 });
 
-describe("limits on the model", () => {
-  it("clamps odds and makes the numbers add up", () => {
-    const { cap, floor } = oddsBounds(dartmouth);
-    expect(tidyOdds(dartmouth, { odds: 99, locked: 60, fixes: [] }).odds).toBe(cap);
-    expect(tidyOdds(dartmouth, { odds: 0, locked: 60, fixes: [] }).odds).toBe(floor);
-    const t = tidyOdds(dartmouth, { odds: 9, locked: 61, fixes: [{ label: "A", gain: 1 }, { label: "B", gain: 7 }] });
-    expect(t.fixes[0].label).toBe("B");
-    expect(t.withFixes).toBe(17);
-    expect(t.locked + t.movable).toBe(100);
+describe("calculated odds", () => {
+  const stanford = SCHOOLS.find((s) => s.id === "stanford")!;
+  const profiles: Profile[] = [];
+  for (const gpa of [3.2, 3.5, 3.7, 3.85, 3.95, 4.0]) for (const score of [1300, 1400, 1480, 1530, 1560, 1600]) profiles.push(p(gpa, score));
+
+  it("is the same every time", () => {
+    expect(calculateOdds(p(3.95, 1530), dartmouth)).toEqual(calculateOdds(p(3.95, 1530), dartmouth));
   });
-  it("never lets a stronger profile show lower odds", () => {
-    const prior = tidyOdds(dartmouth, { odds: 12, locked: 60, fixes: [] });
-    const lower = tidyOdds(dartmouth, { odds: 10, locked: 60, fixes: [] });
-    expect(keepDirection(lower, prior, compareProfiles(p(3.95, 1550), p(3.95, 1530))).odds).toBe(12);
-    expect(keepDirection(prior, lower, compareProfiles(p(3.9, 1500), p(3.95, 1530))).odds).toBe(10);
-    expect(compareProfiles(p(4, 1500), p(3.9, 1530))).toBeNull();
+  it("never drops for a stronger profile, at any school", () => {
+    for (const s of SCHOOLS)
+      for (const a of profiles)
+        for (const b of profiles)
+          if (a.gpa >= b.gpa && a.test!.score >= b.test!.score) expect(calculateOdds(a, s).odds).toBeGreaterThanOrEqual(calculateOdds(b, s).odds);
+  });
+  it("moves by small steps for small changes", () => {
+    for (const s of SCHOOLS)
+      for (let score = 1300; score < 1600; score += 10) {
+        const a = calculateOdds(p(3.95, score), s).odds;
+        const b = calculateOdds(p(3.95, score + 10), s).odds;
+        expect(b - a).toBeLessThanOrEqual(1);
+      }
+    expect(calculateOdds(p(3.95, 1560), dartmouth).odds - calculateOdds(p(3.95, 1530), dartmouth).odds).toBeLessThanOrEqual(2);
+  });
+  it("treats an ACT like its SAT equivalent", () => {
+    expect(satEquivalent({ kind: "ACT", score: 34 })).toBe(1500);
+    expect(calculateOdds({ gpa: 3.95, test: { kind: "ACT", score: 34 } }, dartmouth).odds).toBe(calculateOdds(p(3.95, 1500), dartmouth).odds);
+  });
+  it("adds up, stays in bounds and offers only the school's own round", () => {
+    for (const s of SCHOOLS)
+      for (const a of profiles) {
+        const r = calculateOdds(a, s);
+        expect(r.locked + r.movable).toBe(100);
+        expect(r.withFixes).toBe(r.odds + r.fixes.reduce((n, f) => n + f.gain, 0));
+        expect(r.withFixes).toBeLessThanOrEqual(oddsBounds(s).cap);
+      }
+    expect(calculateOdds(p(3.95, 1530), stanford).fixes.map((f) => f.label)).toContain("Apply REA instead of RD");
+    expect(calculateOdds(p(3.95, 1530), dartmouth).fixes.map((f) => f.label)).toContain("Apply ED instead of RD");
+  });
+  it("gives a weak profile lower odds than the published rate", () => {
+    expect(calculateOdds(p(3.2, 1300), dartmouth).odds).toBeLessThan(admitRate(dartmouth));
+  });
+  it("uses the rate outside the early round where it can", () => {
+    expect(regularRate(dartmouth)).toBeCloseTo(3.77, 1);
   });
 });
 

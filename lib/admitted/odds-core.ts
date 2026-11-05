@@ -82,12 +82,16 @@ const ACT_TO_SAT: Record<number, number> = { 36: 1590, 35: 1540, 34: 1500, 33: 1
 export const satEquivalent = (t: NonNullable<Test>) => (t.kind === "SAT" ? t.score : (ACT_TO_SAT[t.score] ?? 1180 - 40 * (24 - t.score)));
 
 export function testFactor(test: Test, s: School): number {
+  // A school that does not use scores gives them no weight, either way.
+  if (s.sat25 === null || s.sat75 === null) return 1;
   if (!test) return ASSUMPTIONS.noTest;
   const sat = satEquivalent(test);
-  // Elite middle 50% ranges can be 40 points wide; a 100-point minimum keeps one retake from jumping.
+  // Published middle 50% ranges can be narrow, and at a school admitting 40% a narrow range turns one retake
+  // into a leap. A minimum width, growing with the admit rate, keeps steps small.
+  const half = Math.max(100, admitRate(s) * 5) / 2;
   const mid = (s.sat25 + s.sat75) / 2;
-  const low = Math.min(s.sat25, mid - 50);
-  const high = Math.max(s.sat75, mid + 50);
+  const low = Math.min(s.sat25, mid - half);
+  const high = Math.max(s.sat75, mid + half);
   return curve(sat, [
     [low - 200, 0.15],
     [low, 0.7],
@@ -108,12 +112,14 @@ export const gpaFactor = (gpa: number) =>
 
 /** The rate outside the early round, where a school publishes enough to separate them. */
 export function regularRate(s: School): number {
-  const { applicants, admitted } = s.early;
+  const applicants = s.early?.applicants;
+  const admitted = s.early?.admitted;
   return applicants && admitted ? ((s.admitted - admitted) / (s.applicants - applicants)) * 100 : admitRate(s);
 }
 
 /** How much applying early multiplies this applicant's odds. */
 export function earlyBoost(s: School): number {
+  if (!s.early) return 1;
   const early = earlyRate(s);
   if (early === null) return ASSUMPTIONS.earlyUnpublished[s.early.plan];
   return Math.min(ASSUMPTIONS.earlyMaxBoost, Math.max(1, (early * ASSUMPTIONS.earlyShare) / regularRate(s)));
@@ -133,7 +139,7 @@ export function calculateOdds(p: Profile, s: School, wording: FixWording = DEFAU
   const exact = regularRate(s) * testFactor(p.test, s) * gpaFactor(p.gpa);
   const odds = Math.min(cap, Math.max(floor, Math.round(exact)));
   const raw: OddsFix[] = [
-    { label: `Apply ${s.early.plan} instead of RD`, gain: exact * (earlyBoost(s) - 1) },
+    ...(s.early ? [{ label: `Apply ${s.early.plan} instead of RD`, gain: exact * (earlyBoost(s) - 1) }] : []),
     { label: wording.essays, gain: exact * ASSUMPTIONS.essayGain },
     { label: wording.activities, gain: exact * ASSUMPTIONS.activitiesGain },
   ];

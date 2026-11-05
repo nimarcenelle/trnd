@@ -11,11 +11,13 @@ export type School = {
   source: string;
   applicants: number;
   admitted: number;
-  early: { plan: "ED" | "REA" | "EA"; closes: string | null; applicants: number | null; admitted: number | null };
-  sat: string;
+  /** Null when the school has no early round. */
+  early: { plan: "ED" | "REA" | "EA"; closes: string | null; applicants: number | null; admitted: number | null } | null;
+  /** Null when the school does not use test scores. */
+  sat: string | null;
   /** Composite 25th and 75th percentile. Summed from the sections where no composite is published. */
-  sat25: number;
-  sat75: number;
+  sat25: number | null;
+  sat75: number | null;
   regularDeadline: string | null;
   note?: string;
 };
@@ -31,6 +33,11 @@ export const SCHOOLS: School[] = [
   { id: "duke", name: "Duke University", aliases: ["duke"], edition: "2025–26", source: "https://ir.provost.duke.edu/sites/default/files/CDS_PDF_2025-2026-20260622-website-published-version.pdf", applicants: 55541, admitted: 2910, early: { plan: "ED", closes: "Nov 1", applicants: null, admitted: null }, sat: "1510–1570", sat25: 1510, sat75: 1570, regularDeadline: "Jan 2" },
   { id: "uchicago", name: "University of Chicago", aliases: ["uchicago", "chicago", "university of chicago", "u chicago"], edition: "2025–26", source: "https://data.uchicago.edu/files/2026/08/CDS_2025-2026_to_publish-1.pdf", applicants: 45533, admitted: 2039, early: { plan: "ED", closes: null, applicants: null, admitted: null }, sat: "1500–1560", sat25: 1500, sat75: 1560, regularDeadline: null },
   { id: "northwestern", name: "Northwestern University", aliases: ["northwestern"], edition: "2025–26", source: "https://www.enrollment.northwestern.edu/data/2025-2026.pdf", applicants: 52676, admitted: 3933, early: { plan: "ED", closes: "Nov 1", applicants: 5939, admitted: 1212 }, sat: "1520–1560", sat25: 1520, sat75: 1560, regularDeadline: "Jan 1" },
+  { id: "michigan", name: "University of Michigan", aliases: ["michigan", "umich", "u of m", "u-m", "university of michigan", "michigan ann arbor", "um ann arbor"], edition: "2025–26", source: "https://obp.umich.edu/wp-content/uploads/pubdata/cds/cds_2025-26_umaa.pdf", applicants: 109112, admitted: 17915, early: { plan: "EA", closes: "Nov 1", applicants: null, admitted: null }, sat: "1370–1530", sat25: 1370, sat75: 1530, regularDeadline: "Feb 1" },
+  { id: "ucla", name: "University of California, Los Angeles", aliases: ["ucla", "university of california los angeles", "uc los angeles"], edition: "2025–26", source: "https://apb.ucla.edu/file/f8f5c864-93be-4b44-b646-7807a685749f", applicants: 145086, admitted: 13659, early: null, sat: null, sat25: null, sat75: null, regularDeadline: "Nov 30", note: "Does not use SAT or ACT scores in admission (C8A: No)." },
+  { id: "wisconsin", name: "University of Wisconsin–Madison", aliases: ["wisconsin", "uw madison", "uw-madison", "university of wisconsin", "wisconsin madison"], edition: "2025–26", source: "https://uwmadison.box.com/s/ilx9kil11ninf8vwj1z87vumhuvpw4px", applicants: 73912, admitted: 30167, early: { plan: "EA", closes: "Nov 1", applicants: null, admitted: null }, sat: "1400–1490", sat25: 1400, sat75: 1490, regularDeadline: "Jan 15" },
+  { id: "georgia", name: "University of Georgia", aliases: ["georgia", "uga", "university of georgia"], edition: "2025–26", source: "https://oir.uga.edu/wp-content/uploads/UGA_CDS_2025-2026.pdf", applicants: 47464, admitted: 16257, early: { plan: "EA", closes: "Oct 15", applicants: null, admitted: null }, sat: "1250–1420", sat25: 1250, sat75: 1420, regularDeadline: "Jan 1" },
+  { id: "northeastern", name: "Northeastern University", aliases: ["northeastern", "northeastern university", "neu"], edition: "2025–26", source: "https://uds.northeastern.edu/university-facts/common-data-set/", applicants: 105257, admitted: 5920, early: { plan: "ED", closes: "Nov 1", applicants: 5404, admitted: 1910 }, sat: "1440–1510", sat25: 1440, sat75: 1510, regularDeadline: "Jan 1" },
 ];
 
 export const PENDING_SCHOOLS: { name: string; aliases: string[] }[] = [
@@ -41,4 +48,7 @@ export const PENDING_SCHOOLS: { name: string; aliases: string[] }[] = [
 ];
 
 export const admitRate = (s: School) => (s.admitted / s.applicants) * 100;
-export const earlyRate = (s: School) => (s.early.applicants && s.early.admitted ? (s.early.admitted / s.early.applicants) * 100 : null);
+export const earlyRate = (s: School) => (s.early?.applicants && s.early.admitted ? (s.early.admitted / s.early.applicants) * 100 : null);
+
+/** Next to add, by search volume rather than prestige. Each needs its Common Data Set read first. */
+export const NEXT_SCHOOLS = ["UT Austin", "Georgia Tech", "UNC", "UVA", "Florida", "Washington", "NYU", "USC", "BU", "Purdue", "Illinois", "Ohio State", "Penn State", "Texas A&M", "Notre Dame"];

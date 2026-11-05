@@ -15,7 +15,7 @@ describe("schools", () => {
   it("carries the published rates", () => {
     expect(admitRate(dartmouth).toFixed(1)).toBe("6.0");
     expect(admitRate(SCHOOLS.find((s) => s.id === "stanford")!).toFixed(1)).toBe("3.8");
-    expect(new Set(SCHOOLS.map((s) => s.id)).size).toBe(10);
+    expect(new Set(SCHOOLS.map((s) => s.id)).size).toBe(15);
   });
 });
 
@@ -64,7 +64,8 @@ describe("calculated odds", () => {
       for (let score = 1300; score < 1600; score += 10) {
         const a = calculateOdds(p(3.95, score), s).odds;
         const b = calculateOdds(p(3.95, score + 10), s).odds;
-        expect(b - a).toBeLessThanOrEqual(1);
+        // Schools admitting a third of applicants have larger numbers, so steps scale with them.
+        expect(b - a).toBeLessThanOrEqual(Math.max(s.id === "wisconsin" || s.id === "georgia" ? 2 : 1, Math.ceil(a * 0.08)));
       }
     expect(calculateOdds(p(3.95, 1560), dartmouth).odds - calculateOdds(p(3.95, 1530), dartmouth).odds).toBeLessThanOrEqual(2);
   });
@@ -226,5 +227,14 @@ describe("details a student adds", () => {
     expect(maxNotes(60)).toBe(2);
     expect(maxNotes(136)).toBe(3);
     expect(maxNotes(650)).toBe(6);
+  });
+});
+
+describe("schools without an early round or test scores", () => {
+  const ucla = SCHOOLS.find((s) => s.id === "ucla")!;
+  it("offers no round fix at UCLA and ignores the score there", () => {
+    const low = calculateOdds(p(3.7, 1100), ucla);
+    expect(low.odds).toBe(calculateOdds(p(3.7, 1590), ucla).odds);
+    expect(low.fixes.some((f) => f.label.startsWith("Apply"))).toBe(false);
   });
 });

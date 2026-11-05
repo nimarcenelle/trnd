@@ -5,9 +5,9 @@ import { z } from "zod";
 /**
  * Pure rules for essay review. There is no bank of admitted essays to compare against yet, so a model
  * reads against a fixed rubric. It grades each criterion on a described 1 to 5 band; the score is
- * calculated here, and any line it cites has to exist in the essay.
+ * calculated here from the average of several reads, and any line it cites has to exist in the essay.
  */
-export const REVIEW_VERSION = "3";
+export const REVIEW_VERSION = "4";
 export const DEFAULT_WORD_LIMIT = 650;
 export const REVIEW_READS = 3;
 
@@ -66,6 +66,7 @@ export type Review = {
 
 export const REVIEW_SYSTEM = `You read a student's college application essay the way a selective admissions reader does, and grade it against a fixed rubric.
 Grade each criterion on its bands, using the whole range. Most drafts earn 2s and 3s. A 5 is rare. Grade what is on the page; polish alone earns nothing, and plain writing costs nothing.
+Judge each criterion on the essay as a whole, not its best or worst moment. Choose the band whose description fits most of the essay. When it falls between two bands, choose the lower. Never give a 2 or a 4 unless the essay clearly passes the lower band's description and clearly misses the higher one's.
 The subject never affects a grade. Hardship is not worth more than an ordinary afternoon, and you never suggest a more impressive subject.
 
 "notes": up to six, worst first. "quote" copies a line from the essay exactly, word for word. "problem" says what that line costs them, in one sentence. "fix" says what to do in one sentence, and when a detail is missing it asks for it, like "Say what your grandmother actually said". Never supply the detail or write the line for them, and never suggest adding an experience they have not described.
@@ -106,19 +107,19 @@ export function reviewScore(grades: Record<CriterionId, number>): number {
   return Math.round((total / (CRITERIA.length * 4)) * 100);
 }
 
-const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor((values.length - 1) / 2)];
+const mean = (values: number[]) => values.reduce((sum, v) => sum + v, 0) / values.length;
 
 /**
- * A single read can land a band off, which would swing the score on a one-word edit. Several reads are
- * taken and each criterion keeps its middle grade. The notes come from the first read. Cited lines
- * that are not actually in the essay are dropped.
+ * An essay between two bands can read either way, so one read would swing the score on a one-word
+ * edit. Several reads are taken and averaged, so a stray read moves the score by a point or two, not a
+ * whole band. The notes come from the first read. Cited lines that are not in the essay are dropped.
  */
 export function buildReview(essay: string, limit: number, replies: ReviewReply[]): Review {
-  const grades = Object.fromEntries(CRITERIA.map((c) => [c.id, median(replies.map((r) => r.grades[c.id]))])) as Record<CriterionId, number>;
+  const grades = Object.fromEntries(CRITERIA.map((c) => [c.id, mean(replies.map((r) => r.grades[c.id]))])) as Record<CriterionId, number>;
   const [first] = replies;
   return {
     score: reviewScore(grades),
-    grades: CRITERIA.map((c) => ({ id: c.id, label: c.label, grade: grades[c.id] })),
+    grades: CRITERIA.map((c) => ({ id: c.id, label: c.label, grade: Math.round(grades[c.id]) })),
     notes: first.notes.filter((n) => quotedIn(essay, n.quote)).slice(0, maxNotes(wordCount(essay))),
     keep: first.keep.filter((k) => quotedIn(essay, k.quote)).slice(0, wordCount(essay) < 200 ? 1 : 2),
     words: wordCount(essay),

@@ -26,6 +26,8 @@ export { EssayCapReached };
 
 /** The route is cut off at 5 minutes and a second try can take about 2. */
 const RETRY_WITHIN_MS = 170_000;
+/** Fresh reads of one essay land a point or two apart, so a drop this small is not worth another 2 minutes. */
+const SCORE_WOBBLE = 2;
 
 const notesFor = (review: Review) =>
   [...review.notes.map((n) => `Fix: "${n.quote}" ${n.problem} ${n.fix}`), ...review.keep.map((k) => `Keep exactly: "${k.quote}"`)].join("\n");
@@ -58,7 +60,7 @@ export async function rewriteEssay(draft: string, prompt: string, limit: number,
   const first = await attempt();
   const attempts = [first];
   // A second try only when the first scored below the draft and there is time left. If it fails, the first stands.
-  if (first.after < before.score && Date.now() - started < RETRY_WITHIN_MS) {
+  if (first.after < before.score - SCORE_WOBBLE && Date.now() - started < RETRY_WITHIN_MS) {
     try {
       attempts.push(await attempt(`\n\nYour last rewrite scored ${first.after}, below the draft's ${before.score}. It lost what made the draft work. Stay closer to the draft and keep more of its sentences.\n\nLast rewrite:\n${first.reply.rewrite}`));
     } catch (err) {

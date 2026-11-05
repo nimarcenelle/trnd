@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { wordCount } from "./review-core";
 
 /** Pure rules for essay rewrites: the saved-result key, how much of the draft survived, what must be fixed. */
-export const REWRITE_VERSION = "4";
+export const REWRITE_VERSION = "5";
 
 const clean = (text: string) => text.replace(/\s+/g, " ").trim();
 

@@ -108,10 +108,11 @@ describe("essay review", () => {
     expect(reviewScore({ ...grades, specific: 5, voice: 5, reflection: 5, opening: 5, structure: 5, prompt: 5 })).toBe(100);
   });
 
-  it("keeps the middle grade, so one odd read does not move the score", () => {
-    const review = buildReview(essay, 650, [reply(), reply({ grades: { ...grades, reflection: 5 } }), reply({ grades: { ...grades, opening: 1 } })]);
-    expect(review.score).toBe(50);
-    expect(buildReview(essay, 650, [reply(), reply({ grades: { ...grades, reflection: 5 } })]).score).toBe(50);
+  it("averages the reads, so one odd read moves the score by a little", () => {
+    const review = buildReview(essay, 650, [reply(), reply(), reply({ grades: { ...grades, reflection: 4 } })]);
+    expect(review.score).toBe(51);
+    expect(review.grades.find((g) => g.id === "reflection")?.grade).toBe(3);
+    expect(buildReview(essay, 650, [reply({ grades: { ...grades, opening: 2 } }), reply({ grades: { ...grades, opening: 4 } })]).score).toBe(50);
   });
 
   it("drops notes citing a line that is not in the essay", () => {

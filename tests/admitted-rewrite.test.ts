@@ -43,6 +43,13 @@ describe("rewriting", () => {
     expect(calls.writes).toHaveLength(1);
   });
 
+  it("does not spend a second try on a drop within the usual wobble", async () => {
+    calls.scores.set(text(1), 56);
+    const { rewriteEssay } = await import("@/lib/admitted/rewrite");
+    expect((await rewriteEssay(draft, "", 650, 0)).after).toBe(56);
+    expect(calls.writes).toHaveLength(1);
+  });
+
   it("tries once more when the rewrite scores lower, and keeps the better one", async () => {
     calls.scores.set(text(1), 50);
     calls.scores.set(text(2), 63);

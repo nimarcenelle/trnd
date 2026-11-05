@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { IconArrowRight, IconCheck } from "@/components/icons";
-import { shortName } from "@/lib/admitted/list";
+import { schoolQuery, shortName } from "@/lib/admitted/list";
 import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 
 import OddsTable from "./odds-table";
@@ -46,7 +46,7 @@ function SchoolPicker({ picked, toggle, setAll }: { picked: string[]; toggle: (n
               {picked.length === all.length ? "Clear" : "Choose all"}
             </button>
           </div>
-          <ul className="list-none p-0 m-0 grid grid-cols-2 gap-0.5">
+          <ul className="list-none p-0 m-0 grid grid-cols-2 gap-0.5 max-h-[300px] overflow-y-auto">
             {SCHOOLS.map((s) => {
               const on = picked.includes(s.name);
               return (
@@ -94,7 +94,7 @@ export default function HeroOdds({ children }: { children: ReactNode }) {
     const test = String(form.get("test") ?? "");
     setBusy(true);
     setMessage("");
-    const res = await fetch("/api/odds", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ gpa, test, schools: picked.join(", ") }) }).catch(() => null);
+    const res = await fetch("/api/odds", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ gpa, test, schools: picked.map(schoolQuery).join(", ") }) }).catch(() => null);
     setBusy(false);
     if (res?.ok) {
       setProfile(`GPA ${gpa}${test ? ` · ${Number(test) > 36 ? "SAT" : "ACT"} ${test}` : ""}`);

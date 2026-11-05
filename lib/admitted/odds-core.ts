@@ -46,9 +46,9 @@ export function matchSchools(text: string): { found: School[]; pending: string[]
   const found: School[] = [];
   const pending: string[] = [];
   const unknown: string[] = [];
-  for (const part of text.split(/[,;\n]+/).map((p) => p.trim()).filter(Boolean).slice(0, 20)) {
+  for (const part of text.split(/[,;\n]+/).map((p) => p.trim()).filter(Boolean).slice(0, 40)) {
     const n = norm(part);
-    const school = SCHOOLS.find((s) => s.aliases.includes(n) || norm(s.name) === n);
+    const school = SCHOOLS.find((s) => s.aliases.some((alias) => norm(alias) === n) || norm(s.name) === n);
     if (school) {
       if (!found.includes(school)) found.push(school);
       continue;
@@ -128,7 +128,7 @@ export function earlyBoost(s: School): number {
 /** Keeps a calculated number inside what the school's published rates can support. */
 export function oddsBounds(s: School): { floor: number; cap: number } {
   const rate = admitRate(s);
-  return { floor: 1, cap: Math.min(95, Math.round(Math.max(rate * 4, (earlyRate(s) ?? rate) * 1.5))) };
+  return { floor: 1, cap: Math.min(85, Math.round(Math.max(rate * 4, (earlyRate(s) ?? rate) * 1.5))) };
 }
 
 export type FixWording = { essays: string; activities: string };

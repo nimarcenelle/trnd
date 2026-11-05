@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regularRate, satEquivalent, type Profile } from "@/lib/admitted/odds-core";
 import { segments } from "@/lib/admitted/highlight";
-import { shortName } from "@/lib/admitted/list";
+import { schoolQuery, shortName } from "@/lib/admitted/list";
 import { parseSchoolRequest } from "@/lib/admitted/school-request";
 import { buildReview, maxNotes, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
 import { answersText, bestAttempt, keptShare, parseAnswers, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
@@ -17,7 +17,7 @@ describe("schools", () => {
   it("carries the published rates", () => {
     expect(admitRate(dartmouth).toFixed(1)).toBe("6.0");
     expect(admitRate(SCHOOLS.find((s) => s.id === "stanford")!).toFixed(1)).toBe("3.8");
-    expect(new Set(SCHOOLS.map((s) => s.id)).size).toBe(15);
+    expect(new Set(SCHOOLS.map((s) => s.id)).size).toBe(28);
   });
 });
 
@@ -67,7 +67,7 @@ describe("calculated odds", () => {
         const a = calculateOdds(p(3.95, score), s).odds;
         const b = calculateOdds(p(3.95, score + 10), s).odds;
         // Schools admitting a third of applicants have larger numbers, so steps scale with them.
-        expect(b - a).toBeLessThanOrEqual(Math.max(s.id === "wisconsin" || s.id === "georgia" ? 2 : 1, Math.ceil(a * 0.08)));
+        expect(b - a).toBeLessThanOrEqual(Math.max(admitRate(s) >= 25 ? 2 : 1, Math.ceil(a * 0.08)));
       }
     expect(calculateOdds(p(3.95, 1560), dartmouth).odds - calculateOdds(p(3.95, 1530), dartmouth).odds).toBeLessThanOrEqual(2);
   });
@@ -255,5 +255,31 @@ describe("the public samples", () => {
         expect(essays.gain).toBe(row.fix.gain);
         for (const f of live.fixes) expect(essays.gain).toBeGreaterThanOrEqual(f.gain);
       }
+  });
+});
+
+describe("the school picker", () => {
+  it("reaches every school through the odds route, all at once", () => {
+    const { found, pending, unknown } = matchSchools(SCHOOLS.map((s) => schoolQuery(s.name)).join(", "));
+    expect(found.map((s) => s.id).sort()).toEqual(SCHOOLS.map((s) => s.id).sort());
+    expect([pending, unknown]).toEqual([[], []]);
+  });
+  it("never shows odds above 85, with or without fixes", () => {
+    for (const s of SCHOOLS) {
+      const best = calculateOdds(p(4.0, 1600), s);
+      expect(best.odds).toBeLessThanOrEqual(85);
+      expect(best.withFixes).toBeLessThanOrEqual(85);
+    }
+  });
+  it("has figures that add up", () => {
+    for (const s of SCHOOLS) {
+      expect(s.admitted).toBeLessThan(s.applicants);
+      if (s.sat25 !== null) expect(s.sat25).toBeLessThan(s.sat75!);
+      if (s.early?.admitted) expect(s.early.admitted).toBeLessThan(s.early.applicants!);
+    }
+  });
+  it("has no alias shared by two schools", () => {
+    const aliases = SCHOOLS.flatMap((s) => s.aliases);
+    expect(new Set(aliases).size).toBe(aliases.length);
   });
 });

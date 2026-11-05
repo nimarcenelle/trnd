@@ -1,7 +1,7 @@
 /**
  * The sample applicant the landing page and its product shot show, on a real list. School
  * figures in SOURCES and the copy come from each school's own Common Data Set: Dartmouth,
- * Cornell and Yale 2025–26, Harvard 2024–25. Odds and points are this sample applicant's.
+ * Cornell, Yale and Harvard 2025–26. Odds and points are the real /api/odds results for GPA 3.95, SAT 1530.
  * Odds are percentages; locked and movable are each school's share of the number (they add to 100).
  */
 
@@ -25,25 +25,25 @@ export const APPLICANT = {
   cycle: "2027–28 cycle",
   gpa: "3.95",
   test: "SAT 1530",
-  locked: 64,
-  movable: 36,
+  locked: 75,
+  movable: 25,
 };
 
 export const SCHOOLS: SampleSchool[] = [
-  { name: "Harvard University", band: "High reach", odds: 5, withFixes: 7, locked: 72, movable: 28, plan: "RD", due: "Jan 1" },
-  { name: "Yale University", band: "High reach", odds: 6, withFixes: 8, locked: 70, movable: 30, plan: "RD", due: "Jan 2" },
-  { name: "Dartmouth College", band: "Reach", odds: 9, withFixes: 18, locked: 61, movable: 39, plan: "ED", due: "Nov 1" },
-  { name: "Cornell University", band: "Reach", odds: 12, withFixes: 16, locked: 66, movable: 34, plan: "RD", due: "Jan 2" },
+  { name: "Harvard University", band: "High reach", odds: 5, withFixes: 9, locked: 75, movable: 25, plan: "RD", due: "Jan 1" },
+  { name: "Yale University", band: "High reach", odds: 6, withFixes: 7, locked: 75, movable: 25, plan: "RD", due: "Jan 2" },
+  { name: "Dartmouth College", band: "Reach", odds: 7, withFixes: 14, locked: 75, movable: 25, plan: "ED", due: "Nov 1" },
+  { name: "Cornell University", band: "Reach", odds: 10, withFixes: 17, locked: 75, movable: 25, plan: "RD", due: "Jan 2" },
 ];
 
 export type Move = { rank: number; title: string; gain: string; where: string; status: string; tone: "pos" | "warn" | "outline" };
 
 /** The movable part, ranked by points gained. */
 export const MOVES: Move[] = [
-  { rank: 1, title: "Add Cornell, apply RD", gain: "+10", where: "on 1+ admits", status: "Ready", tone: "pos" },
-  { rank: 2, title: "Apply ED to Dartmouth", gain: "+7", where: "at Dartmouth", status: "Due Nov 1", tone: "warn" },
-  { rank: 3, title: "Rewrite Yale's short answers from your drafts", gain: "+2", where: "at Yale", status: "Draft ready", tone: "pos" },
-  { rank: 4, title: "Lead activities with the lab role", gain: "+2", where: "at Harvard", status: "To do", tone: "outline" },
+  { rank: 1, title: "Add Cornell, apply RD", gain: "+8", where: "on 1+ admits", status: "Ready", tone: "pos" },
+  { rank: 2, title: "Apply ED to Dartmouth", gain: "+4", where: "at Dartmouth", status: "Due Nov 1", tone: "warn" },
+  { rank: 3, title: "Strengthen your Harvard essays", gain: "+2", where: "at Harvard", status: "Draft ready", tone: "pos" },
+  { rank: 4, title: "Show meaningful community impact", gain: "+1", where: "at Dartmouth", status: "To do", tone: "outline" },
 ];
 
 /**
@@ -52,17 +52,17 @@ export const MOVES: Move[] = [
  */
 export const FACTORS = {
   school: "Dartmouth College",
-  odds: 9,
-  withFixes: 18,
+  odds: 7,
+  withFixes: 14,
   locked: [
-    { label: "SAT 1530 vs. middle 50% 1440–1550", share: 34 },
-    { label: "GPA 3.95, as reported", share: 18 },
-    { label: "Course rigor, as reported", share: 9 },
+    { label: "SAT 1530 vs. middle 50% 1440–1550", share: 40 },
+    { label: "GPA 3.95, as reported", share: 25 },
+    { label: "Course rigor, as reported", share: 10 },
   ],
   movable: [
-    { label: "Round: ED instead of RD", share: 21, gain: 7 },
-    { label: "Supplement: “Why Dartmouth”", share: 11, gain: 1 },
-    { label: "Activities order and framing", share: 7, gain: 1 },
+    { label: "Round: ED instead of RD", share: 14, gain: 4 },
+    { label: "Strengthen essays", share: 7, gain: 2 },
+    { label: "Show meaningful community impact", share: 4, gain: 1 },
   ],
 };
 

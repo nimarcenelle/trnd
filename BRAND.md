@@ -64,7 +64,7 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
 
 ## Voice
 
-- Short declaratives. "64% of this is locked. 36% is movable." Not "unlock your dream school".
-- Give the number and its unit: "+7 pts at Dartmouth", "chance of at least one admit: 19% → 29%".
+- Short declaratives. "75% of this is locked. 25% is movable." Not "unlock your dream school".
+- Give the number and its unit: "+4 pts at Dartmouth", "chance of at least one admit: 17% → 25%".
 - Never promise an admit. Odds say how sure they are.
 - No hype words: no "unlock", "supercharge", "AI-powered", "magic", "dream school", "guaranteed".

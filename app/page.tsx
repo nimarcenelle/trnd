@@ -98,10 +98,10 @@ function SplitCard() {
         </div>
         <SplitLegend className="mt-1" />
       </div>
-      <SplitBar className="mt-4 !h-2" locked={61} movable={39} />
+      <SplitBar className="mt-4 !h-2" locked={75} movable={25} />
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <div>
-          <div className="text-[12px] font-medium text-ink-3">Locked · 61%</div>
+          <div className="text-[12px] font-medium text-ink-3">Locked · 75%</div>
           <ul className="list-none p-0 m-0 mt-2 flex flex-col gap-2 text-[13px]">
             {FACTORS.locked.map((f) => (
               <li key={f.label} className="flex justify-between gap-3">
@@ -112,7 +112,7 @@ function SplitCard() {
           </ul>
         </div>
         <div>
-          <div className="text-[12px] font-medium text-brand">Movable · 39%</div>
+          <div className="text-[12px] font-medium text-brand">Movable · 25%</div>
           <ul className="list-none p-0 m-0 mt-2 flex flex-col gap-2 text-[13px]">
             {FACTORS.movable.map((f) => (
               <li key={f.label} className="flex justify-between gap-3">
@@ -147,7 +147,7 @@ function EssayCard() {
       <div className="px-5 py-3 border-t border-line flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-ink-3 tnum">
         <span>{ESSAY.words} words</span>
         <span>{ESSAY.kept}% of sentences yours</span>
-        <span className="text-brand font-medium">+1 pts at Dartmouth</span>
+        <span className="text-brand font-medium">+2 pts at Dartmouth</span>
       </div>
     </div>
   );
@@ -159,7 +159,7 @@ function ListCard() {
       <div className="px-5 py-4 border-b border-line flex items-baseline justify-between gap-3">
         <span className="text-[13px] text-ink-2">Chance of at least one admit</span>
         <span className="tnum text-[14px]">
-          <span className="text-ink-3">19%</span> → <span className="text-brand font-semibold text-[20px]">29%</span>
+          <span className="text-ink-3">17%</span> → <span className="text-brand font-semibold text-[20px]">25%</span>
         </span>
       </div>
       <table className="table">

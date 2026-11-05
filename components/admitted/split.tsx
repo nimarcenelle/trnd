@@ -1,5 +1,3 @@
-import type { Move } from "./sample";
-
 /** One number split in two: the locked part in ink, the movable part in green. */
 export function SplitBar({ locked, movable, className = "" }: { locked: number; movable: number; className?: string }) {
   return (
@@ -22,11 +20,4 @@ export function SplitLegend({ className = "" }: { className?: string }) {
       </span>
     </span>
   );
-}
-
-const TONE: Record<Move["tone"], string> = { pos: "badge badge-pos", warn: "badge badge-warn", outline: "badge badge-outline" };
-
-/** A small status pill for a fix. */
-export function MovePill({ move, className = "" }: { move: Move; className?: string }) {
-  return <span className={`${TONE[move.tone]} ${className}`}>{move.status}</span>;
 }

@@ -5,45 +5,17 @@
  * Odds are percentages; locked and movable are each school's share of the number (they add to 100).
  */
 
-export type Band = "High reach" | "Reach";
-
-export type SampleSchool = {
-  name: string;
-  band: Band;
-  /** Admit odds today, from stats and the current application. */
-  odds: number;
-  /** Odds once the movable part is done. */
-  withFixes: number;
-  locked: number;
-  movable: number;
-  plan: "ED" | "RD";
-  due: string;
-};
-
 export const APPLICANT = {
   label: "Sample applicant",
-  cycle: "2027–28 cycle",
   gpa: "3.95",
   test: "SAT 1530",
-  locked: 56,
-  movable: 44,
 };
 
-export const SCHOOLS: SampleSchool[] = [
-  { name: "Harvard University", band: "High reach", odds: 6, withFixes: 10, locked: 60, movable: 40, plan: "RD", due: "Jan 1" },
-  { name: "Yale University", band: "High reach", odds: 6, withFixes: 10, locked: 60, movable: 40, plan: "RD", due: "Jan 2" },
-  { name: "Dartmouth College", band: "Reach", odds: 5, withFixes: 14, locked: 36, movable: 64, plan: "ED", due: "Nov 1" },
-  { name: "Cornell University", band: "Reach", odds: 8, withFixes: 12, locked: 67, movable: 33, plan: "RD", due: "Jan 2" },
-];
-
-export type Move = { rank: number; title: string; gain: string; where: string; status: string; tone: "pos" | "warn" | "outline" };
-
-/** The movable part, ranked by points gained. */
-export const MOVES: Move[] = [
-  { rank: 1, title: "Apply ED to Dartmouth", gain: "+7", where: "at Dartmouth", status: "Due Nov 1", tone: "warn" },
-  { rank: 2, title: "Add Cornell, apply RD", gain: "+7", where: "on 1+ admits", status: "Ready", tone: "pos" },
-  { rank: 3, title: "Make your community essays more personal", gain: "+1", where: "at Dartmouth", status: "Draft ready", tone: "pos" },
-  { rank: 4, title: "Highlight initiative beyond titles", gain: "+1", where: "at Yale", status: "To do", tone: "outline" },
+export const SCHOOLS = [
+  { name: "Harvard University", odds: 6, withFixes: 10, locked: 60, movable: 40, fix: { label: "Apply REA instead of RD", gain: 2 } },
+  { name: "Yale University", odds: 6, withFixes: 10, locked: 60, movable: 40, fix: { label: "Apply REA instead of RD", gain: 2 } },
+  { name: "Dartmouth College", odds: 5, withFixes: 14, locked: 36, movable: 64, fix: { label: "Apply ED instead of RD", gain: 7 } },
+  { name: "Cornell University", odds: 8, withFixes: 12, locked: 67, movable: 33, fix: { label: "Clarify your academic motivation essays", gain: 2 } },
 ];
 
 /**
@@ -79,13 +51,15 @@ export const SOURCES = {
   ],
 };
 
+/** An invented draft, marked up the way a real review marks one. */
 export const ESSAY = {
   prompt: "Common App personal statement",
   draft:
     "I have always been passionate about science. In my junior year I joined Dr. Okafor's research lab. The centrifuge ran at 4,000 rpm and kept failing, usually on Tuesdays, so I learned to hear the bearing going. Fixing it took six weeks and two wrong parts, which taught me a lot about perseverance.",
-  rewrite:
-    "The centrifuge in Dr. Okafor's lab ran at 4,000 rpm and failed every third Tuesday. By March I could hear the bearing go before the alarm did. Fixing it took me six weeks and two wrong parts.",
-  revision: 3,
-  words: "648 / 650",
-  kept: 71,
+  keepLine: "so I learned to hear the bearing going.",
+  fixLine: "which taught me a lot about perseverance.",
+  fix: "Say what you do differently now that you can hear a failure coming.",
+  problem: "This names a virtue where the reader wanted to see how you think.",
+  score: 58,
+  after: 67,
 };

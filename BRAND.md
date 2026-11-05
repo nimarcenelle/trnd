@@ -58,12 +58,13 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
 
 ## Layout
 
-- The landing page: a left-aligned hero (pill naming the audience, headline, one-line sub, the inline odds box) on
-  faint graph paper (`.dot-grid`), beside a working sample where flipping a fix changes the odds (`odds-toy.tsx`). Then the
-  product in a browser frame (side nav · view · ranked next moves), four numbered "How it works" columns on hairlines,
-  alternating text/card feature rows with green checks, each card on a tinted panel (`.stage`), **exactly one** deep navy
-  rounded band ("Where the numbers come from", with a sample number traced to its Common Data Set sections), one pricing
-  card, plus-accordion FAQ, minimal footer.
+- The landing page: a left-aligned hero (pill naming the audience, headline, one-line sub, the odds form with its school
+  picker) on faint graph paper (`.dot-grid`), beside a working sample where flipping a fix changes the odds (`odds-toy.tsx`).
+  Real results open at full width beneath it, in `odds-table.tsx`, the same view the sample in the browser frame uses. Then
+  the covered schools, four numbered "How it works" columns on hairlines, alternating text/card feature rows with green checks,
+  each card on a tinted panel (`.stage`), **exactly one** deep navy rounded band ("Where the numbers come from", with a sample
+  number traced to its Common Data Set sections), free and paid pricing cards, plus-accordion FAQ, minimal footer.
+- Only sell what exists. A feature joins the page and the price list when it ships.
 - The essay page is a workspace, not a marketing page: its own slim bar, the draft on the left with cited lines marked, results
   on the right.
 - Cards 12px radius, wells 10px, the band 20px. `.wrap` is 1160px. No horizontal scroll on phones.

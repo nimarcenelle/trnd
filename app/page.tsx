@@ -1,16 +1,18 @@
 import Link from "next/link";
 
+import EssaySample from "@/components/admitted/essay-sample";
+import HeroOdds from "@/components/admitted/hero-odds";
 import ProductShot from "@/components/admitted/product-shot";
-import OddsStart from "@/components/admitted/odds-start";
-import OddsToy from "@/components/admitted/odds-toy";
-import { ESSAY, FACTORS, MOVES, SCHOOLS, SOURCES } from "@/components/admitted/sample";
-import { MovePill, SplitBar, SplitLegend } from "@/components/admitted/split";
+import { FACTORS, SOURCES } from "@/components/admitted/sample";
+import { SplitBar, SplitLegend } from "@/components/admitted/split";
 import Brand from "@/components/brand";
 import { IconCheck } from "@/components/icons";
 import SiteNav from "@/components/site-nav";
+import { shortName } from "@/lib/admitted/list";
+import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 
 const STEPS = [
-  { title: "Enter your numbers", body: "GPA, SAT or ACT, and up to 20 schools. No account, no email." },
+  { title: "Enter your numbers", body: "Your GPA, your SAT or ACT, and your schools. No account, no email." },
   { title: "See the split", body: "Your odds at each school, and how much of each number is locked and how much is still movable." },
   { title: "Get the top fix, free", body: "The one change worth the most points, named and sized. Act on it with us or without us." },
   { title: "We do the movable part", body: "Pay once for the cycle. We review every draft line by line and rewrite it from your own words, as often as you need." },
@@ -20,6 +22,8 @@ const PROOF = [
   { value: "1 click", label: "from any number to its source page" },
   { value: "0", label: "numbers from surveys or forum posts" },
 ];
+
+const FREE = ["Odds at every school on your list", "Each number split into locked and movable", "The top fix at each school, sized in points", "Every school linked to its source"];
 
 const INCLUDED = [
   "A scored review of every draft, line by line",
@@ -43,7 +47,19 @@ const FAQ = [
   },
   {
     q: "Are the odds a guarantee?",
-    a: "No. They are the published numbers applied to your profile, with how sure we are shown beside them. People read applications, and no tool can promise an admit.",
+    a: "No. They are the published numbers applied to your profile. People read applications, and no tool can promise an admit.",
+  },
+  {
+    q: "How is an essay scored?",
+    a: "AI reads your draft against six criteria: whether only you could have written it, whether it sounds like a person, how it shows your thinking, its opening, its length and whether it answers the prompt. The score is calculated from those grades, and the same draft always gets the same result.",
+  },
+  {
+    q: "Who sees my essays?",
+    a: "Reviews and rewrites are saved encrypted, and we never sell your writing. OpenAI processes each draft to review it and does not train on it. The privacy policy has the details.",
+  },
+  {
+    q: "What if it isn't for me?",
+    a: "Email us within 14 days of paying for a full refund.",
   },
   {
     q: "What if my scores or my list change?",
@@ -126,88 +142,6 @@ function SplitCard() {
   );
 }
 
-function EssayCard() {
-  return (
-    <div className="card w-full max-w-[520px] overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-line flex items-center justify-between gap-3">
-        <span className="text-[14px] font-semibold">{ESSAY.prompt}</span>
-        <span className="badge badge-pos">Revision {ESSAY.revision}</span>
-      </div>
-      <div className="p-5 flex flex-col gap-4">
-        <div className="well p-4">
-          <div className="text-[12px] text-ink-3">Your draft</div>
-          <p className="text-[14px] text-ink-2 leading-[1.65] mt-1.5">{ESSAY.draft}</p>
-        </div>
-        <div>
-          <div className="text-[12px] text-ink-3">Rewrite</div>
-          <p className="text-[14px] leading-[1.65] mt-1.5 border-l-2 border-brand pl-3">{ESSAY.rewrite}</p>
-        </div>
-      </div>
-      <div className="px-5 py-3 border-t border-line flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-ink-3 tnum">
-        <span>{ESSAY.words} words</span>
-        <span>{ESSAY.kept}% of sentences yours</span>
-        <span className="text-brand font-medium">+1 pts at Dartmouth</span>
-      </div>
-    </div>
-  );
-}
-
-function ListCard() {
-  return (
-    <div className="card w-full max-w-[520px] lg:ml-auto overflow-hidden">
-      <div className="px-5 py-4 border-b border-line flex items-baseline justify-between gap-3">
-        <span className="text-[13px] text-ink-2">Chance of at least one admit</span>
-        <span className="tnum text-[14px]">
-          <span className="text-ink-3">16%</span> → <span className="text-brand font-semibold text-[20px]">23%</span>
-        </span>
-      </div>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>School</th>
-            <th>Band</th>
-            <th className="text-right">Odds</th>
-          </tr>
-        </thead>
-        <tbody>
-          {SCHOOLS.map((s) => (
-            <tr key={s.name}>
-              <td className="font-medium">
-                {s.name}
-                {s.name === "Cornell University" && <span className="badge badge-pos ml-2 !h-5 !text-[11px]">Added</span>}
-              </td>
-              <td className="text-ink-2">{s.band}</td>
-              <td className="text-right tnum font-semibold">{s.odds}%</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function PlanCard() {
-  return (
-    <div className="card w-full max-w-[520px] p-5">
-      <div className="caption">Next moves, by points gained</div>
-      <ol className="list-none p-0 m-0 mt-3 flex flex-col divide-y divide-line">
-        {MOVES.map((m) => (
-          <li key={m.rank} className="flex items-center gap-3 py-3">
-            <span className="text-[12px] text-ink-3 tnum w-3">{m.rank}</span>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-medium leading-snug">{m.title}</div>
-              <div className="text-[12px] text-ink-3 mt-0.5">
-                <span className="text-brand font-semibold tnum">{m.gain} pts</span> {m.where}
-              </div>
-            </div>
-            <MovePill move={m} />
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
 export default function Home() {
   return (
     <div className="min-h-dvh flex flex-col">
@@ -216,25 +150,23 @@ export default function Home() {
       <section id="start" className="relative scroll-mt-14 wash-top">
         <div className="dot-grid absolute inset-0 pointer-events-none" aria-hidden="true" />
         <div className="relative wrap pt-14 sm:pt-20 pb-16 sm:pb-20">
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-14 items-center">
-            <div>
-              <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full bg-[var(--soft)] text-[13px] font-medium text-[var(--soft-ink)]">
-                <i className="w-1.5 h-1.5 rounded-full bg-[var(--soft-ink)]" /> For college applicants and their parents
-              </span>
-              <h1 className="display text-[44px] sm:text-[56px] mt-6">
-                Your real odds.
-                <span className="block text-[var(--headline-2)] [text-wrap:balance]">And the part you can still move.</span>
-              </h1>
-              <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[560px]">Admit odds at every school on your list, from the numbers colleges publish, split into what your stats already decided and what your application can still change. Then we change it.</p>
-              <div className="mt-8">
-                <OddsStart />
-              </div>
-            </div>
-            <OddsToy />
+          <HeroOdds>
+            <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full bg-[var(--soft)] text-[13px] font-medium text-[var(--soft-ink)]">
+              <i className="w-1.5 h-1.5 rounded-full bg-[var(--soft-ink)]" /> For college applicants and their parents
+            </span>
+            <h1 className="display text-[44px] sm:text-[56px] mt-6">
+              Your real odds.
+              <span className="block text-[var(--headline-2)] [text-wrap:balance]">And the part you can still move.</span>
+            </h1>
+            <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[560px]">Admit odds at every school on your list, from the numbers colleges publish, split into what your stats already decided and what your application can still change. Then we change it.</p>
+          </HeroOdds>
+          <div className="mt-14 border-t border-line pt-6 flex flex-col lg:flex-row lg:items-baseline justify-between gap-x-8 gap-y-2 text-[14px]">
+            <p className="text-ink-2 tnum">{SCHOOLS.map((s) => shortName(s.name)).join(" · ")}</p>
+            <p className="text-ink-3 shrink-0">{PENDING_SCHOOLS.map((s) => shortName(s.name)).join(", ").replace(/, ([^,]*)$/, " and $1")} are next.</p>
           </div>
           <div className="mt-16 sm:mt-20">
             <ProductShot />
-            <p className="caption mt-3 text-center">A sample applicant on a real list. Use the side nav to see each view.</p>
+            <p className="caption mt-3 text-center">A sample applicant on a real list. Switch views in the side nav.</p>
           </div>
         </div>
       </section>
@@ -242,7 +174,7 @@ export default function Home() {
       <section id="how" className="border-t border-line scroll-mt-14">
         <div className="wrap py-20 sm:py-28">
           <p className="kicker">How it works</p>
-          <h2 className="section-title text-[32px] sm:text-[40px] mt-3 max-w-[640px]">From your numbers to a plan.</h2>
+          <h2 className="section-title text-[32px] sm:text-[40px] mt-3 max-w-[640px]">From your numbers to your next draft.</h2>
           <ol className="list-none p-0 m-0 mt-12 grid gap-10 md:grid-cols-2 lg:grid-cols-4 md:gap-8">
             {STEPS.map((s, i) => (
               <li key={s.title} className="border-t border-line pt-6">
@@ -267,25 +199,10 @@ export default function Home() {
           <Feature
             flip
             kicker="Essays"
-            title="Your essay, rewritten from your draft."
-            body="Not a template, and not a stranger's story. We keep your details and most of your sentences, and change what costs you points: the opening, the structure, the lines that could be anyone's."
-            points={["A scored review of every draft, line by line", "Personal statement and every supplement, revised through the cycle", "What changed, and how much stayed yours"]}
-            visual={<EssayCard />}
-          />
-          <Feature
-            kicker="College list, coming next"
-            title="A list built to get you in somewhere you want."
-            body="A list heavy on reaches is how strong applicants end up with no admits. We rebalance it against your odds and show what each change does to your chance of at least one admit."
-            points={["Reaches, targets and likelies, from your numbers", "Swaps and additions, each with its effect", "Re-run when a score or a school changes"]}
-            visual={<ListCard />}
-          />
-          <Feature
-            flip
-            kicker="Deadlines, coming next"
-            title="ED, EA or RD, decided by the numbers."
-            body="The round you apply in can be the largest movable factor on the list. We set one plan across every school, check each school's early rules, and rank what's left by the points it adds."
-            points={["One binding round, chosen where it gains the most", "Early-action rules checked school by school", "Every deadline on one calendar"]}
-            visual={<PlanCard />}
+            title="Your essay, reviewed line by line."
+            body="Not a template, and not a stranger's story. Your draft gets a score, the lines costing you most are marked in place, and each one comes with what to do. Then we rewrite it from your own words."
+            points={["A scored review of every draft", "Personal statement and every supplement, revised through the cycle", "What changed, and how much stayed yours"]}
+            visual={<EssaySample />}
           />
         </div>
       </section>
@@ -334,23 +251,40 @@ export default function Home() {
         <div className="wrap py-20 sm:py-28">
           <div className="text-center">
             <p className="kicker">Pricing</p>
-            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">One price for the cycle.</h2>
-            <p className="text-[16px] text-ink-2 mt-3">Your odds, the split and the top fix are free, with no account. Pay when you want your essays reviewed and rewritten.</p>
+            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Odds are free. Essays are one price.</h2>
+            <p className="text-[16px] text-ink-2 mt-3">Pay once for the cycle, and only when you want your essays reviewed and rewritten.</p>
           </div>
-          <div className="card mt-12 max-w-[440px] mx-auto p-8 shadow-[var(--shadow-lg)]">
-            <div className="text-[14px] font-semibold text-[var(--kicker)]">Essays, reviewed and rewritten</div>
-            <div className="text-[40px] font-semibold tnum mt-3">$299</div>
-            <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3">
-              {INCLUDED.map((f) => (
-                <Check key={f}>
-                  <span className="text-[14px]">{f}</span>
-                </Check>
-              ))}
-            </ul>
-            <Link href="/essay" className="btn btn-primary btn-lg w-full mt-8">
-              Get your essays reviewed
-            </Link>
-            <p className="caption text-center mt-3">Paid once per cycle. No subscription.</p>
+          <div className="mt-12 grid grid-cols-[minmax(0,1fr)] md:grid-cols-2 gap-4 max-w-[880px] mx-auto items-stretch">
+            <div className="card p-8 flex flex-col">
+              <div className="text-[14px] font-semibold text-ink-2">Your odds</div>
+              <div className="text-[40px] font-semibold tnum mt-3">Free</div>
+              <ul className="list-none p-0 m-0 mt-6 mb-8 flex flex-col gap-3">
+                {FREE.map((f) => (
+                  <Check key={f}>
+                    <span className="text-[14px]">{f}</span>
+                  </Check>
+                ))}
+              </ul>
+              <Link href="/#start" className="btn btn-secondary btn-lg w-full mt-auto">
+                See my odds
+              </Link>
+              <p className="caption text-center mt-3">No account, no email.</p>
+            </div>
+            <div className="card p-8 flex flex-col shadow-[var(--shadow-lg)]">
+              <div className="text-[14px] font-semibold text-[var(--kicker)]">Essays, reviewed and rewritten</div>
+              <div className="text-[40px] font-semibold tnum mt-3">$299</div>
+              <ul className="list-none p-0 m-0 mt-6 mb-8 flex flex-col gap-3">
+                {INCLUDED.map((f) => (
+                  <Check key={f}>
+                    <span className="text-[14px]">{f}</span>
+                  </Check>
+                ))}
+              </ul>
+              <Link href="/essay" className="btn btn-primary btn-lg w-full mt-auto">
+                Get your essays reviewed
+              </Link>
+              <p className="caption text-center mt-3">Paid once per cycle. No subscription.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -384,9 +318,9 @@ export default function Home() {
       <section className="border-t border-line wash-bottom">
         <div className="wrap py-20 sm:py-28 flex flex-col items-center text-center">
           <h2 className="section-title text-[32px] sm:text-[40px] max-w-[760px]">See what is still yours to move.</h2>
-          <div className="mt-8 w-full flex justify-center">
-            <OddsStart />
-          </div>
+          <Link href="/#start" className="btn btn-primary btn-lg mt-8">
+            See my odds
+          </Link>
         </div>
       </section>
 
@@ -394,7 +328,7 @@ export default function Home() {
         <div className="wrap py-8 flex flex-col sm:flex-row gap-4 justify-between sm:items-center text-[13px] text-ink-3">
           <div className="flex items-center gap-4">
             <Brand size={12} />
-            <span>© {new Date().getFullYear()} TRND</span>
+            <span>© {new Date().getFullYear()} Admitted</span>
           </div>
           <div className="flex gap-6">
             <Link href="/terms" className="hover:text-ink">

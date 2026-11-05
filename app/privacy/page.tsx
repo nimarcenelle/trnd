@@ -1,6 +1,6 @@
 import LegalShell from "@/components/legal/legal-shell";
 
-export const metadata = { title: "Privacy Policy — Admitted" };
+export const metadata = { title: "Privacy Policy · Admitted" };
 
 export default function PrivacyPage() {
   return (

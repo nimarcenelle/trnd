@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regularRate, satEquivalent, type Profile } from "@/lib/admitted/odds-core";
 import { segments } from "@/lib/admitted/highlight";
+import { atLeastOne, shortName } from "@/lib/admitted/list";
 import { buildReview, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
 import { keptShare, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
 import { admitRate, SCHOOLS } from "@/lib/admitted/schools";
@@ -179,5 +180,17 @@ describe("marking cited lines in a draft", () => {
     const out = segments("one two three", [{ id: "a", quote: "one two" }, { id: "b", quote: "two three" }]);
     expect(out.filter((s) => s.id).map((s) => s.id)).toEqual(["a"]);
     expect(out.map((s) => s.text).join("")).toBe("one two three");
+  });
+});
+
+describe("a list of schools", () => {
+  it("gives the homepage sample's chance of at least one admit", () => {
+    expect(atLeastOne([6, 6, 5, 8])).toBe(23);
+    expect(atLeastOne([6, 6, 5])).toBe(16);
+    expect(atLeastOne([])).toBe(0);
+  });
+  it("shortens school names", () => {
+    expect(SCHOOLS.map((s) => shortName(s.name))).toEqual(expect.arrayContaining(["Harvard", "Dartmouth", "Penn", "UChicago"]));
+    expect(shortName("MIT")).toBe("MIT");
   });
 });

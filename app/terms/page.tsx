@@ -1,6 +1,6 @@
 import LegalShell from "@/components/legal/legal-shell";
 
-export const metadata = { title: "Terms of Service — Admitted" };
+export const metadata = { title: "Terms of Service · Admitted" };
 
 /** Plain-English terms that match what the product does. Have counsel review before scale. */
 export default function TermsPage() {

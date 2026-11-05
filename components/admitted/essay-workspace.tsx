@@ -373,9 +373,11 @@ export default function EssayWorkspace() {
           ) : !review ? (
             <Empty />
           ) : tab === "review" ? (
-            <ReviewPane review={review} active={active} onSelect={select} />
+            <div className="fade-in">
+              <ReviewPane review={review} active={active} onSelect={select} />
+            </div>
           ) : rewrite ? (
-            <RewritePane rewrite={rewrite} revision={revision} busy={Boolean(busy)} onRevise={() => void runRewrite(revision + 1)} onUse={useRewrite} />
+            <RewritePane key={revision} rewrite={rewrite} revision={revision} busy={Boolean(busy)} onRevise={() => void runRewrite(revision + 1)} onUse={useRewrite} />
           ) : (
             <div className="max-w-[440px]">
               <h2 className="text-[16px] font-semibold">Rewrite from this review</h2>

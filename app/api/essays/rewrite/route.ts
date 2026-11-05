@@ -13,7 +13,7 @@ export async function POST(request: Request): Promise<Response> {
   const draft = String(body?.draft ?? "").trim();
   const words = wordCount(draft);
   if (words < 50 || words > 1000) return Response.json({ error: "length" }, { status: 400 });
-  const revision = Math.min(20, Math.max(0, Math.floor(Number(body?.revision) || 0)));
+  const revision = Math.min(500, Math.max(0, Math.floor(Number(body?.revision) || 0)));
   try {
     return Response.json(await rewriteEssay(draft, String(body?.prompt ?? "").trim().slice(0, 500), parseWordLimit(body?.limit), revision, parseAnswers(body?.answers)));
   } catch (err) {

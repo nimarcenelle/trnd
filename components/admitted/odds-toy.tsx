@@ -75,7 +75,7 @@ export default function OddsToy() {
           </li>
         ))}
       </ul>
-      <p className="caption mt-2">Flip a fix to see what it is worth.</p>
+      <p className="caption mt-2">Essays are the biggest lever you still control at {FACTORS.short}. Flip a fix to see what it is worth.</p>
     </div>
   );
 }

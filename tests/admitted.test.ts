@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regularRate, satEquivalent, type Profile } from "@/lib/admitted/odds-core";
 import { segments } from "@/lib/admitted/highlight";
-import { atLeastOne, shortName } from "@/lib/admitted/list";
+import { shortName } from "@/lib/admitted/list";
+import { parseSchoolRequest } from "@/lib/admitted/school-request";
 import { buildReview, maxNotes, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
 import { answersText, bestAttempt, keptShare, parseAnswers, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
+import { APPLICANTS } from "@/components/admitted/sample";
 import { admitRate, SCHOOLS } from "@/lib/admitted/schools";
 import { isSealed, seal, unseal } from "@/lib/admitted/seal";
 
@@ -186,11 +188,6 @@ describe("marking cited lines in a draft", () => {
 });
 
 describe("a list of schools", () => {
-  it("gives the homepage sample's chance of at least one admit", () => {
-    expect(atLeastOne([6, 6, 5, 8])).toBe(23);
-    expect(atLeastOne([6, 6, 5])).toBe(16);
-    expect(atLeastOne([])).toBe(0);
-  });
   it("shortens school names", () => {
     expect(SCHOOLS.map((s) => shortName(s.name))).toEqual(expect.arrayContaining(["Harvard", "Dartmouth", "Penn", "UChicago"]));
     expect(shortName("MIT")).toBe("MIT");
@@ -236,5 +233,27 @@ describe("schools without an early round or test scores", () => {
     const low = calculateOdds(p(3.7, 1100), ucla);
     expect(low.odds).toBe(calculateOdds(p(3.7, 1590), ucla).odds);
     expect(low.fixes.some((f) => f.label.startsWith("Apply"))).toBe(false);
+  });
+});
+
+describe("a school request", () => {
+  it("needs a school and a real-looking email", () => {
+    expect(parseSchoolRequest(" Ohio  State ", " Me@Example.com ")).toEqual({ school: "Ohio State", email: "me@example.com" });
+    expect(parseSchoolRequest("", "me@example.com")).toBeNull();
+    expect(parseSchoolRequest("Ohio State", "nope")).toBeNull();
+  });
+});
+
+describe("the public samples", () => {
+  it("never show a free lever above essays, and match the calculation", () => {
+    for (const a of APPLICANTS)
+      for (const row of a.schools) {
+        const school = SCHOOLS.find((s) => s.name === row.name)!;
+        const live = calculateOdds(parseProfile(a.gpa, a.test.replace("SAT ", ""))!, school);
+        expect([live.odds, live.withFixes, live.locked, live.movable]).toEqual([row.odds, row.withFixes, row.locked, row.movable]);
+        const essays = live.fixes.find((f) => f.label === "Strengthen your essays")!;
+        expect(essays.gain).toBe(row.fix.gain);
+        for (const f of live.fixes) expect(essays.gain).toBeGreaterThanOrEqual(f.gain);
+      }
   });
 });

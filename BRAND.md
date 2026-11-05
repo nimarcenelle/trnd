@@ -19,8 +19,8 @@ the same change.
 - **No pressure.** No countdown timers, testimonial walls, urgency banners or "spots left". The product never scolds;
   it quantifies and offers the fix.
 - **Checkable.** Every school figure comes from that school's own Common Data Set and points at its section. Odds are calculated from those
-  figures in `lib/admitted/odds-core.ts`; the model only words the fixes. The homepage sample in
-  `components/admitted/sample.ts` must match what the live tool returns for GPA 3.95, SAT 1530.
+  figures in `lib/admitted/odds-core.ts`; the model only words the fixes. The homepage samples in
+  `components/admitted/sample.ts` must match what the live tool returns for those applicants.
 - **Essay scores are calculated.** A model grades six criteria on described bands, three reads averaged, in
   `lib/admitted/review-core.ts`. Every line a review cites must exist in the essay. A rewrite that scores lower than its
   draft gets one more try. Every rewrite is shown with its score change, green only when the score rose. Before a rewrite the student can answer the review's fixes; those answers count as their own material.
@@ -64,6 +64,8 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
   the covered schools, four numbered "How it works" columns on hairlines, alternating text/card feature rows with green checks,
   each card on a tinted panel (`.stage`), **exactly one** deep navy rounded band ("Where the numbers come from", with a sample
   number traced to its Common Data Set sections), free and paid pricing cards, plus-accordion FAQ, minimal footer.
+- Public page numbers: percent odds per school and +N points per fix, nothing else. The essay score lives inside the paid
+  workspace only. In samples, essays must lead or tie the largest lever, using real results (`tests/admitted.test.ts` checks it).
 - Only sell what exists. A feature joins the page and the price list when it ships.
 - The essay page is a workspace, not a marketing page: its own slim bar, the draft on the left with cited lines marked, results
   on the right.

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { IconArrowRight, IconCheck } from "@/components/icons";
-import { atLeastOne, shortName } from "@/lib/admitted/list";
+import { shortName } from "@/lib/admitted/list";
 import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 
 import OddsTable from "./odds-table";
@@ -141,18 +141,14 @@ export default function HeroOdds({ children }: { children: ReactNode }) {
             <h2 className="section-title text-[32px]">Your odds</h2>
             <span className="text-[13px] text-ink-3 tnum">{profile}</span>
           </div>
-          <OddsTable
-            rows={rows.map((r) => ({ key: r.schoolId, name: r.school.name, odds: r.odds, withFixes: r.withFixes, locked: r.locked, movable: r.movable, fix: r.fixes[0], source: { href: r.school.source, edition: r.school.edition } }))}
-            list={atLeastOne(rows.map((r) => r.odds))}
-            avgMovable={Math.round(rows.reduce((sum, r) => sum + r.movable, 0) / rows.length)}
-          />
+          <OddsTable rows={rows.map((r) => ({ key: r.schoolId, name: r.school.name, odds: r.odds, withFixes: r.withFixes, locked: r.locked, movable: r.movable, fix: r.fixes[0], source: { href: r.school.source, edition: r.school.edition } }))} />
           <div className="card mt-3 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-band border-band-line">
             <div>
               <p className="text-[16px] font-semibold text-band-ink">Your essays are part of what still moves.</p>
-              <p className="text-[14px] text-band-ink-3 mt-0.5">A scored review of every draft, and a rewrite from your own words.</p>
+              <p className="text-[14px] text-band-ink-3 mt-0.5">A line-by-line review of every draft, and a rewrite in your voice.</p>
             </div>
             <Link href="/essay" className="btn btn-lg shrink-0 !bg-bg !text-ink">
-              Get your essays reviewed · $299
+              Fix the movable part · $299
             </Link>
           </div>
         </div>

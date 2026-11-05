@@ -8,7 +8,7 @@ export default function PrivacyPage() {
       <h2>What we collect</h2>
       <p>
         The GPA, test score and schools you enter for odds, without an account or your name. If you buy essay review, the essays
-        and prompts you submit. Stripe handles payment and collects your email and card details; we never see your card number.
+        and prompts you submit. If you request a school, that school and your email, used only to tell you when it opens. Stripe handles payment and collects your email and card details; we never see your card number.
       </p>
 
       <h2>How your essays are stored</h2>

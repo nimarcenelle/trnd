@@ -3,6 +3,7 @@ import Link from "next/link";
 import EssaySample from "@/components/admitted/essay-sample";
 import HeroOdds from "@/components/admitted/hero-odds";
 import ProductShot from "@/components/admitted/product-shot";
+import RequestSchool from "@/components/admitted/request-school";
 import { FACTORS, SOURCES } from "@/components/admitted/sample";
 import { SplitBar, SplitLegend } from "@/components/admitted/split";
 import Brand from "@/components/brand";
@@ -23,14 +24,9 @@ const PROOF = [
   { value: "0", label: "numbers from surveys or forum posts" },
 ];
 
-const FREE = ["Odds at every school on your list", "Each number split into locked and movable", "The top fix at each school, sized in points", "Every school linked to its source"];
+const FREE = ["Per-school odds with sources", "Locked and movable split", "Your top fix, named"];
 
-const INCLUDED = [
-  "A scored review of every draft, line by line",
-  "Essays rewritten from your drafts, with revisions through the cycle",
-  "Personal statement and every supplement",
-  "What changed, and how much stayed yours",
-];
+const INCLUDED = ["Line-by-line review of your draft", "Rewrite in your voice", "Unlimited revisions through the cycle", "Re-run odds whenever your numbers change"];
 
 const FAQ = [
   {
@@ -50,8 +46,8 @@ const FAQ = [
     a: "No. They are the published numbers applied to your profile. People read applications, and no tool can promise an admit.",
   },
   {
-    q: "How is an essay scored?",
-    a: "AI reads your draft against six criteria: whether only you could have written it, whether it sounds like a person, how it shows your thinking, its opening, its length and whether it answers the prompt. The score is calculated from those grades, and the same draft always gets the same result.",
+    q: "How does the essay review work?",
+    a: "AI reads your draft line by line, marks what costs you most, and says what to do about each line. Then it asks you for the details only you know and rewrites from those and your draft, in your voice. The same draft always gets the same result.",
   },
   {
     q: "Who sees my essays?",
@@ -113,21 +109,20 @@ function SplitCard() {
         </div>
         <SplitLegend className="mt-1" />
       </div>
-      <SplitBar className="mt-4 !h-2" locked={36} movable={64} />
+      <SplitBar className="mt-4 !h-2" locked={62} movable={38} />
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <div>
-          <div className="text-[12px] font-medium text-ink-3">Locked · 36%</div>
+          <div className="text-[12px] font-medium text-ink-3">Locked</div>
           <ul className="list-none p-0 m-0 mt-2 flex flex-col gap-2 text-[13px]">
             {FACTORS.locked.map((f) => (
-              <li key={f.label} className="flex justify-between gap-3">
-                <span className="text-ink-2">{f.label}</span>
-                <span className="tnum text-ink-3">{f.share}</span>
+              <li key={f} className="text-ink-2">
+                {f}
               </li>
             ))}
           </ul>
         </div>
         <div>
-          <div className="text-[12px] font-medium text-brand">Movable · 64%</div>
+          <div className="text-[12px] font-medium text-brand">Movable</div>
           <ul className="list-none p-0 m-0 mt-2 flex flex-col gap-2 text-[13px]">
             {FACTORS.movable.map((f) => (
               <li key={f.label} className="flex justify-between gap-3">
@@ -164,9 +159,10 @@ export default function Home() {
             <p className="text-ink-2 tnum">{SCHOOLS.map((s) => shortName(s.name)).join(" · ")}</p>
             <p className="text-ink-3 shrink-0">{PENDING_SCHOOLS.map((s) => shortName(s.name)).join(", ").replace(/, ([^,]*)$/, " and $1")} are next.</p>
           </div>
+          <RequestSchool />
           <div className="mt-16 sm:mt-20">
             <ProductShot />
-            <p className="caption mt-3 text-center">A sample applicant on a real list. Switch views in the side nav.</p>
+            <p className="caption mt-3 text-center">Two sample applicants on real lists. Switch applicant or view in the side nav.</p>
           </div>
         </div>
       </section>
@@ -193,15 +189,15 @@ export default function Home() {
             kicker="Odds"
             title="Every number, split in two."
             body="Odds at each school, from the ranges that school publishes. Then the split: how much your stats already decided, how much is still yours to move, and what each movable factor is worth."
-            points={["Odds per school, with the source one click away", "Locked and movable, as shares of the number", "Each movable factor sized in points"]}
+            points={["Odds per school, with the source one click away", "Locked and movable, split on one bar", "Each movable factor sized in points"]}
             visual={<SplitCard />}
           />
           <Feature
             flip
             kicker="Essays"
             title="Your essay, reviewed line by line."
-            body="Not a template, and not a stranger's story. Your draft gets a score, the lines costing you most are marked in place, and each one comes with what to do. Then we rewrite it from your own words."
-            points={["A scored review of every draft", "Personal statement and every supplement, revised through the cycle", "What changed, and how much stayed yours"]}
+            body="Not a template, and not a stranger's story. The lines costing you most are marked in place, each with what to do. You add the details only you know, and we rewrite it in your voice."
+            points={["A line-by-line review of every draft", "Personal statement and every supplement, revised through the cycle", "What changed, and how much stayed yours"]}
             visual={<EssaySample />}
           />
         </div>
@@ -232,7 +228,7 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-                <p className="text-[12px] text-band-ink-3 mt-3">Published by Dartmouth. Section numbers on the right.</p>
+                <p className="text-[12px] text-band-ink-3 mt-3">Published by {SOURCES.short}. Section numbers on the right.</p>
               </div>
             </div>
             <div className="mt-12 grid gap-3 grid-cols-[minmax(0,1fr)] sm:grid-cols-2">
@@ -256,7 +252,7 @@ export default function Home() {
           </div>
           <div className="mt-12 grid grid-cols-[minmax(0,1fr)] md:grid-cols-2 gap-4 max-w-[880px] mx-auto items-stretch">
             <div className="card p-8 flex flex-col">
-              <div className="text-[14px] font-semibold text-ink-2">Your odds</div>
+              <div className="text-[14px] font-semibold text-ink-2">Odds</div>
               <div className="text-[40px] font-semibold tnum mt-3">Free</div>
               <ul className="list-none p-0 m-0 mt-6 mb-8 flex flex-col gap-3">
                 {FREE.map((f) => (
@@ -271,8 +267,9 @@ export default function Home() {
               <p className="caption text-center mt-3">No account, no email.</p>
             </div>
             <div className="card p-8 flex flex-col shadow-[var(--shadow-lg)]">
-              <div className="text-[14px] font-semibold text-[var(--kicker)]">Essays, reviewed and rewritten</div>
+              <div className="text-[14px] font-semibold text-[var(--kicker)]">Essays</div>
               <div className="text-[40px] font-semibold tnum mt-3">$299</div>
+              <p className="text-[13px] text-ink-2 mt-1">Pay once per cycle. No subscription. Full refund within 14 days.</p>
               <ul className="list-none p-0 m-0 mt-6 mb-8 flex flex-col gap-3">
                 {INCLUDED.map((f) => (
                   <Check key={f}>
@@ -281,9 +278,9 @@ export default function Home() {
                 ))}
               </ul>
               <Link href="/essay" className="btn btn-primary btn-lg w-full mt-auto">
-                Get your essays reviewed
+                Fix the movable part
               </Link>
-              <p className="caption text-center mt-3">Paid once per cycle. No subscription.</p>
+              <p className="caption text-center mt-3">Pay once. No subscription.</p>
             </div>
           </div>
         </div>

@@ -12,7 +12,7 @@ import { env, isEssayOpen } from "@/lib/env";
 
 export const metadata = { title: "Essays · Admitted" };
 
-const INCLUDED = ["A scored review of every draft, with the weak lines marked", "A rewrite from your own draft, and revisions through the cycle", "Personal statement and every supplement"];
+const INCLUDED = ["Line-by-line review of your draft", "Rewrite in your voice", "Unlimited revisions through the cycle", "Re-run odds whenever your numbers change"];
 
 export default async function EssayPage({ searchParams }: PageProps<"/essay">) {
   if (!isEssayOpen) notFound();
@@ -44,14 +44,15 @@ export default async function EssayPage({ searchParams }: PageProps<"/essay">) {
             <div>
               <p className="kicker">Essays</p>
               <h1 className="section-title text-[32px] sm:text-[40px] mt-3">Your essay, reviewed line by line.</h1>
-              <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[480px]">A score, the lines costing you most marked in your draft, and what to do about each one.</p>
+              <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[480px]">The lines costing you most, marked in your draft, with what to do about each one. Then a rewrite in your voice.</p>
               <div className="mt-8">
                 <EssaySample />
               </div>
             </div>
             <div className="card p-8 shadow-[var(--shadow-lg)]">
-              <div className="text-[14px] font-semibold text-[var(--kicker)]">Essays, reviewed and rewritten</div>
+              <div className="text-[14px] font-semibold text-[var(--kicker)]">Essays</div>
               <div className="text-[40px] font-semibold tnum mt-3 leading-none">$299</div>
+              <p className="text-[13px] text-ink-2 mt-2">Pay once per cycle. No subscription. Full refund within 14 days.</p>
               <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3 text-[14px]">
                 {INCLUDED.map((item) => (
                   <li key={item} className="flex gap-2.5">
@@ -62,10 +63,10 @@ export default async function EssayPage({ searchParams }: PageProps<"/essay">) {
               </ul>
               <form action="/api/essays/checkout" method="post">
                 <button className="btn btn-primary btn-lg w-full mt-8" type="submit">
-                  Pay $299
+                  Fix the movable part
                 </button>
               </form>
-              <p className="caption text-center mt-3">Paid once per cycle. No subscription. Full refund within 14 days.</p>
+              <p className="caption text-center mt-3">Pay once. No subscription.</p>
               <p className="caption text-center mt-1">
                 By paying you agree to the{" "}
                 <Link className="underline hover:text-ink" href="/terms">

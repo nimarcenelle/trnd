@@ -4,11 +4,10 @@ import { useState } from "react";
 
 import Brand from "@/components/brand";
 import { IconEssay, IconOdds } from "@/components/icons";
-import { atLeastOne } from "@/lib/admitted/list";
 
 import EssaySample from "./essay-sample";
 import OddsTable from "./odds-table";
-import { APPLICANT, SCHOOLS } from "./sample";
+import { APPLICANTS } from "./sample";
 
 const TABS = [
   { key: "odds", label: "Odds", icon: IconOdds, path: "" },
@@ -16,11 +15,11 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
-const avgMovable = Math.round(SCHOOLS.reduce((sum, s) => sum + s.movable, 0) / SCHOOLS.length);
-
-/** The product in a browser frame, for a sample applicant on a real list. */
+/** The product in a browser frame, for two sample applicants on real lists. */
 export default function ProductShot() {
   const [tab, setTab] = useState<Tab>("odds");
+  const [who, setWho] = useState(APPLICANTS[0].key);
+  const applicant = APPLICANTS.find((a) => a.key === who)!;
   const current = TABS.find((t) => t.key === tab)!;
   return (
     <div className="rounded-[14px] border border-line-strong bg-bg shadow-[var(--shadow-lg)] overflow-hidden text-left">
@@ -30,16 +29,10 @@ export default function ProductShot() {
         <span className="w-2.5 h-2.5 rounded-full bg-line-strong" />
         <span className="mx-auto h-6 px-3 rounded-md bg-bg border border-line text-[12px] text-ink-3 inline-flex items-center">admitted.usetrnd.com/{current.path}</span>
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] md:grid-cols-[184px_minmax(0,1fr)] md:min-h-[470px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] md:grid-cols-[200px_minmax(0,1fr)] md:min-h-[430px]">
         <aside className="md:border-r border-b md:border-b-0 border-line bg-subtle p-3 flex md:flex-col gap-5">
           <div className="px-2 pt-1 hidden md:block">
             <Brand href={null} size={13} />
-          </div>
-          <div className="px-2 hidden md:block">
-            <div className="text-[13px] font-semibold">{APPLICANT.label}</div>
-            <div className="text-[12px] text-ink-3 tnum">
-              GPA {APPLICANT.gpa} · {APPLICANT.test}
-            </div>
           </div>
           <nav className="flex md:flex-col gap-0.5" aria-label="Sample views">
             {TABS.map(({ key, label, icon: Icon }) => (
@@ -48,12 +41,20 @@ export default function ProductShot() {
               </button>
             ))}
           </nav>
+          <div className="ml-auto md:ml-0 md:mt-auto flex md:flex-col gap-1 min-w-0">
+            <div className="text-[12px] text-ink-3 px-2 hidden md:block">Sample applicant</div>
+            {APPLICANTS.map((a) => (
+              <button key={a.key} type="button" aria-pressed={who === a.key} onClick={() => setWho(a.key)} className={`px-2 py-1.5 rounded-[7px] text-left text-[12px] tnum cursor-pointer border-0 font-[inherit] ${who === a.key ? "bg-[var(--soft)] text-ink font-medium" : "bg-transparent text-ink-2 hover:bg-muted"}`}>
+                {a.gpa} · {a.test}
+              </button>
+            ))}
+          </div>
         </aside>
         <div className="p-5 sm:p-6 min-w-0">
           {tab === "odds" ? (
-            <OddsTable rows={SCHOOLS.map((s) => ({ ...s, key: s.name }))} list={atLeastOne(SCHOOLS.map((s) => s.odds))} avgMovable={avgMovable} />
+            <OddsTable rows={applicant.schools.map((s) => ({ ...s, key: s.name }))} />
           ) : (
-            <div className="flex justify-center md:pt-4">
+            <div className="flex justify-center md:pt-2">
               <EssaySample />
             </div>
           )}

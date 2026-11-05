@@ -25,25 +25,25 @@ export const APPLICANT = {
   cycle: "2027–28 cycle",
   gpa: "3.95",
   test: "SAT 1530",
-  locked: 75,
-  movable: 25,
+  locked: 56,
+  movable: 44,
 };
 
 export const SCHOOLS: SampleSchool[] = [
-  { name: "Harvard University", band: "High reach", odds: 5, withFixes: 9, locked: 75, movable: 25, plan: "RD", due: "Jan 1" },
-  { name: "Yale University", band: "High reach", odds: 6, withFixes: 7, locked: 75, movable: 25, plan: "RD", due: "Jan 2" },
-  { name: "Dartmouth College", band: "Reach", odds: 7, withFixes: 14, locked: 75, movable: 25, plan: "ED", due: "Nov 1" },
-  { name: "Cornell University", band: "Reach", odds: 10, withFixes: 17, locked: 75, movable: 25, plan: "RD", due: "Jan 2" },
+  { name: "Harvard University", band: "High reach", odds: 6, withFixes: 10, locked: 60, movable: 40, plan: "RD", due: "Jan 1" },
+  { name: "Yale University", band: "High reach", odds: 6, withFixes: 10, locked: 60, movable: 40, plan: "RD", due: "Jan 2" },
+  { name: "Dartmouth College", band: "Reach", odds: 5, withFixes: 14, locked: 36, movable: 64, plan: "ED", due: "Nov 1" },
+  { name: "Cornell University", band: "Reach", odds: 8, withFixes: 12, locked: 67, movable: 33, plan: "RD", due: "Jan 2" },
 ];
 
 export type Move = { rank: number; title: string; gain: string; where: string; status: string; tone: "pos" | "warn" | "outline" };
 
 /** The movable part, ranked by points gained. */
 export const MOVES: Move[] = [
-  { rank: 1, title: "Add Cornell, apply RD", gain: "+8", where: "on 1+ admits", status: "Ready", tone: "pos" },
-  { rank: 2, title: "Apply ED to Dartmouth", gain: "+4", where: "at Dartmouth", status: "Due Nov 1", tone: "warn" },
-  { rank: 3, title: "Strengthen your Harvard essays", gain: "+2", where: "at Harvard", status: "Draft ready", tone: "pos" },
-  { rank: 4, title: "Show meaningful community impact", gain: "+1", where: "at Dartmouth", status: "To do", tone: "outline" },
+  { rank: 1, title: "Apply ED to Dartmouth", gain: "+7", where: "at Dartmouth", status: "Due Nov 1", tone: "warn" },
+  { rank: 2, title: "Add Cornell, apply RD", gain: "+7", where: "on 1+ admits", status: "Ready", tone: "pos" },
+  { rank: 3, title: "Make your community essays more personal", gain: "+1", where: "at Dartmouth", status: "Draft ready", tone: "pos" },
+  { rank: 4, title: "Highlight initiative beyond titles", gain: "+1", where: "at Yale", status: "To do", tone: "outline" },
 ];
 
 /**
@@ -52,17 +52,17 @@ export const MOVES: Move[] = [
  */
 export const FACTORS = {
   school: "Dartmouth College",
-  odds: 7,
+  odds: 5,
   withFixes: 14,
   locked: [
-    { label: "SAT 1530 vs. middle 50% 1440–1550", share: 40 },
-    { label: "GPA 3.95, as reported", share: 25 },
-    { label: "Course rigor, as reported", share: 10 },
+    { label: "SAT 1530 vs. middle 50% 1440–1550", share: 18 },
+    { label: "GPA 3.95, as reported", share: 12 },
+    { label: "Course rigor, as reported", share: 6 },
   ],
   movable: [
-    { label: "Round: ED instead of RD", share: 14, gain: 4 },
-    { label: "Strengthen essays", share: 7, gain: 2 },
-    { label: "Show meaningful community impact", share: 4, gain: 1 },
+    { label: "Round: ED instead of RD", share: 50, gain: 7 },
+    { label: "Make your community essays more personal", share: 7, gain: 1 },
+    { label: "Emphasize collaboration and contribution", share: 7, gain: 1 },
   ],
 };
 

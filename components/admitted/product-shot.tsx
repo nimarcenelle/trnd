@@ -120,7 +120,7 @@ function OddsView() {
         {[
           ["Locked", `${APPLICANT.locked}%`, "text-ink", "set by GPA and scores"],
           ["Movable", `${APPLICANT.movable}%`, "text-brand", "your application decides"],
-          ["Top fix", "+8 pts", "text-ink", "Add Cornell, apply RD"],
+          ["Top fix", "+7 pts", "text-ink", "Apply ED to Dartmouth"],
         ].map(([l, v, c, cap]) => (
           <div key={l} className="card px-3 py-2.5">
             <div className="text-[11px] text-ink-2">{l}</div>
@@ -183,7 +183,7 @@ function EssaysView() {
         {[
           ["Words", ESSAY.words],
           ["Your sentences kept", `${ESSAY.kept}%`],
-          ["Points gained", "+2 at Dartmouth"],
+          ["Points gained", "+1 at Dartmouth"],
         ].map(([l, v]) => (
           <div key={l} className="card px-3 py-2.5">
             <div className="text-[11px] text-ink-2">{l}</div>
@@ -214,7 +214,7 @@ function ListView() {
       <div className="mt-4 card px-3.5 py-3 flex items-baseline justify-between gap-3">
         <div className="text-[12px] text-ink-2">Chance of at least one admit</div>
         <div className="tnum text-[13px]">
-          <span className="text-ink-3">17%</span> → <span className="font-semibold text-brand text-[16px]">25%</span>
+          <span className="text-ink-3">16%</span> → <span className="font-semibold text-brand text-[16px]">23%</span>
         </div>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">

@@ -18,8 +18,9 @@ the same change.
 - **Not beige.** Neutrals lean cool, toward navy, never yellow or tan.
 - **No pressure.** No countdown timers, testimonial walls, urgency banners or "spots left". The product never scolds;
   it quantifies and offers the fix.
-- **Checkable.** Every school figure comes from that school's own Common Data Set and points at its section. The sample
-  applicant's odds and points live in `components/admitted/sample.ts`, on real schools.
+- **Checkable.** Every school figure comes from that school's own Common Data Set and points at its section. Odds are calculated from those
+  figures in `lib/admitted/odds-core.ts`; the model only words the fixes. The homepage sample in
+  `components/admitted/sample.ts` must match what the live tool returns for GPA 3.95, SAT 1530.
 - **Light by default**, with a dark theme from the toggle (`[data-theme="dark"]`).
 
 ## Wordmark
@@ -64,7 +65,7 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
 
 ## Voice
 
-- Short declaratives. "75% of this is locked. 25% is movable." Not "unlock your dream school".
-- Give the number and its unit: "+4 pts at Dartmouth", "chance of at least one admit: 17% → 25%".
+- Short declaratives. "36% of this is locked. 64% is movable." Not "unlock your dream school".
+- Give the number and its unit: "+7 pts at Dartmouth", "chance of at least one admit: 16% → 23%".
 - Never promise an admit. Odds say how sure they are.
 - No hype words: no "unlock", "supercharge", "AI-powered", "magic", "dream school", "guaranteed".

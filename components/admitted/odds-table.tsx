@@ -1,6 +1,6 @@
 import { SplitBar, SplitLegend } from "./split";
 
-export type OddsRow = { key: string; name: string; odds: number; withFixes: number; locked: number; movable: number; fix?: { label: string; gain: number }; source?: { href: string; edition: string } };
+export type OddsRow = { key: string; name: string; odds: number; withFixes: number; locked: number; movable: number; fix?: { label: string; gain: number }; source?: { href: string; edition: string }; note?: string };
 
 /** One row per school: odds, the split, and the top fix in points. The live results and the sample are the same view. */
 export default function OddsTable({ rows }: { rows: OddsRow[] }) {
@@ -35,6 +35,7 @@ export default function OddsTable({ rows }: { rows: OddsRow[] }) {
                     {r.fix.label} <span className="tnum font-medium text-brand whitespace-nowrap">+{r.fix.gain} pts</span>
                   </div>
                 )}
+                {r.note && <div className="text-[12px] text-ink-3 mt-0.5">{r.note}</div>}
               </td>
               <td className="!px-4 !py-3 text-right tnum font-semibold">{r.odds}%</td>
               <td className="!px-4 !py-3 hidden md:table-cell">

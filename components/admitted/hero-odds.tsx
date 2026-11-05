@@ -10,7 +10,7 @@ import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 import OddsTable from "./odds-table";
 import OddsToy from "./odds-toy";
 
-type Row = { schoolId: string; odds: number; withFixes: number; locked: number; movable: number; fixes: { label: string; gain: number }[]; school: { name: string; edition: string; source: string } };
+type Row = { schoolId: string; odds: number; withFixes: number; locked: number; movable: number; fixes: { label: string; gain: number }[]; school: { name: string; edition: string; source: string; satNote?: string } };
 type Reply = { results: Row[]; pending: string[]; unknown: string[] };
 
 function SchoolPicker({ picked, toggle, setAll }: { picked: string[]; toggle: (name: string) => void; setAll: (names: string[]) => void }) {
@@ -141,7 +141,7 @@ export default function HeroOdds({ children }: { children: ReactNode }) {
             <h2 className="section-title text-[32px]">Your odds</h2>
             <span className="text-[13px] text-ink-3 tnum">{profile}</span>
           </div>
-          <OddsTable rows={rows.map((r) => ({ key: r.schoolId, name: r.school.name, odds: r.odds, withFixes: r.withFixes, locked: r.locked, movable: r.movable, fix: r.fixes[0], source: { href: r.school.source, edition: r.school.edition } }))} />
+          <OddsTable rows={rows.map((r) => ({ key: r.schoolId, name: r.school.name, odds: r.odds, withFixes: r.withFixes, locked: r.locked, movable: r.movable, fix: r.fixes[0], source: { href: r.school.source, edition: r.school.edition }, note: r.school.satNote }))} />
           <div className="card mt-3 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-band border-band-line">
             <div>
               <p className="text-[16px] font-semibold text-band-ink">Your essays are part of what still moves.</p>

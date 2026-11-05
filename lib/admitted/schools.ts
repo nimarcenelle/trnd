@@ -20,6 +20,8 @@ export type School = {
   sat75: number | null;
   regularDeadline: string | null;
   note?: string;
+  /** Shown beside the odds when the score range is older than the rest of the school's figures. */
+  satNote?: string;
 };
 
 export const SCHOOLS: School[] = [
@@ -51,6 +53,7 @@ export const SCHOOLS: School[] = [
   { id: "pennstate", name: "Penn State University Park", aliases: ["penn state", "penn state university", "penn state university park", "penn state up", "pennsylvania state university"], edition: "2025–26", source: "https://opair.psu.edu/files/2026/09/CDS_2025_2026_UniversityPark_v3.pdf", applicants: 106547, admitted: 58952, early: { plan: "EA", closes: "Nov 1", applicants: null, admitted: null }, sat: "1280–1410", sat25: 1280, sat75: 1410, regularDeadline: null },
   { id: "tamu", name: "Texas A&M University", aliases: ["texas a&m", "tamu", "texas a and m", "texas am", "texas a&m university", "texas a&m college station"], edition: "2025–26", source: "https://abpa.tamu.edu/accountability-rankings/common-data-set.html", applicants: 62967, admitted: 32531, early: { plan: "EA", closes: "Oct 15", applicants: null, admitted: null }, sat: "1160–1390", sat25: 1160, sat75: 1390, regularDeadline: "Dec 1" },
   { id: "notredame", name: "University of Notre Dame", aliases: ["notre dame", "university of notre dame", "notre dame university"], edition: "2025–26", source: "https://drive.google.com/file/d/1jFtuEmv7OPCTq9e8kD90I7CByERcMBty/view", applicants: 35401, admitted: 3320, early: { plan: "REA", closes: "Nov 1", applicants: null, admitted: null }, sat: "1460–1540", sat25: 1460, sat75: 1540, regularDeadline: "Jan 2" },
+  { id: "utaustin", name: "University of Texas at Austin", aliases: ["ut austin", "ut-austin", "utexas", "university of texas", "university of texas at austin", "texas austin"], edition: "2025–26", source: "https://utexas.box.com/s/z5p8zzbr6yk4eluam3v3dt2wyaha3cja", applicants: 90690, admitted: 20154, early: null, sat: "1220–1450", sat25: 1220, sat75: 1450, regularDeadline: "Dec 1", satNote: "SAT range from 2020–21, UT's newest published" },
 ];
 
 export const PENDING_SCHOOLS: { name: string; aliases: string[] }[] = [
@@ -59,7 +62,6 @@ export const PENDING_SCHOOLS: { name: string; aliases: string[] }[] = [
   { name: "MIT", aliases: ["mit", "massachusetts institute of technology"] },
   { name: "Johns Hopkins University", aliases: ["johns hopkins", "hopkins", "jhu"] },
   { name: "University of Virginia", aliases: ["uva", "university of virginia"] },
-  { name: "University of Texas at Austin", aliases: ["ut austin", "university of texas at austin"] },
 ];
 
 export const admitRate = (s: School) => (s.admitted / s.applicants) * 100;

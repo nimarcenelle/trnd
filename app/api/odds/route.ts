@@ -14,7 +14,7 @@ export async function POST(request: Request): Promise<Response> {
   const { found, pending, unknown } = matchSchools(String(body?.schools ?? ""));
   try {
     const results = found.length ? await oddsFor(profile, found) : [];
-    const names = Object.fromEntries(SCHOOLS.map((s) => [s.id, { name: s.name, sat: s.sat, edition: s.edition, source: s.source }]));
+    const names = Object.fromEntries(SCHOOLS.map((s) => [s.id, { name: s.name, sat: s.sat, edition: s.edition, source: s.source, satNote: s.satNote }]));
     return Response.json({ results: results.map((r) => ({ ...r, school: names[r.schoolId] })), pending, unknown });
   } catch (err) {
     console.error("[odds]", err);

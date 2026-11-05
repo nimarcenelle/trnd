@@ -17,7 +17,7 @@ describe("schools", () => {
   it("carries the published rates", () => {
     expect(admitRate(dartmouth).toFixed(1)).toBe("6.0");
     expect(admitRate(SCHOOLS.find((s) => s.id === "stanford")!).toFixed(1)).toBe("3.8");
-    expect(new Set(SCHOOLS.map((s) => s.id)).size).toBe(28);
+    expect(new Set(SCHOOLS.map((s) => s.id)).size).toBe(29);
   });
 });
 

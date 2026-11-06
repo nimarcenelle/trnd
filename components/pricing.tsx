@@ -60,8 +60,11 @@ export default function Pricing({
   checkout,
   start = "#start",
   current,
+  soon = false,
 }: {
   checkout?: (formData: FormData) => void | Promise<void>;
+  /** Signed in, but checkout isn't open yet (the new prices aren't set): the button says so instead of failing. */
+  soon?: boolean;
   /** Where the landing page's buttons go: the handle box. */
   start?: string;
   /** The signed-in account's tier, to mark its card. */
@@ -105,7 +108,7 @@ export default function Pricing({
             <span className="display text-[34px] tnum">$0</span>
             <span className="text-ink-2 text-[14px]">no card</span>
           </div>
-          {checkout ? (
+          {checkout || soon ? (
             <span className="btn w-full pointer-events-none opacity-70">{current === "free" ? "Your plan" : "Included"}</span>
           ) : (
             <a href={start} className="btn w-full">
@@ -136,11 +139,13 @@ export default function Pricing({
                 <div className="caption mt-1 min-h-[18px]">{period === "year" ? `${yearlyPerMonth(t)}/mo · ${yearlyVsMonthly(t)}` : `or ${money(info.year)}/year`}</div>
               </div>
               {info.available ? (
-                checkout ? (
-                  current === t ? (
+                checkout || soon ? (
+                  soon ? (
+                    <span className="btn w-full pointer-events-none opacity-70">Opening soon</span>
+                  ) : current === t ? (
                     <span className="btn w-full pointer-events-none opacity-70">Your plan</span>
                   ) : (
-                    <form action={checkout}>
+                    <form action={checkout!}>
                       <input type="hidden" name="period" value={period} />
                       <input type="hidden" name="from" value="pricing" />
                       <SubmitButton className={`btn w-full ${main ? "btn-primary" : ""}`} pending="Opening checkout…">
@@ -169,8 +174,8 @@ export default function Pricing({
             <span className="text-ink font-medium">{ADDONS[a].name}</span> · {money(ADDONS[a].price)} · {ADDONS[a].blurb}
           </span>
         ))}
-        <a href={checkout ? "/app/settings#add-ons" : start} className="text-brand font-medium">
-          {checkout ? "Buy an add-on" : "Start with your handle"}
+        <a href={checkout || soon ? "/app/settings#add-ons" : start} className="text-brand font-medium">
+          {checkout || soon ? "Buy an add-on" : "Start with your handle"}
         </a>
       </div>
       <p className="caption text-center m-0">Cancel anytime. Refund within 14 days if it isn&apos;t for you.</p>

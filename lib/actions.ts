@@ -15,7 +15,7 @@ import { scanCreator } from "@/lib/creators/scan";
 import { getCreator } from "@/lib/data";
 import { adminSupabase, createServerSupabase } from "@/lib/db/supabase";
 import { MAX_PEERS, type Goal, type Goals, type Plan, type Video } from "@/lib/db/types";
-import { env, isStripeConfigured } from "@/lib/env";
+import { env, isCheckoutReady } from "@/lib/env";
 import { logEvent } from "@/lib/events";
 import { isScanning } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
@@ -228,7 +228,7 @@ export async function disconnectTiktokAction(): Promise<void> {
 
 export async function checkoutAction(formData: FormData): Promise<void> {
   const { user, creator } = await requireCreator();
-  if (!creator || !isStripeConfigured) redirect("/app/settings");
+  if (!creator || !isCheckoutReady) redirect("/app/welcome?step=trial&checkout=soon");
   // Yearly unless monthly was picked: the toggle defaults to yearly everywhere.
   const period = formData.get("period") === "month" ? "month" : "year";
   await logEvent("checkout_started", { creatorId: creator.id, meta: { tier: "creator", period, from: String(formData.get("from") ?? "") } });

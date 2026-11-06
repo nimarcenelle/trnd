@@ -12,7 +12,7 @@ import { FREE_MONTH_DAYS, freeMonthFor } from "@/lib/referrals";
 let client: Stripe | null = null;
 
 export function getStripe(): Stripe {
-  if (!isStripeConfigured) throw new Error("Stripe is not configured: set STRIPE_SECRET_KEY, STRIPE_PRICE_CREATOR_MONTHLY and STRIPE_PRICE_CREATOR_YEARLY.");
+  if (!isStripeConfigured) throw new Error("Stripe is not configured: set STRIPE_SECRET_KEY and STRIPE_PRICE_CREATOR_MONTHLY / _YEARLY.");
   client ??= new Stripe(env.stripeSecretKey);
   return client;
 }

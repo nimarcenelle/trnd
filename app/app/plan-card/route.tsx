@@ -11,7 +11,9 @@ export async function GET(): Promise<Response> {
   const creator = await getCreator(user.id);
   const [latest] = creator ? await listPlans(creator.id, 1) : [];
   if (!creator || !latest) return new Response("No plan yet", { status: 404 });
-  const link = referralUrl(await referralCode(creator));
+  const link = await referralCode(creator)
+    .then(referralUrl)
+    .catch(() => process.env.NEXT_PUBLIC_SITE_URL || "https://creators.usetrnd.com");
   await logEvent("share_card", { creatorId: creator.id, meta: { plan: latest.id, from: "plan" } });
   const img = planCard({ handle: creator.handle, hooks: latest.body.ideas.map((i) => i.hook), link });
   const headers = new Headers(img.headers);

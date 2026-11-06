@@ -5,7 +5,9 @@ import Avatar from "@/components/app/avatar";
 import DiagnosisCard from "@/components/app/diagnosis-card";
 import Locked from "@/components/app/locked";
 import SubmitButton from "@/components/app/submit-button";
-import Brand from "@/components/brand";
+import FunnelShell, { StepNo } from "@/components/preview/funnel-shell";
+import Cover from "@/components/preview/cover";
+import KeyChoices from "@/components/preview/key-choices";
 import PreviewRunner from "@/components/preview/runner";
 import StartForm from "@/components/preview/start-form";
 import { yearlyPerMonth } from "@/lib/billing";
@@ -28,42 +30,38 @@ const LETTERS = "ABCDEFGH";
  * with their videos. The diagnosis shows that something is wrong and how much;
  * what it is stays locked until they sign up and pay.
  */
-function Shell({ step, wide = false, children }: { step: number; wide?: boolean; children: React.ReactNode }) {
-  return (
-    <div className="min-h-dvh flex flex-col">
-      <div className="h-1 bg-muted">
-        <div className="h-full bg-brand transition-[width] duration-500" style={{ width: `${(step / 4) * 100}%` }} />
-      </div>
-      <header className="wrap flex items-center justify-between h-14">
-        <Brand />
-        <Link href="/login" className="btn btn-ghost btn-sm">
-          Sign in
-        </Link>
-      </header>
-      <main className={`flex-1 ${wide ? "wrap pt-6 sm:pt-10 pb-[calc(8rem+env(safe-area-inset-bottom))]" : "grid items-center"}`}>
-        {wide ? children : <div className="rise wrap max-w-[680px] py-10">{children}</div>}
-      </main>
-    </div>
-  );
-}
-
-function StepNo({ n }: { n: number }) {
-  return <div className="text-[13px] text-brand font-medium tnum mb-3">{n} → 4</div>;
-}
-
 function Who({ p }: { p: Preview }) {
   const a = p.author;
+  const covers = p.videos.map((v) => v.storedCover || v.coverUrl).filter((u): u is string => Boolean(u)).slice(0, 4);
+  const stats = [
+    ["Followers", a?.followers],
+    ["Likes", a?.hearts],
+    ["Videos", a?.videos],
+  ] as const;
   return (
-    <div className="flex items-center gap-3.5 min-w-0">
-      <Avatar name={p.handle} size={56} />
-      <div className="min-w-0">
-        <div className="text-[19px] font-bold leading-tight">{a?.displayName || `@${p.handle}`}</div>
-        <div className="text-ink-2 text-[14.5px]">
-          @{p.handle}
-          {a?.followers !== null && a?.followers !== undefined ? ` · ${compact(a.followers)} followers` : ""}
-          {a?.videos ? ` · ${compact(a.videos)} videos` : ""}
+    <div className="card p-5 sm:p-6 grid gap-5 max-w-[560px]">
+      <div className="flex items-center gap-4 min-w-0">
+        <Avatar name={p.handle} size={64} />
+        <div className="min-w-0">
+          <div className="text-[20px] font-bold leading-tight truncate">{a?.displayName || `@${p.handle}`}</div>
+          <div className="text-ink-2 text-[15px]">@{p.handle}</div>
         </div>
       </div>
+      <div className="grid grid-cols-3 gap-2">
+        {stats.map(([label, n]) => (
+          <div key={label} className="well px-3 py-2.5">
+            <div className="text-[18px] font-semibold tnum">{n !== null && n !== undefined ? compact(n) : "—"}</div>
+            <div className="caption">{label}</div>
+          </div>
+        ))}
+      </div>
+      {covers.length > 0 && (
+        <div className="grid grid-cols-4 gap-2" aria-label="Your latest videos">
+          {covers.map((u) => (
+            <Cover key={u} src={u} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -81,10 +79,12 @@ function Narration({ p }: { p: Preview }) {
   return (
     <ul className="list-none m-0 p-0 grid gap-3.5 text-[16px]">
       {rows.map((r) => (
-        <li key={r.label} className={`flex gap-3 items-center ${r.done || r.now ? "text-ink" : "text-ink-3"}`}>
+        <li key={r.label} className={`flex gap-3 items-start ${r.done || r.now ? "text-ink" : "text-ink-3"}`}>
           <span className={`w-5 h-5 rounded-full grid place-items-center text-[11px] shrink-0 border-[1.5px] ${r.done ? "bg-ink border-ink text-surface" : r.now ? "border-brand border-t-transparent animate-spin" : "border-line-strong"}`}>{r.done ? "✓" : ""}</span>
-          <span className="flex-1">{r.label}</span>
-          {r.done && r.found && <span className="text-[13px] text-ink-2 text-right">{r.found}</span>}
+          <span className="flex-1 grid">
+            {r.label}
+            {r.done && r.found && <span className="text-[13px] text-ink-2">{r.found}</span>}
+          </span>
         </li>
       ))}
     </ul>
@@ -101,7 +101,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
   if (p.status === "ineligible") {
     const missing = p.reason === "not_found";
     return (
-      <Shell step={2}>
+      <FunnelShell step={2}>
         <h1 className="display text-[clamp(28px,4.8vw,42px)]">{missing ? `We couldn't find @${p.handle}` : `@${p.handle} needs a few more videos`}</h1>
         <p className="text-ink-2 text-[17px] mt-3 mb-8">
           {missing
@@ -115,76 +115,92 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
             Create a free account
           </Link>
         )}
-      </Shell>
+      </FunnelShell>
     );
   }
 
   if (p.status === "error") {
     return (
-      <Shell step={2}>
+      <FunnelShell step={2}>
         <h1 className="display text-[clamp(28px,4.8vw,42px)]">That didn&apos;t work</h1>
         <p className="text-ink-2 text-[17px] mt-3 mb-8">{p.reason}</p>
         <StartForm cta="Try again" defaultHandle={p.handle} compact />
-      </Shell>
+      </FunnelShell>
     );
   }
 
   if (p.status === "reading" || p.status === "confirm") {
     return (
-      <Shell step={2}>
+      <FunnelShell step={2}>
         {working && <PreviewRunner id={p.id} />}
-        <StepNo n={2} />
-        <h1 className="display text-[clamp(30px,5vw,46px)]">{p.status === "confirm" ? "Is this you?" : `Finding @${p.handle}…`}</h1>
-        {p.status === "confirm" ? (
-          <div className="mt-8 grid gap-8">
-            <Who p={p} />
-            <form action={confirmPreviewAction} className="flex flex-wrap items-center gap-3">
-              <input type="hidden" name="id" value={p.id} />
-              <SubmitButton className="btn btn-primary btn-lg" pending="Starting…">
-                Yes, that&apos;s me
-              </SubmitButton>
-              <Link href="/" className="btn btn-ghost">
-                Not me
-              </Link>
-            </form>
-          </div>
-        ) : (
-          <div className="mt-8">
-            <Narration p={p} />
-          </div>
-        )}
-      </Shell>
+        <div className="max-w-[680px]">
+          <StepNo n={2} />
+          <h1 className="display text-[clamp(32px,5.2vw,52px)]">{p.status === "confirm" ? "Is this you?" : `Finding @${p.handle}…`}</h1>
+          {p.status === "confirm" ? (
+            <div className="mt-8 grid gap-6">
+              <Who p={p} />
+              <form action={confirmPreviewAction} className="flex flex-wrap items-center gap-3">
+                <input type="hidden" name="id" value={p.id} />
+                <SubmitButton className="btn btn-primary btn-lg" pending="Starting…">
+                  Yes, that&apos;s me
+                </SubmitButton>
+                <Link href="/" className="btn btn-lg btn-ghost">
+                  No, try another handle
+                </Link>
+              </form>
+            </div>
+          ) : (
+            <div className="mt-8 card p-5 sm:p-6 max-w-[560px]">
+              <Narration p={p} />
+            </div>
+          )}
+        </div>
+      </FunnelShell>
     );
   }
 
   if (p.status !== "ready" || !p.plan) {
     // The read runs; meanwhile, the one question that shapes it.
     return (
-      <Shell step={3}>
+      <FunnelShell step={3}>
         {working && <PreviewRunner id={p.id} />}
+        <KeyChoices />
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] items-start">
+        <div>
         <StepNo n={3} />
-        <h1 className="display text-[clamp(30px,5vw,46px)]">What are you posting for?</h1>
-        <p className="text-ink-2 text-[16.5px] mt-3 mb-7">We&apos;re reading your videos while you answer.</p>
-        <div className="grid gap-2.5 max-w-[440px]">
+        <h1 className="display text-[clamp(32px,5.2vw,52px)]">What are you posting for?</h1>
+        <p className="text-ink-2 text-[17px] mt-3 mb-7">We weigh what&apos;s wrong by it. We&apos;re reading your videos while you answer.</p>
+        <div className="grid gap-2.5 max-w-[480px]">
           {GOALS.map((g, i) => (
             <form key={g.value} action={previewGoalAction}>
               <input type="hidden" name="id" value={p.id} />
               <input type="hidden" name="goal" value={g.value} />
               <button
                 type="submit"
+                data-key={LETTERS[i]}
                 aria-pressed={p.goal === g.value}
-                className={`flex items-center gap-3 w-full text-left rounded-[12px] border px-4 py-3.5 text-[16.5px] font-medium transition-colors ${p.goal === g.value ? "border-ink bg-subtle shadow-[0_0_0_1px_var(--ink)]" : "border-line-strong hover:bg-subtle"}`}
+                className={`group flex items-center gap-3.5 w-full text-left rounded-[14px] border bg-surface px-4 py-3.5 transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:shadow-[var(--shadow-md)] ${p.goal === g.value ? "border-brand shadow-[0_0_0_1px_var(--brand)]" : "border-line-strong"}`}
               >
-                <span className={`w-7 h-7 rounded-[7px] grid place-items-center text-[12px] font-semibold border ${p.goal === g.value ? "bg-ink text-surface border-ink" : "border-line-strong text-ink-2"}`}>{LETTERS[i]}</span>
-                {g.label}
+                <span className={`w-8 h-8 rounded-[8px] grid place-items-center text-[12.5px] font-bold border shrink-0 ${p.goal === g.value ? "bg-brand text-on-brand border-brand" : "border-line-strong text-ink-2 group-hover:border-ink"}`}>{LETTERS[i]}</span>
+                <span className="grid">
+                  <span className="text-[16.5px] font-semibold">{g.label}</span>
+                  <span className="text-[13.5px] text-ink-2">{g.hint}</span>
+                </span>
+                {p.goal === g.value && <span className="ml-auto text-brand font-bold">✓</span>}
               </button>
             </form>
           ))}
         </div>
-        <div className="mt-10 border-t border-line pt-6">
-          <Narration p={p} />
+        <p className="caption mt-4 max-sm:hidden">
+          Press <b>A</b>–<b>{LETTERS[GOALS.length - 1]}</b> to choose.
+        </p>
         </div>
-      </Shell>
+        <aside className="card p-5 sm:p-6 lg:mt-14">
+          <div className="label mb-4">Reading @{p.handle}</div>
+          <Narration p={p} />
+        </aside>
+        </div>
+      </FunnelShell>
     );
   }
 
@@ -202,7 +218,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
   const problems = Math.max(2, p.plan.problems?.length ?? 2);
 
   return (
-    <Shell step={4} wide>
+    <FunnelShell step={4} wide>
       <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-8 lg:gap-12 items-start">
         <div className="lg:sticky lg:top-6">{d && <DiagnosisCard handle={p.handle} followers={p.author?.followers ?? null} d={d} gap={gap} locked />}</div>
 
@@ -267,6 +283,6 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
           </Link>
         </div>
       </div>
-    </Shell>
+    </FunnelShell>
   );
 }

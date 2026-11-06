@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/events";
 import { nextTikTokCard } from "@/lib/preview/card";
 import { nextTikTok } from "@/lib/preview/next-tiktok";
 import { getPreview } from "@/lib/preview/run";
@@ -8,5 +9,6 @@ export async function GET(_req: Request, ctx: RouteContext<"/start/[id]/card">) 
   const p = await getPreview(id);
   const idea = p?.status === "ready" ? p.plan?.ideas[0] : undefined;
   if (!p || !idea) return new Response("Not found", { status: 404 });
+  await logEvent("share_card", { creatorId: null, meta: { preview: id, handle: p.handle, from: "preview" } });
   return nextTikTokCard(nextTikTok(p.handle, idea));
 }

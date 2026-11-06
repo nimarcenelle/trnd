@@ -5,6 +5,7 @@ import { after } from "next/server";
 
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Goal } from "@/lib/db/types";
+import { logEvent } from "@/lib/events";
 import { claimPreview, getPreview } from "@/lib/preview/run";
 import { PREVIEW_COOKIE } from "@/lib/preview/types";
 
@@ -28,6 +29,7 @@ export async function createCreator(userId: string, handle: string): Promise<{ i
       return { id: again.id as string, claimed: false };
     }
     id = data.id as string;
+    await logEvent("account_created", { creatorId: id, meta: { handle } });
   }
   const previewId = (await cookies()).get(PREVIEW_COOKIE)?.value;
   const preview = previewId ? await getPreview(previewId) : null;

@@ -2,15 +2,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import AutoRefresh from "@/components/app/auto-refresh";
+import GapCard from "@/components/app/gap-card";
 import SubmitButton from "@/components/app/submit-button";
 import { CreatorsView, LoopView, MineView, NextView, TrendsView, type PeerCard } from "@/components/app/views";
 import { scanNowAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
-import { planState } from "@/lib/billing";
+import { logEvent } from "@/lib/events";
+import { planState, yearlyPerMonth } from "@/lib/billing";
+import { gapOf, postsPerMonth } from "@/lib/creators/gap";
 import { borrowScore, followerChange, normalOf, timesNormal, trendRows } from "@/lib/creators/stats";
 import { getCreator, listFollowers, listOwnVideos, listPeers, listPlans, listRuns, listVideos } from "@/lib/data";
 import type { ScanStage } from "@/lib/db/types";
-import { ago, compact, isScanning, withinDays } from "@/lib/format";
+import { ago, compact, daysSince, isScanning, withinDays } from "@/lib/format";
 
 export const metadata = { title: "Your plan — TRND for creators" };
 // "Scan now" runs the scan after the response, inside this route's time limit.
@@ -39,7 +42,8 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
   if (!user) redirect("/login");
   const creator = await getCreator(user.id);
   if (!creator) redirect("/app/setup");
-  const { tab: tabParam, idea: ideaParam, scan: scanFlag } = await searchParams;
+  const { tab: tabParam, idea: ideaParam, scan: scanFlag, from: fromParam } = await searchParams;
+  const from = typeof fromParam === "string" ? fromParam : null;
 
   const [plans, own, peers, recent, runs, followers] = await Promise.all([
     listPlans(creator.id, 6),
@@ -95,11 +99,32 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
     };
   };
   const openIdea = Number(ideaParam) || 1;
+  // The retention metrics read these: which plan was opened, how many days into the account, and a scorecard opened.
+  const ageDays = daysSince(creator.created_at);
+  if (tab === "next") await logEvent("plan_viewed", { creatorId: creator.id, meta: { plan: latest.id, age_days: ageDays, free: limited } });
+  if (tab === "loop" || from === "scorecard") await logEvent("scorecard_opened", { creatorId: creator.id, meta: { age_days: ageDays, from: from ?? "tab" } });
+  // The gap, shown on Free with the upgrade directly under it.
+  const gap = limited
+    ? gapOf(
+        { followers: creator.followers, typical: normal.views },
+        peers.map((p) => ({ followers: p.followers, typical: normals.get(p.handle)?.views ?? null })),
+        postsPerMonth(own.map((v) => v.posted_at), creator.goals?.posts_per_week),
+      )
+    : null;
 
   return (
     <div className="grid gap-5">
       {running && <AutoRefresh />}
-      {limited && (
+      {limited && gap ? (
+        <GapCard gap={gap}>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link className="btn btn-primary" href="/app/welcome?step=trial">
+              {plan.canTrial ? "Start free trial" : "Get all three scripts"}
+            </Link>
+            <span className="caption">You&apos;re on Free: one scripted idea a week. Creator: three, checked 48 hours after you post, from {yearlyPerMonth("creator")}/month billed yearly.</span>
+          </div>
+        </GapCard>
+      ) : limited && (
         <div className="rounded-[14px] border border-brand/30 bg-brand-soft px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
           <span className="text-[14.5px]">You&apos;re on Free: one scripted idea a week. Creator gives you all three, with sound and post time, checked 48 hours after you post.</span>
           <Link className="btn btn-primary btn-sm" href="/app/welcome?step=trial">

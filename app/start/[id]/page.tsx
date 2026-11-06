@@ -2,50 +2,63 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import Avatar from "@/components/app/avatar";
-import IdeaCard, { IDEA_TYPE } from "@/components/app/idea-card";
-import NextTikTok from "@/components/app/next-tiktok";
-import { StageBar, STAGE_LABEL } from "@/components/app/stage";
+import DiagnosisCard from "@/components/app/diagnosis-card";
+import Locked from "@/components/app/locked";
 import SubmitButton from "@/components/app/submit-button";
-import { Emphasis } from "@/components/app/views";
-import ViewsStrip from "@/components/app/views-strip";
 import Brand from "@/components/brand";
 import PreviewRunner from "@/components/preview/runner";
 import StartForm from "@/components/preview/start-form";
-import Xray from "@/components/preview/xray";
-import { aheadLine, callable, normalOf, timesNormal, topHashtags, trendList } from "@/lib/creators/stats";
+import { yearlyPerMonth } from "@/lib/billing";
+import { diagnose } from "@/lib/creators/diagnosis";
+import { dollarRange, gapOf, postsPerMonth, RPM_ASSUMPTION, typicalByAuthor } from "@/lib/creators/gap";
+import { normalOf } from "@/lib/creators/stats";
 import { compact, times } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
 import { confirmPreviewAction, previewGoalAction } from "@/lib/preview/actions";
-import { cardFileName, nextTikTok, onScreenHook } from "@/lib/preview/next-tiktok";
 import { asVideo, getPreview } from "@/lib/preview/run";
 import type { Preview } from "@/lib/preview/types";
 
-export const metadata = { title: "Your free plan — TRND for creators", robots: { index: false } };
+export const metadata = { title: "What's holding your videos back — TRND for creators", robots: { index: false } };
 
-function Shell({ children }: { children: React.ReactNode }) {
+const LETTERS = "ABCDEFGH";
+
+/**
+ * The free read, one question a screen: the handle (the first screen, /),
+ * "Is this you?", what they post for while the read runs, then what's wrong
+ * with their videos. The diagnosis shows that something is wrong and how much;
+ * what it is stays locked until they sign up and pay.
+ */
+function Shell({ step, wide = false, children }: { step: number; wide?: boolean; children: React.ReactNode }) {
   return (
     <div className="min-h-dvh flex flex-col">
-      <header className="border-b border-line bg-bg/90 backdrop-blur sticky top-0 z-30">
-        <div className="wrap flex items-center justify-between h-14">
-          <Brand />
-          <Link href="/login" className="btn btn-ghost btn-sm">
-            Sign in
-          </Link>
-        </div>
+      <div className="h-1 bg-muted">
+        <div className="h-full bg-brand transition-[width] duration-500" style={{ width: `${(step / 4) * 100}%` }} />
+      </div>
+      <header className="wrap flex items-center justify-between h-14">
+        <Brand />
+        <Link href="/login" className="btn btn-ghost btn-sm">
+          Sign in
+        </Link>
       </header>
-      <main className="wrap flex-1 pt-8 sm:pt-12 pb-[calc(8rem+env(safe-area-inset-bottom))]">{children}</main>
+      <main className={`flex-1 ${wide ? "wrap pt-6 sm:pt-10 pb-[calc(8rem+env(safe-area-inset-bottom))]" : "grid items-center"}`}>
+        {wide ? children : <div className="rise wrap max-w-[680px] py-10">{children}</div>}
+      </main>
     </div>
   );
+}
+
+function StepNo({ n }: { n: number }) {
+  return <div className="text-[13px] text-brand font-medium tnum mb-3">{n} → 4</div>;
 }
 
 function Who({ p }: { p: Preview }) {
   const a = p.author;
   return (
     <div className="flex items-center gap-3.5 min-w-0">
-      <Avatar name={p.handle} size={52} />
+      <Avatar name={p.handle} size={56} />
       <div className="min-w-0">
-        <div className="text-[18px] font-bold leading-tight">{a?.displayName || `@${p.handle}`}</div>
-        <div className="text-ink-2 text-[14px]">
+        <div className="text-[19px] font-bold leading-tight">{a?.displayName || `@${p.handle}`}</div>
+        <div className="text-ink-2 text-[14.5px]">
           @{p.handle}
           {a?.followers !== null && a?.followers !== undefined ? ` · ${compact(a.followers)} followers` : ""}
           {a?.videos ? ` · ${compact(a.videos)} videos` : ""}
@@ -55,47 +68,26 @@ function Who({ p }: { p: Preview }) {
   );
 }
 
-/** The real steps, each ticked off as it finishes, with what it found. */
-function Steps({ p }: { p: Preview }) {
+/** What the read is doing, ticked off as it goes. */
+function Narration({ p }: { p: Preview }) {
   const order = ["reading", "confirm", "niche", "idea", "ready"];
   const at = order.indexOf(p.status);
-  const own = p.videos.map((v) => asVideo(v, p.handle));
-  const n = normalOf(own);
+  const n = normalOf(p.videos.map((v) => asVideo(v, p.handle)));
   const rows = [
-    { label: "Reading your videos", done: at >= 1, now: p.status === "reading", found: p.videos.length ? `${p.videos.length} videos · usually ${compact(n.views)} views` : "" },
-    { label: "Finding creators ahead of you and what's rising", done: at >= 3, now: p.status === "niche", found: p.peers.length ? `${p.peers.length} creators · ${p.trends.length} trends` : "" },
-    { label: "Writing your next 3 videos", done: at >= 4, now: p.status === "idea", found: "" },
+    { label: `Reading @${p.handle}'s videos`, done: at >= 1, now: p.status === "reading", found: p.videos.length ? `${p.videos.length} videos · usually ${compact(n.views)} views` : "" },
+    { label: "Finding the creators a step ahead of you", done: at >= 3, now: p.status === "niche", found: p.peers.length ? `${p.peers.length} creators` : "" },
+    { label: "Working out what's holding your videos back", done: at >= 4, now: p.status === "idea", found: "" },
   ];
   return (
-    <ul className="list-none m-0 p-0 card overflow-hidden">
+    <ul className="list-none m-0 p-0 grid gap-3.5 text-[16px]">
       {rows.map((r) => (
-        <li key={r.label} className={`flex gap-3 items-center px-4 py-3.5 border-b border-line last:border-b-0 ${r.done || r.now ? "text-ink" : "text-ink-3"}`}>
-          <span className={`w-[18px] h-[18px] rounded-full grid place-items-center text-[11px] shrink-0 border-[1.5px] ${r.done ? "bg-pos border-pos text-surface" : r.now ? "border-brand border-t-transparent animate-spin" : "border-line"}`}>{r.done ? "✓" : ""}</span>
+        <li key={r.label} className={`flex gap-3 items-center ${r.done || r.now ? "text-ink" : "text-ink-3"}`}>
+          <span className={`w-5 h-5 rounded-full grid place-items-center text-[11px] shrink-0 border-[1.5px] ${r.done ? "bg-ink border-ink text-surface" : r.now ? "border-brand border-t-transparent animate-spin" : "border-line-strong"}`}>{r.done ? "✓" : ""}</span>
           <span className="flex-1">{r.label}</span>
           {r.done && r.found && <span className="text-[13px] text-ink-2 text-right">{r.found}</span>}
         </li>
       ))}
     </ul>
-  );
-}
-
-function GoalChips({ p, action, submitLabel }: { p: Preview; action: (fd: FormData) => Promise<void>; submitLabel?: string }) {
-  return (
-    <div className="grid gap-2.5">
-      <div className="text-[14px] font-semibold">What are you posting for?</div>
-      <div className="flex flex-wrap gap-2">
-        {GOALS.map((g) => (
-          <form key={g.value} action={action}>
-            <input type="hidden" name="id" value={p.id} />
-            <input type="hidden" name="goal" value={g.value} />
-            <button type="submit" className={`btn btn-sm ${p.goal === g.value ? "!border-brand !bg-brand-soft !text-brand" : ""}`} aria-pressed={p.goal === g.value}>
-              {g.label}
-            </button>
-          </form>
-        ))}
-      </div>
-      {submitLabel && <p className="caption">{submitLabel}</p>}
-    </div>
   );
 }
 
@@ -109,234 +101,169 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
   if (p.status === "ineligible") {
     const missing = p.reason === "not_found";
     return (
-      <Shell>
-        <section className="max-w-[620px] grid gap-5">
-          <h1 className="display text-[clamp(26px,4.5vw,38px)]">{missing ? `We couldn't find @${p.handle}` : `@${p.handle} needs a few more videos`}</h1>
-          <p className="text-ink-2 text-[16px]">
-            {missing
-              ? "Check the spelling, and that the account is public. We can only read public profiles."
-              : `We found ${p.videos.length} public ${p.videos.length === 1 ? "video" : "videos"}. Post a few more and your plan has something to learn from. Create a free account and we'll build it as soon as there's enough.`}
-          </p>
-          {missing ? (
-            <StartForm cta="Try again" />
-          ) : (
-            <Link href={signup} className="btn btn-primary btn-lg self-start">
-              Create a free account
-            </Link>
-          )}
-        </section>
+      <Shell step={2}>
+        <h1 className="display text-[clamp(28px,4.8vw,42px)]">{missing ? `We couldn't find @${p.handle}` : `@${p.handle} needs a few more videos`}</h1>
+        <p className="text-ink-2 text-[17px] mt-3 mb-8">
+          {missing
+            ? "Check the spelling, and that the account is public. We can only read public profiles."
+            : `We found ${p.videos.length} public ${p.videos.length === 1 ? "video" : "videos"}. Post a few more and there's something to learn from. Create a free account and we'll read it as soon as there's enough.`}
+        </p>
+        {missing ? (
+          <StartForm cta="Try again" />
+        ) : (
+          <Link href={signup} className="btn btn-primary btn-lg">
+            Create a free account
+          </Link>
+        )}
       </Shell>
     );
   }
 
   if (p.status === "error") {
     return (
-      <Shell>
-        <section className="max-w-[620px] grid gap-5">
-          <h1 className="display text-[clamp(26px,4.5vw,38px)]">That didn&apos;t work</h1>
-          <p className="text-ink-2 text-[16px]">{p.reason}</p>
-          <StartForm cta="Try again" defaultHandle={p.handle} compact />
-        </section>
+      <Shell step={2}>
+        <h1 className="display text-[clamp(28px,4.8vw,42px)]">That didn&apos;t work</h1>
+        <p className="text-ink-2 text-[17px] mt-3 mb-8">{p.reason}</p>
+        <StartForm cta="Try again" defaultHandle={p.handle} compact />
+      </Shell>
+    );
+  }
+
+  if (p.status === "reading" || p.status === "confirm") {
+    return (
+      <Shell step={2}>
+        {working && <PreviewRunner id={p.id} />}
+        <StepNo n={2} />
+        <h1 className="display text-[clamp(30px,5vw,46px)]">{p.status === "confirm" ? "Is this you?" : `Finding @${p.handle}…`}</h1>
+        {p.status === "confirm" ? (
+          <div className="mt-8 grid gap-8">
+            <Who p={p} />
+            <form action={confirmPreviewAction} className="flex flex-wrap items-center gap-3">
+              <input type="hidden" name="id" value={p.id} />
+              <SubmitButton className="btn btn-primary btn-lg" pending="Starting…">
+                Yes, that&apos;s me
+              </SubmitButton>
+              <Link href="/" className="btn btn-ghost">
+                Not me
+              </Link>
+            </form>
+          </div>
+        ) : (
+          <div className="mt-8">
+            <Narration p={p} />
+          </div>
+        )}
       </Shell>
     );
   }
 
   if (p.status !== "ready" || !p.plan) {
+    // The read runs; meanwhile, the one question that shapes it.
     return (
-      <Shell>
+      <Shell step={3}>
         {working && <PreviewRunner id={p.id} />}
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] items-start max-w-[1000px]">
-          <section className="grid gap-5">
-            <span className="kicker">{p.status === "reading" || p.status === "confirm" ? "Step 1 of 2" : "Step 2 of 2"}</span>
-            <h1 className="display text-[clamp(26px,4.5vw,40px)]">{p.status === "reading" ? `Finding @${p.handle}…` : p.status === "confirm" ? "Is this you?" : "Building your plan"}</h1>
-            {p.status === "confirm" ? (
-              <div className="card p-5 grid gap-5">
-                <Who p={p} />
-                <form action={confirmPreviewAction} className="flex flex-wrap items-center gap-3">
-                  <input type="hidden" name="id" value={p.id} />
-                  <SubmitButton className="btn btn-primary btn-lg" pending="Starting…">
-                    Yes, that&apos;s me
-                  </SubmitButton>
-                  <Link href="/#start" className="btn btn-ghost">
-                    Not me
-                  </Link>
-                </form>
-              </div>
-            ) : (
-              <p className="text-ink-2 text-[16px]">Usually under a minute. We read your videos, find creators a step ahead of you and what&apos;s rising in your niche, then write three videos for you.</p>
-            )}
-            {p.status !== "confirm" && <Steps p={p} />}
-          </section>
-          {/* One place from "Is this you?" to the plan, so the X-ray plays once and stays. */}
-          {p.status !== "reading" && (
-            <aside className="grid gap-4">
-              {(p.status === "niche" || p.status === "idea") && (
-                <div className="card p-5 grid gap-4">
-                  <GoalChips p={p} action={previewGoalAction} submitLabel="Optional. Your three videos are written for it." />
-                  {p.peers.length > 0 && (
-                    <div className="grid gap-2.5">
-                      <div className="text-[14px] font-semibold">Creators ahead of you</div>
-                      <div className="flex flex-wrap gap-2">
-                        {p.peers.map((x) => (
-                          <span key={x.handle} className="chip gap-1.5">
-                            <Avatar name={x.handle} size={18} ring />@{x.handle}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              <Xray key="xray" videos={p.videos} />
-            </aside>
-          )}
+        <StepNo n={3} />
+        <h1 className="display text-[clamp(30px,5vw,46px)]">What are you posting for?</h1>
+        <p className="text-ink-2 text-[16.5px] mt-3 mb-7">We&apos;re reading your videos while you answer.</p>
+        <div className="grid gap-2.5 max-w-[440px]">
+          {GOALS.map((g, i) => (
+            <form key={g.value} action={previewGoalAction}>
+              <input type="hidden" name="id" value={p.id} />
+              <input type="hidden" name="goal" value={g.value} />
+              <button
+                type="submit"
+                aria-pressed={p.goal === g.value}
+                className={`flex items-center gap-3 w-full text-left rounded-[12px] border px-4 py-3.5 text-[16.5px] font-medium transition-colors ${p.goal === g.value ? "border-ink bg-subtle shadow-[0_0_0_1px_var(--ink)]" : "border-line-strong hover:bg-subtle"}`}
+              >
+                <span className={`w-7 h-7 rounded-[7px] grid place-items-center text-[12px] font-semibold border ${p.goal === g.value ? "bg-ink text-surface border-ink" : "border-line-strong text-ink-2"}`}>{LETTERS[i]}</span>
+                {g.label}
+              </button>
+            </form>
+          ))}
+        </div>
+        <div className="mt-10 border-t border-line pt-6">
+          <Narration p={p} />
         </div>
       </Shell>
     );
   }
 
-  // Ready: the preview. Idea 1 in full; 2 and 3 by their hooks only.
+  // Ready: what's wrong, how much, and that only the full read says what it is.
   const own = p.videos.map((v) => asVideo(v, p.handle));
   const normal = normalOf(own);
-  const best = own.map((v) => ({ v, x: timesNormal(v.views, normal) })).sort((a, b) => (b.x ?? 0) - (a.x ?? 0))[0];
-  const [first, ...rest] = p.plan.ideas;
+  const d = diagnose(own, normal);
   const sample = p.sample.map((v) => asVideo(v, p.handle));
-  const src = first.source_video ? [...own, ...sample].find((v) => v.video_id === first.source_video) ?? null : null;
-  const srcNormal = src ? normalOf(src.is_self ? own : sample.filter((v) => v.author === src.author)) : null;
+  const typical = typicalByAuthor(sample);
+  const gap = gapOf(
+    { followers: p.author?.followers ?? null, typical: normal.views },
+    p.peers.map((x) => ({ followers: x.followers, typical: typical.get(x.handle) ?? null })),
+    postsPerMonth(p.videos.map((v) => v.postedAt)),
+  );
+  const problems = Math.max(2, p.plan.problems?.length ?? 2);
 
   return (
-    <Shell>
-      <div className="rise grid gap-5 max-w-[1000px]">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <Who p={p} />
-          <span className="pill pill-pos">Free preview</span>
-        </div>
-        <div className="night grid gap-3 p-6 sm:p-8">
-          <span className="label">Your answer this week</span>
-          <h1 className="heading text-[clamp(21px,3.2vw,30px)] leading-[1.2] max-w-[38ch]">
-            <Emphasis text={p.plan.headline} />
-          </h1>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-sm:[&>*:last-child]:col-span-2">
-          <div className="card px-4 py-3.5">
-            <div className="label">Your typical video</div>
-            <div className="stat-num my-1.5">{compact(normal.views)}</div>
-            <div className="caption">views, from your last {own.length}</div>
-            <ViewsStrip views={own.map((v) => v.views)} usual={normal.views} />
-          </div>
-          <div className="card px-4 py-3.5">
-            <div className="label">Your best recent</div>
-            <div className={`stat-num my-1.5 ${best?.x && best.x >= 2 ? "stat-up" : ""}`}>{best?.x ? times(best.x) : "—"}</div>
-            <div className="caption">your usual views</div>
-          </div>
-          <div className="card px-4 py-3.5">
-            <div className="label">Your niche</div>
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {topHashtags(p.videos).length ? (
-                topHashtags(p.videos).map((h) => (
-                  <span key={h} className="chip chip-tag">
-                    #{h}
-                  </span>
-                ))
-              ) : (
-                <span className="heading text-[17px]">—</span>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 mt-2.5">
-              <span className="flex -space-x-1.5">
-                {p.peers.slice(0, 4).map((x) => (
-                  <Avatar key={x.handle} name={x.handle} size={20} ring />
-                ))}
-              </span>
-              <span className="caption">{p.peers.length} creators ahead of you</span>
-            </div>
-          </div>
-        </div>
+    <Shell step={4} wide>
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-8 lg:gap-12 items-start">
+        <div className="lg:sticky lg:top-6">{d && <DiagnosisCard handle={p.handle} followers={p.author?.followers ?? null} d={d} gap={gap} locked />}</div>
 
-        <section className="grid gap-3" aria-labelledby="next-tiktok">
-          <div className="flex items-end justify-between gap-3 flex-wrap">
-            <h2 id="next-tiktok" className="heading text-[18px]">
-              Your next TikTok
-            </h2>
-            <div className="grid justify-items-end gap-1">
-              <a href={`/start/${p.id}/card`} download={cardFileName(p.handle)} className="btn btn-sm">
-                Save image
-              </a>
-              <p className="caption">Save it, send it to a friend, then film it.</p>
+        <div className="grid gap-4">
+          <div className="rise">
+            <p className="text-[13.5px] font-semibold text-neg m-0">@{p.handle}, here&apos;s the problem</p>
+            <h1 className="display text-[clamp(28px,4.2vw,38px)] mt-2">
+              {d ? (d.stuck === d.n ? `None of your last ${d.n} videos got past your followers.` : `${d.stuck} of your last ${d.n} videos never got past your followers.`) : "Your videos are getting stuck with your followers."}
+            </h1>
+            {gap && gap.ahead > gap.mine && (
+              <p className="text-[17px] text-ink-2 leading-[1.5] mt-3 mb-0">
+                The creators {gap.band === "2-5x" ? "2–5× your size" : "ahead of you"} in your niche get <b className="text-ink tnum">{compact(gap.ahead)}</b> views on a typical video. You get{" "}
+                <b className="text-ink tnum">{compact(gap.mine)}</b>.
+                {gap.dollars && (
+                  <>
+                    {" "}
+                    At Creator Rewards rates that&apos;s roughly <b className="text-ink tnum" title={RPM_ASSUMPTION}>{dollarRange(gap.dollars)}</b> you&apos;re leaving on the table.
+                  </>
+                )}
+              </p>
+            )}
+            {d?.worst && (
+              <p className="text-[15.5px] leading-[1.5] mt-3 mb-0">
+                Your worst recent video, &ldquo;{d.worst.title}&rdquo;, got <b className="tnum">{times(d.worst.times)}</b> your usual views.
+              </p>
+            )}
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Link href={signup} className="btn btn-primary btn-lg">
+                See what&apos;s killing my posts
+              </Link>
+              <span className="caption">Free account, no card.</span>
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 items-end">
-            <div className="col-span-2 sm:col-span-1 w-full max-w-[340px] justify-self-center sm:max-w-none">
-              <NextTikTok data={nextTikTok(p.handle, first)} tint={IDEA_TYPE[first.type].tint} cover={src?.cover_url ?? null} />
-            </div>
-            {rest.map((i, n) => (
-              <div key={n}>
-                <NextTikTok data={{ handle: p.handle, hook: onScreenHook(i.hook) }} tint={IDEA_TYPE[i.type].tint} locked />
-              </div>
-            ))}
+
+          <Locked title="What's killing your posts" detail="1 line" lines={1} />
+          <Locked title="Why your videos flop" detail={`${problems} problems`} />
+          {p.peers.length > 0 && <Locked title="What the creators ahead of you do that you don't" detail={`${p.peers.length} creators`} />}
+          <Locked title="Your next 3 videos, scripted" detail="written for you" lines={3} />
+
+          <div className="night p-6 sm:p-8 mt-2">
+            <div className="text-[13px] text-night-ink-2">Only TRND can tell you this</div>
+            <div className="text-[26px] sm:text-[30px] font-semibold tracking-[-0.03em] leading-[1.15] mt-1">See exactly what&apos;s wrong with your videos, and fix it.</div>
+            <p className="text-night-ink-2 text-[15px] mt-3 mb-0">
+              We read every video you post against the creators a step ahead of you. Free shows you your first fix. Creator shows you everything that&apos;s
+              wrong, with three scripts a week to fix it, from {yearlyPerMonth("creator")}/month.
+            </p>
+            <Link href={signup} className="btn btn-lg mt-6 !bg-on-night !text-night !border-on-night">
+              See what&apos;s wrong
+            </Link>
           </div>
-        </section>
-
-        <IdeaCard
-          idea={first}
-          rank={1}
-          planId="preview"
-          source={{ video: src, own: Boolean(src?.is_self), times: src && srcNormal ? timesNormal(src.views, srcNormal) : null, borrow: null, trend: first.source_trend ? (p.trends.find((t) => t.key === first.source_trend) ?? null) : null }}
-          normal={normal}
-          run={null}
-          open
-          sample
-        />
-
-        <div className="grid gap-3.5 md:grid-cols-2">
-          {p.peers.length > 0 && (
-            <div className="card p-4 grid gap-3 content-start">
-              <div className="font-bold">Creators ahead of you</div>
-              {p.peers.slice(0, 4).map((x) => (
-                <div key={x.handle} className="flex items-center gap-2.5 min-w-0">
-                  <Avatar name={x.handle} size={30} ring />
-                  <div className="min-w-0">
-                    <div className="font-semibold text-[14px]">@{x.handle}</div>
-                    <div className="caption line-clamp-1">{[aheadLine(x.followers, p.author?.followers ?? null), x.best?.hook ? `${x.best.hook} · ${compact(x.best.views)} views` : `${compact(x.followers)} followers`].filter(Boolean).join(" · ")}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {trendList(p.trends).length > 0 && (
-            <div className="card p-4 grid gap-3 content-start">
-              <div className="font-bold">Rising in your niche</div>
-              {trendList(p.trends)
-                .slice(0, 4)
-                .map((t) => (
-                  <div key={`${t.kind}:${t.key}`} className="flex items-center justify-between gap-3">
-                    <span className={`min-w-0 ${t.kind === "hashtag" ? "mono text-[13.5px]" : "text-[14px]"}`}>{t.label}</span>
-                    {callable(t) ? (
-                      <span className="flex items-center gap-2 shrink-0">
-                        <StageBar stage={t.stage} />
-                        <span className="caption w-14">{STAGE_LABEL[t.stage]}</span>
-                      </span>
-                    ) : (
-                      <span className="caption shrink-0 text-right">
-                        {t.recent} video{t.recent === 1 ? "" : "s"} · {t.creators} creator{t.creators === 1 ? "" : "s"} · Too few videos to call
-                      </span>
-                    )}
-                  </div>
-                ))}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* The one thing to do next, always in reach. */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         <div className="wrap flex items-center justify-between gap-3 py-3">
           <div className="min-w-0 max-sm:hidden">
-            <div className="font-bold">Get all 3 scripts, and a new plan every week</div>
-            <div className="caption">Free for 14 days. Cancel anytime.</div>
+            <div className="font-bold">{d ? `${d.stuck} of ${d.n} videos stuck with your followers` : "Your videos are stuck with your followers"}</div>
+            <div className="caption">Find out what&apos;s killing them. Free account, no card.</div>
           </div>
           <Link href={signup} className="btn btn-primary btn-lg max-sm:w-full">
-            Unlock my plan, free
+            See what&apos;s killing my posts
           </Link>
         </div>
       </div>

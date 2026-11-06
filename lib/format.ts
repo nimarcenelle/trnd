@@ -115,3 +115,9 @@ export function cadence(perWeek: number): string {
   return weeks > 4 ? "less than once a month" : `about once every ${weeks} weeks`;
 }
 
+
+/** Whole days since a date. */
+export const daysSince = (iso: string, now = Date.now()) => Math.floor((now - Date.parse(iso)) / 86_400_000);
+
+/** The ISO time `days` days ago. */
+export const isoDaysAgo = (days: number, now = Date.now()) => new Date(now - days * 86_400_000).toISOString();

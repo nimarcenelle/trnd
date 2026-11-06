@@ -53,7 +53,8 @@ describe("/api/cron/scan", () => {
 
   it("backs off an account that keeps failing, and skips one read today", async () => {
     const day = 86_400_000;
-    const base = { plan: "trial", plan_status: "active", trial_ends_at: new Date(Date.now() + day).toISOString() };
+    // This week's plan has landed, so only the daily read decides.
+    const base = { plan: "trial", plan_status: "active", trial_ends_at: new Date(Date.now() + day).toISOString(), last_plan_at: new Date().toISOString() };
     db.current.rows("creators").push(
       { ...base, id: "fresh", scan_status: "idle", last_scan_at: new Date(Date.now() - 2 * 3_600_000).toISOString(), scan_failures: 0 },
       { ...base, id: "stale", scan_status: "idle", last_scan_at: new Date(Date.now() - day).toISOString(), scan_failures: 0 },

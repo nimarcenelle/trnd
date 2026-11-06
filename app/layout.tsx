@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from "next";
 
-// Self-hosted: Figtree for reading and headlines, Unbounded for the TRND wordmark, JetBrains Mono for labels and timestamps.
-import "@fontsource-variable/figtree/index.css";
+// Self-hosted: Inter for everything you read, JetBrains Mono for script timestamps and hashtags. Jost (the wordmark) loads below.
+import "@fontsource-variable/inter/opsz.css";
 import "@fontsource-variable/jetbrains-mono/index.css";
-import "@fontsource/unbounded/800.css";
 
 import DismissPopovers from "@/components/dismiss-popovers";
 
@@ -25,8 +24,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f5f8" },
-    { media: "(prefers-color-scheme: dark)", color: "#110e14" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0b0c" },
   ],
 };
 
@@ -38,6 +37,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+        {/* Jost draws the TRND wordmark only, as on usetrnd.com. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@500&display=swap" />
       </head>
       <body>
         {children}

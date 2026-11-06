@@ -5,16 +5,18 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 
 import { getSessionUser } from "@/lib/auth/session";
-import { planState } from "@/lib/billing";
+import { ADDONS, planState } from "@/lib/billing";
 import { normalOf } from "@/lib/creators/stats";
 import { createCreator } from "@/lib/creators/create";
 import { deleteAccount } from "@/lib/creators/delete";
 import { canRetry, manualPlanBlocked, switchBlocked } from "@/lib/creators/guards";
+import { validTz } from "@/lib/creators/schedule";
 import { scanCreator } from "@/lib/creators/scan";
 import { getCreator } from "@/lib/data";
 import { adminSupabase, createServerSupabase } from "@/lib/db/supabase";
 import { MAX_PEERS, type Goal, type Goals, type Plan, type Video } from "@/lib/db/types";
-import { isStripeConfigured } from "@/lib/env";
+import { env, isStripeConfigured } from "@/lib/env";
+import { logEvent } from "@/lib/events";
 import { isScanning } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
 import { disconnect } from "@/lib/tiktok/connect";
@@ -227,9 +229,42 @@ export async function disconnectTiktokAction(): Promise<void> {
 export async function checkoutAction(formData: FormData): Promise<void> {
   const { user, creator } = await requireCreator();
   if (!creator || !isStripeConfigured) redirect("/app/settings");
-  const interval = formData.get("interval") === "weekly" ? "weekly" : "monthly";
+  // Yearly unless monthly was picked: the toggle defaults to yearly everywhere.
+  const period = formData.get("period") === "month" ? "month" : "year";
+  await logEvent("checkout_started", { creatorId: creator.id, meta: { tier: "creator", period, from: String(formData.get("from") ?? "") } });
   const { createCheckoutSession } = await import("@/lib/billing/stripe");
-  redirect(await createCheckoutSession(creator, user.email, interval));
+  redirect(await createCheckoutSession(creator, user.email, period));
+}
+
+/** A one-time add-on from Settings or the pricing row. Unset in Stripe, it goes to email instead. */
+export async function addonCheckoutAction(formData: FormData): Promise<void> {
+  const addon = formData.get("addon") === "done_for_you" ? "done_for_you" : "script_pack";
+  const { user, creator } = await requireCreator();
+  if (!creator) redirect("/app/setup");
+  const { createAddonCheckout, isAddonForSale } = await import("@/lib/billing/stripe");
+  if (!isAddonForSale(addon)) redirect(`mailto:${env.alertEmail}?subject=${encodeURIComponent(`${ADDONS[addon].name} for @${creator.handle}`)}`);
+  redirect(await createAddonCheckout(creator, user.email, addon));
+}
+
+export interface WaitlistState {
+  error?: string;
+  joined?: boolean;
+}
+
+/** Pro and Business before they ship: the email, the tier, the handle if signed in. */
+export async function joinWaitlistAction(_prev: WaitlistState, formData: FormData): Promise<WaitlistState> {
+  const tier = formData.get("tier") === "business" ? "business" : "pro";
+  const user = await getSessionUser();
+  const email = (user?.email ?? String(formData.get("email") ?? "")).trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return { error: "Enter your email, like you@example.com." };
+  const creator = user ? await getCreator(user.id) : null;
+  const { error } = await adminSupabase().from("waitlist").upsert({ email, tier, handle: creator?.handle ?? null }, { onConflict: "email,tier", ignoreDuplicates: true });
+  if (error) {
+    console.warn("[waitlist]", error.message);
+    return { error: "We couldn't save that just now. Try again in a minute." };
+  }
+  await logEvent("waitlist", { creatorId: creator?.id ?? null, meta: { tier } });
+  return { joined: true };
 }
 
 export async function billingPortalAction(): Promise<void> {
@@ -292,6 +327,13 @@ export async function welcomeModelsAction(_prev: FormState, formData: FormData):
     revalidatePath("/app", "layout");
   }
   redirect(next === "trial" ? "/app/welcome?step=trial" : "/app");
+}
+
+/** The creator's timezone from their browser: the weekly plan drops Tuesday 8 AM there. */
+export async function setTimezoneAction(tz: string): Promise<void> {
+  const { creator } = await requireCreator();
+  if (!creator || typeof tz !== "string" || tz.length > 64 || validTz(tz) !== tz) return;
+  await adminSupabase().from("creators").update({ timezone: tz }).eq("id", creator.id);
 }
 
 /** Settings: the weekly plan email on or off. */

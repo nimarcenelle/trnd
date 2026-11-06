@@ -66,6 +66,18 @@ export interface Creator {
   trial_reminder_for: string | null;
   /** Reads that failed in a row; reset by a read that finishes. The daily read backs off as it grows. */
   scan_failures: number;
+  /** The creator's IANA timezone, from their browser: the weekly plan drops Tuesday 8 AM there. */
+  timezone?: string | null;
+  /** When the latest plan was written. */
+  last_plan_at?: string | null;
+  /** Their referral code, made the first time they share. */
+  referral_code?: string | null;
+  /** The creator whose referral link they signed up through. */
+  referred_by?: string | null;
+  /** When the referral's free month was granted. */
+  referral_rewarded_at?: string | null;
+  /** Free months earned by referring, used one at a time at checkout. */
+  free_months?: number;
   created_at: string;
 }
 
@@ -190,6 +202,10 @@ export interface PlanBody {
   ideas: Idea[];
   /** What the creator's own numbers say, in a sentence each, with the videos that show it. */
   patterns: { title: string; detail: string; videos: string[] }[];
+  /** The one thing holding their videos back, said straight. The paid diagnosis; plans before it lack it. */
+  killer?: string;
+  /** What's wrong with their videos, worst first, with the videos that show it. */
+  problems?: { title: string; detail: string; videos: string[] }[];
 }
 
 export interface Plan {

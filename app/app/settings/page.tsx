@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import Avatar from "@/components/app/avatar";
 import { AddPeerForm, DeleteAccountForm, GoalsForm, HashtagsForm } from "@/components/app/forms";
 import SubmitButton from "@/components/app/submit-button";
-import { billingPortalAction, disconnectTiktokAction, removePeerAction, setEmailPlansAction } from "@/lib/actions";
+import { addonCheckoutAction, billingPortalAction, disconnectTiktokAction, removePeerAction, setEmailPlansAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
-import { intervalOf, planState, PRICES } from "@/lib/billing";
+import { type Addon, ADDONS, money, planLabel, planState } from "@/lib/billing";
 import { getCreator, listPeers } from "@/lib/data";
 import { MAX_PEERS } from "@/lib/db/types";
 import { isStripeConfigured, isTiktokLoginConfigured } from "@/lib/env";
@@ -40,7 +40,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   if (!user) redirect("/login");
   const creator = await getCreator(user.id);
   if (!creator) redirect("/app/setup");
-  const [peers, { billing, tiktok, as }] = await Promise.all([listPeers(creator.id), searchParams]);
+  const [peers, { billing, tiktok, as, addon }] = await Promise.all([listPeers(creator.id), searchParams]);
+  const addonDone = typeof addon === "string" ? addon : null;
   const plan = planState(creator);
   const note =
     tiktok === "mismatch"
@@ -160,19 +161,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
       </Section>
       )}
 
-      <Section id="billing" title="Plan" sub="Everything included, weekly or monthly. Cancel anytime.">
+      <Section id="billing" title="Plan" sub="Cancel anytime. Refund within 14 days if it isn't for you.">
         <div className="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="font-bold">
-              {plan.paid
-                ? `TRND for creators · ${PRICES[intervalOf(creator.plan) ?? "monthly"].label}`
+              {plan.paid || plan.pastDue
+                ? planLabel(creator.plan)
                 : plan.trialing
-                  ? `Free trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left${creator.stripe_subscription_id ? `, then ${PRICES[intervalOf(creator.plan) ?? "monthly"].label}` : ""}`
-                  : plan.canTrial
-                    ? "Free plan · one script a week"
-                    : plan.locked
-                      ? "Paused"
-                      : "Free trial"}
+                  ? `Free trial · ${plan.trialDaysLeft} day${plan.trialDaysLeft === 1 ? "" : "s"} left${creator.stripe_subscription_id ? `, then ${planLabel(creator.plan)}` : ""}`
+                  : plan.locked
+                    ? "Free · one scripted idea a week"
+                    : "Free trial"}
             </div>
             {creator.plan_status === "past_due" && <p className="text-neg text-[13.5px] mt-1">Your last payment failed. Update your card; your plan keeps running while we retry.</p>}
             {billing === "success" && <p className="text-pos text-[13.5px] mt-1">Thanks. Your plan is active.</p>}
@@ -186,9 +185,29 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
               </form>
             ) : (
               <Link href="/app/welcome?step=trial" className="btn btn-primary">
-                {plan.canTrial ? "Start free trial" : "Choose a plan"}
+                {plan.canTrial ? "Start free trial" : "Get three scripts a week"}
               </Link>
             ))}
+        </div>
+      </Section>
+
+      <Section id="add-ons" title="Add-ons" sub="One-time, made by our team, delivered to your inbox within 3 business days.">
+        <div className="card divide-y divide-line">
+          {(Object.keys(ADDONS) as Addon[]).map((a) => (
+            <form key={a} action={addonCheckoutAction} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3.5">
+              <input type="hidden" name="addon" value={a} />
+              <div>
+                <div className="font-bold">
+                  {ADDONS[a].name} · {money(ADDONS[a].price)}
+                </div>
+                <p className="text-[13.5px] text-ink-2 mt-0.5">{ADDONS[a].blurb}</p>
+                {addonDone === a && <p className="text-pos text-[13.5px] mt-1">Paid. It lands in your inbox within 3 business days.</p>}
+              </div>
+              <SubmitButton className="btn btn-sm" pending="Opening checkout…">
+                Buy
+              </SubmitButton>
+            </form>
+          ))}
         </div>
       </Section>
 

@@ -2,6 +2,8 @@ import { planState } from "@/lib/billing";
 import type { Creator } from "@/lib/db/types";
 import { isScanning } from "@/lib/format";
 
+import { planSlotDue } from "./schedule";
+
 /**
  * When the setup actions may start a read. Each read is Apify runs and model
  * calls, so a form posted again (or by a script) must not start one the
@@ -58,6 +60,24 @@ export function isDue(c: Due, now = Date.now()): boolean {
   // After a failure, the clock runs from the try that failed, not the last read that finished.
   const last = failures > 0 ? (c.scan_started_at ?? c.last_scan_at) : c.last_scan_at;
   return !last || now - Date.parse(last) > dueAfterMs(failures);
+}
+
+type Slot = Pick<Creator, "last_plan_at" | "timezone" | "last_scan_at">;
+
+/** Whether a free account's read may run now: its first, or its weekly plan slot (Tuesday 8 AM local) has come. */
+export function freeReadDue(c: Slot, now = Date.now()): boolean {
+  return !c.last_scan_at || planSlotDue(c.last_plan_at, c.timezone, now);
+}
+
+/**
+ * What the hourly cron starts. Paid: the daily read, and a read at the plan
+ * slot so the plan lands Tuesday morning. Free: only the slot (and its first
+ * read). An account that keeps failing keeps its backoff either way.
+ */
+export function readDue(c: Due & Slot, free: boolean, now = Date.now()): boolean {
+  if (isScanning(c, now)) return false;
+  if ((c.scan_failures ?? 0) > 0) return isDue(c, now);
+  return free ? freeReadDue(c, now) : isDue(c, now) || planSlotDue(c.last_plan_at, c.timezone, now);
 }
 
 /** A failed read resumes at the stage it stopped on while that read is this fresh; older, it starts over. */

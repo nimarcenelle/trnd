@@ -13,7 +13,7 @@ import SubmitButton from "./submit-button";
 export const IDEA_TYPE: Record<IdeaType, { label: string; cls: string; tint: string }> = {
   double_down: { label: "Double down on you", cls: "pill pill-pos", tint: "var(--pos)" },
   borrow: { label: "Borrow a format", cls: "pill pill-brand", tint: "var(--brand)" },
-  ride: { label: "Ride a trend early", cls: "pill pill-cyan", tint: "var(--cyan)" },
+  ride: { label: "Ride a trend early", cls: "pill pill-warn", tint: "var(--warn)" },
 };
 
 const PART_LABEL: Record<keyof BorrowParts, string> = { beat: "Beat their normal", fit: "Fits your niche", fresh: "Still fresh", saved: "Saved a lot" };

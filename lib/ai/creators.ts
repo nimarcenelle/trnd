@@ -149,6 +149,8 @@ const PlanSchema = z.object({
   summary: z.string(),
   ideas: z.array(IdeaSchema),
   patterns: z.array(z.object({ title: z.string(), detail: z.string(), videos: z.array(z.string()) })),
+  killer: z.string(),
+  problems: z.array(z.object({ title: z.string(), detail: z.string(), videos: z.array(z.string()) })),
 });
 
 export interface PlanInput {
@@ -233,6 +235,12 @@ Return:
   Ids are only for source_video and patterns.videos: in anything the creator reads, name a video by its topic or caption, never its id.
   - make_it_yours: one sentence on keeping it theirs, not a copy (or, for double_down, the one thing to change).
 - patterns: 2-3 things their own numbers show (e.g. "Saves are 3x higher on tutorials"), each with the ids of the videos
-  that show it.`,
+  that show it.
+- killer: the one thing holding their videos back, in one blunt sentence under 18 words, said to them ("Your openings
+  name the topic instead of giving anyone a reason to stay."). From their weakest videos against their best and against
+  the creators ahead of them. Blunt about the videos, never about the person. No numbers needed.
+- problems: 2-3 things wrong with their videos that keep them from getting past their followers, worst first. title is a
+  short blunt phrase ("You bury the payoff"); detail says what their weak videos do, quoting or naming them, against what
+  their best videos or the creators ahead of them do, with the numbers. videos: the ids that show it.`,
   });
 }

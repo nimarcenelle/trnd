@@ -12,7 +12,11 @@ What TikTok data is available, from where, and what is not: `DATA.md`.
 Built from a study of comparable tools (`DATA.md` covers the data side). The rule: show real value before asking for
 anything, then ask for one thing at a time.
 
-1. **Landing** (`/`): one handle box, "Get my free plan". No account, no TikTok login.
+1. **First screen** (`/`): "Make every post go viral." and the handle, nothing else; visitors come from an ad or a
+   post. The read then runs one question a screen (`/start/[id]`) and ends on the diagnosis: how many of their videos
+   never got past their followers, the gap to the creators ahead, their worst video, with what's killing their posts
+   (the plan's `killer` and `problems`) locked until they pay. How it works, examples (invented accounts in
+   `components/sample/lena.ts`), pricing and the FAQ are at `/pricing`.
 2. **Free preview** (`/start/[id]`, `lib/preview/`): reads the profile, asks "Is this you?", then reads the niche and
    writes the plan while asking one optional question (the goal). Shows the numbers, creators ahead of them, what's
    rising, and **idea 1 in full**; ideas 2 and 3 show their hooks only. One step per request (`/api/preview/[id]/step`),
@@ -56,7 +60,12 @@ anything, then ask for one thing at a time.
      creator's breakouts, peer videos ranked by **borrow score** (half the seats held for creators the owner picked,
      `pickBorrow`) and the early or rising trends. A source the model
      names must be one it was given, of the kind the idea claims, or it is dropped.
-3. **Every day**, Vercel Cron hits `/api/cron/scan`, which fans out one invocation per due creator, always through
+3. **The weekly rhythm** (`lib/creators/schedule.ts`): every creator's plan drops Tuesday 8 AM in their own timezone
+   (from their browser, `creators.timezone`), so it becomes a habit. Vercel Cron hits `/api/cron/scan` **hourly**: a
+   paid account is read daily and again at its plan slot, a free account only at its slot (`readDue`). Each 48-hour check
+   is emailed as a scorecard that ends with the next plan's first hook (`sendScorecardEmail`), and the app header counts
+   the weeks in a row with an idea posted (`streakOf`). Hourly crons need Vercel Pro. Vercel Cron fans out one
+   invocation per due creator, always through
    `NEXT_PUBLIC_SITE_URL` (Vercel Cron calls the deployment's `*.vercel.app` address, which Vercel's login wall
    redirects). A new weekly plan is emailed, with a one-click unsubscribe (`/unsubscribe`, `email_plans`); a plan asked
    for with "Read again now" (once a day) is not. A read that fails keeps its stage and resumes there within 6 hours,
@@ -71,6 +80,24 @@ the views of their settled videos (48 hours or older). "×" is a video's views o
 (0-100) blends how far a peer's video beat its own creator's usual (45%), shared niche hashtags (25%), freshness (15%) and
 saves per 1K views against that creator's usual (15%).
 
+## Distribution
+
+- **Share card and referrals**: every weekly plan ends with "Share your next 3 posts": a 1080×1920 card of the week's
+  hooks (`/app/plan-card`, `lib/preview/plan-card.tsx`) with the creator's referral link on it (`/join/<code>`,
+  `lib/referrals.ts`). Whoever signs up through it gets a 30-day free month on their first checkout; once their
+  subscription goes active, the referrer gets a free month: a 100%-off month on their subscription when they pay and
+  `STRIPE_COUPON_FREE_MONTH` is set, else a credit (`creators.free_months`) used on their next checkout.
+- **Public reads**: `/creators/@handle` shows the free-tier read of any handle previewed in the last 30 days (numbers,
+  the gap, creators ahead, what's rising, the first idea's hook and why it works; never the script), indexable and in the
+  sitemap, with "Claim @handle" and a way to ask for the page to come down. Its headline is TRND's own content format:
+  "We ran @handle through TRND. Here's what it told them to post."
+
+## Funnel numbers
+
+`/admin` (emails in `ADMIN_EMAILS`) shows the brief's metrics from the `events` table (`lib/events.ts`,
+`lib/metrics.ts`): free handle → account, account → first plan viewed, first plan → paid by tier, monthly/yearly mix,
+week-2 and week-4 plan opens, scorecard opens, share cards per handle previewed, and churn by plan.
+
 ## Setup
 
 ```
@@ -84,8 +111,13 @@ re-run; an existing project takes the newer files in `supabase/migrations/` inst
 `idea_runs` and `tiktok_connections`, with owner-read RLS on all but the last (tokens are service-role only). Every
 list read pages past PostgREST's 1,000-row cap (`lib/db/rows.ts`).
 
-**Billing**: two Stripe recurring prices for the same plan, `STRIPE_PRICE_WEEKLY` ($9.99) and `STRIPE_PRICE_MONTHLY`
-($24.99). The webhook records which one as `creators.plan` (`weekly` or `monthly`).
+**Billing** (`lib/billing`): Free (no card: the numbers, the creators ahead, what's rising, one scripted idea a week,
+read weekly), Creator ($19/month or $149/year, `STRIPE_PRICE_CREATOR_MONTHLY` / `_YEARLY`), and Pro ($49/$390) and
+Business ($129/$990), which show their prices but take a waitlist (`waitlist`) until their features ship. Yearly is the
+default on every pricing surface. The webhook records the plan as `creators.plan` (`creator_month`, `creator_year`);
+subscribers on the old `weekly`/`monthly` prices keep them and count as Creator. No trial by default
+(`CREATOR_TRIAL_DAYS` turns one on); paid plans carry a 14-day refund. One-time add-ons (script pack $19, done-for-you
+month $79) are Stripe payments recorded in `addon_orders` and made by hand: the webhook emails `ALERT_EMAIL`.
 
 **Connect TikTok** is optional and needs a TikTok developer app with Login Kit (`user.info.basic`,
 `user.info.profile`, `user.info.stats`, `video.list`), redirect URI `<site>/api/tiktok/callback`, and TikTok's app review

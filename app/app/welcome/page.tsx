@@ -2,10 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ModelsForm } from "@/components/app/forms";
-import SubmitButton from "@/components/app/submit-button";
+import Pricing from "@/components/pricing";
 import { checkoutAction, welcomeAnswerAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
-import { cardFirst, planState, PRICES, TRIAL_DAYS } from "@/lib/billing";
+import { cardFirst, planState, TRIAL_DAYS } from "@/lib/billing";
 import { getCreator, listPeers, listPlans } from "@/lib/data";
 import { isStripeConfigured } from "@/lib/env";
 import { dateIn } from "@/lib/format";
@@ -141,22 +141,24 @@ export default async function WelcomePage({ searchParams }: PageProps<"/app/welc
     );
   }
 
-  // The trial: what happens when, both prices, monthly first.
+  // The last step: the tiers, yearly preselected, Creator emphasized. A trial timeline only when CREATOR_TRIAL_DAYS is set.
   const charge = dateIn(TRIAL_DAYS);
-  const remind = dateIn(TRIAL_DAYS - 2);
+  const remind = dateIn(Math.max(0, TRIAL_DAYS - 2));
   return (
-    <section className="max-w-[720px] mx-auto pt-4 sm:pt-10 grid gap-6">
+    <section className="max-w-[1080px] mx-auto pt-4 sm:pt-10 grid gap-6">
       <Progress n={4} of={4} />
-      <div>
-        <h1 className="display text-[clamp(26px,4.5vw,38px)]">{plan.canTrial ? `Your plan is ready. Try it free for ${TRIAL_DAYS} days.` : plan.trialing ? "Keep it going after your trial" : "Pick up where you left off"}</h1>
+      <div className="max-w-[720px]">
+        <h1 className="display text-[clamp(26px,4.5vw,38px)]">
+          {plan.canTrial ? `Your plan is ready. Try it free for ${TRIAL_DAYS} days.` : plan.trialing ? "Keep it going after your trial" : "See exactly what's wrong with your videos, and fix it."}
+        </h1>
         <p className="text-ink-2 mt-2">
           {plan.trialing && !cardFirst
             ? `Your free trial runs ${plan.trialDaysLeft} more day${plan.trialDaysLeft === 1 ? "" : "s"}. Pick a plan now and the first charge waits until it ends.`
-            : "All three scripts this week, a new plan every week, and every idea checked after you post it."}
+            : "Free shows you that your videos are stuck and gives you one fix a week. Creator tells you what's killing your posts, what the creators ahead of you do instead, and scripts three videos a week to fix it."}
         </p>
       </div>
       {plan.canTrial && (
-        <ol className="list-none m-0 p-0 card divide-y divide-line">
+        <ol className="list-none m-0 p-0 card divide-y divide-line max-w-[720px]">
           {[
             ["Today", "All three scripts unlock. You're not charged today."],
             [remind, "We email you a reminder, two days before the trial ends."],
@@ -169,29 +171,11 @@ export default async function WelcomePage({ searchParams }: PageProps<"/app/welc
           ))}
         </ol>
       )}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {(["monthly", "weekly"] as const).map((i) => (
-          <form key={i} action={checkoutAction} className={`card p-5 grid gap-3 content-start ${i === "monthly" ? "!border-brand shadow-[inset_0_0_0_1px_var(--brand)]" : ""}`}>
-            <input type="hidden" name="interval" value={i} />
-            <div className="flex items-center justify-between">
-              <span className="font-bold">{i === "monthly" ? "Monthly" : "Weekly"}</span>
-              {i === "monthly" && <span className="pill pill-brand">Best value</span>}
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="display text-[34px]">{PRICES[i].perWeek}</span>
-              <span className="text-ink-2">/ week</span>
-            </div>
-            <span className="caption">{i === "monthly" ? "$24.99 billed monthly · 42% less than weekly" : "$9.99 billed weekly"}</span>
-            <SubmitButton className={i === "monthly" ? "btn btn-primary btn-lg w-full" : "btn btn-lg w-full"} pending="Opening checkout…">
-              {plan.canTrial ? "Start my free trial" : plan.trialing ? `Choose ${i}` : `Subscribe ${i}`}
-            </SubmitButton>
-          </form>
-        ))}
-      </div>
+      <Pricing checkout={checkoutAction} current="free" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="caption">Secure checkout by Stripe. Cancel any time from Settings.</span>
         <Link href="/app" className="btn btn-ghost btn-sm">
-          Not now
+          Not now, keep my free plan
         </Link>
       </div>
     </section>

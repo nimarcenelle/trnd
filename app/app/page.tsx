@@ -2,15 +2,22 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import AutoRefresh from "@/components/app/auto-refresh";
+import CopyText from "@/components/app/copy-text";
+import DiagnosisCard from "@/components/app/diagnosis-card";
+import Locked from "@/components/app/locked";
 import SubmitButton from "@/components/app/submit-button";
 import { CreatorsView, LoopView, MineView, NextView, TrendsView, type PeerCard } from "@/components/app/views";
 import { scanNowAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
-import { planState } from "@/lib/billing";
+import { logEvent } from "@/lib/events";
+import { referralCode, referralUrl } from "@/lib/referrals";
+import { planState, yearlyPerMonth } from "@/lib/billing";
+import { diagnose } from "@/lib/creators/diagnosis";
+import { dollarRange, gapOf, postsPerMonth } from "@/lib/creators/gap";
 import { borrowScore, followerChange, normalOf, timesNormal, trendRows } from "@/lib/creators/stats";
 import { getCreator, listFollowers, listOwnVideos, listPeers, listPlans, listRuns, listVideos } from "@/lib/data";
 import type { ScanStage } from "@/lib/db/types";
-import { ago, compact, isScanning, withinDays } from "@/lib/format";
+import { ago, compact, daysSince, isScanning, withinDays } from "@/lib/format";
 
 export const metadata = { title: "Your plan — TRND for creators" };
 // "Scan now" runs the scan after the response, inside this route's time limit.
@@ -39,7 +46,8 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
   if (!user) redirect("/login");
   const creator = await getCreator(user.id);
   if (!creator) redirect("/app/setup");
-  const { tab: tabParam, idea: ideaParam, scan: scanFlag } = await searchParams;
+  const { tab: tabParam, idea: ideaParam, scan: scanFlag, from: fromParam } = await searchParams;
+  const from = typeof fromParam === "string" ? fromParam : null;
 
   const [plans, own, peers, recent, runs, followers] = await Promise.all([
     listPlans(creator.id, 6),
@@ -95,17 +103,83 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
     };
   };
   const openIdea = Number(ideaParam) || 1;
+  const referral = referralUrl(await referralCode(creator));
+  // The retention metrics read these: which plan was opened, how many days into the account, and a scorecard opened.
+  const ageDays = daysSince(creator.created_at);
+  if (tab === "next") await logEvent("plan_viewed", { creatorId: creator.id, meta: { plan: latest.id, age_days: ageDays, free: limited } });
+  if (tab === "loop" || from === "scorecard") await logEvent("scorecard_opened", { creatorId: creator.id, meta: { age_days: ageDays, from: from ?? "tab" } });
+  // The gap, shown on Free with the upgrade directly under it.
+  // The diagnosis: what's wrong with their videos. Free sees that it's wrong and how much; Creator sees what it is.
+  const gap = gapOf(
+    { followers: creator.followers, typical: normal.views },
+    peers.map((p) => ({ followers: p.followers, typical: normals.get(p.handle)?.views ?? null })),
+    postsPerMonth(own.map((v) => v.posted_at), creator.goals?.posts_per_week),
+  );
+  const diagnosis = diagnose(own, normal);
+  const problems = latest.body.problems ?? [];
 
   return (
     <div className="grid gap-5">
       {running && <AutoRefresh />}
-      {limited && (
-        <div className="rounded-[14px] border border-brand/30 bg-brand-soft px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <span className="text-[14.5px]">{plan.canTrial ? "You're on your free plan: one script this week. Unlock all three, and a new plan every week." : "Your plan is paused: no new plans or daily reads."}</span>
-          <Link className="btn btn-primary btn-sm" href="/app/welcome?step=trial">
-            {plan.canTrial ? "Start free trial" : "Resume my plan"}
-          </Link>
-        </div>
+      {diagnosis ? (
+        <section className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] gap-6 items-start" aria-label="What's wrong with your videos">
+          <DiagnosisCard
+            handle={creator.handle}
+            followers={creator.followers}
+            d={diagnosis}
+            gap={gap}
+            killer={limited ? null : latest.body.killer}
+            fix={limited ? null : (latest.body.ideas[0]?.hook ?? null)}
+            locked={limited}
+          />
+          {limited ? (
+            <div className="grid gap-3">
+              <div>
+                <p className="text-[13.5px] font-semibold text-neg m-0">What&apos;s wrong with your videos</p>
+                <h2 className="display text-[clamp(22px,3vw,28px)] mt-1.5">
+                  {diagnosis.stuck} of your last {diagnosis.n} videos never got past your followers. We know why.
+                </h2>
+                {gap?.dollars && (
+                  <p className="text-[15px] text-ink-2 mt-2 mb-0">
+                    At Creator Rewards rates, the gap to the creators ahead of you is roughly <b className="text-ink tnum">{dollarRange(gap.dollars)}</b>.
+                  </p>
+                )}
+              </div>
+              <Locked title="What's killing your posts" detail="1 line" lines={1} />
+              <Locked title="Why your videos flop" detail={`${Math.max(2, problems.length)} problems`} />
+              <Locked title="What the creators ahead of you do that you don't" detail={`${peers.length} creators`} />
+              <div className="flex flex-wrap items-center gap-3 mt-1">
+                <Link className="btn btn-primary btn-lg" href="/app/welcome?step=trial">
+                  {plan.canTrial ? "Start free trial" : "See what's wrong"}
+                </Link>
+                <span className="caption">Creator: the whole diagnosis and three scripts a week, from {yearlyPerMonth("creator")}/month billed yearly.</span>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              <p className="text-[13.5px] font-semibold text-neg m-0">What&apos;s wrong with your videos</p>
+              {(problems.length ? problems : latest.body.patterns).map((x, i) => (
+                <div key={x.title} className="card p-5">
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="mono text-[12.5px] text-ink-3">{i + 1}</span>
+                    <div className="font-bold text-[16px]">{x.title}</div>
+                  </div>
+                  <p className="text-[14.5px] text-ink-2 leading-[1.55] mt-1.5 mb-0">{x.detail}</p>
+                </div>
+              ))}
+              <p className="caption m-0">This week&apos;s three scripts fix these. Each one is checked 48 hours after you post it.</p>
+            </div>
+          )}
+        </section>
+      ) : (
+        limited && (
+          <div className="rounded-[14px] border border-brand/30 bg-brand-soft px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-[14.5px]">You&apos;re on Free: one scripted idea a week. Creator shows you what&apos;s wrong with your videos and gives you three scripts a week.</span>
+            <Link className="btn btn-primary btn-sm" href="/app/welcome?step=trial">
+              {plan.canTrial ? "Start free trial" : "See what's wrong"}
+            </Link>
+          </div>
+        )
       )}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <span className="label">
@@ -158,10 +232,28 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
           limited={limited}
         />
       )}
+      {tab === "next" && (
+        // Every weekly plan ends with the card to share and the referral link: one free month for both.
+        <section className="card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4" aria-label="Share your week">
+          <div className="min-w-0">
+            <div className="font-bold">Share your next 3 posts</div>
+            <p className="text-[14px] text-ink-2 mt-1 m-0">
+              Post the card or send your link. When a friend subscribes through it, you both get a free month.
+            </p>
+            <p className="mono text-[13px] text-ink-3 mt-1.5 m-0 break-all">{referral.replace(/^https?:\/\//, "")}</p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <a href="/app/plan-card" className="btn btn-primary btn-sm">
+              Save the card
+            </a>
+            <CopyText text={referral} label="Copy my link" className="btn btn-sm" />
+          </div>
+        </section>
+      )}
       {tab === "mine" && <MineView creator={creator} own={own} normal={normal} plan={latest} followers={followers.filter((f) => f.handle === creator.handle)} />}
       {tab === "trends" && <TrendsView creator={creator} trends={trends} plan={latest} />}
       {tab === "creators" && <CreatorsView cards={peerCards} />}
-      {tab === "loop" && <LoopView runs={runs} videos={videos} />}
+      {tab === "loop" && <LoopView runs={runs} videos={videos} normal={normal} nextHook={latest.body.ideas[0]?.hook ?? null} />}
     </div>
   );
 }

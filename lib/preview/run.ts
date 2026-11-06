@@ -67,6 +67,21 @@ export async function getPreview(id: string): Promise<Preview | null> {
   return data;
 }
 
+/** The newest finished preview of a handle in the last 30 days: what its public page shows. */
+export async function latestReadyPreview(handle: string): Promise<Preview | null> {
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const { data } = await adminSupabase().from("previews").select("*").eq("handle", handle).eq("status", "ready").gte("created_at", since).order("created_at", { ascending: false }).limit(1);
+  return (data?.[0] as Preview | undefined) ?? null;
+}
+
+/** Handles with a finished preview in the last 30 days, newest first: the public pages the sitemap lists. */
+export async function publicHandles(limit = 1000): Promise<{ handle: string; created_at: string }[]> {
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const { data } = await adminSupabase().from("previews").select("handle, created_at").eq("status", "ready").gte("created_at", since).order("created_at", { ascending: false }).limit(limit);
+  const seen = new Set<string>();
+  return ((data ?? []) as { handle: string; created_at: string }[]).filter((r) => !seen.has(r.handle) && seen.add(r.handle));
+}
+
 async function bump(key: string): Promise<number> {
   const sb = adminSupabase();
   const day = todayIso();
@@ -256,6 +271,8 @@ async function ideaStep(p: Preview): Promise<void> {
     source_trend: i.type === "ride" ? (keys.get(i.source_trend.replace(/^#/, "").toLowerCase()) ?? "") : "",
   }));
   if (!body.ideas.length) throw new Error("empty plan");
+  const known = new Set([...ownIds, ...peerIds]);
+  body.problems = (body.problems ?? []).slice(0, 3).map((x) => ({ ...x, videos: x.videos.filter((id) => known.has(id)) }));
   await save(p.id, { status: "ready", plan: body });
 }
 

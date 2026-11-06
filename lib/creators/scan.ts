@@ -8,8 +8,9 @@ import { allRows } from "@/lib/db/rows";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Creator, IdeaRun, Peer, PlanBody, ScanStage, Video } from "@/lib/db/types";
 import { MAX_PEERS } from "@/lib/db/types";
-import { sendPlanEmail } from "@/lib/email";
-import { friendlyScanError, RESUME_WITHIN_MS } from "./guards";
+import { sendPlanEmail, sendScorecardEmail } from "@/lib/email";
+import { freeReadDue, friendlyScanError, RESUME_WITHIN_MS } from "./guards";
+import { planSlotDue } from "./schedule";
 import { env, isModelConfigured } from "@/lib/env";
 import { todayIso } from "@/lib/format";
 import { readConnected } from "@/lib/tiktok/connect";
@@ -41,8 +42,6 @@ const MIN_PEERS = 4;
 const NICHE_TAGS_READ = 4;
 /** A matched creator with no video this recent has gone quiet. */
 const QUIET_DAYS = 21;
-/** Reads are daily; a new plan (and its email) is weekly, unless the creator asks for one. */
-const PLAN_EVERY_MS = 6.5 * 86_400_000;
 /** Videos tagged per scan: one model call. The rest are tagged on the next. */
 const TAG_PER_SCAN = 60;
 /** A posted idea whose numbers never come in is given up on after this. */
@@ -132,12 +131,19 @@ function overlay<T extends object>(base: T, extra: Partial<T> | undefined): T {
   return out;
 }
 
-/** A plan is due when there is none, the creator asked for one, or the last is a week old. */
+/**
+ * A plan is due when there is none, the creator asked for one, or none has
+ * landed since this week's slot (Tuesday 8 AM in their timezone), so every
+ * creator's plan drops the same weekday.
+ */
 async function planDue(sb: SupabaseClient, c: Creator): Promise<boolean> {
   if (c.plan_requested) return true;
-  const { data } = await sb.from("plans").select("created_at").eq("creator_id", c.id).order("created_at", { ascending: false }).limit(1);
-  const last = data?.[0]?.created_at as string | undefined;
-  return !last || Date.now() - Date.parse(last) >= PLAN_EVERY_MS;
+  let last = c.last_plan_at ?? null;
+  if (!last) {
+    const { data } = await sb.from("plans").select("created_at").eq("creator_id", c.id).order("created_at", { ascending: false }).limit(1);
+    last = (data?.[0]?.created_at as string | undefined) ?? null;
+  }
+  return planSlotDue(last, c.timezone);
 }
 
 /* -------------------------------- stages ---------------------------------- */
@@ -326,7 +332,7 @@ async function tagStage(sb: SupabaseClient, c: Creator): Promise<void> {
 }
 
 /** Ideas the creator added: matched to the video they became, then checked once it has had 48 hours. */
-async function checkRuns(sb: SupabaseClient, c: Creator, own: Video[]): Promise<IdeaRun[]> {
+async function checkRuns(sb: SupabaseClient, c: Creator, own: Video[], checkedNow: IdeaRun[] = []): Promise<IdeaRun[]> {
   const { data, error } = await sb.from("idea_runs").select("*").eq("creator_id", c.id).order("added_at", { ascending: false }).limit(200);
   if (error) throw new Error(`Reading your ideas failed: ${error.message}`);
   const runs = (data ?? []) as IdeaRun[];
@@ -356,6 +362,7 @@ async function checkRuns(sb: SupabaseClient, c: Creator, own: Video[]): Promise<
     r.status = "checked";
     r.checked_at = new Date().toISOString();
     await sb.from("idea_runs").update({ status: "checked", expected, result: r.result, checked_at: r.checked_at }).eq("id", r.id);
+    checkedNow.push(r);
   }
   return runs;
 }
@@ -365,8 +372,21 @@ const trendKey = (k: string) => k.trim().replace(/^#/, "").toLowerCase();
 
 async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | null> {
   const own = await ownVideos(sb, c.id);
-  const runs = await checkRuns(sb, c, own);
-  if (!(await planDue(sb, c))) return null;
+  const checkedNow: IdeaRun[] = [];
+  const runs = await checkRuns(sb, c, own, checkedNow);
+  // A scorecard for the idea just checked, ending on what's next; sent once per idea, whatever the plan does.
+  const scorecard = async (next: PlanBody | null) => {
+    const r = checkedNow.filter((x) => x.result && x.result.read !== "unknown").at(-1);
+    if (!r) return;
+    const usual = normalOf(own.filter((o) => o.id !== r.video_id)).views;
+    const times = usual && r.result!.views !== null ? Math.round((r.result!.views / usual) * 10) / 10 : null;
+    const latest = next ?? ((await sb.from("plans").select("body").eq("creator_id", c.id).order("created_at", { ascending: false }).limit(1)).data?.[0]?.body as PlanBody | undefined) ?? null;
+    await sendScorecardEmail(sb, c, r, times, latest?.ideas[0]?.hook ?? null).catch((e) => console.warn("[scan] scorecard email:", (e as Error).message));
+  };
+  if (!(await planDue(sb, c))) {
+    await scorecard(null);
+    return null;
+  }
   if (!isModelConfigured) throw new Error("Plans aren't set up on this deployment yet (OPENAI_API_KEY).");
 
   const peers = await livePeers(sb, c.id);
@@ -421,9 +441,11 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
   if (!body.ideas.length) throw new Error("The plan came back without ideas. Read again to retry.");
   const known = new Set([...ownIds, ...peerIds]);
   body.patterns = body.patterns.map((p) => ({ ...p, videos: p.videos.filter((id) => known.has(id)) }));
+  body.problems = (body.problems ?? []).slice(0, 3).map((p) => ({ ...p, videos: p.videos.filter((id) => known.has(id)) }));
   const { error } = await sb.from("plans").insert({ creator_id: c.id, body });
   if (error) throw new Error(`Saving the plan failed: ${error.message}`);
-  await sb.from("creators").update({ plan_requested: false }).eq("id", c.id);
+  await sb.from("creators").update({ plan_requested: false, last_plan_at: new Date().toISOString() }).eq("id", c.id);
+  await scorecard(body);
   return body;
 }
 
@@ -484,10 +506,9 @@ export async function scanCreator(creatorId: string, opts: { resume?: boolean; b
   };
   let c = await load();
   const result: ScanResult = { creator: c.handle, stages: [], handedOff: false };
-  // A locked account gets its first read (the free plan everyone sees), and nothing after until it subscribes.
-  if (planState(c).locked && c.last_scan_at) {
-    if (c.scan_status === "running") await sb.from("creators").update({ scan_status: "idle", scan_stage: null }).eq("id", c.id);
-    return { ...result, error: "Trial ended" };
+  // A free account reads weekly (its one idea a week); a read already under way (handed off between functions) carries on.
+  if (planState(c).locked && c.scan_status !== "running" && !freeReadDue(c)) {
+    return { ...result, error: "Free plan: next read later this week" };
   }
   if (!isTiktokConfigured()) {
     await sb.from("creators").update({ scan_status: "error", scan_error: "TikTok reads are not set up on this deployment (APIFY_TOKEN).", scan_stage: null }).eq("id", c.id);

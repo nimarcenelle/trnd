@@ -1,6 +1,6 @@
 import { bearerMatches } from "@/lib/auth/bearer";
 import { planState, trialReminderDue } from "@/lib/billing";
-import { isDue } from "@/lib/creators/guards";
+import { readDue } from "@/lib/creators/guards";
 import { fetchSelf, scanCreator, selfUrl } from "@/lib/creators/scan";
 import { allRows } from "@/lib/db/rows";
 import { adminSupabase } from "@/lib/db/supabase";
@@ -22,7 +22,7 @@ export const maxDuration = 300;
 /** Scans started per second, so a large list doesn't start every Apify run at once. */
 const PER_SECOND = 5;
 
-type Due = Pick<Creator, "id" | "owner_id" | "plan" | "plan_status" | "trial_ends_at" | "trial_used_at" | "trial_reminder_for" | "scan_status" | "scan_started_at" | "last_scan_at" | "scan_failures" | "handle" | "scan_error">;
+type Due = Pick<Creator, "id" | "owner_id" | "plan" | "plan_status" | "trial_ends_at" | "trial_used_at" | "trial_reminder_for" | "scan_status" | "scan_started_at" | "last_scan_at" | "scan_failures" | "handle" | "scan_error" | "timezone" | "last_plan_at">;
 
 export async function GET(req: Request): Promise<Response> {
   if (!bearerMatches(req.headers.get("authorization"), env.cronSecret)) {
@@ -40,9 +40,9 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   const sb = adminSupabase();
-  const creators = await allRows<Due>((from, to) => sb.from("creators").select("id, owner_id, handle, plan, plan_status, trial_ends_at, trial_used_at, trial_reminder_for, scan_status, scan_started_at, scan_error, last_scan_at, scan_failures").order("id").range(from, to));
-  // Not locked, not mid-read, and 20 hours since the last read (longer for an account that keeps failing).
-  const due = creators.filter((c) => !planState(c).locked && isDue(c));
+  const creators = await allRows<Due>((from, to) => sb.from("creators").select("id, owner_id, handle, plan, plan_status, trial_ends_at, trial_used_at, trial_reminder_for, scan_status, scan_started_at, scan_error, last_scan_at, scan_failures, timezone, last_plan_at").order("id").range(from, to));
+  // Paid: the daily read and the Tuesday 8 AM plan slot; free: the slot only (backing off an account that keeps failing).
+  const due = creators.filter((c) => readDue(c, planState(c).locked));
   // Each scan runs in its own invocation; this one only starts them, a few a second, and does not wait for them to finish.
   let started = 0;
   for (let i = 0; i < due.length; i += PER_SECOND) {

@@ -4,7 +4,7 @@ import { sendEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 
 import type { CreatorCheck } from "./check";
-import { creatorType } from "./types";
+import { diagnosis, killerFromNumbers, stuckCount } from "./stats";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const pct = (f: number) => `${Math.round(f * 100)}%`;
@@ -12,7 +12,6 @@ const pct = (f: number) => `${Math.round(f * 100)}%`;
 /** The weekly re-check: this week's numbers, the pattern, three hooks, and the plan. */
 export function recheckEmailHtml(c: CreatorCheck, token: string): string {
   const s = c.stats!;
-  const type = creatorType(s);
   const site = env.siteUrl;
   const hooks = c.read?.next_hooks.length
     ? `<h2 style="font-size:14px;margin:22px 0 8px">Post next</h2><ul style="padding-left:18px;line-height:1.55;margin:0">${c.read.next_hooks
@@ -23,9 +22,9 @@ export function recheckEmailHtml(c: CreatorCheck, token: string): string {
     `<td style="padding:10px 12px;border:1px solid #e9e9e6;border-radius:8px;width:33%"><div style="font-size:12px;color:#868680">${label}</div><div style="font-size:20px;font-weight:600">${value}</div></td>`;
   return `<div style="font-family:Inter,system-ui,sans-serif;max-width:560px;margin:0 auto;color:#111110">
 <p style="font-size:12px;color:#868680">TRND · your weekly re-check · @${esc(c.handle ?? "")}</p>
-<p style="font-size:13px;color:#868680;margin:0">This week you're</p>
-<h1 style="font-size:28px;line-height:1.15;margin:2px 0 8px">${esc(type.name)}</h1>
-<p style="line-height:1.55;margin:0 0 14px;color:#51514d">${esc(type.line)}</p>
+<h1 style="font-size:24px;line-height:1.25;margin:0 0 10px">${esc(diagnosis(s))}</h1>
+<p style="font-size:12px;color:#b42318;margin:0">What's killing your posts</p>
+<p style="line-height:1.5;margin:2px 0 14px;font-weight:600">${esc(c.read?.killer ?? killerFromNumbers(s))}</p>
 <table cellpadding="0" cellspacing="6" style="width:100%;border-collapse:separate"><tr>${cell("Usual post", String(Math.round(s.medianInteractions)))}${cell("Broke out", pct(s.breakoutRate))}${cell("Stalled", pct(s.stalledRate))}</tr></table>
 ${c.read ? `<p style="line-height:1.6;margin:18px 0 0">${esc(c.read.verdict)}</p>` : ""}${hooks}
 <p style="margin:26px 0 0;line-height:1.6">Want this on the creators you compete with, every day? The creator plan reads up to 10 of them and shows you their breakouts as they happen.</p>
@@ -35,5 +34,5 @@ ${c.read ? `<p style="line-height:1.6;margin:18px 0 0">${esc(c.read.verdict)}</p
 }
 
 export async function sendRecheck(to: string, c: CreatorCheck, token: string): Promise<void> {
-  await sendEmail(to, `@${c.handle} this week: ${creatorType(c.stats!).name}`, recheckEmailHtml(c, token));
+  await sendEmail(to, `@${c.handle} this week: ${stuckCount(c.stats!)} of ${c.stats!.posts.length} posts never got past your followers`, recheckEmailHtml(c, token));
 }

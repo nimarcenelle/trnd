@@ -6,7 +6,6 @@ import { generateJson } from "@/lib/ai/openai";
 
 import type { CreatorRead } from "./read";
 import type { CreatorStats } from "./stats";
-import { creatorType } from "./types";
 
 /**
  * A teardown: a short faceless video about one public creator's last posts,
@@ -71,10 +70,10 @@ Posts, newest first:
 ${posts.join("\n")}
 ${input.read ? `\nThe read already written for this account:\nPattern: ${input.read.verdict}\nBreakouts share: ${input.read.breakouts_share.join(" | ")}\nStalled share: ${input.read.stalled_share.join(" | ")}` : ""}
 
-TRND's posting type for this account: ${creatorType(s).name} ("${creatorType(s).line}"). The video reveals it on screen
-after the introduction; the script can build to it and use it in the hook or caption.
+${s.posts.length - s.breakouts} of the ${s.posts.length} posts never got past their followers. The video is about why:
+what the flops do wrong and what the hits do right.
 
-Write the teardown. The cta asks "What's your type?" and says the check is free and runs on your own last 12 posts. The caption names @${input.handle},
+Write the teardown. The cta asks "Why do your posts flop?" and says the check is free and runs on your own last 12 posts. The caption names @${input.handle},
 says what the video shows in one line, and ends with "Free check: link in bio". The pinned comment gives this link: ${input.link}`;
   return generateJson({ system: SYSTEM, prompt, schema: TeardownSchema, effort: "medium" });
 }

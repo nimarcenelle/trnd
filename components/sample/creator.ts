@@ -7,9 +7,12 @@ interface SampleCreator {
   platform: "tiktok" | "instagram";
   followers: number;
   stats: CreatorStats;
+  /** What the written read would say is killing the posts, and the first fix. Invented, like the account. */
+  killer: string;
+  fix: string;
 }
 
-function sample(handle: string, platform: SampleCreator["platform"], followers: number, median: number, posts: [string, number][]): SampleCreator {
+function sample(handle: string, platform: SampleCreator["platform"], followers: number, median: number, killer: string, fix: string, posts: [string, number][]): SampleCreator {
   const stats = creatorStats(
     posts.map(([caption, m], i) => ({
       url: null,
@@ -21,11 +24,11 @@ function sample(handle: string, platform: SampleCreator["platform"], followers: 
       kind: "video",
     })),
   )!;
-  return { handle, platform, followers, stats };
+  return { handle, platform, followers, stats, killer, fix };
 }
 
 export const SAMPLE_CREATORS: SampleCreator[] = [
-  sample("noor.cooks", "tiktok", 31400, 1260, [
+  sample("noor.cooks", "tiktok", 31400, 1260, "Your flops are titled like a menu. Nobody stops for \"Easy dinner\".", "The pasta I make when I can't think, in 4 ingredients", [
     ["The 4-ingredient pasta I make when I can't think", 3.8],
     ["Grocery haul for the week", 0.4],
     ["Sunday reset in my kitchen", 0.4],
@@ -39,7 +42,7 @@ export const SAMPLE_CREATORS: SampleCreator[] = [
     ["Kitchen tour", 1.0],
     ["Easy weeknight rice", 0.3],
   ]),
-  sample("jules.runs", "instagram", 8200, 410, [
+  sample("jules.runs", "instagram", 8200, 410, "Every post but one is a diary entry. Your one hit was a dare.", "I ran 10K every Sunday for a month. My time, honestly", [
     ["Morning run", 1.0],
     ["Shoe rotation", 0.9],
     ["I ran a 5K every day for a month. My knees, honestly", 6.2],
@@ -53,7 +56,7 @@ export const SAMPLE_CREATORS: SampleCreator[] = [
     ["Interval day", 1.0],
     ["Run club", 1.2],
   ]),
-  sample("tess.thrifts", "tiktok", 52800, 2900, [
+  sample("tess.thrifts", "tiktok", 52800, 2900, "\"Haul\" and \"Try-on\" tell a stranger nothing. Your hits all name a price or a secret.", "The $8 blazer label that means it's worth $200", [
     ["$12 at Goodwill vs $180 retail. Same coat", 2.9],
     ["Thrift with me", 1.0],
     ["The tag that tells you it's real wool", 3.4],

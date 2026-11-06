@@ -2,34 +2,23 @@ import Link from "next/link";
 
 import Brand from "@/components/brand";
 import CreatorCheckForm from "@/components/creator/check";
-import TypeCard from "@/components/creator/type-card";
+import DiagnosisCard from "@/components/creator/diagnosis-card";
 import { SAMPLE_CREATORS } from "@/components/sample/creator";
-import { ALL_TYPES, type CreatorTypeId } from "@/lib/creator/types";
 import SiteNav from "@/components/site-nav";
 import { cleanSrc } from "@/lib/creator/check";
 
 export const metadata = {
-  title: "Go viral on purpose — TRND for creators",
-  description: "Your breakout posts weren't luck. A free check of your last 12 TikTok or Instagram posts finds what the ones that took off did differently, and gives you three hooks to do it again.",
+  title: "Make every post go viral — TRND for creators",
+  description: "Find out exactly why your posts flop. A free check of your last 12 TikTok or Instagram posts: what's killing them, and what to post instead.",
 };
 // The profile read and the written read together can take a minute or more.
 export const maxDuration = 300;
 
-/** The six types, for the landing page: what each looks like from the outside. */
-const TYPE_COPY: Record<CreatorTypeId, { name: string; blurb: string }> = {
-  hitmaker: { name: "The Hitmaker", blurb: "A third or more of their posts reach past their followers. Rare, and usually built on one opening that works." },
-  climber: { name: "The Climber", blurb: "Breakouts are starting to come regularly, with few misses in between." },
-  wild_card: { name: "The Wild Card", blurb: "Big hits and big misses on the same account. The difference is usually the first line." },
-  one_hit: { name: "The One-Hit Wonder", blurb: "One post did most of the work. The question is whether they know why." },
-  steady: { name: "The Steady", blurb: "Their crowd shows up for every post. None of them reach much further." },
-  quiet: { name: "The Quiet Patch", blurb: "Nothing breaking out, and more posts stalling than usual. Fixable, starting with the opening." },
-};
-
 /** How a post that breaks out gets made again, in the order the check does it. */
 const STEPS = [
-  { title: "Find your breakouts", body: "Each of your last 12 posts is measured against your own usual. Twice your usual or more is a breakout. Half or less is a stall." },
-  { title: "See what they share", body: "The opening, the promise, the format. Quoted from your own captions, next to the posts that stalled." },
-  { title: "Post the next one", body: "Three hooks built on what already broke out for you. Copy one, film it, post it. Check again next week." },
+  { title: "See which posts flopped", body: "Each of your last 12 posts is measured against your own usual. You'll see exactly which ones never got past your followers." },
+  { title: "Find out what's killing them", body: "The opening, the promise, the format. Quoted from your own captions, side by side with the posts that worked." },
+  { title: "Post the fix", body: "Three hooks built on what already worked for you. Copy one, film it, post it. Check again next week." },
 ];
 
 /** What most creators are never told, plainly. The authority before the ask. */
@@ -67,9 +56,9 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
       <section id="check" className="border-b border-line overflow-hidden scroll-mt-16">
         <div className="wrap pt-16 sm:pt-24 pb-16 sm:pb-24 flex flex-col items-center text-center">
           <p className="kicker">Free for creators</p>
-          <h1 className="display text-[48px] sm:text-[76px] mt-4 max-w-[900px]">Go viral on purpose.</h1>
+          <h1 className="display text-[46px] sm:text-[76px] mt-4 max-w-[960px]">Make every post go viral.</h1>
           <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.6] mt-5 max-w-[620px]">
-            Your best posts weren&apos;t luck. Drop your handle and see what the ones that took off did differently, then get three hooks to do it again.
+            Your posts aren&apos;t flopping by accident. Drop your handle and find out exactly what&apos;s killing them, and what to post instead.
           </p>
           <div className="mt-8 w-full">
             <CreatorCheckForm
@@ -85,7 +74,7 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
                         className={`snap-center shrink-0 w-[min(300px,82vw)] rise ${["sm:-rotate-3 sm:translate-y-6", "sm:z-10", "sm:rotate-3 sm:translate-y-6"][i]}`}
                         style={{ animationDelay: `${i * 140}ms` }}
                       >
-                        <TypeCard handle={c.handle} platform={c.platform} followers={c.followers} stats={c.stats} voice="they" compact />
+                        <DiagnosisCard handle={c.handle} platform={c.platform} followers={c.followers} stats={c.stats} killer={c.killer} fix={c.fix} voice="they" compact />
                       </div>
                     ))}
                   </div>
@@ -100,13 +89,13 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
       <section className="border-b border-line">
         <div className="wrap py-16 sm:py-24 grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-10 lg:gap-16 items-center">
           <div>
-            <p className="kicker">Viral isn&apos;t luck</p>
+            <p className="kicker">It&apos;s not the algorithm</p>
             <h2 className="display text-[30px] sm:text-[40px] mt-3">
               Same creator. Same topic. {Math.round(hit.multiple / Math.max(0.1, miss.multiple))}× apart.
             </h2>
             <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[480px]">
-              The posts that take off and the ones that don&apos;t usually come from the same person, on the same topic, in the same week. What changes is the
-              first line. Once you can see it on your own account, you can do it on purpose.
+              The posts that flop and the ones that take off usually come from the same person, on the same topic, in the same week. What kills the flop
+              is how it opens. Once you see it on your own account, you stop making it.
             </p>
           </div>
           <div className="flex flex-col gap-3">
@@ -133,34 +122,16 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
       <section className="border-b border-line">
         <div className="wrap py-16 sm:py-24">
           <p className="kicker">How it works</p>
-          <h2 className="display text-[30px] sm:text-[40px] mt-3 max-w-[680px]">Make your next post the one that breaks out.</h2>
+          <h2 className="display text-[30px] sm:text-[40px] mt-3 max-w-[680px]">Stop posting flops.</h2>
           <ol className="list-none p-0 m-0 mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
             {STEPS.map((t, i) => (
               <li key={t.title}>
-                <span className="text-[44px] font-semibold tnum tracking-[-0.04em] text-brand leading-none">{i + 1}</span>
+                <span className={`text-[44px] font-semibold tnum tracking-[-0.04em] leading-none ${["text-neg", "text-neg", "text-pos"][i]}`}>{i + 1}</span>
                 <h3 className="heading text-[19px] mt-4">{t.title}</h3>
                 <p className="text-[15px] text-ink-2 leading-[1.65] mt-2">{t.body}</p>
               </li>
             ))}
           </ol>
-        </div>
-      </section>
-
-      <section className="border-b border-line">
-        <div className="wrap py-16 sm:py-24">
-          <p className="kicker">Six types</p>
-          <h2 className="display text-[28px] sm:text-[36px] mt-3 max-w-[640px]">Everyone goes viral differently. Which kind are you?</h2>
-          <ul className="list-none p-0 m-0 mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {ALL_TYPES.map((id) => {
-              const t = TYPE_COPY[id];
-              return (
-                <li key={id} className="card p-5">
-                  <div className="text-[19px] font-semibold tracking-[-0.02em]">{t.name}</div>
-                  <p className="text-[14px] text-ink-2 leading-[1.55] mt-1.5 mb-0">{t.blurb}</p>
-                </li>
-              );
-            })}
-          </ul>
         </div>
       </section>
 
@@ -205,9 +176,9 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
       <section className="border-t border-line">
         <div className="wrap py-16 sm:py-24">
           <div className="stage p-8 sm:p-14 flex flex-col items-center text-center">
-            <h2 className="text-[34px] sm:text-[52px] font-semibold tracking-[-0.035em] leading-[1.04] m-0 max-w-[720px]">Your next post could be the one.</h2>
+            <h2 className="text-[34px] sm:text-[52px] font-semibold tracking-[-0.035em] leading-[1.04] m-0 max-w-[720px]">Find out why your posts flop.</h2>
             <p className="text-[16px] sm:text-[17px] text-stage-ink-2 mt-4 mb-0 max-w-[520px] leading-[1.6]">
-              Find out what your breakouts did. Free, no account, about a minute.
+              Then fix it before you post the next one. Free, no account, about a minute.
             </p>
             <a href="#check" className="btn btn-lg mt-8 bg-stage-ink text-stage hover:opacity-90">
               Check my posts

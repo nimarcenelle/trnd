@@ -14,5 +14,5 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   if (!c?.stats || !c.handle) {
     return new ImageResponse(<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", fontSize: 48 }}>TRND for creators</div>, size);
   }
-  return new ImageResponse(<PreviewImage d={{ handle: c.handle, platform: c.platform ?? "tiktok", followers: c.followers, stats: c.stats }} />, size);
+  return new ImageResponse(<PreviewImage d={{ handle: c.handle, platform: c.platform ?? "tiktok", followers: c.followers, stats: c.stats, killer: c.read?.killer ?? c.read?.stop }} />, size);
 }

@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BUILD_AT, DECIDE_AFTER, funnel, verdict, within, type FunnelEvent } from "@/lib/creator/funnel";
-import { creatorStats, headline, median, tierOf } from "@/lib/creator/stats";
-import { creatorType, theirLine } from "@/lib/creator/types";
+import { creatorStats, diagnosis, headline, killerFromNumbers, median, stuckCount, theirs, tierOf } from "@/lib/creator/stats";
 import type { SocialPost } from "@/lib/db/types";
 
 const post = (likes: number, day: number, comments = 0): SocialPost => ({
@@ -114,17 +113,20 @@ describe("headline voice", () => {
   });
 });
 
-describe("creatorType", () => {
+describe("diagnosis", () => {
   const stats = (mults: number[]) => creatorStats(mults.map((m, i) => post(Math.round(100 * m), i + 1)))!;
-  it("names each shape of account", () => {
-    expect(creatorType(stats([1, 1.1, 0.9, 1, 1.2, 0.8])).id).toBe("steady");
-    expect(creatorType(stats([1, 1, 1, 1, 1, 0.3, 0.2, 0.3, 1.1])).id).toBe("quiet");
-    expect(creatorType(stats([1, 1, 1, 6, 1, 0.9])).id).toBe("one_hit");
-    expect(creatorType(stats([1, 3, 0.3, 3, 0.2, 0.4, 0.3, 1, 1.2, 3])).id).toBe("wild_card");
-    expect(creatorType(stats([1, 3, 1, 3, 1, 3, 1, 1, 1])).id).toBe("hitmaker");
-    expect(creatorType(stats([1, 2.2, 1, 1.1, 0.9, 2.3, 1, 1.2, 0.8, 1])).id).toBe("climber");
+  it("counts the posts that never got past their followers", () => {
+    const s = stats([1, 3, 1, 0.3, 1, 1]);
+    expect(stuckCount(s)).toBe(5);
+    expect(diagnosis(s)).toBe("5 of your last 6 posts never got past your followers.");
+    expect(diagnosis(s, "their")).toBe("5 of their last 6 posts never got past their followers.");
+  });
+  it("names what's killing the posts from the numbers when there is no read", () => {
+    expect(killerFromNumbers(stats([1, 1.1, 0.9, 1, 1.2, 0.8]))).toMatch(/^None of your posts/);
+    expect(killerFromNumbers(stats([1, 1, 1, 6, 1, 0.9]))).toMatch(/^You had one hit/);
+    expect(killerFromNumbers(stats([1, 3, 0.3, 3, 0.2, 0.4, 0.3, 1, 1.2, 3]))).toMatch(/lost even your regulars/);
   });
   it("speaks about someone else when shared", () => {
-    expect(theirLine("Your best post got 4× your usual.")).toBe("Their best post got 4× their usual.");
+    expect(theirs("Your best post got 4× your usual, so you're close.")).toBe("Their best post got 4× their usual, so they're close.");
   });
 });

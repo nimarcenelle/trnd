@@ -9,12 +9,11 @@ import { checkCreatorAction, saveLeadAction, type LeadState } from "@/lib/creato
 import type { CreatorCheck } from "@/lib/creator/check";
 import { CREATOR_PRICE } from "@/lib/creator/funnel";
 import type { CreatorRead } from "@/lib/creator/read";
-import type { CreatorStats, ScoredPost } from "@/lib/creator/stats";
-import { creatorType } from "@/lib/creator/types";
+import { theirs, type CreatorStats, type ScoredPost } from "@/lib/creator/stats";
 import { compact, percent } from "@/lib/format";
 
 import ShareBar from "./share";
-import TypeCard from "./type-card";
+import DiagnosisCard from "./diagnosis-card";
 import { PostBars, TierLegend, useReplay } from "./visuals";
 
 /** What the check is doing, by the second it usually gets there. The read is one call, so this is a clock, not a signal. */
@@ -89,17 +88,18 @@ function HookCard({ hook, why, n }: { hook: string; why: string; n: number }) {
   );
 }
 
-/** The pattern behind the posts, and (for the creator themself) what to post next. */
+/** Why the posts flop, what the hits did right, and (for the creator themself) the fix. Flops first: that's the sell. */
 export function ReadSection({ read, voice = "you", hooks = true }: { read: CreatorRead; voice?: "you" | "they"; hooks?: boolean }) {
+  const say = (t: string) => (voice === "you" ? t : theirs(t));
   return (
     <div className="flex flex-col gap-8">
       <section className="rise" style={{ animationDelay: "150ms" }}>
-        <p className="kicker m-0">Why it happens</p>
-        <p className="m-0 mt-2 text-[24px] sm:text-[28px] leading-[1.2] font-semibold tracking-[-0.025em]">{read.verdict}</p>
+        <p className="text-[13px] font-medium text-neg m-0">Why {voice === "you" ? "your" : "their"} posts flop</p>
+        <p className="m-0 mt-2 text-[24px] sm:text-[28px] leading-[1.2] font-semibold tracking-[-0.025em]">{say(read.verdict)}</p>
         <div className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2 gap-x-8 gap-y-5 mt-6">
           {[
-            { title: voice === "you" ? "What your hits do" : "What the hits do", items: read.breakouts_share, dot: "bg-pos" },
-            { title: voice === "you" ? "What your misses do" : "What the misses do", items: read.stalled_share, dot: "bg-neg" },
+            { title: voice === "you" ? "What's wrong with your flops" : "What's wrong with the flops", items: read.stalled_share, dot: "bg-neg" },
+            { title: voice === "you" ? "What your hits got right" : "What the hits got right", items: read.breakouts_share, dot: "bg-pos" },
           ].map((col) => (
             <div key={col.title}>
               <div className="flex items-center gap-2 text-[13px] font-semibold">
@@ -108,25 +108,25 @@ export function ReadSection({ read, voice = "you", hooks = true }: { read: Creat
               </div>
               <ul className="list-none p-0 m-0 mt-2.5 flex flex-col gap-2 text-[14.5px] text-ink-2 leading-[1.55]">
                 {(col.items.length ? col.items : ["Nothing stood out in these posts."]).map((x) => (
-                  <li key={x}>{x}</li>
+                  <li key={x}>{say(x)}</li>
                 ))}
               </ul>
             </div>
           ))}
         </div>
+        <div className="mt-6 rounded-[10px] bg-neg-bg px-4 py-3 text-[14.5px] leading-[1.5]">
+          <span className="font-semibold text-neg">Stop doing this: </span>
+          {say(read.stop)}
+        </div>
       </section>
       {hooks && (
         <section>
-          <p className="kicker m-0">Post these next</p>
+          <p className="text-[13px] font-medium text-pos m-0">The fix: post these next</p>
           <ol className="list-none p-0 m-0 mt-3 grid grid-cols-[minmax(0,1fr)] gap-3">
             {read.next_hooks.map((h, n) => (
               <HookCard key={h.hook} hook={h.hook} why={h.why} n={n} />
             ))}
           </ol>
-          <p className="m-0 mt-4 text-[14px] leading-[1.55]">
-            <span className="font-semibold">And stop: </span>
-            <span className="text-ink-2">{read.stop}</span>
-          </p>
         </section>
       )}
     </div>
@@ -242,7 +242,7 @@ function Result({ r }: { r: CreatorCheck }) {
     <div ref={top} className="mt-14 text-left scroll-mt-20">
       <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-8 lg:gap-12 items-start">
         <div className="lg:sticky lg:top-20 flex flex-col gap-4">
-          <TypeCard handle={r.handle ?? ""} platform={r.platform ?? "tiktok"} followers={r.followers} stats={s} run={run} />
+          <DiagnosisCard handle={r.handle ?? ""} platform={r.platform ?? "tiktok"} followers={r.followers} stats={s} killer={r.read?.killer} fix={r.read?.next_hooks[0]?.hook} run={run} />
           {r.id ? (
             <ShareBar id={r.id} handle={r.handle ?? ""} onReplay={replay} />
           ) : (
@@ -252,7 +252,7 @@ function Result({ r }: { r: CreatorCheck }) {
           )}
         </div>
         <div className="flex flex-col gap-8">
-          {r.read ? <ReadSection read={r.read} /> : <p className="text-[15px] text-ink-2 m-0">{creatorType(s).next}</p>}
+          {r.read ? <ReadSection read={r.read} /> : <p className="text-[15px] text-ink-2 m-0">The written read is unavailable right now. Run the check again in a minute for why your posts flop and what to post instead.</p>}
           <Numbers stats={s} headline={r.headline} />
         </div>
       </div>

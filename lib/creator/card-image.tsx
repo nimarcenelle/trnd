@@ -1,5 +1,5 @@
 import type { CreatorStats } from "./stats";
-import { creatorType } from "./types";
+import { killerFromNumbers, stuckCount, theirs } from "./stats";
 
 /**
  * The type card drawn for next/og: the story image (1080x1920, posted by the
@@ -14,12 +14,13 @@ export interface CardInput {
   platform: string;
   followers?: number | null;
   stats: CreatorStats;
+  /** What's killing the posts, from the written read, in the creator's voice ("your"). */
+  killer?: string | null;
 }
 
 const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M` : n >= 1e4 ? `${Math.round(n / 1e3)}K` : n >= 1e3 ? `${(n / 1e3).toFixed(1).replace(/\.0$/, "")}K` : String(Math.round(n)));
-const myLine = (line: string) => line.replace(/\byour\b/g, "my").replace(/\bYour\b/g, "My");
-const theirs = (line: string) => line.replace(/\byour\b/g, "their").replace(/\bYour\b/g, "Their");
-const best = (s: CreatorStats) => s.posts.reduce((b, p) => (p.multiple > b.multiple ? p : b), s.posts[0]);
+const mine = (line: string) =>
+  line.replace(/\byou're\b/g, "I'm").replace(/\bYou're\b/g, "I'm").replace(/\byour\b/g, "my").replace(/\bYour\b/g, "My").replace(/\byou\b/g, "I").replace(/\bYou\b/g, "I");
 
 function Mark({ size }: { size: number }) {
   return (
@@ -42,8 +43,7 @@ function Tiles({ s, size, gap }: { s: CreatorStats; size: number; gap: number })
 
 export function StoryImage({ d }: { d: CardInput }) {
   const s = d.stats;
-  const type = creatorType(s);
-  const b = best(s);
+  const killer = mine(d.killer || killerFromNumbers(s));
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: C.stage, color: C.ink, padding: "130px 96px 120px", fontFamily: "sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -53,31 +53,26 @@ export function StoryImage({ d }: { d: CardInput }) {
           {d.followers ? ` · ${compact(d.followers)}` : ""}
         </div>
       </div>
-      <div style={{ display: "flex", fontSize: 40, color: C.ink2, marginTop: 190 }}>My posting type</div>
-      <div style={{ display: "flex", fontSize: 128, fontWeight: 700, lineHeight: 1, letterSpacing: -5, marginTop: 22 }}>{type.name}</div>
-      <div style={{ display: "flex", fontSize: 42, lineHeight: 1.35, color: C.ink2, marginTop: 40 }}>{myLine(type.line)}</div>
-      <div style={{ display: "flex", marginTop: 90 }}>
+      <div style={{ display: "flex", fontSize: 260, fontWeight: 700, lineHeight: 1, letterSpacing: -12, marginTop: 170 }}>
+        {stuckCount(s)}
+        <span style={{ color: C.ink2 }}>/{s.posts.length}</span>
+      </div>
+      <div style={{ display: "flex", fontSize: 52, fontWeight: 600, lineHeight: 1.25, marginTop: 24 }}>of my posts never got past my followers</div>
+      <div style={{ display: "flex", marginTop: 80 }}>
         <Tiles s={s} size={62} gap={11} />
       </div>
       <div style={{ display: "flex", gap: 36, marginTop: 24, fontSize: 30, color: C.ink2 }}>
         <div style={{ display: "flex" }}>{s.breakouts} broke out</div>
-        <div style={{ display: "flex" }}>{s.stalled} stalled</div>
-        <div style={{ display: "flex" }}>last {s.posts.length} posts</div>
+        <div style={{ display: "flex" }}>{s.posts.length - s.breakouts - s.stalled} stuck</div>
+        <div style={{ display: "flex" }}>{s.stalled} flopped</div>
       </div>
-      {b ? (
-        <div style={{ display: "flex", flexDirection: "column", background: C.raise, borderRadius: 32, padding: "40px 44px", marginTop: 80 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", fontSize: 30, color: C.ink2 }}>My best post</div>
-            <div style={{ display: "flex", fontSize: 30, fontWeight: 700, background: C.pos, color: C.stage, borderRadius: 999, padding: "6px 22px" }}>{b.multiple}× usual</div>
-          </div>
-          <div style={{ display: "flex", fontSize: 48, fontWeight: 700, lineHeight: 1.25, marginTop: 20 }}>&ldquo;{(b.caption ?? "No caption").slice(0, 90)}&rdquo;</div>
-        </div>
-      ) : (
-        <div style={{ display: "flex" }} />
-      )}
+      <div style={{ display: "flex", flexDirection: "column", background: C.raise, borderRadius: 32, padding: "40px 44px", marginTop: 80 }}>
+        <div style={{ display: "flex", fontSize: 30, color: C.neg }}>What was killing them</div>
+        <div style={{ display: "flex", fontSize: 50, fontWeight: 700, lineHeight: 1.25, marginTop: 16 }}>{killer.slice(0, 130)}</div>
+      </div>
       <div style={{ display: "flex", flex: 1 }} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `2px solid ${C.line}`, paddingTop: 40 }}>
-        <div style={{ display: "flex", fontSize: 34, color: C.ink2 }}>Find your type</div>
+        <div style={{ display: "flex", fontSize: 34, color: C.ink2 }}>Why do yours flop?</div>
         <div style={{ display: "flex", fontSize: 40, fontWeight: 700 }}>usetrnd.com/creators</div>
       </div>
     </div>
@@ -86,19 +81,24 @@ export function StoryImage({ d }: { d: CardInput }) {
 
 export function PreviewImage({ d }: { d: CardInput }) {
   const s = d.stats;
-  const type = creatorType(s);
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: C.stage, color: C.ink, padding: "60px 72px", fontFamily: "sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Mark size={26} />
-        <div style={{ display: "flex", fontSize: 26, color: C.ink2 }}>@{d.handle}&apos;s posting type</div>
+        <div style={{ display: "flex", fontSize: 26, color: C.ink2 }}>@{d.handle}</div>
       </div>
-      <div style={{ display: "flex", fontSize: 104, fontWeight: 700, letterSpacing: -4, lineHeight: 1, marginTop: 90 }}>{type.name}</div>
-      <div style={{ display: "flex", fontSize: 30, color: C.ink2, marginTop: 24, maxWidth: 980 }}>{theirs(type.line)}</div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 28, marginTop: 70 }}>
+        <div style={{ display: "flex", fontSize: 150, fontWeight: 700, letterSpacing: -6, lineHeight: 1 }}>
+          {stuckCount(s)}
+          <span style={{ color: C.ink2 }}>/{s.posts.length}</span>
+        </div>
+        <div style={{ display: "flex", fontSize: 38, fontWeight: 600, lineHeight: 1.2, paddingBottom: 14, maxWidth: 560 }}>posts never got past their followers</div>
+      </div>
+      <div style={{ display: "flex", fontSize: 30, color: C.ink2, marginTop: 28, maxWidth: 1000 }}>{theirs(d.killer || killerFromNumbers(s)).slice(0, 110)}</div>
       <div style={{ display: "flex", flex: 1 }} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <Tiles s={s} size={36} gap={8} />
-        <div style={{ display: "flex", fontSize: 28, fontWeight: 700 }}>What&apos;s yours? usetrnd.com/creators</div>
+        <div style={{ display: "flex", fontSize: 28, fontWeight: 700 }}>Why do yours flop? usetrnd.com/creators</div>
       </div>
     </div>
   );

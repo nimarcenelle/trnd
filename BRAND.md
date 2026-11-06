@@ -95,18 +95,19 @@ All in `app/globals.css` under `@layer components`, used as plain classes:
 
 ## Creators (`/creators`, `/c/<id>`)
 
-The creator side speaks to people, not to analysts, so it is warmer than the rest of TRND while keeping the same
-type, tokens and rules (still no gradients, glows, emoji or purple):
+The creator side speaks to creators, not analysts: louder and blunter than the rest of TRND, on the same type, tokens
+and rules (still no gradients, glows, emoji or purple):
 
-- **Lead with who they are, not the numbers.** A result opens with a posting type ("The Wild Card"), the shape of their
-  last 12 posts as a row of tiles, and their best post in their own words. Charts, figures and tables sit behind
-  "See the numbers".
-- **The type card** (`components/creator/type-card.tsx`) is the one dark surface: `.stage`, dark in both themes, 20px
+- **Sell the diagnosis.** The promise is "Make every post go viral"; what a result delivers is why their posts flop.
+  It opens with how many of their last 12 never got past their followers, the shape of those posts as a row of tiles,
+  what's killing them in one blunt sentence, and the fix. Charts, figures and tables sit behind "See the numbers".
+- **Blunt about the posts, never the person.** "Your openings name the topic instead of giving anyone a reason to
+  stay", not "you're boring".
+- **The diagnosis card** (`components/creator/diagnosis-card.tsx`) is the one dark surface: `.stage`, dark in both themes, 20px
   radius, so a shared result looks the same everywhere. Its green and red are `--stage-pos` and `--stage-neg`, the
   dark-theme values, because they sit on dark.
-- **Big type, short lines.** Type names at 40-46px, hooks at 19px semibold, one sentence per idea.
+- **Big type, short lines.** The count at 72-84px, the killer and hooks at 19px semibold, one sentence per idea.
 - **Motion that records well**: tiles pop in order, text rises; nothing loops. All of it stops under reduced motion.
-- Types are named from the numbers alone (`lib/creator/types.ts`), and every line on the card is one the numbers show.
 
 ## Sample data
 

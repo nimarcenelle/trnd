@@ -7,13 +7,15 @@ import { generateJson } from "@/lib/ai/openai";
 import type { CreatorStats } from "./stats";
 
 /**
- * The free read a creator gets after the numbers: what their breakout posts
- * share, what their stalled posts share, and what to post next. One model
- * call over their own captions, held to the numbers we computed.
+ * The free read a creator gets after the numbers: the one thing killing
+ * their posts, why, what their hits did right, and what to post next. Blunt,
+ * from their own captions, held to the numbers we computed.
  */
 
 export const CreatorReadSchema = z.object({
-  /** One or two sentences: the pattern, in plain words. */
+  /** The one thing killing their posts, said straight. Leads the result. */
+  killer: z.string(),
+  /** One or two sentences: why the posts that flop flop and the hits hit. */
   verdict: z.string(),
   /** What the breakout posts have in common, each line quoting or naming a post. */
   breakouts_share: z.array(z.string()),
@@ -31,10 +33,9 @@ You are concrete. You quote the caption and give the number. You only know what 
 types, likes, comments, shares and views, and each post's multiple of the creator's median. You don't know reach,
 saves, watch time or the algorithm, so never claim them. Say "got 3.4× the usual engagement", never "went viral" or
 "the algorithm pushed it". When a pattern rests on two posts, say it is early.
-Write for a creator between posts: short sentences, everyday words, no hype ("unlock", "skyrocket", "game-changer").
-Write the verdict, breakouts_share, stalled_share and stop without "you" or "your": the result is shared, and is read
-by people other than the creator. Say "The breakouts open with a number", "got 4.6× the usual". Only next_hooks.why
-speaks to the creator.
+Talk straight to the creator ("your posts"), like a friend who knows the platform and won't sugarcoat it. Be blunt
+about what is wrong with the posts that flopped: name it plainly, quote it, give the number. Never insult the person,
+only the posts. Short sentences, everyday words, no hype ("unlock", "skyrocket", "game-changer").
 Hooks are opening lines a person would say on camera or put as the first line of a caption: under 14 words, specific
 to their niche, no emoji, no hashtags, no clickbait they couldn't pay off.`;
 
@@ -50,7 +51,9 @@ ${stats.breakouts} breakouts, ${stats.stalled} stalled, of ${stats.posts.length}
 ${lines.join("\n")}
 
 Return:
-- verdict: the one pattern that most separates their breakouts from the rest.
+- killer: the one thing killing their posts, in one blunt sentence under 18 words, specific to these captions
+  (e.g. "Your openings name the topic instead of giving anyone a reason to stay."). No numbers needed.
+- verdict: why the posts that flop flop and the hits hit, in one or two sentences.
 - breakouts_share: 2-3 lines on what the breakout posts have in common (topic, opening, format, length, promise). Quote them. Empty if there are none.
 - stalled_share: 2-3 lines on what the stalled posts have in common. Quote them. Empty if there are none.
 - next_hooks: exactly 3 opening lines for their next posts, built on what broke out, each with a one-line why that points at a post above.

@@ -93,3 +93,32 @@ export function headline(s: CreatorStats, your: "your" | "their" = "your"): stri
   if (s.stalled >= s.breakouts) return `${s.breakouts} of ${your} last ${n} posts broke out, and ${s.stalled} stalled at half ${your} usual engagement or less.`;
   return `${s.breakouts} of ${your} last ${n} posts broke out, the best at ${s.bestMultiple}× ${your} usual. The question is what they did that the rest didn't.`;
 }
+
+/** Posts that never reached past the creator's regulars: everything that didn't break out. */
+export const stuckCount = (s: CreatorStats) => s.posts.length - s.breakouts;
+
+/** The diagnosis headline: how many posts never left their followers. */
+export function diagnosis(s: CreatorStats, your: "your" | "their" = "your"): string {
+  const n = s.posts.length;
+  const stuck = stuckCount(s);
+  if (stuck === 0) return `Every one of ${your} last ${n} posts got past ${your} followers.`;
+  return `${stuck} of ${your} last ${n} posts never got past ${your} followers.`;
+}
+
+/** What's killing the posts when there is no written read, from the numbers alone. */
+export function killerFromNumbers(s: CreatorStats): string {
+  if (s.breakouts === 0) return "None of your posts are reaching past the people who already follow you.";
+  if (s.stalled >= 4) return `${s.stalled} of your posts lost even your regulars. Something in how they open is pushing people away.`;
+  if (s.breakouts === 1) return "You had one hit and didn't repeat it. The rest of your posts don't do what it did.";
+  return "Most of your posts stop at your followers. Your hits do something the rest don't.";
+}
+
+/** The same text, about someone else: for a result someone other than the creator is reading. */
+export const theirs = (text: string) =>
+  text
+    .replace(/\byou're\b/g, "they're")
+    .replace(/\bYou're\b/g, "They're")
+    .replace(/\byour\b/g, "their")
+    .replace(/\bYour\b/g, "Their")
+    .replace(/\byou\b/g, "they")
+    .replace(/\bYou\b/g, "They");

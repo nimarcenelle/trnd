@@ -74,6 +74,7 @@ export async function sendPlanEmail(sb: SupabaseClient, creator: Creator, body: 
 <p style="line-height:1.6">${esc(body.summary)}</p>
 <ol style="padding-left:18px;line-height:1.55">${items}</ol>
 <p><a href="${env.siteUrl}/app" style="display:inline-block;background:#0f8a78;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:600">Open the scripts</a></p>
+<p style="line-height:1.6;color:#51514d;font-size:14px">Know a creator who'd use this? Send them <a href="${env.siteUrl}/app/plan-card" style="color:#0f8a78">your plan card</a> or your link from the app: when they subscribe, you both get a free month.</p>
 <p style="font-size:12px;color:#868680;margin-top:28px">A new plan every week while your plan is on. <a href="${unsub}" style="color:#868680">Stop these emails</a></p>
 </div>`;
   await sendEmail(to, `What to post this week: ${body.ideas[0]?.hook.replace(/^["“]|["”]$/g, "") ?? body.headline}`, html, {

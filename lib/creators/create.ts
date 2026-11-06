@@ -8,6 +8,7 @@ import type { Goal } from "@/lib/db/types";
 import { logEvent } from "@/lib/events";
 import { claimPreview, getPreview } from "@/lib/preview/run";
 import { PREVIEW_COOKIE } from "@/lib/preview/types";
+import { isCode, REF_COOKIE } from "@/lib/referrals";
 
 import { scanCreator } from "./scan";
 
@@ -29,7 +30,14 @@ export async function createCreator(userId: string, handle: string): Promise<{ i
       return { id: again.id as string, claimed: false };
     }
     id = data.id as string;
-    await logEvent("account_created", { creatorId: id, meta: { handle } });
+    // Signed up through someone's link: remember whose, for both free months.
+    const code = (await cookies()).get(REF_COOKIE)?.value;
+    const { data: referrer } = code && isCode(code) ? await sb.from("creators").select("id").eq("referral_code", code).neq("id", id).maybeSingle<{ id: string }>() : { data: null };
+    if (referrer) {
+      await sb.from("creators").update({ referred_by: referrer.id }).eq("id", id);
+      await logEvent("referral_signup", { creatorId: id, meta: { referrer: referrer.id } });
+    }
+    await logEvent("account_created", { creatorId: id, meta: { handle, referred: Boolean(referrer) } });
   }
   const previewId = (await cookies()).get(PREVIEW_COOKIE)?.value;
   const preview = previewId ? await getPreview(previewId) : null;

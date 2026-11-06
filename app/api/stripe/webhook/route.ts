@@ -35,6 +35,27 @@ function planOf(sub: Stripe.Subscription | null, fallback?: string | null): stri
 
 const idOf = (v: string | { id: string } | null | undefined) => (typeof v === "string" ? v : (v?.id ?? null));
 
+/**
+ * The referrer's free month, granted once per referee when the referee's
+ * subscription goes active (paying, past any free month). A referrer who pays
+ * gets a 100%-off month on their subscription (STRIPE_COUPON_FREE_MONTH);
+ * otherwise a credit, used as a 30-day trial on their next checkout.
+ */
+async function rewardReferrer(sb: ReturnType<typeof adminSupabase>, who: { id: string } | { subscription: string }): Promise<void> {
+  const q = sb.from("creators").select("id, referred_by, referral_rewarded_at");
+  const { data: c } = await ("id" in who ? q.eq("id", who.id) : q.eq("stripe_subscription_id", who.subscription)).maybeSingle<{ id: string; referred_by: string | null; referral_rewarded_at: string | null }>();
+  if (!c?.referred_by || c.referral_rewarded_at) return;
+  // Claim it first, so a redelivered event can't grant it twice.
+  const { data: claimed } = await sb.from("creators").update({ referral_rewarded_at: new Date().toISOString() }).eq("id", c.id).is("referral_rewarded_at", null).select("id");
+  if (!claimed?.length) return;
+  const { data: r } = await sb.from("creators").select("id, stripe_subscription_id, plan_status, free_months").eq("id", c.referred_by).maybeSingle<{ id: string; stripe_subscription_id: string | null; plan_status: string; free_months: number | null }>();
+  if (!r) return;
+  const { applyFreeMonth } = await import("@/lib/billing/stripe");
+  const applied = r.stripe_subscription_id && r.plan_status === "active" ? await applyFreeMonth(r.stripe_subscription_id) : false;
+  if (!applied) await sb.from("creators").update({ free_months: (r.free_months ?? 0) + 1 }).eq("id", r.id);
+  await logEvent("referral_signup", { creatorId: r.id, meta: { rewarded_for: c.id, as: applied ? "coupon" : "credit" } });
+}
+
 export async function POST(req: Request): Promise<Response> {
   if (!isStripeConfigured || !env.stripeWebhookSecret) return new Response("billing not configured", { status: 503 });
   const signature = req.headers.get("stripe-signature");
@@ -87,7 +108,14 @@ export async function POST(req: Request): Promise<Response> {
           .eq("id", creatorId);
         // Stripe redelivers events: one "paid" per checkout session.
         const { data: seen } = await sb.from("events").select("id").eq("kind", "paid").eq("meta->>session", s.id).limit(1);
-        if (!seen?.length) await logEvent("paid", { creatorId, meta: { session: s.id, plan: planOf(sub, s.metadata?.plan), status: sub ? mapStatus(sub.status) : "active" } });
+        if (!seen?.length) {
+          await logEvent("paid", { creatorId, meta: { session: s.id, plan: planOf(sub, s.metadata?.plan), status: sub ? mapStatus(sub.status) : "active" } });
+          // A free month earned by referring was used on this checkout: one fewer left.
+          if (s.metadata?.free_month === "credit") {
+            const { data: c } = await sb.from("creators").select("free_months").eq("id", creatorId).maybeSingle<{ free_months: number | null }>();
+            await sb.from("creators").update({ free_months: Math.max(0, (c?.free_months ?? 0) - 1) }).eq("id", creatorId);
+          }
+        }
       }
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       // Events can arrive out of order or twice: the subscription as Stripe has it now decides, not the event's copy of it.
@@ -108,6 +136,8 @@ export async function POST(req: Request): Promise<Response> {
           stripe_subscription_id: sub.id,
         });
         await (creatorId ? q.eq("id", creatorId) : q.eq("stripe_subscription_id", sub.id));
+        // A referee's first real payment: their referrer gets a free month, once.
+        if (status === "active") await rewardReferrer(sb, creatorId ? { id: creatorId } : { subscription: sub.id });
         if (event.type === "customer.subscription.deleted") {
           // Churn by tier and billing period, with how long they stayed.
           const days = sub.start_date ? Math.round((Date.now() / 1000 - sub.start_date) / 86_400) : null;

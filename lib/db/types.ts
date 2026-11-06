@@ -76,6 +76,8 @@ export interface Creator {
   referred_by?: string | null;
   /** When the referral's free month was granted. */
   referral_rewarded_at?: string | null;
+  /** Free months earned by referring, used one at a time at checkout. */
+  free_months?: number;
   created_at: string;
 }
 

@@ -15,3 +15,5 @@ create unique index if not exists creators_referral_code_idx on public.creators 
 alter table public.creators add column if not exists referred_by uuid references public.creators(id) on delete set null;
 -- When the free month for a referral was granted, so it is granted once.
 alter table public.creators add column if not exists referral_rewarded_at timestamptz;
+-- Free months earned by referring someone who subscribed, used up one at a time at checkout.
+alter table public.creators add column if not exists free_months int not null default 0;

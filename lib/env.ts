@@ -26,7 +26,9 @@ export const env = {
   /** The old $9.99/week and $24.99/month prices: no longer sold, read only to label existing subscriptions. */
   stripePriceWeekly: process.env.STRIPE_PRICE_WEEKLY ?? "",
   stripePriceMonthly: process.env.STRIPE_PRICE_MONTHLY ?? "",
-  /** Signed-in emails that may open /app/admin (the funnel numbers), comma separated. */
+  /** A Stripe coupon (100% off, once) for a referrer who already pays. Unset, their free month is a credit for their next checkout. */
+  stripeCouponFreeMonth: process.env.STRIPE_COUPON_FREE_MONTH ?? "",
+  /** Signed-in emails that may open /admin (the funnel numbers), comma separated. */
   adminEmails: (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean),
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM || "TRND <plans@usetrnd.com>",

@@ -77,6 +77,24 @@ the views of their settled videos (48 hours or older). "×" is a video's views o
 (0-100) blends how far a peer's video beat its own creator's usual (45%), shared niche hashtags (25%), freshness (15%) and
 saves per 1K views against that creator's usual (15%).
 
+## Distribution
+
+- **Share card and referrals**: every weekly plan ends with "Share your next 3 posts": a 1080×1920 card of the week's
+  hooks (`/app/plan-card`, `lib/preview/plan-card.tsx`) with the creator's referral link on it (`/join/<code>`,
+  `lib/referrals.ts`). Whoever signs up through it gets a 30-day free month on their first checkout; once their
+  subscription goes active, the referrer gets a free month: a 100%-off month on their subscription when they pay and
+  `STRIPE_COUPON_FREE_MONTH` is set, else a credit (`creators.free_months`) used on their next checkout.
+- **Public reads**: `/creators/@handle` shows the free-tier read of any handle previewed in the last 30 days (numbers,
+  the gap, creators ahead, what's rising, the first idea's hook and why it works; never the script), indexable and in the
+  sitemap, with "Claim @handle" and a way to ask for the page to come down. Its headline is TRND's own content format:
+  "We ran @handle through TRND. Here's what it told them to post."
+
+## Funnel numbers
+
+`/admin` (emails in `ADMIN_EMAILS`) shows the brief's metrics from the `events` table (`lib/events.ts`,
+`lib/metrics.ts`): free handle → account, account → first plan viewed, first plan → paid by tier, monthly/yearly mix,
+week-2 and week-4 plan opens, scorecard opens, share cards per handle previewed, and churn by plan.
+
 ## Setup
 
 ```

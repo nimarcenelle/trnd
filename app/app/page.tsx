@@ -2,12 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import AutoRefresh from "@/components/app/auto-refresh";
+import CopyText from "@/components/app/copy-text";
 import GapCard from "@/components/app/gap-card";
 import SubmitButton from "@/components/app/submit-button";
 import { CreatorsView, LoopView, MineView, NextView, TrendsView, type PeerCard } from "@/components/app/views";
 import { scanNowAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { logEvent } from "@/lib/events";
+import { referralCode, referralUrl } from "@/lib/referrals";
 import { planState, yearlyPerMonth } from "@/lib/billing";
 import { gapOf, postsPerMonth } from "@/lib/creators/gap";
 import { borrowScore, followerChange, normalOf, timesNormal, trendRows } from "@/lib/creators/stats";
@@ -99,6 +101,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
     };
   };
   const openIdea = Number(ideaParam) || 1;
+  const referral = referralUrl(await referralCode(creator));
   // The retention metrics read these: which plan was opened, how many days into the account, and a scorecard opened.
   const ageDays = daysSince(creator.created_at);
   if (tab === "next") await logEvent("plan_viewed", { creatorId: creator.id, meta: { plan: latest.id, age_days: ageDays, free: limited } });
@@ -182,6 +185,24 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
           openIdea={openIdea}
           limited={limited}
         />
+      )}
+      {tab === "next" && (
+        // Every weekly plan ends with the card to share and the referral link: one free month for both.
+        <section className="card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4" aria-label="Share your week">
+          <div className="min-w-0">
+            <div className="font-bold">Share your next 3 posts</div>
+            <p className="text-[14px] text-ink-2 mt-1 m-0">
+              Post the card or send your link. When a friend subscribes through it, you both get a free month.
+            </p>
+            <p className="mono text-[13px] text-ink-3 mt-1.5 m-0 break-all">{referral.replace(/^https?:\/\//, "")}</p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <a href="/app/plan-card" className="btn btn-primary btn-sm">
+              Save the card
+            </a>
+            <CopyText text={referral} label="Copy my link" className="btn btn-sm" />
+          </div>
+        </section>
       )}
       {tab === "mine" && <MineView creator={creator} own={own} normal={normal} plan={latest} followers={followers.filter((f) => f.handle === creator.handle)} />}
       {tab === "trends" && <TrendsView creator={creator} trends={trends} plan={latest} />}

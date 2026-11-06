@@ -6,7 +6,10 @@
 /** The creator plan's price, shown on the upgrade card, the early-access page and nowhere else. */
 export const CREATOR_PRICE = "$19";
 
-export type FunnelEventKind = "check" | "check_failed" | "upgrade_click" | "waitlist" | "lead" | "teardown";
+/** The ?src= a shared result's "check yours" carries. */
+export const SHARED_SRC = "shared";
+
+export type FunnelEventKind = "check" | "check_failed" | "upgrade_click" | "waitlist" | "lead" | "teardown" | "share" | "share_view";
 
 export interface FunnelEvent {
   kind: string;
@@ -32,6 +35,12 @@ export interface Funnel {
   waitlist: number;
   leads: number;
   teardowns: number;
+  /** Results shared (link copied, image saved or the share sheet used). */
+  shares: number;
+  /** Visits to a shared result's page. */
+  shareViews: number;
+  /** Checks started from a shared result: the loop that makes it spread. */
+  fromShares: number;
   /** Upgrade clicks per completed check, 0-1; null before any check. */
   upgradeRate: number | null;
   leadRate: number | null;
@@ -81,6 +90,9 @@ export function funnel(events: FunnelEvent[]): Funnel {
     waitlist,
     leads,
     teardowns: count("teardown"),
+    shares: count("share"),
+    shareViews: count("share_view"),
+    fromShares: events.filter((e) => e.kind === "check" && e.src === SHARED_SRC).length,
     upgradeRate: checks ? upgrades / checks : null,
     leadRate: checks ? leads / checks : null,
     bySource: [...sources.values()].sort((a, b) => b.checks - a.checks),

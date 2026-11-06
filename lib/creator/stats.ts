@@ -86,10 +86,10 @@ export function creatorStats(recent: SocialPost[]): CreatorStats | null {
   };
 }
 
-/** The one sentence the numbers say, before any model reads the captions. */
-export function headline(s: CreatorStats): string {
+/** The one sentence the numbers say, before any model reads the captions. "their" for a result someone else is reading. */
+export function headline(s: CreatorStats, your: "your" | "their" = "your"): string {
   const n = s.posts.length;
-  if (s.breakouts === 0) return `None of your last ${n} posts reached twice your usual engagement. Every post is landing with the same people.`;
-  if (s.stalled >= s.breakouts) return `${s.breakouts} of your last ${n} posts broke out, and ${s.stalled} stalled at half your usual engagement or less.`;
-  return `${s.breakouts} of your last ${n} posts broke out, the best at ${s.bestMultiple}× your usual. The question is what they did that the rest didn't.`;
+  if (s.breakouts === 0) return `None of ${your} last ${n} posts reached twice ${your} usual engagement. Every post is landing with the same people.`;
+  if (s.stalled >= s.breakouts) return `${s.breakouts} of ${your} last ${n} posts broke out, and ${s.stalled} stalled at half ${your} usual engagement or less.`;
+  return `${s.breakouts} of ${your} last ${n} posts broke out, the best at ${s.bestMultiple}× ${your} usual. The question is what they did that the rest didn't.`;
 }

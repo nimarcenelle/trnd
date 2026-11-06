@@ -9,7 +9,7 @@ import { normHandle } from "@/lib/social/read";
 
 import { requireAdmin } from "./admin";
 import { cleanSrc, isHandle, runCheck, type CreatorCheck, type CreatorPlatform } from "./check";
-import { logEvent, saveLead, saveTeardown, setPosted } from "./store";
+import { logEvent, saveCheck, saveLead, saveTeardown, setPosted } from "./store";
 import { writeTeardown } from "./teardown";
 
 /**
@@ -58,7 +58,8 @@ export async function checkCreatorAction(_prev: CreatorCheck, formData: FormData
     await logEvent("check_failed", { handle, platform, src, meta: { error: result.error, ms } });
     return { ...result, src };
   }
-  await logEvent("check", { handle, platform, src, meta: { ms, posts: result.stats?.posts.length, breakouts: result.stats?.breakouts, read: Boolean(result.read) } });
+  result.id = await saveCheck({ ...result, src });
+  await logEvent("check", { handle, platform, src, meta: { ms, id: result.id, posts: result.stats?.posts.length, breakouts: result.stats?.breakouts, read: Boolean(result.read) } });
   cache.set(key, { at: Date.now(), result });
   if (cache.size > 2000) cache.clear();
   return { ...result, src };
@@ -86,6 +87,12 @@ export async function saveLeadAction(_prev: LeadState, formData: FormData): Prom
   }
   await logEvent(wantsPlan ? "waitlist" : "lead", { handle, platform, src });
   return { saved: true };
+}
+
+/** A result shared: how, for the funnel. Fire and forget from the share bar. */
+export async function logShareAction(id: string, how: "link" | "image" | "native"): Promise<void> {
+  if (!/^[a-z0-9]{6,16}$/.test(id) || !["link", "image", "native"].includes(how)) return;
+  await logEvent("share", { meta: { id, how } });
 }
 
 /* ------------------------------- the studio ------------------------------ */

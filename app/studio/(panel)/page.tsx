@@ -67,12 +67,14 @@ export default async function StudioPage() {
             change the offer. Edit it in <code>lib/creator/funnel.ts</code>.
           </p>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
           <Kpi label="Checks" value={String(month.checks)} note={`30 days · ${week.checks} this week`} />
           <Kpi label="Creators" value={String(month.creators)} note="different handles checked" />
           <Kpi label="Start free" value={percent(month.upgradeRate, 1)} note={`${month.upgrades} clicks from ${month.checks} checks, 30 days`} />
           <Kpi label="Early access" value={percent(month.upgrades ? month.waitlist / month.upgrades : null, 0)} note={`${month.waitlist} of ${month.upgrades} who clicked left an email`} />
           <Kpi label="Weekly re-check" value={percent(month.leadRate, 1)} note={`${month.leads} emails from ${month.checks} checks, 30 days`} />
+          <Kpi label="Shared" value={percent(month.checks ? month.shares / month.checks : null, 0)} note={`${month.shares} results shared · ${month.shareViews} views of shared results`} />
+          <Kpi label="From shares" value={percent(month.checks ? month.fromShares / month.checks : null, 0)} note={`${month.fromShares} checks started from someone else's result`} />
           <Kpi label="Failed checks" value={String(month.failed)} note="handle not found, private or a read that broke" />
         </div>
       </section>

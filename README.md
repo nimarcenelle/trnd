@@ -61,8 +61,12 @@ A free check for TikTok and Instagram creators, and the funnel around it (`lib/c
 - **The demand test**: "Start free" goes through `/creators/start` (counted) to `/creators/plan`, an early-access list,
   until the creator plan is built. `/studio` holds the rule (`lib/creator/funnel.ts`: at 100 checks, 3%+ clicking means
   build it, under 1% means change the offer) and the numbers by source (`?src=` on any link to `/creators`).
+- **Sharing**: every result is saved (`creator_checks`) with a page of its own, `/c/<id>`, a link preview, and a
+  1080x1920 story image (`/c/<id>/story`) for TikTok photo mode and stories. The share page keeps the hooks for the
+  creator and puts "check mine" under the result; checks started there carry `?src=shared`.
 - **Teardowns** (`/studio`): a public creator's handle in, a 30-45 second faceless script out, saved with its own `?src=`
-  code so the checks each video drives are counted to it.
+  code so the checks each video drives are counted to it. "Play as video" (`/studio/record/<id>`) plays it as a 9:16
+  video with captions, counting numbers and growing bars, to screen-record.
 
 `/studio` opens for the emails in `ADMIN_EMAILS`. Events, leads and teardowns are in `creator_events`,
 `creator_leads` and `creator_teardowns` (`0108_creator_funnel.sql`).
@@ -99,7 +103,7 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql`, `0104_ad_scores.sql`, `0105_scan_state.sql`, `0106_candidates.sql`, `0107_ads_confirmed.sql` and `0108_creator_funnel.sql`, safe to re-run). They create
+`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql`, `0104_ad_scores.sql`, `0105_scan_state.sql`, `0106_candidates.sql`, `0107_ads_confirmed.sql`, `0108_creator_funnel.sql` and `0109_creator_checks.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
 `site_snapshots`, `site_changes` and `emails`, and leave the old
 product's tables alone (drop them when convenient).

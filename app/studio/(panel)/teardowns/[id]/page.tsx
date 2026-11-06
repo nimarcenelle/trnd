@@ -42,10 +42,13 @@ export default async function TeardownPage({ params }: PageProps<"/studio/teardo
           <span className="font-mono">{t.src}</span>
         </p>
         <div className="flex flex-wrap gap-2 mt-4">
+          <Link href={`/studio/record/${t.id}`} className="btn btn-primary btn-sm">
+            Play as video
+          </Link>
           <form action={markPostedAction}>
             <input type="hidden" name="id" value={t.id} />
             <input type="hidden" name="posted" value={t.posted_at ? "0" : "1"} />
-            <button className={t.posted_at ? "btn btn-secondary btn-sm" : "btn btn-primary btn-sm"}>{t.posted_at ? "Mark as draft" : "Mark as posted"}</button>
+            <button className="btn btn-secondary btn-sm">{t.posted_at ? "Mark as draft" : "Mark as posted"}</button>
           </form>
         </div>
       </div>

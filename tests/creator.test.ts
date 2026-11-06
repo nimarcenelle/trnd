@@ -98,3 +98,17 @@ describe("verdict", () => {
     expect(verdict({ checks: DECIDE_AFTER, upgradeRate: 0.02 })).toBe("keep_testing");
   });
 });
+
+describe("funnel sharing", () => {
+  it("counts shares, views of shared results and the checks they started", () => {
+    const f = funnel([ev("check", "shared"), ev("check", "bio-tt"), ev("share"), ev("share"), ev("share_view", "shared")]);
+    expect(f).toMatchObject({ shares: 2, shareViews: 1, fromShares: 1 });
+  });
+});
+
+describe("headline voice", () => {
+  it("says their for a shared result", () => {
+    const s = creatorStats([post(100, 1), post(400, 2), post(90, 3), post(110, 4)])!;
+    expect(headline(s, "their")).toMatch(/^1 of their last 4 posts broke out/);
+  });
+});

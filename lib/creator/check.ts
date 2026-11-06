@@ -15,6 +15,8 @@ export interface CreatorCheck {
   niche?: string;
   /** Where the visitor came from, carried to the upgrade and the email form. */
   src?: string;
+  /** The saved result's id: its share link is /c/<id>. */
+  id?: string | null;
   displayName?: string | null;
   followers?: number | null;
   stats?: CreatorStats;

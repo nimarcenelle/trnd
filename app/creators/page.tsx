@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import Brand from "@/components/brand";
 import CreatorCheckForm from "@/components/creator/check";
+import { ResultCard } from "@/components/creator/visuals";
+import { SAMPLE_CREATOR } from "@/components/sample/creator";
 import SiteNav from "@/components/site-nav";
 import { cleanSrc } from "@/lib/creator/check";
 
@@ -30,7 +32,11 @@ const TRUTHS = [
 
 /** ?src= says which video or link sent the visitor; it rides along to every event they cause. */
 export default async function CreatorsPage({ searchParams }: PageProps<"/creators">) {
-  const src = cleanSrc((await searchParams).src);
+  const q = await searchParams;
+  const src = cleanSrc(q.src);
+  // Arriving with ?handle= (from a shared result or a link) starts the check at once.
+  const handle = typeof q.handle === "string" ? q.handle.slice(0, 60) : "";
+  const platform = q.platform === "instagram" ? "instagram" : "tiktok";
   return (
     <div className="min-h-dvh flex flex-col">
       <SiteNav links={false} />
@@ -44,7 +50,17 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
             didn&apos;t. Free, no account.
           </p>
           <div className="mt-8 w-full">
-            <CreatorCheckForm src={src} />
+            <CreatorCheckForm
+              src={src}
+              handle={handle}
+              platform={platform}
+              sample={
+                <div className="mt-14 max-w-[460px] mx-auto">
+                  <ResultCard d={SAMPLE_CREATOR} voice="they" />
+                  <p className="caption mt-3">An example. Yours shows your own last 12 posts.</p>
+                </div>
+              }
+            />
           </div>
         </div>
       </section>

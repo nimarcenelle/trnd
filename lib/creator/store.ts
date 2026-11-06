@@ -3,8 +3,9 @@ import "server-only";
 import { adminSupabase } from "@/lib/db/supabase";
 import { env } from "@/lib/env";
 
-import type { CreatorPlatform } from "./check";
+import type { CreatorCheck, CreatorPlatform } from "./check";
 import type { FunnelEvent, FunnelEventKind } from "./funnel";
+import type { CreatorRead } from "./read";
 import type { CreatorStats } from "./stats";
 import type { TeardownScript } from "./teardown";
 
@@ -110,4 +111,31 @@ export async function getTeardown(id: string): Promise<Teardown | null> {
 
 export async function setPosted(id: string, posted: boolean): Promise<void> {
   await adminSupabase().from("creator_teardowns").update({ posted_at: posted ? new Date().toISOString() : null }).eq("id", id);
+}
+
+/* ------------------------------ shared results ----------------------------- */
+
+const ID_CHARS = "abcdefghijkmnpqrstuvwxyz23456789";
+const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => ID_CHARS[b % ID_CHARS.length]).join("");
+
+/** Keeps a completed check so it has a share link. Returns its id, or null without a database (sharing is then hidden). */
+export async function saveCheck(c: CreatorCheck): Promise<string | null> {
+  if (!hasDb() || !c.stats || !c.handle || !c.platform) return null;
+  const id = newId();
+  const { error } = await adminSupabase()
+    .from("creator_checks")
+    .insert({ id, handle: c.handle, platform: c.platform, display_name: c.displayName ?? null, followers: c.followers ?? null, niche: c.niche || null, headline: c.headline ?? "", stats: c.stats, read: c.read ?? null, src: c.src || null });
+  if (error) {
+    console.warn("[creator] check not saved:", error.message);
+    return null;
+  }
+  return id;
+}
+
+export async function getCheck(id: string): Promise<(CreatorCheck & { id: string; created_at: string }) | null> {
+  if (!hasDb() || !/^[a-z0-9]{6,16}$/.test(id)) return null;
+  const { data } = await adminSupabase().from("creator_checks").select("*").eq("id", id).maybeSingle();
+  if (!data) return null;
+  const r = data as { id: string; handle: string; platform: CreatorPlatform; display_name: string | null; followers: number | null; niche: string | null; headline: string; stats: CreatorStats; read: CreatorRead | null; created_at: string };
+  return { id: r.id, handle: r.handle, platform: r.platform, displayName: r.display_name, followers: r.followers, niche: r.niche ?? "", headline: r.headline, stats: r.stats, read: r.read, created_at: r.created_at };
 }

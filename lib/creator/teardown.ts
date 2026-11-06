@@ -19,7 +19,21 @@ export const TeardownSchema = z.object({
   /** The first line, said and shown in the first two seconds. */
   hook: z.string(),
   /** 4-6 beats: what the voiceover says and what is on screen while it does. */
-  beats: z.array(z.object({ say: z.string(), show: z.string() })),
+  beats: z.array(
+    z.object({
+      say: z.string(),
+      show: z.string(),
+      /**
+       * What the studio's video player draws for this beat: the creator's card ("intro"), the bars of every post
+       * ("chart"), one post up close ("post"), breakout openings against stalled ones ("compare"), or one big line ("text").
+       */
+      visual: z.enum(["intro", "chart", "post", "compare", "text"]),
+      /** For "post": the post's number in the list (1 = newest). Otherwise null. */
+      post: z.number().nullable(),
+      /** On-screen text for this beat, at most 7 words. */
+      overlay: z.string(),
+    }),
+  ),
   /** The last spoken line: the call to check your own posts. */
   cta: z.string(),
   /** The post's caption. */
@@ -39,7 +53,12 @@ Rules:
 - 30-45 seconds spoken (about 90-120 words in "say" across all beats). Short sentences. Everyday words. No hype words
   ("insane", "secret", "unlock", "game-changer"), no emoji, no hashtags in the script.
 - The hook is a curiosity gap a stranger in this niche would stop for, under 12 words, and the video pays it off.
-- "show" is a direction an editor can follow: which post to screen-record and the text or number to overlay.`;
+- "show" is a direction an editor can follow: which post to screen-record and the text or number to overlay.
+- Each beat also picks the visual TRND's player draws while it is said: "intro" (the creator, their usual post),
+  "chart" (every post as a bar against their usual), "post" (one post up close; give its number in "post"),
+  "compare" (breakout openings against stalled openings) or "text" (the overlay alone, big). Open with "intro", use
+  "chart" once early, and point at specific posts with "post". "overlay" is the on-screen text: at most 7 words, often
+  a number ("4.6× her usual").`;
 
 export async function writeTeardown(input: { handle: string; platform: string; niche: string; stats: CreatorStats; read: CreatorRead | null; link: string }): Promise<TeardownScript> {
   const s = input.stats;

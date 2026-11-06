@@ -18,7 +18,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] items-center">
         <div className="max-w-[640px]">
           <StepNo n={1} />
-          <h1 className="display text-[clamp(40px,6.6vw,68px)]">Make every post go viral.</h1>
+          <h1 className="display text-[clamp(40px,6.6vw,68px)]">
+            Make every post go <span className="mark">viral</span>.
+          </h1>
           <p className="text-ink-2 text-[18px] sm:text-[19.5px] leading-[1.5] mt-4 mb-10 max-w-[48ch]">
             Your posts aren&apos;t flopping by accident. Drop your TikTok handle and we&apos;ll show you what&apos;s holding them back.
           </p>

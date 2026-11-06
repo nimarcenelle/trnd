@@ -34,10 +34,11 @@ function Tile({ t, row, rows }: { t: XrayTile; row: number; rows: number }) {
  * down and each row taking its read as the line passes it; the biggest
  * breakouts then lift out. While the preview works, the line keeps sweeping.
  */
-export default function Xray({ videos }: { videos: ReadVideo[] }) {
-  const { tiles, usual, lifted } = xrayOf(videos);
+export default function Xray({ videos, limit, wide = false }: { videos: ReadVideo[]; limit?: number; wide?: boolean }) {
+  const { tiles, usual, lifted } = xrayOf(videos, undefined, limit);
   if (!tiles.length) return null;
-  const rows = Math.ceil(tiles.length / 3);
+  const cols = wide ? 6 : 3;
+  const rows = Math.ceil(tiles.length / cols);
   const best = lifted.map((t) => `${t.x}×`).join(" and ");
   return (
     <figure className="card p-4 grid gap-3 m-0">
@@ -48,11 +49,34 @@ export default function Xray({ videos }: { videos: ReadVideo[] }) {
           {lifted.length > 0 && ` Your biggest: ${best} your usual.`}
         </span>
       </figcaption>
-      <div className="xray" style={{ "--sweep": `${SWEEP_MS}ms`, "--lifted": `${SWEEP_MS + 150}ms` } as React.CSSProperties} aria-hidden="true">
+      <div className={`xray ${wide ? "xray-wide" : ""}`} style={{ "--sweep": `${SWEEP_MS}ms`, "--lifted": `${SWEEP_MS + 150}ms` } as React.CSSProperties} aria-hidden="true">
         {tiles.map((t, i) => (
-          <Tile key={t.id} t={t} row={Math.floor(i / 3)} rows={rows} />
+          <Tile key={t.id} t={t} row={Math.floor(i / cols)} rows={rows} />
         ))}
         <span className="xray-scan" />
+        <span className="xray-scan xray-scan-idle" />
+      </div>
+    </figure>
+  );
+}
+
+/**
+ * Before the videos are in: the grid's empty frames with the line already
+ * sweeping, so the wait looks like their account being read, not a spinner.
+ */
+export function XrayWaiting({ handle }: { handle: string }) {
+  return (
+    <figure className="card p-4 grid gap-3 m-0">
+      <figcaption className="grid gap-0.5">
+        <span className="font-bold">@{handle}&apos;s videos</span>
+        <span className="caption">Pulling up your grid.</span>
+      </figcaption>
+      <div className="xray xray-waiting" aria-hidden="true">
+        {Array.from({ length: 12 }, (_, i) => (
+          <div key={i} className="xray-tile">
+            <div className="xray-face" />
+          </div>
+        ))}
         <span className="xray-scan xray-scan-idle" />
       </div>
     </figure>

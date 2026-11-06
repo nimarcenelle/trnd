@@ -10,6 +10,7 @@ import Cover from "@/components/preview/cover";
 import KeyChoices from "@/components/preview/key-choices";
 import PreviewRunner from "@/components/preview/runner";
 import StartForm from "@/components/preview/start-form";
+import Xray, { XrayWaiting } from "@/components/preview/xray";
 import { yearlyPerMonth } from "@/lib/billing";
 import { diagnose } from "@/lib/creators/diagnosis";
 import { dollarRange, gapOf, postsPerMonth, RPM_ASSUMPTION, typicalByAuthor } from "@/lib/creators/gap";
@@ -23,6 +24,35 @@ import type { Preview } from "@/lib/preview/types";
 export const metadata = { title: "What's holding your videos back — TRND for creators", robots: { index: false } };
 
 const LETTERS = "ABCDEFGH";
+
+/** One line icon per goal, drawn at 22px in the goal's tile. */
+const GOAL_ICONS: Record<string, React.ReactNode> = {
+  followers: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 19c.8-3.4 3.3-5.5 6.5-5.5s5.7 2.1 6.5 5.5M18 7v6M15 10h6" />
+    </>
+  ),
+  comments: <path d="M4 5.5h16v10H9.5L5 19.5v-4H4z" />,
+  views: (
+    <>
+      <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  deals: (
+    <>
+      <rect x="3" y="7.5" width="18" height="12" rx="2" />
+      <path d="M8.5 7.5V5.5h7v2M3 12.5h18" />
+    </>
+  ),
+  sales: (
+    <>
+      <path d="M5 8h14l-1.2 11.5H6.2z" />
+      <path d="M9 10.5V7a3 3 0 0 1 6 0v3.5" />
+    </>
+  ),
+};
 
 /**
  * The free read, one question a screen: the handle (the first screen, /),
@@ -133,7 +163,8 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
     return (
       <FunnelShell step={2}>
         {working && <PreviewRunner id={p.id} />}
-        <div className="max-w-[680px]">
+        <div className={p.status === "confirm" ? "max-w-[680px]" : "grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] items-start"}>
+          <div>
           <StepNo n={2} />
           <h1 className="display text-[clamp(32px,5.2vw,52px)]">{p.status === "confirm" ? "Is this you?" : `Finding @${p.handle}…`}</h1>
           {p.status === "confirm" ? (
@@ -150,9 +181,15 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
               </form>
             </div>
           ) : (
-            <div className="mt-8 card p-5 sm:p-6 max-w-[560px]">
+            <div className="mt-8 max-w-[560px]">
               <Narration p={p} />
             </div>
+          )}
+          </div>
+          {p.status === "reading" && (
+            <aside className="max-lg:hidden">
+              <XrayWaiting handle={p.handle} />
+            </aside>
           )}
         </div>
       </FunnelShell>
@@ -170,34 +207,43 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
         <StepNo n={3} />
         <h1 className="display text-[clamp(32px,5.2vw,52px)]">What are you posting for?</h1>
         <p className="text-ink-2 text-[17px] mt-3 mb-7">We weigh what&apos;s wrong by it. We&apos;re reading your videos while you answer.</p>
-        <div className="grid gap-2.5 max-w-[480px]">
-          {GOALS.map((g, i) => (
-            <form key={g.value} action={previewGoalAction}>
-              <input type="hidden" name="id" value={p.id} />
-              <input type="hidden" name="goal" value={g.value} />
-              <button
-                type="submit"
-                data-key={LETTERS[i]}
-                aria-pressed={p.goal === g.value}
-                className={`group flex items-center gap-3.5 w-full text-left rounded-[14px] border bg-surface px-4 py-3.5 transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:shadow-[var(--shadow-md)] ${p.goal === g.value ? "border-brand shadow-[0_0_0_1px_var(--brand)]" : "border-line-strong"}`}
-              >
-                <span className={`w-8 h-8 rounded-[8px] grid place-items-center text-[12.5px] font-bold border shrink-0 ${p.goal === g.value ? "bg-brand text-on-brand border-brand" : "border-line-strong text-ink-2 group-hover:border-ink"}`}>{LETTERS[i]}</span>
-                <span className="grid">
-                  <span className="text-[16.5px] font-semibold">{g.label}</span>
-                  <span className="text-[13.5px] text-ink-2">{g.hint}</span>
-                </span>
-                {p.goal === g.value && <span className="ml-auto text-brand font-bold">✓</span>}
-              </button>
-            </form>
-          ))}
+        <div className="grid gap-2.5 sm:grid-cols-2 max-w-[600px]">
+          {GOALS.map((g, i) => {
+            const on = p.goal === g.value;
+            return (
+              <form key={g.value} action={previewGoalAction}>
+                <input type="hidden" name="id" value={p.id} />
+                <input type="hidden" name="goal" value={g.value} />
+                <button
+                  type="submit"
+                  data-key={LETTERS[i]}
+                  aria-pressed={on}
+                  className={`group relative grid gap-3 max-sm:flex max-sm:items-center max-sm:gap-3.5 w-full h-full text-left rounded-[16px] border px-4 pt-4 pb-3.5 transition-[border-color,box-shadow,transform,background-color] hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] ${on ? "border-brand bg-brand-soft shadow-[0_0_0_1px_var(--brand)]" : "border-line bg-surface hover:border-line-strong"}`}
+                >
+                  <span className={`w-10 h-10 rounded-full grid place-items-center transition-colors ${on ? "bg-brand text-on-brand" : "bg-muted text-ink group-hover:bg-brand-soft group-hover:text-brand"}`}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      {GOAL_ICONS[g.value]}
+                    </svg>
+                  </span>
+                  <span className="grid">
+                    <span className="text-[16.5px] font-semibold">{g.label}</span>
+                    <span className="text-[13.5px] text-ink-2">{g.hint}</span>
+                  </span>
+                  <span className={`absolute top-3.5 right-3.5 text-[11.5px] font-semibold ${on ? "text-brand" : "text-ink-3 max-sm:hidden"}`}>{on ? "✓" : LETTERS[i]}</span>
+                </button>
+              </form>
+            );
+          })}
         </div>
         <p className="caption mt-4 max-sm:hidden">
           Press <b>A</b>–<b>{LETTERS[GOALS.length - 1]}</b> to choose.
         </p>
         </div>
-        <aside className="card p-5 sm:p-6 lg:mt-14">
-          <div className="label mb-4">Reading @{p.handle}</div>
-          <Narration p={p} />
+        <aside className="grid gap-5 lg:mt-14">
+          {p.videos.length > 0 ? <Xray videos={p.videos} /> : <XrayWaiting handle={p.handle} />}
+          <div className="px-1">
+            <Narration p={p} />
+          </div>
         </aside>
         </div>
       </FunnelShell>
@@ -252,6 +298,8 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
               <span className="caption">Free account, no card.</span>
             </div>
           </div>
+
+          <Xray videos={p.videos} limit={12} wide />
 
           <Locked title="What's killing your posts" detail="1 line" lines={1} />
           <Locked title="Why your videos flop" detail={`${problems} problems`} />

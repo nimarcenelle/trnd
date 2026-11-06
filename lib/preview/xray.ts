@@ -58,8 +58,8 @@ export function toneOf(x: number | null, settled: boolean): { tone: XrayTone; st
 
 const posted = (v: ReadVideo) => (v.postedAt ? Date.parse(v.postedAt) : 0);
 
-export function xrayOf(videos: ReadVideo[], now = Date.now()): Xray {
-  const grid = [...videos].sort((a, b) => posted(b) - posted(a)).slice(0, XRAY_TILES);
+export function xrayOf(videos: ReadVideo[], now = Date.now(), limit = XRAY_TILES): Xray {
+  const grid = [...videos].sort((a, b) => posted(b) - posted(a)).slice(0, limit);
   const normal = normalOf(
     videos.map((v) => ({ views: v.views, saves: v.saves, comments: v.comments, posted_at: v.postedAt })),
     now,
@@ -67,7 +67,8 @@ export function xrayOf(videos: ReadVideo[], now = Date.now()): Xray {
   const tiles: XrayTile[] = grid.map((v) => {
     const settled = !v.postedAt || now - Date.parse(v.postedAt) >= SETTLE_HOURS * 3_600_000;
     const x = timesNormal(v.views, normal);
-    return { id: v.videoId, url: v.url, cover: v.storedCover ?? null, views: v.views, x, ...toneOf(x, settled), lift: false };
+    return { id: v.videoId, url: v.url, // Our stored copy first; on a fresh preview TikTok's own link still works for a day or so.
+      cover: v.storedCover ?? v.coverUrl ?? null, views: v.views, x, ...toneOf(x, settled), lift: false };
   });
   // A video still collecting views is not called a breakout yet.
   const best = tiles

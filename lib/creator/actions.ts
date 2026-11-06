@@ -4,16 +4,18 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { env } from "@/lib/env";
+import { env, isCreatorBillingConfigured } from "@/lib/env";
 import { normHandle } from "@/lib/social/read";
 
 import { requireAdmin } from "./admin";
+import { GOALS } from "./funnel";
 import { cleanSrc, isHandle, runCheck, type CreatorCheck, type CreatorPlatform } from "./check";
-import { logEvent, saveCheck, saveLead, saveTeardown, setPosted } from "./store";
+import { sendReportReady } from "./email";
+import { getCheck, logEvent, saveCheck, saveLead, saveTeardown, setPosted } from "./store";
 import { writeTeardown } from "./teardown";
 
 /**
- * The free check is public and every run spends Apify and OpenAI credit, so
+ * The check is public and every run spends Apify and OpenAI credit, so
  * each address gets a few an hour and a handle read in the last hour is
  * served again. Both live in the instance's memory: a best-effort brake, not
  * a guarantee across instances.
@@ -33,36 +35,74 @@ function allow(ip: string, now = Date.now()): boolean {
 
 const platformOf = (v: FormDataEntryValue | null): CreatorPlatform => (v === "instagram" ? "instagram" : "tiktok");
 
-export async function checkCreatorAction(_prev: CreatorCheck, formData: FormData): Promise<CreatorCheck> {
-  const handle = normHandle(String(formData.get("handle") ?? ""));
-  const platform = platformOf(formData.get("platform"));
-  const niche = String(formData.get("niche") ?? "").trim().slice(0, 80);
-  const src = cleanSrc(formData.get("src"));
-  if (!isHandle(handle)) return { error: "Enter your handle, like @yourname.", src };
-  if (!env.apifyToken) return { error: "The profile check is switched off on this server right now. Try again later.", src };
+export interface OnboardInput {
+  platform: string;
+  handle: string;
+  niche: string;
+  goal: string;
+  email: string;
+  src: string;
+}
 
-  const key = `${platform}:${handle}`;
+export type OnboardResult = { id: string; token: string } | { error: string; step?: "handle" | "email" };
+
+const isEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 200;
+
+/**
+ * The onboarding's last step: read the profile and the niche, write the read,
+ * save the check, email the private link, and hand back where the report
+ * lives. The report itself decides how much to show (lib/creator/access.ts).
+ */
+export async function runOnboardingAction(input: OnboardInput): Promise<OnboardResult> {
+  const handle = normHandle(String(input.handle ?? ""));
+  const platform = platformOf(input.platform);
+  const niche = String(input.niche ?? "").trim().slice(0, 80);
+  const goal = (GOALS as readonly string[]).includes(input.goal) ? input.goal : "";
+  const email = String(input.email ?? "").trim().toLowerCase();
+  const src = cleanSrc(input.src);
+  if (!isHandle(handle)) return { error: "That doesn't look like a handle. Try @yourname.", step: "handle" };
+  if (!isEmail(email)) return { error: "Enter an email address, like you@example.com.", step: "email" };
+  if (!env.apifyToken) return { error: "The check is switched off on this server right now. Try again later." };
+
+  const key = `${platform}:${handle}:${niche}`;
   const cached = cache.get(key);
-  if (cached && Date.now() - cached.at < HOUR && (!niche || cached.result.niche === niche)) {
-    await logEvent("check", { handle, platform, src, meta: { cached: true } });
-    return { ...cached.result, src };
-  }
-
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  if (!allow(ip)) return { error: "That's a few checks in an hour from here. Try again in a little while.", src };
-
+  let result: CreatorCheck;
   const started = Date.now();
-  const result = await runCheck(handle, platform, niche);
-  const ms = Date.now() - started;
-  if (result.error) {
-    await logEvent("check_failed", { handle, platform, src, meta: { error: result.error, ms } });
-    return { ...result, src };
+  if (cached && Date.now() - cached.at < HOUR) {
+    result = cached.result;
+  } else {
+    const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!allow(ip)) return { error: "That's a few checks in an hour from here. Try again in a little while." };
+    result = await runCheck(handle, platform, niche, goal);
+    if (result.error) {
+      await logEvent("check_failed", { handle, platform, src, meta: { error: result.error, ms: Date.now() - started } });
+      return { error: result.error, step: "handle" };
+    }
+    cache.set(key, { at: Date.now(), result });
+    if (cache.size > 2000) cache.clear();
   }
-  result.id = await saveCheck({ ...result, src });
-  await logEvent("check", { handle, platform, src, meta: { ms, id: result.id, posts: result.stats?.posts.length, breakouts: result.stats?.breakouts, read: Boolean(result.read) } });
-  cache.set(key, { at: Date.now(), result });
-  if (cache.size > 2000) cache.clear();
-  return { ...result, src };
+
+  const saved = await saveCheck({ ...result, src, email, goal });
+  if (!saved) return { error: "We couldn't save your report just now. Try again in a minute." };
+  await logEvent("check", { handle, platform, src, meta: { ms: Date.now() - started, id: saved.id, cached: Boolean(cached), breakouts: result.stats?.breakouts, bench: Boolean(result.benchmark) } });
+  try {
+    await sendReportReady(email, { ...result, ...saved });
+  } catch (e) {
+    console.warn("[creator] report email failed:", (e as Error).message);
+  }
+  return saved;
+}
+
+/** "Unlock": Stripe Checkout for this report. Counted as the upgrade click the demand test reads. */
+export async function unlockAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  const token = String(formData.get("k") ?? "");
+  const check = await getCheck(id);
+  if (!check || check.token !== token) redirect("/check");
+  await logEvent("upgrade_click", { handle: check.handle, platform: check.platform, meta: { id } });
+  if (!isCreatorBillingConfigured) redirect(`/r/${id}?k=${token}&billing=off`);
+  const { createCreatorCheckout } = await import("@/lib/billing/stripe");
+  redirect(await createCreatorCheckout({ id, token, email: check.email, handle: check.handle ?? "" }));
 }
 
 export interface LeadState {

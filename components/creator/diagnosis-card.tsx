@@ -29,6 +29,8 @@ export interface DiagnosisCardProps {
   run?: number;
   /** Smaller, for the sample cards on the landing page. */
   compact?: boolean;
+  /** Before payment: what's killing the posts shows blurred, and the fix is held back. */
+  locked?: boolean;
 }
 
 /** Their usual post against the top of their niche: per follower when the counts allow, raw otherwise. */
@@ -56,7 +58,7 @@ function GapBar({ b, voice, delay }: { b: Benchmark; voice: "you" | "they"; dela
   );
 }
 
-export default function DiagnosisCard({ handle, platform, followers, stats, killer, fix, benchmark, voice = "you", run = 1, compact: small = false }: DiagnosisCardProps) {
+export default function DiagnosisCard({ handle, platform, followers, stats, killer, fix, benchmark, voice = "you", run = 1, compact: small = false, locked = false }: DiagnosisCardProps) {
   const say = (t: string) => (voice === "you" ? t : theirs(t));
   const ordered = [...stats.posts].reverse();
   const n = stats.posts.length;
@@ -115,8 +117,14 @@ export default function DiagnosisCard({ handle, platform, followers, stats, kill
 
       <div className={`rise rounded-[14px] bg-stage-raise ${small ? "mt-5 p-4" : "mt-7 p-5"}`} style={{ animationDelay: `${360 + ordered.length * 55}ms` }}>
         <div className="text-[12px] font-medium text-stage-neg">What&apos;s killing {voice === "you" ? "your" : "their"} posts</div>
-        <p className={`m-0 mt-1.5 font-semibold leading-[1.3] ${small ? "text-[15px]" : "text-[19px]"}`}>{say(killer || killerFromNumbers(stats))}</p>
-        {fix && (
+        {locked ? (
+          <p className="m-0 mt-1.5 font-semibold leading-[1.3] text-[19px] blur-[7px] select-none" aria-hidden>
+            Your openings give nobody a reason to keep watching past the first line.
+          </p>
+        ) : (
+          <p className={`m-0 mt-1.5 font-semibold leading-[1.3] ${small ? "text-[15px]" : "text-[19px]"}`}>{say(killer || killerFromNumbers(stats))}</p>
+        )}
+        {fix && !locked && (
           <>
             <div className="text-[12px] font-medium text-stage-pos mt-4">Post this instead</div>
             <p className={`m-0 mt-1.5 leading-[1.35] ${small ? "text-[14px]" : "text-[16px]"}`}>&ldquo;{fix}&rdquo;</p>

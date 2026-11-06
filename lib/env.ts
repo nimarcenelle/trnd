@@ -23,6 +23,10 @@ export const env = {
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
   stripePrice: process.env.STRIPE_PRICE ?? "",
+  /** The creator plan's Stripe price: a monthly price makes the unlock a subscription, a one-time price a single purchase. */
+  stripeCreatorPrice: process.env.STRIPE_CREATOR_PRICE ?? "",
+  /** Signs the cookie that says a browser has paid for the creator plan. Falls back to the service role key. */
+  creatorSecret: process.env.CREATOR_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM || "TRND <reports@usetrnd.com>",
   /** The domain competitors' marketing emails are received on, e.g. "in.usetrnd.com". */
@@ -33,5 +37,6 @@ export const env = {
 
 export const isModelConfigured = Boolean(env.openaiApiKey);
 export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePrice);
+export const isCreatorBillingConfigured = Boolean(env.stripeSecretKey && env.stripeCreatorPrice);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isInboxConfigured = Boolean(env.inboundDomain && env.inboundSecret);

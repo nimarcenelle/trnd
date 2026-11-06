@@ -18,18 +18,18 @@ const VERDICT: Record<Verdict, { badge: string; label: string; say: (rate: strin
   },
   build: {
     badge: "badge badge-pos",
-    label: "Build it",
-    say: (r) => `${r} of checks clicked Start free, over the ${percent(BUILD_AT, 0)} bar. People want the plan: build the creator onboarding and the Stripe price.`,
+    label: "It sells",
+    say: (r) => `${r} of checks paid, over the ${percent(BUILD_AT, 0)} bar. The offer works: spend on more teardowns and traffic.`,
   },
   rework: {
     badge: "badge badge-neg",
     label: "Change the offer",
-    say: (r) => `${r} of checks clicked Start free, under ${percent(REWORK_BELOW, 0)}. Change the price, the promise or what stays free before writing more code.`,
+    say: (r) => `${r} of checks paid, under ${percent(REWORK_BELOW, 0)}. Change the price, the teaser or the promise before buying more traffic.`,
   },
   keep_testing: {
     badge: "badge badge-warn",
     label: "Keep testing",
-    say: (r) => `${r} of checks clicked Start free: interest, not yet enough. Change one thing on the upgrade card at a time and watch this number.`,
+    say: (r) => `${r} of checks paid: something, not yet enough. Change one thing on the paywall at a time and watch this number.`,
   },
 };
 
@@ -59,19 +59,20 @@ export default async function StudioPage() {
         <div className="card p-5 mt-4">
           <div className="flex items-center gap-2.5">
             <span className={VERDICT[v].badge}>{VERDICT[v].label}</span>
-            <span className="caption">Last 90 days · {all.checks} checks · {all.upgrades} Start free clicks · {all.waitlist} early-access emails</span>
+            <span className="caption">Last 90 days · {all.checks} checks · {all.upgrades} unlock clicks · {all.paid} paid</span>
           </div>
-          <p className="text-[15px] leading-[1.6] mt-3 max-w-[760px]">{VERDICT[v].say(percent(all.upgradeRate, 1), all.checks)}</p>
+          <p className="text-[15px] leading-[1.6] mt-3 max-w-[760px]">{VERDICT[v].say(percent(all.paidRate, 1), all.checks)}</p>
           <p className="caption mt-2">
-            The rule, set before the numbers: at {DECIDE_AFTER} checks, {percent(BUILD_AT, 0)} or more clicking Start free means build; under {percent(REWORK_BELOW, 0)} means
-            change the offer. Edit it in <code>lib/creator/funnel.ts</code>.
+            The rule, set before the numbers: at {DECIDE_AFTER} checks, {percent(BUILD_AT, 0)} or more paying means the offer works; under {percent(REWORK_BELOW, 0)} means
+            change it. Edit it in <code>lib/creator/funnel.ts</code>.
           </p>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
           <Kpi label="Checks" value={String(month.checks)} note={`30 days · ${week.checks} this week`} />
           <Kpi label="Creators" value={String(month.creators)} note="different handles checked" />
-          <Kpi label="Start free" value={percent(month.upgradeRate, 1)} note={`${month.upgrades} clicks from ${month.checks} checks, 30 days`} />
-          <Kpi label="Early access" value={percent(month.upgrades ? month.waitlist / month.upgrades : null, 0)} note={`${month.waitlist} of ${month.upgrades} who clicked left an email`} />
+          <Kpi label="Unlock clicks" value={percent(month.upgradeRate, 1)} note={`${month.upgrades} clicks from ${month.checks} checks, 30 days`} />
+          <Kpi label="Finished onboarding" value={percent(month.onboardStarts ? month.checks / month.onboardStarts : null, 0)} note={`${month.checks} checks from ${month.onboardStarts} starts`} />
+          <Kpi label="Paid" value={percent(month.checks ? month.paid / month.checks : null, 1)} note={`${month.paid} paid from ${month.checks} checks · ${month.upgrades} clicked unlock`} />
           <Kpi label="Weekly re-check" value={percent(month.leadRate, 1)} note={`${month.leads} emails from ${month.checks} checks, 30 days`} />
           <Kpi label="Shared" value={percent(month.checks ? month.shares / month.checks : null, 0)} note={`${month.shares} results shared · ${month.shareViews} views of shared results`} />
           <Kpi label="From shares" value={percent(month.checks ? month.fromShares / month.checks : null, 0)} note={`${month.fromShares} checks started from someone else's result`} />
@@ -99,7 +100,7 @@ export default async function StudioPage() {
                   <th className="text-left">Hook</th>
                   <th className="text-left">Status</th>
                   <th className="text-right">Checks</th>
-                  <th className="text-right">Start free</th>
+                  <th className="text-right">Unlock</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,7 +143,7 @@ export default async function StudioPage() {
                   <tr>
                     <th className="text-left">Source</th>
                     <th className="text-right">Checks</th>
-                    <th className="text-right">Start free</th>
+                    <th className="text-right">Unlock</th>
                     <th className="text-right">Early access</th>
                     <th className="text-right">Re-check</th>
                   </tr>

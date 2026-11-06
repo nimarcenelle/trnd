@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import Brand from "@/components/brand";
-import CreatorCheckForm, { NicheSection } from "@/components/creator/check";
+import { redirect } from "next/navigation";
+
+import { NicheSection } from "@/components/creator/check";
 import DiagnosisCard from "@/components/creator/diagnosis-card";
 import { SAMPLE_CREATORS } from "@/components/sample/creator";
 import SiteNav from "@/components/site-nav";
@@ -41,9 +43,10 @@ const TRUTHS = [
 export default async function CreatorsPage({ searchParams }: PageProps<"/creators">) {
   const q = await searchParams;
   const src = cleanSrc(q.src);
-  // Arriving with ?handle= (from a shared result or a link) starts the check at once.
-  const handle = typeof q.handle === "string" ? q.handle.slice(0, 60) : "";
-  const platform = q.platform === "instagram" ? "instagram" : "tiktok";
+  // An old link with ?handle= goes straight into the onboarding with it.
+  if (typeof q.handle === "string" && q.handle.trim()) {
+    redirect(`/check?${new URLSearchParams({ handle: q.handle.slice(0, 60), platform: q.platform === "instagram" ? "instagram" : "tiktok", ...(src ? { src } : {}) })}`);
+  }
   // The "not luck" pair: the invented cook's best and worst post.
   const sample = SAMPLE_CREATORS[0];
   const byMultiple = [...sample.stats.posts].sort((a, b) => b.multiple - a.multiple);
@@ -55,33 +58,41 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
 
       <section id="check" className="border-b border-line overflow-hidden scroll-mt-16">
         <div className="wrap pt-16 sm:pt-24 pb-16 sm:pb-24 flex flex-col items-center text-center">
-          <p className="kicker">Free for creators</p>
+          <p className="kicker">For creators</p>
           <h1 className="display text-[46px] sm:text-[76px] mt-4 max-w-[960px]">Make every post go viral.</h1>
           <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.6] mt-5 max-w-[620px]">
             Your posts aren&apos;t flopping by accident. Drop your handle: see what&apos;s killing them, how far behind the top creators in your niche you are, and what to post instead.
           </p>
           <div className="mt-8 w-full">
-            <CreatorCheckForm
-              src={src}
-              handle={handle}
-              platform={platform}
-              sample={
-                <div className="mt-16">
-                  <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-6 -mx-4 px-4 sm:overflow-visible sm:justify-center sm:items-start">
-                    {SAMPLE_CREATORS.map((c, i) => (
-                      <div
-                        key={c.handle}
-                        className={`snap-center shrink-0 w-[min(300px,82vw)] rise ${["sm:-rotate-3 sm:translate-y-6", "sm:z-10", "sm:rotate-3 sm:translate-y-6"][i]}`}
-                        style={{ animationDelay: `${i * 140}ms` }}
-                      >
-                        <DiagnosisCard handle={c.handle} platform={c.platform} followers={c.followers} stats={c.stats} killer={c.killer} fix={c.fix} benchmark={c.benchmark} voice="they" compact />
-                      </div>
-                    ))}
+            <form action="/check" method="get" className="w-full max-w-[560px] mx-auto">
+              {src && <input type="hidden" name="src" value={src} />}
+              <div className="sitebox">
+                <select name="platform" defaultValue="tiktok" aria-label="Platform" className="bg-transparent text-[14px] text-ink-2 outline-none border-0 pr-1">
+                  <option value="tiktok">TikTok</option>
+                  <option value="instagram">Instagram</option>
+                </select>
+                <span className="w-px h-5 bg-line-strong" aria-hidden />
+                <input name="handle" placeholder="@yourhandle" aria-label="Your handle" autoComplete="off" autoCapitalize="none" spellCheck={false} />
+                <button className="btn btn-primary" type="submit">
+                  Check my posts
+                </button>
+              </div>
+              <p className="caption mt-3 text-center">Public posts only. We never ask for your login. The diagnosis is free.</p>
+            </form>
+            <div className="mt-16">
+              <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-6 -mx-4 px-4 sm:overflow-visible sm:justify-center sm:items-start">
+                {SAMPLE_CREATORS.map((c, i) => (
+                  <div
+                    key={c.handle}
+                    className={`snap-center shrink-0 w-[min(300px,82vw)] rise ${["sm:-rotate-3 sm:translate-y-6", "sm:z-10", "sm:rotate-3 sm:translate-y-6"][i]}`}
+                    style={{ animationDelay: `${i * 140}ms` }}
+                  >
+                    <DiagnosisCard handle={c.handle} platform={c.platform} followers={c.followers} stats={c.stats} killer={c.killer} fix={c.fix} benchmark={c.benchmark} voice="they" compact />
                   </div>
-                  <p className="caption mt-4">Examples from invented accounts. Yours reads your own last 12 posts.</p>
-                </div>
-              }
-            />
+                ))}
+              </div>
+              <p className="caption mt-4">Examples from invented accounts. Yours reads your own last 12 posts.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -198,7 +209,7 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
             <p className="text-[16px] sm:text-[17px] text-stage-ink-2 mt-4 mb-0 max-w-[520px] leading-[1.6]">
               Then fix it before you post the next one. Free, no account, about a minute.
             </p>
-            <a href="#check" className="btn btn-lg mt-8 bg-stage-ink text-stage hover:opacity-90">
+            <a href="/check" className="btn btn-lg mt-8 bg-stage-ink text-stage hover:opacity-90">
               Check my posts
             </a>
           </div>

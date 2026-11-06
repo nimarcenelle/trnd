@@ -119,24 +119,79 @@ export async function setPosted(id: string, posted: boolean): Promise<void> {
 const ID_CHARS = "abcdefghijkmnpqrstuvwxyz23456789";
 const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => ID_CHARS[b % ID_CHARS.length]).join("");
 
-/** Keeps a completed check so it has a share link. Returns its id, or null without a database (sharing is then hidden). */
-export async function saveCheck(c: CreatorCheck): Promise<string | null> {
+/** Keeps a completed check. Returns its id and the private report token, or null without a database. */
+export async function saveCheck(c: CreatorCheck & { email?: string | null; goal?: string | null }): Promise<{ id: string; token: string } | null> {
   if (!hasDb() || !c.stats || !c.handle || !c.platform) return null;
   const id = newId();
-  const { error } = await adminSupabase()
+  const { data, error } = await adminSupabase()
     .from("creator_checks")
-    .insert({ id, handle: c.handle, platform: c.platform, display_name: c.displayName ?? null, followers: c.followers ?? null, niche: c.niche || null, headline: c.headline ?? "", stats: c.stats, read: c.read ?? null, benchmark: c.benchmark ?? null, src: c.src || null });
+    .insert({
+      id,
+      handle: c.handle,
+      platform: c.platform,
+      display_name: c.displayName ?? null,
+      followers: c.followers ?? null,
+      niche: c.niche || null,
+      headline: c.headline ?? "",
+      stats: c.stats,
+      read: c.read ?? null,
+      benchmark: c.benchmark ?? null,
+      src: c.src || null,
+      email: c.email ?? null,
+      goal: c.goal ?? null,
+    })
+    .select("access_token")
+    .single();
   if (error) {
     console.warn("[creator] check not saved:", error.message);
     return null;
   }
-  return id;
+  return { id, token: (data as { access_token: string }).access_token };
 }
 
-export async function getCheck(id: string): Promise<(CreatorCheck & { id: string; created_at: string }) | null> {
+export interface SavedCheck extends CreatorCheck {
+  id: string;
+  created_at: string;
+  token: string;
+  email: string | null;
+  goal: string | null;
+  paid: boolean;
+}
+
+export async function getCheck(id: string): Promise<SavedCheck | null> {
   if (!hasDb() || !/^[a-z0-9]{6,16}$/.test(id)) return null;
   const { data } = await adminSupabase().from("creator_checks").select("*").eq("id", id).maybeSingle();
   if (!data) return null;
-  const r = data as { id: string; handle: string; platform: CreatorPlatform; display_name: string | null; followers: number | null; niche: string | null; headline: string; stats: CreatorStats; read: CreatorRead | null; benchmark: Benchmark | null; created_at: string };
-  return { id: r.id, handle: r.handle, platform: r.platform, displayName: r.display_name, followers: r.followers, niche: r.niche ?? "", headline: r.headline, stats: r.stats, read: r.read, benchmark: r.benchmark, created_at: r.created_at };
+  const r = data as {
+    id: string; handle: string; platform: CreatorPlatform; display_name: string | null; followers: number | null; niche: string | null; headline: string;
+    stats: CreatorStats; read: CreatorRead | null; benchmark: Benchmark | null; created_at: string; access_token: string; email: string | null; goal: string | null; paid_at: string | null;
+  };
+  return {
+    id: r.id, handle: r.handle, platform: r.platform, displayName: r.display_name, followers: r.followers, niche: r.niche ?? "", headline: r.headline,
+    stats: r.stats, read: r.read, benchmark: r.benchmark, created_at: r.created_at, token: r.access_token, email: r.email, goal: r.goal, paid: Boolean(r.paid_at),
+  };
+}
+
+/** Marks a check paid. True only for the call that changed it, so the payment is counted once. */
+export async function markCheckPaid(id: string, sessionId: string): Promise<boolean> {
+  const { data } = await adminSupabase().from("creator_checks").update({ paid_at: new Date().toISOString(), stripe_session_id: sessionId }).eq("id", id).is("paid_at", null).select("id");
+  return Boolean(data?.length);
+}
+
+export async function upsertCustomer(c: { customerId: string; email: string | null; subscriptionId: string | null; status?: string }): Promise<void> {
+  await adminSupabase()
+    .from("creator_customers")
+    .upsert({ stripe_customer_id: c.customerId, email: c.email, subscription_id: c.subscriptionId, status: c.status ?? "active", updated_at: new Date().toISOString() });
+}
+
+export async function setCustomerStatus(subscriptionId: string, status: string): Promise<void> {
+  await adminSupabase().from("creator_customers").update({ status, updated_at: new Date().toISOString() }).eq("subscription_id", subscriptionId);
+}
+
+/** A customer whose plan is live. A one-time buyer (no subscription) unlocks only the report they paid for. */
+export async function customerActive(customerId: string): Promise<boolean> {
+  if (!hasDb()) return false;
+  const { data } = await adminSupabase().from("creator_customers").select("status, subscription_id").eq("stripe_customer_id", customerId).maybeSingle();
+  const r = data as { status: string; subscription_id: string | null } | null;
+  return Boolean(r && r.subscription_id && r.status === "active");
 }

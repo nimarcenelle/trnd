@@ -61,6 +61,12 @@ A free check for TikTok and Instagram creators, and the funnel around it (`lib/c
   usual post against them, per follower where TikTok gives follower counts (`lib/creator/benchmark.ts`). The read
   says what the top of the niche does that their flops don't. Instagram uses `APIFY_INSTAGRAM_HASHTAG_ACTOR`
   (default `apify~instagram-hashtag-scraper`).
+- **Onboarding and paywall**: `/check` asks one question a screen (platform, handle, niche, goal, email), then runs the
+  check and sends the creator to their private report, `/r/<id>?k=<token>`, which is also emailed. Unpaid, the report
+  shows the diagnosis (how many posts never got past their followers, the gap to the niche, the worst post) and locks
+  the rest; the locked text never leaves the server. "Unlock" is Stripe Checkout on `STRIPE_CREATOR_PRICE` (monthly =
+  the creator plan, one-time = this report); the return (`/r/<id>/paid`) and the webhook mark the check paid, and the
+  browser gets a signed cookie (`CREATOR_SECRET`) that unlocks later reports while the plan is live.
 - **The check** reads a creator's last 12 public posts (Apify), measures each against their own median (2× or more broke
   out, half or less stalled) and has the model say what the breakouts share, with three hooks to post next. No account;
   a few checks per address an hour, a handle cached for an hour.
@@ -111,7 +117,7 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql`, `0104_ad_scores.sql`, `0105_scan_state.sql`, `0106_candidates.sql`, `0107_ads_confirmed.sql`, `0108_creator_funnel.sql`, `0109_creator_checks.sql` and `0110_creator_benchmark.sql`, safe to re-run). They create
+`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql`, `0104_ad_scores.sql`, `0105_scan_state.sql`, `0106_candidates.sql`, `0107_ads_confirmed.sql`, `0108_creator_funnel.sql`, `0109_creator_checks.sql`, `0110_creator_benchmark.sql` and `0111_creator_paywall.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
 `site_snapshots`, `site_changes` and `emails`, and leave the old
 product's tables alone (drop them when convenient).

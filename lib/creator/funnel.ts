@@ -9,7 +9,10 @@ export const CREATOR_PRICE = "$19";
 /** The ?src= a shared result's "check yours" carries. */
 export const SHARED_SRC = "shared";
 
-export type FunnelEventKind = "check" | "check_failed" | "upgrade_click" | "waitlist" | "lead" | "teardown" | "share" | "share_view";
+/** What a creator wants most, asked in the onboarding and passed to the read. */
+export const GOALS = ["Go viral", "Grow my followers", "Land brand deals", "Make money from it"] as const;
+
+export type FunnelEventKind = "check" | "check_failed" | "upgrade_click" | "waitlist" | "lead" | "teardown" | "share" | "share_view" | "onboard_start" | "paywall_view" | "paid";
 
 export interface FunnelEvent {
   kind: string;
@@ -41,6 +44,12 @@ export interface Funnel {
   shareViews: number;
   /** Checks started from a shared result: the loop that makes it spread. */
   fromShares: number;
+  /** Visits to the onboarding, reports seen locked, and payments. */
+  onboardStarts: number;
+  paywallViews: number;
+  paid: number;
+  /** Payments per completed check, 0-1; null before any check. */
+  paidRate: number | null;
   /** Upgrade clicks per completed check, 0-1; null before any check. */
   upgradeRate: number | null;
   leadRate: number | null;
@@ -48,9 +57,9 @@ export interface Funnel {
 }
 
 /**
- * The demand test, decided in advance so the numbers can't be argued with
- * later: after enough checks, enough upgrade clicks means build the paid
- * plan; too few means change the offer before writing more code.
+ * The paywall test, decided in advance so the numbers can't be argued with
+ * later: after enough checks, enough of them paying means the offer works;
+ * too few means change the price, the teaser or the promise.
  */
 export const DECIDE_AFTER = 100;
 export const BUILD_AT = 0.03;
@@ -58,10 +67,10 @@ export const REWORK_BELOW = 0.01;
 
 export type Verdict = "collecting" | "build" | "rework" | "keep_testing";
 
-export function verdict(f: Pick<Funnel, "checks" | "upgradeRate">): Verdict {
-  if (f.checks < DECIDE_AFTER || f.upgradeRate === null) return "collecting";
-  if (f.upgradeRate >= BUILD_AT) return "build";
-  if (f.upgradeRate < REWORK_BELOW) return "rework";
+export function verdict(f: Pick<Funnel, "checks" | "paidRate">): Verdict {
+  if (f.checks < DECIDE_AFTER || f.paidRate === null) return "collecting";
+  if (f.paidRate >= BUILD_AT) return "build";
+  if (f.paidRate < REWORK_BELOW) return "rework";
   return "keep_testing";
 }
 
@@ -93,6 +102,10 @@ export function funnel(events: FunnelEvent[]): Funnel {
     shares: count("share"),
     shareViews: count("share_view"),
     fromShares: events.filter((e) => e.kind === "check" && e.src === SHARED_SRC).length,
+    onboardStarts: count("onboard_start"),
+    paywallViews: count("paywall_view"),
+    paid: count("paid"),
+    paidRate: checks ? count("paid") / checks : null,
     upgradeRate: checks ? upgrades / checks : null,
     leadRate: checks ? leads / checks : null,
     bySource: [...sources.values()].sort((a, b) => b.checks - a.checks),

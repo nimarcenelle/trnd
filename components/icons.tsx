@@ -78,3 +78,9 @@ export const IconAd = (p: P) => (
     <path d="M11.5 5.5c.8.7 1.2 1.5 1.2 2.5s-.4 1.8-1.2 2.5" />
   </svg>
 );
+export const IconLock = (p: P) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+    <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+  </svg>
+);

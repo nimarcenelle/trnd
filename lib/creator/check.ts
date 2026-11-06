@@ -38,7 +38,7 @@ export const cleanSrc = (v: unknown) => (typeof v === "string" ? v.toLowerCase()
  * when the model is configured. Used by the free check, the weekly re-check
  * and the studio's teardowns. Errors come back as `error`, never thrown.
  */
-export async function runCheck(handle: string, platform: CreatorPlatform, niche = ""): Promise<CreatorCheck> {
+export async function runCheck(handle: string, platform: CreatorPlatform, niche = "", goal = ""): Promise<CreatorCheck> {
   const { reads, complete } = await readSocialWithStatus({ instagram: platform === "instagram" ? [handle] : [], tiktok: platform === "tiktok" ? [handle] : [] });
   const profile = reads.find((r) => r.platform === platform && r.handle === handle) ?? reads.find((r) => r.platform === platform);
   if (!profile) {
@@ -64,7 +64,7 @@ export async function runCheck(handle: string, platform: CreatorPlatform, niche 
   let read: CreatorRead | null = null;
   if (isModelConfigured) {
     try {
-      read = await readCreator({ handle, platform, niche, stats, benchmark });
+      read = await readCreator({ handle, platform, niche, goal, stats, benchmark });
     } catch (e) {
       console.warn("[creator] read failed:", (e as Error).message);
     }

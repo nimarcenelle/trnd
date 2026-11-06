@@ -92,10 +92,10 @@ describe("funnel", () => {
 
 describe("verdict", () => {
   it("waits for enough checks, then holds the rate to the bar set in advance", () => {
-    expect(verdict({ checks: DECIDE_AFTER - 1, upgradeRate: 0.5 })).toBe("collecting");
-    expect(verdict({ checks: DECIDE_AFTER, upgradeRate: BUILD_AT })).toBe("build");
-    expect(verdict({ checks: DECIDE_AFTER, upgradeRate: 0.005 })).toBe("rework");
-    expect(verdict({ checks: DECIDE_AFTER, upgradeRate: 0.02 })).toBe("keep_testing");
+    expect(verdict({ checks: DECIDE_AFTER - 1, paidRate: 0.5 })).toBe("collecting");
+    expect(verdict({ checks: DECIDE_AFTER, paidRate: BUILD_AT })).toBe("build");
+    expect(verdict({ checks: DECIDE_AFTER, paidRate: 0.005 })).toBe("rework");
+    expect(verdict({ checks: DECIDE_AFTER, paidRate: 0.02 })).toBe("keep_testing");
   });
 });
 

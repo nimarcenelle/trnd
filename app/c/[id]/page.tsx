@@ -42,7 +42,7 @@ export default async function SharedResultPage({ params }: PageProps<"/c/[id]">)
       <main className="wrap pt-10 sm:pt-16 pb-20 w-full">
         <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-8 lg:gap-14 items-start">
           <div className="rise">
-            <DiagnosisCard handle={c.handle} platform={c.platform ?? "tiktok"} followers={c.followers} stats={c.stats} killer={c.read?.killer ?? c.read?.stop} benchmark={c.benchmark} voice="they" />
+            <DiagnosisCard handle={c.handle} platform={c.platform ?? "tiktok"} followers={c.followers} stats={c.stats} killer={c.paid ? (c.read?.killer ?? c.read?.stop) : null} benchmark={c.benchmark} voice="they" locked={!c.paid} />
             <p className="caption mt-3">Checked {when}. Public posts only: likes, comments and shares against their own usual.</p>
           </div>
           <div className="flex flex-col gap-10">
@@ -50,9 +50,9 @@ export default async function SharedResultPage({ params }: PageProps<"/c/[id]">)
               <p className="kicker m-0">{diagnosis(c.stats, "their").replace(/^(\d+) of their/, `$1 of @${c.handle}'s`)}</p>
               <h1 className="display text-[34px] sm:text-[44px] mt-3 mb-0">Why do yours flop?</h1>
               <p className="text-[16px] text-ink-2 mt-3 mb-5 leading-[1.6] max-w-[520px]">
-                Free, no account, about a minute. Find out exactly what&apos;s killing your posts, and what to post instead.
+                About two minutes, no account, and the diagnosis is free. Find out exactly what&apos;s killing your posts.
               </p>
-              <form action="/creators" method="get" className="sitebox max-w-[520px]">
+              <form action="/check" method="get" className="sitebox max-w-[520px]">
                 <input type="hidden" name="src" value={SHARED_SRC} />
                 <select name="platform" defaultValue={c.platform} aria-label="Platform" className="bg-transparent text-[14px] text-ink-2 outline-none border-0 pr-1">
                   <option value="tiktok">TikTok</option>
@@ -65,7 +65,8 @@ export default async function SharedResultPage({ params }: PageProps<"/c/[id]">)
                 </button>
               </form>
             </div>
-            {c.read ? <ReadSection read={c.read} voice="they" hooks={false} benchmark={c.benchmark} /> : c.benchmark && <NicheSection b={c.benchmark} voice="they" />}
+            {/* The written read is what's paid for: shown here only when its owner paid and shared it. */}
+            {c.paid && c.read ? <ReadSection read={c.read} voice="they" hooks={false} benchmark={c.benchmark} /> : c.paid && c.benchmark && <NicheSection b={c.benchmark} voice="they" />}
           </div>
         </div>
       </main>

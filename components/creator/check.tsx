@@ -1,14 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useActionState, useState } from "react";
 
 import SubmitButton from "@/components/app/submit-button";
-import { IconArrowRight, IconCheck } from "@/components/icons";
-import { checkCreatorAction, saveLeadAction, type LeadState } from "@/lib/creator/actions";
+import { IconCheck } from "@/components/icons";
+import { saveLeadAction, type LeadState } from "@/lib/creator/actions";
 import { gapLine, type Benchmark } from "@/lib/creator/benchmark";
 import type { CreatorCheck } from "@/lib/creator/check";
-import { CREATOR_PRICE } from "@/lib/creator/funnel";
 import type { CreatorRead } from "@/lib/creator/read";
 import { theirs, type CreatorStats, type ScoredPost } from "@/lib/creator/stats";
 import { compact, percent } from "@/lib/format";
@@ -16,50 +14,6 @@ import { compact, percent } from "@/lib/format";
 import ShareBar from "./share";
 import DiagnosisCard from "./diagnosis-card";
 import { PostBars, TierLegend, useReplay } from "./visuals";
-
-/** What the check is doing, by the second it usually gets there. The read is one call, so this is a clock, not a signal. */
-const STEPS = [
-  { at: 0, label: (h: string) => `Reading @${h}'s last 12 posts` },
-  { at: 20, label: () => "Measuring each one against your usual" },
-  { at: 35, label: () => "Pulling the top posts in your niche" },
-  { at: 70, label: () => "Comparing you with the creators beating you" },
-  { at: 95, label: () => "Writing what to post instead" },
-];
-
-function Working() {
-  const { pending, data } = useFormStatus();
-  const [seconds, setSeconds] = useState(0);
-  const startedAt = useRef(0);
-  useEffect(() => {
-    if (!pending) return;
-    startedAt.current = Date.now();
-    const id = setInterval(() => setSeconds(Math.floor((Date.now() - startedAt.current) / 1000)), 1000);
-    return () => clearInterval(id);
-  }, [pending]);
-  if (!pending) return null;
-  const handle = String(data?.get("handle") ?? "").replace(/^@/, "") || "you";
-  const current = STEPS.filter((s) => s.at <= seconds).length - 1;
-  return (
-    <div className="card mt-4 p-4 text-left">
-      <ul className="list-none m-0 p-0 flex flex-col gap-2.5 text-[13.5px]">
-        {STEPS.map((step, i) => (
-          <li key={step.at} className={`flex items-center gap-2.5 ${i > current ? "text-ink-3" : ""}`}>
-            {i < current ? (
-              <span className="w-3.5 h-3.5 rounded-full bg-ink text-bg grid place-items-center text-[9px]">✓</span>
-            ) : i === current ? (
-              <span className="spinner" />
-            ) : (
-              <span className="w-3.5 h-3.5 rounded-full border-2 border-line-strong" />
-            )}
-            {step.label(handle)}
-          </li>
-        ))}
-      </ul>
-      <p className="caption mt-3">Usually one to two minutes.</p>
-    </div>
-  );
-}
-
 
 /** A hook, with a copy button: creators paste it straight into their notes. */
 function HookCard({ hook, why, n }: { hook: string; why: string; n: number }) {
@@ -241,49 +195,12 @@ export function Numbers({ stats, headline }: { stats: CreatorStats; headline?: s
   );
 }
 
-function Upgrade({ href }: { href: string }) {
-  return (
-    <section className="card mt-12 p-6 sm:p-8 grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-8 items-center">
-      <div>
-        <p className="kicker">Creator plan</p>
-        <h3 className="heading text-[22px] mt-2">This was 12 of your posts, once. TRND reads your niche every day.</h3>
-        <p className="text-[14.5px] text-ink-2 leading-[1.65] mt-3">
-          Pick up to 10 creators you compete with. When one of their posts breaks out, you see it the next morning: the hook, the format, how far past their
-          usual it went, and a hook of your own to answer it.
-        </p>
-        <ul className="list-none p-0 m-0 mt-5 flex flex-col gap-2.5">
-          {["Up to 10 creators, read daily", "Their breakouts, as they happen", "Your posts measured the same way, every week", "Three hooks a week built on what's working now"].map((x) => (
-            <li key={x} className="flex gap-2.5 text-[14px]">
-              <IconCheck className="text-brand mt-[3px] shrink-0" />
-              {x}
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="well p-6 text-center">
-        <div className="flex items-baseline justify-center gap-1.5">
-          <span className="display text-[40px] tnum">{CREATOR_PRICE}</span>
-          <span className="text-ink-3 text-[14px]">per month</span>
-        </div>
-        <p className="caption mt-1">First month free. Cancel any time.</p>
-        <a href={href} className="btn btn-primary btn-lg w-full mt-5">
-          Start free <IconArrowRight />
-        </a>
-      </div>
-    </section>
-  );
-}
-
-function Result({ r }: { r: CreatorCheck }) {
+/** The whole report, for a check that is paid for: the card to share, why the posts flop, the niche, the fix, the numbers. */
+export function FullReport({ r }: { r: CreatorCheck }) {
   const s = r.stats!;
   const [run, replay] = useReplay();
-  const top = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [r.id, r.handle]);
-  const signup = `/creators/start?handle=${encodeURIComponent(r.handle ?? "")}&platform=${r.platform}${r.src ? `&src=${encodeURIComponent(r.src)}` : ""}`;
   return (
-    <div ref={top} className="mt-14 text-left scroll-mt-20">
+    <div className="text-left">
       <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-8 lg:gap-12 items-start">
         <div className="lg:sticky lg:top-20 flex flex-col gap-4">
           <DiagnosisCard handle={r.handle ?? ""} platform={r.platform ?? "tiktok"} followers={r.followers} stats={s} killer={r.read?.killer} fix={r.read?.next_hooks[0]?.hook} benchmark={r.benchmark} run={run} />
@@ -300,7 +217,7 @@ function Result({ r }: { r: CreatorCheck }) {
             <ReadSection read={r.read} benchmark={r.benchmark} />
           ) : (
             <>
-              <p className="text-[15px] text-ink-2 m-0">The written read is unavailable right now. Run the check again in a minute for why your posts flop and what to post instead.</p>
+              <p className="text-[15px] text-ink-2 m-0">The written read didn&apos;t finish for this check. The numbers and the niche comparison are complete.</p>
               {r.benchmark && <NicheSection b={r.benchmark} />}
             </>
           )}
@@ -309,7 +226,6 @@ function Result({ r }: { r: CreatorCheck }) {
       </div>
 
       <Recheck r={r} />
-      <Upgrade href={signup} />
     </div>
   );
 }
@@ -345,49 +261,5 @@ function Recheck({ r }: { r: CreatorCheck }) {
         {state.error && <p className="form-error mt-2 mb-0">{state.error}</p>}
       </div>
     </form>
-  );
-}
-
-/** The check's form and, once it has run, the result. `sample` shows in the result's place until then. */
-export default function CreatorCheckForm({ src = "", handle = "", platform = "tiktok", sample }: { src?: string; handle?: string; platform?: "tiktok" | "instagram"; sample?: React.ReactNode }) {
-  const [state, action] = useActionState<CreatorCheck, FormData>(checkCreatorAction, {});
-  const form = useRef<HTMLFormElement>(null);
-  const started = useRef(false);
-  useEffect(() => {
-    // A handle in the link: run the check once, as if the visitor had pressed the button.
-    if (handle && !started.current) {
-      started.current = true;
-      form.current?.requestSubmit();
-    }
-  }, [handle]);
-  return (
-    <>
-      <form ref={form} action={action} className="w-full max-w-[560px] mx-auto">
-        <div className="sitebox">
-          <select name="platform" defaultValue={state.platform ?? platform} aria-label="Platform" className="bg-transparent text-[14px] text-ink-2 outline-none border-0 pr-1">
-            <option value="tiktok">TikTok</option>
-            <option value="instagram">Instagram</option>
-          </select>
-          <span className="w-px h-5 bg-line-strong" aria-hidden />
-          <input type="hidden" name="src" value={state.src ?? src} />
-          <input name="handle" defaultValue={state.handle ? `@${state.handle}` : handle ? `@${handle.replace(/^@/, "")}` : ""} placeholder="@yourhandle" aria-label="Your handle" autoComplete="off" required />
-          <SubmitButton className="btn btn-primary" pending="Reading…">
-            Check my posts
-          </SubmitButton>
-        </div>
-        <input
-          name="niche"
-          defaultValue={state.niche ?? ""}
-          className="input mt-2.5"
-          placeholder="Your niche, e.g. home workouts. We measure you against the top creators in it"
-          aria-label="Your niche"
-          maxLength={80}
-        />
-        <p className="caption mt-3 text-center">Public posts only. We never ask for your login.</p>
-        {state.error && <p className="form-error mt-3">{state.error}</p>}
-        <Working />
-      </form>
-      {state.stats ? <Result r={state} /> : !handle && sample}
-    </>
   );
 }

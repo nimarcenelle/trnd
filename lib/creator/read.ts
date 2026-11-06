@@ -42,13 +42,13 @@ only the posts. Short sentences, everyday words, no hype ("unlock", "skyrocket",
 Hooks are opening lines a person would say on camera or put as the first line of a caption: under 14 words, specific
 to their niche, no emoji, no hashtags, no clickbait they couldn't pay off.`;
 
-export async function readCreator(input: { handle: string; platform: string; niche: string; stats: CreatorStats; benchmark?: Benchmark | null }): Promise<CreatorRead> {
+export async function readCreator(input: { handle: string; platform: string; niche: string; goal?: string; stats: CreatorStats; benchmark?: Benchmark | null }): Promise<CreatorRead> {
   const { stats } = input;
   const lines = stats.posts.map(
     (p, i) =>
       `${i + 1}. [${p.tier}, ${p.multiple}× median, ${p.interactions} interactions${p.views !== null ? `, ${p.views} views` : ""}, ${p.kind ?? "post"}] ${(p.caption ?? "(no caption)").replace(/\s+/g, " ").slice(0, 280)}`,
   );
-  const prompt = `Creator: @${input.handle} on ${input.platform}${input.niche ? `, niche: ${input.niche}` : ""}.
+  const prompt = `Creator: @${input.handle} on ${input.platform}${input.niche ? `, niche: ${input.niche}` : ""}.${input.goal ? ` What they want most: ${input.goal}.` : ""}
 Median interactions per post: ${stats.medianInteractions}. Breakout = 2× median or more; stalled = half or less.
 ${stats.breakouts} breakouts, ${stats.stalled} stalled, of ${stats.posts.length} posts, newest first:
 ${lines.join("\n")}

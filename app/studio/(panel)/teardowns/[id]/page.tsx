@@ -60,7 +60,7 @@ export default async function TeardownPage({ params }: PageProps<"/studio/teardo
           <div className="caption">through {t.src}</div>
         </div>
         <div className="card p-4">
-          <div className="text-[13px] text-ink-2">Start free</div>
+          <div className="text-[13px] text-ink-2">Unlock clicks</div>
           <div className="text-[26px] font-semibold tnum mt-1">{driven.upgrades}</div>
           <div className="caption">{percent(driven.upgradeRate, 0)} of those checks</div>
         </div>

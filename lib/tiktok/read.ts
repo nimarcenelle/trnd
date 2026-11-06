@@ -179,7 +179,12 @@ async function runActor(actor: string, input: Obj): Promise<Obj[]> {
     signal: AbortSignal.timeout(120_000),
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(`Apify ${actor} answered ${res.status}`);
+  if (!res.ok) {
+    // Apify says why in the body (an expired token, a spent plan, a busy actor): keep it, so the log names the cause.
+    const body = (await res.json().catch(() => null)) as unknown;
+    const why = isObj(body) && isObj(body.error) ? (str(body.error.type) ?? str(body.error.message)) : null;
+    throw new Error(`Apify ${actor} answered ${res.status}${why ? ` (${why})` : ""}`);
+  }
   const items = (await res.json()) as unknown;
   if (isObj(items) && isObj(items.error)) throw new Error(`Apify ${actor}: ${str(items.error.message) ?? str(items.error.type) ?? "error"}`);
   return Array.isArray(items) ? items.filter(isObj) : [];

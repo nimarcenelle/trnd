@@ -14,7 +14,7 @@ anything, then ask for one thing at a time.
 
 1. **First screen** (`/`): "Make every post go viral." and the handle, nothing else; visitors come from an ad or a
    post. The read then runs one question a screen (`/start/[id]`) and ends on the diagnosis: how many of their videos
-   never got past their followers, the gap to the creators ahead, their worst video, with what's killing their posts
+   didn't break out (under 2× their usual), the gap to the creators ahead, their worst video, with what's killing their posts
    (the plan's `killer` and `problems`) locked until they pay. How it works, examples (invented accounts in
    `components/sample/lena.ts`), pricing and the FAQ are at `/pricing`.
 2. **Free preview** (`/start/[id]`, `lib/preview/`): reads the profile, asks "Is this you?", then reads the niche and

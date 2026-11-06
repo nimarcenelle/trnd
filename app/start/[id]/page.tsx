@@ -272,7 +272,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
           <div className="rise">
             <p className="text-[13.5px] font-semibold text-neg m-0">@{p.handle}, here&apos;s the problem</p>
             <h1 className="display text-[clamp(28px,4.2vw,38px)] mt-2">
-              {d ? (d.stuck === d.n ? `None of your last ${d.n} videos got past your followers.` : `${d.stuck} of your last ${d.n} videos never got past your followers.`) : "Your videos are getting stuck with your followers."}
+              {d ? (d.stuck === d.n ? `None of your last ${d.n} videos broke out.` : `${d.stuck} of your last ${d.n} videos didn't break out.`) : "Your videos aren't breaking out."}
             </h1>
             {gap && gap.ahead > gap.mine && (
               <p className="text-[17px] text-ink-2 leading-[1.5] mt-3 mb-0">
@@ -323,7 +323,7 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         <div className="wrap flex items-center justify-between gap-3 py-3">
           <div className="min-w-0 max-sm:hidden">
-            <div className="font-bold">{d ? `${d.stuck} of ${d.n} videos stuck with your followers` : "Your videos are stuck with your followers"}</div>
+            <div className="font-bold">{d ? `${d.stuck} of ${d.n} videos didn't break out` : "Your videos aren't breaking out"}</div>
             <div className="caption">Find out what&apos;s killing them. Free account, no card.</div>
           </div>
           <Link href={signup} className="btn btn-primary btn-lg max-sm:w-full">

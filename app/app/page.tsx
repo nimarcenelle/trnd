@@ -103,7 +103,10 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
     };
   };
   const openIdea = Number(ideaParam) || 1;
-  const referral = referralUrl(await referralCode(creator));
+  // Null until migration 0006 adds the referral columns: the share block waits for it.
+  const referral = await referralCode(creator)
+    .then(referralUrl)
+    .catch(() => null);
   // The retention metrics read these: which plan was opened, how many days into the account, and a scorecard opened.
   const ageDays = daysSince(creator.created_at);
   if (tab === "next") await logEvent("plan_viewed", { creatorId: creator.id, meta: { plan: latest.id, age_days: ageDays, free: limited } });
@@ -232,7 +235,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
           limited={limited}
         />
       )}
-      {tab === "next" && (
+      {tab === "next" && referral && (
         // Every weekly plan ends with the card to share and the referral link: one free month for both.
         <section className="card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4" aria-label="Share your week">
           <div className="min-w-0">

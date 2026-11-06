@@ -7,7 +7,7 @@ import { checkoutAction, welcomeAnswerAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { cardFirst, planState, TRIAL_DAYS } from "@/lib/billing";
 import { getCreator, listPeers, listPlans } from "@/lib/data";
-import { isStripeConfigured } from "@/lib/env";
+import { isCheckoutReady, isStripeConfigured } from "@/lib/env";
 import { dateIn } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
 
@@ -171,7 +171,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/app/welc
           ))}
         </ol>
       )}
-      <Pricing checkout={checkoutAction} current="free" />
+      <Pricing checkout={isCheckoutReady ? checkoutAction : undefined} soon={!isCheckoutReady} current="free" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="caption">Secure checkout by Stripe. Cancel any time from Settings.</span>
         <Link href="/app" className="btn btn-ghost btn-sm">

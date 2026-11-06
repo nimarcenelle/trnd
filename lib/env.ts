@@ -37,6 +37,12 @@ export const env = {
 };
 
 export const isModelConfigured = Boolean(env.openaiApiKey);
-export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePriceCreatorMonthly && env.stripePriceCreatorYearly);
+/** Creator checkout can open: both new prices are set. */
+export const isCheckoutReady = Boolean(env.stripeSecretKey && env.stripePriceCreatorMonthly && env.stripePriceCreatorYearly);
+/**
+ * Billing is on: free accounts lock and the webhook runs. True with a key and either the new Creator prices or the old
+ * weekly and monthly ones, so a deploy before the new prices exist keeps paid features paid (checkout waits for them).
+ */
+export const isStripeConfigured = isCheckoutReady || Boolean(env.stripeSecretKey && env.stripePriceWeekly && env.stripePriceMonthly);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isTiktokLoginConfigured = Boolean(env.tiktokClientKey && env.tiktokClientSecret);

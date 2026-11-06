@@ -40,7 +40,11 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   const sb = adminSupabase();
-  const creators = await allRows<Due>((from, to) => sb.from("creators").select("id, owner_id, handle, plan, plan_status, trial_ends_at, trial_used_at, trial_reminder_for, scan_status, scan_started_at, scan_error, last_scan_at, scan_failures, timezone, last_plan_at").order("id").range(from, to));
+  const cols = "id, owner_id, handle, plan, plan_status, trial_ends_at, trial_used_at, trial_reminder_for, scan_status, scan_started_at, scan_error, last_scan_at, scan_failures";
+  // timezone and last_plan_at come with migration 0006; before it runs, read without them (every plan slot then counts as due, the daily gap still holds).
+  const creators = await allRows<Due>((from, to) => sb.from("creators").select(`${cols}, timezone, last_plan_at`).order("id").range(from, to)).catch(() =>
+    allRows<Due>((from, to) => sb.from("creators").select(cols).order("id").range(from, to)),
+  );
   // Paid: the daily read and the Tuesday 8 AM plan slot; free: the slot only (backing off an account that keeps failing).
   const due = creators.filter((c) => readDue(c, planState(c).locked));
   // Each scan runs in its own invocation; this one only starts them, a few a second, and does not wait for them to finish.

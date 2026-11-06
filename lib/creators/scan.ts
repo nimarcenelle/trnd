@@ -444,7 +444,9 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
   body.problems = (body.problems ?? []).slice(0, 3).map((p) => ({ ...p, videos: p.videos.filter((id) => known.has(id)) }));
   const { error } = await sb.from("plans").insert({ creator_id: c.id, body });
   if (error) throw new Error(`Saving the plan failed: ${error.message}`);
-  await sb.from("creators").update({ plan_requested: false, last_plan_at: new Date().toISOString() }).eq("id", c.id);
+  await sb.from("creators").update({ plan_requested: false }).eq("id", c.id);
+  // Its own update: before migration 0006 the column isn't there, and that must not keep plan_requested set.
+  await sb.from("creators").update({ last_plan_at: new Date().toISOString() }).eq("id", c.id);
   await scorecard(body);
   return body;
 }

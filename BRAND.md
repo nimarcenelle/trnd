@@ -88,8 +88,10 @@ idea card is `components/app/idea-card.tsx`; the pricing cards are `components/p
   (`XrayWaiting`); once the videos are in, the account X-ray (`components/preview/xray.tsx`) beside the question and
   again on the result, the latest 12 in two rows, breakouts lifted with their ×. Never a bare spinner or checklist on
   its own.
-- **Sell the diagnosis.** The result shows that something is wrong and how much (how many videos never got past their
-  followers, the gap, their worst video) on the dark diagnosis card (`components/app/diagnosis-card.tsx`, the one
+- **Say what we measured.** A breakout is 2× their usual views; the diagnosis counts the videos that didn't get
+  there. We can't see who watched, so never claim a video "didn't get past their followers".
+- **Sell the diagnosis.** The result shows that something is wrong and how much (how many videos didn't break out, under
+  2× their usual views, the gap, their worst video) on the dark diagnosis card (`components/app/diagnosis-card.tsx`, the one
   dark surface, `.night`), and locks what it is: what's killing their posts, why they flop, what the creators ahead do.
   Locked text is filler, blurred; the real text never reaches the page. Paying unlocks it in the app.
 - Blunt about the videos, never the person: "Your openings name the topic instead of giving anyone a reason to stay."

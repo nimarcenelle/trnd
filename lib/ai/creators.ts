@@ -239,7 +239,7 @@ Return:
 - killer: the one thing holding their videos back, in one blunt sentence under 18 words, said to them ("Your openings
   name the topic instead of giving anyone a reason to stay."). From their weakest videos against their best and against
   the creators ahead of them. Blunt about the videos, never about the person. No numbers needed.
-- problems: 2-3 things wrong with their videos that keep them from getting past their followers, worst first. title is a
+- problems: 2-3 things wrong with their videos that keep them from breaking out, worst first. title is a
   short blunt phrase ("You bury the payoff"); detail says what their weak videos do, quoting or naming them, against what
   their best videos or the creators ahead of them do, with the numbers. videos: the ids that show it.`,
   });

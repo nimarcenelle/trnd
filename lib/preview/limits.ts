@@ -2,11 +2,13 @@ import { createHash } from "node:crypto";
 
 /**
  * Who may start a free preview. Each costs an Apify read and two model calls,
- * so a visitor gets a few a day, and all visitors together a daily budget;
+ * so a visitor gets several a day, and all visitors together a daily budget;
  * past it, visitors are sent to sign up instead (a signed-up account is read
- * by the normal scan).
+ * by the normal scan). The per-visitor cap stops one script, not people: phone
+ * carriers put many visitors behind one address, and a creator checks a few
+ * friends' accounts too. A read that failed doesn't count (it is re-run).
  */
-export const PER_VISITOR_PER_DAY = 3;
+export const PER_VISITOR_PER_DAY = 10;
 export const DAILY_BUDGET = Math.max(10, Number(process.env.PREVIEW_DAILY_CAP) || 300);
 
 /** A visitor key from their IP: hashed, so no address is stored. */

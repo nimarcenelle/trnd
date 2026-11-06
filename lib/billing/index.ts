@@ -32,7 +32,7 @@ export interface TierInfo {
 export const FREE = {
   name: "Free",
   blurb: "See that something's wrong, and try one fix a week.",
-  features: ["How many of your videos get stuck with your followers", "The gap to the creators ahead of you", "Rising trends in your niche", "One scripted idea a week"],
+  features: ["How many of your videos never break out", "The gap to the creators ahead of you", "Rising trends in your niche", "One scripted idea a week"],
 };
 
 export const TIERS: Record<Tier, TierInfo> = {

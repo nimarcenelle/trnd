@@ -4,8 +4,8 @@ import { compact } from "@/lib/format";
 import type { Gap } from "@/lib/creators/gap";
 
 /**
- * The funnel's hook: how many of their recent videos never got past their
- * followers, the shape of those videos as tiles, how far behind the creators
+ * The funnel's hook: how many of their recent videos didn't break out (reach
+ * twice their usual views), the shape of those videos as tiles, how far behind the creators
  * ahead of them they are, and the one thing killing their posts. Locked (free),
  * that line is blurred filler and the fix is held back: only the paid plan says
  * what's wrong. Dark in both themes, with the address on it, so a screenshot
@@ -57,11 +57,11 @@ export default function DiagnosisCard({
           {d.stuck}
           <span className="text-night-ink-2">/{d.n}</span>
         </div>
-        <p className={`m-0 mt-2 font-medium leading-[1.3] ${small ? "text-[15px]" : "text-[19px]"}`}>of {your} videos never got past {your} followers</p>
+        <p className={`m-0 mt-2 font-medium leading-[1.3] ${small ? "text-[15px]" : "text-[19px]"}`}>of {your} last videos didn&apos;t break out</p>
       </div>
 
       <div className={small ? "mt-5" : "mt-6"}>
-        <div className="flex gap-[5px]" role="img" aria-label={`${d.breakouts} broke out, ${d.stuck - d.flopped} stayed with ${your} followers, ${d.flopped} flopped`}>
+        <div className="flex gap-[5px]" role="img" aria-label={`${d.breakouts} broke out, ${d.stuck - d.flopped} stayed around ${your} usual, ${d.flopped} flopped`}>
           {d.tiles.map((t, i) => (
             <span key={i} className={`flex-1 aspect-square max-w-[30px] rounded-[7px] ${TILE[t]}`} />
           ))}
@@ -69,11 +69,11 @@ export default function DiagnosisCard({
         <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-night-ink-2">
           <span className="inline-flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-[3px] bg-night-pos" />
-            {d.breakouts} broke out
+            {d.breakouts} broke out (2×+)
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-[3px] bg-night-usual" />
-            {d.stuck - d.flopped} stuck
+            {d.stuck - d.flopped} about usual
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-[3px] bg-night-neg" />

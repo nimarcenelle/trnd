@@ -263,7 +263,7 @@ export default function PricingPage() {
             kicker="What's wrong"
             title="Find out what's killing your posts."
             body="Your videos aren't flopping by accident. We read every one against your own best and against the creators a step ahead of you, and tell you, bluntly, what's holding them back."
-            points={["How many of your videos never get past your followers", "The one thing killing your posts, from your own videos", "What the creators ahead of you do that you don't"]}
+            points={["How many of your videos never break out", "The one thing killing your posts, from your own videos", "What the creators ahead of you do that you don't"]}
             visual={<DiagnosisCard handle={LENA.handle} followers={LENA.followers} d={LENA_DIAGNOSIS} gap={LENA_GAP} killer={LENA_KILLER} fix={LENA_IDEA.hook} />}
           />
           <Feature

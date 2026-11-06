@@ -175,11 +175,14 @@ describe("free preview", () => {
     expect(calls.account).toBe(0);
   });
 
-  it("ends a read that died in an error to retry, not in \"not found\", and starts afresh on the next try", async () => {
+  it("ends a read that died in an error to retry, not in \"not found\", and reads it again on the next try without charging a free read", async () => {
     const slow = (await run.startPreview("slow", "1.1.1.1")) as { id: string };
     expect(await finish(slow.id)).toMatchObject({ status: "error", reason: expect.stringMatching(/try again/i) });
+    const hits = JSON.stringify(db.current.rows("preview_hits"));
     const again = (await run.startPreview("slow", "1.1.1.1")) as { id: string };
-    expect(again.id).not.toBe(slow.id);
+    expect(again.id).toBe(slow.id);
+    expect(await run.getPreview(slow.id)).toMatchObject({ status: "reading", reason: null });
+    expect(JSON.stringify(db.current.rows("preview_hits"))).toBe(hits);
   });
 
   it("lets only one request run a step at a time", async () => {

@@ -75,6 +75,18 @@ idea card is `components/app/idea-card.tsx`; the pricing cards are `components/p
 - Say what we can't see, plainly, and what would change it.
 - No invented social proof: no testimonials, "trusted by" rows, user counts or "creators joined today" counters.
 
+## The funnel
+
+- **The first screen asks one thing.** Visitors come from an ad or a post and know roughly what TRND does: `/` is the
+  headline ("Make every post go viral."), one line, and the handle, typed big. Nothing else on the page.
+- **One question a screen** after it (`/start/[id]`): "Is this you?", "What are you posting for?" while the read runs,
+  with a step count and a progress bar at the top. Letter-badged choices, the answer ticked off as it goes.
+- **Sell the diagnosis.** The result shows that something is wrong and how much (how many videos never got past their
+  followers, the gap, their worst video) on the dark diagnosis card (`components/app/diagnosis-card.tsx`, the one
+  dark surface, `.night`), and locks what it is: what's killing their posts, why they flop, what the creators ahead do.
+  Locked text is filler, blurred; the real text never reaches the page. Paying unlocks it in the app.
+- Blunt about the videos, never the person: "Your openings name the topic instead of giving anyone a reason to stay."
+
 ## Sample data
 
 Marketing mockups show a monetizing creator (around 40K followers) or a local business, never an account under 10K.

@@ -31,8 +31,8 @@ export interface TierInfo {
 
 export const FREE = {
   name: "Free",
-  blurb: "See the gap and try one idea a week.",
-  features: ["Your numbers and typical views", "Creators ahead of you", "Rising trends in your niche", "One scripted idea a week, with why it works"],
+  blurb: "See that something's wrong, and try one fix a week.",
+  features: ["How many of your videos get stuck with your followers", "The gap to the creators ahead of you", "Rising trends in your niche", "One scripted idea a week"],
 };
 
 export const TIERS: Record<Tier, TierInfo> = {
@@ -40,8 +40,8 @@ export const TIERS: Record<Tier, TierInfo> = {
     name: "Creator",
     month: 19,
     year: 149,
-    blurb: "Three scripts a week, checked after you post.",
-    features: ["Three scripted videos every week", "Hook, script, sound, hashtags and post time", "48-hour check on every idea you post", "3 creators to emulate"],
+    blurb: "What's wrong with your videos, and three scripts a week to fix it.",
+    features: ["What's killing your posts, from your own videos", "What the creators ahead of you do that you don't", "Three scripted videos every week", "Hook, script, sound, hashtags and post time", "48-hour check on every idea you post", "3 creators to emulate"],
     available: true,
   },
   pro: {

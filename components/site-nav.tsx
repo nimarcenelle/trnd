@@ -12,13 +12,13 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
           <Brand />
           {links && (
             <nav className="hidden md:flex items-center gap-7 text-[14px] text-ink-2 font-medium">
-              <Link href="/#how" className="hover:text-ink">
+              <Link href="/pricing#how" className="hover:text-ink">
                 How it works
               </Link>
-              <Link href="/#pricing" className="hover:text-ink">
+              <Link href="/pricing#pricing" className="hover:text-ink">
                 Pricing
               </Link>
-              <Link href="/#faq" className="hover:text-ink">
+              <Link href="/pricing#faq" className="hover:text-ink">
                 FAQ
               </Link>
             </nav>
@@ -29,8 +29,8 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
           <Link href="/login" className="btn btn-ghost btn-sm max-[420px]:hidden">
             Sign in
           </Link>
-          <Link href="/#start" className="btn btn-primary btn-sm">
-            Plan my next 3 posts
+          <Link href="/" className="btn btn-primary btn-sm">
+            Check my posts
           </Link>
         </div>
       </div>

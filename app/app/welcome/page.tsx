@@ -149,12 +149,12 @@ export default async function WelcomePage({ searchParams }: PageProps<"/app/welc
       <Progress n={4} of={4} />
       <div className="max-w-[720px]">
         <h1 className="display text-[clamp(26px,4.5vw,38px)]">
-          {plan.canTrial ? `Your plan is ready. Try it free for ${TRIAL_DAYS} days.` : plan.trialing ? "Keep it going after your trial" : "Your first idea is ready. Get all three, every week."}
+          {plan.canTrial ? `Your plan is ready. Try it free for ${TRIAL_DAYS} days.` : plan.trialing ? "Keep it going after your trial" : "See exactly what's wrong with your videos, and fix it."}
         </h1>
         <p className="text-ink-2 mt-2">
           {plan.trialing && !cardFirst
             ? `Your free trial runs ${plan.trialDaysLeft} more day${plan.trialDaysLeft === 1 ? "" : "s"}. Pick a plan now and the first charge waits until it ends.`
-            : "Free keeps one scripted idea a week. Creator gives you three, with the sound and post time, and checks each one 48 hours after you post it."}
+            : "Free shows you that your videos are stuck and gives you one fix a week. Creator tells you what's killing your posts, what the creators ahead of you do instead, and scripts three videos a week to fix it."}
         </p>
       </div>
       {plan.canTrial && (

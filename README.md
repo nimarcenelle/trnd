@@ -12,8 +12,11 @@ What TikTok data is available, from where, and what is not: `DATA.md`.
 Built from a study of comparable tools (`DATA.md` covers the data side). The rule: show real value before asking for
 anything, then ask for one thing at a time.
 
-1. **Landing** (`/`): one handle box, "Plan my next 3 posts". No account, no TikTok login. Its examples are invented
-   accounts (`components/sample/lena.ts`), a ~42K-follower creator and a local shop.
+1. **First screen** (`/`): "Make every post go viral." and the handle, nothing else; visitors come from an ad or a
+   post. The read then runs one question a screen (`/start/[id]`) and ends on the diagnosis: how many of their videos
+   never got past their followers, the gap to the creators ahead, their worst video, with what's killing their posts
+   (the plan's `killer` and `problems`) locked until they pay. How it works, examples (invented accounts in
+   `components/sample/lena.ts`), pricing and the FAQ are at `/pricing`.
 2. **Free preview** (`/start/[id]`, `lib/preview/`): reads the profile, asks "Is this you?", then reads the niche and
    writes the plan while asking one optional question (the goal). Shows the numbers, creators ahead of them, what's
    rising, and **idea 1 in full**; ideas 2 and 3 show their hooks only. One step per request (`/api/preview/[id]/step`),

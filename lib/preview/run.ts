@@ -271,6 +271,8 @@ async function ideaStep(p: Preview): Promise<void> {
     source_trend: i.type === "ride" ? (keys.get(i.source_trend.replace(/^#/, "").toLowerCase()) ?? "") : "",
   }));
   if (!body.ideas.length) throw new Error("empty plan");
+  const known = new Set([...ownIds, ...peerIds]);
+  body.problems = (body.problems ?? []).slice(0, 3).map((x) => ({ ...x, videos: x.videos.filter((id) => known.has(id)) }));
   await save(p.id, { status: "ready", plan: body });
 }
 

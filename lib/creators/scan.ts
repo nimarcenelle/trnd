@@ -441,6 +441,7 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
   if (!body.ideas.length) throw new Error("The plan came back without ideas. Read again to retry.");
   const known = new Set([...ownIds, ...peerIds]);
   body.patterns = body.patterns.map((p) => ({ ...p, videos: p.videos.filter((id) => known.has(id)) }));
+  body.problems = (body.problems ?? []).slice(0, 3).map((p) => ({ ...p, videos: p.videos.filter((id) => known.has(id)) }));
   const { error } = await sb.from("plans").insert({ creator_id: c.id, body });
   if (error) throw new Error(`Saving the plan failed: ${error.message}`);
   await sb.from("creators").update({ plan_requested: false, last_plan_at: new Date().toISOString() }).eq("id", c.id);

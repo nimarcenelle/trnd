@@ -202,6 +202,10 @@ export interface PlanBody {
   ideas: Idea[];
   /** What the creator's own numbers say, in a sentence each, with the videos that show it. */
   patterns: { title: string; detail: string; videos: string[] }[];
+  /** The one thing holding their videos back, said straight. The paid diagnosis; plans before it lack it. */
+  killer?: string;
+  /** What's wrong with their videos, worst first, with the videos that show it. */
+  problems?: { title: string; detail: string; videos: string[] }[];
 }
 
 export interface Plan {

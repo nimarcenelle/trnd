@@ -30,6 +30,12 @@
   --color-neg-bg: var(--neg-bg);
   --color-warn: var(--warn);
   --color-warn-bg: var(--warn-bg);
+  --color-night-raise: var(--night-raise);
+  --color-night-ink-2: var(--night-ink-2);
+  --color-night-line: var(--night-line);
+  --color-night-pos: var(--night-pos);
+  --color-night-neg: var(--night-neg);
+  --color-night-usual: var(--night-usual);
   --font-sans: var(--sans);
   --font-display: var(--display);
   --font-mono: var(--mono);
@@ -54,6 +60,13 @@
   /* The dark block the week's answer sits in. */
   --night: #141413;
   --on-night: #f6f6f4;
+  /* On the dark diagnosis card: a raised well, secondary text, hairlines, and green and red light enough to read on it. */
+  --night-raise: #1f1f1d;
+  --night-ink-2: #a8a8a3;
+  --night-line: rgba(255, 255, 255, 0.1);
+  --night-pos: #47cd89;
+  --night-neg: #f97066;
+  --night-usual: rgba(255, 255, 255, 0.2);
   --pos: #067647;
   --pos-bg: #ecfdf3;
   --neg: #b42318;
@@ -98,6 +111,7 @@
   --cyan-soft: #10302b;
   --night: #19191c;
   --on-night: #ededec;
+  --night-raise: #232327;
   --pos: #47cd89;
   --pos-bg: #11261b;
   --neg: #f97066;

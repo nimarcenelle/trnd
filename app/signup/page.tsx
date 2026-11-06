@@ -20,7 +20,7 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
       sub={
         from === "preview"
           ? "Free previews are busy right now. Create a free account and we'll build your full plan in a few minutes."
-          : "Save your plan and get one scripted idea a week, free. No card."
+          : "See what's killing your posts. Free account, no card."
       }
     >
       <Passwordless mode="signup" next={next} />

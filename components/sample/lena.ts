@@ -1,4 +1,5 @@
 import type { IdeaSource } from "@/components/app/idea-card";
+import { diagnose } from "@/lib/creators/diagnosis";
 import { gapOf } from "@/lib/creators/gap";
 import type { Normal } from "@/lib/creators/stats";
 import type { Idea, Video } from "@/lib/db/types";
@@ -24,6 +25,12 @@ export const LENA_AHEAD = [
 ];
 
 export const LENA_GAP = gapOf({ followers: LENA.followers, typical: LENA_NORMAL.views }, LENA_AHEAD, 12)!;
+
+export const LENA_DIAGNOSIS = diagnose(
+  LENA_VIEWS.map((views, i) => ({ views: i === 2 ? 31_000 : i === 6 ? 36_000 : views, posted_at: new Date(Date.UTC(2026, 9, 1 + i * 3)).toISOString(), caption: null })),
+  LENA_NORMAL,
+)!;
+export const LENA_KILLER = "Your openings name the workout instead of promising what it changes.";
 
 /** This week's three, by their hooks, for the mockup. */
 export const LENA_WEEK = [

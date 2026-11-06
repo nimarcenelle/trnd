@@ -17,9 +17,17 @@ export const env = {
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
-  /** Two Stripe recurring prices: $9.99 a week and $24.99 a month. */
+  /** The Creator plan: $19 a month or $149 a year (lib/billing). */
+  stripePriceCreatorMonthly: process.env.STRIPE_PRICE_CREATOR_MONTHLY ?? "",
+  stripePriceCreatorYearly: process.env.STRIPE_PRICE_CREATOR_YEARLY ?? "",
+  /** One-time add-ons: the script pack ($19) and the done-for-you month ($79). Optional; unset, they take an email instead. */
+  stripePriceScriptPack: process.env.STRIPE_PRICE_SCRIPT_PACK ?? "",
+  stripePriceDoneForYou: process.env.STRIPE_PRICE_DONE_FOR_YOU ?? "",
+  /** The old $9.99/week and $24.99/month prices: no longer sold, read only to label existing subscriptions. */
   stripePriceWeekly: process.env.STRIPE_PRICE_WEEKLY ?? "",
   stripePriceMonthly: process.env.STRIPE_PRICE_MONTHLY ?? "",
+  /** Signed-in emails that may open /app/admin (the funnel numbers), comma separated. */
+  adminEmails: (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean),
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM || "TRND <plans@usetrnd.com>",
   /** Where the daily cron sends a note when reads are failing or stuck. */
@@ -27,6 +35,6 @@ export const env = {
 };
 
 export const isModelConfigured = Boolean(env.openaiApiKey);
-export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePriceWeekly && env.stripePriceMonthly);
+export const isStripeConfigured = Boolean(env.stripeSecretKey && env.stripePriceCreatorMonthly && env.stripePriceCreatorYearly);
 export const isEmailConfigured = Boolean(env.resendApiKey);
 export const isTiktokLoginConfigured = Boolean(env.tiktokClientKey && env.tiktokClientSecret);

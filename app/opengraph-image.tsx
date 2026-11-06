@@ -7,18 +7,18 @@ export const contentType = "image/png";
 export default function OpengraphImage() {
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "72px 84px", background: "#1d1724", color: "#f7f5f8" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "72px 84px", background: "#141413", color: "#f6f6f4" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
           <div style={{ fontSize: 44, fontWeight: 800, display: "flex" }}>
-            TRND<span style={{ color: "#ff5c8a" }}>.</span>
+            TRND<span style={{ color: "#4fd1bb" }}>.</span>
           </div>
-          <div style={{ fontSize: 28, color: "#aea5b9", display: "flex" }}>for creators</div>
+          <div style={{ fontSize: 28, color: "#a8a8a3", display: "flex" }}>for creators</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ fontSize: 76, fontWeight: 800, lineHeight: 1.05, letterSpacing: -2, display: "flex", maxWidth: 980 }}>Know exactly what to post next.</div>
-          <div style={{ fontSize: 30, color: "#aea5b9", display: "flex" }}>Your next three TikToks: hook, script, sound and hashtags.</div>
+          <div style={{ fontSize: 30, color: "#a8a8a3", display: "flex" }}>Your next three TikToks: hook, script, sound and hashtags.</div>
         </div>
-        <div style={{ fontSize: 24, color: "#ff5c8a", display: "flex" }}>#studytok · #collegeapps · #booktok</div>
+        <div style={{ fontSize: 24, color: "#4fd1bb", display: "flex" }}>#studytok · #collegeapps · #booktok</div>
       </div>
     ),
     size,

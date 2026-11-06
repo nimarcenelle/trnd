@@ -13,10 +13,10 @@ const H = 1920;
 const U = W / 100;
 
 // Satori can't read CSS variables: the tokens from app/globals.css this card uses, by value.
-const C = { night: "#1d1724", onNight: "#f7f5f8", tag: "#99ccd6", chip: "rgba(247, 245, 248, 0.15)", caption: "#8f879a" };
+const C = { night: "#141413", onNight: "#f6f6f4", tag: "#8fe0d2", chip: "rgba(246, 246, 244, 0.15)", caption: "#868680" };
 
 const font = (file: string) => readFile(join(process.cwd(), "assets/fonts", file));
-const [figtree500, figtree700, unbounded600] = await Promise.all([font("figtree-latin-500-normal.woff"), font("figtree-latin-700-normal.woff"), font("unbounded-latin-600-normal.woff")]);
+const [inter500, inter700] = await Promise.all([font("inter-latin-500-normal.woff"), font("inter-latin-700-normal.woff")]);
 
 const icon = { width: 8 * U, height: 8 * U };
 
@@ -26,11 +26,11 @@ export function nextTikTokCard(t: NextTikTok): ImageResponse {
 
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", background: C.night, color: C.onNight, fontFamily: "Figtree", fontWeight: 500 }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", background: C.night, color: C.onNight, fontFamily: "Inter", fontWeight: 500 }}>
         <div style={{ position: "absolute", left: 4.5 * U, top: 4.5 * U, display: "flex", borderRadius: 999, background: C.chip, padding: `${1.2 * U}px ${3 * U}px`, fontSize: 3.6 * U, fontWeight: 700 }}>Not posted yet</div>
 
         <div style={{ position: "absolute", left: 6 * U, right: 6 * U, top: H * 0.14, bottom: H * 0.5, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ display: "flex", background: C.onNight, color: C.night, borderRadius: 1.4 * U, padding: `${1.6 * U}px ${2.6 * U}px`, fontFamily: "Unbounded", fontWeight: 600, fontSize: hookScale(t.hook) * W, lineHeight: 1.25, letterSpacing: "-0.01em", textAlign: "center" }}>{t.hook}</div>
+          <div style={{ display: "flex", background: C.onNight, color: C.night, borderRadius: 1.4 * U, padding: `${1.6 * U}px ${2.6 * U}px`, fontFamily: "Inter", fontWeight: 700, fontSize: hookScale(t.hook) * W, lineHeight: 1.25, letterSpacing: "-0.02em", textAlign: "center" }}>{t.hook}</div>
         </div>
 
         <div style={{ position: "absolute", right: 3.5 * U, bottom: 24 * U, display: "flex", flexDirection: "column", alignItems: "center", gap: 4.5 * U }}>
@@ -66,9 +66,8 @@ export function nextTikTokCard(t: NextTikTok): ImageResponse {
       width: W,
       height: H,
       fonts: [
-        { name: "Figtree", data: figtree500, weight: 500, style: "normal" },
-        { name: "Figtree", data: figtree700, weight: 700, style: "normal" },
-        { name: "Unbounded", data: unbounded600, weight: 600, style: "normal" },
+        { name: "Inter", data: inter500, weight: 500, style: "normal" },
+        { name: "Inter", data: inter700, weight: 700, style: "normal" },
       ],
       headers: { "Cache-Control": "public, max-age=300" },
     },

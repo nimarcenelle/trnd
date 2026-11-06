@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import Avatar from "@/components/app/avatar";
+import GapCard from "@/components/app/gap-card";
 import IdeaCard, { IDEA_TYPE } from "@/components/app/idea-card";
 import NextTikTok from "@/components/app/next-tiktok";
 import { StageBar, STAGE_LABEL } from "@/components/app/stage";
@@ -12,6 +13,8 @@ import Brand from "@/components/brand";
 import PreviewRunner from "@/components/preview/runner";
 import StartForm from "@/components/preview/start-form";
 import Xray from "@/components/preview/xray";
+import { yearlyPerMonth } from "@/lib/billing";
+import { gapOf, postsPerMonth, typicalByAuthor } from "@/lib/creators/gap";
 import { aheadLine, callable, normalOf, timesNormal, topHashtags, trendList } from "@/lib/creators/stats";
 import { compact, times } from "@/lib/format";
 import { GOALS } from "@/lib/goals";
@@ -203,6 +206,13 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
   const sample = p.sample.map((v) => asVideo(v, p.handle));
   const src = first.source_video ? [...own, ...sample].find((v) => v.video_id === first.source_video) ?? null : null;
   const srcNormal = src ? normalOf(src.is_self ? own : sample.filter((v) => v.author === src.author)) : null;
+  // The gap: their typical video against the creators ahead of them, from the videos of theirs we read.
+  const typical = typicalByAuthor(sample);
+  const gap = gapOf(
+    { followers: p.author?.followers ?? null, typical: normal.views },
+    p.peers.map((x) => ({ followers: x.followers, typical: typical.get(x.handle) ?? null })),
+    postsPerMonth(p.videos.map((v) => v.postedAt)),
+  );
 
   return (
     <Shell>
@@ -252,6 +262,17 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
             </div>
           </div>
         </div>
+
+        {gap && (
+          <GapCard gap={gap}>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link href={signup} className="btn btn-primary btn-lg">
+                Plan my next 3 posts
+              </Link>
+              <span className="caption">Free keeps one idea a week. Creator: three scripts a week, from {yearlyPerMonth("creator")}/month billed yearly.</span>
+            </div>
+          </GapCard>
+        )}
 
         <section className="grid gap-3" aria-labelledby="next-tiktok">
           <div className="flex items-end justify-between gap-3 flex-wrap">
@@ -333,10 +354,10 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
         <div className="wrap flex items-center justify-between gap-3 py-3">
           <div className="min-w-0 max-sm:hidden">
             <div className="font-bold">Get all 3 scripts, and a new plan every week</div>
-            <div className="caption">Free for 14 days. Cancel anytime.</div>
+            <div className="caption">Start free: one idea a week, no card. Creator from {yearlyPerMonth("creator")}/month billed yearly.</div>
           </div>
           <Link href={signup} className="btn btn-primary btn-lg max-sm:w-full">
-            Unlock my plan, free
+            Plan my next 3 posts
           </Link>
         </div>
       </div>

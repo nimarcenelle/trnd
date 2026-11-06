@@ -19,13 +19,14 @@ export default function TermsPage() {
         that you are authorized to manage. One TikTok account per TRND account.
       </p>
 
-      <h2>Trial and billing</h2>
+      <h2>Plans and billing</h2>
       <p>
-        Every account starts with a 14-day free trial of the full plan (three scripts a week and daily reads), with no card. We
-        email you two days before it ends. To keep going, pick a weekly or monthly subscription, billed through Stripe until you
-        cancel; a plan picked during the trial starts charging when the trial ends. Nothing is charged unless you choose a plan.
-        Cancel any time from Settings; you keep access until the end of the period you paid for. If a payment fails, the plan keeps running while Stripe retries; if it can&apos;t be collected, daily reads
-        pause and what TRND already found stays readable.
+        The Free plan needs no card: your numbers, the creators ahead of you, what&apos;s rising, and one scripted idea a week. The
+        Creator plan ($19 a month or $149 a year) is billed through Stripe until you cancel. Cancel any time from Settings; you keep
+        access until the end of the period you paid for. If a paid plan isn&apos;t for you, email us within 14 days of the first charge
+        for a full refund. If a payment fails, the plan keeps running while Stripe retries; if it can&apos;t be collected, the account
+        goes back to Free and what TRND already found stays readable. Pro and Business are not on sale yet. One-time add-ons (a script
+        pack, a done-for-you month) are delivered by email within 3 business days and refunded in full if we can&apos;t deliver.
       </p>
 
       <h2>Public data and generated plans</h2>

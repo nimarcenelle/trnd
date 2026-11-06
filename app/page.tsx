@@ -1,84 +1,215 @@
 import Link from "next/link";
 
+import Avatar from "@/components/app/avatar";
+import GapCard from "@/components/app/gap-card";
 import IdeaCard, { IDEA_TYPE } from "@/components/app/idea-card";
+import ViewsStrip from "@/components/app/views-strip";
 import Brand from "@/components/brand";
 import StartForm from "@/components/preview/start-form";
-import Avatar from "@/components/app/avatar";
-import NextTikTok from "@/components/app/next-tiktok";
-import { Emphasis } from "@/components/app/views";
-import { SAMPLE, SAMPLE_BEST, SAMPLE_IDEA, SAMPLE_NORMAL, SAMPLE_SOURCE } from "@/components/sample/humm";
+import Pricing from "@/components/pricing";
+import { LENA, LENA_AHEAD, LENA_GAP, LENA_IDEA, LENA_NORMAL, LENA_SCORECARD, LENA_SOURCE, LENA_VIEWS, LENA_WEEK, SHOP } from "@/components/sample/lena";
 import SiteNav from "@/components/site-nav";
-import { PRICES } from "@/lib/billing";
 import { aheadLine } from "@/lib/creators/stats";
+import { dollarRange } from "@/lib/creators/gap";
 import { compact, times } from "@/lib/format";
-import { nextTikTok } from "@/lib/preview/next-tiktok";
+
+const STEPS = [
+  { title: "Enter your handle", body: "Your public TikTok handle. No login, no password, nothing posted." },
+  { title: "See the gap", body: "Your typical video against the creators 2–5× your size in your niche, in views and, where it applies, dollars." },
+  { title: "Get three scripts", body: "Hook, script second by second, sound, hashtags and when to post, built from what's working for them." },
+  { title: "See what worked, 48 hours later", body: "Post an idea and we check it against your usual. The next plan builds on what landed." },
+];
 
 const FAQ = [
   {
+    q: "Where does the data come from?",
+    a: "Public TikTok profiles and hashtag pages: the views, likes, comments, shares and saves anyone can see. We never guess numbers TikTok keeps private, like watch time or where viewers live.",
+  },
+  {
     q: "Do I have to log in with TikTok?",
-    a: "No. Enter your handle and we read your public profile. Nothing is posted, and we never see your password or your private analytics.",
+    a: "No. Enter your handle and we read your public profile. Nothing is posted, and we never see your password or private analytics. You can connect TikTok later if you want your own numbers straight from TikTok, but you don't have to.",
   },
   {
-    q: "What do I get free?",
-    a: "Everything, for 14 days: your numbers, the creators ahead of you, what's rising, and three scripted ideas every week. No card to start.",
+    q: "Can I cancel anytime?",
+    a: "Yes. Cancel from Settings in two clicks and you keep your plan until the end of the period you paid for. Your account goes back to Free: one scripted idea a week.",
   },
   {
-    q: "Who are the creators ahead of me?",
-    a: "Accounts in your niche with 2 to 50 times your followers: the ones you could grow into next, not the biggest names on the app. We match them from your hashtags, and after you sign up you can add up to three creators you want to be like.",
+    q: "Can I get a refund?",
+    a: "Yes. If a paid plan isn't for you, email hello@usetrnd.com within 14 days of your first charge for a full refund.",
   },
   {
-    q: "What happens after the trial?",
-    a: `Pick monthly at ${PRICES.monthly.label} (or weekly at ${PRICES.weekly.label}) to keep your plan going. We email you two days before the trial ends. Nothing is charged unless you choose a plan; without one, daily reads and new plans pause and everything we found stays readable.`,
+    q: "What counts as a post?",
+    a: "A public TikTok video on your account. When one matches an idea from your plan, by its words, hashtags or sound, we mark the idea posted and check it 48 hours later against your typical views.",
   },
   {
-    q: "Where do the numbers come from?",
-    a: "Public TikTok profiles and hashtag pages: the views, likes, comments, shares and saves anyone can see. We never guess numbers TikTok keeps private, like watch time.",
-  },
-  {
-    q: "Is it going to tell me to copy people?",
-    a: "No. Each idea builds on a video that already worked: one of yours that beat your usual, or one that helped a creator ahead of you get there. A borrowed format always comes with how to make it yours.",
+    q: "Where does the dollar figure come from?",
+    a: "Creators report Creator Rewards paying roughly $0.40–$1.00 per 1,000 qualified views; TikTok doesn't publish a rate. Only videos over a minute earn, from 10K followers, and not every view qualifies, so we show a range and treat it as the most the gap could be worth. Under 10K followers we show views only.",
   },
 ];
 
 function Check() {
   return (
-    <svg viewBox="0 0 16 16" className="w-4 h-4 shrink-0 text-pos" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg viewBox="0 0 16 16" className="w-4 h-4 shrink-0 text-brand" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
       <path d="M3.5 8.5l3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-/** The hero's product shot: the real free preview of @humm.app, as it looks on a phone. */
-function PhoneShot() {
+/** The hero's product shot: an invented 41.8K-follower creator's week, in three columns. */
+function Mockup() {
   return (
-    <div className="relative mx-auto w-[300px] max-w-full">
-      {/* A soft pink and cyan glow behind the phone, and a slight tilt, so the product shot reads as the hero. */}
-      <div aria-hidden className="absolute -inset-16 -z-10 rounded-full blur-3xl opacity-70 bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--brand)_28%,transparent),transparent),radial-gradient(closest-side_at_80%_80%,color-mix(in_srgb,var(--cyan)_24%,transparent),transparent)]" />
-      <div className="rounded-[40px] border border-line bg-surface p-3 shadow-[var(--shadow-lg),var(--shadow-pink)] lg:rotate-[2deg] transition-transform duration-500 hover:rotate-0">
-        <div className="rounded-[30px] bg-bg overflow-hidden border border-line">
-          <div className="flex items-center justify-between px-4 pt-4 pb-3">
-            <Brand href={null} size={14} sub={false} />
-            <span className="caption">@{SAMPLE.handle}</span>
+    <div className="card p-3 sm:p-4 shadow-[var(--shadow-lg)]">
+      <div className="flex items-center justify-between gap-3 px-1 pb-3 border-b border-line">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Avatar name={LENA.handle} size={30} />
+          <div className="min-w-0">
+            <div className="font-semibold text-[14px] truncate">@{LENA.handle}</div>
+            <div className="caption">{compact(LENA.followers)} followers · Creator Rewards</div>
           </div>
-          <div className="mx-3 night p-3.5 !rounded-[16px]">
-            <div className="label">Your answer this week</div>
-            <p className="heading text-[13.5px] leading-snug mt-1.5 line-clamp-4">
-              <Emphasis text={SAMPLE.plan.headline} />
+        </div>
+        <span className="pill pill-brand">This week</span>
+      </div>
+      <div className="grid gap-3 pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,1fr)]">
+        <div className="well p-3.5 grid gap-3 content-start">
+          <div>
+            <div className="label">Your typical video</div>
+            <div className="display text-[28px] tnum">{compact(LENA_GAP.mine)}</div>
+            <ViewsStrip views={LENA_VIEWS} usual={LENA_NORMAL.views} />
+          </div>
+          <div>
+            <div className="label">Creators 2–5× your size</div>
+            <div className="display text-[28px] tnum text-brand">{compact(LENA_GAP.ahead)}</div>
+            <div className="caption">average typical views</div>
+          </div>
+          {LENA_GAP.dollars && (
+            <p className="text-[13.5px] leading-[1.45] m-0 border-t border-line pt-3">
+              That gap is roughly <b className="tnum">{dollarRange(LENA_GAP.dollars)}</b> at current Creator Rewards rates.
             </p>
-          </div>
-          <div className="mx-3 mt-2.5 grid grid-cols-2 gap-2">
-            <div className="card px-3 py-2">
-              <div className="label !text-[11px]">Your typical video</div>
-              <div className="display text-[18px]">{compact(SAMPLE_NORMAL.views)}</div>
+          )}
+        </div>
+        <div className="grid gap-2 content-start">
+          <div className="label px-1">Your next 3 posts</div>
+          {LENA_WEEK.map((w, i) => (
+            <div key={w.hook} className="card px-3.5 py-3 grid gap-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className={`${IDEA_TYPE[w.type].cls} !text-[11.5px]`}>
+                  {i + 1} · {IDEA_TYPE[w.type].label}
+                </span>
+                <span className="caption mono">{w.time}</span>
+              </div>
+              <div className="font-semibold text-[14px] leading-snug">&ldquo;{w.hook}&rdquo;</div>
             </div>
-            <div className="card px-3 py-2">
-              <div className="label !text-[11px]">Your best recent</div>
-              <div className="display text-[18px] stat-up">{SAMPLE_BEST ? times(SAMPLE_BEST) : "—"}</div>
+          ))}
+        </div>
+        <div className="grid gap-3 content-start">
+          <div className="well p-3.5 grid gap-2.5">
+            <div className="label">Creators ahead of you</div>
+            {LENA_AHEAD.map((a) => (
+              <div key={a.handle} className="flex items-center gap-2 min-w-0">
+                <Avatar name={a.handle} size={24} ring />
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold truncate">@{a.handle}</div>
+                  <div className="caption">{aheadLine(a.followers, LENA.followers)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="well p-3.5">
+            <div className="label">Last week&apos;s idea, 48 hours later</div>
+            <div className="font-semibold text-[13.5px] mt-1.5 leading-snug">&ldquo;{LENA_SCORECARD.hook}&rdquo;</div>
+            <div className="flex items-baseline gap-2 mt-1.5">
+              <span className="display text-[24px] text-pos tnum">{times(LENA_SCORECARD.times)}</span>
+              <span className="caption">your typical · {compact(LENA_SCORECARD.views)} views</span>
+            </div>
+            <div className="caption mt-1">Next one builds on it.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Feature({ kicker, title, body, points, visual, flip = false, stack = false }: { kicker: string; title: string; body: string; points: string[]; visual: React.ReactNode; flip?: boolean; stack?: boolean }) {
+  if (stack) {
+    // A wide visual (a full script) gets the full width, under its text.
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-8">
+        <div className="grid gap-x-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-end">
+          <div>
+            <span className="kicker">{kicker}</span>
+            <h2 className="display text-[clamp(26px,3.6vw,36px)] mt-3">{title}</h2>
+            <p className="text-ink-2 text-[16px] leading-[1.6] mt-3 max-w-[48ch]">{body}</p>
+          </div>
+          <ul className="list-none p-0 m-0 mt-5 grid gap-2.5 text-[15px]">
+            {points.map((p) => (
+              <li key={p} className="flex gap-2.5">
+                <Check />
+                {p}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="min-w-0">{visual}</div>
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:gap-14 lg:grid-cols-2 items-center">
+      <div className={flip ? "lg:order-2" : ""}>
+        <span className="kicker">{kicker}</span>
+        <h2 className="display text-[clamp(26px,3.6vw,36px)] mt-3">{title}</h2>
+        <p className="text-ink-2 text-[16px] leading-[1.6] mt-3 max-w-[48ch]">{body}</p>
+        <ul className="list-none p-0 m-0 mt-5 grid gap-2.5 text-[15px]">
+          {points.map((p) => (
+            <li key={p} className="flex gap-2.5">
+              <Check />
+              {p}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className={`min-w-0 ${flip ? "lg:order-1" : ""}`}>{visual}</div>
+    </div>
+  );
+}
+
+function ShopCard() {
+  return (
+    <div className="card p-5 grid gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Avatar name={SHOP.handle} size={32} />
+          <div className="min-w-0">
+            <div className="font-semibold text-[14px] truncate">{SHOP.name}</div>
+            <div className="caption">
+              @{SHOP.handle} · {SHOP.city} · {compact(SHOP.followers)} followers
             </div>
           </div>
-          <div className="m-3 mt-2.5">
-            <NextTikTok data={nextTikTok(SAMPLE.handle, SAMPLE_IDEA)} tint={IDEA_TYPE[SAMPLE_IDEA.type].tint} cover={SAMPLE_SOURCE.video?.cover_url ?? null} />
-          </div>
+        </div>
+        <span className="pill">Business</span>
+      </div>
+      <div className="well p-3.5 grid gap-1">
+        <div className="label">Built around what you sell</div>
+        <div className="text-[13.5px] text-ink-2">
+          {SHOP.product} · {SHOP.offer}
+        </div>
+      </div>
+      <div className="grid gap-2">
+        <div className="font-semibold text-[15px] leading-snug">&ldquo;{SHOP.hook}&rdquo;</div>
+        <ol className="list-none p-0 m-0 grid gap-1.5 text-[13.5px] text-ink-2">
+          {SHOP.beats.map((b, i) => (
+            <li key={b} className="flex gap-2">
+              <span className="mono text-ink-3">{i + 1}</span>
+              {b}
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="border-t border-line pt-3">
+        <div className="label">A competitor in {SHOP.city}</div>
+        <div className="text-[13.5px] mt-1">
+          @{SHOP.competitor.handle}&apos;s top post this month: &ldquo;{SHOP.competitor.topPost}&rdquo;,{" "}
+          <b className="tnum">{compact(SHOP.competitor.views)} views</b>, {times(Math.round((SHOP.competitor.views / SHOP.typical) * 10) / 10)} your typical.
         </div>
       </div>
     </div>
@@ -90,99 +221,102 @@ export default function Home() {
     <div>
       <SiteNav />
 
-      <section id="start" className="wrap pt-[clamp(36px,7vw,84px)] pb-16 grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] items-center scroll-mt-14 isolate">
-        <div className="rise grid grid-cols-[minmax(0,1fr)] gap-6 min-w-0">
-          <span className="kicker">For TikTok creators</span>
-          <h1 className="display text-[clamp(34px,5.6vw,56px)]">
-            Your next three TikToks, scripted. <span className="stat-up">Free in seconds.</span>
-          </h1>
-          <p className="text-ink-2 text-[17.5px] max-w-[54ch] leading-[1.55]">
-            Type your handle. We find the creators a step ahead of you in your niche, what got them there, and turn it into three videos you can film this week.
-          </p>
-          <div className="max-w-[580px]">
-            <StartForm cta="Get my free plan" compact />
-          </div>
-          <ul className="list-none m-0 p-0 flex flex-wrap gap-x-6 gap-y-2 text-[14px] text-ink-2">
-            {["Free preview, no card", "No TikTok login", "Public videos only"].map((t) => (
-              <li key={t} className="flex items-center gap-2">
-                <Check /> {t}
-              </li>
-            ))}
-          </ul>
+      <section id="start" className="wrap pt-[clamp(40px,7vw,88px)] pb-14 grid gap-6 justify-items-center text-center scroll-mt-14">
+        <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full border border-line bg-surface text-[12.5px] text-ink-2 shadow-[var(--shadow-sm)]">
+          <span className="w-1.5 h-1.5 rounded-full bg-brand" /> For TikTok creators and businesses
+        </span>
+        <h1 className="display text-[clamp(34px,5.6vw,60px)] max-w-[900px]">
+          Your next three TikToks,
+          <br className="max-sm:hidden" /> scripted from what&apos;s already working in your niche.
+        </h1>
+        <p className="text-ink-2 text-[17.5px] max-w-[58ch] leading-[1.55]">See how far you are from the creators just ahead of you, and get three videos built to close the gap.</p>
+        <div className="w-full max-w-[560px] text-left">
+          <StartForm cta="Plan my next 3 posts" compact />
+          <p className="caption mt-2 text-center">Free. No TikTok login. Public data only.</p>
         </div>
-        <PhoneShot />
       </section>
 
-      <section className="border-t border-line">
-        <div className="wrap py-16 sm:py-20 grid gap-8">
-          <div className="max-w-[640px]">
-            <span className="kicker">What a plan looks like</span>
-            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">Every idea, ready to film.</h2>
-            <p className="text-ink-2 mt-3">A real plan for @humm.app, a 1,299-follower account with 4 videos.</p>
-          </div>
-          <div className="card p-4 grid gap-3 content-start max-w-[560px]">
-            <div className="font-bold">Creators ahead of @{SAMPLE.handle}</div>
-            {SAMPLE.peers.slice(0, 4).map((x) => (
-              <div key={x.handle} className="flex items-center gap-2.5 min-w-0">
-                <Avatar name={x.handle} size={30} ring />
-                <div className="min-w-0 grid gap-0.5">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="font-semibold text-[14px]">@{x.handle}</span>
-                    {aheadLine(x.followers, SAMPLE.author?.followers ?? null) && <span className="pill pill-brand !text-[11.5px]">{aheadLine(x.followers, SAMPLE.author?.followers ?? null)}</span>}
-                  </div>
-                  <div className="caption line-clamp-2">
-                    {compact(x.followers)} followers{x.best?.hook ? <> · best recent: {x.best.hook}, {compact(x.best.views)} views</> : null}
-                  </div>
-                </div>
-              </div>
+      <section className="wrap pb-20" aria-label="An example plan">
+        <Mockup />
+        <p className="caption text-center mt-3">An example account with invented numbers.</p>
+      </section>
+
+      <section id="how" className="border-t border-line scroll-mt-14">
+        <div className="wrap py-16 sm:py-20">
+          <span className="kicker">How it works</span>
+          <h2 className="display text-[clamp(26px,3.6vw,36px)] mt-3 max-w-[640px]">From your handle to three videos, and back.</h2>
+          <ol className="list-none p-0 m-0 mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="border-t border-line pt-5">
+                <span className="text-[13px] font-medium text-ink-3 tnum">0{i + 1}</span>
+                <h3 className="heading text-[17px] mt-2.5">{s.title}</h3>
+                <p className="text-[14.5px] text-ink-2 leading-[1.6] mt-1.5">{s.body}</p>
+              </li>
             ))}
-          </div>
-          <IdeaCard idea={SAMPLE_IDEA} rank={1} planId="sample" source={SAMPLE_SOURCE} normal={SAMPLE_NORMAL} run={null} open sample />
+          </ol>
+        </div>
+      </section>
+
+      <section className="border-t border-line bg-subtle">
+        <div className="wrap py-16 sm:py-24 grid gap-20 sm:gap-28">
+          <Feature
+            kicker="The gap"
+            title="Know exactly how far behind you are."
+            body="Your typical video, next to the typical video of creators 2–5× your size in your niche. Not the biggest names on the app: the accounts you could grow into next."
+            points={["Your typical views, from your settled videos", "The creators ahead of you, matched from your niche's hashtags", "In dollars when you're on Creator Rewards, with the rate we assume"]}
+            visual={
+              <GapCard gap={LENA_GAP}>
+                <a href="#start" className="btn btn-primary self-start">
+                  See my gap
+                </a>
+              </GapCard>
+            }
+          />
+          <Feature
+            stack
+            kicker="The plan"
+            title="Three videos, scripted, every week."
+            body="Each idea builds on a video that already worked: one of yours that beat your usual, or one that helped a creator ahead of you get there. With how to make it yours, never a copy."
+            points={["Hook and script, second by second", "Sound, hashtags and when to post", "Checked 48 hours after you post it"]}
+            visual={<IdeaCard idea={LENA_IDEA} rank={1} planId="sample" source={LENA_SOURCE} normal={LENA_NORMAL} run={null} open sample />}
+          />
+          <Feature
+            kicker="For businesses"
+            title="Scripts built around what you sell."
+            body="Shops, clinics, realtors, med spas and restaurants post on TikTok too. Tell TRND your products, offers and city, and your scripts sell them, measured against the local accounts you compete with."
+            points={["Your products and offers in every script", "Local competitors' best posts, read every week", "Up to 5 accounts"]}
+            visual={<ShopCard />}
+          />
         </div>
       </section>
 
       <section id="pricing" className="border-t border-line scroll-mt-14">
-        <div className="wrap py-16 sm:py-20 grid grid-cols-[minmax(0,1fr)] gap-8">
-          <div className="max-w-[640px]">
+        <div className="wrap py-16 sm:py-20 grid gap-8">
+          <div className="text-center grid gap-3 justify-items-center">
             <span className="kicker">Pricing</span>
-            <h2 className="display text-[clamp(26px,3.8vw,36px)] mt-3">Free for 14 days. Then $24.99 a month.</h2>
-            <p className="text-ink-2 mt-3">No card to start. We email you two days before the trial ends.</p>
+            <h2 className="display text-[clamp(26px,3.6vw,36px)]">Start free. Pay when you want all three.</h2>
+            <p className="text-ink-2 max-w-[56ch]">Free shows you the gap and one scripted idea a week. Creator gives you three, checked after you post.</p>
           </div>
-          <div className="grid gap-3.5 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 max-w-[760px]">
-            {(["monthly", "weekly"] as const).map((i) => (
-              <div key={i} className={`card p-6 grid gap-3 content-start ${i === "monthly" ? "!border-brand shadow-[inset_0_0_0_1px_var(--brand)]" : ""}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-bold">{i === "monthly" ? "Monthly" : "Weekly"}</span>
-                  {i === "monthly" && <span className="pill pill-brand">Best value</span>}
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="display text-[38px]">{PRICES[i].amount}</span>
-                  <span className="text-ink-2">/ {PRICES[i].per}</span>
-                </div>
-                <span className="text-[14px] text-ink-2">{i === "monthly" ? `About ${PRICES.monthly.perWeek} a week, 42% less than weekly` : "Pay a week at a time"}</span>
-              </div>
-            ))}
-          </div>
-          <ul className="list-none m-0 p-0 grid gap-2 text-[15px] max-w-[760px] sm:grid-cols-2">
-            {["Three scripted videos every week", "Your videos read every day", "Creators ahead of you and your niche's trends", "Every idea checked 48 hours after you post"].map((t) => (
-              <li key={t} className="flex items-center gap-2.5">
-                <Check /> {t}
-              </li>
-            ))}
-          </ul>
-          <Link href="/#start" className="btn btn-primary btn-lg justify-self-start">
-            Get my free plan
-          </Link>
+          <Pricing />
         </div>
       </section>
 
-      <section id="faq" className="border-t border-line bg-surface scroll-mt-14">
-        <div className="wrap py-16 sm:py-20 grid gap-6">
-          <span className="kicker">Questions</span>
-          <div className="divide-y divide-line border-y border-line max-w-[820px]">
+      <section id="faq" className="border-t border-line bg-subtle scroll-mt-14">
+        <div className="wrap py-16 sm:py-20 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+          <div>
+            <span className="kicker">FAQ</span>
+            <h2 className="display text-[clamp(26px,3.6vw,36px)] mt-3">Questions</h2>
+            <p className="text-ink-2 mt-3">
+              Anything else?{" "}
+              <a className="text-ink underline" href="mailto:hello@usetrnd.com">
+                hello@usetrnd.com
+              </a>
+            </p>
+          </div>
+          <div className="card divide-y divide-line">
             {FAQ.map((f) => (
-              <details key={f.q} className="group">
-                <summary className="flex justify-between gap-4 py-4 font-bold text-[16px]">
+              <details key={f.q} className="group px-5">
+                <summary className="flex justify-between gap-4 py-4 font-semibold text-[15.5px]">
                   {f.q}
                   <span className="text-ink-3 transition-transform group-open:rotate-45 text-[20px] leading-none">+</span>
                 </summary>
@@ -193,24 +327,21 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="border-t border-line">
-        <div className="wrap py-16 sm:py-24 grid gap-6 justify-items-center text-center">
-          <h2 className="display text-[clamp(26px,4vw,40px)] max-w-[640px]">See what to post next. Free, in seconds.</h2>
-          <div className="w-full max-w-[540px] text-left">
-            <StartForm cta="Run it on my handle" compact />
-          </div>
-        </div>
-      </section>
-
-      <footer className="border-t border-line bg-surface">
+      <footer className="border-t border-line">
         <div className="wrap py-10 grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] items-start text-[14px] text-ink-2">
           <div className="grid gap-2">
-            <Brand size={16} />
-            <p className="text-ink-3 max-w-[40ch]">Weekly video plans for TikTok creators, from public data only.</p>
+            <Brand size={14} />
+            <p className="text-ink-3 max-w-[40ch]">Weekly video plans for TikTok creators and businesses, from public data only.</p>
           </div>
           <nav className="flex flex-wrap gap-x-6 gap-y-2">
+            <Link href="/#how" className="hover:text-ink">
+              How it works
+            </Link>
             <Link href="/#pricing" className="hover:text-ink">
               Pricing
+            </Link>
+            <Link href="/#faq" className="hover:text-ink">
+              FAQ
             </Link>
             <Link href="/login" className="hover:text-ink">
               Sign in
@@ -221,8 +352,8 @@ export default function Home() {
             <Link href="/privacy" className="hover:text-ink">
               Privacy
             </Link>
-            <a href="mailto:hello@usetrnd.com" className="hover:text-ink">
-              Contact
+            <a href="https://usetrnd.com" className="hover:text-ink">
+              TRND for brands
             </a>
           </nav>
         </div>

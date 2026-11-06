@@ -54,9 +54,9 @@ export default function NextTikTok({
   const scale = hookScale(data.hook);
   return (
     <figure
-      className="@container relative m-0 aspect-[9/16] w-full overflow-hidden rounded-[20px] text-[#f7f5f8] select-none shadow-[0_24px_48px_-24px_rgba(23,19,27,0.55)]"
+      className="@container relative m-0 aspect-[9/16] w-full overflow-hidden rounded-[20px] text-[#f6f6f4] select-none shadow-[0_24px_48px_-24px_rgba(17,17,16,0.45)]"
       style={{
-        background: `radial-gradient(90% 55% at 15% 8%, color-mix(in srgb, ${tint} 55%, transparent), transparent 70%), radial-gradient(80% 50% at 95% 95%, color-mix(in srgb, #45c6d8 30%, transparent), transparent 70%), linear-gradient(165deg, #2a1d34, #120e16)`,
+        background: `linear-gradient(180deg, color-mix(in srgb, ${tint} 22%, #161615), #0e0e0d)`,
       }}
     >
       {cover && (
@@ -68,7 +68,7 @@ export default function NextTikTok({
 
       <div className="absolute inset-x-[6cqw] top-[14%] bottom-[50%] flex items-center justify-center text-center">
         <p className="heading m-0 leading-[1.35]" style={{ fontSize: `${scale * 100}cqw` }}>
-          <span className="box-decoration-clone rounded-[1.4cqw] bg-[#f7f5f8] text-[#1d1724] px-[2cqw] py-[0.5cqw] shadow-[0_0.6cqw_0_rgba(0,0,0,0.25)]">{data.hook}</span>
+          <span className="box-decoration-clone rounded-[1.4cqw] bg-[#f6f6f4] text-[#111110] px-[2cqw] py-[0.5cqw] shadow-[0_0.6cqw_0_rgba(0,0,0,0.25)]">{data.hook}</span>
         </p>
       </div>
 

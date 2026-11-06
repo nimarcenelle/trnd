@@ -1,6 +1,6 @@
 /** A creator's initial in a colored circle, the color stable per handle. Initials, not photos: TikTok's image links expire. */
-const TONES = ["#fde6ee", "#def3f6", "#e2f4e9", "#fbefdb", "#ece6fb", "#f6e3f3"];
-const INKS = ["#b01a4a", "#0a6f7f", "#14683d", "#8a5205", "#5b3fb8", "#8f2f84"];
+const TONES = ["#f3f3f1", "#e6f4f1", "#efefec", "#ecf5f3", "#f1f1ee", "#e9f2f0"];
+const INKS = ["#51514d", "#0f6b5e", "#3f3f3b", "#0f6b5e", "#51514d", "#0f6b5e"];
 
 function hash(s: string): number {
   let h = 0;

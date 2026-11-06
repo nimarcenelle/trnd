@@ -101,9 +101,9 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
       {running && <AutoRefresh />}
       {limited && (
         <div className="rounded-[14px] border border-brand/30 bg-brand-soft px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <span className="text-[14.5px]">{plan.canTrial ? "You're on your free plan: one script this week. Unlock all three, and a new plan every week." : "Your plan is paused: no new plans or daily reads."}</span>
+          <span className="text-[14.5px]">You&apos;re on Free: one scripted idea a week. Creator gives you all three, with sound and post time, checked 48 hours after you post.</span>
           <Link className="btn btn-primary btn-sm" href="/app/welcome?step=trial">
-            {plan.canTrial ? "Start free trial" : "Resume my plan"}
+            {plan.canTrial ? "Start free trial" : "Get all three"}
           </Link>
         </div>
       )}

@@ -12,7 +12,8 @@ What TikTok data is available, from where, and what is not: `DATA.md`.
 Built from a study of comparable tools (`DATA.md` covers the data side). The rule: show real value before asking for
 anything, then ask for one thing at a time.
 
-1. **Landing** (`/`): one handle box, "Get my free plan". No account, no TikTok login.
+1. **Landing** (`/`): one handle box, "Plan my next 3 posts". No account, no TikTok login. Its examples are invented
+   accounts (`components/sample/lena.ts`), a ~42K-follower creator and a local shop.
 2. **Free preview** (`/start/[id]`, `lib/preview/`): reads the profile, asks "Is this you?", then reads the niche and
    writes the plan while asking one optional question (the goal). Shows the numbers, creators ahead of them, what's
    rising, and **idea 1 in full**; ideas 2 and 3 show their hooks only. One step per request (`/api/preview/[id]/step`),
@@ -84,8 +85,13 @@ re-run; an existing project takes the newer files in `supabase/migrations/` inst
 `idea_runs` and `tiktok_connections`, with owner-read RLS on all but the last (tokens are service-role only). Every
 list read pages past PostgREST's 1,000-row cap (`lib/db/rows.ts`).
 
-**Billing**: two Stripe recurring prices for the same plan, `STRIPE_PRICE_WEEKLY` ($9.99) and `STRIPE_PRICE_MONTHLY`
-($24.99). The webhook records which one as `creators.plan` (`weekly` or `monthly`).
+**Billing** (`lib/billing`): Free (no card: the numbers, the creators ahead, what's rising, one scripted idea a week,
+read weekly), Creator ($19/month or $149/year, `STRIPE_PRICE_CREATOR_MONTHLY` / `_YEARLY`), and Pro ($49/$390) and
+Business ($129/$990), which show their prices but take a waitlist (`waitlist`) until their features ship. Yearly is the
+default on every pricing surface. The webhook records the plan as `creators.plan` (`creator_month`, `creator_year`);
+subscribers on the old `weekly`/`monthly` prices keep them and count as Creator. No trial by default
+(`CREATOR_TRIAL_DAYS` turns one on); paid plans carry a 14-day refund. One-time add-ons (script pack $19, done-for-you
+month $79) are Stripe payments recorded in `addon_orders` and made by hand: the webhook emails `ALERT_EMAIL`.
 
 **Connect TikTok** is optional and needs a TikTok developer app with Login Kit (`user.info.basic`,
 `user.info.profile`, `user.info.stats`, `video.list`), redirect URI `<site>/api/tiktok/callback`, and TikTok's app review

@@ -3,7 +3,7 @@ import Link from "next/link";
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
 
-/** The marketing pages' top bar. */
+/** The marketing pages' top bar: the wordmark, How it works, Pricing, FAQ; Sign in and the one primary action. */
 export default function SiteNav({ links = true }: { links?: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-bg/90 backdrop-blur-md">
@@ -11,7 +11,10 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
         <div className="flex items-center gap-10">
           <Brand />
           {links && (
-            <nav className="hidden md:flex items-center gap-7 text-[14px] text-ink-2 font-semibold">
+            <nav className="hidden md:flex items-center gap-7 text-[14px] text-ink-2 font-medium">
+              <Link href="/#how" className="hover:text-ink">
+                How it works
+              </Link>
               <Link href="/#pricing" className="hover:text-ink">
                 Pricing
               </Link>
@@ -23,11 +26,11 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
         </div>
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
-          <Link href="/login" className="btn btn-ghost btn-sm max-[400px]:hidden">
+          <Link href="/login" className="btn btn-ghost btn-sm max-[420px]:hidden">
             Sign in
           </Link>
           <Link href="/#start" className="btn btn-primary btn-sm">
-            Get my free plan
+            Plan my next 3 posts
           </Link>
         </div>
       </div>

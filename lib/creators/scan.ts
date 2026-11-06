@@ -9,7 +9,7 @@ import { adminSupabase } from "@/lib/db/supabase";
 import type { Creator, IdeaRun, Peer, PlanBody, ScanStage, Video } from "@/lib/db/types";
 import { MAX_PEERS } from "@/lib/db/types";
 import { sendPlanEmail } from "@/lib/email";
-import { friendlyScanError, RESUME_WITHIN_MS } from "./guards";
+import { freeReadDue, friendlyScanError, RESUME_WITHIN_MS } from "./guards";
 import { env, isModelConfigured } from "@/lib/env";
 import { todayIso } from "@/lib/format";
 import { readConnected } from "@/lib/tiktok/connect";
@@ -484,10 +484,9 @@ export async function scanCreator(creatorId: string, opts: { resume?: boolean; b
   };
   let c = await load();
   const result: ScanResult = { creator: c.handle, stages: [], handedOff: false };
-  // A locked account gets its first read (the free plan everyone sees), and nothing after until it subscribes.
-  if (planState(c).locked && c.last_scan_at) {
-    if (c.scan_status === "running") await sb.from("creators").update({ scan_status: "idle", scan_stage: null }).eq("id", c.id);
-    return { ...result, error: "Trial ended" };
+  // A free account reads weekly (its one idea a week); a read already under way (handed off between functions) carries on.
+  if (planState(c).locked && c.scan_status !== "running" && !freeReadDue(c)) {
+    return { ...result, error: "Free plan: next read later this week" };
   }
   if (!isTiktokConfigured()) {
     await sb.from("creators").update({ scan_status: "error", scan_error: "TikTok reads are not set up on this deployment (APIFY_TOKEN).", scan_stage: null }).eq("id", c.id);

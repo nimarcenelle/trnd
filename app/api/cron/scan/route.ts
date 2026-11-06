@@ -41,8 +41,8 @@ export async function GET(req: Request): Promise<Response> {
 
   const sb = adminSupabase();
   const creators = await allRows<Due>((from, to) => sb.from("creators").select("id, owner_id, handle, plan, plan_status, trial_ends_at, trial_used_at, trial_reminder_for, scan_status, scan_started_at, scan_error, last_scan_at, scan_failures").order("id").range(from, to));
-  // Not locked, not mid-read, and 20 hours since the last read (longer for an account that keeps failing).
-  const due = creators.filter((c) => !planState(c).locked && isDue(c));
+  // Not mid-read, and 20 hours since the last read on a paid plan, a week on the free one (longer for an account that keeps failing).
+  const due = creators.filter((c) => isDue(c, Date.now(), { free: planState(c).locked }));
   // Each scan runs in its own invocation; this one only starts them, a few a second, and does not wait for them to finish.
   let started = 0;
   for (let i = 0; i < due.length; i += PER_SECOND) {

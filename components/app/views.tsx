@@ -473,7 +473,7 @@ const RESULT = {
   unknown: { label: "No numbers", cls: "pill" },
 } as const;
 
-export function LoopView({ runs, videos }: { runs: IdeaRun[]; videos: Video[] }) {
+export function LoopView({ runs, videos, normal, nextHook }: { runs: IdeaRun[]; videos: Video[]; normal?: Normal; nextHook?: string | null }) {
   const byId = new Map(videos.map((v) => [v.id, v]));
   const checked = runs.filter((r) => r.status === "checked" && r.result);
   const judged = checked.filter((r) => r.result!.read !== "unknown");
@@ -488,6 +488,29 @@ export function LoopView({ runs, videos }: { runs: IdeaRun[]; videos: Video[] })
         title="Did the ideas work?"
         sub="Every idea you add to your week is measured against your typical video. When you post it we look for it, or you can pick it here, and 48 hours later we check its views. That's how you know whether the advice is any good."
       />
+      {(() => {
+        const last = checked.filter((r) => r.result!.read !== "unknown" && r.result!.views !== null).sort((a, b) => Date.parse(b.checked_at ?? "") - Date.parse(a.checked_at ?? ""))[0];
+        if (!last) return null;
+        const x = normal ? timesNormal(last.result!.views, normal) : null;
+        const read = last.result!.read;
+        return (
+          <div className="card p-5 grid gap-2">
+            <span className="label">Your latest scorecard, 48 hours after posting</span>
+            <div className="heading text-[20px] leading-snug">
+              {read === "beat" ? `Your idea did ${x ? times(x) : "better than"} your typical.` : read === "in_range" ? `Your idea landed right around your typical${x ? ` (${times(x)})` : ""}.` : `Your idea came in under your typical${x ? ` (${times(x)})` : ""}.`}
+              {nextHook && read === "beat" ? " Next one builds on it." : ""}
+            </div>
+            <div className="text-[14.5px] text-ink-2">
+              &ldquo;{last.idea.hook}&rdquo; · {compact(last.result!.views)} views
+            </div>
+            {nextHook && (
+              <div className="border-t border-line pt-3 mt-1 text-[14.5px]">
+                <span className="kicker !text-[12.5px]">Next up</span> <b>{nextHook}</b>
+              </div>
+            )}
+          </div>
+        );
+      })()}
       <Strip>
         <Tile label="Ideas added" value={runs.length} hint="from your plans" />
         <Tile label="Posted" value={runs.filter((r) => r.status !== "planned").length} hint="matched to your videos" />

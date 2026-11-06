@@ -3,7 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { unsubscribePostUrl, unsubscribeUrl } from "@/lib/auth/unsubscribe";
-import type { Creator, PlanBody } from "@/lib/db/types";
+import type { Creator, IdeaRun, PlanBody } from "@/lib/db/types";
 import { type Addon, ADDONS, money, planLabel, TIERS } from "@/lib/billing";
 import { env, isEmailConfigured } from "@/lib/env";
 
@@ -97,4 +97,34 @@ export async function sendAddonEmails(addon: Addon, buyer: string | null, handle
     `Your ${a.name.toLowerCase()} is on its way`,
     `<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#111110"><p style="font-size:12px;color:#868680">TRND for creators${handle ? ` · @${esc(handle)}` : ""}</p><h1 style="font-size:22px;line-height:1.3;margin:0 0 12px">Thanks. Your ${esc(a.name.toLowerCase())} is being made.</h1><p style="line-height:1.6">${esc(a.blurb)} It lands in this inbox within 3 business days. Reply to this email to tell us what it's for: a launch, a trip, a sale.</p></div>`,
   );
+}
+
+/**
+ * The 48-hour check as a scorecard: how the idea did against their typical
+ * video, and the next plan's first hook, so every result leads to the next
+ * post. Sent with the weekly plan emails (off together from Settings).
+ */
+export async function sendScorecardEmail(sb: SupabaseClient, creator: Creator, run: IdeaRun, times: number | null, nextHook: string | null): Promise<void> {
+  if (creator.email_plans === false || !run.result) return;
+  const { data } = await sb.auth.admin.getUserById(creator.owner_id);
+  const to = data.user?.email;
+  if (!to) return;
+  const x = times !== null ? `${times}×` : null;
+  const headline =
+    run.result.read === "beat"
+      ? `Your idea did ${x ?? "better than"} your typical.${nextHook ? " Next one builds on it." : ""}`
+      : run.result.read === "in_range"
+        ? `Your idea landed right around your typical${x ? ` (${x})` : ""}.`
+        : `Your idea came in under your typical${x ? ` (${x})` : ""}. Here's what's next.`;
+  const views = run.result.views !== null ? `${run.result.views.toLocaleString("en-US")} views in 48 hours` : "";
+  const html = `<div style="font-family:Inter,system-ui,sans-serif;max-width:560px;margin:0 auto;color:#111110">
+<p style="font-size:12px;color:#868680">TRND for creators · @${esc(creator.handle)} · your 48-hour scorecard</p>
+<h1 style="font-size:22px;line-height:1.3;margin:0 0 12px">${esc(headline)}</h1>
+<p style="line-height:1.6;margin:0 0 6px"><b>${esc(run.idea.hook)}</b></p>
+<p style="line-height:1.6;color:#51514d;margin:0 0 18px">${esc(views)}${run.expected ? ` · your usual is ${run.expected.low.toLocaleString("en-US")}–${run.expected.high.toLocaleString("en-US")}` : ""}</p>
+${nextHook ? `<p style="font-size:12px;color:#0f8a78;font-weight:700;margin:0">Next up</p><p style="line-height:1.6;margin:2px 0 18px"><b>${esc(nextHook)}</b></p>` : ""}
+<p><a href="${env.siteUrl}/app?tab=loop&from=scorecard" style="display:inline-block;background:#0f8a78;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:600">See the scorecard</a></p>
+<p style="font-size:12px;color:#868680;margin-top:28px"><a href="${unsubscribeUrl(creator.id)}" style="color:#868680">Stop plan emails</a></p>
+</div>`;
+  await sendEmail(to, headline, html, { "List-Unsubscribe": `<${unsubscribePostUrl(creator.id)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" });
 }

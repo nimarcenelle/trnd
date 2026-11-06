@@ -186,7 +186,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
       {tab === "mine" && <MineView creator={creator} own={own} normal={normal} plan={latest} followers={followers.filter((f) => f.handle === creator.handle)} />}
       {tab === "trends" && <TrendsView creator={creator} trends={trends} plan={latest} />}
       {tab === "creators" && <CreatorsView cards={peerCards} />}
-      {tab === "loop" && <LoopView runs={runs} videos={videos} />}
+      {tab === "loop" && <LoopView runs={runs} videos={videos} normal={normal} nextHook={latest.body.ideas[0]?.hook ?? null} />}
     </div>
   );
 }

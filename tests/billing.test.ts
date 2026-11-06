@@ -45,14 +45,14 @@ describe("tiers", () => {
   });
 });
 
-describe("free reads", () => {
-  it("reads a free account weekly and a paid one daily", async () => {
-    const { isDue, freeReadDue } = await import("@/lib/creators/guards");
-    const twoDays = { scan_status: "idle" as const, scan_started_at: null, last_scan_at: "2026-10-17T12:00:00Z", scan_failures: 0 };
-    expect(isDue(twoDays, now)).toBe(true);
-    expect(isDue(twoDays, now, { free: true })).toBe(false);
-    expect(isDue({ ...twoDays, last_scan_at: "2026-10-12T00:00:00Z" }, now, { free: true })).toBe(true);
-    expect(freeReadDue({ last_scan_at: null }, now)).toBe(true);
-    expect(freeReadDue({ last_scan_at: "2026-10-17T12:00:00Z" }, now)).toBe(false);
+describe("reads", () => {
+  it("reads a free account at its weekly slot and a paid one daily", async () => {
+    const { readDue, freeReadDue } = await import("@/lib/creators/guards");
+    // Monday 2026-10-19 12:00 UTC; the last slot was Tuesday 2026-10-13 12:00 UTC (8 AM New York).
+    const c = { scan_status: "idle" as const, scan_started_at: null, last_scan_at: "2026-10-17T12:00:00Z", scan_failures: 0, timezone: "America/New_York", last_plan_at: "2026-10-13T12:30:00Z" };
+    expect(readDue(c, false, now)).toBe(true);
+    expect(readDue(c, true, now)).toBe(false);
+    expect(readDue({ ...c, last_plan_at: "2026-10-12T00:00:00Z" }, true, now)).toBe(true);
+    expect(freeReadDue({ last_scan_at: null, last_plan_at: null, timezone: null }, now)).toBe(true);
   });
 });

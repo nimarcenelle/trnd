@@ -177,7 +177,7 @@ describe("scanCreator", () => {
     expect(calls.emails).toBe(0);
   });
 
-  it("reads daily but writes a plan weekly, unless asked", async () => {
+  it("reads daily but writes a plan at the weekly slot, unless asked", async () => {
     seedCreator();
     await scanCreator("c1");
     await scanCreator("c1");
@@ -191,6 +191,7 @@ describe("scanCreator", () => {
     expect(calls.emails).toBe(0);
     // The weekly one is emailed.
     for (const p of db.current.rows("plans")) p.created_at = ago(8);
+    creator().last_plan_at = ago(8);
     await scanCreator("c1");
     expect(calls.plans).toBe(3);
     expect(calls.emails).toBe(1);

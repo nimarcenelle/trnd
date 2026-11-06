@@ -66,6 +66,16 @@ export interface Creator {
   trial_reminder_for: string | null;
   /** Reads that failed in a row; reset by a read that finishes. The daily read backs off as it grows. */
   scan_failures: number;
+  /** The creator's IANA timezone, from their browser: the weekly plan drops Tuesday 8 AM there. */
+  timezone?: string | null;
+  /** When the latest plan was written. */
+  last_plan_at?: string | null;
+  /** Their referral code, made the first time they share. */
+  referral_code?: string | null;
+  /** The creator whose referral link they signed up through. */
+  referred_by?: string | null;
+  /** When the referral's free month was granted. */
+  referral_rewarded_at?: string | null;
   created_at: string;
 }
 

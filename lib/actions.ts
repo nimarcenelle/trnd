@@ -10,6 +10,7 @@ import { normalOf } from "@/lib/creators/stats";
 import { createCreator } from "@/lib/creators/create";
 import { deleteAccount } from "@/lib/creators/delete";
 import { canRetry, manualPlanBlocked, switchBlocked } from "@/lib/creators/guards";
+import { validTz } from "@/lib/creators/schedule";
 import { scanCreator } from "@/lib/creators/scan";
 import { getCreator } from "@/lib/data";
 import { adminSupabase, createServerSupabase } from "@/lib/db/supabase";
@@ -326,6 +327,13 @@ export async function welcomeModelsAction(_prev: FormState, formData: FormData):
     revalidatePath("/app", "layout");
   }
   redirect(next === "trial" ? "/app/welcome?step=trial" : "/app");
+}
+
+/** The creator's timezone from their browser: the weekly plan drops Tuesday 8 AM there. */
+export async function setTimezoneAction(tz: string): Promise<void> {
+  const { creator } = await requireCreator();
+  if (!creator || typeof tz !== "string" || tz.length > 64 || validTz(tz) !== tz) return;
+  await adminSupabase().from("creators").update({ timezone: tz }).eq("id", creator.id);
 }
 
 /** Settings: the weekly plan email on or off. */

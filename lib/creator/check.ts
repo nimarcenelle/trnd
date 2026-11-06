@@ -3,6 +3,8 @@ import "server-only";
 import { isModelConfigured } from "@/lib/env";
 import { readSocialWithStatus } from "@/lib/social/read";
 
+import { benchmarkFrom, nicheTag, type Benchmark } from "./benchmark";
+import { inferNicheTag, readNiche } from "./niche";
 import { readCreator, type CreatorRead } from "./read";
 import { creatorStats, headline, type CreatorStats } from "./stats";
 
@@ -22,6 +24,8 @@ export interface CreatorCheck {
   stats?: CreatorStats;
   headline?: string;
   read?: CreatorRead | null;
+  /** The top posts in their niche right now, and the gap to them. Null when no niche or no read of it. */
+  benchmark?: Benchmark | null;
 }
 
 export const isHandle = (h: string) => /^[a-z0-9._]{2,30}$/.test(h);
@@ -47,13 +51,23 @@ export async function runCheck(handle: string, platform: CreatorPlatform, niche 
   const stats = creatorStats(profile.recent);
   if (!stats) return { error: `@${handle} needs at least 4 recent public posts with like counts for the check to say anything.` };
 
+  // The bar: the top posts under their niche hashtag right now. A failed read leaves the check without it, nothing more.
+  let benchmark: Benchmark | null = null;
+  try {
+    const captions = profile.recent.map((p) => p.caption);
+    const tag = nicheTag(niche, captions) ?? (await inferNicheTag(captions));
+    if (tag) benchmark = benchmarkFrom(await readNiche(tag, platform), { handle, followers: profile.followers, stats, tag, platform });
+  } catch (e) {
+    console.warn("[creator] niche read failed:", (e as Error).message);
+  }
+
   let read: CreatorRead | null = null;
   if (isModelConfigured) {
     try {
-      read = await readCreator({ handle, platform, niche, stats });
+      read = await readCreator({ handle, platform, niche, stats, benchmark });
     } catch (e) {
       console.warn("[creator] read failed:", (e as Error).message);
     }
   }
-  return { handle, platform, niche, displayName: profile.displayName, followers: profile.followers, stats, headline: headline(stats), read };
+  return { handle, platform, niche, displayName: profile.displayName, followers: profile.followers, stats, headline: headline(stats), read, benchmark };
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { ReadSection } from "@/components/creator/check";
+import { NicheSection, ReadSection } from "@/components/creator/check";
 import DiagnosisCard from "@/components/creator/diagnosis-card";
 import SiteNav from "@/components/site-nav";
 import { SHARED_SRC } from "@/lib/creator/funnel";
@@ -42,7 +42,7 @@ export default async function SharedResultPage({ params }: PageProps<"/c/[id]">)
       <main className="wrap pt-10 sm:pt-16 pb-20 w-full">
         <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-8 lg:gap-14 items-start">
           <div className="rise">
-            <DiagnosisCard handle={c.handle} platform={c.platform ?? "tiktok"} followers={c.followers} stats={c.stats} killer={c.read?.killer ?? c.read?.stop} voice="they" />
+            <DiagnosisCard handle={c.handle} platform={c.platform ?? "tiktok"} followers={c.followers} stats={c.stats} killer={c.read?.killer ?? c.read?.stop} benchmark={c.benchmark} voice="they" />
             <p className="caption mt-3">Checked {when}. Public posts only: likes, comments and shares against their own usual.</p>
           </div>
           <div className="flex flex-col gap-10">
@@ -65,7 +65,7 @@ export default async function SharedResultPage({ params }: PageProps<"/c/[id]">)
                 </button>
               </form>
             </div>
-            {c.read && <ReadSection read={c.read} voice="they" hooks={false} />}
+            {c.read ? <ReadSection read={c.read} voice="they" hooks={false} benchmark={c.benchmark} /> : c.benchmark && <NicheSection b={c.benchmark} voice="they" />}
           </div>
         </div>
       </main>

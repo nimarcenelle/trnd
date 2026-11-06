@@ -8,7 +8,7 @@ export async function GET(req: Request, { params }: RouteContext<"/c/[id]/story"
   const { id } = await params;
   const c = await getCheck(id);
   if (!c?.stats || !c.handle) return new Response("not found", { status: 404 });
-  const img = new ImageResponse(<StoryImage d={{ handle: c.handle, platform: c.platform ?? "tiktok", followers: c.followers, stats: c.stats, killer: c.read?.killer ?? c.read?.stop }} />, { width: 1080, height: 1920 });
+  const img = new ImageResponse(<StoryImage d={{ handle: c.handle, platform: c.platform ?? "tiktok", followers: c.followers, stats: c.stats, killer: c.read?.killer ?? c.read?.stop, benchmark: c.benchmark }} />, { width: 1080, height: 1920 });
   const headers = new Headers(img.headers);
   headers.set("cache-control", "public, max-age=86400, immutable");
   if (new URL(req.url).searchParams.get("dl")) headers.set("content-disposition", `attachment; filename="trnd-${c.handle}.png"`);

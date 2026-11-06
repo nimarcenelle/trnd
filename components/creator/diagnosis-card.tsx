@@ -1,5 +1,6 @@
 "use client";
 
+import type { Benchmark } from "@/lib/creator/benchmark";
 import { diagnosis, killerFromNumbers, theirs, type CreatorStats, type ScoredPost } from "@/lib/creator/stats";
 import { compact } from "@/lib/format";
 
@@ -21,6 +22,8 @@ export interface DiagnosisCardProps {
   killer?: string | null;
   /** The first hook to post next, if there is one. */
   fix?: string | null;
+  /** The top posts in their niche, for the "you against the top" bar. */
+  benchmark?: Benchmark | null;
   voice?: "you" | "they";
   /** Change it to play the entrance again (for a second screen-recording take). */
   run?: number;
@@ -28,7 +31,32 @@ export interface DiagnosisCardProps {
   compact?: boolean;
 }
 
-export default function DiagnosisCard({ handle, platform, followers, stats, killer, fix, voice = "you", run = 1, compact: small = false }: DiagnosisCardProps) {
+/** Their usual post against the top of their niche: per follower when the counts allow, raw otherwise. */
+function GapBar({ b, voice, delay }: { b: Benchmark; voice: "you" | "they"; delay: number }) {
+  const perFollower = b.perFollowerGap !== null && b.perFollowerGap >= 1.5;
+  const x = perFollower ? b.perFollowerGap! : b.gap;
+  if (x < 1.5) return null;
+  const you = Math.max(3, 100 / x);
+  return (
+    <div className="rise mt-6" style={{ animationDelay: `${delay}ms` }}>
+      <div className="text-[12px] text-stage-ink-2">
+        {voice === "you" ? "You" : "Them"} against the top of #{b.tag}
+        {perFollower ? ", per follower" : ""}
+      </div>
+      <div className="mt-2 grid grid-cols-[64px_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 text-[12px]">
+        <span className="text-stage-ink-2">{voice === "you" ? "Your usual" : "Their usual"}</span>
+        <span className="h-3 rounded-[4px] bg-stage-usual" style={{ width: `${you}%` }} />
+        <span className="text-stage-ink-2">Top posts</span>
+        <span className="h-3 rounded-[4px] bg-stage-pos w-full" />
+      </div>
+      <div className="mt-2 text-[15px] font-semibold">
+        {x}× behind
+      </div>
+    </div>
+  );
+}
+
+export default function DiagnosisCard({ handle, platform, followers, stats, killer, fix, benchmark, voice = "you", run = 1, compact: small = false }: DiagnosisCardProps) {
   const say = (t: string) => (voice === "you" ? t : theirs(t));
   const ordered = [...stats.posts].reverse();
   const n = stats.posts.length;
@@ -82,6 +110,8 @@ export default function DiagnosisCard({ handle, platform, followers, stats, kill
           </span>
         </div>
       </div>
+
+      {benchmark && <GapBar b={benchmark} voice={voice} delay={300 + ordered.length * 55} />}
 
       <div className={`rise rounded-[14px] bg-stage-raise ${small ? "mt-5 p-4" : "mt-7 p-5"}`} style={{ animationDelay: `${360 + ordered.length * 55}ms` }}>
         <div className="text-[12px] font-medium text-stage-neg">What&apos;s killing {voice === "you" ? "your" : "their"} posts</div>

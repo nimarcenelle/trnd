@@ -1,4 +1,5 @@
 import type { CreatorStats } from "./stats";
+import type { Benchmark } from "./benchmark";
 import { killerFromNumbers, stuckCount, theirs } from "./stats";
 
 /**
@@ -16,11 +17,19 @@ export interface CardInput {
   stats: CreatorStats;
   /** What's killing the posts, from the written read, in the creator's voice ("your"). */
   killer?: string | null;
+  benchmark?: Benchmark | null;
 }
 
 const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M` : n >= 1e4 ? `${Math.round(n / 1e3)}K` : n >= 1e3 ? `${(n / 1e3).toFixed(1).replace(/\.0$/, "")}K` : String(Math.round(n)));
 const mine = (line: string) =>
   line.replace(/\byou're\b/g, "I'm").replace(/\bYou're\b/g, "I'm").replace(/\byour\b/g, "my").replace(/\bYour\b/g, "My").replace(/\byou\b/g, "I").replace(/\bYou\b/g, "I");
+
+/** How far behind the top of the niche, per follower when possible; null when not meaningfully behind. */
+function behind(b?: Benchmark | null): number | null {
+  if (!b) return null;
+  const x = b.perFollowerGap !== null && b.perFollowerGap >= 1.5 ? b.perFollowerGap : b.gap;
+  return x >= 1.5 ? x : null;
+}
 
 function Mark({ size }: { size: number }) {
   return (
@@ -53,12 +62,12 @@ export function StoryImage({ d }: { d: CardInput }) {
           {d.followers ? ` · ${compact(d.followers)}` : ""}
         </div>
       </div>
-      <div style={{ display: "flex", fontSize: 260, fontWeight: 700, lineHeight: 1, letterSpacing: -12, marginTop: 170 }}>
+      <div style={{ display: "flex", fontSize: 230, fontWeight: 700, lineHeight: 1, letterSpacing: -10, marginTop: 120 }}>
         {stuckCount(s)}
         <span style={{ color: C.ink2 }}>/{s.posts.length}</span>
       </div>
       <div style={{ display: "flex", fontSize: 52, fontWeight: 600, lineHeight: 1.25, marginTop: 24 }}>of my posts never got past my followers</div>
-      <div style={{ display: "flex", marginTop: 80 }}>
+      <div style={{ display: "flex", marginTop: 64 }}>
         <Tiles s={s} size={62} gap={11} />
       </div>
       <div style={{ display: "flex", gap: 36, marginTop: 24, fontSize: 30, color: C.ink2 }}>
@@ -66,7 +75,23 @@ export function StoryImage({ d }: { d: CardInput }) {
         <div style={{ display: "flex" }}>{s.posts.length - s.breakouts - s.stalled} stuck</div>
         <div style={{ display: "flex" }}>{s.stalled} flopped</div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", background: C.raise, borderRadius: 32, padding: "40px 44px", marginTop: 80 }}>
+      {behind(d.benchmark) ? (
+        <div style={{ display: "flex", flexDirection: "column", marginTop: 70 }}>
+          <div style={{ display: "flex", fontSize: 30, color: C.ink2 }}>Me against the top of #{d.benchmark!.tag}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 24, marginTop: 18 }}>
+            <div style={{ display: "flex", width: 190, fontSize: 28, color: C.ink2 }}>My usual</div>
+            <div style={{ display: "flex", height: 28, borderRadius: 8, background: C.usual, width: Math.max(20, 690 / behind(d.benchmark)!) }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 24, marginTop: 12 }}>
+            <div style={{ display: "flex", width: 190, fontSize: 28, color: C.ink2 }}>Top posts</div>
+            <div style={{ display: "flex", height: 28, borderRadius: 8, background: C.pos, width: 690 }} />
+          </div>
+          <div style={{ display: "flex", fontSize: 44, fontWeight: 700, marginTop: 18 }}>{behind(d.benchmark)}× behind</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex" }} />
+      )}
+      <div style={{ display: "flex", flexDirection: "column", background: C.raise, borderRadius: 32, padding: "40px 44px", marginTop: 70 }}>
         <div style={{ display: "flex", fontSize: 30, color: C.neg }}>What was killing them</div>
         <div style={{ display: "flex", fontSize: 50, fontWeight: 700, lineHeight: 1.25, marginTop: 16 }}>{killer.slice(0, 130)}</div>
       </div>
@@ -94,7 +119,10 @@ export function PreviewImage({ d }: { d: CardInput }) {
         </div>
         <div style={{ display: "flex", fontSize: 38, fontWeight: 600, lineHeight: 1.2, paddingBottom: 14, maxWidth: 560 }}>posts never got past their followers</div>
       </div>
-      <div style={{ display: "flex", fontSize: 30, color: C.ink2, marginTop: 28, maxWidth: 1000 }}>{theirs(d.killer || killerFromNumbers(s)).slice(0, 110)}</div>
+      <div style={{ display: "flex", fontSize: 30, color: C.ink2, marginTop: 28, maxWidth: 1000 }}>
+        {behind(d.benchmark) ? `${behind(d.benchmark)}× behind the top #${d.benchmark!.tag} posts. ` : ""}
+        {theirs(d.killer || killerFromNumbers(s)).slice(0, 90)}
+      </div>
       <div style={{ display: "flex", flex: 1 }} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <Tiles s={s} size={36} gap={8} />

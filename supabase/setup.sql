@@ -405,3 +405,7 @@ create table if not exists public.creator_checks (
 );
 create index if not exists creator_checks_handle_idx on public.creator_checks (platform, handle, created_at desc);
 alter table public.creator_checks enable row level security;
+
+-- The niche benchmark a creator check was measured against: the top posts
+-- under their niche hashtag at the time, and the gap to them. Safe to re-run.
+alter table public.creator_checks add column if not exists benchmark jsonb;

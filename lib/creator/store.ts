@@ -3,6 +3,7 @@ import "server-only";
 import { adminSupabase } from "@/lib/db/supabase";
 import { env } from "@/lib/env";
 
+import type { Benchmark } from "./benchmark";
 import type { CreatorCheck, CreatorPlatform } from "./check";
 import type { FunnelEvent, FunnelEventKind } from "./funnel";
 import type { CreatorRead } from "./read";
@@ -124,7 +125,7 @@ export async function saveCheck(c: CreatorCheck): Promise<string | null> {
   const id = newId();
   const { error } = await adminSupabase()
     .from("creator_checks")
-    .insert({ id, handle: c.handle, platform: c.platform, display_name: c.displayName ?? null, followers: c.followers ?? null, niche: c.niche || null, headline: c.headline ?? "", stats: c.stats, read: c.read ?? null, src: c.src || null });
+    .insert({ id, handle: c.handle, platform: c.platform, display_name: c.displayName ?? null, followers: c.followers ?? null, niche: c.niche || null, headline: c.headline ?? "", stats: c.stats, read: c.read ?? null, benchmark: c.benchmark ?? null, src: c.src || null });
   if (error) {
     console.warn("[creator] check not saved:", error.message);
     return null;
@@ -136,6 +137,6 @@ export async function getCheck(id: string): Promise<(CreatorCheck & { id: string
   if (!hasDb() || !/^[a-z0-9]{6,16}$/.test(id)) return null;
   const { data } = await adminSupabase().from("creator_checks").select("*").eq("id", id).maybeSingle();
   if (!data) return null;
-  const r = data as { id: string; handle: string; platform: CreatorPlatform; display_name: string | null; followers: number | null; niche: string | null; headline: string; stats: CreatorStats; read: CreatorRead | null; created_at: string };
-  return { id: r.id, handle: r.handle, platform: r.platform, displayName: r.display_name, followers: r.followers, niche: r.niche ?? "", headline: r.headline, stats: r.stats, read: r.read, created_at: r.created_at };
+  const r = data as { id: string; handle: string; platform: CreatorPlatform; display_name: string | null; followers: number | null; niche: string | null; headline: string; stats: CreatorStats; read: CreatorRead | null; benchmark: Benchmark | null; created_at: string };
+  return { id: r.id, handle: r.handle, platform: r.platform, displayName: r.display_name, followers: r.followers, niche: r.niche ?? "", headline: r.headline, stats: r.stats, read: r.read, benchmark: r.benchmark, created_at: r.created_at };
 }

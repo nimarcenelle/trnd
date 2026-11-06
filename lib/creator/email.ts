@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 
 import type { CreatorCheck } from "./check";
+import { gapLine } from "./benchmark";
 import { diagnosis, killerFromNumbers, stuckCount } from "./stats";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -25,6 +26,7 @@ export function recheckEmailHtml(c: CreatorCheck, token: string): string {
 <h1 style="font-size:24px;line-height:1.25;margin:0 0 10px">${esc(diagnosis(s))}</h1>
 <p style="font-size:12px;color:#b42318;margin:0">What's killing your posts</p>
 <p style="line-height:1.5;margin:2px 0 14px;font-weight:600">${esc(c.read?.killer ?? killerFromNumbers(s))}</p>
+${c.benchmark ? `<p style="line-height:1.5;margin:0 0 14px">${esc(gapLine(c.benchmark))}</p>` : ""}
 <table cellpadding="0" cellspacing="6" style="width:100%;border-collapse:separate"><tr>${cell("Usual post", String(Math.round(s.medianInteractions)))}${cell("Broke out", pct(s.breakoutRate))}${cell("Stalled", pct(s.stalledRate))}</tr></table>
 ${c.read ? `<p style="line-height:1.6;margin:18px 0 0">${esc(c.read.verdict)}</p>` : ""}${hooks}
 <p style="margin:26px 0 0;line-height:1.6">Want this on the creators you compete with, every day? The creator plan reads up to 10 of them and shows you their breakouts as they happen.</p>

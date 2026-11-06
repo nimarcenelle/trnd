@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import Brand from "@/components/brand";
-import CreatorCheckForm from "@/components/creator/check";
+import CreatorCheckForm, { NicheSection } from "@/components/creator/check";
 import DiagnosisCard from "@/components/creator/diagnosis-card";
 import { SAMPLE_CREATORS } from "@/components/sample/creator";
 import SiteNav from "@/components/site-nav";
@@ -17,7 +17,7 @@ export const maxDuration = 300;
 /** How a post that breaks out gets made again, in the order the check does it. */
 const STEPS = [
   { title: "See which posts flopped", body: "Each of your last 12 posts is measured against your own usual. You'll see exactly which ones never got past your followers." },
-  { title: "Find out what's killing them", body: "The opening, the promise, the format. Quoted from your own captions, side by side with the posts that worked." },
+  { title: "Find out what's killing them", body: "The opening, the promise, the format. Quoted from your own captions, side by side with your hits and the top posts in your niche." },
   { title: "Post the fix", body: "Three hooks built on what already worked for you. Copy one, film it, post it. Check again next week." },
 ];
 
@@ -58,7 +58,7 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
           <p className="kicker">Free for creators</p>
           <h1 className="display text-[46px] sm:text-[76px] mt-4 max-w-[960px]">Make every post go viral.</h1>
           <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.6] mt-5 max-w-[620px]">
-            Your posts aren&apos;t flopping by accident. Drop your handle and find out exactly what&apos;s killing them, and what to post instead.
+            Your posts aren&apos;t flopping by accident. Drop your handle: see what&apos;s killing them, how far behind the top creators in your niche you are, and what to post instead.
           </p>
           <div className="mt-8 w-full">
             <CreatorCheckForm
@@ -74,7 +74,7 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
                         className={`snap-center shrink-0 w-[min(300px,82vw)] rise ${["sm:-rotate-3 sm:translate-y-6", "sm:z-10", "sm:rotate-3 sm:translate-y-6"][i]}`}
                         style={{ animationDelay: `${i * 140}ms` }}
                       >
-                        <DiagnosisCard handle={c.handle} platform={c.platform} followers={c.followers} stats={c.stats} killer={c.killer} fix={c.fix} voice="they" compact />
+                        <DiagnosisCard handle={c.handle} platform={c.platform} followers={c.followers} stats={c.stats} killer={c.killer} fix={c.fix} benchmark={c.benchmark} voice="they" compact />
                       </div>
                     ))}
                   </div>
@@ -118,6 +118,24 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
           </div>
         </div>
       </section>
+
+      {sample.benchmark && (
+        <section className="border-b border-line bg-subtle">
+          <div className="wrap py-16 sm:py-24 grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-10 lg:gap-16 items-start">
+            <div>
+              <p className="kicker">Measured against the best</p>
+              <h2 className="display text-[30px] sm:text-[40px] mt-3">You&apos;re not competing with your last post. You&apos;re competing with theirs.</h2>
+              <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[480px]">
+                Every check pulls the top posts in your niche right now and puts yours next to them: how far behind you are, per follower so it&apos;s fair to
+                smaller accounts, who&apos;s winning, and what their openings do that yours don&apos;t.
+              </p>
+            </div>
+            <div>
+              <NicheSection b={sample.benchmark} voice="they" lines={["Every top #easyrecipes post opens on a mistake or a price (“Stop salting your pasta water like this”). @noor.cooks's flops open on a label (“Easy dinner”)."]} />
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="border-b border-line">
         <div className="wrap py-16 sm:py-24">

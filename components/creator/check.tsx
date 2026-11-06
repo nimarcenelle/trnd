@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import SubmitButton from "@/components/app/submit-button";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 import { checkCreatorAction, saveLeadAction, type LeadState } from "@/lib/creator/actions";
+import { gapLine, type Benchmark } from "@/lib/creator/benchmark";
 import type { CreatorCheck } from "@/lib/creator/check";
 import { CREATOR_PRICE } from "@/lib/creator/funnel";
 import type { CreatorRead } from "@/lib/creator/read";
@@ -19,9 +20,10 @@ import { PostBars, TierLegend, useReplay } from "./visuals";
 /** What the check is doing, by the second it usually gets there. The read is one call, so this is a clock, not a signal. */
 const STEPS = [
   { at: 0, label: (h: string) => `Reading @${h}'s last 12 posts` },
-  { at: 15, label: () => "Measuring each one against your usual" },
-  { at: 35, label: () => "Comparing what broke out with what stalled" },
-  { at: 55, label: () => "Writing your next three hooks" },
+  { at: 20, label: () => "Measuring each one against your usual" },
+  { at: 35, label: () => "Pulling the top posts in your niche" },
+  { at: 70, label: () => "Comparing you with the creators beating you" },
+  { at: 95, label: () => "Writing what to post instead" },
 ];
 
 function Working() {
@@ -53,7 +55,7 @@ function Working() {
           </li>
         ))}
       </ul>
-      <p className="caption mt-3">Usually under a minute.</p>
+      <p className="caption mt-3">Usually one to two minutes.</p>
     </div>
   );
 }
@@ -89,7 +91,48 @@ function HookCard({ hook, why, n }: { hook: string; why: string; n: number }) {
 }
 
 /** Why the posts flop, what the hits did right, and (for the creator themself) the fix. Flops first: that's the sell. */
-export function ReadSection({ read, voice = "you", hooks = true }: { read: CreatorRead; voice?: "you" | "they"; hooks?: boolean }) {
+/** The creators beating them in their niche: the gap, what the top does differently, and who is winning. */
+export function NicheSection({ b, lines, voice = "you" }: { b: Benchmark; lines?: string[]; voice?: "you" | "they" }) {
+  const say = (t: string) => (voice === "you" ? t : theirs(t));
+  return (
+    <section className="rise" style={{ animationDelay: "250ms" }}>
+      <p className="text-[13px] font-medium text-neg m-0">Against the top of #{b.tag}</p>
+      <p className="m-0 mt-2 text-[24px] sm:text-[28px] leading-[1.2] font-semibold tracking-[-0.025em]">{gapLine(b, voice === "you" ? "your" : "their")}</p>
+      {lines && lines.length > 0 && (
+        <ul className="list-none p-0 m-0 mt-4 flex flex-col gap-2 text-[14.5px] text-ink-2 leading-[1.55]">
+          {lines.map((x) => (
+            <li key={x} className="flex gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-pos mt-[8px] shrink-0" />
+              {say(x)}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="card mt-5 divide-y divide-line">
+        <div className="px-4 py-2.5 text-[12px] text-ink-3 flex justify-between">
+          <span>Who&apos;s winning #{b.tag} right now</span>
+          <span>vs. {voice === "you" ? "your" : "their"} usual</span>
+        </div>
+        {b.posts.slice(0, 5).map((p) => (
+          <a key={p.handle} href={p.url ?? undefined} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-4 py-3 hover:bg-subtle">
+            <span className="w-8 h-8 rounded-full bg-ink text-bg grid place-items-center text-[13px] font-semibold shrink-0">{p.handle.charAt(0).toUpperCase()}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13.5px] font-medium truncate">
+                @{p.handle}
+                {p.followers ? <span className="text-ink-3 font-normal"> · {compact(p.followers)}</span> : null}
+              </span>
+              <span className="block text-[13px] text-ink-2 truncate">&ldquo;{p.caption ?? "No caption"}&rdquo;</span>
+            </span>
+            <span className="text-[15px] font-semibold tnum shrink-0">{p.timesYou}×</span>
+          </a>
+        ))}
+      </div>
+      <p className="caption mt-2 mb-0">The top posts {b.platform === "tiktok" ? "TikTok" : "Instagram"} shows for #{b.tag}, the best of each creator. Likes, comments and shares.</p>
+    </section>
+  );
+}
+
+export function ReadSection({ read, voice = "you", hooks = true, benchmark }: { read: CreatorRead; voice?: "you" | "they"; hooks?: boolean; benchmark?: Benchmark | null }) {
   const say = (t: string) => (voice === "you" ? t : theirs(t));
   return (
     <div className="flex flex-col gap-8">
@@ -119,6 +162,7 @@ export function ReadSection({ read, voice = "you", hooks = true }: { read: Creat
           {say(read.stop)}
         </div>
       </section>
+      {benchmark && <NicheSection b={benchmark} lines={read.vs_niche} voice={voice} />}
       {hooks && (
         <section>
           <p className="text-[13px] font-medium text-pos m-0">The fix: post these next</p>
@@ -242,7 +286,7 @@ function Result({ r }: { r: CreatorCheck }) {
     <div ref={top} className="mt-14 text-left scroll-mt-20">
       <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-8 lg:gap-12 items-start">
         <div className="lg:sticky lg:top-20 flex flex-col gap-4">
-          <DiagnosisCard handle={r.handle ?? ""} platform={r.platform ?? "tiktok"} followers={r.followers} stats={s} killer={r.read?.killer} fix={r.read?.next_hooks[0]?.hook} run={run} />
+          <DiagnosisCard handle={r.handle ?? ""} platform={r.platform ?? "tiktok"} followers={r.followers} stats={s} killer={r.read?.killer} fix={r.read?.next_hooks[0]?.hook} benchmark={r.benchmark} run={run} />
           {r.id ? (
             <ShareBar id={r.id} handle={r.handle ?? ""} onReplay={replay} />
           ) : (
@@ -252,7 +296,14 @@ function Result({ r }: { r: CreatorCheck }) {
           )}
         </div>
         <div className="flex flex-col gap-8">
-          {r.read ? <ReadSection read={r.read} /> : <p className="text-[15px] text-ink-2 m-0">The written read is unavailable right now. Run the check again in a minute for why your posts flop and what to post instead.</p>}
+          {r.read ? (
+            <ReadSection read={r.read} benchmark={r.benchmark} />
+          ) : (
+            <>
+              <p className="text-[15px] text-ink-2 m-0">The written read is unavailable right now. Run the check again in a minute for why your posts flop and what to post instead.</p>
+              {r.benchmark && <NicheSection b={r.benchmark} />}
+            </>
+          )}
           <Numbers stats={s} headline={r.headline} />
         </div>
       </div>
@@ -328,7 +379,7 @@ export default function CreatorCheckForm({ src = "", handle = "", platform = "ti
           name="niche"
           defaultValue={state.niche ?? ""}
           className="input mt-2.5"
-          placeholder="Your niche, optional: e.g. home workouts, budget travel, skincare for men"
+          placeholder="Your niche, e.g. home workouts. We measure you against the top creators in it"
           aria-label="Your niche"
           maxLength={80}
         />

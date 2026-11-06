@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { generateJson } from "@/lib/ai/openai";
 
+import type { Benchmark } from "./benchmark";
 import type { CreatorStats } from "./stats";
 
 /**
@@ -25,6 +26,8 @@ export const CreatorReadSchema = z.object({
   next_hooks: z.array(z.object({ hook: z.string(), why: z.string() })),
   /** One habit to stop. */
   stop: z.string(),
+  /** What the top creators in their niche do that their flops don't, quoting both. Empty without a benchmark. */
+  vs_niche: z.array(z.string()),
 });
 export type CreatorRead = z.infer<typeof CreatorReadSchema>;
 
@@ -39,7 +42,7 @@ only the posts. Short sentences, everyday words, no hype ("unlock", "skyrocket",
 Hooks are opening lines a person would say on camera or put as the first line of a caption: under 14 words, specific
 to their niche, no emoji, no hashtags, no clickbait they couldn't pay off.`;
 
-export async function readCreator(input: { handle: string; platform: string; niche: string; stats: CreatorStats }): Promise<CreatorRead> {
+export async function readCreator(input: { handle: string; platform: string; niche: string; stats: CreatorStats; benchmark?: Benchmark | null }): Promise<CreatorRead> {
   const { stats } = input;
   const lines = stats.posts.map(
     (p, i) =>
@@ -50,14 +53,22 @@ Median interactions per post: ${stats.medianInteractions}. Breakout = 2× median
 ${stats.breakouts} breakouts, ${stats.stalled} stalled, of ${stats.posts.length} posts, newest first:
 ${lines.join("\n")}
 
-Return:
+${input.benchmark ? `The bar: the top posts under #${input.benchmark.tag} on ${input.platform} right now (the best post of each creator):
+${input.benchmark.posts.map((p, i) => `${i + 1}. @${p.handle}${p.followers ? ` (${p.followers} followers)` : ""}: ${p.interactions} interactions, ${p.timesYou}× this creator's usual post. ${(p.caption ?? "(no caption)").replace(/\s+/g, " ").slice(0, 200)}`).join("\n")}
+${input.benchmark.perFollowerGap !== null ? `Per follower, those posts pull ${input.benchmark.perFollowerGap}× what this creator's usual post does.` : ""}
+
+` : ""}Return:
 - killer: the one thing killing their posts, in one blunt sentence under 18 words, specific to these captions
   (e.g. "Your openings name the topic instead of giving anyone a reason to stay."). No numbers needed.
 - verdict: why the posts that flop flop and the hits hit, in one or two sentences.
 - breakouts_share: 2-3 lines on what the breakout posts have in common (topic, opening, format, length, promise). Quote them. Empty if there are none.
 - stalled_share: 2-3 lines on what the stalled posts have in common. Quote them. Empty if there are none.
 - next_hooks: exactly 3 opening lines for their next posts, built on what broke out, each with a one-line why that points at a post above.
-- stop: one habit the stalled posts share that they should drop.`;
+- stop: one habit the stalled posts share that they should drop.
+- vs_niche: if the bar is given, 2-3 lines on what the top creators in the niche do (in their openings, promises,
+  formats) that this creator's flops don't. Quote one of theirs against one of the creator's each time. Empty if no bar.
+  The killer and the hooks should use this too: the hooks should borrow what works at the top of the niche, in this
+  creator's own voice and topics.`;
   const read = await generateJson({ system: SYSTEM, prompt, schema: CreatorReadSchema, effort: "low" });
-  return { ...read, next_hooks: read.next_hooks.slice(0, 3), breakouts_share: read.breakouts_share.slice(0, 3), stalled_share: read.stalled_share.slice(0, 3) };
+  return { ...read, next_hooks: read.next_hooks.slice(0, 3), breakouts_share: read.breakouts_share.slice(0, 3), stalled_share: read.stalled_share.slice(0, 3), vs_niche: read.vs_niche.slice(0, 3) };
 }

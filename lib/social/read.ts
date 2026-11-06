@@ -191,7 +191,8 @@ export function growthBy(rows: Snapshot[]): Map<string, Growth> {
   return out;
 }
 
-async function runActor(actor: string, input: Obj): Promise<Obj[]> {
+/** One Apify actor run, its dataset items back. Exported for the creator check's niche read. */
+export async function runActor(actor: string, input: Obj): Promise<Obj[]> {
   const url = `https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${encodeURIComponent(env.apifyToken)}`;
   const res = await fetch(url, {
     method: "POST",

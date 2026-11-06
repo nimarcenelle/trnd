@@ -56,6 +56,11 @@ A free check for TikTok and Instagram creators, and the funnel around it (`lib/c
 - **The diagnosis**: every result leads with how many of the last 12 posts never got past the creator's followers and
   what's killing them (the read's `killer`, or `killerFromNumbers` in `lib/creator/stats.ts`), on a dark card made to be
   shared.
+- **The benchmark**: each check also reads the top posts under the creator's niche hashtag (the niche typed, else their
+  most used specific hashtag, else one the model names; `lib/creator/niche.ts`, one more Apify run) and measures their
+  usual post against them, per follower where TikTok gives follower counts (`lib/creator/benchmark.ts`). The read
+  says what the top of the niche does that their flops don't. Instagram uses `APIFY_INSTAGRAM_HASHTAG_ACTOR`
+  (default `apify~instagram-hashtag-scraper`).
 - **The check** reads a creator's last 12 public posts (Apify), measures each against their own median (2× or more broke
   out, half or less stalled) and has the model say what the breakouts share, with three hooks to post next. No account;
   a few checks per address an hour, a handle cached for an hour.
@@ -106,7 +111,7 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql`, `0104_ad_scores.sql`, `0105_scan_state.sql`, `0106_candidates.sql`, `0107_ads_confirmed.sql`, `0108_creator_funnel.sql` and `0109_creator_checks.sql`, safe to re-run). They create
+`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql`, `0104_ad_scores.sql`, `0105_scan_state.sql`, `0106_candidates.sql`, `0107_ads_confirmed.sql`, `0108_creator_funnel.sql`, `0109_creator_checks.sql` and `0110_creator_benchmark.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
 `site_snapshots`, `site_changes` and `emails`, and leave the old
 product's tables alone (drop them when convenient).

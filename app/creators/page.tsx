@@ -9,8 +9,8 @@ import SiteNav from "@/components/site-nav";
 import { cleanSrc } from "@/lib/creator/check";
 
 export const metadata = {
-  title: "Why your posts stall — TRND for creators",
-  description: "A free check of your last 12 TikTok or Instagram posts: which broke out, which stalled, what separates them, and three hooks to post next.",
+  title: "Go viral on purpose — TRND for creators",
+  description: "Your breakout posts weren't luck. A free check of your last 12 TikTok or Instagram posts finds what the ones that took off did differently, and gives you three hooks to do it again.",
 };
 // The profile read and the written read together can take a minute or more.
 export const maxDuration = 300;
@@ -24,6 +24,13 @@ const TYPE_COPY: Record<CreatorTypeId, { name: string; blurb: string }> = {
   steady: { name: "The Steady", blurb: "Their crowd shows up for every post. None of them reach much further." },
   quiet: { name: "The Quiet Patch", blurb: "Nothing breaking out, and more posts stalling than usual. Fixable, starting with the opening." },
 };
+
+/** How a post that breaks out gets made again, in the order the check does it. */
+const STEPS = [
+  { title: "Find your breakouts", body: "Each of your last 12 posts is measured against your own usual. Twice your usual or more is a breakout. Half or less is a stall." },
+  { title: "See what they share", body: "The opening, the promise, the format. Quoted from your own captions, next to the posts that stalled." },
+  { title: "Post the next one", body: "Three hooks built on what already broke out for you. Copy one, film it, post it. Check again next week." },
+];
 
 /** What most creators are never told, plainly. The authority before the ask. */
 const TRUTHS = [
@@ -48,16 +55,21 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
   // Arriving with ?handle= (from a shared result or a link) starts the check at once.
   const handle = typeof q.handle === "string" ? q.handle.slice(0, 60) : "";
   const platform = q.platform === "instagram" ? "instagram" : "tiktok";
+  // The "not luck" pair: the invented cook's best and worst post.
+  const sample = SAMPLE_CREATORS[0];
+  const byMultiple = [...sample.stats.posts].sort((a, b) => b.multiple - a.multiple);
+  const hit = byMultiple[0];
+  const miss = byMultiple[byMultiple.length - 1];
   return (
     <div className="min-h-dvh flex flex-col">
       <SiteNav links={false} />
 
-      <section className="border-b border-line overflow-hidden">
+      <section id="check" className="border-b border-line overflow-hidden scroll-mt-16">
         <div className="wrap pt-16 sm:pt-24 pb-16 sm:pb-24 flex flex-col items-center text-center">
           <p className="kicker">Free for creators</p>
-          <h1 className="display text-[40px] sm:text-[58px] mt-4 max-w-[860px]">What kind of creator are you, really?</h1>
-          <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[600px]">
-            Drop your handle. In about a minute: your posting type, what your best posts do that the rest don&apos;t, and three hooks to post next.
+          <h1 className="display text-[48px] sm:text-[76px] mt-4 max-w-[900px]">Go viral on purpose.</h1>
+          <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.6] mt-5 max-w-[620px]">
+            Your best posts weren&apos;t luck. Drop your handle and see what the ones that took off did differently, then get three hooks to do it again.
           </p>
           <div className="mt-8 w-full">
             <CreatorCheckForm
@@ -86,9 +98,58 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
       </section>
 
       <section className="border-b border-line">
+        <div className="wrap py-16 sm:py-24 grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-10 lg:gap-16 items-center">
+          <div>
+            <p className="kicker">Viral isn&apos;t luck</p>
+            <h2 className="display text-[30px] sm:text-[40px] mt-3">
+              Same creator. Same topic. {Math.round(hit.multiple / Math.max(0.1, miss.multiple))}× apart.
+            </h2>
+            <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[480px]">
+              The posts that take off and the ones that don&apos;t usually come from the same person, on the same topic, in the same week. What changes is the
+              first line. Once you can see it on your own account, you can do it on purpose.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            {[
+              { p: hit, label: "Broke out", tile: "bg-stage-pos" },
+              { p: miss, label: "Stalled", tile: "bg-stage-neg" },
+            ].map(({ p, label, tile }) => (
+              <div key={label} className="stage p-6 flex items-center gap-5">
+                <span className={`w-12 h-12 rounded-[12px] shrink-0 ${tile}`} aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12px] text-stage-ink-2">
+                    {label} · @{sample.handle}
+                  </div>
+                  <div className="text-[20px] sm:text-[22px] font-semibold leading-[1.25] tracking-[-0.015em] mt-1">&ldquo;{p.caption}&rdquo;</div>
+                </div>
+                <div className="text-[26px] sm:text-[30px] font-semibold tnum tracking-[-0.03em] shrink-0">{p.multiple}×</div>
+              </div>
+            ))}
+            <p className="caption m-0">An invented account. Engagement against its own usual post.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-line">
+        <div className="wrap py-16 sm:py-24">
+          <p className="kicker">How it works</p>
+          <h2 className="display text-[30px] sm:text-[40px] mt-3 max-w-[680px]">Make your next post the one that breaks out.</h2>
+          <ol className="list-none p-0 m-0 mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+            {STEPS.map((t, i) => (
+              <li key={t.title}>
+                <span className="text-[44px] font-semibold tnum tracking-[-0.04em] text-brand leading-none">{i + 1}</span>
+                <h3 className="heading text-[19px] mt-4">{t.title}</h3>
+                <p className="text-[15px] text-ink-2 leading-[1.65] mt-2">{t.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="border-b border-line">
         <div className="wrap py-16 sm:py-24">
           <p className="kicker">Six types</p>
-          <h2 className="display text-[28px] sm:text-[36px] mt-3 max-w-[640px]">Every account has a shape. Most creators have never seen theirs.</h2>
+          <h2 className="display text-[28px] sm:text-[36px] mt-3 max-w-[640px]">Everyone goes viral differently. Which kind are you?</h2>
           <ul className="list-none p-0 m-0 mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {ALL_TYPES.map((id) => {
               const t = TYPE_COPY[id];
@@ -105,8 +166,8 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
 
       <section className="bg-subtle border-b border-line">
         <div className="wrap py-16 sm:py-24">
-          <p className="kicker">What most creators aren&apos;t told</p>
-          <h2 className="display text-[28px] sm:text-[34px] mt-3 max-w-[640px]">Posting more doesn&apos;t fix a stall. Knowing which posts travel does.</h2>
+          <p className="kicker">Why most posts don&apos;t travel</p>
+          <h2 className="display text-[28px] sm:text-[34px] mt-3 max-w-[640px]">Posting more won&apos;t make you go viral. Knowing which posts travel will.</h2>
           <ol className="list-none p-0 m-0 mt-10 grid gap-10 md:grid-cols-3 md:gap-8">
             {TRUTHS.map((t, i) => (
               <li key={t.title} className="border-t border-line pt-6">
@@ -138,6 +199,20 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
               </div>
             ))}
           </dl>
+        </div>
+      </section>
+
+      <section className="border-t border-line">
+        <div className="wrap py-16 sm:py-24">
+          <div className="stage p-8 sm:p-14 flex flex-col items-center text-center">
+            <h2 className="text-[34px] sm:text-[52px] font-semibold tracking-[-0.035em] leading-[1.04] m-0 max-w-[720px]">Your next post could be the one.</h2>
+            <p className="text-[16px] sm:text-[17px] text-stage-ink-2 mt-4 mb-0 max-w-[520px] leading-[1.6]">
+              Find out what your breakouts did. Free, no account, about a minute.
+            </p>
+            <a href="#check" className="btn btn-lg mt-8 bg-stage-ink text-stage hover:opacity-90">
+              Check my posts
+            </a>
+          </div>
         </div>
       </section>
 

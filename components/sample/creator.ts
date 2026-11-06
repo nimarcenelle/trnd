@@ -37,7 +37,7 @@ export const SAMPLE_CREATORS: SampleCreator[] = [
     ["Rice I made wrong for 10 years", 4.4],
     ["Easy dinner", 0.8],
     ["Kitchen tour", 1.0],
-    ["Q&A", 0.3],
+    ["Easy weeknight rice", 0.3],
   ]),
   sample("jules.runs", "instagram", 8200, 410, [
     ["Morning run", 1.0],

@@ -53,6 +53,8 @@ get ahead, win the choice, counter, or ignore, each with a campaign brief.
 
 A free check for TikTok and Instagram creators, and the funnel around it (`lib/creator/`):
 
+- **The type**: every result leads with a posting type named from the numbers (`lib/creator/types.ts`: The Hitmaker,
+  The Climber, The Wild Card, The One-Hit Wonder, The Steady, The Quiet Patch), on a dark card made to be shared.
 - **The check** reads a creator's last 12 public posts (Apify), measures each against their own median (2× or more broke
   out, half or less stalled) and has the model say what the breakouts share, with three hooks to post next. No account;
   a few checks per address an hour, a handle cached for an hour.

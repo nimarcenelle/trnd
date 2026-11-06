@@ -93,7 +93,23 @@ All in `app/globals.css` under `@layer components`, used as plain classes:
 - No hype words: no "unlock", "supercharge", "AI-powered", "magic", "insights at your fingertips".
 - Errors say what happened and what to do next, in one or two sentences.
 
+## Creators (`/creators`, `/c/<id>`)
+
+The creator side speaks to people, not to analysts, so it is warmer than the rest of TRND while keeping the same
+type, tokens and rules (still no gradients, glows, emoji or purple):
+
+- **Lead with who they are, not the numbers.** A result opens with a posting type ("The Wild Card"), the shape of their
+  last 12 posts as a row of tiles, and their best post in their own words. Charts, figures and tables sit behind
+  "See the numbers".
+- **The type card** (`components/creator/type-card.tsx`) is the one dark surface: `.stage`, dark in both themes, 20px
+  radius, so a shared result looks the same everywhere. Its green and red are `--stage-pos` and `--stage-neg`, the
+  dark-theme values, because they sit on dark.
+- **Big type, short lines.** Type names at 40-46px, hooks at 19px semibold, one sentence per idea.
+- **Motion that records well**: tiles pop in order, text rises; nothing loops. All of it stops under reduced motion.
+- Types are named from the numbers alone (`lib/creator/types.ts`), and every line on the card is one the numbers show.
+
 ## Sample data
 
 Screenshots, the landing product shot and empty-state examples use invented brands (Clearwell, Tidewell, Marlow,
-Fenn, Halo; see `components/sample/`). Never put a real company's name on an invented ad.
+Fenn, Halo; see `components/sample/`). Never put a real company's name on an invented ad. Creator samples are invented
+accounts too (noor.cooks, jules.runs, tess.thrifts, `components/sample/creator.ts`).

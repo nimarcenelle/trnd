@@ -6,6 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CreatorStats, ScoredPost } from "@/lib/creator/stats";
 import { compact } from "@/lib/format";
 
+import { creatorType } from "@/lib/creator/types";
+
+import TypeCard from "./type-card";
 import { CountUp, Initial, PostBars, TIER_LABEL, TierLegend } from "./visuals";
 
 /**
@@ -16,7 +19,7 @@ import { CountUp, Initial, PostBars, TIER_LABEL, TierLegend } from "./visuals";
  * the captions, F goes full screen.
  */
 
-type Visual = "hook" | "intro" | "chart" | "post" | "compare" | "text" | "cta";
+type Visual = "hook" | "intro" | "type" | "chart" | "post" | "compare" | "text" | "cta";
 interface Beat {
   say: string;
   show: string;
@@ -58,6 +61,11 @@ function buildScenes(t: PlayerTeardown): Scene[] {
     const idx = visual === "post" ? (b.post && b.post >= 1 && b.post <= posts.length ? b.post - 1 : best) : null;
     scenes.push({ visual, overlay: b.overlay ?? "", say: b.say, post: idx !== null ? posts[idx] : null, postIndex: idx, ms: duration(b.say) });
   });
+  // The reveal: their type, right after the introduction (or after the hook when there is none).
+  const type = creatorType(t.stats);
+  const at = scenes.findIndex((x) => x.visual === "intro");
+  const reveal = `@${t.handle} is ${type.name}.`;
+  scenes.splice(at >= 0 ? at + 1 : 1, 0, { visual: "type", overlay: "", say: reveal, post: null, postIndex: null, ms: 4200 });
   scenes.push({ visual: "cta", overlay: "Check yours free", say: t.script.cta, post: null, postIndex: null, ms: duration(t.script.cta, 3800) });
   return scenes;
 }
@@ -76,6 +84,15 @@ function SceneView({ s, t, run }: { s: Scene; t: PlayerTeardown; run: number }) 
     return (
       <div className="flex-1 flex items-center px-10">
         <p className="rise m-0 text-[46px] leading-[1.08] font-semibold tracking-[-0.03em]">{s.visual === "text" ? s.overlay || s.say : s.overlay}</p>
+      </div>
+    );
+  }
+  if (s.visual === "type") {
+    return (
+      <div className="flex-1 flex items-center px-8">
+        <div className="w-full">
+          <TypeCard handle={t.handle} platform={t.platform === "instagram" ? "instagram" : "tiktok"} followers={t.followers} stats={t.stats} voice="they" run={run} />
+        </div>
       </div>
     );
   }
@@ -165,9 +182,9 @@ function SceneView({ s, t, run }: { s: Scene; t: PlayerTeardown; run: number }) 
   // The close.
   return (
     <div className="flex-1 flex flex-col justify-center items-center text-center px-10 gap-6">
-      <p className="rise m-0 text-[52px] leading-[1.05] font-semibold tracking-[-0.035em]">What do yours look like?</p>
+      <p className="rise m-0 text-[52px] leading-[1.05] font-semibold tracking-[-0.035em]">What&apos;s your type?</p>
       <div className="rise card px-6 py-4" style={{ animationDelay: "250ms" }}>
-        <div className="text-[16px] text-ink-3">Check your last 12 posts free</div>
+        <div className="text-[16px] text-ink-3">Find yours free</div>
         <div className="text-[30px] font-semibold tracking-[-0.02em] mt-1">usetrnd.com/creators</div>
       </div>
       <div className="rise text-[20px] text-ink-2" style={{ animationDelay: "500ms" }}>

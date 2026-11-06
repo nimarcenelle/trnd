@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { BUILD_AT, DECIDE_AFTER, funnel, verdict, within, type FunnelEvent } from "@/lib/creator/funnel";
 import { creatorStats, headline, median, tierOf } from "@/lib/creator/stats";
+import { creatorType, theirLine } from "@/lib/creator/types";
 import type { SocialPost } from "@/lib/db/types";
 
 const post = (likes: number, day: number, comments = 0): SocialPost => ({
@@ -110,5 +111,20 @@ describe("headline voice", () => {
   it("says their for a shared result", () => {
     const s = creatorStats([post(100, 1), post(400, 2), post(90, 3), post(110, 4)])!;
     expect(headline(s, "their")).toMatch(/^1 of their last 4 posts broke out/);
+  });
+});
+
+describe("creatorType", () => {
+  const stats = (mults: number[]) => creatorStats(mults.map((m, i) => post(Math.round(100 * m), i + 1)))!;
+  it("names each shape of account", () => {
+    expect(creatorType(stats([1, 1.1, 0.9, 1, 1.2, 0.8])).id).toBe("steady");
+    expect(creatorType(stats([1, 1, 1, 1, 1, 0.3, 0.2, 0.3, 1.1])).id).toBe("quiet");
+    expect(creatorType(stats([1, 1, 1, 6, 1, 0.9])).id).toBe("one_hit");
+    expect(creatorType(stats([1, 3, 0.3, 3, 0.2, 0.4, 0.3, 1, 1.2, 3])).id).toBe("wild_card");
+    expect(creatorType(stats([1, 3, 1, 3, 1, 3, 1, 1, 1])).id).toBe("hitmaker");
+    expect(creatorType(stats([1, 2.2, 1, 1.1, 0.9, 2.3, 1, 1.2, 0.8, 1])).id).toBe("climber");
+  });
+  it("speaks about someone else when shared", () => {
+    expect(theirLine("Your best post got 4× your usual.")).toBe("Their best post got 4× their usual.");
   });
 });

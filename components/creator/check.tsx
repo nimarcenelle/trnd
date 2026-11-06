@@ -4,17 +4,18 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import SubmitButton from "@/components/app/submit-button";
-import { IconArrowRight, IconArrowUpRight, IconCheck } from "@/components/icons";
+import { IconArrowRight, IconCheck } from "@/components/icons";
 import { checkCreatorAction, saveLeadAction, type LeadState } from "@/lib/creator/actions";
-import { toCard } from "@/lib/creator/card";
 import type { CreatorCheck } from "@/lib/creator/check";
 import { CREATOR_PRICE } from "@/lib/creator/funnel";
 import type { CreatorRead } from "@/lib/creator/read";
-import type { ScoredPost } from "@/lib/creator/stats";
+import type { CreatorStats, ScoredPost } from "@/lib/creator/stats";
+import { creatorType } from "@/lib/creator/types";
 import { compact, percent } from "@/lib/format";
 
 import ShareBar from "./share";
-import { ResultCard, useReplay } from "./visuals";
+import TypeCard from "./type-card";
+import { PostBars, TierLegend, useReplay } from "./visuals";
 
 /** What the check is doing, by the second it usually gets there. The read is one call, so this is a clock, not a signal. */
 const STEPS = [
@@ -59,50 +60,74 @@ function Working() {
 }
 
 
-/** What the breakouts share against the stalls, and (for the creator themself) the hooks to post next. */
-export function ReadSection({ read, voice = "you", hooks = true }: { read: CreatorRead; voice?: "you" | "they"; hooks?: boolean }) {
-  const your = voice === "you" ? "Your" : "Their";
+/** A hook, with a copy button: creators paste it straight into their notes. */
+function HookCard({ hook, why, n }: { hook: string; why: string; n: number }) {
+  const [copied, setCopied] = useState(false);
   return (
-    <div className="flex flex-col gap-3">
-      {[
-        { title: `${your} breakouts share`, items: read.breakouts_share, dot: "bg-pos" },
-        { title: `${your} stalled posts share`, items: read.stalled_share, dot: "bg-neg" },
-      ].map((col, i) => (
-        <div key={col.title} className="card p-5 rise" style={{ animationDelay: `${300 + i * 120}ms` }}>
-          <div className="flex items-center gap-2 text-[13px] font-semibold">
-            <span className={`w-2 h-2 rounded-full ${col.dot}`} />
-            {col.title}
-          </div>
-          {col.items.length ? (
-            <ul className="list-disc pl-4 m-0 mt-2.5 flex flex-col gap-2 text-[14px] text-ink-2 leading-[1.55]">
-              {col.items.map((x) => (
-                <li key={x}>{x}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[14px] text-ink-3 mt-2.5 mb-0">None in these posts.</p>
-          )}
+    <li className="card p-5 rise flex flex-col gap-3" style={{ animationDelay: `${380 + n * 110}ms` }}>
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-[12px] font-medium text-brand">Hook {n + 1}</span>
+        <button
+          type="button"
+          className="text-[12px] text-ink-3 hover:text-ink"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(hook);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1600);
+            } catch {
+              window.prompt("Copy the hook:", hook);
+            }
+          }}
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <p className="m-0 text-[19px] leading-[1.3] font-semibold tracking-[-0.015em]">&ldquo;{hook}&rdquo;</p>
+      <p className="m-0 text-[13px] text-ink-2 leading-[1.5]">{why}</p>
+    </li>
+  );
+}
+
+/** The pattern behind the posts, and (for the creator themself) what to post next. */
+export function ReadSection({ read, voice = "you", hooks = true }: { read: CreatorRead; voice?: "you" | "they"; hooks?: boolean }) {
+  return (
+    <div className="flex flex-col gap-8">
+      <section className="rise" style={{ animationDelay: "150ms" }}>
+        <p className="kicker m-0">Why it happens</p>
+        <p className="m-0 mt-2 text-[24px] sm:text-[28px] leading-[1.2] font-semibold tracking-[-0.025em]">{read.verdict}</p>
+        <div className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2 gap-x-8 gap-y-5 mt-6">
+          {[
+            { title: voice === "you" ? "What your hits do" : "What the hits do", items: read.breakouts_share, dot: "bg-pos" },
+            { title: voice === "you" ? "What your misses do" : "What the misses do", items: read.stalled_share, dot: "bg-neg" },
+          ].map((col) => (
+            <div key={col.title}>
+              <div className="flex items-center gap-2 text-[13px] font-semibold">
+                <span className={`w-2 h-2 rounded-full ${col.dot}`} />
+                {col.title}
+              </div>
+              <ul className="list-none p-0 m-0 mt-2.5 flex flex-col gap-2 text-[14.5px] text-ink-2 leading-[1.55]">
+                {(col.items.length ? col.items : ["Nothing stood out in these posts."]).map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
-      ))}
+      </section>
       {hooks && (
-        <div className="card p-5 rise" style={{ animationDelay: "560ms" }}>
-          <div className="text-[13px] font-semibold">Post next</div>
-          <ol className="list-none p-0 m-0 mt-3 flex flex-col gap-4">
-            {read.next_hooks.map((h, i) => (
-              <li key={h.hook} className="grid grid-cols-[20px_minmax(0,1fr)] gap-2">
-                <span className="text-[13px] text-ink-3 tnum pt-[1px]">{i + 1}</span>
-                <div>
-                  <div className="text-[15px] font-medium leading-[1.45]">&ldquo;{h.hook}&rdquo;</div>
-                  <div className="text-[13px] text-ink-2 leading-[1.5] mt-1">{h.why}</div>
-                </div>
-              </li>
+        <section>
+          <p className="kicker m-0">Post these next</p>
+          <ol className="list-none p-0 m-0 mt-3 grid grid-cols-[minmax(0,1fr)] gap-3">
+            {read.next_hooks.map((h, n) => (
+              <HookCard key={h.hook} hook={h.hook} why={h.why} n={n} />
             ))}
           </ol>
-          <div className="mt-4 pt-3 border-t border-line text-[13.5px] leading-[1.5]">
-            <span className="font-medium">Stop: </span>
+          <p className="m-0 mt-4 text-[14px] leading-[1.55]">
+            <span className="font-semibold">And stop: </span>
             <span className="text-ink-2">{read.stop}</span>
-          </div>
-        </div>
+          </p>
+        </section>
       )}
     </div>
   );
@@ -114,47 +139,59 @@ const TIER_BADGE: Record<ScoredPost["tier"], React.ReactNode> = {
   stalled: <span className="badge badge-neg">Stalled</span>,
 };
 
-/** Every post, for anyone who wants the rows behind the chart. */
-export function PostTable({ posts }: { posts: ScoredPost[] }) {
+/** The numbers behind the type, folded away: the chart, the three figures, every post. */
+export function Numbers({ stats, headline }: { stats: CreatorStats; headline?: string }) {
   return (
     <details className="card group">
-      <summary className="flex items-center justify-between px-5 py-3.5 text-[14px] font-medium">
-        All {posts.length} posts
+      <summary className="flex items-center justify-between px-5 py-4 text-[14px] font-medium">
+        See the numbers
         <span className="text-ink-3 text-[18px] leading-none transition-transform group-open:rotate-45">+</span>
       </summary>
-      <div className="overflow-x-auto border-t border-line">
-        <table className="table w-full">
-          <thead>
-            <tr>
-              <th className="text-left">Post</th>
-              <th className="text-right hidden sm:table-cell">Engagement</th>
-              <th className="text-right">vs. usual</th>
-              <th className="text-left">Result</th>
-            </tr>
-          </thead>
-          <tbody>
-            {posts.map((p, i) => (
-              <tr key={p.url ?? i}>
-                <td className="max-w-[150px] sm:max-w-[380px]">
-                  <div className="truncate">{p.caption ?? <span className="text-ink-3">No caption</span>}</div>
-                  <div className="caption">{p.posted_at ? new Date(p.posted_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}</div>
-                </td>
-                <td className="text-right tnum hidden sm:table-cell">{compact(p.interactions)}</td>
-                <td className="text-right tnum">{p.multiple}×</td>
-                <td>
-                  <span className="inline-flex items-center gap-2">
-                    {TIER_BADGE[p.tier]}
-                    {p.url && (
-                      <a href={p.url} target="_blank" rel="noreferrer" className="text-ink-3 hover:text-ink" aria-label="Open post">
-                        <IconArrowUpRight />
-                      </a>
-                    )}
-                  </span>
-                </td>
+      <div className="border-t border-line p-5 flex flex-col gap-5">
+        {headline && <p className="m-0 text-[14.5px] leading-[1.55]">{headline}</p>}
+        <PostBars posts={stats.posts} height={150} />
+        <TierLegend />
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Usual post", value: compact(stats.medianInteractions), note: "likes + comments + shares" },
+            { label: "Best post", value: `${stats.bestMultiple}×`, note: "the usual" },
+            { label: "Carried by", value: percent(stats.topShare, 0), note: "of engagement from the top fifth" },
+          ].map((k) => (
+            <div key={k.label} className="well p-3">
+              <div className="text-[12px] text-ink-2">{k.label}</div>
+              <div className="text-[20px] font-semibold tnum mt-0.5">{k.value}</div>
+              <div className="caption leading-[1.35]">{k.note}</div>
+            </div>
+          ))}
+        </div>
+        <div className="overflow-x-auto -mx-5 border-t border-line">
+          <table className="table w-full">
+            <thead>
+              <tr>
+                <th className="text-left">Post</th>
+                <th className="text-right">vs. usual</th>
+                <th className="text-left">Result</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {stats.posts.map((p, i) => (
+                <tr key={p.url ?? i}>
+                  <td className="max-w-[150px] sm:max-w-[360px]">
+                    {p.url ? (
+                      <a href={p.url} target="_blank" rel="noreferrer" className="block truncate hover:underline">
+                        {p.caption ?? "No caption"}
+                      </a>
+                    ) : (
+                      <div className="truncate">{p.caption ?? "No caption"}</div>
+                    )}
+                  </td>
+                  <td className="text-right tnum">{p.multiple}×</td>
+                  <td>{TIER_BADGE[p.tier]}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </details>
   );
@@ -203,11 +240,9 @@ function Result({ r }: { r: CreatorCheck }) {
   const signup = `/creators/start?handle=${encodeURIComponent(r.handle ?? "")}&platform=${r.platform}${r.src ? `&src=${encodeURIComponent(r.src)}` : ""}`;
   return (
     <div ref={top} className="mt-14 text-left scroll-mt-20">
-      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] gap-6 lg:gap-10 items-start">
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-8 lg:gap-12 items-start">
         <div className="lg:sticky lg:top-20 flex flex-col gap-4">
-          <div className="rise">
-            <ResultCard d={toCard(r)} run={run} />
-          </div>
+          <TypeCard handle={r.handle ?? ""} platform={r.platform ?? "tiktok"} followers={r.followers} stats={s} run={run} />
           {r.id ? (
             <ShareBar id={r.id} handle={r.handle ?? ""} onReplay={replay} />
           ) : (
@@ -216,23 +251,9 @@ function Result({ r }: { r: CreatorCheck }) {
             </button>
           )}
         </div>
-        <div className="flex flex-col gap-3">
-          <p className="text-[18px] leading-[1.5] font-medium m-0 rise">{r.headline}</p>
-          <div className="grid grid-cols-3 gap-3 rise" style={{ animationDelay: "150ms" }}>
-            {[
-              { label: "Usual post", value: compact(s.medianInteractions), note: "likes + comments + shares" },
-              { label: "Stalled", value: percent(s.stalledRate, 0), note: `${s.stalled} of ${s.posts.length} at half or less` },
-              { label: "Carried by", value: percent(s.topShare, 0), note: "of engagement from your top fifth" },
-            ].map((k) => (
-              <div key={k.label} className="well p-3.5">
-                <div className="text-[12.5px] text-ink-2">{k.label}</div>
-                <div className="text-[22px] font-semibold tracking-[-0.02em] tnum mt-0.5">{k.value}</div>
-                <div className="caption leading-[1.35] mt-0.5">{k.note}</div>
-              </div>
-            ))}
-          </div>
-          {r.read ? <ReadSection read={r.read} /> : <p className="caption">The written read is unavailable right now; the numbers are complete.</p>}
-          <PostTable posts={s.posts} />
+        <div className="flex flex-col gap-8">
+          {r.read ? <ReadSection read={r.read} /> : <p className="text-[15px] text-ink-2 m-0">{creatorType(s).next}</p>}
+          <Numbers stats={s} headline={r.headline} />
         </div>
       </div>
 

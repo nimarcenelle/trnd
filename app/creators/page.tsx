@@ -2,8 +2,9 @@ import Link from "next/link";
 
 import Brand from "@/components/brand";
 import CreatorCheckForm from "@/components/creator/check";
-import { ResultCard } from "@/components/creator/visuals";
-import { SAMPLE_CREATOR } from "@/components/sample/creator";
+import TypeCard from "@/components/creator/type-card";
+import { SAMPLE_CREATORS } from "@/components/sample/creator";
+import { ALL_TYPES, type CreatorTypeId } from "@/lib/creator/types";
 import SiteNav from "@/components/site-nav";
 import { cleanSrc } from "@/lib/creator/check";
 
@@ -13,6 +14,16 @@ export const metadata = {
 };
 // The profile read and the written read together can take a minute or more.
 export const maxDuration = 300;
+
+/** The six types, for the landing page: what each looks like from the outside. */
+const TYPE_COPY: Record<CreatorTypeId, { name: string; blurb: string }> = {
+  hitmaker: { name: "The Hitmaker", blurb: "A third or more of their posts reach past their followers. Rare, and usually built on one opening that works." },
+  climber: { name: "The Climber", blurb: "Breakouts are starting to come regularly, with few misses in between." },
+  wild_card: { name: "The Wild Card", blurb: "Big hits and big misses on the same account. The difference is usually the first line." },
+  one_hit: { name: "The One-Hit Wonder", blurb: "One post did most of the work. The question is whether they know why." },
+  steady: { name: "The Steady", blurb: "Their crowd shows up for every post. None of them reach much further." },
+  quiet: { name: "The Quiet Patch", blurb: "Nothing breaking out, and more posts stalling than usual. Fixable, starting with the opening." },
+};
 
 /** What most creators are never told, plainly. The authority before the ask. */
 const TRUTHS = [
@@ -41,13 +52,12 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
     <div className="min-h-dvh flex flex-col">
       <SiteNav links={false} />
 
-      <section className="border-b border-line">
-        <div className="wrap pt-16 sm:pt-24 pb-16 sm:pb-20 flex flex-col items-center text-center">
-          <p className="kicker">For creators</p>
-          <h1 className="display text-[38px] sm:text-[52px] mt-4 max-w-[820px]">Why do some of your posts take off and the rest don&apos;t?</h1>
-          <p className="text-[17px] text-ink-2 leading-[1.6] mt-5 max-w-[620px]">
-            Enter your handle. TRND reads your last 12 posts, measures each against your own usual, and shows you what your breakouts did that the rest
-            didn&apos;t. Free, no account.
+      <section className="border-b border-line overflow-hidden">
+        <div className="wrap pt-16 sm:pt-24 pb-16 sm:pb-24 flex flex-col items-center text-center">
+          <p className="kicker">Free for creators</p>
+          <h1 className="display text-[40px] sm:text-[58px] mt-4 max-w-[860px]">What kind of creator are you, really?</h1>
+          <p className="text-[17px] sm:text-[18px] text-ink-2 leading-[1.6] mt-5 max-w-[600px]">
+            Drop your handle. In about a minute: your posting type, what your best posts do that the rest don&apos;t, and three hooks to post next.
           </p>
           <div className="mt-8 w-full">
             <CreatorCheckForm
@@ -55,13 +65,41 @@ export default async function CreatorsPage({ searchParams }: PageProps<"/creator
               handle={handle}
               platform={platform}
               sample={
-                <div className="mt-14 max-w-[460px] mx-auto">
-                  <ResultCard d={SAMPLE_CREATOR} voice="they" />
-                  <p className="caption mt-3">An example. Yours shows your own last 12 posts.</p>
+                <div className="mt-16">
+                  <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-6 -mx-4 px-4 sm:overflow-visible sm:justify-center sm:items-start">
+                    {SAMPLE_CREATORS.map((c, i) => (
+                      <div
+                        key={c.handle}
+                        className={`snap-center shrink-0 w-[min(300px,82vw)] rise ${["sm:-rotate-3 sm:translate-y-6", "sm:z-10", "sm:rotate-3 sm:translate-y-6"][i]}`}
+                        style={{ animationDelay: `${i * 140}ms` }}
+                      >
+                        <TypeCard handle={c.handle} platform={c.platform} followers={c.followers} stats={c.stats} voice="they" compact />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="caption mt-4">Examples from invented accounts. Yours reads your own last 12 posts.</p>
                 </div>
               }
             />
           </div>
+        </div>
+      </section>
+
+      <section className="border-b border-line">
+        <div className="wrap py-16 sm:py-24">
+          <p className="kicker">Six types</p>
+          <h2 className="display text-[28px] sm:text-[36px] mt-3 max-w-[640px]">Every account has a shape. Most creators have never seen theirs.</h2>
+          <ul className="list-none p-0 m-0 mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {ALL_TYPES.map((id) => {
+              const t = TYPE_COPY[id];
+              return (
+                <li key={id} className="card p-5">
+                  <div className="text-[19px] font-semibold tracking-[-0.02em]">{t.name}</div>
+                  <p className="text-[14px] text-ink-2 leading-[1.55] mt-1.5 mb-0">{t.blurb}</p>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </section>
 

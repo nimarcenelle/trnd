@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { CardData } from "@/lib/creator/card";
 import type { ScoredPost } from "@/lib/creator/stats";
 import { BREAKOUT_X } from "@/lib/creator/stats";
 import { compact } from "@/lib/format";
@@ -173,70 +172,6 @@ export function Initial({ name, size = 40 }: { name: string; size?: number }) {
   );
 }
 
-
-/**
- * The result as one card: who, the headline number, the chart, the pattern,
- * and the address. Sized and spaced to read in a screenshot or a phone
- * recording; the footer is what a viewer types to get their own.
- */
-export function ResultCard({ d, run = true, voice = "you" }: { d: CardData; run?: boolean | number; voice?: "you" | "they" }) {
-  const n = d.posts.length;
-  const their = voice === "you" ? "your" : "their";
-  return (
-    <div className="card overflow-hidden text-left">
-      <div className="flex items-center justify-between gap-3 px-5 pt-5">
-        <div className="flex items-center gap-3 min-w-0">
-          <Initial name={d.handle} />
-          <div className="min-w-0">
-            <div className="text-[15px] font-semibold truncate">@{d.handle}</div>
-            <div className="caption truncate">
-              {d.platform === "tiktok" ? "TikTok" : "Instagram"}
-              {d.followers ? ` · ${compact(d.followers)} followers` : ""}
-            </div>
-          </div>
-        </div>
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium tracking-[0.25em] text-ink-2 shrink-0" aria-hidden>
-          <span className="w-1.5 h-1.5 rounded-full bg-brand" />
-          TRND
-        </span>
-      </div>
-
-      <div className="px-5 pt-6">
-        <div className="caption">Last {n} posts</div>
-        <div className="flex items-baseline gap-2.5 mt-1">
-          <span className="text-[56px] sm:text-[64px] font-semibold leading-none tracking-[-0.04em]">
-            <CountUp value={d.breakouts} run={run} ms={700} />
-            <span className="text-ink-3">/{n}</span>
-          </span>
-          <span className="text-[17px] font-medium leading-tight">
-            broke out
-            <span className="block text-[13px] font-normal text-ink-3">
-              best at <CountUp value={d.bestMultiple} run={run} format={(x) => `${x.toFixed(1)}×`} delay={300} /> {their} usual
-            </span>
-          </span>
-        </div>
-      </div>
-
-      <div className="px-5 pt-8">
-        <PostBars posts={d.posts} run={run} height={170} />
-        <div className="mt-3">
-          <TierLegend />
-        </div>
-      </div>
-
-      {d.verdict && (
-        <div className="px-5 pt-5">
-          <p className="text-[15px] leading-[1.5] font-medium m-0">{d.verdict}</p>
-        </div>
-      )}
-
-      <div className="mt-5 px-5 py-3 border-t border-line bg-subtle flex items-center justify-between gap-3 text-[12px]">
-        <span className="text-ink-3 tnum">Usual post: {compact(d.medianInteractions)} likes + comments</span>
-        <span className="font-medium text-ink-2">usetrnd.com/creators</span>
-      </div>
-    </div>
-  );
-}
 
 /** Restarts a card's animation: bump the number it is given as `run`. */
 export function useReplay(): [number, () => void] {

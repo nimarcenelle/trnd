@@ -1,17 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import SubmitButton from "@/components/app/submit-button";
 import { IconArrowRight, IconArrowUpRight, IconCheck } from "@/components/icons";
-import { checkCreatorAction, type CreatorCheck } from "@/lib/creator/actions";
+import { checkCreatorAction, saveLeadAction, type LeadState } from "@/lib/creator/actions";
+import type { CreatorCheck } from "@/lib/creator/check";
+import { CREATOR_PRICE } from "@/lib/creator/funnel";
 import type { ScoredPost } from "@/lib/creator/stats";
 import { compact, percent } from "@/lib/format";
-
-/** The creator plan's price, shown on the upgrade. */
-export const CREATOR_PRICE = "$19";
 
 /** What the check is doing, by the second it usually gets there. The read is one call, so this is a clock, not a signal. */
 const STEPS = [
@@ -74,7 +72,7 @@ const TIER_BADGE: Record<ScoredPost["tier"], React.ReactNode> = {
 function Result({ r }: { r: CreatorCheck }) {
   const s = r.stats!;
   const read = r.read;
-  const signup = `/signup?for=creator&handle=${encodeURIComponent(r.handle ?? "")}&platform=${r.platform}`;
+  const signup = `/creators/start?handle=${encodeURIComponent(r.handle ?? "")}&platform=${r.platform}${r.src ? `&src=${encodeURIComponent(r.src)}` : ""}`;
   return (
     <div className="mt-12 text-left">
       {/* 1. The number: how big the gap is, from their own posts. */}
@@ -172,6 +170,8 @@ function Result({ r }: { r: CreatorCheck }) {
         <p className="caption mt-6">The written read is unavailable right now; the numbers above are complete.</p>
       )}
 
+      <Recheck r={r} />
+
       {/* 3. The upgrade: the same read, every day, on the creators they compete with. */}
       <section className="card mt-12 p-6 sm:p-8 grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-8 items-center">
         <div>
@@ -197,17 +197,51 @@ function Result({ r }: { r: CreatorCheck }) {
             <span className="display text-[40px] tnum">{CREATOR_PRICE}</span>
             <span className="text-ink-3 text-[14px]">per month</span>
           </div>
-          <p className="caption mt-1">Free for 7 days. Cancel any time.</p>
-          <Link href={signup} className="btn btn-primary btn-lg w-full mt-5">
+          <p className="caption mt-1">First month free. Cancel any time.</p>
+          <a href={signup} className="btn btn-primary btn-lg w-full mt-5">
             Start free <IconArrowRight />
-          </Link>
+          </a>
         </div>
       </section>
     </div>
   );
 }
 
-export default function CreatorCheckForm() {
+/** The free follow-up: the same check by email every week. The list the plan is sold to. */
+function Recheck({ r }: { r: CreatorCheck }) {
+  const [state, action] = useActionState<LeadState, FormData>(saveLeadAction, {});
+  if (state.saved) {
+    return (
+      <div className="well px-4 py-3 mt-10 text-[14px] flex items-center gap-2.5">
+        <IconCheck className="text-brand shrink-0" />
+        Done. We&apos;ll check @{r.handle} again in a week and email you what changed.
+      </div>
+    );
+  }
+  return (
+    <form action={action} className="card p-5 mt-10 grid grid-cols-[minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-4 items-center">
+      <div>
+        <div className="text-[15px] font-semibold">Re-check my posts next week</div>
+        <p className="text-[13px] text-ink-2 mt-1 leading-[1.55]">The same check a week from now, then every week, with three new hooks. Free. Unsubscribe in one click.</p>
+      </div>
+      <div>
+        <input type="hidden" name="handle" value={r.handle ?? ""} />
+        <input type="hidden" name="platform" value={r.platform ?? "tiktok"} />
+        <input type="hidden" name="niche" value={r.niche ?? ""} />
+        <input type="hidden" name="src" value={r.src ?? ""} />
+        <div className="flex gap-2">
+          <input name="email" type="email" required className="input" placeholder="you@example.com" aria-label="Your email" autoComplete="email" />
+          <SubmitButton className="btn btn-secondary shrink-0" pending="Saving…">
+            Email me
+          </SubmitButton>
+        </div>
+        {state.error && <p className="form-error mt-2 mb-0">{state.error}</p>}
+      </div>
+    </form>
+  );
+}
+
+export default function CreatorCheckForm({ src = "" }: { src?: string }) {
   const [state, action] = useActionState<CreatorCheck, FormData>(checkCreatorAction, {});
   return (
     <>
@@ -218,6 +252,7 @@ export default function CreatorCheckForm() {
             <option value="instagram">Instagram</option>
           </select>
           <span className="w-px h-5 bg-line-strong" aria-hidden />
+          <input type="hidden" name="src" value={state.src ?? src} />
           <input name="handle" defaultValue={state.handle ? `@${state.handle}` : ""} placeholder="@yourhandle" aria-label="Your handle" autoComplete="off" required />
           <SubmitButton className="btn btn-primary" pending="Reading…">
             Check my posts

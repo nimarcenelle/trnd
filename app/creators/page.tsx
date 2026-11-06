@@ -3,6 +3,7 @@ import Link from "next/link";
 import Brand from "@/components/brand";
 import CreatorCheckForm from "@/components/creator/check";
 import SiteNav from "@/components/site-nav";
+import { cleanSrc } from "@/lib/creator/check";
 
 export const metadata = {
   title: "Why your posts stall — TRND for creators",
@@ -27,7 +28,9 @@ const TRUTHS = [
   },
 ];
 
-export default function CreatorsPage() {
+/** ?src= says which video or link sent the visitor; it rides along to every event they cause. */
+export default async function CreatorsPage({ searchParams }: PageProps<"/creators">) {
+  const src = cleanSrc((await searchParams).src);
   return (
     <div className="min-h-dvh flex flex-col">
       <SiteNav links={false} />
@@ -41,7 +44,7 @@ export default function CreatorsPage() {
             didn&apos;t. Free, no account.
           </p>
           <div className="mt-8 w-full">
-            <CreatorCheckForm />
+            <CreatorCheckForm src={src} />
           </div>
         </div>
       </section>

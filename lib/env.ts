@@ -16,6 +16,8 @@ export const env = {
   apifyAdLibraryActor: process.env.APIFY_ADLIBRARY_ACTOR || "curious_coder~facebook-ads-library-scraper",
   /** Ads read per rival per scan. 100 covers most Pages whole; Jolie alone runs 62. */
   adsPerRival: Math.min(200, Math.max(10, Number(process.env.ADS_PER_RIVAL) || 100)),
+  /** Signed-in emails that may open /studio (the creator funnel's numbers and teardowns), comma separated. */
+  adminEmails: (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean),
   cronSecret: process.env.CRON_SECRET ?? "",
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",

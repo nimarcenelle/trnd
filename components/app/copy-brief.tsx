@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 /** Copies the brief as plain text, ready to paste to a creator or into Slack. */
-export default function CopyBrief({ text }: { text: string }) {
+export default function CopyBrief({ text, label = "Copy brief" }: { text: string; label?: string }) {
   const [done, setDone] = useState(false);
   return (
     <button
@@ -15,11 +15,11 @@ export default function CopyBrief({ text }: { text: string }) {
           setDone(true);
           setTimeout(() => setDone(false), 2000);
         } catch {
-          window.prompt("Copy the brief:", text);
+          window.prompt(`${label}:`, text);
         }
       }}
     >
-      {done ? "Copied" : "Copy brief"}
+      {done ? "Copied" : label}
     </button>
   );
 }

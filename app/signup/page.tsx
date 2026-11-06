@@ -17,7 +17,7 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
   return (
     <AuthShell
       title={creator ? (who ? `Watch ${who}'s niche every day` : "Watch your niche every day") : store ? `See what ${store}'s competitors are running` : "Create your account"}
-      sub={creator ? "Free for 7 days. Pick the creators you compete with after you sign up." : "Free for 14 days. Your first report is ready a few minutes after you sign up."}
+      sub={creator ? "First month free. Pick the creators you compete with after you sign up." : "Free for 14 days. Your first report is ready a few minutes after you sign up."}
     >
       <AuthForm mode="signup" site={store || undefined} />
     </AuthShell>

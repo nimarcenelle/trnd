@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { BUILD_AT, DECIDE_AFTER, funnel, verdict, within, type FunnelEvent } from "@/lib/creator/funnel";
 import { creatorStats, headline, median, tierOf } from "@/lib/creator/stats";
 import type { SocialPost } from "@/lib/db/types";
 
@@ -58,5 +59,42 @@ describe("headline", () => {
   it("names a flat account plainly", () => {
     const s = creatorStats([post(10, 1), post(11, 2), post(12, 3), post(9, 4)])!;
     expect(headline(s)).toMatch(/^None of your last 4 posts/);
+  });
+});
+
+const ev = (kind: string, src: string | null = null, handle: string | null = "a", daysAgo = 0): FunnelEvent => ({
+  kind,
+  handle,
+  src,
+  created_at: new Date(Date.UTC(2026, 10, 6) - daysAgo * 86_400_000).toISOString(),
+});
+
+describe("funnel", () => {
+  it("counts each step and rates them against completed checks", () => {
+    const f = funnel([ev("check", "bio-tt", "a"), ev("check", "bio-tt", "b"), ev("check", null, "a"), ev("check_failed"), ev("upgrade_click", "bio-tt"), ev("waitlist", "bio-tt"), ev("lead"), ev("teardown", "td-x")]);
+    expect(f).toMatchObject({ checks: 3, failed: 1, creators: 2, upgrades: 1, waitlist: 1, leads: 1, teardowns: 1 });
+    expect(f.upgradeRate).toBeCloseTo(1 / 3);
+    expect(f.bySource).toEqual([
+      { src: "bio-tt", checks: 2, upgrades: 1, waitlist: 1, leads: 0 },
+      { src: "direct", checks: 1, upgrades: 0, waitlist: 0, leads: 1 },
+    ]);
+  });
+
+  it("has no rate before the first check", () => {
+    expect(funnel([ev("upgrade_click")]).upgradeRate).toBeNull();
+  });
+
+  it("windows by age", () => {
+    const now = Date.UTC(2026, 10, 6, 12);
+    expect(within([ev("check", null, "a", 0), ev("check", null, "a", 10)], 7, now)).toHaveLength(1);
+  });
+});
+
+describe("verdict", () => {
+  it("waits for enough checks, then holds the rate to the bar set in advance", () => {
+    expect(verdict({ checks: DECIDE_AFTER - 1, upgradeRate: 0.5 })).toBe("collecting");
+    expect(verdict({ checks: DECIDE_AFTER, upgradeRate: BUILD_AT })).toBe("build");
+    expect(verdict({ checks: DECIDE_AFTER, upgradeRate: 0.005 })).toBe("rework");
+    expect(verdict({ checks: DECIDE_AFTER, upgradeRate: 0.02 })).toBe("keep_testing");
   });
 });

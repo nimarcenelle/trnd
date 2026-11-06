@@ -49,6 +49,24 @@ get ahead, win the choice, counter, or ignore, each with a campaign brief.
 3. **Monitor**. Vercel Cron hits `/api/cron/scan` daily, which fans out one invocation per due brand. A scan that finds
    changes writes an update report and emails the owner.
 
+## Creators (`/creators`)
+
+A free check for TikTok and Instagram creators, and the funnel around it (`lib/creator/`):
+
+- **The check** reads a creator's last 12 public posts (Apify), measures each against their own median (2× or more broke
+  out, half or less stalled) and has the model say what the breakouts share, with three hooks to post next. No account;
+  a few checks per address an hour, a handle cached for an hour.
+- **Weekly re-check**: an email box under the results. `/api/cron/creators` (daily) re-runs due checks and emails them
+  (Resend), with a one-click unsubscribe.
+- **The demand test**: "Start free" goes through `/creators/start` (counted) to `/creators/plan`, an early-access list,
+  until the creator plan is built. `/studio` holds the rule (`lib/creator/funnel.ts`: at 100 checks, 3%+ clicking means
+  build it, under 1% means change the offer) and the numbers by source (`?src=` on any link to `/creators`).
+- **Teardowns** (`/studio`): a public creator's handle in, a 30-45 second faceless script out, saved with its own `?src=`
+  code so the checks each video drives are counted to it.
+
+`/studio` opens for the emails in `ADMIN_EMAILS`. Events, leads and teardowns are in `creator_events`,
+`creator_leads` and `creator_teardowns` (`0108_creator_funnel.sql`).
+
 ## The scraper
 
 `lib/adlibrary/scrape.ts` fetches the public Ad Library page (`facebook.com/ads/library/?view_all_page_id=…`, active
@@ -81,7 +99,7 @@ pnpm dev
 ```
 
 Paste `supabase/setup.sql` into the Supabase SQL editor and run it (it is `0100_surveillance.sql` then
-`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql`, `0104_ad_scores.sql`, `0105_scan_state.sql`, `0106_candidates.sql` and `0107_ads_confirmed.sql`, safe to re-run). They create
+`0101_brand_intel.sql`, `0102_page_source.sql`, `0103_signals.sql`, `0104_ad_scores.sql`, `0105_scan_state.sql`, `0106_candidates.sql`, `0107_ads_confirmed.sql` and `0108_creator_funnel.sql`, safe to re-run). They create
 `brands`, `rivals`, `ads`, `ad_changes`, `reports`, `social_profiles`, `social_snapshots`, `own_ad_results`,
 `site_snapshots`, `site_changes` and `emails`, and leave the old
 product's tables alone (drop them when convenient).

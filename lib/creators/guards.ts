@@ -70,7 +70,7 @@ export function freeReadDue(c: Slot, now = Date.now()): boolean {
 }
 
 /**
- * What the hourly cron starts. Paid: the daily read, and a read at the plan
+ * What the cron starts (daily on Hobby, see vercel.json). Paid: the daily read, and a read at the plan
  * slot so the plan lands Tuesday morning. Free: only the slot (and its first
  * read). An account that keeps failing keeps its backoff either way.
  */

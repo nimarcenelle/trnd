@@ -61,10 +61,12 @@ anything, then ask for one thing at a time.
      `pickBorrow`) and the early or rising trends. A source the model
      names must be one it was given, of the kind the idea claims, or it is dropped.
 3. **The weekly rhythm** (`lib/creators/schedule.ts`): every creator's plan drops Tuesday 8 AM in their own timezone
-   (from their browser, `creators.timezone`), so it becomes a habit. Vercel Cron hits `/api/cron/scan` **hourly**: a
+   (from their browser, `creators.timezone`), so it becomes a habit. Vercel Cron hits `/api/cron/scan` **daily at 16:00 UTC** (the Hobby plan allows
+   one run a day): a
    paid account is read daily and again at its plan slot, a free account only at its slot (`readDue`). Each 48-hour check
    is emailed as a scorecard that ends with the next plan's first hook (`sendScorecardEmail`), and the app header counts
-   the weeks in a row with an idea posted (`streakOf`). Hourly crons need Vercel Pro. Vercel Cron fans out one
+   the weeks in a row with an idea posted (`streakOf`). A slot is picked up by the first run after it, so a plan lands Tuesday at
+   16:00 UTC or later (8 AM Pacific in winter); on Vercel Pro, set the schedule to `0 * * * *` for 8 AM everywhere. Vercel Cron fans out one
    invocation per due creator, always through
    `NEXT_PUBLIC_SITE_URL` (Vercel Cron calls the deployment's `*.vercel.app` address, which Vercel's login wall
    redirects). A new weekly plan is emailed, with a one-click unsubscribe (`/unsubscribe`, `email_plans`); a plan asked

@@ -255,17 +255,17 @@ export default function Home() {
         <div className="wrap py-20 sm:py-24 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-16 items-center">
           <div>
             <p className="kicker">Free guide</p>
-            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Anatomy of a winning essay.</h2>
-            <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[520px]">What readers look for, the five parts of an essay that works, one example taken apart line by line, and ten checks for before you submit.</p>
+            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">The 7 mistakes that sink college essays.</h2>
+            <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[520px]">What each one looks like, why admissions readers stop reading, the fix for each, and seven checks for before you submit.</p>
             <GuideOffer />
             <p className="caption mt-3">We&apos;ll also send occasional essay tips. Unsubscribe anytime.</p>
           </div>
           <div className="hidden lg:block rounded-[12px] bg-band text-band-ink p-8 shadow-[var(--shadow-lg)] aspect-[8.5/11]">
             <div className="text-[12px] font-medium text-band-ink-3">A free guide for college applicants</div>
             <div className="text-[32px] font-semibold tracking-[-0.03em] leading-[1.05] mt-24">
-              Anatomy of a <span className="block text-brand">winning essay.</span>
+              The 7 mistakes that <span className="block text-[#ff7a6b]">sink college essays.</span>
             </div>
-            <div className="text-[12px] text-band-ink-3 mt-6">5 pages · PDF</div>
+            <div className="text-[12px] text-band-ink-3 mt-6">7 pages · PDF</div>
           </div>
         </div>
       </section>

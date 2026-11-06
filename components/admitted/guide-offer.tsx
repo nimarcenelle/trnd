@@ -27,7 +27,7 @@ export default function GuideOffer({ compact = false }: { compact?: boolean }) {
         <a className="btn btn-primary btn-lg" href={url} download>
           Download the guide <IconArrowRight />
         </a>
-        <p className="caption mt-2">It&apos;s a PDF, five pages.</p>
+        <p className="caption mt-2">It&apos;s a PDF, seven pages.</p>
       </div>
     );
   return (

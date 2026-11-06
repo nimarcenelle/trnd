@@ -70,8 +70,9 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
   or an activity list without reading it, so those say "depends on what's in them", never a number. The essay score lives
   inside the paid workspace, after we have read the draft. "Up to" is today's odds plus the round only, and blank where a
   school has no early round.
-- Pricing: odds free; essays $9.99 a week, cancel anytime, no refunds promised. The free giveaway is the guide PDF
-  (`public/guides/`, source in the scratchpad's guide.html), for an email. Admitted is described as an AI tool that rates and
+- Pricing: odds free; essays $9.99 a week, cancel anytime, no refunds promised. The free giveaway is the guide PDF "The 7 mistakes that sink
+  college essays" (`public/guides/`, source in `content/guide/essay-mistakes.html`), for an email. It's framed around
+  mistakes, because the problem sells the tool, and its last page says why you can't catch them in your own draft. Admitted is described as an AI tool that rates and
   improves essays, never as a person reading them.
 - Only sell what exists. A feature joins the page and the price list when it ships.
 - The essay page is a workspace, not a marketing page: its own slim bar, the draft on the left with cited lines marked, results

@@ -351,7 +351,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                   <EssaySample />
                 </div>
                 <div className="mt-8 border-t border-line pt-6">
-                  <p className="text-[14px] font-medium">Not ready? Get the free guide, Anatomy of a winning essay.</p>
+                  <p className="text-[14px] font-medium">Not ready? Get the free guide: the 7 mistakes that sink college essays.</p>
                   <div className="mt-3">
                     <GuideOffer compact />
                   </div>

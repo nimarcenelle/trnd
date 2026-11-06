@@ -4,4 +4,4 @@ export const parseEmail = (email: unknown): string | null => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? e : null;
 };
 
-export const GUIDE_PATH = "/guides/anatomy-of-a-winning-essay.pdf";
+export const GUIDE_PATH = "/guides/7-essay-mistakes.pdf";

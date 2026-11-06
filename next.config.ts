@@ -8,6 +8,9 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [{ source: "/guides/anatomy-of-a-winning-essay.pdf", destination: "/guides/7-essay-mistakes.pdf", permanent: true }];
+  },
   async headers() {
     return [{ source: "/(.*)", headers: SECURITY_HEADERS }];
   },

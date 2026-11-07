@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { markPostedAction, removeRunAction } from "@/lib/actions";
+import { formatLabel } from "@/lib/creators/formats";
 import { perK, postsPerWeek, readVideo, timesNormal, type BorrowParts, type Normal, type VideoRead } from "@/lib/creators/stats";
 import type { Creator, FollowerSnapshot, IdeaRun, Peer, Plan, Video } from "@/lib/db/types";
 import { cadence, compact, shortDate, signed, times, videoLead, videoTitle } from "@/lib/format";
@@ -189,7 +190,7 @@ export function MineView({ creator, own, normal, plan, followers }: { creator: C
                       <Thumb video={v} className="w-[32px] h-[44px]" />
                       <span className="min-w-0">
                         <strong className="block line-clamp-1">{v.hook || v.caption || "Untitled"}</strong>
-                        <span className="caption">{v.posted_at ? shortDate(v.posted_at) : ""}{v.format ? ` · ${v.format}` : ""}</span>
+                        <span className="caption">{v.posted_at ? shortDate(v.posted_at) : ""}{v.format ? ` · ${formatLabel(v.format)}` : ""}</span>
                       </span>
                     </a>
                   </td>
@@ -339,7 +340,7 @@ export function CreatorsView({ cards }: { cards: PeerCard[] }) {
                     {best.times !== null && <span className={best.times >= 2 ? "pill pill-pos" : "pill"}>Best: {times(best.times)} their usual</span>}
                     <span className={best.score >= 70 ? "pill pill-brand" : "pill"}>Borrow score {best.score}</span>
                   </div>
-                  <p className="text-[14px] font-semibold line-clamp-2">{best.v.format ? `${best.v.format[0].toUpperCase()}${best.v.format.slice(1)}: ` : ""}<VideoLead v={best.v} /></p>
+                  <p className="text-[14px] font-semibold line-clamp-2">{best.v.format ? `${formatLabel(best.v.format)}: ` : ""}<VideoLead v={best.v} /></p>
                 </>
               ) : (
                 <p className="caption">{peer.last_error ?? (peer.last_read_at ? "We found no videos from the last three weeks." : "Read on the next scan.")}</p>
@@ -371,7 +372,7 @@ export function PeerVideos({ rows }: { rows: { v: Video; score: number; parts: B
           <div className="flex flex-wrap gap-1.5 items-center">
             <span className="pill">{compact(v.views)} views</span>
             {x !== null && <span className={x >= 2 ? "pill pill-pos" : "pill"}>{times(x)} their usual</span>}
-            {v.format && <span className="pill">{v.format}</span>}
+            {v.format && <span className="pill">{formatLabel(v.format)}</span>}
             <BorrowScore score={score} parts={parts} chosen={chosen} />
             {v.posted_at && <span className="caption">{shortDate(v.posted_at)}</span>}
           </div>

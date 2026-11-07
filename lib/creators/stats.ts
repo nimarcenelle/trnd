@@ -1,6 +1,8 @@
 import type { IdeaRun, TrendKind, Video } from "@/lib/db/types";
 import { times } from "@/lib/format";
 
+import { normalizeFormat, type FormatKey } from "./formats";
+
 /**
  * The arithmetic behind every number on the page, all from public counts:
  * plays, likes, comments, shares and saves. Nothing here estimates what
@@ -160,6 +162,150 @@ export function trendRows(videos: Pick<Video, "hashtags" | "sound" | "sound_orig
     .map(({ who, ...r }) => ({ ...r, creators: who.size, stage: stageOf(r.recent, r.prior) }))
     .filter((r) => r.creators >= 2)
     .sort((a, b) => b.recent + b.prior - (a.recent + a.prior) || b.views - a.views);
+}
+
+/** A breakout: this many times its creator's usual views or more. */
+export const HIT_X = 2;
+/** The window a format is measured over, and the one before it is compared with. */
+export const FORMAT_DAYS = 30;
+/** Below this many videos, or this many creators, a format's hit rate is noise: not shown. */
+export const FORMAT_MIN_VIDEOS = 6;
+export const FORMAT_MIN_CREATORS = 3;
+
+type FormatVideo = Pick<Video, "video_id" | "author" | "is_self" | "format" | "views" | "posted_at">;
+
+export interface FormatRow<V extends FormatVideo = FormatVideo> {
+  format: FormatKey;
+  /** Settled videos in it from creators ahead of you, in the last 30 days, each with its creator's usual known. */
+  videos: number;
+  creators: number;
+  /** Of those, how many got 2× their own creator's usual or more, from how many creators, and the share. */
+  hits: number;
+  hitCreators: number;
+  hitRate: number;
+  /** The middle video's views against its creator's usual. */
+  medianX: number | null;
+  /** The same counts for the 30 days before; null while under half of that window's videos are tagged (a count of untagged videos would read as none). */
+  prior: { videos: number; hits: number; hitRate: number | null } | null;
+  /** The video in it that beat its creator's usual by the most, last 30 days. */
+  best: { v: V; times: number } | null;
+  /** The creator's own videos in it (all passed in, any age), the latest, and the middle one against their usual. */
+  mine: { videos: number; last: string | null; medianX: number | null };
+}
+
+const share = (hits: number, n: number) => (n ? Math.round((hits / n) * 100) / 100 : 0);
+
+/**
+ * Which formats are working for the creators ahead of you: for each format in
+ * the fixed list, the peer videos in it from the last 30 days, how many beat
+ * their own creator's usual by 2× or more, the middle one's ×, the 30 days
+ * before, the best example, and whether you have posted one. Each video is
+ * measured against its own creator, so a big account's views don't drown a
+ * small one's. Videos younger than 48 hours, untagged, or from a creator with
+ * no usual yet are left out. Show only rows that pass `formatCallable`.
+ */
+export function formatRows<V extends FormatVideo>(videos: V[], normals: Map<string, Pick<Normal, "views">>, now = Date.now()): FormatRow<V>[] {
+  type Acc = { cur: { v: V; x: number }[]; prior: { v: V; x: number }[]; mine: { v: V; x: number | null }[] };
+  const acc = new Map<FormatKey, Acc>();
+  const get = (f: FormatKey) => acc.get(f) ?? (acc.set(f, { cur: [], prior: [], mine: [] }).get(f) as Acc);
+  // The 30 days before, every countable video and the tagged ones: older videos are tagged last.
+  const priorSeen = { all: 0, tagged: 0 };
+  for (const v of videos) {
+    if (!v.posted_at) continue;
+    const f = normalizeFormat(v.format);
+    const n = normals.get(v.author);
+    const x = n ? timesNormal(v.views, n) : null;
+    if (v.is_self) {
+      if (f) get(f).mine.push({ v, x: settled(v, now) ? x : null });
+      continue;
+    }
+    if (x === null || !settled(v, now)) continue;
+    const age = (now - Date.parse(v.posted_at)) / DAY;
+    if (age < 0 || age >= 2 * FORMAT_DAYS) continue;
+    const window = age < FORMAT_DAYS ? "cur" : "prior";
+    if (window === "prior") {
+      priorSeen.all++;
+      if (f) priorSeen.tagged++;
+    }
+    if (f) get(f)[window].push({ v, x });
+  }
+  const priorKnown = priorSeen.all > 0 && priorSeen.tagged >= priorSeen.all / 2;
+  const rows: FormatRow<V>[] = [];
+  for (const [format, a] of acc) {
+    if (!a.cur.length && !a.prior.length) continue;
+    const hits = a.cur.filter((r) => r.x >= HIT_X);
+    const priorHits = a.prior.filter((r) => r.x >= HIT_X).length;
+    const best = [...a.cur].sort((p, q) => q.x - p.x || (q.v.views ?? 0) - (p.v.views ?? 0))[0];
+    const mineX = a.mine.map((r) => r.x).filter((x): x is number => x !== null);
+    rows.push({
+      format,
+      videos: a.cur.length,
+      creators: new Set(a.cur.map((r) => r.v.author)).size,
+      hits: hits.length,
+      hitCreators: new Set(hits.map((r) => r.v.author)).size,
+      hitRate: share(hits.length, a.cur.length),
+      medianX: middleX(a.cur.map((r) => r.x)),
+      prior: priorKnown ? { videos: a.prior.length, hits: priorHits, hitRate: a.prior.length ? share(priorHits, a.prior.length) : null } : null,
+      best: best ? { v: best.v, times: best.x } : null,
+      mine: { videos: a.mine.length, last: a.mine.map((r) => r.v.posted_at as string).sort().at(-1) ?? null, medianX: middleX(mineX) },
+    });
+  }
+  return rows.sort((p, q) => Number(formatCallable(q)) - Number(formatCallable(p)) || q.hitRate - p.hitRate || (q.medianX ?? 0) - (p.medianX ?? 0) || q.videos - p.videos);
+}
+
+/**
+ * The middle video's ×: with an even count, the lower of the two middles, an
+ * actual video's number. Averaging them would turn 2× and 97× into a "middle"
+ * 50× that no video got.
+ */
+function middleX(xs: number[]): number | null {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.floor((s.length - 1) / 2)];
+}
+
+/** Whether a format has enough videos and creators behind it to show its hit rate. */
+export function formatCallable(r: Pick<FormatRow, "videos" | "creators">): boolean {
+  return r.videos >= FORMAT_MIN_VIDEOS && r.creators >= FORMAT_MIN_CREATORS;
+}
+
+/**
+ * The share of all peer videos (any format, tagged or not) in the last 30 days
+ * at 2× their creator's usual: what a format's hit rate is compared with.
+ */
+export function baseHitRate(videos: FormatVideo[], normals: Map<string, Pick<Normal, "views">>, now = Date.now()): number | null {
+  const xs = videos
+    .filter((v) => !v.is_self && v.posted_at && settled(v, now) && now - Date.parse(v.posted_at) < FORMAT_DAYS * DAY)
+    .map((v) => (normals.get(v.author) ? timesNormal(v.views, normals.get(v.author)!) : null))
+    .filter((x): x is number => x !== null);
+  return xs.length ? share(xs.filter((x) => x >= HIT_X).length, xs.length) : null;
+}
+
+/**
+ * A format working for the creators ahead of you: enough behind it to call, hits
+ * from at least two of them (not one creator's streak), and a hit rate at least
+ * a quarter and half again what their videos manage overall.
+ */
+export function formatWorking(r: FormatRow, base: number | null): boolean {
+  return formatCallable(r) && r.hitCreators >= 2 && r.hitRate >= Math.max(0.25, 1.5 * (base ?? 0));
+}
+
+/**
+ * One working format as the plan reads it: the numbers behind its hit rate, the
+ * 30 days before, the best example by id, and whether the owner has posted one.
+ */
+export function formatLine(r: FormatRow, base: number | null): string {
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  const you = r.mine.videos ? `you posted ${r.mine.videos}${r.mine.medianX !== null ? `, middle one ${times(r.mine.medianX)} your usual` : ""}` : "you haven't posted one";
+  return [
+    `[${r.format}] ${r.hits} of ${r.videos} videos from ${r.creators} creators ahead hit 2× their usual (${pct(r.hitRate)}${base !== null ? `, against ${pct(base)} across everything they posted` : ""})`,
+    r.medianX !== null ? `middle video ${times(r.medianX)} their usual` : null,
+    r.prior ? `30 days before: ${r.prior.videos} videos${r.prior.hitRate !== null ? `, ${pct(r.prior.hitRate)} hit 2×` : ""}` : null,
+    r.best ? `best example: [${r.best.v.video_id}] @${r.best.v.author}, ${times(r.best.times)} their usual` : null,
+    you,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export interface BorrowParts {

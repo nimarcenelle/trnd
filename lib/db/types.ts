@@ -194,6 +194,8 @@ export interface Idea {
   source_video: string;
   /** The hashtag or sound key it rides, for a trend idea; "" otherwise. */
   source_trend: string;
+  /** The format from the fixed list a borrow idea copies, when it was working for the creators ahead; "" otherwise. Older plans lack it. */
+  source_format?: string;
 }
 
 export interface PlanBody {

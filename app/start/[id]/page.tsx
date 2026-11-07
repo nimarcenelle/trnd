@@ -97,7 +97,7 @@ function Who({ p }: { p: Preview }) {
 }
 
 /** What the read is doing, ticked off as it goes. */
-function Narration({ p }: { p: Preview }) {
+function Narration({ p, small = false }: { p: Preview; small?: boolean }) {
   const order = ["reading", "confirm", "niche", "idea", "ready"];
   const at = order.indexOf(p.status);
   const n = normalOf(p.videos.map((v) => asVideo(v, p.handle)));
@@ -107,13 +107,13 @@ function Narration({ p }: { p: Preview }) {
     { label: "Working out what's holding your videos back", done: at >= 4, now: p.status === "idea", found: "" },
   ];
   return (
-    <ul className="list-none m-0 p-0 grid gap-3.5 text-[16px]">
+    <ul className={`list-none m-0 p-0 grid ${small ? "gap-2.5 text-[14.5px] leading-snug" : "gap-3.5 text-[16px]"}`}>
       {rows.map((r) => (
         <li key={r.label} className={`flex gap-3 items-start ${r.done || r.now ? "text-ink" : "text-ink-3"}`}>
           <span className={`w-5 h-5 rounded-full grid place-items-center text-[11px] shrink-0 border-[1.5px] ${r.done ? "bg-ink border-ink text-surface" : r.now ? "border-brand border-t-transparent animate-spin" : "border-line-strong"}`}>{r.done ? "✓" : ""}</span>
           <span className="flex-1 grid">
             {r.label}
-            {r.done && r.found && <span className="text-[13px] text-ink-2">{r.found}</span>}
+            {r.done && r.found && <span className={`${small ? "text-[12.5px]" : "text-[13px]"} text-ink-2`}>{r.found}</span>}
           </span>
         </li>
       ))}
@@ -240,9 +240,10 @@ export default async function StartPage({ params }: PageProps<"/start/[id]">) {
         </p>
         </div>
         <aside className="grid gap-5 lg:mt-14">
-          {p.videos.length > 0 ? <Xray videos={p.videos} /> : <XrayWaiting handle={p.handle} />}
+          {/* Two rows: enough to show it is their grid, and it ends with the goal tiles beside it. */}
+          {p.videos.length > 0 ? <Xray videos={p.videos} limit={6} /> : <XrayWaiting handle={p.handle} />}
           <div className="px-1">
-            <Narration p={p} />
+            <Narration p={p} small />
           </div>
         </aside>
         </div>

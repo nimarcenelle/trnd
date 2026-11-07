@@ -16,7 +16,7 @@ import { todayIso } from "@/lib/format";
 import { readConnected } from "@/lib/tiktok/connect";
 import { isTiktokConfigured, readCreativeCenter, readHashtags, readProfiles, readSpoken, type ReadAuthor, type ReadVideo } from "@/lib/tiktok/read";
 
-import { aheadBand, aheadLine, borrowScore, matchIdea, normalOf, outcomeOf, pickBorrow, postsPerWeek, rankPeers, SETTLE_HOURS, timesNormal, trendRows, type PeerCandidate } from "./stats";
+import { aheadBand, aheadLine, borrowScore, callable, matchIdea, normalOf, outcomeOf, pickBorrow, postsPerWeek, rankPeers, SETTLE_HOURS, timesNormal, trendRows, type PeerCandidate } from "./stats";
 
 /**
  * One scan, in six stages, each saved before the next starts so a scan cut
@@ -408,8 +408,9 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
   const normals = new Map(peers.map((p) => [p.handle, normalOf(peerVideos.filter((v) => v.author === p.handle))]));
   const named = peers.filter((p) => p.source === "owner").map((p) => p.handle);
   const borrow = pickBorrow(recentPeer.map((v) => ({ v, ...borrowScore(v, normals.get(v.author)!, c.hashtags, { chosen: named.includes(v.author) }) })));
+  // Only trends with enough videos and creators behind them to call: a ride idea on noise is worse than none.
   const rising = trendRows(recent)
-    .filter((t) => t.stage === "early" || t.stage === "rising" || t.stage === "peaking")
+    .filter((t) => callable(t) && (t.stage === "early" || t.stage === "rising" || t.stage === "peaking"))
     .slice(0, 14);
   const past = runs
     .filter((r) => r.status === "checked" && r.result && r.result.read !== "unknown")

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { markPostedAction, removeRunAction } from "@/lib/actions";
-import { callable, perK, postsPerWeek, readVideo, timesNormal, trendList, type BorrowParts, type Normal, type TrendRow, type VideoRead } from "@/lib/creators/stats";
+import { perK, postsPerWeek, readVideo, timesNormal, type BorrowParts, type Normal, type VideoRead } from "@/lib/creators/stats";
 import type { Creator, FollowerSnapshot, IdeaRun, Peer, Plan, Video } from "@/lib/db/types";
 import { cadence, compact, shortDate, signed, times, videoLead, videoTitle } from "@/lib/format";
 import { goalLabel } from "@/lib/goals";
@@ -10,7 +10,6 @@ import Avatar from "./avatar";
 import { AddPeerForm } from "./forms";
 import IdeaCard, { BorrowScore, IDEA_TYPE, Thumb, type IdeaSource } from "./idea-card";
 import LockedIdea from "./locked-idea";
-import { StageBar, STAGE_LABEL } from "./stage";
 import SubmitButton from "./submit-button";
 import ViewsStrip from "./views-strip";
 
@@ -297,79 +296,6 @@ function ViewsChart({ videos, usual }: { videos: Video[]; usual: number }) {
   );
 }
 
-/* -------------------------------- trends ---------------------------------- */
-
-const ORDER = { early: 0, rising: 1, peaking: 2, fading: 3 } as const;
-const STAGE_ADVICE = { early: "Early: the best time to join.", rising: "Rising: still worth joining this week.", peaking: "At its peak: join only with a strong angle of your own.", fading: "Fading: skip it." } as const;
-
-export function TrendsView({ creator, trends, plan }: { creator: Creator; trends: TrendRow[]; plan: Plan }) {
-  const shown = trendList([...trends].sort((a, b) => ORDER[a.stage] - ORDER[b.stage] || b.recent - a.recent)).slice(0, 12);
-  const usedBy = (key: string) => plan.body.ideas.findIndex((i) => i.source_trend === key) + 1;
-  return (
-    <>
-      <Heading
-        title="Trending where you post"
-        sub="Hashtags and sounds in the videos we read from your niche over the last 14 days: this week against the week before. Early is the best time to join; fading means skip."
-      />
-      {shown.length ? (
-        <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(250px,1fr))]">
-          {shown.map((t) => {
-            const idea = usedBy(t.key);
-            return (
-              <div key={`${t.kind}:${t.key}`} className="card p-4 grid gap-2.5 content-start">
-                <div className="flex justify-between gap-2">
-                  <span className={t.kind === "sound" ? "pill pill-cyan" : "pill"}>{t.kind === "sound" ? "Sound" : "Hashtag"}</span>
-                  {idea > 0 && <span className="pill pill-brand">Idea #{idea}</span>}
-                </div>
-                <h3 className={`text-[16px] font-bold break-words ${t.kind === "hashtag" ? "mono !font-medium" : ""}`}>{t.label}</h3>
-                <p className="caption">
-                  {t.recent} videos this week · {t.prior} last week · {t.creators} creators
-                </p>
-                {callable(t) ? (
-                  <div className="flex gap-2 items-center">
-                    <StageBar stage={t.stage} />
-                    <span className="mono text-[12px]">{STAGE_LABEL[t.stage]}</span>
-                  </div>
-                ) : (
-                  <span className="caption">Too few videos to call</span>
-                )}
-                <p className="so-what text-[14px]">
-                  {idea > 0 ? (
-                    <Link href={`/app?idea=${idea}#idea-${idea}`} className="hover:underline">
-                      Idea #{idea} rides it.
-                    </Link>
-                  ) : callable(t) ? (
-                    STAGE_ADVICE[t.stage]
-                  ) : (
-                    "Watch it: not enough videos yet to say where it's going."
-                  )}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="card p-5 text-ink-2">Nothing is being used by two or more creators in your niche yet. Trends show up as more videos are read.</div>
-      )}
-      <div className="card p-4 grid gap-2.5">
-        <span className="label">The hashtags we watch for you</span>
-        <div className="flex flex-wrap gap-1.5">
-          {creator.hashtags.map((t) => (
-            <span key={t} className="chip chip-tag">
-              #{t}
-            </span>
-          ))}
-        </div>
-        <p className="caption">
-          Trends and creators ahead of you are found from these.{" "}
-          <Link href="/app/settings#hashtags" className="text-brand hover:underline">
-            Change them
-          </Link>
-        </p>
-      </div>
-    </>
-  );
-}
 
 /* ------------------------------- creators --------------------------------- */
 

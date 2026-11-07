@@ -96,7 +96,7 @@ export default function IdeaCard({
   sample?: boolean;
 }) {
   const t = IDEA_TYPE[idea.type];
-  const from = source.own ? "Your own video" : source.video ? `@${source.video.author}` : source.trend ? `Trending in your niche` : null;
+  const from = source.own ? "Your own video" : source.trend ? `Trending in your niche` : source.video ? `@${source.video.author}` : null;
   return (
     <details id={`idea-${rank}`} open={open} className="card !rounded-[20px] overflow-hidden group scroll-mt-20" style={{ "--tint": t.tint } as React.CSSProperties}>
       <summary className="idea-head grid grid-cols-[auto_minmax(0,1fr)_auto] max-[560px]:grid-cols-[minmax(0,1fr)_auto] gap-3.5 items-start p-[18px] hover:bg-subtle/60">
@@ -183,7 +183,8 @@ export default function IdeaCard({
                 </span>
               </div>
             </a>
-          ) : source.trend ? (
+          ) : null}
+          {source.trend ? (
             <div className="rounded-[12px] border border-line p-3 grid gap-2 bg-bg">
               <div className="flex gap-2 items-center flex-wrap">
                 <span className={source.trend.kind === "sound" ? "pill pill-cyan" : "pill"}>{source.trend.kind === "sound" ? "Sound" : "Hashtag"}</span>
@@ -200,9 +201,8 @@ export default function IdeaCard({
                 </div>
               </div>
             </div>
-          ) : (
-            <p className="text-[13.5px] text-ink-2">Your profile and goal.</p>
-          )}
+          ) : null}
+          {!source.video && !source.trend && <p className="text-[13.5px] text-ink-2">Your profile and goal.</p>}
           <h4 className="label">Why it works</h4>
           <ul className="m-0 p-0 list-none grid gap-2 text-[13.5px] leading-snug">
             {idea.why.map((w, i) => (

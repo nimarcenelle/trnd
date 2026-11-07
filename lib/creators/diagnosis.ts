@@ -1,10 +1,11 @@
 import { timesNormal, type Normal } from "./stats";
 
 /**
- * The diagnosis the funnel sells: how many of a creator's recent videos never
- * got past their followers, and which of them flopped outright. A breakout is
- * twice their usual views or more; a flop is half or less; everything between
- * stayed with the people who already follow them.
+ * The diagnosis the funnel sells: how many of a creator's recent videos didn't
+ * break out, and which of them flopped outright. A breakout is twice their
+ * usual views or more; a flop is half or less; everything between is about
+ * usual. Views only: we can't see who watched, so it never claims a video
+ * stayed with their followers.
  */
 
 export type Tile = "breakout" | "stuck" | "flop";
@@ -14,7 +15,7 @@ export interface Diagnosis {
   tiles: Tile[];
   n: number;
   breakouts: number;
-  /** Videos that never got past their followers: everything that didn't break out. */
+  /** Videos that didn't break out: under twice their usual views. */
   stuck: number;
   flopped: number;
   /** Their weakest video, by how far under their usual it came. */

@@ -140,7 +140,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
               <div>
                 <p className="text-[13.5px] font-semibold text-neg m-0">What&apos;s wrong with your videos</p>
                 <h2 className="display text-[clamp(22px,3vw,28px)] mt-1.5">
-                  {diagnosis.stuck} of your last {diagnosis.n} videos never got past your followers. We know why.
+                  {diagnosis.stuck} of your last {diagnosis.n} videos didn&apos;t break out. We know why.
                 </h2>
                 {gap?.dollars && (
                   <p className="text-[15px] text-ink-2 mt-2 mb-0">

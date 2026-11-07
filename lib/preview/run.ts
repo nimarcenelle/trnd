@@ -122,6 +122,11 @@ export async function startPreview(rawHandle: string, ip: string | null): Promis
   const { data: recent } = await sb.from("previews").select("id, status").eq("handle", handle).gte("created_at", since).order("created_at", { ascending: false }).limit(1);
   const reuse = recent?.[0];
   if (reuse && reuse.status !== "error") return { id: reuse.id as string };
+  // A read that failed is read again, not charged again: a failure is ours, not one of the visitor's free reads.
+  if (reuse) {
+    await sb.from("previews").update({ status: "reading", reason: null, step_started_at: null, updated_at: new Date().toISOString() }).eq("id", reuse.id).eq("status", "error");
+    return { id: reuse.id as string };
+  }
   const g = await takeSlot(visitorKey(ip));
   if (!g.ok) return { blocked: g.reason };
   const { data, error } = await sb.from("previews").insert({ handle, status: "reading" }).select("id").single();
@@ -165,8 +170,16 @@ export async function runStep(id: string): Promise<Preview | null> {
   return getPreview(id);
 }
 
+/** A read that fails this fast was turned away (a busy actor, a blip), not timed out: worth one more try in the same step. */
+const FAST_FAIL_MS = 30_000;
+
 async function readStep(p: Preview): Promise<void> {
-  const read = await readProfiles([p.handle], 24);
+  const started = Date.now();
+  let read = await readProfiles([p.handle], 24);
+  if (read.unread.includes(p.handle) && Date.now() - started < FAST_FAIL_MS) {
+    await new Promise((r) => setTimeout(r, 2_000));
+    read = await readProfiles([p.handle], 24);
+  }
   const author = read.authors.get(p.handle);
   // A read that died is not a missing account: the preview ends in an error the visitor can retry, not "not found" for a day.
   if (!author && read.unread.includes(p.handle)) throw new Error("TikTok read did not finish");

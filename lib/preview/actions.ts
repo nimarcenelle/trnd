@@ -40,7 +40,7 @@ export async function startPreviewAction(_prev: StartState, formData: FormData):
   const res = await startPreview(handle, ip);
   // Out of free previews (for this visitor, or for today): the account flow reads it instead.
   await logEvent("preview_started", { meta: { handle, preview: "blocked" in res ? null : res.id, blocked: "blocked" in res, src: String(formData.get("src") ?? "") || null } });
-  if ("blocked" in res) redirect(`/signup?handle=${encodeURIComponent(handle)}&from=preview`);
+  if ("blocked" in res) redirect(`/signup?handle=${encodeURIComponent(handle)}&from=preview&full=${res.blocked}`);
   (await cookies()).set(PREVIEW_COOKIE, res.id, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 30 * 86_400 });
   redirect(`/start/${res.id}`);
 }

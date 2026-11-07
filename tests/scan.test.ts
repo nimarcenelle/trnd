@@ -85,6 +85,8 @@ vi.mock("@/lib/tiktok/read", async (orig) => {
         videos.push(video(h, `${h}-tag1`, 2, 50_000, ["studytok", "aitools"], { sound: "Lo-fi · Kai", soundOriginal: false }));
         videos.push(video(h, `${h}-tag2`, 9, 50_000, ["studytok"]));
       }
+      // Two more creators posting on it this week: enough videos and creators behind #studytok to call it.
+      for (const h of ["niche1", "niche2"]) videos.push(video(h, `${h}-tag1`, 3, 20_000, ["studytok"]));
       return { videos, authors };
     },
   };

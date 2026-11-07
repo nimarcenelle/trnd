@@ -1,7 +1,7 @@
 import "server-only";
 
 import { readAccount, videoLine, writePlan } from "@/lib/ai/creators";
-import { normalOf, postsPerWeek, rankPeers, timesNormal, trendRows } from "@/lib/creators/stats";
+import { callable, normalOf, postsPerWeek, rankPeers, timesNormal, trendRows } from "@/lib/creators/stats";
 import { adminSupabase } from "@/lib/db/supabase";
 import type { Creator, Goal, Video } from "@/lib/db/types";
 import { isModelConfigured } from "@/lib/env";
@@ -236,7 +236,7 @@ async function nicheStep(p: Preview): Promise<void> {
     };
   });
   const trends = trendRows(sample.videos.map((v) => asVideo(v, p.handle)))
-    .filter((t) => t.stage !== "fading")
+    .filter((t) => callable(t) && t.stage !== "fading")
     .slice(0, 6);
   await save(p.id, {
     status: "idea",

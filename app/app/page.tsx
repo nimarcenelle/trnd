@@ -6,7 +6,7 @@ import CopyText from "@/components/app/copy-text";
 import DiagnosisCard from "@/components/app/diagnosis-card";
 import Locked from "@/components/app/locked";
 import SubmitButton from "@/components/app/submit-button";
-import { CreatorsView, LoopView, MineView, NextView, TrendsView, type PeerCard } from "@/components/app/views";
+import { CreatorsView, LoopView, MineView, NextView, type PeerCard } from "@/components/app/views";
 import { scanNowAction } from "@/lib/actions";
 import { getSessionUser } from "@/lib/auth/session";
 import { logEvent } from "@/lib/events";
@@ -26,7 +26,6 @@ export const maxDuration = 300;
 const TABS = [
   { key: "next", label: "Post next", short: "Next" },
   { key: "mine", label: "Your videos", short: "Videos" },
-  { key: "trends", label: "Trending", short: "Trends" },
   { key: "creators", label: "Creators ahead of you", short: "Creators" },
   { key: "loop", label: "Did it work?", short: "Results" },
 ] as const;
@@ -90,8 +89,14 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
   // The creators the owner picked come first, then the most worth borrowing from; nothing recent goes last.
   peerCards.sort((a, b) => Number(picked.has(b.peer.handle)) - Number(picked.has(a.peer.handle)) || (b.best?.score ?? -1) - (a.best?.score ?? -1));
 
+  // A trend is shown through the video doing best on it this week, against its own creator's usual: the proof, not a count.
+  const bestOnTrend = (key: string) => {
+    const k = key.replace(/^#/, "").toLowerCase();
+    const on = recent.filter((v) => v.posted_at && withinDays(v.posted_at, 7) && (v.hashtags.some((h) => h.replace(/^#/, "").toLowerCase() === k) || v.sound?.toLowerCase() === k));
+    return on.map((v) => ({ v, x: timesNormal(v.views, normals.get(v.author) ?? normalOf([])) ?? 0 })).sort((a, b) => b.x - a.x || (b.v.views ?? 0) - (a.v.views ?? 0))[0]?.v ?? null;
+  };
   const ideaSource = (i: (typeof latest.body.ideas)[number]) => {
-    const video = i.source_video ? (videos.find((v) => v.video_id === i.source_video) ?? null) : null;
+    const video = i.source_video ? (videos.find((v) => v.video_id === i.source_video) ?? null) : i.source_trend ? bestOnTrend(i.source_trend) : null;
     const n = video ? (normals.get(video.author) ?? normalOf([])) : null;
     const isOwn = Boolean(video?.is_self);
     return {
@@ -254,7 +259,6 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
         </section>
       )}
       {tab === "mine" && <MineView creator={creator} own={own} normal={normal} plan={latest} followers={followers.filter((f) => f.handle === creator.handle)} />}
-      {tab === "trends" && <TrendsView creator={creator} trends={trends} plan={latest} />}
       {tab === "creators" && <CreatorsView cards={peerCards} />}
       {tab === "loop" && <LoopView runs={runs} videos={videos} normal={normal} nextHook={latest.body.ideas[0]?.hook ?? null} />}
     </div>

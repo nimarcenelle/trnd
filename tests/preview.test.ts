@@ -51,7 +51,9 @@ vi.mock("@/lib/tiktok/read", async (orig) => {
         ["peer1", author("peer1", 60_000)],
         ["peer2", author("peer2", 90_000)],
       ]);
-      return { videos: ["peer1", "peer2"].flatMap((p) => [video(p, `${p}a`, 2, 300_000, ["studytok"]), video(p, `${p}b`, 9, 50_000, ["studytok"])]), authors };
+      // Three more creators posting on #studytok this week, so it has enough behind it to call.
+      const niche = ["niche1", "niche2", "niche3"].map((n) => video(n, `${n}a`, 3, 20_000, ["studytok"]));
+      return { videos: [...["peer1", "peer2"].flatMap((p) => [video(p, `${p}a`, 2, 300_000, ["studytok"]), video(p, `${p}b`, 9, 50_000, ["studytok"])]), ...niche], authors };
     },
   };
 });

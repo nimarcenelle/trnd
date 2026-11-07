@@ -282,6 +282,8 @@ async function ideaStep(p: Preview): Promise<void> {
     ...i,
     source_video: (i.type === "double_down" ? ownIds : i.type === "borrow" ? peerIds : new Set<string>()).has(i.source_video) ? i.source_video : "",
     source_trend: i.type === "ride" ? (keys.get(i.source_trend.replace(/^#/, "").toLowerCase()) ?? "") : "",
+    // The preview reads too few videos per creator to call a format.
+    source_format: "",
   }));
   if (!body.ideas.length) throw new Error("empty plan");
   const known = new Set([...ownIds, ...peerIds]);

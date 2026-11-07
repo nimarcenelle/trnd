@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import type { CreatorProfile, Goals, PlanBody, Video } from "@/lib/db/types";
+import { FORMAT_HINT, FORMATS, normalizeFormat, type FormatKey } from "@/lib/creators/formats";
 import { times } from "@/lib/format";
 import { goalLabel } from "@/lib/goals";
 
@@ -100,11 +101,11 @@ Return:
 
 /* ------------------------------ tag videos -------------------------------- */
 
-const TagSchema = z.object({ videos: z.array(z.object({ id: z.string(), format: z.string(), hook: z.string() })) });
+const TagSchema = z.object({ videos: z.array(z.object({ id: z.string(), format: z.enum(FORMATS), hook: z.string() })) });
 
-/** Format and subject of each video. Batched; ids the model drops stay untagged. */
-export async function tagVideos(videos: (Pick<Video, "video_id" | "caption" | "duration_s" | "author"> & { spoken?: string | null })[]): Promise<Map<string, { format: string; hook: string }>> {
-  const out = new Map<string, { format: string; hook: string }>();
+/** Format (from the fixed list) and subject of each video. Batched; ids the model drops stay untagged. */
+export async function tagVideos(videos: (Pick<Video, "video_id" | "caption" | "duration_s" | "author"> & { spoken?: string | null })[]): Promise<Map<string, { format: FormatKey; hook: string }>> {
+  const out = new Map<string, { format: FormatKey; hook: string }>();
   for (let i = 0; i < videos.length; i += 40) {
     const batch = videos.slice(i, i + 40);
     const res = await generateJson({
@@ -112,15 +113,18 @@ export async function tagVideos(videos: (Pick<Video, "video_id" | "caption" | "d
       schema: TagSchema,
       effort: "low",
       prompt: `For each TikTok video below, from its caption, length and the words said where given, return:
-- format: what kind of video it is in 2-4 words, from a consistent vocabulary where you can ("ranked list", "tutorial",
-  "storytime", "day in my life", "POV skit", "before and after", "myth vs fact", "reaction", "series part", "Q&A reply",
-  "product review", "challenge", "talking head tip").
+- format: what kind of video it is, the thing another creator could copy, never its topic. Exactly one of these,
+  the closest when none fits perfectly:
+${FORMATS.map((f) => `  "${f}": ${FORMAT_HINT[f]}`).join("\n")}
 - hook: what the video is about, in under 12 words, in your own plain words ("Ranking three budget air fryers"). A
   description, not a quote, and not a guess at what they say.
 
 ${batch.map((v) => `[${v.video_id}] @${v.author} · ${v.duration_s ?? "?"}s · "${untrusted(v.caption, 200)}"${v.spoken ? ` · said: "${untrusted(v.spoken, 300)}"` : ""}`).join("\n")}`,
     });
-    for (const t of res.videos) out.set(t.id, { format: t.format.toLowerCase(), hook: t.hook });
+    for (const t of res.videos) {
+      const format = normalizeFormat(t.format);
+      if (format) out.set(t.id, { format, hook: t.hook });
+    }
   }
   return out;
 }
@@ -142,6 +146,7 @@ const IdeaSchema = z.object({
   make_it_yours: z.string(),
   source_video: z.string(),
   source_trend: z.string(),
+  source_format: z.string(),
 });
 
 const PlanSchema = z.object({
@@ -165,6 +170,8 @@ export interface PlanInput {
   /** Handles the creator named as who they want to be like. */
   named?: string[];
   trends: string[];
+  /** Formats working for the creators ahead of them, with their hit rates. Optional: the preview has none. */
+  formats?: string[];
   past: string[];
 }
 
@@ -199,6 +206,14 @@ Learn what got those creators to where they are, not what an equal is doing.
 ${named ? `They told us who they want to be like: ${named}. They know these accounts well and chose them, so about half of this plan should come from what works for those accounts.\n` : ""}${input.borrow.join("\n") || "none found"}
 </worth_borrowing>
 
+<formats_working>
+Repeatable formats working for the creators ahead of them, in the last 30 days, each video measured against its own
+creator's usual views. "Hit 2×" is the share of videos in that format that got 2× or more their creator's usual,
+against the share across everything those creators posted. Only formats with enough videos and creators behind them
+are listed. "You" says whether this creator has posted one.
+${(input.formats ?? []).map((x) => untrusted(x, 400)).join("\n") || "none with enough behind it yet"}
+</formats_working>
+
 <trending_in_niche>
 Hashtags and sounds in the videos we read from this niche, with how many videos used them this week vs last week, and the stage:
 ${input.trends.map((x) => untrusted(x, 300)).join("\n") || "none found"}
@@ -215,7 +230,12 @@ Return:
 - summary: one or two sentences on the three ideas below and how they serve the goal. No predictions of follower counts.
 - ideas: exactly three, ranked by how well each serves the goal, and where the evidence allows one of each type:
   - double_down: builds on one of THEIR videos that beat their usual views. source_video = its id.
-  - borrow: adapts a format from a video in worth_borrowing, by a creator ahead of them, to their size and style. source_video = its id.
+  - borrow: adapts a format from a video in worth_borrowing or a best example in formats_working, by a creator ahead of
+    them, to their size and style. source_video = its id. When its format is in formats_working, source_format = that
+    format exactly as listed in [brackets], and so names the format and its hit rate with the numbers given ("4 of 9
+    ranked lists from creators ahead of you hit 2× their usual"); prefer a format they haven't posted yet. Otherwise
+    source_format = "".
+  For double_down and ride ideas, source_format = "".
   - ride: joins a hashtag or sound in trending_in_niche that is early or rising. source_trend = its key exactly as listed, source_video = "".
   If a type has no evidence, use another type with evidence instead. Never invent a source.${named ? `
   The creator named accounts above. The borrow idea must build on a video from one of them if one is listed, and say which

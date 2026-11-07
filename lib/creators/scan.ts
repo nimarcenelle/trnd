@@ -16,7 +16,8 @@ import { todayIso } from "@/lib/format";
 import { readConnected } from "@/lib/tiktok/connect";
 import { isTiktokConfigured, readCreativeCenter, readHashtags, readProfiles, readSpoken, type ReadAuthor, type ReadVideo } from "@/lib/tiktok/read";
 
-import { aheadBand, aheadLine, borrowScore, callable, matchIdea, normalOf, outcomeOf, pickBorrow, postsPerWeek, rankPeers, SETTLE_HOURS, timesNormal, trendRows, type PeerCandidate } from "./stats";
+import { normalizeFormat } from "./formats";
+import { aheadBand, aheadLine, baseHitRate, borrowScore, callable, FORMAT_DAYS, formatLine, formatRows, formatWorking, matchIdea, normalOf, outcomeOf, pickBorrow, postsPerWeek, rankPeers, SETTLE_HOURS, timesNormal, trendRows, type PeerCandidate } from "./stats";
 
 /**
  * One scan, in six stages, each saved before the next starts so a scan cut
@@ -25,7 +26,7 @@ import { aheadBand, aheadLine, borrowScore, callable, matchIdea, normalOf, outco
  *   niche:   videos under the niche hashtags; creators ahead of them picked from those
  *   peers:   each peer's recent videos
  *   trends:  hashtags and sounds across everything read in the last 14 days, staged and snapshotted
- *   tag:     when a plan is due, the words said in videos not yet read, and their format and subject
+ *   tag:     when a plan is due, the words said in videos not yet read, and their format (from a fixed list) and subject
  *   plan:    ideas posted since the last scan matched and checked; when due, the plan written
  * Each stage makes at most one slow call (an Apify read or a model call, each
  * bounded near two minutes), so any one stage fits in a 300s function. A
@@ -310,14 +311,17 @@ async function tagStage(sb: SupabaseClient, c: Creator): Promise<void> {
   if (!isModelConfigured || !(await planDue(sb, c))) return;
   const own = await ownVideos(sb, c.id);
   const peers = await livePeers(sb, c.id);
+  // Formats are measured over 60 days (the last 30 against the 30 before), so peer videos that old are tagged too, last.
   const theirs = await listVideos(
     sb,
     c.id,
-    21,
+    2 * FORMAT_DAYS,
     { authors: peers.map((p) => p.handle) },
   );
+  const fresh = theirs.filter((v) => v.posted_at && Date.now() - Date.parse(v.posted_at) < 21 * DAY);
+  const older = theirs.filter((v) => !fresh.includes(v));
   const chosen = new Set(peers.filter((p) => p.source === "owner").map((p) => p.handle));
-  const ordered = [...theirs.filter((v) => chosen.has(v.author)), ...own.slice(0, 40), ...theirs.filter((v) => !chosen.has(v.author))];
+  const ordered = [...fresh.filter((v) => chosen.has(v.author)), ...own.slice(0, 40), ...fresh.filter((v) => !chosen.has(v.author)), ...older];
   const untagged = ordered.filter((v) => !v.format || (v.subtitle_url && v.spoken === null)).slice(0, TAG_PER_SCAN);
   if (!untagged.length) return;
   const spoken = await readSpoken(untagged);
@@ -406,6 +410,12 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
     .sort((a, b) => (b.x ?? 0) - (a.x ?? 0));
   const ownLines = [...ranked.slice(0, 12), ...ranked.slice(-5)].filter((r, i, all) => all.findIndex((o) => o.v.id === r.v.id) === i).map((r) => videoLine(r.v, r.x));
   const normals = new Map(peers.map((p) => [p.handle, normalOf(peerVideos.filter((v) => v.author === p.handle))]));
+  // Formats working for the creators ahead, each video against its own creator's usual; the owner's own against theirs.
+  const formatNormals = new Map([...normals, [c.handle, normal]]);
+  const base = baseHitRate(peerVideos, formatNormals);
+  const working = formatRows([...peerVideos, ...own], formatNormals)
+    .filter((r) => formatWorking(r, base))
+    .slice(0, 6);
   const named = peers.filter((p) => p.source === "owner").map((p) => p.handle);
   const borrow = pickBorrow(recentPeer.map((v) => ({ v, ...borrowScore(v, normals.get(v.author)!, c.hashtags, { chosen: named.includes(v.author) }) })));
   // Only trends with enough videos and creators behind them to call: a ride idea on noise is worse than none.
@@ -428,16 +438,19 @@ async function planStage(sb: SupabaseClient, c: Creator): Promise<PlanBody | nul
     borrow: borrow.map((b) => `${videoLine(b.v, b.times)} · borrow score ${b.score}`),
     named,
     trends: rising.map((t) => `[${t.key}] ${t.kind} ${t.label}: ${t.recent} videos this week, ${t.prior} last week, ${t.creators} creators, ${t.stage}`),
+    formats: working.map((r) => formatLine(r, base)),
     past,
   });
   // A source must be one we gave the model, of the kind the idea claims; anything else is dropped, not shown as evidence.
   const ownIds = new Set(own.map((v) => v.video_id));
-  const peerIds = new Set(recentPeer.map((v) => v.video_id));
+  const peerIds = new Set([...recentPeer, ...working.flatMap((r) => (r.best ? [r.best.v] : []))].map((v) => v.video_id));
+  const formatKeys = new Set<string>(working.map((r) => r.format));
   const trendKeys = new Map(rising.map((t) => [trendKey(t.key), t.key]));
   body.ideas = body.ideas.slice(0, 3).map((i) => ({
     ...i,
     source_video: (i.type === "double_down" ? ownIds : i.type === "borrow" ? peerIds : new Set<string>()).has(i.source_video) ? i.source_video : "",
     source_trend: i.type === "ride" ? (trendKeys.get(trendKey(i.source_trend)) ?? "") : "",
+    source_format: i.type === "borrow" && formatKeys.has(normalizeFormat(i.source_format) ?? "") ? (normalizeFormat(i.source_format) as string) : "",
   }));
   if (!body.ideas.length) throw new Error("The plan came back without ideas. Read again to retry.");
   const known = new Set([...ownIds, ...peerIds]);

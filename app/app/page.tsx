@@ -14,7 +14,8 @@ import { referralCode, referralUrl } from "@/lib/referrals";
 import { planState, yearlyPerMonth } from "@/lib/billing";
 import { diagnose } from "@/lib/creators/diagnosis";
 import { dollarRange, gapOf, postsPerMonth } from "@/lib/creators/gap";
-import { borrowScore, followerChange, normalOf, timesNormal, trendRows } from "@/lib/creators/stats";
+import { normalizeFormat } from "@/lib/creators/formats";
+import { baseHitRate, borrowScore, followerChange, formatCallable, formatRows, normalOf, timesNormal, trendRows } from "@/lib/creators/stats";
 import { getCreator, listFollowers, listOwnVideos, listPeers, listPlans, listRuns, listVideos } from "@/lib/data";
 import type { ScanStage } from "@/lib/db/types";
 import { ago, compact, daysSince, isScanning, withinDays } from "@/lib/format";
@@ -76,6 +77,9 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
   for (const v of videos) byAuthor.set(v.author, [...(byAuthor.get(v.author) ?? []), v]);
   const normals = new Map([...byAuthor].map(([h, vs]) => [h, normalOf(vs)]));
   const trends = trendRows(recent);
+  // Formats across the creators ahead, each video against its own creator's usual: only ones with enough behind them.
+  const formats = formatRows(videos, normals).filter(formatCallable);
+  const formatBase = baseHitRate(peerVideos, normals);
   const myFollowers = followerChange(followers.filter((f) => f.handle === creator.handle));
 
   const peerCards: PeerCard[] = peers.map((p) => {
@@ -105,6 +109,9 @@ export default async function PlanPage({ searchParams }: PageProps<"/app">) {
       times: video && n ? timesNormal(video.views, n) : null,
       borrow: video && n && !isOwn && peerSet.has(video.author) ? borrowScore(video, n, creator.hashtags, { chosen: picked.has(video.author) }) : null,
       trend: i.source_trend ? (trends.find((t) => t.key === i.source_trend) ?? null) : null,
+      formatBase,
+      // The format the plan named, or for an older borrow idea the format of the video it builds on.
+      format: i.type === "borrow" ? (formats.find((f) => f.format === (normalizeFormat(i.source_format) ?? (isOwn ? null : normalizeFormat(video?.format)))) ?? null) : null,
     };
   };
   const openIdea = Number(ideaParam) || 1;

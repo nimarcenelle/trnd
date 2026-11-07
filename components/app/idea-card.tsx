@@ -1,8 +1,9 @@
 import { IconCalendar, IconCheck, IconClock, IconFilm, IconMusic, IconTarget } from "@/components/icons";
 import { addToWeekAction } from "@/lib/actions";
-import { BORROW_WEIGHTS, type BorrowParts, type Normal, type TrendRow } from "@/lib/creators/stats";
+import { formatLabel } from "@/lib/creators/formats";
+import { BORROW_WEIGHTS, FORMAT_DAYS, type BorrowParts, type FormatRow, type Normal, type TrendRow } from "@/lib/creators/stats";
 import type { Idea, IdeaRun, IdeaType, Video } from "@/lib/db/types";
-import { compact, times, videoTitle } from "@/lib/format";
+import { ago, compact, times, videoTitle } from "@/lib/format";
 
 import Avatar from "./avatar";
 import CopyText from "./copy-text";
@@ -67,6 +68,10 @@ export interface IdeaSource {
   times: number | null;
   borrow: { score: number; parts: BorrowParts; chosen?: boolean } | null;
   trend: TrendRow | null;
+  /** The format a borrow idea copies, with its hit rate across the creators ahead; only one with enough behind it. */
+  format?: FormatRow<Video> | null;
+  /** The share of all their videos in the window at 2× their usual: what the format's hit rate is read against. */
+  formatBase?: number | null;
   own: boolean;
 }
 
@@ -202,7 +207,8 @@ export default function IdeaCard({
               </div>
             </div>
           ) : null}
-          {!source.video && !source.trend && <p className="text-[13.5px] text-ink-2">Your profile and goal.</p>}
+          {source.format ? <FormatProof row={source.format} base={source.formatBase ?? null} shown={source.video?.video_id ?? null} /> : null}
+          {!source.video && !source.trend && !source.format && <p className="text-[13.5px] text-ink-2">Your profile and goal.</p>}
           <h4 className="label">Why it works</h4>
           <ul className="m-0 p-0 list-none grid gap-2 text-[13.5px] leading-snug">
             {idea.why.map((w, i) => (
@@ -245,6 +251,50 @@ export function Thumb({ video, className = "" }: { video: Pick<Video, "cover_url
     <span className={`rounded-[8px] shrink-0 grid place-items-center bg-[linear-gradient(160deg,var(--brand-soft),var(--cyan-soft))] ${className}`}>
       <Avatar name={video.author} size={22} />
     </span>
+  );
+}
+
+/**
+ * The format an idea copies, with the numbers that say it works: how many of the
+ * creators ahead's videos in it beat their own usual by 2×, the 30 days before,
+ * the best one (when it isn't the video above), and whether you've posted one.
+ */
+function FormatProof({ row, base, shown }: { row: FormatRow<Video>; base: number | null; shown: string | null }) {
+  const best = row.best && row.best.v.video_id !== shown ? row.best : null;
+  return (
+    <div className="rounded-[12px] border border-line p-3 grid gap-2 bg-bg">
+      <div className="flex gap-2 items-center flex-wrap">
+        <span className="pill">Format</span>
+        <strong>{formatLabel(row.format)}</strong>
+      </div>
+      <div className="grid gap-1">
+        <span className="text-[13.5px]">
+          <b className={row.hitRate >= 0.25 ? "stat-up font-extrabold" : "font-bold"}>
+            {row.hits} of {row.videos}
+          </b>{" "}
+          hit 2× their creator&apos;s usual
+          {base !== null && <span className="text-ink-2">, against {Math.round(base * 100)}% of everything they post</span>}
+        </span>
+        <span className="bar w-full" aria-hidden>
+          <i style={{ width: `${Math.round(row.hitRate * 100)}%` }} />
+        </span>
+        <span className="caption">
+          {row.videos} videos from {row.creators} creators ahead of you, last {FORMAT_DAYS} days
+          {row.medianX !== null ? `. The middle one got ${times(row.medianX)} its creator's usual.` : "."}
+          {row.prior ? (row.prior.videos ? ` The ${FORMAT_DAYS} days before: ${row.prior.hits} of ${row.prior.videos}.` : ` None in the ${FORMAT_DAYS} days before.`) : ""}
+        </span>
+      </div>
+      {best && (
+        <a href={best.v.url ?? undefined} target="_blank" rel="noreferrer" className="text-[13px] text-brand hover:underline">
+          Best: @{best.v.author}, {times(best.times)} their usual →
+        </a>
+      )}
+      <span className="caption">
+        {row.mine.videos
+          ? `You've posted ${row.mine.videos}${row.mine.last ? `, the latest ${ago(row.mine.last)}` : ""}${row.mine.medianX !== null ? `. The middle one got ${times(row.mine.medianX)} your usual.` : "."}`
+          : "You haven't posted one yet."}
+      </span>
+    </div>
   );
 }
 
@@ -292,6 +342,12 @@ function Evidence({ source, normal }: { source: IdeaSource; normal: Normal }) {
           </span>
         </span>
       ) : null}
+      {source.format && (
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-[13px]">
+          <IconFilm className="text-brand" />
+          {formatLabel(source.format.format)}: <b className={source.format.hitRate >= 0.25 ? "stat-up" : ""}>{source.format.hits} of {source.format.videos}</b> hit 2×
+        </span>
+      )}
       {normal.views !== null && (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[13px]" title="We find it when you post and check its views 48 hours later.">
           <IconTarget className="text-brand" />

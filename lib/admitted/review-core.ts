@@ -3,8 +3,9 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 
 /**
- * Pure rules for essay review. There is no bank of admitted essays to compare against yet, so a model
- * reads against a fixed rubric. It grades each criterion on a described 1 to 5 band; the score is
+ * Pure rules for essay review. The review stands on its own: a model reads the draft against a fixed
+ * rubric, and needs nothing else. Admitted essays, where licensed ones exist, can sharpen the read
+ * later as examples, but the review never depends on having one for a school. It grades each criterion on a described 1 to 5 band; the score is
  * calculated here from the average of several reads, and any line it cites has to exist in the essay.
  */
 export const REVIEW_VERSION = "4";

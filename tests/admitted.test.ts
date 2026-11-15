@@ -19,7 +19,7 @@ describe("schools", () => {
   it("carries the published rates", () => {
     expect(admitRate(dartmouth).toFixed(1)).toBe("6.0");
     expect(admitRate(SCHOOLS.find((s) => s.id === "stanford")!).toFixed(1)).toBe("3.8");
-    expect(new Set(SCHOOLS.map((s) => s.id)).size).toBe(29);
+    expect(new Set(SCHOOLS.map((s) => s.id)).size).toBe(39);
   });
 });
 
@@ -32,10 +32,10 @@ describe("input", () => {
     expect(parseProfile("9", "1500")).toBeNull();
   });
   it("matches names exactly and sorts out what is not covered", () => {
-    const m = matchSchools("upenn, Dartmouth College, dartmouth, Brown, Rice");
-    expect(m.found.map((s) => s.id)).toEqual(["penn", "dartmouth"]);
-    expect(m.pending).toEqual(["Brown University"]);
-    expect(m.unknown).toEqual(["Rice"]);
+    const m = matchSchools("upenn, Dartmouth College, dartmouth, Princeton, Brown, Tufts");
+    expect(m.found.map((s) => s.id)).toEqual(["penn", "dartmouth", "brown"]);
+    expect(m.pending).toEqual(["Princeton University"]);
+    expect(m.unknown).toEqual(["Tufts"]);
   });
 });
 

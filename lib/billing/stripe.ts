@@ -2,6 +2,7 @@ import "server-only";
 
 import Stripe from "stripe";
 
+import type { Plan } from "@/lib/admitted/plans";
 import type { Brand } from "@/lib/db/types";
 import { env, isStripeConfigured } from "@/lib/env";
 
@@ -36,8 +37,7 @@ export async function createPortalSession(customerId: string): Promise<string> {
   return session.url;
 }
 
-/** Admitted: a weekly subscription, in cents here and in dollars on the page. */
-export const WEEKLY_PRICE_CENTS = 999;
+/** Admitted's plans live in lib/admitted/plans.ts. The product tag is kept from the weekly launch so those subscribers keep access. */
 const ESSAYS_PRODUCT = "admitted-weekly";
 
 const essaysStripe = () => {
@@ -46,14 +46,16 @@ const essaysStripe = () => {
   return client;
 };
 
-export async function createSubscriptionCheckout(): Promise<string> {
+/** A parent paying lands on a page with the link to send their student, instead of in the workspace. */
+export async function createSubscriptionCheckout(plan: Plan, forSomeoneElse = false): Promise<string> {
   const session = await essaysStripe().checkout.sessions.create({
     mode: "subscription",
-    line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: WEEKLY_PRICE_CENTS, recurring: { interval: "week" }, product_data: { name: "Admitted essays, weekly" } } }],
-    metadata: { product: ESSAYS_PRODUCT },
-    subscription_data: { metadata: { product: ESSAYS_PRODUCT } },
-    success_url: `${env.siteUrl}/essay/access?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.siteUrl}/essay`,
+    line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: plan.cents, recurring: { interval: "month", interval_count: plan.months }, product_data: { name: `Admitted essays, ${plan.name.toLowerCase()}` } } }],
+    metadata: { product: ESSAYS_PRODUCT, plan: plan.id },
+    subscription_data: { metadata: { product: ESSAYS_PRODUCT, plan: plan.id } },
+    allow_promotion_codes: true,
+    success_url: forSomeoneElse ? `${env.siteUrl}/pay/done?session_id={CHECKOUT_SESSION_ID}` : `${env.siteUrl}/essay/access?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: forSomeoneElse ? `${env.siteUrl}/pay` : `${env.siteUrl}/essay`,
   });
   if (!session.url) throw new Error("Stripe did not return a checkout URL.");
   return session.url;

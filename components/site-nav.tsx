@@ -15,13 +15,16 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
               <Link href="/#how" className="hover:text-ink">
                 How it works
               </Link>
-              <Link href="/#features" className="hover:text-ink">
-                What you get
+              <Link href="/essays" className="hover:text-ink">
+                Essay prompts
+              </Link>
+              <Link href="/activities" className="hover:text-ink">
+                Activities
               </Link>
               <Link href="/#data" className="hover:text-ink">
                 The data
               </Link>
-              <Link href="/#pricing" className="hover:text-ink">
+              <Link href="/pricing" className="hover:text-ink">
                 Pricing
               </Link>
               <Link href="/#faq" className="hover:text-ink">
@@ -32,6 +35,9 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
         </div>
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
+          <Link href="/essay" className="btn btn-ghost btn-sm hidden sm:inline-flex">
+            Review my essay free
+          </Link>
           <Link href="/odds" className="btn btn-primary btn-sm">
             See my odds
           </Link>

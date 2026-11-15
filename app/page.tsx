@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import EssaySample from "@/components/admitted/essay-sample";
 import OddsToy from "@/components/admitted/odds-toy";
+import PlanCards, { Agree } from "@/components/admitted/plan-cards";
 import GuideOffer from "@/components/admitted/guide-offer";
 import ProductShot from "@/components/admitted/product-shot";
 import RequestSchool from "@/components/admitted/request-school";
@@ -17,17 +18,13 @@ const STEPS = [
   { title: "Enter your numbers", body: "Your schools, GPA, SAT or ACT and home state. No account, no email." },
   { title: "See the split", body: "Your odds at each school, and how much of each number is locked and how much is still movable." },
   { title: "Get the top fix, free", body: "The next move at each school, named. Act on it with us or without us." },
-  { title: "Fix the movable part", body: "Our AI rates every draft, marks what costs you most and helps you rewrite it in your voice. $9.99 a week." },
+  { title: "Fix the movable part", body: "Our AI rates every draft, marks what costs you most and helps you rewrite it in your voice. Your first review is free." },
 ];
 
 const PROOF = [
   { value: "1 click", label: "from any number to its source page" },
   { value: "0", label: "numbers from surveys or forum posts" },
 ];
-
-const FREE = ["Per-school odds with sources", "Locked and movable split", "Your top fix, named"];
-
-const INCLUDED = ["AI rates your essay against six criteria", "Line-by-line fixes for what costs you most", "Rewrites in your voice", "Unlimited essays and revisions"];
 
 const FAQ = [
   {
@@ -56,7 +53,7 @@ const FAQ = [
   },
   {
     q: "Can I cancel?",
-    a: "Anytime, from Account on the essay page. You keep access until the end of the week you paid for.",
+    a: "Anytime, from Account on the essay page. You keep access until the end of the period you paid for.",
   },
   {
     q: "What if my scores or my list change?",
@@ -274,41 +271,19 @@ export default function Home() {
         <div className="wrap py-20 sm:py-28">
           <div className="text-center">
             <p className="kicker">Pricing</p>
-            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Odds are free. Essays are $9.99 a week.</h2>
-            <p className="text-[16px] text-ink-2 mt-3">Subscribe when you want your essays rated and improved. Cancel anytime.</p>
+            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Odds and your first review are free.</h2>
+            <p className="text-[16px] text-ink-2 mt-3">Pay when you want every draft reviewed and rewritten. Cancel anytime.</p>
           </div>
-          <div className="mt-12 grid grid-cols-[minmax(0,1fr)] md:grid-cols-2 gap-4 max-w-[880px] mx-auto items-stretch">
-            <div className="card p-8 flex flex-col">
-              <div className="text-[14px] font-semibold text-ink-2">Odds</div>
-              <div className="text-[40px] font-semibold tnum mt-3">Free</div>
-              <ul className="list-none p-0 m-0 mt-6 mb-8 flex flex-col gap-3">
-                {FREE.map((f) => (
-                  <Check key={f}>
-                    <span className="text-[14px]">{f}</span>
-                  </Check>
-                ))}
-              </ul>
-              <Link href="/odds" className="btn btn-secondary btn-lg w-full mt-auto">
-                See my odds
+          <div className="mt-12">
+            <PlanCards />
+            <Agree />
+            <p className="text-[14px] text-ink-2 text-center mt-6">
+              Someone else paying?{" "}
+              <Link className="underline hover:text-ink" href="/pay">
+                Send them this page
               </Link>
-              <p className="caption text-center mt-3">No account, no email.</p>
-            </div>
-            <div className="card p-8 flex flex-col shadow-[var(--shadow-lg)]">
-              <div className="text-[14px] font-semibold text-[var(--kicker)]">Essays</div>
-              <div className="mt-3 flex items-baseline gap-1.5"><span className="text-[40px] font-semibold tnum">$9.99</span><span className="text-[14px] text-ink-3">a week</span></div>
-              <p className="text-[13px] text-ink-2 mt-1">Billed weekly. Cancel anytime.</p>
-              <ul className="list-none p-0 m-0 mt-6 mb-8 flex flex-col gap-3">
-                {INCLUDED.map((f) => (
-                  <Check key={f}>
-                    <span className="text-[14px]">{f}</span>
-                  </Check>
-                ))}
-              </ul>
-              <Link href="/essay" className="btn btn-primary btn-lg w-full mt-auto">
-                Fix the movable part
-              </Link>
-              
-            </div>
+              .
+            </p>
           </div>
         </div>
       </section>

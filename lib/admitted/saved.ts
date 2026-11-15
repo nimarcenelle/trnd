@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 import { isSealed, seal, unseal } from "./seal";
 
 /** Results that quote a student's essay. They are never written in the clear. */
-const SEALED_KINDS = new Set(["review", "rewrite", "healthcheck"]);
+const SEALED_KINDS = new Set(["review", "rewrite", "lists", "healthcheck"]);
 
 /**
  * Every AI result is saved under a key built from its inputs, so unchanged inputs show the

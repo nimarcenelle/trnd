@@ -4,9 +4,13 @@ import { cookies } from "next/headers";
 import { ACCESS_COOKIE, subscriptionPortal } from "@/lib/admitted/access";
 import { env, isEssayOpen } from "@/lib/env";
 
-/** Sends a subscriber to Stripe to cancel or change their card. Works after cancelling too. */
-export async function POST(): Promise<Response> {
-  const id = (await cookies()).get(ACCESS_COOKIE)?.value;
+/**
+ * Sends a subscriber to Stripe to cancel or change their card. Works after cancelling too. A parent who paid has no
+ * cookie, so the session id can come from the form; it is the same secret the access link already carries.
+ */
+export async function POST(request: Request): Promise<Response> {
+  const posted = (await request.formData().catch(() => null))?.get("session_id");
+  const id = (await cookies()).get(ACCESS_COOKIE)?.value ?? (typeof posted === "string" ? posted : "");
   if (!isEssayOpen || !id) return NextResponse.redirect(`${env.siteUrl}/essay`, 303);
   try {
     return NextResponse.redirect(await subscriptionPortal(id), 303);

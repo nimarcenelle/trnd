@@ -16,9 +16,10 @@ export default function TermsPage() {
 
       <h2>Subscription and payment</h2>
       <p>
-        Essay rating and rewrites are a subscription of $9.99 a week, billed through Stripe until you cancel. Cancel anytime from
-        Account on the essay page; you keep access until the end of the week you paid for. Payments are non-refundable, except where
-        the law requires otherwise.
+        Your first essay review is free. Unlimited reviews and rewrites are a subscription, billed through Stripe until you cancel:
+        $29 a month, or $99 every six months for the season pass. Someone else may pay for you. Cancel anytime from Account on the
+        essay page; you keep access until the end of the period paid for. Payments are non-refundable, except where the law
+        requires otherwise.
       </p>
 
       <h2>Your access</h2>

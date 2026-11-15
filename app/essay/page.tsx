@@ -2,22 +2,21 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import AccessLink from "@/components/admitted/access-link";
-import EssaySample from "@/components/admitted/essay-sample";
 import EssayWorkspace from "@/components/admitted/essay-workspace";
 import Brand from "@/components/brand";
-import { IconCheck } from "@/components/icons";
 import ThemeToggle from "@/components/theme-toggle";
 import { accessLink, paidSession } from "@/lib/admitted/access";
+import { PROMPTS, wordLimit } from "@/lib/admitted/prompts";
 import { env, isEssayOpen } from "@/lib/env";
 
 export const metadata = { title: "Essays · Admitted" };
 
-const INCLUDED = ["AI rates your essay against six criteria", "Line-by-line fixes for what costs you most", "Rewrites in your voice", "Unlimited essays and revisions"];
-
 export default async function EssayPage({ searchParams }: PageProps<"/essay">) {
   if (!isEssayOpen) notFound();
   const session = await paidSession();
-  const { welcome } = await searchParams;
+  const { welcome, school, p } = await searchParams;
+  const picked = typeof school === "string" ? PROMPTS[school]?.prompts[Number(p)] : undefined;
+  const start = picked ? { prompt: picked.text, limit: wordLimit(picked) } : undefined;
   return (
     <div className="min-h-dvh flex flex-col">
       <header className="sticky top-0 z-40 border-b border-line bg-ground">
@@ -31,57 +30,23 @@ export default async function EssayPage({ searchParams }: PageProps<"/essay">) {
             <Link href="/odds" className="btn btn-ghost btn-sm">
               Odds
             </Link>
+            <Link href="/activities" className="btn btn-ghost btn-sm hidden sm:inline-flex">
+              Activities
+            </Link>
+            <Link href="/essay/final" className="btn btn-ghost btn-sm hidden sm:inline-flex">
+              Final Read
+            </Link>
+            {!session && (
+              <Link href="/pricing" className="btn btn-ghost btn-sm">
+                Pricing
+              </Link>
+            )}
             {session && <AccessLink url={accessLink(session, env.siteUrl)} welcome={welcome === "1"} />}
             <ThemeToggle />
           </div>
         </div>
       </header>
-      {session ? (
-        <EssayWorkspace />
-      ) : (
-        <main className="flex-1 bg-subtle">
-          <div className="wrap py-14 sm:py-20 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-16 items-center">
-            <div>
-              <p className="kicker">Essays</p>
-              <h1 className="section-title text-[32px] sm:text-[40px] mt-3">Your essay, rated and improved.</h1>
-              <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[480px]">An AI tool that rates your draft, marks the lines costing you most and helps you rewrite them in your voice.</p>
-              <div className="mt-8">
-                <EssaySample />
-              </div>
-            </div>
-            <div className="card p-8 shadow-[var(--shadow-lg)]">
-              <div className="text-[14px] font-semibold text-[var(--kicker)]">Essays</div>
-              <div className="mt-3 flex items-baseline gap-1.5 leading-none"><span className="text-[40px] font-semibold tnum">$9.99</span><span className="text-[14px] text-ink-3">a week</span></div>
-              <p className="text-[13px] text-ink-2 mt-2">Billed weekly. Cancel anytime.</p>
-              <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3 text-[14px]">
-                {INCLUDED.map((item) => (
-                  <li key={item} className="flex gap-2.5">
-                    <IconCheck className="text-brand mt-[3px] shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <form action="/api/essays/checkout" method="post">
-                <button className="btn btn-primary btn-lg w-full mt-8" type="submit">
-                  Start for $9.99 a week
-                </button>
-              </form>
-              
-              <p className="caption text-center mt-1">
-                By paying you agree to the{" "}
-                <Link className="underline hover:text-ink" href="/terms">
-                  Terms
-                </Link>{" "}
-                and{" "}
-                <Link className="underline hover:text-ink" href="/privacy">
-                  Privacy Policy
-                </Link>
-                .
-              </p>
-            </div>
-          </div>
-        </main>
-      )}
+      <EssayWorkspace paid={Boolean(session)} start={start} />
     </div>
   );
 }

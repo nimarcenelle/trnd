@@ -8,6 +8,7 @@ import Brand from "@/components/brand";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 import { scoreKind, STATES, validGpa } from "@/lib/admitted/flow";
 import { schoolQuery, shortName, upTo } from "@/lib/admitted/list";
+import { PLANS } from "@/lib/admitted/plans";
 import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 
 import EssaySample from "./essay-sample";
@@ -359,40 +360,25 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
               </div>
               <div className="rise rounded-[20px] bg-band text-band-ink p-8 shadow-[var(--shadow-lg)]" style={{ animationDelay: "0.15s" }}>
                 <div className="text-[14px] font-medium text-band-ink-3">Essays</div>
-                <div className="mt-2 flex items-baseline gap-2 leading-none"><span className="text-[56px] font-semibold tnum tracking-[-0.03em]">$9.99</span><span className="text-[16px] text-band-ink-3">a week</span></div>
-                <p className="text-[13px] text-band-ink-3 leading-[1.5] mt-3">Billed weekly. Cancel anytime.</p>
+                <div className="mt-2 text-[56px] font-semibold tnum tracking-[-0.03em] leading-none">Free</div>
+                <p className="text-[13px] text-band-ink-3 leading-[1.5] mt-3">Your first full review. No card, no account.</p>
                 <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3 text-[14px] border-t border-band-line pt-6">
-                  {["AI rates your essay against six criteria", "Line-by-line fixes for what costs you most", "Rewrites in your voice", "Unlimited essays and revisions"].map((item) => (
+                  {["A score against six criteria", "The lines costing you most, marked in your draft", "What to do about each one"].map((item) => (
                     <li key={item} className="flex gap-2.5">
                       <IconCheck className="mt-[3px] shrink-0" />
                       {item}
                     </li>
                   ))}
                 </ul>
-                {paid ? (
-                  <Link href="/essay" className="btn btn-lg w-full mt-8 !h-12 !bg-bg !text-ink">
-                    Open your essays
+                <Link href="/essay" className="btn btn-lg w-full mt-8 !h-12 !bg-bg !text-ink">
+                  {paid ? "Open your essays" : "Review my essay free"}
+                </Link>
+                <p className="text-[12px] text-band-ink-3 text-center mt-3 leading-[1.5]">
+                  Unlimited reviews and rewrites from {PLANS.season.billed.split(".")[0]}.{" "}
+                  <Link className="underline" href="/pricing">
+                    Pricing
                   </Link>
-                ) : (
-                  <>
-                    <form action="/api/essays/checkout" method="post">
-                      <button className="btn btn-lg w-full mt-8 !h-12 !bg-bg !text-ink" type="submit">
-                        Fix the movable part
-                      </button>
-                    </form>
-                                        <p className="text-[12px] text-band-ink-3 text-center mt-3 leading-[1.5]">
-                      By paying you agree to the{" "}
-                      <Link className="underline" href="/terms">
-                        Terms
-                      </Link>{" "}
-                      and{" "}
-                      <Link className="underline" href="/privacy">
-                        Privacy Policy
-                      </Link>
-                      .
-                    </p>
-                  </>
-                )}
+                </p>
               </div>
             </div>
           )}

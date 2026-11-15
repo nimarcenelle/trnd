@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 
 import { segments } from "@/lib/admitted/highlight";
+import { PLANS } from "@/lib/admitted/plans";
 import type { Review } from "@/lib/admitted/review-core";
+
+import { BuyButton } from "./plan-cards";
 
 type Rewrite = { rewrite: string; changes: string[]; kept: number; words: number; limit: number; before: number; after: number; check: string[] };
 type Busy = "" | "review" | "rewrite";
@@ -31,9 +34,44 @@ function Bands({ grade }: { grade: number }) {
   );
 }
 
-function Empty() {
+/** What a free reader sees where a paid feature would be. Both plans, and a way to have someone else pay. */
+function Upgrade({ reason }: { reason: "rewrite" | "review" }) {
   return (
     <div className="max-w-[440px]">
+      <h2 className="text-[16px] font-semibold">{reason === "review" ? "Your free review is used" : "Rewrites come with a plan"}</h2>
+      <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">
+        {reason === "review"
+          ? "Every draft after the first, and every revision, is reviewed on a plan. Your first review stays here for free."
+          : "A plan rewrites from your draft and the details you add, flags anything you didn't write, and re-scores every revision."}
+      </p>
+      <div className="flex flex-col gap-3 mt-6">
+        {[PLANS.season, PLANS.monthly].map((plan) => (
+          <div key={plan.id} className="card p-4 flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-[14px] font-semibold">{plan.name}</span>
+              <span className="tnum">
+                <span className="text-[20px] font-semibold">{plan.price}</span> <span className="text-[13px] text-ink-3">{plan.per}</span>
+              </span>
+            </div>
+            <BuyButton plan={plan} primary={plan.id === "season"} />
+          </div>
+        ))}
+      </div>
+      <p className="text-[13px] text-ink-2 mt-4">
+        Someone else paying? Send them{" "}
+        <a className="underline hover:text-ink" href="/pay">
+          admitted.usetrnd.com/pay
+        </a>
+        .
+      </p>
+    </div>
+  );
+}
+
+function Empty({ paid }: { paid: boolean }) {
+  return (
+    <div className="max-w-[440px]">
+      {!paid && <p className="badge badge-pos mb-4">Your first full review is free</p>}
       <h2 className="text-[16px] font-semibold">What you will get</h2>
       <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">A score out of 100, the lines costing you most marked in your draft, and what to do about each one.</p>
       <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3">
@@ -230,10 +268,12 @@ function DetailsPane({ asks, answers, busy, onChange, onRewrite }: { asks: strin
   );
 }
 
-export default function EssayWorkspace() {
+/** `start` comes from a school's prompt page and wins over the saved prompt; the draft is kept. */
+export default function EssayWorkspace({ paid, start }: { paid: boolean; start?: { prompt: string; limit: number | null } }) {
   const [draft, setDraft] = useState("");
-  const [prompt, setPrompt] = useState("");
-  const [limit, setLimit] = useState("650");
+  const [prompt, setPrompt] = useState(start?.prompt ?? "");
+  const [limit, setLimit] = useState(start?.limit ? String(start.limit) : "650");
+  const [locked, setLocked] = useState<"" | "review">("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [review, setReview] = useState<Review | null>(null);
   const [rewrite, setRewrite] = useState<Rewrite | null>(null);
@@ -255,8 +295,8 @@ export default function EssayWorkspace() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORE) ?? "null") as { draft?: string; prompt?: string; limit?: string; answers?: Record<string, string> } | null;
       if (saved?.draft) setDraft(saved.draft);
-      if (saved?.prompt) setPrompt(saved.prompt);
-      if (saved?.limit) setLimit(saved.limit);
+      if (saved?.prompt && !start) setPrompt(saved.prompt);
+      if (saved?.limit && !start) setLimit(saved.limit);
       if (saved?.answers) setAnswers(saved.answers);
     } catch {}
   }, []);
@@ -275,6 +315,7 @@ export default function EssayWorkspace() {
     setTab("review");
     setActive(null);
     setShowDetails(false);
+    setLocked("");
   }
 
   async function post(path: string, body: object, step: "review" | "rewrite"): Promise<Response | null> {
@@ -283,6 +324,10 @@ export default function EssayWorkspace() {
     if (window.matchMedia("(max-width: 1023px)").matches) results.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
     setBusy("");
+    if (res?.status === 402 && !paid) {
+      setLocked("review");
+      return null;
+    }
     if (!res?.ok) {
       setError(errorFor(res?.status));
       return null;
@@ -409,12 +454,16 @@ export default function EssayWorkspace() {
           {error && <p className="well px-3 py-2 mb-5 text-[13px] text-neg">{error}</p>}
           {busy === "review" || (busy === "rewrite" && tab === "rewrite") ? (
             <Working step={busy as "review" | "rewrite"} />
+          ) : locked ? (
+            <Upgrade reason="review" />
           ) : !review ? (
-            <Empty />
+            <Empty paid={paid} />
           ) : tab === "review" ? (
             <div className="fade-in">
               <ReviewPane review={review} active={active} onSelect={select} onNext={() => setTab("rewrite")} />
             </div>
+          ) : !paid ? (
+            <Upgrade reason="rewrite" />
           ) : rewrite && !showDetails ? (
             <div className="fade-in">
               <RewritePane key={revision} rewrite={rewrite} revision={revision} busy={Boolean(busy)} onRevise={() => void runRewrite(revision + 1)} onUse={useRewrite} onDetails={asks.length ? () => setShowDetails(true) : null} />

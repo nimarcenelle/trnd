@@ -31,6 +31,7 @@ export const env = {
   stripePrice: process.env.STRIPE_PRICE ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM || "TRND <reports@usetrnd.com>",
+  admittedEmailFrom: process.env.ADMITTED_EMAIL_FROM || "Admitted <access@usetrnd.com>",
   /** The domain competitors' marketing emails are received on, e.g. "in.usetrnd.com". */
   inboundDomain: (process.env.INBOUND_DOMAIN ?? "").trim().toLowerCase(),
   /** Resend's webhook signing secret (whsec_…), or a shared secret any other service sends as ?secret= or x-trnd-secret. */

@@ -3,7 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 
-import { accessFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access } from "@/lib/billing/stripe";
+import { accessFor, activeSessionsFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access } from "@/lib/billing/stripe";
 
 /**
  * Access is a paid Stripe Checkout session, and no account: a pass until its end date, or an earlier subscription while
@@ -12,7 +12,7 @@ import { accessFor, createAccessCheckout, isSubscriptionActive, subscriptionPort
 export const ACCESS_COOKIE = "admitted_access";
 export const accessLink = (sessionId: string, base: string) => `${base}/essay/access?session_id=${encodeURIComponent(sessionId)}`;
 
-export { accessFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access };
+export { accessFor, activeSessionsFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access };
 
 /** The subscribed session on this request, if there is one. */
 export async function paidSession(): Promise<string | null> {

@@ -15,7 +15,7 @@ export default function AccessLink({ url, welcome, until }: { url: string; welco
         <div className="card absolute right-0 top-[calc(100%+8px)] z-50 w-[min(340px,calc(100vw-32px))] p-4 shadow-[var(--shadow-lg)]">
           <p className="text-[14px] font-semibold">{welcome ? "You're in. Save your link." : "Your access link"}</p>
           {until && <p className="text-[13px] text-ink-2 mt-1">Access until {until}.</p>}
-          <p className="text-[13px] text-ink-2 leading-[1.55] mt-1">There is no account. This link gets you back in on any device, and anyone who has it can use your access.</p>
+          <p className="text-[13px] text-ink-2 leading-[1.55] mt-1">There is no account. This link gets you back in on any device, and anyone who has it can use your access. We also emailed it to you.</p>
           {!until && (
             <form action="/api/essays/portal" method="post" className="mt-2">
               <button type="submit" className="text-[13px] text-ink-2 underline hover:text-ink cursor-pointer bg-transparent border-0 p-0 font-[inherit]">

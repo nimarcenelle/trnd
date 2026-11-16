@@ -63,7 +63,7 @@ export async function createAccessCheckout(plan: Plan, forSomeoneElse = false): 
   return session.url;
 }
 
-export type Access = { until: Date | null; recurring: boolean };
+export type Access = { until: Date | null; recurring: boolean; email: string | null };
 
 /**
  * What a checkout session unlocks right now. A pass works until the date fixed at checkout (counted from payment for
@@ -79,10 +79,22 @@ export async function accessFor(sessionId: string): Promise<Access | null> {
     const plan = parsePlan(session.metadata?.plan);
     const fixed = session.metadata?.access_until ? new Date(session.metadata.access_until) : null;
     const until = plan === "week" ? accessUntil("week", new Date(session.created * 1000)) : (fixed ?? accessUntil("rd", new Date(session.created * 1000)));
-    return Date.now() < until.getTime() ? { until, recurring: false } : null;
+    return Date.now() < until.getTime() ? { until, recurring: false, email: session.customer_details?.email ?? null } : null;
   }
   const sub = session.subscription;
-  return typeof sub === "object" && sub !== null && ["active", "trialing", "past_due"].includes(sub.status) ? { until: null, recurring: true } : null;
+  return typeof sub === "object" && sub !== null && ["active", "trialing", "past_due"].includes(sub.status) ? { until: null, recurring: true, email: session.customer_details?.email ?? null } : null;
+}
+
+/** Every checkout session paid with this email that still unlocks something, newest first. */
+export async function activeSessionsFor(email: string): Promise<({ id: string } & Access)[]> {
+  const list = await essaysStripe().checkout.sessions.list({ customer_details: { email }, limit: 20 });
+  const found: ({ id: string } & Access)[] = [];
+  for (const s of list.data) {
+    if (s.metadata?.product !== ESSAYS_PRODUCT) continue;
+    const access = await accessFor(s.id).catch(() => null);
+    if (access) found.push({ id: s.id, ...access });
+  }
+  return found;
 }
 
 export const isSubscriptionActive = async (sessionId: string) => (await accessFor(sessionId)) !== null;

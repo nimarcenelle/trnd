@@ -56,7 +56,11 @@ function Upgrade({ reason }: { reason: "rewrite" | "review" }) {
         ))}
       </div>
       <p className="text-[13px] text-ink-2 mt-4">
-        Someone else paying? Send them{" "}
+        Already paid?{" "}
+        <a className="underline hover:text-ink" href="/essay/recover">
+          Get your link by email
+        </a>
+        . Someone else paying? Send them{" "}
         <a className="underline hover:text-ink" href="/pay">
           admitted.usetrnd.com/pay
         </a>

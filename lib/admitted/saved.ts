@@ -1,6 +1,6 @@
 import "server-only";
 
-import { adminSupabase } from "@/lib/db/supabase";
+import { admittedDb } from "./db";
 import { env } from "@/lib/env";
 
 import { isSealed, seal, unseal } from "./seal";
@@ -14,7 +14,7 @@ const SEALED_KINDS = new Set(["review", "quick", "rewrite", "lists", "healthchec
  */
 export async function readSaved<T>(keys: string[]): Promise<Map<string, T>> {
   if (!keys.length) return new Map();
-  const { data, error } = await adminSupabase().from("ai_results").select("key, value").in("key", keys);
+  const { data, error } = await admittedDb().from("ai_results").select("key, value").in("key", keys);
   if (error) throw error;
   const found = new Map<string, T>();
   for (const row of data ?? []) {
@@ -34,7 +34,7 @@ export async function readSaved<T>(keys: string[]): Promise<Map<string, T>> {
 
 export async function saveFirst<T>(kind: string, rows: { key: string; value: T }[]): Promise<Map<string, T>> {
   if (rows.length) {
-    const { error } = await adminSupabase()
+    const { error } = await admittedDb()
       .from("ai_results")
       .upsert(rows.map((r) => ({ kind, key: r.key, value: SEALED_KINDS.has(kind) ? seal(r.value, env.essayEncryptionKey) : r.value })), { onConflict: "key", ignoreDuplicates: true });
     if (error) throw error;
@@ -46,7 +46,7 @@ export async function saveFirst<T>(kind: string, rows: { key: string; value: T }
 export async function countToday(kind: string): Promise<number> {
   const start = new Date();
   start.setUTCHours(0, 0, 0, 0);
-  const { count, error } = await adminSupabase().from("ai_results").select("key", { count: "exact", head: true }).eq("kind", kind).gte("created_at", start.toISOString());
+  const { count, error } = await admittedDb().from("ai_results").select("key", { count: "exact", head: true }).eq("kind", kind).gte("created_at", start.toISOString());
   if (error) throw error;
   return count ?? 0;
 }
@@ -66,12 +66,12 @@ export async function sealedStoreWorks(): Promise<boolean> {
 export async function subscriberUsedToday(kind: string, subscriber: string): Promise<number> {
   const start = new Date();
   start.setUTCHours(0, 0, 0, 0);
-  const { count, error } = await adminSupabase().from("ai_results").select("key", { count: "exact", head: true }).eq("kind", kind).like("key", `${kind}:${subscriber}:%`).gte("created_at", start.toISOString());
+  const { count, error } = await admittedDb().from("ai_results").select("key", { count: "exact", head: true }).eq("kind", kind).like("key", `${kind}:${subscriber}:%`).gte("created_at", start.toISOString());
   if (error) throw error;
   return count ?? 0;
 }
 
 export async function recordSubscriberUse(kind: string, subscriber: string): Promise<void> {
-  const { error } = await adminSupabase().from("ai_results").insert({ kind, key: `${kind}:${subscriber}:${crypto.randomUUID()}`, value: {} });
+  const { error } = await admittedDb().from("ai_results").insert({ kind, key: `${kind}:${subscriber}:${crypto.randomUUID()}`, value: {} });
   if (error) console.warn("[saved] could not record use", error.message);
 }

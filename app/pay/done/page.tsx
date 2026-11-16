@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import CopyLink from "@/components/admitted/copy-link";
 import SiteNav from "@/components/site-nav";
 import { accessFor, accessLink } from "@/lib/admitted/access";
+import { emailAccessOnce } from "@/lib/admitted/access-email";
 import { env, isEssayOpen } from "@/lib/env";
 
 export const metadata = { title: "Send the link · Admitted", robots: { index: false } };
@@ -15,6 +16,7 @@ export default async function PayDonePage({ searchParams }: PageProps<"/pay/done
   const id = typeof session_id === "string" ? session_id : "";
   const access = await accessFor(id).catch(() => null);
   const paid = access !== null;
+  if (access) await emailAccessOnce({ id, ...access }).catch((err) => console.error("[access-email]", (err as Error).message));
   return (
     <div className="min-h-dvh flex flex-col">
       <SiteNav links={false} />
@@ -24,7 +26,7 @@ export default async function PayDonePage({ searchParams }: PageProps<"/pay/done
             <>
               <p className="kicker">Paid</p>
               <h1 className="section-title text-[32px] sm:text-[40px] mt-3">Send this link to your student.</h1>
-              <p className="text-[16px] text-ink-2 leading-[1.65] mt-4">Opening it unlocks their essays on any device. Anyone with the link can use the access, so send it only to them.{access?.until ? ` It works until ${access.until.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" })}.` : ""}</p>
+              <p className="text-[16px] text-ink-2 leading-[1.65] mt-4">We also emailed it to you. Opening it unlocks their essays on any device. Anyone with the link can use the access, so send it only to them.{access?.until ? ` It works until ${access.until.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" })}.` : ""}</p>
               <div className="card p-5 mt-8">
                 <CopyLink url={accessLink(id, env.siteUrl)} />
               </div>

@@ -32,6 +32,12 @@ export default function PricingPage() {
             <div className="mt-12">
               <PlanCards />
               <Agree />
+              <p className="caption text-center mt-2">
+                Already paid?{" "}
+                <a className="underline hover:text-ink" href="/essay/recover">
+                  Get your access link by email
+                </a>
+              </p>
               <p className="text-[14px] text-ink-2 text-center mt-6">
                 Parent paying?{" "}
                 <Link className="underline hover:text-ink" href="/pay">

@@ -248,8 +248,13 @@ describe("a school request", () => {
 
 describe("the public samples", () => {
   it("put no number on essays, letters or activities", () => {
-    for (const f of FACTORS.movable) expect(f.kind === "round" ? f.gain : undefined).toBe(f.kind === "round" ? 6 : undefined);
     expect(FACTORS.movable.filter((f) => "gain" in f).map((f) => f.kind)).toEqual(["round"]);
+  });
+  it("show the hero school's real numbers", () => {
+    const live = calculateOdds(parseProfile(FACTORS.gpa, FACTORS.test)!, SCHOOLS.find((s) => s.name === FACTORS.school)!);
+    const round = live.fixes.find((f) => f.kind === "round")!.gain;
+    expect([live.odds, live.withFixes, live.odds + round]).toEqual([FACTORS.odds, FACTORS.withFixes, FACTORS.upTo]);
+    expect(FACTORS.movable.find((f) => f.kind === "round")!.gain).toBe(round);
   });
   it("match the calculation", () => {
     for (const a of APPLICANTS)

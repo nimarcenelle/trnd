@@ -37,14 +37,17 @@ export const APPLICANTS: { key: string; gpa: string; test: string; home: string 
 
 /** What sets one school's number, for the hero and the split card. Only the round has a `gain`, in odds points. */
 export const FACTORS = {
-  school: "University of Georgia",
-  short: "Georgia",
-  odds: 30,
-  withFixes: 47,
-  upTo: 36,
-  locked: ["SAT 1350 against a middle 50% of 1250–1420", "GPA 3.7, as reported", "Georgia resident"],
+  school: "Harvard University",
+  short: "Harvard",
+  /** The applicant behind these numbers: the "reach" sample above. */
+  gpa: "4.0",
+  test: "1560",
+  odds: 7,
+  withFixes: 12,
+  upTo: 9,
+  locked: ["SAT 1560 against a middle 50% of 1450–1560", "GPA 4.0, as reported", "Same rate for every state"],
   movable: [
-    { kind: "round", label: "Apply EA instead of RD", gain: 6 },
+    { kind: "round", label: "Apply REA instead of RD", gain: 2 },
     { kind: "essays", label: "Your essays" },
     { kind: "letters", label: "Your recommendation letters" },
     { kind: "activities", label: "How your activities read" },

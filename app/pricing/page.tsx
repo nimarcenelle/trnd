@@ -5,7 +5,7 @@ import SiteNav from "@/components/site-nav";
 import { daysToRegularDecision } from "@/lib/admitted/deadline";
 import { PLANS } from "@/lib/admitted/plans";
 
-export const metadata = { title: "Pricing · Admitted", description: "Essay scores, marked lines and rewrites in your voice for every essay you submit: $99 for the season or $29 a month." };
+export const metadata = { title: "Pricing · Admitted", description: "Essay scores, marked lines and rewrites in your voice for every essay you submit: $59 through January 15, or $19 for a week. One payment, no subscription." };
 
 /** The deadline countdown is worked out on the server, so the page rebuilds hourly. */
 export const revalidate = 3600;

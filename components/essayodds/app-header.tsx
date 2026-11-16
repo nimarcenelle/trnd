@@ -29,10 +29,10 @@ export default async function AppHeader({ welcome = false }: { welcome?: boolean
           {access && (
             <span className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-pos-bg text-[12.5px] font-medium text-[var(--pos)] tnum">
               <i className="w-1.5 h-1.5 rounded-full bg-[var(--pos)]" />
-              {until ? `Pass until ${until}` : "Plan active"}
+              {until ? `Pass until ${until}` : "Weekly plan"}
             </span>
           )}
-          <AccountMenu email={account?.email ?? null} hasPass={Boolean(access)} until={access?.until ? access.until.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" }) : null} buyerEmail={account ? null : (access?.email ?? null)} welcome={welcome} />
+          <AccountMenu email={account?.email ?? null} hasPass={Boolean(access)} until={access?.until ? access.until.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" }) : null} buyerEmail={account ? null : (access?.email ?? null)} welcome={welcome} manageId={access?.recurring ? access.id : null} />
           {!access && (
             <Link href="/pricing" className="btn btn-primary btn-sm">
               Get a pass

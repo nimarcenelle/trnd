@@ -74,7 +74,7 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
   inside the paid workspace, after we have read the draft. "Up to" is today's odds plus the round only, and blank where a
   school has no early round.
 - Pricing (`lib/essayodds/plans.ts`, the one source for every price): no free tier (Nick, 2026-11-16: "no starting free").
-  One-time passes, no subscriptions: RD Pass $59 (until January 15, 2027) and Week Pass $19 (7 days). The odds flow runs without a card as the hook: the odds and the points the
+  RD Pass $59, one payment until January 15, 2027, and Weekly, a $19 weekly subscription cancelled from the account menu. The odds flow runs without a card as the hook: the odds and the points the
   essay costs are shown, the essay score, marked lines, rewrites, list reviews and Final Read need a plan. Copy sells against
   the real regular-decision deadline (`lib/essayodds/deadline.ts`, days to January 1), in amber. A parent pays at `/pay`.
 - Free tools are pages of their own on the marketing nav: `/essays` (every school's prompts, from its own site where it

@@ -22,7 +22,7 @@ const FAQ = [
   { q: "Where do the odds come from?", a: "From each college's Common Data Set: admit rates by round and GPA and test ranges, applied to you, then adjusted by how your essay reads." },
   { q: "Who built this?", a: "Ivy League grads who've been through the process and know what admissions readers look for." },
   { q: "Can a parent pay?", a: "Yes. Send them essayodds.com/pay. They check out and get one link to send you." },
-  { q: "Is it a subscription?", a: "There's nothing to cancel. Each pass is one payment and simply ends: the RD Pass after January 15, the Week Pass after 7 days." },
+  { q: "Is it a subscription?", a: "Your choice. The RD Pass is one payment that covers every essay until January 15, with nothing to cancel. Weekly is $19 a week and renews until you cancel, in two clicks from your account." },
 ];
 
 function Cta({ className = "" }: { className?: string }) {

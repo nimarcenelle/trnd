@@ -51,12 +51,24 @@ const essaysStripe = () => {
 /** A one-time pass. A parent paying lands on a page with the link to send their student, instead of in the workspace. */
 export async function createAccessCheckout(plan: Plan, forSomeoneElse = false, email?: string): Promise<string> {
   const until = accessUntil(plan.id, new Date()).toISOString();
+  const product_data = { name: `EssayOdds ${plan.name}`, description: plan.billed };
+  // A weekly plan is a subscription that runs until cancelled; a pass is one payment with an end date.
+  const billing: Stripe.Checkout.SessionCreateParams = plan.recurring
+    ? {
+        mode: "subscription" as const,
+        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: plan.cents, recurring: { interval: plan.recurring }, product_data } }],
+        metadata: { product: ESSAYS_PRODUCT, plan: plan.id },
+        subscription_data: { metadata: { product: ESSAYS_PRODUCT, plan: plan.id } },
+      }
+    : {
+        mode: "payment" as const,
+        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: plan.cents, product_data } }],
+        metadata: { product: ESSAYS_PRODUCT, plan: plan.id, access_until: until },
+        payment_intent_data: { metadata: { product: ESSAYS_PRODUCT, plan: plan.id } },
+        customer_creation: "always" as const,
+      };
   const session = await essaysStripe().checkout.sessions.create({
-    mode: "payment",
-    line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: plan.cents, product_data: { name: `EssayOdds ${plan.name}`, description: plan.billed } } }],
-    metadata: { product: ESSAYS_PRODUCT, plan: plan.id, access_until: until },
-    payment_intent_data: { metadata: { product: ESSAYS_PRODUCT, plan: plan.id } },
-    customer_creation: "always",
+    ...billing,
     ...(email && !forSomeoneElse ? { customer_email: email } : {}),
     allow_promotion_codes: true,
     success_url: forSomeoneElse ? `${env.siteUrl}/pay/done?session_id={CHECKOUT_SESSION_ID}` : `${env.siteUrl}/essay/access?session_id={CHECKOUT_SESSION_ID}`,

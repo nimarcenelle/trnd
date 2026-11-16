@@ -63,7 +63,7 @@ function PaidCard({ plan, best, forStudent }: { plan: Plan; best: boolean; forSt
   );
 }
 
-/** The RD Pass and the Week Pass side by side. `forStudent` sends a parent to the page with the link to pass on. */
+/** The RD Pass and the weekly plan side by side. `forStudent` sends a parent to the page with the link to pass on. */
 export default function PlanCards({ forStudent = false }: { forStudent?: boolean }) {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 items-stretch md:grid-cols-2 max-w-[780px] mx-auto">

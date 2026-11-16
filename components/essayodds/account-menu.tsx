@@ -12,10 +12,12 @@ type Props = {
   /** The checkout email of a pass held by this browser without an account, to offer signing in with it. */
   buyerEmail: string | null;
   welcome: boolean;
+  /** The checkout session of a weekly plan, for Stripe's manage-or-cancel page. Null for a one-time pass. */
+  manageId?: string | null;
 };
 
 /** Signed in: who, what pass, log out. Signed out: log in, with a nudge to keep a pass bought without an account. */
-export default function AccountMenu({ email, until, hasPass, buyerEmail, welcome }: Props) {
+export default function AccountMenu({ email, until, hasPass, buyerEmail, welcome, manageId = null }: Props) {
   const [open, setOpen] = useState(welcome);
   if (!email && !hasPass)
     return (
@@ -46,7 +48,15 @@ export default function AccountMenu({ email, until, hasPass, buyerEmail, welcome
             <>
               <p className="text-[13px] text-ink-3">Signed in as</p>
               <p className="text-[14px] font-semibold break-all">{email}</p>
-              <p className="text-[13px] text-ink-2 mt-3">{hasPass ? (until ? `Your pass runs until ${until}.` : "Your plan is active.") : "No pass on this account yet."}</p>
+              <p className="text-[13px] text-ink-2 mt-3">{hasPass ? (until ? `Your pass runs until ${until}.` : "Your weekly plan is active. It renews every week.") : "No pass on this account yet."}</p>
+              {manageId && (
+                <form action="/api/essays/portal" method="post" className="mt-2">
+                  <input type="hidden" name="session_id" value={manageId} />
+                  <button type="submit" className="text-[13px] text-ink underline cursor-pointer bg-transparent border-0 p-0 font-[inherit]">
+                    Manage or cancel
+                  </button>
+                </form>
+              )}
               {!hasPass && (
                 <Link className="btn btn-primary btn-sm mt-3" href="/pricing">
                   See passes

@@ -556,7 +556,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                     <form action="/api/essays/checkout" method="post" className="mt-4">
                       <input type="hidden" name="plan" value="week" />
                       <button className="w-full text-[13px] text-band-ink underline cursor-pointer bg-transparent border-0 p-0 font-[inherit]" type="submit">
-                        Just one week? {PLANS.week.short}
+                        Or {PLANS.week.short}, cancel anytime
                       </button>
                     </form>
                     <p className="text-[12px] text-band-ink-3 text-center mt-3 leading-[1.5]">

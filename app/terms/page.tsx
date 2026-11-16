@@ -17,7 +17,8 @@ export default function TermsPage() {
       <h2>Subscription and payment</h2>
       <p>
         Essay reviews and rewrites are sold as one-time passes, paid through Stripe: the RD Pass ($59) gives access until
-        January 15, 2027, and the Week Pass ($19) for 7 days from purchase. Passes do not renew. Someone else may pay for you.
+        January 15, 2027, and does not renew. The weekly plan ($19 a week) is a subscription that renews every week until you
+        cancel it from your account; you keep access to the end of the week you paid for. Someone else may pay for you.
         Payments are non-refundable, except where the law requires otherwise.
       </p>
 

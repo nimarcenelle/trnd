@@ -8,7 +8,7 @@ import { putLatest, readSaved } from "./saved";
 import { accessFor, activeSessionsFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access } from "@/lib/billing/stripe";
 
 /**
- * Access is a paid Stripe Checkout session: a pass until its end date, or an earlier subscription while it's live. It is
+ * Access is a paid Stripe Checkout session: the RD Pass until its end date, or the weekly subscription while it's live. It is
  * found through the signed-in account, or through an http-only cookie the access link sets on any device.
  */
 export const ACCESS_COOKIE = "essayodds_access";

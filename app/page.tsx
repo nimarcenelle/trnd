@@ -14,18 +14,6 @@ import { PLANS } from "@/lib/essayodds/plans";
 /** The deadline countdown is worked out on the server, so the page rebuilds hourly. */
 export const revalidate = 3600;
 
-const STEPS = [
-  { title: "Upload your Common App", body: "Or paste your essay and answer four questions. Two minutes." },
-  { title: "See your odds and essay score", body: "Your real odds at every school on your list, and how your essay moves them." },
-  { title: "Fix it before the deadline", body: "Every weak line marked, rewritten in your voice, re-scored until it's ready to submit." },
-];
-
-const WINS = [
-  { title: "Your real odds", body: "At every school on your list, from the numbers each college publishes about itself, adjusted for how your essay reads." },
-  { title: "Your essay, scored", body: "Graded on the six things admissions readers weigh, with every line that's costing you marked and the fix beside it." },
-  { title: "Rewrites in your voice", body: "Built from your own details, never invented. Every revision re-scored, so you see your odds move." },
-];
-
 const FAQ = [
   { q: "What do I get?", a: "Your odds at every school on your list, your essay score with every weak line marked, rewrites in your voice, every supplement and revision re-scored, your activity and honors lists tightened, and a Final Read of everything before you submit." },
   { q: "Is it worth it with deadlines this close?", a: "That's when it matters most. Most regular-decision applications are due January 1. An essay that reads stronger is the one thing still in your control, and you can rework every supplement this week." },
@@ -92,17 +80,11 @@ export default function Home() {
 
       <section className="border-t border-line">
         <div className="wrap py-20 sm:py-24">
-          <h2 className="section-title text-[32px] sm:text-[40px] text-center max-w-[720px] mx-auto">Everything between you and the yes.</h2>
-          <ul className="list-none p-0 m-0 mt-12 grid gap-4 md:grid-cols-3">
-            {WINS.map((w, i) => (
-              <li key={w.title} className="card p-6">
-                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[var(--soft)] text-[13px] font-semibold text-[var(--soft-ink)] tnum">{i + 1}</span>
-                <h3 className="text-[16px] font-semibold mt-4">{w.title}</h3>
-                <p className="text-[14px] text-ink-2 leading-[1.65] mt-2">{w.body}</p>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-14">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:items-end">
+            <h2 className="section-title text-[32px] sm:text-[40px] max-w-[620px]">Every school on your list, with the number that matters.</h2>
+            <p className="text-[16px] text-ink-2 leading-[1.65]">Real odds from each college&apos;s own published data, adjusted for how your essay reads, and the one move that raises each number.</p>
+          </div>
+          <div className="mt-12">
             <ProductShot />
           </div>
         </div>
@@ -131,24 +113,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="border-t border-line">
-        <div className="wrap py-20 sm:py-24">
-          <h2 className="section-title text-[32px] sm:text-[40px] text-center">Two minutes to your odds.</h2>
-          <ol className="list-none p-0 m-0 mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
-            {STEPS.map((s, i) => (
-              <li key={s.title} className="border-t border-line pt-6">
-                <span className="text-[13px] font-semibold text-brand tnum">Step {i + 1}</span>
-                <h3 className="text-[16px] font-semibold mt-2">{s.title}</h3>
-                <p className="text-[14px] text-ink-2 leading-[1.65] mt-2">{s.body}</p>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-12 flex justify-center">
-            <Cta />
-          </div>
-        </div>
-      </section>
-
       <section id="pricing" className="border-t border-line bg-subtle scroll-mt-14">
         <div className="wrap py-20 sm:py-24">
           <div className="text-center">
@@ -172,12 +136,21 @@ export default function Home() {
       </section>
 
       <section id="faq" className="border-t border-line scroll-mt-14">
-        <div className="wrap py-20 sm:py-24 max-w-[820px]">
-          <h2 className="section-title text-[32px] sm:text-[40px] text-center">Questions</h2>
-          <div className="card divide-y divide-line mt-10">
+        <div className="wrap py-20 sm:py-24 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]">
+          <div>
+            <h2 className="section-title text-[32px] sm:text-[40px]">Before you buy</h2>
+            <p className="text-[15px] text-ink-2 leading-[1.6] mt-3">
+              Anything else? Write to{" "}
+              <a className="text-ink underline" href="mailto:hello@usetrnd.com">
+                hello@usetrnd.com
+              </a>
+              . A person answers.
+            </p>
+          </div>
+          <div className="card divide-y divide-line">
             {FAQ.map((f) => (
               <details key={f.q} className="group px-6 py-5">
-                <summary className="flex items-center justify-between gap-4 text-[15px] font-medium">
+                <summary className="flex items-center justify-between gap-4 text-[15px] font-medium cursor-pointer">
                   {f.q}
                   <span className="text-ink-3 text-[18px] leading-none transition-transform group-open:rotate-45">+</span>
                 </summary>
@@ -191,7 +164,7 @@ export default function Home() {
       <section className="border-t border-line wash-bottom">
         <div className="wrap py-20 sm:py-28 flex flex-col items-center text-center">
           <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
-          <h2 className="section-title text-[32px] sm:text-[44px] max-w-[760px] mt-3">Your essay is the last thing you can still change.</h2>
+          <h2 className="section-title text-[32px] sm:text-[44px] max-w-[760px] mt-3">See where you stand before you submit.</h2>
           <Cta className="mt-8 justify-center" />
         </div>
       </section>

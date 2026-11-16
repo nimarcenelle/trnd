@@ -1,11 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import FinalRead, { type SchoolOption } from "@/components/essayodds/final-read";
-import AccountNav from "@/components/essayodds/account-nav";
+import AppHeader from "@/components/essayodds/app-header";
 import PlanCards, { Agree } from "@/components/essayodds/plan-cards";
-import Brand from "@/components/brand";
-import ThemeToggle from "@/components/theme-toggle";
 import { paidSession } from "@/lib/essayodds/access";
 import { PROMPTS, wordLimit } from "@/lib/essayodds/prompts";
 import { SCHOOLS } from "@/lib/essayodds/schools";
@@ -22,25 +19,7 @@ export default async function FinalReadPage() {
     .sort((a, b) => a.name.localeCompare(b.name));
   return (
     <div className="min-h-dvh flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-line bg-ground">
-        <div className="flex items-center justify-between h-14 px-5 sm:px-8">
-          <div className="flex items-center gap-4">
-            <Brand />
-            <span className="hidden sm:block h-4 w-px bg-line-strong" />
-            <span className="hidden sm:block text-[13px] text-ink-2">Final Read</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Link href="/essay" className="btn btn-ghost btn-sm">
-              Essays
-            </Link>
-            <Link href="/activities" className="btn btn-ghost btn-sm">
-              Activities
-            </Link>
-            <AccountNav />
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <AppHeader />
       <main className="flex-1 bg-subtle">
         <div className="wrap py-12 sm:py-16">
           <p className="kicker">Final Read</p>

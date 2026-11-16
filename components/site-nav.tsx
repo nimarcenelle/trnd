@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import AccountNav from "@/components/essayodds/account-nav";
+import SiteLinks from "@/components/essayodds/site-links";
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
 
@@ -8,27 +9,12 @@ import ThemeToggle from "@/components/theme-toggle";
 export default function SiteNav({ links = true }: { links?: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-ground/85 backdrop-blur-md">
-      <div className="wrap flex items-center justify-between h-14">
-        <div className="flex items-center gap-10">
+      <div className="wrap flex items-center justify-between h-16">
+        <div className="flex items-center gap-8">
           <Brand />
-          {links && (
-            <nav className="hidden md:flex items-center gap-7 text-[13.5px] text-ink-2">
-              <Link href="/essays" className="hover:text-ink">
-                Essay prompts
-              </Link>
-              <Link href="/activities" className="hover:text-ink">
-                Activities
-              </Link>
-              <Link href="/pricing" className="hover:text-ink">
-                Pricing
-              </Link>
-              <Link href="/#faq" className="hover:text-ink">
-                FAQ
-              </Link>
-            </nav>
-          )}
+          {links && <SiteLinks />}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <ThemeToggle />
           <AccountNav />
           <Link href="/odds" className="btn btn-primary btn-sm">

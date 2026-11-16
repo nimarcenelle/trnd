@@ -54,7 +54,7 @@ function Next({ onClick, disabled, label = "Continue", busy, busyLabel = "Workin
 /** Fills in beside the questions as they are answered, so the flow reads as a file being built, not a form. */
 function YourFile({ rows }: { rows: { label: string; value: string }[] }) {
   return (
-    <aside className="hidden lg:flex sticky top-[59px] h-[calc(100dvh-59px)] self-start items-center justify-center bg-subtle border-l border-line px-10">
+    <aside className="hidden lg:flex sticky top-[68px] h-[calc(100dvh-68px)] self-start items-center justify-center bg-subtle border-l border-line px-10">
       <div className="dot-grid absolute inset-0 pointer-events-none" aria-hidden="true" />
       <div className="card relative w-full max-w-[340px] p-6 shadow-[var(--shadow-lg)]">
         <div className="text-[13px] font-medium text-[var(--kicker)]">Your file</div>
@@ -65,7 +65,7 @@ function YourFile({ rows }: { rows: { label: string; value: string }[] }) {
               <span className="min-w-0">
                 <span className="block text-[12px] text-ink-3">{r.label}</span>
                 <span key={r.value} className={`block text-[14px] font-medium leading-snug mt-0.5 tnum ${r.value ? "rise" : "text-ink-3 font-normal"}`}>
-                  {r.value || "Not yet"}
+                  {r.value || "—"}
                 </span>
               </span>
             </li>
@@ -369,7 +369,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
   return (
     <div className={`min-h-dvh flex flex-col ${inFlow ? "" : "bg-subtle"}`}>
       <header className="sticky top-0 z-40 bg-ground border-b border-line">
-        <div className="flex items-center justify-between h-14 px-5 sm:px-8">
+        <div className="flex items-center justify-between h-16 px-4 sm:px-6">
           <Brand />
           <div className="flex items-center gap-3">
             {inFlow && <span className="text-[13px] text-ink-3 tnum">{step + 1} of {QUESTIONS}</span>}

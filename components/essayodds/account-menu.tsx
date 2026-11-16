@@ -25,9 +25,21 @@ export default function AccountMenu({ email, until, hasPass, buyerEmail, welcome
     );
   return (
     <div className="relative">
-      <button className="btn btn-ghost btn-sm" type="button" aria-expanded={open} onClick={() => setOpen(!open)}>
-        {email ? "Account" : "Log in"}
-      </button>
+      {email ? (
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-label={`Account: ${email}`}
+          onClick={() => setOpen(!open)}
+          className="h-9 w-9 rounded-full bg-locked text-[var(--on-action)] text-[14px] font-semibold uppercase inline-flex items-center justify-center cursor-pointer ring-offset-2 ring-offset-[var(--ground)] hover:ring-2 hover:ring-line-strong transition"
+        >
+          {email[0]}
+        </button>
+      ) : (
+        <button className="btn btn-ghost btn-sm" type="button" aria-expanded={open} onClick={() => setOpen(!open)}>
+          Log in
+        </button>
+      )}
       {open && (
         <div className="card absolute right-0 top-[calc(100%+8px)] z-50 w-[min(340px,calc(100vw-32px))] p-4 shadow-[var(--shadow-lg)]">
           {email ? (

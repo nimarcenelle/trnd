@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import ListReviewer from "@/components/essayodds/list-reviewer";
-import SiteNav from "@/components/site-nav";
+import AppHeader from "@/components/essayodds/app-header";
 import { isEssayOpen } from "@/lib/env";
 
 export const metadata = {
@@ -13,7 +13,7 @@ export default function ActivitiesPage() {
   if (!isEssayOpen) notFound();
   return (
     <div className="min-h-dvh flex flex-col">
-      <SiteNav />
+      <AppHeader />
       <main className="flex-1 bg-subtle">
         <div className="wrap py-14 sm:py-20">
           <p className="kicker">Activities and honors</p>

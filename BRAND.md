@@ -81,7 +81,10 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
   publishes them; re-check each August), `/activities` (list reviews). `/essay/final` (Final Read) is paid and lives in the
   workspace bar.
 - Only sell what exists. A feature joins the page and the price list when it ships.
-- The essay page is a workspace, not a marketing page: its own slim bar, the draft on the left with cited lines marked, results
+- Two bars, no others. Marketing pages: `SiteNav` (brand, links with the current page marked, Log in, Get my odds). Tool pages
+  (Essays, Activities, Final Read): `AppHeader`, with the four tools as one segmented control, the pass chip (or Get a pass) and
+  the account avatar. No numbered-circle card rows or Step 1/2/3 blocks: show the product instead.
+- The essay page is a workspace, not a marketing page: the app bar, the draft on the left with cited lines marked, results
   on the right.
 - Cards 12px radius, wells 10px, the band 20px. `.wrap` is 1160px. No horizontal scroll on phones.
 

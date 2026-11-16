@@ -379,7 +379,7 @@ export default function EssayWorkspace({ paid, start }: { paid: boolean; start?:
   const number = (id: string) => (id.startsWith("fix-") ? Number(id.slice(4)) + 1 : null);
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:h-[calc(100dvh-57px)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:h-[calc(100dvh-65px)]">
       <section className="flex flex-col min-h-[70dvh] lg:min-h-0 border-b lg:border-b-0 lg:border-r border-line">
         <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-3 px-5 sm:px-8 py-4 border-b border-line">
           <label className="text-[12px] text-ink-3">

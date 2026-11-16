@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Admitted go-live: sets the production environment variables on Vercel project trnd-admitted, then redeploys.
+# EssayOdds go-live: sets the production environment variables on Vercel project trnd-admitted, then redeploys.
 # Run from the repo root:  bash scripts/admitted-go-live.sh
 # Each step asks first and can be skipped. Secrets are read without echoing and never written to disk.
 set -euo pipefail
 
 PROJECT="trnd-admitted"
 SCOPE="nimarcenelles-projects"
-SITE="https://admitted.usetrnd.com"
+SITE="https://essayodds.com"
 
 ask() { read -r -p "$1 [y/N] " a; [[ "$a" =~ ^[Yy] ]]; }
 

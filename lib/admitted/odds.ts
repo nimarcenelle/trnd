@@ -22,7 +22,7 @@ async function wordingFor(p: Profile, schools: School[]): Promise<Map<string, Fi
     model: env.openaiModelFast,
     effort: "low",
     system: SYSTEM,
-    prompt: `Applicant: GPA ${p.gpa.toFixed(2)}, ${p.test ? `${p.test.kind} ${p.test.score}` : "no test score"}.\nSchools:\n${schools.map((s) => `school_id: ${s.id}, name: ${s.name}`).join("\n")}`,
+    prompt: `Applicant: GPA ${p.gpa.toFixed(2)}, ${p.test ? `${p.test.kind} ${p.test.score}` : "no test score"}${typeof p.essay === "number" ? `, personal statement scored ${Math.round(p.essay)} of 100` : ""}.\nSchools:\n${schools.map((s) => `school_id: ${s.id}, name: ${s.name}`).join("\n")}`,
     schema: Reply,
   });
   return new Map(reply.results.map((r) => [r.school_id, { essays: r.essays.trim() || DEFAULT_WORDING.essays, activities: r.activities.trim() || DEFAULT_WORDING.activities }]));

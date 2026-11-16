@@ -79,3 +79,30 @@ describe("plans and prompts", () => {
     expect(wordLimit({ title: "t", text: "t", limit: 250, unit: "words", required: true })).toBe(250);
   });
 });
+
+import { calculateOdds, essayFactor, oddsKey, parseProfile } from "@/lib/admitted/odds-core";
+
+describe("odds with a read essay", () => {
+  const base = parseProfile("3.9", "1500")!;
+  it("never drops for a stronger essay, at any school", () => {
+    for (const s of SCHOOLS)
+      for (let e = 0; e < 100; e += 5) expect(calculateOdds({ ...base, essay: e + 5 }, s).odds).toBeGreaterThanOrEqual(calculateOdds({ ...base, essay: e }, s).odds);
+  });
+  it("leaves the number alone for an unread essay or a middling one", () => {
+    expect(essayFactor(null)).toBe(1);
+    expect(essayFactor(50)).toBe(1);
+    for (const s of SCHOOLS) expect(calculateOdds({ ...base, essay: 50 }, s).odds).toBe(calculateOdds(base, s).odds);
+  });
+  it("sizes the essay fix from the draft, and drops it for a draft already at the target", () => {
+    const yale = SCHOOLS.find((s) => s.id === "yale")!;
+    const weak = calculateOdds({ ...base, essay: 40 }, yale).fixes.find((f) => f.kind === "essays")!.gain;
+    const better = calculateOdds({ ...base, essay: 75 }, yale).fixes.find((f) => f.kind === "essays")?.gain ?? 0;
+    expect(weak).toBeGreaterThan(better);
+    expect(calculateOdds({ ...base, essay: 95 }, yale).fixes.some((f) => f.kind === "essays")).toBe(false);
+  });
+  it("keeps every saved number without an essay under its old key", () => {
+    const s = SCHOOLS[0];
+    expect(oddsKey({ ...base, essay: null }, s)).toBe(oddsKey(base, s));
+    expect(oddsKey({ ...base, essay: 64 }, s)).not.toBe(oddsKey(base, s));
+  });
+});

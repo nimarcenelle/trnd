@@ -8,8 +8,11 @@ import { admitRate, earlyRate, PENDING_SCHOOLS, residentRate, SCHOOLS, type Scho
  * writes the wording of two fixes.
  */
 export type Test = { kind: "SAT" | "ACT"; score: number } | null;
-/** `home` is a two-letter state or "INTL". It only changes the number at schools publishing a residency split. */
-export type Profile = { gpa: number; test: Test; home?: string | null };
+/**
+ * `home` is a two-letter state or "INTL". It only changes the number at schools publishing a residency split.
+ * `essay` is the saved review score of the student's own essay, 0 to 100, and only present once we have read it.
+ */
+export type Profile = { gpa: number; test: Test; home?: string | null; essay?: number | null };
 export type OddsFix = { kind: "round" | "essays" | "activities"; label: string; gain: number };
 export type SchoolOdds = { schoolId: string; odds: number; withFixes: number; locked: number; movable: number; fixes: OddsFix[] };
 
@@ -26,6 +29,16 @@ export const ASSUMPTIONS = {
   noTest: 0.85,
   essayGain: 0.25,
   activitiesGain: 0.15,
+  /**
+   * How a read essay moves the number: a middling draft (50) leaves it alone, a weak one costs a little and a
+   * strong one earns up to the essay gain. A draft at 90 or above has nothing left to win from revising.
+   */
+  essayCurve: [
+    [20, 0.85],
+    [50, 1],
+    [90, 1.25],
+  ] as [number, number][],
+  essayTarget: 90,
 };
 
 export function parseProfile(gpa: unknown, test: unknown, home?: unknown): Profile | null {
@@ -70,7 +83,9 @@ export function oddsKey(p: Profile, s: School): string {
   const test = p.test ? `${p.test.kind}${p.test.score}` : "none";
   // Only schools with a split get a separate saved result per residency group.
   const group = s.residency && p.home ? (p.home === "INTL" ? "intl" : p.home === s.residency.state ? "in" : "out") : "";
-  return "odds:" + createHash("sha256").update([ODDS_VERSION, p.gpa.toFixed(2), test, s.id, s.edition, group].join("|")).digest("hex");
+  // Only a read essay adds to the key, so every saved number without one stays where it was.
+  const essay = typeof p.essay === "number" ? [`essay${Math.round(p.essay)}`] : [];
+  return "odds:" + createHash("sha256").update([ODDS_VERSION, p.gpa.toFixed(2), test, s.id, s.edition, group, ...essay].join("|")).digest("hex");
 }
 
 /** Straight lines between points, flat past both ends. */
@@ -117,6 +132,9 @@ export const gpaFactor = (gpa: number) =>
     [4.5, 1.15],
   ]);
 
+/** 1 when the essay hasn't been read. */
+export const essayFactor = (score: number | null | undefined) => (typeof score === "number" ? curve(score, ASSUMPTIONS.essayCurve) : 1);
+
 /** The rate outside the early round, where a school publishes enough to separate them. */
 export function regularRate(s: School, home?: string | null): number {
   const applicants = s.early?.applicants;
@@ -144,11 +162,14 @@ export const DEFAULT_WORDING: FixWording = { essays: "Strengthen your essays", a
 
 export function calculateOdds(p: Profile, s: School, wording: FixWording = DEFAULT_WORDING): SchoolOdds {
   const { floor, cap } = oddsBounds(s, p.home);
-  const exact = regularRate(s, p.home) * testFactor(p.test, s) * gpaFactor(p.gpa);
+  const exact = regularRate(s, p.home) * testFactor(p.test, s) * gpaFactor(p.gpa) * essayFactor(p.essay);
   const odds = Math.min(cap, Math.max(floor, Math.round(exact)));
+  const read = typeof p.essay === "number";
+  // Read: what taking this draft to the target would add. Unread: the general estimate.
+  const essayGain = read ? exact * (essayFactor(Math.max(p.essay!, ASSUMPTIONS.essayTarget)) / essayFactor(p.essay) - 1) : exact * ASSUMPTIONS.essayGain;
   const raw: OddsFix[] = [
     ...(s.early ? [{ kind: "round" as const, label: `Apply ${s.early.plan} instead of RD`, gain: exact * (earlyBoost(s) - 1) }] : []),
-    { kind: "essays", label: wording.essays, gain: exact * ASSUMPTIONS.essayGain },
+    ...(read && essayGain < 0.5 ? [] : [{ kind: "essays" as const, label: wording.essays, gain: essayGain }]),
     { kind: "activities", label: wording.activities, gain: exact * ASSUMPTIONS.activitiesGain },
   ];
   const fixes: OddsFix[] = [];

@@ -64,9 +64,9 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
   alternating text/card feature rows with green checks, each card on a tinted panel (`.stage`), **exactly one** deep navy
   rounded band ("Where the numbers come from", with a sample number traced to its Common Data Set sections), free and paid
   pricing cards, plus-accordion FAQ, minimal footer.
-- `/odds` is one question per screen: schools, GPA, score, home state. Then the odds, then one sell screen  Nothing asks for an email before the odds, and the essay workspace stays side by side. Questions use `.display`
+- `/odds` is one question per screen: schools, personal statement (skippable; the free review reads it while the rest are answered), GPA, score, home state. Then the odds, then one sell screen  Nothing asks for an email before the odds, and the essay workspace stays side by side. Questions use `.display`
   and a large `.flow-input`, "Your file" fills in beside them on desktop, the odds land on one big number, and the price sits on the navy band color.
-- Public page numbers: percent odds per school and +N points on the application round only. Nobody can size an essay, a letter
+- Public page numbers: percent odds per school and +N points on the application round, and on the essay only once we have read it (its score feeds the odds through `essayCurve`). Nobody can size an essay, a letter
   or an activity list without reading it, so those say "depends on what's in them", never a number. The essay score lives
   inside the paid workspace, after we have read the draft. "Up to" is today's odds plus the round only, and blank where a
   school has no early round.

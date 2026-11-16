@@ -15,7 +15,7 @@ import { shortName } from "@/lib/admitted/list";
 import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 
 const STEPS = [
-  { title: "Enter your numbers", body: "Your schools, GPA, SAT or ACT and home state. No account, no email." },
+  { title: "Enter your file", body: "Your schools, your personal statement, GPA, SAT or ACT and home state. No account, no email." },
   { title: "See the split", body: "Your odds at each school, and how much of each number is locked and how much is still movable." },
   { title: "Get the top fix, free", body: "The next move at each school, named. Act on it with us or without us." },
   { title: "Fix the movable part", body: "Our AI rates every draft, marks what costs you most and helps you rewrite it in your voice. Your first review is free." },
@@ -156,7 +156,7 @@ export default function Home() {
               <Link href="/odds" className="btn btn-primary btn-lg mt-8 w-full sm:w-auto">
                 See my odds <IconArrowRight />
               </Link>
-              <p className="caption mt-3">Four questions. Free, no account: your odds, the locked and movable split, and your top fix.</p>
+              <p className="caption mt-3">Five questions, your essay included. Free, no account: your odds, your essay score and your top fix.</p>
             </div>
             <OddsToy />
           </div>

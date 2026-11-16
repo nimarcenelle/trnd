@@ -39,11 +39,11 @@ function Question({ title, sub, children }: { title: string; sub?: string; child
   );
 }
 
-function Next({ onClick, disabled, label = "Continue", busy, hint }: { onClick: () => void; disabled?: boolean; label?: string; busy?: boolean; hint?: boolean }) {
+function Next({ onClick, disabled, label = "Continue", busy, busyLabel = "Working…", hint }: { onClick: () => void; disabled?: boolean; label?: string; busy?: boolean; busyLabel?: string; hint?: boolean }) {
   return (
     <div className="flex items-center gap-4 mt-8">
       <button className="btn btn-primary btn-lg w-full sm:w-auto !h-12 !px-6" type="button" disabled={disabled || busy} onClick={onClick}>
-        {busy ? "Working…" : label} {!busy && <IconArrowRight />}
+        {busy ? busyLabel : label} {!busy && <IconArrowRight />}
       </button>
       {hint && !disabled && <span className="hidden sm:inline text-[13px] text-ink-3">or press Enter</span>}
     </div>
@@ -259,6 +259,11 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
       .catch((): EssayRead => ({ state: "failed" }))
       .then((r) => {
         setRead(r);
+        // Tells the essay page to open on this review, which comes back saved and free.
+        if (r.state === "read")
+          try {
+            localStorage.setItem(DRAFT_STORE, JSON.stringify({ draft: text, prompt: "", limit: "650", answers: {}, reviewed: true }));
+          } catch {}
         return r;
       });
     go(2);
@@ -426,7 +431,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                 ))}
               </select>
               {error && <p className="text-[13px] text-neg mt-2">{error}</p>}
-              <Next disabled={!home} busy={busy} onClick={() => void getOdds()} label={busy && read.state === "reading" ? "Reading your essay…" : "See my odds"} hint />
+              <Next disabled={!home} busy={busy} onClick={() => void getOdds()} label="See my odds" busyLabel={read.state === "reading" ? "Reading your essay…" : "Working…"} hint />
               {busy && read.state === "reading" && <p className="caption mt-3">Your essay takes about a minute to read. Your odds follow straight after.</p>}
               <p className="caption mt-3">Free, no account, no email.</p>
             </Question>

@@ -293,8 +293,13 @@ export default function EssayWorkspace({ paid, start }: { paid: boolean; start?:
   // A browser convenience: a reload should not cost a student their draft.
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORE) ?? "null") as { draft?: string; prompt?: string; limit?: string; answers?: Record<string, string> } | null;
+      const saved = JSON.parse(localStorage.getItem(STORE) ?? "null") as { draft?: string; prompt?: string; limit?: string; answers?: Record<string, string>; reviewed?: boolean } | null;
       if (saved?.draft) setDraft(saved.draft);
+      // Arriving from the odds flow, whose review of this draft is saved: show it straight away.
+      if (saved?.reviewed && saved.draft && !start) {
+        localStorage.setItem(STORE, JSON.stringify({ ...saved, reviewed: false }));
+        void runReview(saved.draft);
+      }
       if (saved?.prompt && !start) setPrompt(saved.prompt);
       if (saved?.limit && !start) setLimit(saved.limit);
       if (saved?.answers) setAnswers(saved.answers);

@@ -85,8 +85,16 @@ describe("calculated odds", () => {
         expect(r.withFixes).toBe(r.odds + r.fixes.reduce((n, f) => n + f.gain, 0));
         expect(r.withFixes).toBeLessThanOrEqual(oddsBounds(s).cap);
       }
-    expect(calculateOdds(p(3.95, 1530), stanford).fixes.map((f) => f.label)).toContain("Apply REA instead of RD");
-    expect(calculateOdds(p(3.95, 1530), dartmouth).fixes.map((f) => f.label)).toContain("Apply ED instead of RD");
+    const october = new Date("2026-10-01T12:00:00Z");
+    expect(calculateOdds(p(3.95, 1530), stanford, undefined, october).fixes.map((f) => f.label)).toContain("Apply REA instead of RD");
+    expect(calculateOdds(p(3.95, 1530), dartmouth, undefined, october).fixes.map((f) => f.label)).toContain("Apply ED instead of RD");
+  });
+  it("stops offering an early round once its deadline has passed, and offers it again next cycle", () => {
+    const at = (iso: string) => calculateOdds(p(3.95, 1530), stanford, undefined, new Date(iso)).fixes.some((f) => f.kind === "round");
+    expect(at("2026-10-31T12:00:00Z")).toBe(true);
+    expect(at("2026-11-16T12:00:00Z")).toBe(false);
+    expect(at("2027-03-01T12:00:00Z")).toBe(false);
+    expect(at("2027-09-01T12:00:00Z")).toBe(true);
   });
   it("gives a weak profile lower odds than the published rate", () => {
     expect(calculateOdds(p(3.2, 1300), dartmouth).odds).toBeLessThan(admitRate(dartmouth));
@@ -246,21 +254,22 @@ describe("a school request", () => {
   });
 });
 
+/** The samples show the site after this cycle's early deadlines; regenerate them when early rounds reopen in August. */
+const SAMPLES_AT = new Date("2026-11-16T12:00:00Z");
+
 describe("the public samples", () => {
   it("put no number on essays, letters or activities", () => {
-    expect(FACTORS.movable.filter((f) => "gain" in f).map((f) => f.kind)).toEqual(["round"]);
+    expect(FACTORS.movable.some((f) => "gain" in f)).toBe(false);
   });
   it("show the hero school's real numbers", () => {
-    const live = calculateOdds(parseProfile(FACTORS.gpa, FACTORS.test)!, SCHOOLS.find((s) => s.name === FACTORS.school)!);
-    const round = live.fixes.find((f) => f.kind === "round")!.gain;
-    expect([live.odds, live.withFixes, live.odds + round]).toEqual([FACTORS.odds, FACTORS.withFixes, FACTORS.upTo]);
-    expect(FACTORS.movable.find((f) => f.kind === "round")!.gain).toBe(round);
+    const live = calculateOdds(parseProfile(FACTORS.gpa, FACTORS.test)!, SCHOOLS.find((s) => s.name === FACTORS.school)!, undefined, SAMPLES_AT);
+    expect([live.odds, live.withFixes]).toEqual([FACTORS.odds, FACTORS.withFixes]);
   });
   it("match the calculation", () => {
     for (const a of APPLICANTS)
       for (const row of a.schools) {
         const school = SCHOOLS.find((s) => s.name === row.name)!;
-        const live = calculateOdds(parseProfile(a.gpa, a.test.replace("SAT ", ""), a.home)!, school);
+        const live = calculateOdds(parseProfile(a.gpa, a.test.replace("SAT ", ""), a.home)!, school, undefined, SAMPLES_AT);
         expect([live.odds, live.withFixes, live.locked, live.movable]).toEqual([row.odds, row.withFixes, row.locked, row.movable]);
         expect(row.round).toBe(live.fixes.find((f) => f.kind === "round")?.gain ?? null);
       }
@@ -348,6 +357,5 @@ describe("up to", () => {
   it("counts the round only, and nothing where there is no round", () => {
     expect(upTo(30, [{ kind: "essays", gain: 7 }, { kind: "round", gain: 6 }, { kind: "activities", gain: 4 }])).toBe(36);
     expect(upTo(6, [{ kind: "essays", gain: 1 }])).toBeNull();
-    expect(FACTORS.upTo).toBe(FACTORS.odds + FACTORS.movable.find((f) => f.kind === "round")!.gain!);
   });
 });

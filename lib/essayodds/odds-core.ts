@@ -17,7 +17,7 @@ export type OddsFix = { kind: "round" | "essays" | "activities"; label: string; 
 export type SchoolOdds = { schoolId: string; odds: number; withFixes: number; locked: number; movable: number; fixes: OddsFix[] };
 
 /** Bump when the calculation or wording prompt changes: it replaces every saved number. */
-export const ODDS_VERSION = "3";
+export const ODDS_VERSION = "4";
 
 /** Our assumptions, not published figures. Change them here and bump ODDS_VERSION. */
 export const ASSUMPTIONS = {
@@ -78,14 +78,33 @@ export function matchSchools(text: string): { found: School[]; pending: string[]
   return { found, pending, unknown };
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * Whether the school's early round can still be applied to this cycle. A cycle runs August to July, so an early deadline
+ * of "Nov 1" belongs to the November inside the cycle that `now` falls in. Unreadable dates count as open.
+ */
+export function earlyOpen(s: School, now = new Date()): boolean {
+  const m = /^([A-Z][a-z]{2})\w*\s+(\d{1,2})$/.exec(s.early?.closes?.trim() ?? "");
+  const month = m ? MONTHS.indexOf(m[1]) : -1;
+  if (!s.early || !m || month < 0) return Boolean(s.early);
+  // New York in early-round season is UTC−5; plain arithmetic keeps this cheap enough to run per school per profile.
+  const ny = new Date(now.getTime() - 5 * 3_600_000);
+  const cycleStart = ny.getUTCMonth() >= 7 ? ny.getUTCFullYear() : ny.getUTCFullYear() - 1;
+  const closes = Date.UTC(month >= 7 ? cycleStart : cycleStart + 1, month, Number(m[2]), 23, 59);
+  return ny.getTime() <= closes;
+}
+
 /** Same inputs at the same school always reach the same saved result. */
-export function oddsKey(p: Profile, s: School): string {
+export function oddsKey(p: Profile, s: School, now = new Date()): string {
   const test = p.test ? `${p.test.kind}${p.test.score}` : "none";
   // Only schools with a split get a separate saved result per residency group.
   const group = s.residency && p.home ? (p.home === "INTL" ? "intl" : p.home === s.residency.state ? "in" : "out") : "";
   // Only a read essay adds to the key, so every saved number without one stays where it was.
   const essay = typeof p.essay === "number" ? [`essay${Math.round(p.essay)}`] : [];
-  return "odds:" + createHash("sha256").update([ODDS_VERSION, p.gpa.toFixed(2), test, s.id, s.edition, group, ...essay].join("|")).digest("hex");
+  // Whether the early round is still open changes the fixes, so it is part of the key.
+  const round = earlyOpen(s, now) ? "early-open" : "early-closed";
+  return "odds:" + createHash("sha256").update([ODDS_VERSION, p.gpa.toFixed(2), test, s.id, s.edition, group, round, ...essay].join("|")).digest("hex");
 }
 
 /** Straight lines between points, flat past both ends. */
@@ -160,7 +179,8 @@ export function oddsBounds(s: School, home?: string | null): { floor: number; ca
 export type FixWording = { essays: string; activities: string };
 export const DEFAULT_WORDING: FixWording = { essays: "Strengthen your essays", activities: "Lead with your strongest activity" };
 
-export function calculateOdds(p: Profile, s: School, wording: FixWording = DEFAULT_WORDING): SchoolOdds {
+/** `now` decides whether the early round is still on offer: once its deadline passes, it is no longer a move. */
+export function calculateOdds(p: Profile, s: School, wording: FixWording = DEFAULT_WORDING, now = new Date()): SchoolOdds {
   const { floor, cap } = oddsBounds(s, p.home);
   const exact = regularRate(s, p.home) * testFactor(p.test, s) * gpaFactor(p.gpa) * essayFactor(p.essay);
   const odds = Math.min(cap, Math.max(floor, Math.round(exact)));
@@ -168,7 +188,7 @@ export function calculateOdds(p: Profile, s: School, wording: FixWording = DEFAU
   // Read: what taking this draft to the target would add. Unread: the general estimate.
   const essayGain = read ? exact * (essayFactor(Math.max(p.essay!, ASSUMPTIONS.essayTarget)) / essayFactor(p.essay) - 1) : exact * ASSUMPTIONS.essayGain;
   const raw: OddsFix[] = [
-    ...(s.early ? [{ kind: "round" as const, label: `Apply ${s.early.plan} instead of RD`, gain: exact * (earlyBoost(s) - 1) }] : []),
+    ...(s.early && earlyOpen(s, now) ? [{ kind: "round" as const, label: `Apply ${s.early.plan} instead of RD`, gain: exact * (earlyBoost(s) - 1) }] : []),
     ...(read && essayGain < 0.5 ? [] : [{ kind: "essays" as const, label: wording.essays, gain: essayGain }]),
     { kind: "activities", label: wording.activities, gain: exact * ASSUMPTIONS.activitiesGain },
   ];

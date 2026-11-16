@@ -30,12 +30,9 @@ function useCount(target: number) {
   return shown;
 }
 
-/** The hero's working sample: the round is a sized switch; what essays and letters do depends on what's in them. */
+/** The hero's sample: one school's odds for one applicant, and the parts of the application that still move them. */
 export default function OddsToy() {
-  const round = FACTORS.movable.find((f) => f.kind === "round")!;
-  const [on, setOn] = useState(false);
-  const gained = on ? (round.gain ?? 0) : 0;
-  const odds = useCount(FACTORS.odds + gained);
+  const odds = useCount(FACTORS.odds);
   return (
     <div className="card w-full p-6 shadow-[var(--shadow-lg)]">
       <div className="flex items-center justify-between gap-3">
@@ -43,38 +40,23 @@ export default function OddsToy() {
         <span className="caption">Sample applicant</span>
       </div>
       <div className="mt-4 flex items-end justify-between gap-3">
-        <div className={`text-[60px] font-semibold tracking-[-0.04em] leading-none tnum ${gained ? "text-brand" : ""}`} aria-live="polite">
-          {odds}%
-        </div>
+        <div className="text-[60px] font-semibold tracking-[-0.04em] leading-none tnum">{odds}%</div>
         <div className="text-[13px] text-ink-3 text-right tnum">
-          {FACTORS.odds}% today
+          GPA {FACTORS.gpa} · SAT {FACTORS.test}
           <br />
-          up to {FACTORS.upTo}% by round
+          odds today
         </div>
       </div>
-      <div className="mt-5 flex h-3 w-full rounded-full overflow-hidden bg-muted" role="img" aria-label={`${FACTORS.odds} points today, ${gained} added`}>
+      <div className="mt-5 flex h-3 w-full rounded-full overflow-hidden bg-muted" role="img" aria-label={`${FACTORS.odds} percent today`}>
         <span className="bg-locked" style={{ width: `${FACTORS.odds}%` }} />
-        <span className="bg-brand transition-[width] duration-300 ease-out" style={{ width: `${gained}%`, marginLeft: gained ? 1 : 0 }} />
       </div>
       <ul className="list-none p-0 m-0 mt-5 divide-y divide-line">
-        {FACTORS.movable.map((f) =>
-          f.kind === "round" ? (
-            <li key={f.label}>
-              <button type="button" role="switch" aria-checked={on} onClick={() => setOn(!on)} className="w-full flex items-center gap-3 py-3 text-left cursor-pointer bg-transparent border-0 px-0 text-ink">
-                <span className={`relative shrink-0 w-8 h-[18px] rounded-full transition-colors ${on ? "bg-brand" : "bg-line-strong"}`}>
-                  <span className={`absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-bg transition-transform ${on ? "translate-x-[14px]" : ""}`} />
-                </span>
-                <span className="flex-1 min-w-0 text-[14px]">{f.label}</span>
-                <span className={`text-[13px] tnum font-medium whitespace-nowrap ${on ? "text-brand" : "text-ink-3"}`}>+{f.gain} pts</span>
-              </button>
-            </li>
-          ) : (
-            <li key={f.label} className="flex items-baseline justify-between gap-3 py-3 text-[14px]">
-              <span>{f.label}</span>
-              <span className="text-[13px] text-ink-3 whitespace-nowrap">Depends on what&apos;s in them</span>
-            </li>
-          ),
-        )}
+        {FACTORS.movable.map((f) => (
+          <li key={f.label} className="flex items-baseline justify-between gap-3 py-3 text-[14px]">
+            <span>{f.label}</span>
+            <span className="text-[13px] text-ink-3 whitespace-nowrap">Depends on what&apos;s in them</span>
+          </li>
+        ))}
       </ul>
     </div>
   );

@@ -116,7 +116,7 @@ function Reveal({ rows, profile, onNext, open, essay, paid }: { rows: Row[]; pro
           <a className="text-[16px] font-semibold hover:underline" href={lead.school.source} target="_blank" rel="noreferrer">
             {lead.school.name}
           </a>
-          <span className="text-[13px] text-ink-3">Where the round moves you most</span>
+          <span className="text-[13px] text-ink-3">{round ? "Where the round moves you most" : "Where you can move the most"}</span>
         </div>
         <div className="mt-5 flex flex-wrap items-end gap-x-5 gap-y-2 tnum">
           <div className="text-[72px] sm:text-[96px] font-semibold tracking-[-0.04em] leading-[0.9]">

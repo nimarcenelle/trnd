@@ -1,7 +1,7 @@
 /**
  * The sample applicants the landing page shows, on real lists. Odds, points and fix wording are the real
  * /api/odds results for these inputs, and school figures come from each school's own Common Data Set.
- * Only the round carries points on the page. What an essay or a letter is worth depends on what's in it,
+ * Only an early round still open carries points on the page (none after this cycle's early deadlines). What an essay or a letter is worth depends on what's in it,
  * so no number goes on one before anyone has read it.
  */
 /** `round` is the early-round gain in points, or null where the school has no early round. `fix` is the next move shown. */
@@ -15,9 +15,9 @@ export const APPLICANTS: { key: string; gpa: string; test: string; home: string 
     home: "GA",
     place: "Georgia",
     schools: [
-      { name: "University of Georgia", odds: 30, withFixes: 47, round: 6, locked: 64, movable: 36, fix: { kind: "round", label: "Apply EA instead of RD", gain: 6 } },
-      { name: "University of Wisconsin–Madison", odds: 18, withFixes: 29, round: 4, locked: 62, movable: 38, fix: { kind: "round", label: "Apply EA instead of RD", gain: 4 } },
-      { name: "University of Michigan", odds: 6, withFixes: 10, round: 1, locked: 60, movable: 40, fix: { kind: "round", label: "Apply EA instead of RD", gain: 1 } },
+      { name: "University of Georgia", odds: 30, withFixes: 41, round: null, locked: 73, movable: 27, fix: { kind: "essays", label: "Make your Georgia essay specific", gain: 7 } },
+      { name: "University of Wisconsin–Madison", odds: 18, withFixes: 25, round: null, locked: 72, movable: 28, fix: { kind: "essays", label: "Make your Why UW–Madison essay specific", gain: 4 } },
+      { name: "University of Michigan", odds: 6, withFixes: 9, round: null, locked: 67, movable: 33, fix: { kind: "essays", label: "Make your Michigan essays personal", gain: 2 } },
       { name: "University of California, Los Angeles", odds: 6, withFixes: 8, round: null, locked: 75, movable: 25, fix: { kind: "essays", label: "Make your UCLA essays vivid and personal", gain: 1 } },
     ],
   },
@@ -28,9 +28,9 @@ export const APPLICANTS: { key: string; gpa: string; test: string; home: string 
     home: null,
     place: "",
     schools: [
-      { name: "Cornell University", odds: 10, withFixes: 16, round: 1, locked: 63, movable: 37, fix: { kind: "round", label: "Apply ED instead of RD", gain: 1 } },
-      { name: "Harvard University", odds: 7, withFixes: 12, round: 2, locked: 58, movable: 42, fix: { kind: "round", label: "Apply REA instead of RD", gain: 2 } },
-      { name: "Yale University", odds: 7, withFixes: 12, round: 2, locked: 58, movable: 42, fix: { kind: "round", label: "Apply REA instead of RD", gain: 2 } },
+      { name: "Cornell University", odds: 10, withFixes: 15, round: null, locked: 67, movable: 33, fix: { kind: "essays", label: "Make your Cornell college essay specific", gain: 3 } },
+      { name: "Harvard University", odds: 7, withFixes: 10, round: null, locked: 70, movable: 30, fix: { kind: "essays", label: "Make your Harvard short answers specific", gain: 2 } },
+      { name: "Yale University", odds: 7, withFixes: 10, round: null, locked: 70, movable: 30, fix: { kind: "essays", label: "Make your Yale essay specific", gain: 2 } },
     ],
   },
 ];
@@ -43,11 +43,9 @@ export const FACTORS = {
   gpa: "4.0",
   test: "1560",
   odds: 7,
-  withFixes: 12,
-  upTo: 9,
+  withFixes: 10,
   locked: ["SAT 1560 against a middle 50% of 1450–1560", "GPA 4.0, as reported", "Same rate for every state"],
   movable: [
-    { kind: "round", label: "Apply REA instead of RD", gain: 2 },
     { kind: "essays", label: "Your essays" },
     { kind: "letters", label: "Your recommendation letters" },
     { kind: "activities", label: "How your activities read" },

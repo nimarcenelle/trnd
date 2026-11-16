@@ -17,7 +17,6 @@ const SCHOOLS = [
   { id: "uchicago", name: "UChicago" },
   { id: "northwestern", name: "Northwestern" },
   { id: "caltech", name: "Caltech" },
-  { id: "jhu", name: "Johns Hopkins" },
   { id: "georgetown", name: "Georgetown" },
 ];
 
@@ -26,7 +25,7 @@ const hasLogo = (id: string) => existsSync(path.join(process.cwd(), "public", "l
 function Mark({ id, name }: { id: string; name: string }) {
   return hasLogo(id) ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/logos/${id}.svg`} alt={name} className="h-9 sm:h-10 w-auto max-w-[180px] object-contain grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition dark:invert" loading="lazy" />
+    <img src={`/logos/${id}.svg`} alt={name} className="h-8 sm:h-9 w-auto max-w-[200px] object-contain brightness-0 opacity-55 hover:opacity-90 transition-opacity dark:invert" loading="lazy" />
   ) : (
     <span className="text-[20px] sm:text-[22px] font-semibold tracking-[-0.02em] text-ink-3 whitespace-nowrap">{name}</span>
   );

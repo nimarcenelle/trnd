@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 import { isSealed, seal, unseal } from "./seal";
 
 /** Results that quote a student's essay. They are never written in the clear. */
-const SEALED_KINDS = new Set(["review", "quick", "rewrite", "lists", "healthcheck"]);
+const SEALED_KINDS = new Set(["review", "quick", "rewrite", "lists", "healthcheck", "account", "user_data"]);
 
 /**
  * Every AI result is saved under a key built from its inputs, so unchanged inputs show the
@@ -74,4 +74,25 @@ export async function subscriberUsedToday(kind: string, subscriber: string): Pro
 export async function recordSubscriberUse(kind: string, subscriber: string): Promise<void> {
   const { error } = await essayOddsDb().from("ai_results").insert({ kind, key: `${kind}:${subscriber}:${crypto.randomUUID()}`, value: {} });
   if (error) console.warn("[saved] could not record use", error.message);
+}
+
+/** Writes a row, replacing whatever was there: an account's saved work, which changes as they edit. */
+export async function putLatest<T>(kind: string, key: string, value: T): Promise<void> {
+  const { error } = await essayOddsDb()
+    .from("ai_results")
+    .upsert({ kind, key, value: SEALED_KINDS.has(kind) ? seal(value, env.essayEncryptionKey) : value }, { onConflict: "key" });
+  if (error) throw error;
+}
+
+/** The newest rows whose key starts with `prefix`, newest first. */
+export async function latestByPrefix<T>(prefix: string, limit: number): Promise<{ key: string; value: T; createdAt: string }[]> {
+  const { data, error } = await essayOddsDb().from("ai_results").select("key, value, created_at").like("key", `${prefix}%`).order("created_at", { ascending: false }).limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ key: r.key as string, value: (isSealed(r.value) ? unseal<T>(r.value, env.essayEncryptionKey) : r.value) as T, createdAt: r.created_at as string }));
+}
+
+export async function deleteKeys(keys: string[]): Promise<void> {
+  if (!keys.length) return;
+  const { error } = await essayOddsDb().from("ai_results").delete().in("key", keys);
+  if (error) throw error;
 }

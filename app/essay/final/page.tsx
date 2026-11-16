@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import FinalRead, { type SchoolOption } from "@/components/essayodds/final-read";
+import AccountNav from "@/components/essayodds/account-nav";
 import PlanCards, { Agree } from "@/components/essayodds/plan-cards";
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
@@ -35,6 +36,7 @@ export default async function FinalReadPage() {
             <Link href="/activities" className="btn btn-ghost btn-sm">
               Activities
             </Link>
+            <AccountNav />
             <ThemeToggle />
           </div>
         </div>

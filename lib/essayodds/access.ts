@@ -3,11 +3,13 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 
+import { currentSession } from "./auth";
+import { putLatest, readSaved } from "./saved";
 import { accessFor, activeSessionsFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access } from "@/lib/billing/stripe";
 
 /**
- * Access is a paid Stripe Checkout session, and no account: a pass until its end date, or an earlier subscription while
- * it's live. The session id sits in an http-only cookie, and the access link the buyer saves carries it to another device.
+ * Access is a paid Stripe Checkout session: a pass until its end date, or an earlier subscription while it's live. It is
+ * found through the signed-in account, or through an http-only cookie the access link sets on any device.
  */
 export const ACCESS_COOKIE = "essayodds_access";
 /** The cookie name before the rename, still read so earlier buyers stay signed in. */
@@ -21,13 +23,38 @@ export async function paidSession(): Promise<string | null> {
   return (await paidAccess())?.id ?? null;
 }
 
-/** The paid session on this request and what it unlocks, if there is one. */
+/**
+ * The paid session on this request and what it unlocks, if there is one: this browser's access cookie first, then any
+ * purchase tied to the signed-in account (made while signed in, or paid with the account's email).
+ */
 export async function paidAccess(): Promise<({ id: string } & Access) | null> {
   const jar = await cookies();
   const id = jar.get(ACCESS_COOKIE)?.value ?? jar.get(LEGACY_ACCESS_COOKIE)?.value;
-  if (!id) return null;
-  const access = await accessFor(id).catch(() => null);
-  return access ? { id, ...access } : null;
+  if (id) {
+    const access = await accessFor(id).catch(() => null);
+    if (access) return { id, ...access };
+  }
+  const session = await currentSession();
+  if (!session) return null;
+  for (const owned of await purchasesOf(session.uid)) {
+    const access = await accessFor(owned).catch(() => null);
+    if (access) return { id: owned, ...access };
+  }
+  const [byEmail] = await activeSessionsFor(session.email).catch(() => []);
+  return byEmail ?? null;
+}
+
+const purchasesKey = (uid: string) => `data:${uid}:purchases`;
+
+export async function purchasesOf(uid: string): Promise<string[]> {
+  const row = (await readSaved<{ ids: string[] }>([purchasesKey(uid)]).catch(() => new Map<string, { ids: string[] }>())).get(purchasesKey(uid));
+  return row?.ids ?? [];
+}
+
+/** Ties a paid checkout to an account, so it unlocks wherever the account signs in. */
+export async function addPurchase(uid: string, sessionId: string): Promise<void> {
+  const ids = await purchasesOf(uid);
+  if (!ids.includes(sessionId)) await putLatest("user_data", purchasesKey(uid), { ids: [sessionId, ...ids].slice(0, 20) });
 }
 
 /** Per subscriber, per day. Generous for real work on a handful of essays. */

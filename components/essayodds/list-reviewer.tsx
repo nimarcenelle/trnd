@@ -1,11 +1,11 @@
 "use client";
 
-import { readStore, storeKey } from "@/lib/essayodds/storage";
+import { persist, restore } from "@/lib/essayodds/storage";
 import { useEffect, useState } from "react";
 
 import type { ListKind, ListReview } from "@/lib/essayodds/lists-core";
 
-const STORE = storeKey("lists");
+const STORE = "lists";
 const PLACEHOLDER: Record<ListKind, string> = {
   activities: "Paste your activities, one per paragraph: position, organization and description.\n\nPresident, Robotics Club\nLed team meetings and helped with competitions.",
   honors: "Paste your honors, one per line, with the level if you have it.\n\nAIME Qualifier (National)\nAP Scholar with Distinction (National)",
@@ -54,17 +54,19 @@ export default function ListReviewer() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    try {
-      const saved = JSON.parse(readStore("lists") ?? "null") as Record<ListKind, string> | null;
-      if (saved) setTexts({ activities: saved.activities ?? "", honors: saved.honors ?? "" });
-    } catch {}
+    void restore(STORE).then((raw) => {
+      try {
+        const saved = JSON.parse(raw ?? "null") as Record<ListKind, string> | null;
+        if (saved) setTexts({ activities: saved.activities ?? "", honors: saved.honors ?? "" });
+      } catch {}
+      setLoaded(true);
+    });
   }, []);
   useEffect(() => {
-    try {
-      localStorage.setItem(STORE, JSON.stringify(texts));
-    } catch {}
-  }, [texts]);
+    if (loaded) persist(STORE, JSON.stringify(texts));
+  }, [loaded, texts]);
 
   const text = texts[kind];
 

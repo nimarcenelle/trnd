@@ -1,6 +1,6 @@
 "use client";
 
-import { readStore, storeKey } from "@/lib/essayodds/storage";
+import { persist, restore } from "@/lib/essayodds/storage";
 import { useEffect, useState } from "react";
 
 import { essayVerdict, listVerdict, MIN_WORDS, ready, type Verdict } from "@/lib/essayodds/final-core";
@@ -11,9 +11,9 @@ import type { Review } from "@/lib/essayodds/review-core";
 type Piece = { id: string; label: string; prompt: string; limit: number; text: string };
 export type SchoolOption = { id: string; name: string; prompts: { title: string; text: string; limit: number | null; required: boolean }[] };
 
-const STORE = storeKey("final");
-const DRAFT_STORE = storeKey("essay-draft");
-const LISTS_STORE = storeKey("lists");
+const STORE = "final";
+const DRAFT_STORE = "essay-draft";
+const LISTS_STORE = "lists";
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 const newId = () => Math.random().toString(36).slice(2, 10);
 
@@ -47,19 +47,21 @@ export default function FinalRead({ schools }: { schools: SchoolOption[] }) {
   const [school, setSchool] = useState("");
   const [open, setOpen] = useState<string | null>(null);
 
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    try {
-      const saved = JSON.parse(readStore("final") ?? "null") as Piece[] | null;
-      if (saved?.length) setPieces(saved);
-      const savedLists = JSON.parse(readStore("lists") ?? "null") as Record<ListKind, string> | null;
-      if (savedLists) setLists({ activities: savedLists.activities ?? "", honors: savedLists.honors ?? "" });
-    } catch {}
+    void Promise.all([restore(STORE), restore(LISTS_STORE)]).then(([rawPieces, rawLists]) => {
+      try {
+        const saved = JSON.parse(rawPieces ?? "null") as Piece[] | null;
+        if (saved?.length) setPieces(saved);
+        const savedLists = JSON.parse(rawLists ?? "null") as Record<ListKind, string> | null;
+        if (savedLists) setLists({ activities: savedLists.activities ?? "", honors: savedLists.honors ?? "" });
+      } catch {}
+      setLoaded(true);
+    });
   }, []);
   useEffect(() => {
-    try {
-      localStorage.setItem(STORE, JSON.stringify(pieces));
-    } catch {}
-  }, [pieces]);
+    if (loaded) persist(STORE, JSON.stringify(pieces));
+  }, [loaded, pieces]);
 
   function add(piece: Omit<Piece, "id">) {
     const id = newId();
@@ -75,14 +77,15 @@ export default function FinalRead({ schools }: { schools: SchoolOption[] }) {
     setSchool("");
   }
 
-  function addDraft() {
+  async function addDraft() {
     try {
-      const d = JSON.parse(readStore("essay-draft") ?? "null") as { draft?: string; prompt?: string; limit?: string } | null;
+      const d = JSON.parse((await restore(DRAFT_STORE)) ?? "null") as { draft?: string; prompt?: string; limit?: string } | null;
       add({ label: d?.prompt ? d.prompt.slice(0, 60) : "Personal statement", prompt: d?.prompt ?? "", limit: Number(d?.limit) || 650, text: d?.draft ?? "" });
     } catch {
       add({ label: "Personal statement", prompt: "", limit: 650, text: "" });
     }
   }
+
 
   function edit(id: string, patch: Partial<Piece>) {
     setPieces((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -177,7 +180,7 @@ export default function FinalRead({ schools }: { schools: SchoolOption[] }) {
           <button className="btn btn-secondary" type="button" disabled={!school} onClick={addSchool}>
             Add
           </button>
-          <button className="btn btn-ghost" type="button" onClick={addDraft}>
+          <button className="btn btn-ghost" type="button" onClick={() => void addDraft()}>
             Bring in my draft
           </button>
         </div>

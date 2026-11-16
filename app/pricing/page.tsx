@@ -34,8 +34,8 @@ export default function PricingPage() {
               <Agree />
               <p className="caption text-center mt-2">
                 Already paid?{" "}
-                <a className="underline hover:text-ink" href="/essay/recover">
-                  Get your access link by email
+                <a className="underline hover:text-ink" href="/login?next=/essay">
+                  Log in
                 </a>
               </p>
               <p className="text-[14px] text-ink-2 text-center mt-6">

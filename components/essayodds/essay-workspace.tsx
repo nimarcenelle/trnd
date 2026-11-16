@@ -1,6 +1,6 @@
 "use client";
 
-import { readStore, storeKey } from "@/lib/essayodds/storage";
+import { persist, restore } from "@/lib/essayodds/storage";
 import { useEffect, useRef, useState } from "react";
 
 import { segments } from "@/lib/essayodds/highlight";
@@ -12,7 +12,7 @@ import { BuyButton } from "./plan-cards";
 type Rewrite = { rewrite: string; changes: string[]; kept: number; words: number; limit: number; before: number; after: number; check: string[] };
 type Busy = "" | "review" | "rewrite";
 
-const STORE = storeKey("essay-draft");
+const STORE = "essay-draft";
 const MIN_WORDS = 50;
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
@@ -58,8 +58,8 @@ function Upgrade({ reason }: { reason: "rewrite" | "review" }) {
       </div>
       <p className="text-[13px] text-ink-2 mt-4">
         Already paid?{" "}
-        <a className="underline hover:text-ink" href="/essay/recover">
-          Get your link by email
+        <a className="underline hover:text-ink" href="/login?next=/essay">
+          Log in
         </a>
         . Someone else paying? Send them{" "}
         <a className="underline hover:text-ink" href="/pay">
@@ -292,26 +292,28 @@ export default function EssayWorkspace({ paid, start }: { paid: boolean; start?:
   const asks = [...new Set((review?.notes ?? []).map((n) => n.ask.trim()).filter(Boolean))];
   const maxWords = Number(limit) || 650;
 
-  // A browser convenience: a reload should not cost a student their draft.
+  // The draft is saved to the account (or this browser), so a reload or another device never costs a student their work.
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    try {
-      const saved = JSON.parse(readStore("essay-draft") ?? "null") as { draft?: string; prompt?: string; limit?: string; answers?: Record<string, string>; reviewed?: boolean } | null;
-      if (saved?.draft) setDraft(saved.draft);
-      // Arriving from the odds flow, whose review of this draft is saved: show it straight away.
-      if (saved?.reviewed && saved.draft && !start) {
-        localStorage.setItem(STORE, JSON.stringify({ ...saved, reviewed: false }));
-        void runReview(saved.draft);
-      }
-      if (saved?.prompt && !start) setPrompt(saved.prompt);
-      if (saved?.limit && !start) setLimit(saved.limit);
-      if (saved?.answers) setAnswers(saved.answers);
-    } catch {}
+    void restore(STORE).then((raw) => {
+      try {
+        const saved = JSON.parse(raw ?? "null") as { draft?: string; prompt?: string; limit?: string; answers?: Record<string, string>; reviewed?: boolean } | null;
+        if (saved?.draft) setDraft(saved.draft);
+        // Arriving from the odds flow, whose review of this draft is saved: show it straight away.
+        if (saved?.reviewed && saved.draft && !start) {
+          persist(STORE, JSON.stringify({ ...saved, reviewed: false }));
+          void runReview(saved.draft);
+        }
+        if (saved?.prompt && !start) setPrompt(saved.prompt);
+        if (saved?.limit && !start) setLimit(saved.limit);
+        if (saved?.answers) setAnswers(saved.answers);
+      } catch {}
+      setLoaded(true);
+    });
   }, []);
   useEffect(() => {
-    try {
-      localStorage.setItem(STORE, JSON.stringify({ draft, prompt, limit, answers }));
-    } catch {}
-  }, [draft, prompt, limit, answers]);
+    if (loaded) persist(STORE, JSON.stringify({ draft, prompt, limit, answers }));
+  }, [loaded, draft, prompt, limit, answers]);
 
   // A review belongs to the exact text it read.
   function edited(set: (value: string) => void, value: string) {

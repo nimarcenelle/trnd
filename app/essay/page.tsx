@@ -1,19 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import AccessLink from "@/components/essayodds/access-link";
+import AccountMenu from "@/components/essayodds/account-menu";
 import EssayWorkspace from "@/components/essayodds/essay-workspace";
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
-import { accessLink, paidAccess } from "@/lib/essayodds/access";
+import { paidAccess } from "@/lib/essayodds/access";
+import { currentSession } from "@/lib/essayodds/auth";
 import { PROMPTS, wordLimit } from "@/lib/essayodds/prompts";
-import { env, isEssayOpen } from "@/lib/env";
+import { isEssayOpen } from "@/lib/env";
 
 export const metadata = { title: "Essays · EssayOdds" };
 
 export default async function EssayPage({ searchParams }: PageProps<"/essay">) {
   if (!isEssayOpen) notFound();
-  const access = await paidAccess();
+  const [access, account] = await Promise.all([paidAccess(), currentSession()]);
   const session = access?.id ?? null;
   const { welcome, school, p } = await searchParams;
   const picked = typeof school === "string" ? PROMPTS[school]?.prompts[Number(p)] : undefined;
@@ -38,11 +39,17 @@ export default async function EssayPage({ searchParams }: PageProps<"/essay">) {
               Final Read
             </Link>
             {!session && (
-              <Link href="/pricing" className="btn btn-ghost btn-sm">
+              <Link href="/pricing" className="btn btn-ghost btn-sm hidden sm:inline-flex">
                 Pricing
               </Link>
             )}
-            {access && <AccessLink url={accessLink(access.id, env.siteUrl)} welcome={welcome === "1"} until={access.until ? access.until.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" }) : null} />}
+            <AccountMenu
+              email={account?.email ?? null}
+              hasPass={Boolean(access)}
+              until={access?.until ? access.until.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" }) : null}
+              buyerEmail={account ? null : (access?.email ?? null)}
+              welcome={welcome === "1"}
+            />
             <ThemeToggle />
           </div>
         </div>

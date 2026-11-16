@@ -1,9 +1,10 @@
 import Link from "next/link";
 
+import AccountNav from "@/components/essayodds/account-nav";
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
 
-/** The marketing pages' top bar. No sign-in: the odds flow needs no account. */
+/** The marketing pages' top bar. Log in is optional: the odds flow needs no account. */
 export default function SiteNav({ links = true }: { links?: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-ground/85 backdrop-blur-md">
@@ -29,6 +30,7 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
         </div>
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
+          <AccountNav />
           <Link href="/odds" className="btn btn-primary btn-sm">
             Get my odds
           </Link>

@@ -49,7 +49,7 @@ const essaysStripe = () => {
 };
 
 /** A one-time pass. A parent paying lands on a page with the link to send their student, instead of in the workspace. */
-export async function createAccessCheckout(plan: Plan, forSomeoneElse = false): Promise<string> {
+export async function createAccessCheckout(plan: Plan, forSomeoneElse = false, email?: string): Promise<string> {
   const until = accessUntil(plan.id, new Date()).toISOString();
   const session = await essaysStripe().checkout.sessions.create({
     mode: "payment",
@@ -57,6 +57,7 @@ export async function createAccessCheckout(plan: Plan, forSomeoneElse = false): 
     metadata: { product: ESSAYS_PRODUCT, plan: plan.id, access_until: until },
     payment_intent_data: { metadata: { product: ESSAYS_PRODUCT, plan: plan.id } },
     customer_creation: "always",
+    ...(email && !forSomeoneElse ? { customer_email: email } : {}),
     allow_promotion_codes: true,
     success_url: forSomeoneElse ? `${env.siteUrl}/pay/done?session_id={CHECKOUT_SESSION_ID}` : `${env.siteUrl}/essay/access?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: forSomeoneElse ? `${env.siteUrl}/pay` : `${env.siteUrl}/pricing`,

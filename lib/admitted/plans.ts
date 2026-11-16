@@ -1,28 +1,42 @@
 /**
- * What Admitted sells. One list, read by every price on the site and by checkout, so a page can never
- * show a price Stripe doesn't charge.
+ * What Admitted sells: one-time passes, no subscriptions. One list, read by every price on the site and by checkout,
+ * so a page can never show a price Stripe doesn't charge.
+ *
+ * Priced for the regular-decision crunch (Nick, 2026-11-16: "make the pricing make sense"): the RD Pass covers every
+ * January deadline for less than two months of a $29/month rival; the Week Pass is for one or two supplements left, and
+ * makes the RD Pass the obvious buy for anyone with more. After January 15 the RD Pass needs a new end date or a new plan.
  */
-export type PlanId = "monthly" | "season";
+export type PlanId = "rd" | "week";
 
 export type Plan = {
   id: PlanId;
   name: string;
   cents: number;
-  /** Stripe recurring interval: every `months` months. */
-  months: number;
   price: string;
   per: string;
+  /** The line under the price. */
   billed: string;
-  /** The plan as a monthly figure, for one-line mentions. */
-  monthly: string;
+  /** The plan in a few words, for one-line mentions. */
+  short: string;
+  cta: string;
 };
+
+/** End of January 15 in New York: the RD Pass covers January 1 and January 15 deadlines. */
+export const RD_PASS_ENDS = new Date("2027-01-16T05:00:00Z");
+const WEEK = 7 * 86_400_000;
 
 export const PLANS: Record<PlanId, Plan> = {
-  monthly: { id: "monthly", name: "Monthly", cents: 2900, months: 1, price: "$29", per: "a month", billed: "Renews monthly. Cancel anytime.", monthly: "$29 a month" },
-  season: { id: "season", name: "Season pass", cents: 9900, months: 6, price: "$99", per: "for 6 months", billed: "$16.50 a month. Renews every 6 months. Cancel anytime.", monthly: "$16.50 a month" },
+  rd: { id: "rd", name: "RD Pass", cents: 5900, price: "$59", per: "one time", billed: "Everything until January 15. No subscription, nothing to cancel.", short: "$59 once, through January 15", cta: "Get the RD Pass" },
+  week: { id: "week", name: "Week Pass", cents: 1900, price: "$19", per: "for 7 days", billed: "Seven days of everything. No subscription.", short: "$19 for 7 days", cta: "Get a Week Pass" },
 };
 
-export const parsePlan = (value: unknown): PlanId => (value === "monthly" ? "monthly" : "season");
+export const parsePlan = (value: unknown): PlanId => (value === "week" ? "week" : "rd");
 
-/** Both paid plans get the same thing; they differ only in how they bill. */
+/** When a pass bought at `bought` stops working. An RD Pass bought late still gets a full week. */
+export function accessUntil(plan: PlanId, bought: Date): Date {
+  const week = new Date(bought.getTime() + WEEK);
+  return plan === "week" ? week : new Date(Math.max(RD_PASS_ENDS.getTime(), week.getTime()));
+}
+
+/** Both passes get the same thing; they differ only in how long. */
 export const PAID_FEATURES = ["Your essay scored, every weak line marked", "Rewrites in your voice, from your own details", "Every supplement and revision, unlimited", "Activity and honors lists tightened", "Final Read: everything checked before you submit"];

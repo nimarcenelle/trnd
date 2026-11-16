@@ -2,7 +2,7 @@ import "server-only";
 
 import Stripe from "stripe";
 
-import type { Plan } from "@/lib/admitted/plans";
+import { accessUntil, parsePlan, type Plan } from "@/lib/admitted/plans";
 import type { Brand } from "@/lib/db/types";
 import { env, isStripeConfigured } from "@/lib/env";
 
@@ -37,7 +37,7 @@ export async function createPortalSession(customerId: string): Promise<string> {
   return session.url;
 }
 
-/** Admitted's plans live in lib/admitted/plans.ts. The product tag is kept from the weekly launch so those subscribers keep access. */
+/** Admitted's plans live in lib/admitted/plans.ts. The product tag is kept from the weekly launch so earlier buyers keep access. */
 const ESSAYS_PRODUCT = "admitted-weekly";
 
 const essaysStripe = () => {
@@ -46,29 +46,46 @@ const essaysStripe = () => {
   return client;
 };
 
-/** A parent paying lands on a page with the link to send their student, instead of in the workspace. */
-export async function createSubscriptionCheckout(plan: Plan, forSomeoneElse = false): Promise<string> {
+/** A one-time pass. A parent paying lands on a page with the link to send their student, instead of in the workspace. */
+export async function createAccessCheckout(plan: Plan, forSomeoneElse = false): Promise<string> {
+  const until = accessUntil(plan.id, new Date()).toISOString();
   const session = await essaysStripe().checkout.sessions.create({
-    mode: "subscription",
-    line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: plan.cents, recurring: { interval: "month", interval_count: plan.months }, product_data: { name: `Admitted essays, ${plan.name.toLowerCase()}` } } }],
-    metadata: { product: ESSAYS_PRODUCT, plan: plan.id },
-    subscription_data: { metadata: { product: ESSAYS_PRODUCT, plan: plan.id } },
+    mode: "payment",
+    line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: plan.cents, product_data: { name: `Admitted ${plan.name}`, description: plan.billed } } }],
+    metadata: { product: ESSAYS_PRODUCT, plan: plan.id, access_until: until },
+    payment_intent_data: { metadata: { product: ESSAYS_PRODUCT, plan: plan.id } },
+    customer_creation: "always",
     allow_promotion_codes: true,
     success_url: forSomeoneElse ? `${env.siteUrl}/pay/done?session_id={CHECKOUT_SESSION_ID}` : `${env.siteUrl}/essay/access?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: forSomeoneElse ? `${env.siteUrl}/pay` : `${env.siteUrl}/essay`,
+    cancel_url: forSomeoneElse ? `${env.siteUrl}/pay` : `${env.siteUrl}/pricing`,
   });
   if (!session.url) throw new Error("Stripe did not return a checkout URL.");
   return session.url;
 }
 
-/** Access lasts while the subscription is live. The account also sells TRND, so the product is checked too. */
-export async function isSubscriptionActive(sessionId: string): Promise<boolean> {
-  if (!sessionId.startsWith("cs_")) return false;
+export type Access = { until: Date | null; recurring: boolean };
+
+/**
+ * What a checkout session unlocks right now. A pass works until the date fixed at checkout (counted from payment for
+ * a Week Pass); a subscription from the earlier pricing works while it's live. The account also sells TRND, so the
+ * product is checked too.
+ */
+export async function accessFor(sessionId: string): Promise<Access | null> {
+  if (!sessionId.startsWith("cs_")) return null;
   const session = await essaysStripe().checkout.sessions.retrieve(sessionId, { expand: ["subscription"] });
-  if (session.metadata?.product !== ESSAYS_PRODUCT) return false;
+  if (session.metadata?.product !== ESSAYS_PRODUCT) return null;
+  if (session.mode === "payment") {
+    if (session.payment_status !== "paid") return null;
+    const plan = parsePlan(session.metadata?.plan);
+    const fixed = session.metadata?.access_until ? new Date(session.metadata.access_until) : null;
+    const until = plan === "week" ? accessUntil("week", new Date(session.created * 1000)) : (fixed ?? accessUntil("rd", new Date(session.created * 1000)));
+    return Date.now() < until.getTime() ? { until, recurring: false } : null;
+  }
   const sub = session.subscription;
-  return typeof sub === "object" && sub !== null && ["active", "trialing", "past_due"].includes(sub.status);
+  return typeof sub === "object" && sub !== null && ["active", "trialing", "past_due"].includes(sub.status) ? { until: null, recurring: true } : null;
 }
+
+export const isSubscriptionActive = async (sessionId: string) => (await accessFor(sessionId)) !== null;
 
 /** Stripe's own page for cancelling or changing a card. */
 export async function subscriptionPortal(sessionId: string): Promise<string> {

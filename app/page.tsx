@@ -34,7 +34,7 @@ const FAQ = [
   { q: "Where do the odds come from?", a: "From each college's Common Data Set: admit rates by round and GPA and test ranges, applied to you, then adjusted by how your essay reads." },
   { q: "Who built this?", a: "Ivy League grads who've been through the process and know what admissions readers look for." },
   { q: "Can a parent pay?", a: "Yes. Send them admitted.usetrnd.com/pay. They check out and get one link to send you." },
-  { q: "Can I cancel?", a: "Anytime, in two clicks. You keep access until the end of the period you paid for." },
+  { q: "Is it a subscription?", a: "There's nothing to cancel. Each pass is one payment and simply ends: the RD Pass after January 15, the Week Pass after 7 days." },
 ];
 
 function Cta({ className = "" }: { className?: string }) {
@@ -155,7 +155,7 @@ export default function Home() {
             <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
             <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Get every essay right before you submit.</h2>
             <p className="text-[16px] text-ink-2 mt-3">
-              The season pass is {PLANS.season.monthly}, less than one hour with a private counselor.
+              One payment covers every essay until January 15, less than one hour with a private counselor. No subscription.
             </p>
           </div>
           <div className="mt-12">

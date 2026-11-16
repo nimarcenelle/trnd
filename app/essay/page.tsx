@@ -5,7 +5,7 @@ import AccessLink from "@/components/admitted/access-link";
 import EssayWorkspace from "@/components/admitted/essay-workspace";
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
-import { accessLink, paidSession } from "@/lib/admitted/access";
+import { accessLink, paidAccess } from "@/lib/admitted/access";
 import { PROMPTS, wordLimit } from "@/lib/admitted/prompts";
 import { env, isEssayOpen } from "@/lib/env";
 
@@ -13,7 +13,8 @@ export const metadata = { title: "Essays · Admitted" };
 
 export default async function EssayPage({ searchParams }: PageProps<"/essay">) {
   if (!isEssayOpen) notFound();
-  const session = await paidSession();
+  const access = await paidAccess();
+  const session = access?.id ?? null;
   const { welcome, school, p } = await searchParams;
   const picked = typeof school === "string" ? PROMPTS[school]?.prompts[Number(p)] : undefined;
   const start = picked ? { prompt: picked.text, limit: wordLimit(picked) } : undefined;
@@ -41,7 +42,7 @@ export default async function EssayPage({ searchParams }: PageProps<"/essay">) {
                 Pricing
               </Link>
             )}
-            {session && <AccessLink url={accessLink(session, env.siteUrl)} welcome={welcome === "1"} />}
+            {access && <AccessLink url={accessLink(access.id, env.siteUrl)} welcome={welcome === "1"} until={access.until ? access.until.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" }) : null} />}
             <ThemeToggle />
           </div>
         </div>

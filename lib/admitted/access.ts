@@ -3,22 +3,28 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 
-import { createSubscriptionCheckout, isSubscriptionActive, subscriptionPortal } from "@/lib/billing/stripe";
+import { accessFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access } from "@/lib/billing/stripe";
 
 /**
- * A subscription is a Stripe Checkout session with a live subscription behind it, and no account. The session id sits in an
- * http-only cookie, and the access link the buyer saves carries it to another device.
+ * Access is a paid Stripe Checkout session, and no account: a pass until its end date, or an earlier subscription while
+ * it's live. The session id sits in an http-only cookie, and the access link the buyer saves carries it to another device.
  */
 export const ACCESS_COOKIE = "admitted_access";
 export const accessLink = (sessionId: string, base: string) => `${base}/essay/access?session_id=${encodeURIComponent(sessionId)}`;
 
-export { createSubscriptionCheckout, isSubscriptionActive, subscriptionPortal };
+export { accessFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access };
 
 /** The subscribed session on this request, if there is one. */
 export async function paidSession(): Promise<string | null> {
+  return (await paidAccess())?.id ?? null;
+}
+
+/** The paid session on this request and what it unlocks, if there is one. */
+export async function paidAccess(): Promise<({ id: string } & Access) | null> {
   const id = (await cookies()).get(ACCESS_COOKIE)?.value;
   if (!id) return null;
-  return (await isSubscriptionActive(id).catch(() => false)) ? id : null;
+  const access = await accessFor(id).catch(() => null);
+  return access ? { id, ...access } : null;
 }
 
 /** Per subscriber, per day. Generous for real work on a handful of essays. */

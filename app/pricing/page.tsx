@@ -11,10 +11,10 @@ export const metadata = { title: "Pricing · Admitted", description: "Essay scor
 export const revalidate = 3600;
 
 const FAQ = [
-  { q: "What's the difference between the season pass and monthly?", a: `Only billing. The season pass is ${PLANS.season.price} for six months (${PLANS.season.monthly}) and covers every deadline this cycle. Monthly is ${PLANS.monthly.price} a month.` },
+  { q: "Which pass should I get?", a: `The ${PLANS.rd.name} if you have more than one essay left: ${PLANS.rd.short}, every essay and supplement until you submit. The ${PLANS.week.name} if you have one or two supplements to finish this week.` },
+  { q: "Is it a subscription?", a: "No. Each pass is one payment and simply ends: the RD Pass after January 15, the Week Pass after 7 days. Nothing renews, nothing to cancel." },
   { q: "What do I get?", a: "Your essay scored out of 100 with every weak line marked and the fix, rewrites in your voice from your own details, every supplement and revision re-scored, your activity and honors lists tightened, and a Final Read of everything before you submit." },
   { q: "Can a parent pay?", a: "Yes. Send them admitted.usetrnd.com/pay. After checkout they get one link to send you, and opening it unlocks everything." },
-  { q: "Can I cancel?", a: "Anytime, from Account on the essay page. You keep access until the end of the period you paid for." },
 ];
 
 export default function PricingPage() {

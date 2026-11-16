@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { essayVerdict, listVerdict, READY_ESSAY } from "@/lib/admitted/final-core";
 import { buildListReview, listKey, numbersKept, type ListReply } from "@/lib/admitted/lists-core";
-import { parsePlan, PLANS } from "@/lib/admitted/plans";
+import { accessUntil, parsePlan, PLANS, RD_PASS_ENDS } from "@/lib/admitted/plans";
 import { PROMPTS, wordLimit } from "@/lib/admitted/prompts";
 import type { Review } from "@/lib/admitted/review-core";
 import { SCHOOLS } from "@/lib/admitted/schools";
@@ -62,9 +62,15 @@ describe("final read", () => {
 });
 
 describe("plans and prompts", () => {
-  it("defaults to the season pass and prices it under monthly", () => {
-    expect(parsePlan("nonsense")).toBe("season");
-    expect(PLANS.season.cents / PLANS.season.months).toBeLessThan(PLANS.monthly.cents);
+  it("defaults to the RD Pass, which beats buying weeks for anyone with more than three left", () => {
+    expect(parsePlan("nonsense")).toBe("rd");
+    expect(PLANS.rd.cents).toBeLessThan(PLANS.week.cents * 4);
+  });
+  it("ends a Week Pass after 7 days and an RD Pass on January 15, never under a week", () => {
+    const now = new Date("2026-11-16T12:00:00Z");
+    expect(accessUntil("week", now).toISOString()).toBe("2026-11-23T12:00:00.000Z");
+    expect(accessUntil("rd", now)).toEqual(RD_PASS_ENDS);
+    expect(accessUntil("rd", new Date("2027-01-14T12:00:00Z")).toISOString()).toBe("2027-01-21T12:00:00.000Z");
   });
   it("has prompts only for schools we cover, each with a source and real text", () => {
     const ids = new Set(SCHOOLS.map((s) => s.id));

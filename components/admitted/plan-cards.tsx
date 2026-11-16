@@ -39,7 +39,7 @@ export function BuyButton({ plan, primary, forStudent = false, label }: { plan: 
       <input type="hidden" name="plan" value={plan.id} />
       {forStudent && <input type="hidden" name="for" value="student" />}
       <button className={`btn btn-lg w-full ${primary ? "btn-primary" : "btn-secondary"}`} type="submit">
-        {label ?? (plan.id === "season" ? "Get the season pass" : "Start monthly")}
+        {label ?? plan.cta}
       </button>
     </form>
   );
@@ -50,7 +50,7 @@ function PaidCard({ plan, best, forStudent }: { plan: Plan; best: boolean; forSt
     <div className={`card p-8 flex flex-col ${best ? "shadow-[var(--shadow-lg)] border-line-strong" : ""}`}>
       <div className="flex items-center justify-between gap-3">
         <div className={`text-[14px] font-semibold ${best ? "text-[var(--kicker)]" : "text-ink-2"}`}>{plan.name}</div>
-        {best && <span className="badge badge-info">Best value</span>}
+        {best && <span className="badge badge-info">Covers every RD deadline</span>}
       </div>
       <div className="mt-3 flex items-baseline gap-1.5">
         <span className="text-[40px] font-semibold tnum">{plan.price}</span>
@@ -63,12 +63,12 @@ function PaidCard({ plan, best, forStudent }: { plan: Plan; best: boolean; forSt
   );
 }
 
-/** Monthly and the season pass side by side. `forStudent` sends a parent to the page with the link to pass on. */
+/** The RD Pass and the Week Pass side by side. `forStudent` sends a parent to the page with the link to pass on. */
 export default function PlanCards({ forStudent = false }: { forStudent?: boolean }) {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 items-stretch md:grid-cols-2 max-w-[780px] mx-auto">
-      <PaidCard plan={PLANS.season} best forStudent={forStudent} />
-      <PaidCard plan={PLANS.monthly} best={false} forStudent={forStudent} />
+      <PaidCard plan={PLANS.rd} best forStudent={forStudent} />
+      <PaidCard plan={PLANS.week} best={false} forStudent={forStudent} />
     </div>
   );
 }

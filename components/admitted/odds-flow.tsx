@@ -531,12 +531,12 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
 
               </div>
               <div className="rise rounded-[20px] bg-band text-band-ink p-8 shadow-[var(--shadow-lg)]" style={{ animationDelay: "0.15s" }}>
-                <div className="text-[14px] font-medium text-band-ink-3">Season pass, through every deadline</div>
+                <div className="text-[14px] font-medium text-band-ink-3">{PLANS.rd.name}, through January 15</div>
                 <div className="mt-2 flex items-baseline gap-2 leading-none">
-                  <span className="text-[56px] font-semibold tnum tracking-[-0.03em]">{PLANS.season.price}</span>
-                  <span className="text-[15px] text-band-ink-3">{PLANS.season.per}</span>
+                  <span className="text-[56px] font-semibold tnum tracking-[-0.03em]">{PLANS.rd.price}</span>
+                  <span className="text-[15px] text-band-ink-3">{PLANS.rd.per}</span>
                 </div>
-                <p className="text-[13px] text-band-ink-3 leading-[1.5] mt-3">{PLANS.season.monthly}. Cancel anytime.</p>
+                <p className="text-[13px] text-band-ink-3 leading-[1.5] mt-3">{PLANS.rd.billed}</p>
                 <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3 text-[14px] border-t border-band-line pt-6">
                   {PAID_FEATURES.map((item) => (
                     <li key={item} className="flex gap-2.5">
@@ -552,15 +552,15 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                 ) : (
                   <>
                     <form action="/api/essays/checkout" method="post" className="mt-8">
-                      <input type="hidden" name="plan" value="season" />
+                      <input type="hidden" name="plan" value="rd" />
                       <button className="btn btn-lg w-full !h-12 !bg-bg !text-ink" type="submit">
-                        Get the season pass
+                        {PLANS.rd.cta}
                       </button>
                     </form>
                     <form action="/api/essays/checkout" method="post" className="mt-4">
-                      <input type="hidden" name="plan" value="monthly" />
+                      <input type="hidden" name="plan" value="week" />
                       <button className="w-full text-[13px] text-band-ink underline cursor-pointer bg-transparent border-0 p-0 font-[inherit]" type="submit">
-                        Or {PLANS.monthly.price} a month
+                        Just one week? {PLANS.week.short}
                       </button>
                     </form>
                     <p className="text-[12px] text-band-ink-3 text-center mt-3 leading-[1.5]">

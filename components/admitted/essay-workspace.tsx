@@ -43,7 +43,7 @@ function Upgrade({ reason }: { reason: "rewrite" | "review" }) {
         Your score out of 100, every line costing you marked with the fix, and rewrites in your voice, re-scored until it&apos;s ready. Unlimited essays and supplements.
       </p>
       <div className="flex flex-col gap-3 mt-6">
-        {[PLANS.season, PLANS.monthly].map((plan) => (
+        {[PLANS.rd, PLANS.week].map((plan) => (
           <div key={plan.id} className="card p-4 flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-[14px] font-semibold">{plan.name}</span>
@@ -51,7 +51,7 @@ function Upgrade({ reason }: { reason: "rewrite" | "review" }) {
                 <span className="text-[20px] font-semibold">{plan.price}</span> <span className="text-[13px] text-ink-3">{plan.per}</span>
               </span>
             </div>
-            <BuyButton plan={plan} primary={plan.id === "season"} />
+            <BuyButton plan={plan} primary={plan.id === "rd"} />
           </div>
         ))}
       </div>

@@ -16,10 +16,9 @@ export default function TermsPage() {
 
       <h2>Subscription and payment</h2>
       <p>
-        Essay reviews and rewrites are a subscription, billed through Stripe until you cancel:
-        $29 a month, or $99 every six months for the season pass. Someone else may pay for you. Cancel anytime from Account on the
-        essay page; you keep access until the end of the period paid for. Payments are non-refundable, except where the law
-        requires otherwise.
+        Essay reviews and rewrites are sold as one-time passes, paid through Stripe: the RD Pass ($59) gives access until
+        January 15, 2027, and the Week Pass ($19) for 7 days from purchase. Passes do not renew. Someone else may pay for you.
+        Payments are non-refundable, except where the law requires otherwise.
       </p>
 
       <h2>Your access</h2>

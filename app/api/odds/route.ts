@@ -1,5 +1,5 @@
 import { oddsFor } from "@/lib/admitted/odds";
-import { DEFAULT_WORD_LIMIT, reviewKey, type Review } from "@/lib/admitted/review-core";
+import { DEFAULT_WORD_LIMIT, quickKey, reviewKey, type Review } from "@/lib/admitted/review-core";
 import { readSaved } from "@/lib/admitted/saved";
 import { matchSchools, parseProfile } from "@/lib/admitted/odds-core";
 import { SCHOOLS } from "@/lib/admitted/schools";
@@ -16,8 +16,11 @@ export async function POST(request: Request): Promise<Response> {
   // The essay counts only through the review we already saved for it, never a score sent from the page.
   const essay = String(body?.essay ?? "").trim();
   if (essay) {
-    const key = reviewKey(essay, "", DEFAULT_WORD_LIMIT);
-    const review = (await readSaved<Review>([key]).catch(() => new Map<string, Review>())).get(key);
+    // The full review wins once it exists; until then, the quick read the flow just made.
+    const full = reviewKey(essay, "", DEFAULT_WORD_LIMIT);
+    const quick = quickKey(essay);
+    const saved = await readSaved<Review>([full, quick]).catch(() => new Map<string, Review>());
+    const review = saved.get(full) ?? saved.get(quick);
     if (review) profile.essay = review.score;
   }
   const { found, pending, unknown } = matchSchools(String(body?.schools ?? ""));

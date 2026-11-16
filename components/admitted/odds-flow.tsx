@@ -12,7 +12,6 @@ import { PLANS } from "@/lib/admitted/plans";
 import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 
 import EssaySample from "./essay-sample";
-import GuideOffer from "./guide-offer";
 import OddsTable from "./odds-table";
 import { SplitLegend } from "./split";
 import RequestSchool from "./request-school";
@@ -155,9 +154,9 @@ function Reveal({ rows, profile, onNext, open, essay }: { rows: Row[]; profile: 
         {lead.school.note && <p className="caption mt-2">{lead.school.note}</p>}
         {essay.state === "read" && (
           <p className="text-[14px] text-ink-2 mt-4 border-t border-line pt-4">
-            Your essay scores <span className="font-semibold text-ink tnum">{essay.score}</span> out of 100, and these odds count it.{" "}
-            <Link className="underline hover:text-ink" href="/essay">
-              See the lines costing you most
+            Quick read: your essay scores <span className="font-semibold text-ink tnum">{essay.score}</span> out of 100, and these odds count it. Your full review marks the exact lines costing you most.{" "}
+            <Link className="font-medium text-ink underline" href="/essay">
+              See my full review
             </Link>
           </p>
         )}
@@ -177,7 +176,7 @@ function Reveal({ rows, profile, onNext, open, essay }: { rows: Row[]; profile: 
         </div>
       )}
       <p className="caption mt-3">Each school name links to the Common Data Set behind its number. These are estimates, not a promise of an admit.</p>
-      {open && <Next onClick={onNext} label="See what moves it" />}
+      {open && <Next onClick={onNext} label={essay.state === "read" ? "Raise my odds" : "See what raises them"} />}
     </div>
   );
 }
@@ -199,6 +198,10 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [requesting, setRequesting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadNote, setUploadNote] = useState("");
+  /** Questions the Common App already answered, so the flow doesn't ask them again. */
+  const [filled, setFilled] = useState<number[]>([]);
   const [loaded, setLoaded] = useState(false);
   const focus = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
 
@@ -246,47 +249,102 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
     }
   };
 
-  /** Starts the free review as soon as the essay is in, so it reads while the student answers the rest. */
-  function readEssay() {
-    const text = essay.trim();
+  /** Starts the reads as soon as the essay is in, so they run while the student answers the rest. */
+  function startRead(raw: string) {
+    const text = raw.trim();
     // The essay page opens on the same draft, and its saved review comes back for free there.
     try {
       localStorage.setItem(DRAFT_STORE, JSON.stringify({ draft: text, prompt: "", limit: "650", answers: {} }));
     } catch {}
     setRead({ state: "reading" });
-    reading.current = fetch("/api/essays/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ essay: text, prompt: "", limit: 650 }) })
-      .then(async (res): Promise<EssayRead> => (res.ok ? { state: "read", score: ((await res.json()) as { score: number }).score } : { state: res.status === 402 ? "used" : "failed" }))
+    const post = (path: string) => fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ essay: text, prompt: "", limit: 650 }) });
+    // The full review (free once) keeps going for the essay page; the odds only wait for the quick read.
+    void post("/api/essays/review")
+      .then((res) => {
+        if (!res.ok) return;
+        try {
+          localStorage.setItem(DRAFT_STORE, JSON.stringify({ draft: text, prompt: "", limit: "650", answers: {}, reviewed: true }));
+        } catch {}
+      })
+      .catch(() => {});
+    reading.current = post("/api/essays/quick")
+      .then(async (res): Promise<EssayRead> => (res.ok ? { state: "read", score: ((await res.json()) as { score: number }).score } : { state: "failed" }))
       .catch((): EssayRead => ({ state: "failed" }))
       .then((r) => {
         setRead(r);
-        // Tells the essay page to open on this review, which comes back saved and free.
-        if (r.state === "read")
-          try {
-            localStorage.setItem(DRAFT_STORE, JSON.stringify({ draft: text, prompt: "", limit: "650", answers: {}, reviewed: true }));
-          } catch {}
         return r;
       });
-    go(2);
+  }
+
+  function readEssay() {
+    startRead(essay);
+    advance(1);
+  }
+
+  type Answers = { picked: string[]; essay: string; gpa: string; score: string; home: string };
+
+  /** The next question still unanswered after `from`; with none left, straight to the odds. */
+  function advance(from: number, over: Partial<Answers> = {}) {
+    const a: Answers = { picked, essay, gpa, score, home, ...over };
+    const open = [
+      { step: 1, done: Boolean(over.essay) || filled.includes(1) },
+      { step: 2, done: validGpa(a.gpa) && (Boolean(over.gpa) || filled.includes(2)) },
+      { step: 3, done: Boolean(scoreKind(a.score)) && (Boolean(over.score) || filled.includes(3)) },
+      { step: 4, done: Boolean(a.home) && (Boolean(over.home) || filled.includes(4)) },
+    ].find((q) => q.step > from && !q.done);
+    if (open) go(open.step);
+    else void getOdds(a);
+  }
+
+  async function upload(file: File) {
+    setUploading(true);
+    setUploadNote("");
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch("/api/onboard/commonapp", { method: "POST", body: form }).catch(() => null);
+    setUploading(false);
+    if (!res?.ok) {
+      setUploadNote(res?.status === 413 ? "That file is over 8 MB." : res?.status === 400 ? "That isn't a PDF. Download your Common App preview as a PDF and try again." : "We couldn't read that PDF. Answer the questions instead; it takes a minute.");
+      return;
+    }
+    const f = (await res.json()) as { essay: string; gpa: string; test: string; state: string; schools: string[] };
+    const schools = [...new Set([...picked, ...f.schools])];
+    const over: Partial<Answers> = { picked: schools };
+    setPicked(schools);
+    if (f.essay) {
+      setEssay(f.essay);
+      startRead(f.essay);
+      over.essay = f.essay;
+    }
+    if (f.gpa) setGpa((over.gpa = f.gpa));
+    if (f.test) setScore((over.score = f.test));
+    if (f.state) setHome((over.home = f.state));
+    setFilled([f.essay && 1, f.gpa && 2, f.test && 3, f.state && 4].filter((n): n is number => typeof n === "number"));
+    const found = [f.essay && "your essay", f.gpa && "GPA", f.test && "test score", f.state && "home state", f.schools.length && `${f.schools.length} school${f.schools.length === 1 ? "" : "s"}`].filter(Boolean);
+    setUploadNote(found.length ? `Filled in ${found.join(", ")} from your Common App.` : "We couldn't find your answers in that PDF. Answer the questions instead.");
+    if (schools.length && found.length) advance(0, over);
   }
 
   function skipEssay() {
     reading.current = null;
     setRead({ state: "none" });
-    go(2);
+    advance(1);
   }
 
-  async function getOdds() {
+  async function getOdds(over: Partial<{ picked: string[]; essay: string; gpa: string; score: string; home: string }> = {}) {
+    const a = { picked, essay, gpa, score, home, ...over };
     setBusy(true);
     setError("");
     const essayRead = reading.current ? await reading.current : read;
     const res = await fetch("/api/odds", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ gpa, test: score, home, schools: picked.map(schoolQuery).join(", "), essay: essayRead.state === "read" ? essay.trim() : "" }),
+      body: JSON.stringify({ gpa: a.gpa, test: a.score, home: a.home, schools: a.picked.map(schoolQuery).join(", "), essay: essayRead.state === "read" ? a.essay.trim() : "" }),
     }).catch(() => null);
     setBusy(false);
     if (!res?.ok) {
       setError("That did not go through. Try again in a minute.");
+      if (step !== 4) go(4);
       return;
     }
     const reply = (await res.json()) as { results: Row[]; essay: number | null };
@@ -334,6 +392,25 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
         <main key={step} className={`min-w-0 px-5 sm:px-10 py-10 sm:py-16 ${inFlow ? "lg:px-16 xl:px-24 flex lg:items-center" : ""}`}>
           {step === 0 && (
             <Question title="Where are you applying?" sub="Choose every school on your list.">
+              <label className={`card mb-6 p-4 flex items-center justify-between gap-4 cursor-pointer hover:border-line-strong transition-colors ${uploading ? "opacity-70 pointer-events-none" : ""}`}>
+                <span className="min-w-0">
+                  <span className="block text-[14px] font-semibold">{uploading ? "Reading your Common App…" : "Skip the questions: upload your Common App"}</span>
+                  <span className="block text-[13px] text-ink-2 mt-0.5">The PDF preview from Common App. We fill in your essay, GPA, scores and state, then delete the file.</span>
+                </span>
+                <span className="btn btn-secondary shrink-0">{uploading ? "Reading…" : "Upload PDF"}</span>
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) void upload(file);
+                  }}
+                />
+              </label>
+              {uploadNote && <p className="text-[13px] text-ink-2 -mt-3 mb-5">{uploadNote}{picked.length ? "" : " Now pick your schools."}</p>}
+              {busy && <p className="text-[13px] font-medium text-brand -mt-3 mb-5">{read.state === "reading" ? "Reading your essay and working out your odds…" : "Working out your odds…"}</p>}
               <input ref={(el) => void (focus.current = el)} className="input !h-12 w-full" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search schools" aria-label="Search schools" />
               <ul className="list-none p-0 m-0 mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {matches.map((s) => {
@@ -364,7 +441,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                 )}
               </div>
               <div className="sticky bottom-0 -mx-5 sm:mx-0 px-5 sm:px-0 pb-4 bg-ground">
-                <Next disabled={!picked.length} onClick={() => go(1)} label={picked.length ? `Continue with ${picked.length}` : "Continue"} />
+                <Next disabled={!picked.length} onClick={() => advance(0)} label={picked.length ? `Continue with ${picked.length}` : "Continue"} />
               </div>
             </Question>
           )}
@@ -395,24 +472,24 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
 
           {step === 2 && (
             <Question title="What's your GPA?" sub="Unweighted on a 4.0 scale is best. Your best estimate is fine.">
-              <input ref={(el) => void (focus.current = el)} className="flow-input" inputMode="decimal" value={gpa} onChange={(e) => setGpa(e.target.value)} onKeyDown={enter(validGpa(gpa), () => go(3))} placeholder="3.70" aria-label="GPA" />
+              <input ref={(el) => void (focus.current = el)} className="flow-input" inputMode="decimal" value={gpa} onChange={(e) => setGpa(e.target.value)} onKeyDown={enter(validGpa(gpa), () => advance(2))} placeholder="3.70" aria-label="GPA" />
               {gpa.trim() !== "" && !validGpa(gpa) && <p className="text-[13px] text-neg mt-2">Enter a GPA between 0 and 5.</p>}
-              <Next disabled={!validGpa(gpa)} onClick={() => go(3)} hint />
+              <Next disabled={!validGpa(gpa)} onClick={() => advance(2)} hint />
             </Question>
           )}
 
           {step === 3 && (
             <Question title="Your SAT or ACT?" sub="Your best score. We can tell which test it is.">
-              <input ref={(el) => void (focus.current = el)} className="flow-input" inputMode="numeric" value={score} onChange={(e) => setScore(e.target.value)} onKeyDown={enter(Boolean(kind), () => go(4))} placeholder="1350" aria-label="SAT or ACT score" />
+              <input ref={(el) => void (focus.current = el)} className="flow-input" inputMode="numeric" value={score} onChange={(e) => setScore(e.target.value)} onKeyDown={enter(Boolean(kind), () => advance(3))} placeholder="1350" aria-label="SAT or ACT score" />
               {kind === null && <p className="text-[13px] text-neg mt-2">An SAT runs 400 to 1600, an ACT 1 to 36.</p>}
               {kind && <p className="text-[13px] font-medium text-brand mt-2">{kind}</p>}
-              <Next disabled={!kind} onClick={() => go(4)} hint />
+              <Next disabled={!kind} onClick={() => advance(3)} hint />
               <button
                 className="mt-4 text-[14px] text-ink-2 underline hover:text-ink cursor-pointer bg-transparent border-0 p-0 font-[inherit]"
                 type="button"
                 onClick={() => {
                   setScore("");
-                  go(4);
+                  advance(3, { score: "" });
                 }}
               >
                 I don&apos;t have a score
@@ -456,12 +533,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                 <div className="mt-8">
                   <EssaySample />
                 </div>
-                <div className="mt-8 border-t border-line pt-6">
-                  <p className="text-[14px] font-medium">Not ready? Get the free guide: the 7 mistakes that sink college essays.</p>
-                  <div className="mt-3">
-                    <GuideOffer compact />
-                  </div>
-                </div>
+
               </div>
               <div className="rise rounded-[20px] bg-band text-band-ink p-8 shadow-[var(--shadow-lg)]" style={{ animationDelay: "0.15s" }}>
                 <div className="text-[14px] font-medium text-band-ink-3">{read.state === "read" ? "Your review is ready" : "Essays"}</div>
@@ -475,15 +547,30 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                     </li>
                   ))}
                 </ul>
-                <Link href="/essay" className="btn btn-lg w-full mt-8 !h-12 !bg-bg !text-ink">
-                  {paid ? "Open your essays" : read.state === "read" ? "See my marked lines" : "Review my essay free"}
-                </Link>
-                <p className="text-[12px] text-band-ink-3 text-center mt-3 leading-[1.5]">
-                  Unlimited reviews and rewrites from {PLANS.season.billed.split(".")[0]}.{" "}
-                  <Link className="underline" href="/pricing">
-                    Pricing
+                {paid ? (
+                  <Link href="/essay" className="btn btn-lg w-full mt-8 !h-12 !bg-bg !text-ink">
+                    Open your essays
                   </Link>
-                </p>
+                ) : (
+                  <>
+                    <form action="/api/essays/checkout" method="post" className="mt-8">
+                      <input type="hidden" name="plan" value="season" />
+                      <button className="btn btn-lg w-full !h-12 !bg-bg !text-ink" type="submit">
+                        Get the season pass, {PLANS.season.price}
+                      </button>
+                    </form>
+                    <p className="text-[12px] text-band-ink-3 text-center mt-2 leading-[1.5]">{PLANS.season.monthly}. Unlimited reviews and rewrites. Cancel anytime.</p>
+                    <form action="/api/essays/checkout" method="post" className="mt-4">
+                      <input type="hidden" name="plan" value="monthly" />
+                      <button className="w-full text-[13px] text-band-ink underline cursor-pointer bg-transparent border-0 p-0 font-[inherit]" type="submit">
+                        Or {PLANS.monthly.price} a month
+                      </button>
+                    </form>
+                    <Link href="/essay" className="block text-center text-[13px] text-band-ink-3 underline mt-3">
+                      {read.state === "read" ? "Just show my free review" : "Review my essay free first"}
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           )}

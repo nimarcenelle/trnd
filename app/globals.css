@@ -614,10 +614,26 @@
       transform: translateY(4px);
     }
   }
+  /* The logo strip: two copies of the row slide left by one copy's width, so it loops without a seam. */
+  .marquee {
+    mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  }
+  .marquee-track {
+    animation: marquee 40s linear infinite;
+  }
+  .marquee:hover .marquee-track {
+    animation-play-state: paused;
+  }
+  @keyframes marquee {
+    to {
+      transform: translateX(-50%);
+    }
+  }
   @media (prefers-reduced-motion: reduce) {
     .fade-in,
     .rise,
-    .grow-x {
+    .grow-x,
+    .marquee-track {
       animation: none;
     }
     .spinner {

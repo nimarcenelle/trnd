@@ -95,6 +95,12 @@ export function parseWordLimit(value: unknown): number {
   return n >= 25 && n <= 1000 ? n : DEFAULT_WORD_LIMIT;
 }
 
+/** The onboarding quick read: one pass on the fast model. Saved under its own key, never mixed with a full review. */
+export const QUICK_VERSION = "1";
+export function quickKey(essay: string): string {
+  return "quick:" + createHash("sha256").update([QUICK_VERSION, REVIEW_VERSION, clean(essay)].join("|")).digest("hex");
+}
+
 export function reviewKey(essay: string, prompt: string, limit: number): string {
   return "review:" + createHash("sha256").update([REVIEW_VERSION, clean(essay), clean(prompt), String(limit)].join("|")).digest("hex");
 }

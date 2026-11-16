@@ -106,3 +106,20 @@ describe("odds with a read essay", () => {
     expect(oddsKey({ ...base, essay: 64 }, s)).not.toBe(oddsKey(base, s));
   });
 });
+
+import { cutEssay, fieldsFrom } from "@/lib/admitted/commonapp-core";
+
+describe("Common App upload", () => {
+  const essay = Array.from({ length: 80 }, (_, i) => `word${i}`).join(" ");
+  const pdf = `Personal essay\nSome students have a background...\n${essay.replace(/ word40 /, "\nword40 ")}\nAdditional information\nNone.`;
+  it("cuts the essay from the PDF's own text between the two snippets", () => {
+    expect(cutEssay(pdf, "word0 word1 word2", "word78 word79")).toBe(essay);
+    expect(cutEssay(pdf, "not in the text", "word79")).toBe("");
+    expect(cutEssay(pdf, "word0 word1", "word5 word6")).toBe("");
+  });
+  it("keeps only answers that pass the flow's checks", () => {
+    const f = fieldsFrom(pdf, { essay_start: "word0 word1", essay_end: "word78 word79", gpa: "3.92", test: "1520", state: "ny", colleges: ["Yale University", "Hogwarts"] });
+    expect(f).toEqual({ essay, gpa: "3.92", test: "1520", state: "NY", schools: ["Yale University"] });
+    expect(fieldsFrom(pdf, { essay_start: "", essay_end: "", gpa: "about 4", test: "2400", state: "New York", colleges: [] })).toEqual({ essay: "", gpa: "", test: "", state: "", schools: [] });
+  });
+});

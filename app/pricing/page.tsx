@@ -18,7 +18,7 @@ const ROWS: { label: string; free: string | boolean; paid: string | boolean }[] 
 ];
 
 const FAQ = [
-  { q: "What is the difference between monthly and the season pass?", a: `Nothing but billing. Monthly is ${PLANS.monthly.price} a month. The season pass is ${PLANS.season.price} for six months, ${PLANS.season.billed.split(".")[0]}, which covers a full application season.` },
+  { q: "What is the difference between monthly and the season pass?", a: `Nothing but billing. Monthly is ${PLANS.monthly.price} a month. The season pass is ${PLANS.season.price} for six months, ${PLANS.season.monthly}, which covers a full application season.` },
   { q: "Do I need a card for the free review?", a: "No card and no account. Paste a draft and get the full review: the score, the lines costing you most and what to do about each." },
   { q: "Can a parent pay?", a: "Yes. Send them admitted.usetrnd.com/pay. After checkout they get one link to send you, and opening it unlocks your essays." },
   { q: "Can I cancel?", a: "Anytime, from Account on the essay page. You keep access until the end of the period you paid for." },

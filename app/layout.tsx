@@ -7,9 +7,9 @@ import "@fontsource-variable/inter/opsz.css";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://admitted.usetrnd.com";
-const TITLE = "Admitted: your real admit odds, and the part you can still move";
+const TITLE = "Admitted: know your odds, then raise them";
 const DESCRIPTION =
-  "Admit odds at every school on your list from published college data, split into what your stats decided and what your application can still change.";
+  "Paste your essay or upload your Common App. Get your admit odds at every school on your list, your essay score and the exact lines to fix. Free to start. Built by Ivy League grads.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

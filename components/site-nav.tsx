@@ -12,17 +12,11 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
           <Brand />
           {links && (
             <nav className="hidden md:flex items-center gap-7 text-[13.5px] text-ink-2">
-              <Link href="/#how" className="hover:text-ink">
-                How it works
-              </Link>
               <Link href="/essays" className="hover:text-ink">
                 Essay prompts
               </Link>
               <Link href="/activities" className="hover:text-ink">
                 Activities
-              </Link>
-              <Link href="/#data" className="hover:text-ink">
-                The data
               </Link>
               <Link href="/pricing" className="hover:text-ink">
                 Pricing
@@ -35,11 +29,8 @@ export default function SiteNav({ links = true }: { links?: boolean }) {
         </div>
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
-          <Link href="/essay" className="btn btn-ghost btn-sm hidden sm:inline-flex">
-            Review my essay free
-          </Link>
           <Link href="/odds" className="btn btn-primary btn-sm">
-            See my odds
+            Get my odds free
           </Link>
         </div>
       </div>

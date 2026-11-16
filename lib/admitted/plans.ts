@@ -13,11 +13,13 @@ export type Plan = {
   price: string;
   per: string;
   billed: string;
+  /** The plan as a monthly figure, for one-line mentions. */
+  monthly: string;
 };
 
 export const PLANS: Record<PlanId, Plan> = {
-  monthly: { id: "monthly", name: "Monthly", cents: 2900, months: 1, price: "$29", per: "a month", billed: "Renews monthly. Cancel anytime." },
-  season: { id: "season", name: "Season pass", cents: 9900, months: 6, price: "$99", per: "for 6 months", billed: "$16.50 a month. Renews every 6 months. Cancel anytime." },
+  monthly: { id: "monthly", name: "Monthly", cents: 2900, months: 1, price: "$29", per: "a month", billed: "Renews monthly. Cancel anytime.", monthly: "$29 a month" },
+  season: { id: "season", name: "Season pass", cents: 9900, months: 6, price: "$99", per: "for 6 months", billed: "$16.50 a month. Renews every 6 months. Cancel anytime.", monthly: "$16.50 a month" },
 };
 
 export const parsePlan = (value: unknown): PlanId => (value === "monthly" ? "monthly" : "season");

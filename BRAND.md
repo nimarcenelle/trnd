@@ -7,8 +7,10 @@ the same change.
 
 ## Principles
 
-- **Financial-grade, not salesy.** A calm tool for a decision that feels bigger than money. Numbers first; the product
-  itself does the convincing. If it would look at home on a crypto or AI-template landing page, it is wrong.
+- **Sell, cleanly (Nick, 2026-11-16).** Every section and every step pushes toward a purchase: one clear promise ("Know
+  your odds. Then raise them."), a CTA in every homepage section, the last odds screen sells the season pass directly. No
+  fluff, no noise, nothing that pulls away from buying (the guide capture is off the homepage and the odds flow). It still
+  has to look premium: if it would look at home on a crypto or AI-template landing page, it is wrong.
 - **The split is the idea.** Every odds number can be shown as locked (ink) and movable (green). Keep that pairing
   everywhere: the bar, the legend, the KPI tiles.
 - **Color where it means something.** Green (`--brand`): the movable part, points gained, a fix that is ready, check
@@ -16,8 +18,9 @@ the same change.
   band. Amber: a deadline. Red: an error. Beyond those, the only decoration is the soft navy wash behind the hero and the
   closing call to action (`.wash-top`, `.wash-bottom`).
 - **Not beige.** Neutrals lean cool, toward navy, never yellow or tan.
-- **No pressure.** No countdown timers, testimonial walls, urgency banners or "spots left". The product never scolds;
-  it quantifies and offers the fix.
+- **True claims only.** "Built by Ivy League grads" and the "Used by students admitted to" logo strip are Nick's
+  statements of fact. No invented counts, testimonials, countdowns or "spots left". Logos are in `public/logos/` (Wikimedia
+  Commons, trademarked, one tone via CSS).
 - **Checkable.** Every school figure comes from that school's own Common Data Set and points at its section. Odds are calculated from those
   figures in `lib/admitted/odds-core.ts`; the model only words the fixes. The homepage samples in
   `components/admitted/sample.ts` must match what the live tool returns for those applicants.

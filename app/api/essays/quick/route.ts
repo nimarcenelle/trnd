@@ -1,7 +1,7 @@
-import { networkId } from "@/lib/admitted/access";
-import { EssayCapReached, quickRead } from "@/lib/admitted/review";
-import { wordCount } from "@/lib/admitted/review-core";
-import { recordSubscriberUse, subscriberUsedToday } from "@/lib/admitted/saved";
+import { networkId } from "@/lib/essayodds/access";
+import { EssayCapReached, quickRead } from "@/lib/essayodds/review";
+import { wordCount } from "@/lib/essayodds/review-core";
+import { recordSubscriberUse, subscriberUsedToday } from "@/lib/essayodds/saved";
 import { isEssayOpen } from "@/lib/env";
 
 export const maxDuration = 60;

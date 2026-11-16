@@ -1,18 +1,19 @@
 "use client";
 
+import { readStore, storeKey } from "@/lib/essayodds/storage";
 import { useEffect, useState } from "react";
 
-import { essayVerdict, listVerdict, MIN_WORDS, ready, type Verdict } from "@/lib/admitted/final-core";
-import type { ListKind, ListReview } from "@/lib/admitted/lists-core";
-import type { Review } from "@/lib/admitted/review-core";
+import { essayVerdict, listVerdict, MIN_WORDS, ready, type Verdict } from "@/lib/essayodds/final-core";
+import type { ListKind, ListReview } from "@/lib/essayodds/lists-core";
+import type { Review } from "@/lib/essayodds/review-core";
 
 /** One essay to submit. Kept in this browser only, like the workspace draft. */
 type Piece = { id: string; label: string; prompt: string; limit: number; text: string };
 export type SchoolOption = { id: string; name: string; prompts: { title: string; text: string; limit: number | null; required: boolean }[] };
 
-const STORE = "admitted-final";
-const DRAFT_STORE = "admitted-essay-draft";
-const LISTS_STORE = "admitted-lists";
+const STORE = storeKey("final");
+const DRAFT_STORE = storeKey("essay-draft");
+const LISTS_STORE = storeKey("lists");
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 const newId = () => Math.random().toString(36).slice(2, 10);
 
@@ -48,9 +49,9 @@ export default function FinalRead({ schools }: { schools: SchoolOption[] }) {
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORE) ?? "null") as Piece[] | null;
+      const saved = JSON.parse(readStore("final") ?? "null") as Piece[] | null;
       if (saved?.length) setPieces(saved);
-      const savedLists = JSON.parse(localStorage.getItem(LISTS_STORE) ?? "null") as Record<ListKind, string> | null;
+      const savedLists = JSON.parse(readStore("lists") ?? "null") as Record<ListKind, string> | null;
       if (savedLists) setLists({ activities: savedLists.activities ?? "", honors: savedLists.honors ?? "" });
     } catch {}
   }, []);
@@ -76,7 +77,7 @@ export default function FinalRead({ schools }: { schools: SchoolOption[] }) {
 
   function addDraft() {
     try {
-      const d = JSON.parse(localStorage.getItem(DRAFT_STORE) ?? "null") as { draft?: string; prompt?: string; limit?: string } | null;
+      const d = JSON.parse(readStore("essay-draft") ?? "null") as { draft?: string; prompt?: string; limit?: string } | null;
       add({ label: d?.prompt ? d.prompt.slice(0, 60) : "Personal statement", prompt: d?.prompt ?? "", limit: Number(d?.limit) || 650, text: d?.draft ?? "" });
     } catch {
       add({ label: "Personal statement", prompt: "", limit: 650, text: "" });

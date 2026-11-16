@@ -1,9 +1,9 @@
 import Link from "next/link";
 
-import PlanCards, { Agree } from "@/components/admitted/plan-cards";
+import PlanCards, { Agree } from "@/components/essayodds/plan-cards";
 import SiteNav from "@/components/site-nav";
-import { daysToRegularDecision } from "@/lib/admitted/deadline";
-import { PLANS } from "@/lib/admitted/plans";
+import { daysToRegularDecision } from "@/lib/essayodds/deadline";
+import { PLANS } from "@/lib/essayodds/plans";
 
 export const metadata = { title: "Pricing · EssayOdds", description: "Essay scores, marked lines and rewrites in your voice for every essay you submit: $59 through January 15, or $19 for a week. One payment, no subscription." };
 

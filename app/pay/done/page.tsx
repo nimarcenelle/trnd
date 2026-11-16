@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import CopyLink from "@/components/admitted/copy-link";
+import CopyLink from "@/components/essayodds/copy-link";
 import SiteNav from "@/components/site-nav";
-import { accessFor, accessLink } from "@/lib/admitted/access";
-import { emailAccessOnce } from "@/lib/admitted/access-email";
+import { accessFor, accessLink } from "@/lib/essayodds/access";
+import { emailAccessOnce } from "@/lib/essayodds/access-email";
 import { env, isEssayOpen } from "@/lib/env";
 
 export const metadata = { title: "Send the link · EssayOdds", robots: { index: false } };

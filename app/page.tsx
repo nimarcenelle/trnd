@@ -1,15 +1,15 @@
 import Link from "next/link";
 
-import EssaySample from "@/components/admitted/essay-sample";
-import LogoStrip from "@/components/admitted/logo-strip";
-import OddsToy from "@/components/admitted/odds-toy";
-import PlanCards, { Agree } from "@/components/admitted/plan-cards";
-import ProductShot from "@/components/admitted/product-shot";
+import EssaySample from "@/components/essayodds/essay-sample";
+import LogoStrip from "@/components/essayodds/logo-strip";
+import OddsToy from "@/components/essayodds/odds-toy";
+import PlanCards, { Agree } from "@/components/essayodds/plan-cards";
+import ProductShot from "@/components/essayodds/product-shot";
 import Brand from "@/components/brand";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 import SiteNav from "@/components/site-nav";
-import { daysToRegularDecision } from "@/lib/admitted/deadline";
-import { PLANS } from "@/lib/admitted/plans";
+import { daysToRegularDecision } from "@/lib/essayodds/deadline";
+import { PLANS } from "@/lib/essayodds/plans";
 
 /** The deadline countdown is worked out on the server, so the page rebuilds hourly. */
 export const revalidate = 3600;

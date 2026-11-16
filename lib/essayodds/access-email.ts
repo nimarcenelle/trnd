@@ -28,7 +28,7 @@ ${rows}
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { authorization: `Bearer ${env.resendApiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({ from: env.admittedEmailFrom, to: [to], subject: "Your EssayOdds access link", html }),
+    body: JSON.stringify({ from: env.essayOddsEmailFrom, to: [to], subject: "Your EssayOdds access link", html }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }

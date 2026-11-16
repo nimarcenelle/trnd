@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import AccessLink from "@/components/admitted/access-link";
-import EssayWorkspace from "@/components/admitted/essay-workspace";
+import AccessLink from "@/components/essayodds/access-link";
+import EssayWorkspace from "@/components/essayodds/essay-workspace";
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
-import { accessLink, paidAccess } from "@/lib/admitted/access";
-import { PROMPTS, wordLimit } from "@/lib/admitted/prompts";
+import { accessLink, paidAccess } from "@/lib/essayodds/access";
+import { PROMPTS, wordLimit } from "@/lib/essayodds/prompts";
 import { env, isEssayOpen } from "@/lib/env";
 
 export const metadata = { title: "Essays · EssayOdds" };

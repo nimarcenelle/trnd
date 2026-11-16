@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import FinalRead, { type SchoolOption } from "@/components/admitted/final-read";
-import PlanCards, { Agree } from "@/components/admitted/plan-cards";
+import FinalRead, { type SchoolOption } from "@/components/essayodds/final-read";
+import PlanCards, { Agree } from "@/components/essayodds/plan-cards";
 import Brand from "@/components/brand";
 import ThemeToggle from "@/components/theme-toggle";
-import { paidSession } from "@/lib/admitted/access";
-import { PROMPTS, wordLimit } from "@/lib/admitted/prompts";
-import { SCHOOLS } from "@/lib/admitted/schools";
+import { paidSession } from "@/lib/essayodds/access";
+import { PROMPTS, wordLimit } from "@/lib/essayodds/prompts";
+import { SCHOOLS } from "@/lib/essayodds/schools";
 import { isEssayOpen } from "@/lib/env";
 
 export const metadata = { title: "Final Read · EssayOdds" };

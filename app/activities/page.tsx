@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import ListReviewer from "@/components/admitted/list-reviewer";
+import ListReviewer from "@/components/essayodds/list-reviewer";
 import SiteNav from "@/components/site-nav";
 import { isEssayOpen } from "@/lib/env";
 

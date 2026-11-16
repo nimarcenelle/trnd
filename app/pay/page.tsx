@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
-import { Agree } from "@/components/admitted/plan-cards";
-import PlanCards from "@/components/admitted/plan-cards";
+import { Agree } from "@/components/essayodds/plan-cards";
+import PlanCards from "@/components/essayodds/plan-cards";
 import SiteNav from "@/components/site-nav";
 import { isEssayOpen } from "@/lib/env";
 

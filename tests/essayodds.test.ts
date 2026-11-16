@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regularRate, satEquivalent, type Profile } from "@/lib/admitted/odds-core";
-import { segments } from "@/lib/admitted/highlight";
-import { scoreKind, STATES, validGpa } from "@/lib/admitted/flow";
-import { schoolQuery, shortName, upTo } from "@/lib/admitted/list";
-import { parseEmail } from "@/lib/admitted/leads";
-import { parseSchoolRequest } from "@/lib/admitted/school-request";
-import { buildReview, maxNotes, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/admitted/review-core";
-import { answersText, bestAttempt, keptShare, parseAnswers, rewriteKey, rewriteProblems } from "@/lib/admitted/rewrite-core";
-import { APPLICANTS, FACTORS } from "@/components/admitted/sample";
-import { admitRate, SCHOOLS } from "@/lib/admitted/schools";
-import { isSealed, seal, unseal } from "@/lib/admitted/seal";
+import { calculateOdds, matchSchools, oddsBounds, oddsKey, parseProfile, regularRate, satEquivalent, type Profile } from "@/lib/essayodds/odds-core";
+import { segments } from "@/lib/essayodds/highlight";
+import { scoreKind, STATES, validGpa } from "@/lib/essayodds/flow";
+import { schoolQuery, shortName, upTo } from "@/lib/essayodds/list";
+import { parseEmail } from "@/lib/essayodds/leads";
+import { parseSchoolRequest } from "@/lib/essayodds/school-request";
+import { buildReview, maxNotes, parseWordLimit, quotedIn, reviewKey, reviewScore, type ReviewReply } from "@/lib/essayodds/review-core";
+import { answersText, bestAttempt, keptShare, parseAnswers, rewriteKey, rewriteProblems } from "@/lib/essayodds/rewrite-core";
+import { APPLICANTS, FACTORS } from "@/components/essayodds/sample";
+import { admitRate, SCHOOLS } from "@/lib/essayodds/schools";
+import { isSealed, seal, unseal } from "@/lib/essayodds/seal";
 
 const dartmouth = SCHOOLS.find((s) => s.id === "dartmouth")!;
 const p = (gpa: number, score: number): Profile => ({ gpa, test: { kind: "SAT", score } });

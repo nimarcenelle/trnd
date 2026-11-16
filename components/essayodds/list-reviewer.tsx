@@ -1,10 +1,11 @@
 "use client";
 
+import { readStore, storeKey } from "@/lib/essayodds/storage";
 import { useEffect, useState } from "react";
 
-import type { ListKind, ListReview } from "@/lib/admitted/lists-core";
+import type { ListKind, ListReview } from "@/lib/essayodds/lists-core";
 
-const STORE = "admitted-lists";
+const STORE = storeKey("lists");
 const PLACEHOLDER: Record<ListKind, string> = {
   activities: "Paste your activities, one per paragraph: position, organization and description.\n\nPresident, Robotics Club\nLed team meetings and helped with competitions.",
   honors: "Paste your honors, one per line, with the level if you have it.\n\nAIME Qualifier (National)\nAP Scholar with Distinction (National)",
@@ -55,7 +56,7 @@ export default function ListReviewer() {
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORE) ?? "null") as Record<ListKind, string> | null;
+      const saved = JSON.parse(readStore("lists") ?? "null") as Record<ListKind, string> | null;
       if (saved) setTexts({ activities: saved.activities ?? "", honors: saved.honors ?? "" });
     } catch {}
   }, []);

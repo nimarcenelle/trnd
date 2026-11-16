@@ -1,7 +1,7 @@
-import { networkId } from "@/lib/admitted/access";
-import { readCommonApp } from "@/lib/admitted/commonapp";
-import { MAX_PDF_BYTES } from "@/lib/admitted/commonapp-core";
-import { recordSubscriberUse, subscriberUsedToday } from "@/lib/admitted/saved";
+import { networkId } from "@/lib/essayodds/access";
+import { readCommonApp } from "@/lib/essayodds/commonapp";
+import { MAX_PDF_BYTES } from "@/lib/essayodds/commonapp-core";
+import { recordSubscriberUse, subscriberUsedToday } from "@/lib/essayodds/saved";
 import { isEssayOpen } from "@/lib/env";
 
 export const maxDuration = 60;

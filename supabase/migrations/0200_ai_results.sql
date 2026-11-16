@@ -1,4 +1,4 @@
--- Admitted: every AI result, saved under a key built from its inputs, so unchanged inputs
+-- EssayOdds: every AI result, saved under a key built from its inputs, so unchanged inputs
 -- return the first result. Only the service role reads or writes it.
 create table if not exists public.ai_results (
   key text primary key,

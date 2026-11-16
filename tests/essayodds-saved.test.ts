@@ -20,7 +20,7 @@ describe("saved results", () => {
   beforeEach(() => table.clear());
 
   it("stores essay results encrypted and reads them back", async () => {
-    const { readSaved, saveFirst } = await import("@/lib/admitted/saved");
+    const { readSaved, saveFirst } = await import("@/lib/essayodds/saved");
     const value = { score: 58, notes: [{ quote: "The left boot always comes in worse." }] };
     expect((await saveFirst("review", [{ key: "k", value }])).get("k")).toEqual(value);
     expect(JSON.stringify(table.get("k"))).not.toContain("boot");
@@ -28,19 +28,19 @@ describe("saved results", () => {
   });
 
   it("keeps the first result when a second one races it", async () => {
-    const { saveFirst } = await import("@/lib/admitted/saved");
+    const { saveFirst } = await import("@/lib/essayodds/saved");
     await saveFirst("rewrite", [{ key: "k", value: { after: 1 } }]);
     expect((await saveFirst("rewrite", [{ key: "k", value: { after: 2 } }])).get("k")).toEqual({ after: 1 });
   });
 
   it("treats a row sealed under another key as a miss", async () => {
-    const { readSaved } = await import("@/lib/admitted/saved");
+    const { readSaved } = await import("@/lib/essayodds/saved");
     table.set("k", { kind: "review", value: { sealed: "AAAA.AAAA.AAAA" } });
     expect((await readSaved(["k"])).has("k")).toBe(false);
   });
 
   it("health check stores one sealed row however often it runs", async () => {
-    const { sealedStoreWorks } = await import("@/lib/admitted/saved");
+    const { sealedStoreWorks } = await import("@/lib/essayodds/saved");
     expect(await sealedStoreWorks()).toBe(true);
     expect(await sealedStoreWorks()).toBe(true);
     expect(table.size).toBe(1);
@@ -48,7 +48,7 @@ describe("saved results", () => {
   });
 
   it("leaves odds readable as before", async () => {
-    const { saveFirst } = await import("@/lib/admitted/saved");
+    const { saveFirst } = await import("@/lib/essayodds/saved");
     await saveFirst("odds", [{ key: "k", value: { odds: 6 } }]);
     expect(table.get("k")?.value).toEqual({ odds: 6 });
   });

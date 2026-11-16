@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-import { ACCESS_COOKIE, subscriptionPortal } from "@/lib/admitted/access";
+import { ACCESS_COOKIE, LEGACY_ACCESS_COOKIE, subscriptionPortal } from "@/lib/essayodds/access";
 import { env, isEssayOpen } from "@/lib/env";
 
 /**
@@ -10,7 +10,8 @@ import { env, isEssayOpen } from "@/lib/env";
  */
 export async function POST(request: Request): Promise<Response> {
   const posted = (await request.formData().catch(() => null))?.get("session_id");
-  const id = (await cookies()).get(ACCESS_COOKIE)?.value ?? (typeof posted === "string" ? posted : "");
+  const jar = await cookies();
+  const id = jar.get(ACCESS_COOKIE)?.value ?? jar.get(LEGACY_ACCESS_COOKIE)?.value ?? (typeof posted === "string" ? posted : "");
   if (!isEssayOpen || !id) return NextResponse.redirect(`${env.siteUrl}/essay`, 303);
   try {
     return NextResponse.redirect(await subscriptionPortal(id), 303);

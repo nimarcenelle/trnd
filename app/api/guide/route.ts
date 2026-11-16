@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
-import { GUIDE_PATH, parseEmail } from "@/lib/admitted/leads";
-import { countToday, saveFirst } from "@/lib/admitted/saved";
+import { GUIDE_PATH, parseEmail } from "@/lib/essayodds/leads";
+import { countToday, saveFirst } from "@/lib/essayodds/saved";
 import { env } from "@/lib/env";
 
 const DAILY_CAP = 2000;

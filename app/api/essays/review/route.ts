@@ -1,7 +1,7 @@
-import { DAILY_LIMITS, paidSession, subscriberId } from "@/lib/admitted/access";
-import { recordSubscriberUse, subscriberUsedToday } from "@/lib/admitted/saved";
-import { EssayCapReached, reviewEssay } from "@/lib/admitted/review";
-import { parseWordLimit, wordCount } from "@/lib/admitted/review-core";
+import { DAILY_LIMITS, paidSession, subscriberId } from "@/lib/essayodds/access";
+import { recordSubscriberUse, subscriberUsedToday } from "@/lib/essayodds/saved";
+import { EssayCapReached, reviewEssay } from "@/lib/essayodds/review";
+import { parseWordLimit, wordCount } from "@/lib/essayodds/review-core";
 import { isEssayOpen } from "@/lib/env";
 
 export const maxDuration = 180;

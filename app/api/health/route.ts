@@ -1,4 +1,4 @@
-import { sealedStoreWorks } from "@/lib/admitted/saved";
+import { sealedStoreWorks } from "@/lib/essayodds/saved";
 import { env, isEmailConfigured, isEssayOpen, isModelConfigured, isStripeConfigured } from "@/lib/env";
 
 /** Which integrations are configured, and whether essay results can be saved encrypted. Never values. */

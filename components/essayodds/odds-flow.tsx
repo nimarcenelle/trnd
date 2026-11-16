@@ -1,16 +1,17 @@
 "use client";
 
+import { readStore, storeKey } from "@/lib/essayodds/storage";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import Brand from "@/components/brand";
 import { IconArrowRight, IconCheck } from "@/components/icons";
-import { scoreKind, STATES, validGpa } from "@/lib/admitted/flow";
-import { schoolQuery, shortName, upTo } from "@/lib/admitted/list";
-import { daysToRegularDecision } from "@/lib/admitted/deadline";
-import { PAID_FEATURES, PLANS } from "@/lib/admitted/plans";
-import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
+import { scoreKind, STATES, validGpa } from "@/lib/essayodds/flow";
+import { schoolQuery, shortName, upTo } from "@/lib/essayodds/list";
+import { daysToRegularDecision } from "@/lib/essayodds/deadline";
+import { PAID_FEATURES, PLANS } from "@/lib/essayodds/plans";
+import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/essayodds/schools";
 
 import EssaySample from "./essay-sample";
 import OddsTable from "./odds-table";
@@ -20,9 +21,9 @@ import RequestSchool from "./request-school";
 type Fix = { kind: "round" | "essays" | "activities"; label: string; gain: number };
 type Row = { schoolId: string; odds: number; withFixes: number; locked: number; movable: number; fixes: Fix[]; school: { name: string; edition: string; source: string; note?: string } };
 
-const STORE = "admitted-odds-answers";
+const STORE = storeKey("odds-answers");
 const QUESTIONS = 5;
-const DRAFT_STORE = "admitted-essay-draft";
+const DRAFT_STORE = storeKey("essay-draft");
 const MIN_WORDS = 50;
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
@@ -211,7 +212,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
   // A browser convenience: a reload keeps the answers. Nothing here leaves the browser until they ask for odds.
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORE) ?? "null") as { picked?: string[]; gpa?: string; score?: string; home?: string; essay?: string } | null;
+      const saved = JSON.parse(readStore("odds-answers") ?? "null") as { picked?: string[]; gpa?: string; score?: string; home?: string; essay?: string } | null;
       if (saved?.picked) setPicked(saved.picked.filter((n) => SCHOOLS.some((s) => s.name === n)));
       if (saved?.gpa) setGpa(saved.gpa);
       if (saved?.score) setScore(saved.score);

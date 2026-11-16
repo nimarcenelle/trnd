@@ -1,8 +1,8 @@
-import { oddsFor } from "@/lib/admitted/odds";
-import { DEFAULT_WORD_LIMIT, quickKey, reviewKey, type Review } from "@/lib/admitted/review-core";
-import { readSaved } from "@/lib/admitted/saved";
-import { matchSchools, parseProfile } from "@/lib/admitted/odds-core";
-import { SCHOOLS } from "@/lib/admitted/schools";
+import { oddsFor } from "@/lib/essayodds/odds";
+import { DEFAULT_WORD_LIMIT, quickKey, reviewKey, type Review } from "@/lib/essayodds/review-core";
+import { readSaved } from "@/lib/essayodds/saved";
+import { matchSchools, parseProfile } from "@/lib/essayodds/odds-core";
+import { SCHOOLS } from "@/lib/essayodds/schools";
 import { isOddsConfigured } from "@/lib/env";
 
 export const maxDuration = 120;

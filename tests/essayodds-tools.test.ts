@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { essayVerdict, listVerdict, READY_ESSAY } from "@/lib/admitted/final-core";
-import { buildListReview, listKey, numbersKept, type ListReply } from "@/lib/admitted/lists-core";
-import { accessUntil, parsePlan, PLANS, RD_PASS_ENDS } from "@/lib/admitted/plans";
-import { PROMPTS, wordLimit } from "@/lib/admitted/prompts";
-import type { Review } from "@/lib/admitted/review-core";
-import { SCHOOLS } from "@/lib/admitted/schools";
+import { essayVerdict, listVerdict, READY_ESSAY } from "@/lib/essayodds/final-core";
+import { buildListReview, listKey, numbersKept, type ListReply } from "@/lib/essayodds/lists-core";
+import { accessUntil, parsePlan, PLANS, RD_PASS_ENDS } from "@/lib/essayodds/plans";
+import { PROMPTS, wordLimit } from "@/lib/essayodds/prompts";
+import type { Review } from "@/lib/essayodds/review-core";
+import { SCHOOLS } from "@/lib/essayodds/schools";
 
 const LIST = `President, Robotics Club
 Led weekly meetings for 24 members and raised $3,000 for regionals.
@@ -86,7 +86,7 @@ describe("plans and prompts", () => {
   });
 });
 
-import { calculateOdds, essayFactor, oddsKey, parseProfile } from "@/lib/admitted/odds-core";
+import { calculateOdds, essayFactor, oddsKey, parseProfile } from "@/lib/essayodds/odds-core";
 
 describe("odds with a read essay", () => {
   const base = parseProfile("3.9", "1500")!;
@@ -113,7 +113,7 @@ describe("odds with a read essay", () => {
   });
 });
 
-import { cutEssay, fieldsFrom } from "@/lib/admitted/commonapp-core";
+import { cutEssay, fieldsFrom } from "@/lib/essayodds/commonapp-core";
 
 describe("Common App upload", () => {
   const essay = Array.from({ length: 80 }, (_, i) => `word${i}`).join(" ");

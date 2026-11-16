@@ -3,9 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import SiteNav from "@/components/site-nav";
-import { shortName } from "@/lib/admitted/list";
-import { COMMON_APP, PROMPTS, type Prompt, wordLimit } from "@/lib/admitted/prompts";
-import { admitRate, earlyRate, SCHOOLS } from "@/lib/admitted/schools";
+import { shortName } from "@/lib/essayodds/list";
+import { COMMON_APP, PROMPTS, type Prompt, wordLimit } from "@/lib/essayodds/prompts";
+import { admitRate, earlyRate, SCHOOLS } from "@/lib/essayodds/schools";
 
 export const dynamicParams = false;
 export const generateStaticParams = () => SCHOOLS.filter((s) => PROMPTS[s.id]).map((s) => ({ school: s.id }));

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { createAccessCheckout } from "@/lib/admitted/access";
-import { parsePlan, PLANS } from "@/lib/admitted/plans";
+import { createAccessCheckout } from "@/lib/essayodds/access";
+import { parsePlan, PLANS } from "@/lib/essayodds/plans";
 import { isEssayOpen } from "@/lib/env";
 
 export async function POST(request: Request): Promise<Response> {

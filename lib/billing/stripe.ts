@@ -2,7 +2,7 @@ import "server-only";
 
 import Stripe from "stripe";
 
-import { accessUntil, parsePlan, type Plan } from "@/lib/admitted/plans";
+import { accessUntil, parsePlan, type Plan } from "@/lib/essayodds/plans";
 import type { Brand } from "@/lib/db/types";
 import { env, isStripeConfigured } from "@/lib/env";
 
@@ -37,8 +37,10 @@ export async function createPortalSession(customerId: string): Promise<string> {
   return session.url;
 }
 
-/** EssayOdds's plans live in lib/admitted/plans.ts. The product tag is kept from the weekly launch so earlier buyers keep access. */
-const ESSAYS_PRODUCT = "admitted-weekly";
+/** EssayOdds's plans live in lib/essayodds/plans.ts. The product tag is kept from the weekly launch so earlier buyers keep access. */
+const ESSAYS_PRODUCT = "essayodds";
+/** Product tags from before the rename. Purchases carrying one still unlock. */
+const isEssaysProduct = (tag: string | undefined) => tag === ESSAYS_PRODUCT || tag === "admitted-weekly";
 
 const essaysStripe = () => {
   if (!env.stripeSecretKey) throw new Error("Stripe is not configured: set STRIPE_SECRET_KEY.");
@@ -73,7 +75,7 @@ export type Access = { until: Date | null; recurring: boolean; email: string | n
 export async function accessFor(sessionId: string): Promise<Access | null> {
   if (!sessionId.startsWith("cs_")) return null;
   const session = await essaysStripe().checkout.sessions.retrieve(sessionId, { expand: ["subscription"] });
-  if (session.metadata?.product !== ESSAYS_PRODUCT) return null;
+  if (!isEssaysProduct(session.metadata?.product)) return null;
   if (session.mode === "payment") {
     if (session.payment_status !== "paid") return null;
     const plan = parsePlan(session.metadata?.plan);
@@ -90,7 +92,7 @@ export async function activeSessionsFor(email: string): Promise<({ id: string } 
   const list = await essaysStripe().checkout.sessions.list({ customer_details: { email }, limit: 20 });
   const found: ({ id: string } & Access)[] = [];
   for (const s of list.data) {
-    if (s.metadata?.product !== ESSAYS_PRODUCT) continue;
+    if (!isEssaysProduct(s.metadata?.product)) continue;
     const access = await accessFor(s.id).catch(() => null);
     if (access) found.push({ id: s.id, ...access });
   }
@@ -103,7 +105,7 @@ export const isSubscriptionActive = async (sessionId: string) => (await accessFo
 export async function subscriptionPortal(sessionId: string): Promise<string> {
   const session = await essaysStripe().checkout.sessions.retrieve(sessionId);
   const customer = typeof session.customer === "string" ? session.customer : session.customer?.id;
-  if (!customer || session.metadata?.product !== ESSAYS_PRODUCT) throw new Error("No subscription on this session.");
+  if (!customer || !isEssaysProduct(session.metadata?.product)) throw new Error("No subscription on this session.");
   const portal = await essaysStripe().billingPortal.sessions.create({ customer, return_url: `${env.siteUrl}/essay` });
   return portal.url;
 }

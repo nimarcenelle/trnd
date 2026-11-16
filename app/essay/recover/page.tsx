@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import RecoverForm from "@/components/admitted/recover-form";
+import RecoverForm from "@/components/essayodds/recover-form";
 import SiteNav from "@/components/site-nav";
 import { isEssayOpen } from "@/lib/env";
 

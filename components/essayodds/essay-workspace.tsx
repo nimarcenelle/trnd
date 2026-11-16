@@ -1,17 +1,18 @@
 "use client";
 
+import { readStore, storeKey } from "@/lib/essayodds/storage";
 import { useEffect, useRef, useState } from "react";
 
-import { segments } from "@/lib/admitted/highlight";
-import { PLANS } from "@/lib/admitted/plans";
-import type { Review } from "@/lib/admitted/review-core";
+import { segments } from "@/lib/essayodds/highlight";
+import { PLANS } from "@/lib/essayodds/plans";
+import type { Review } from "@/lib/essayodds/review-core";
 
 import { BuyButton } from "./plan-cards";
 
 type Rewrite = { rewrite: string; changes: string[]; kept: number; words: number; limit: number; before: number; after: number; check: string[] };
 type Busy = "" | "review" | "rewrite";
 
-const STORE = "admitted-essay-draft";
+const STORE = storeKey("essay-draft");
 const MIN_WORDS = 50;
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
@@ -294,7 +295,7 @@ export default function EssayWorkspace({ paid, start }: { paid: boolean; start?:
   // A browser convenience: a reload should not cost a student their draft.
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORE) ?? "null") as { draft?: string; prompt?: string; limit?: string; answers?: Record<string, string>; reviewed?: boolean } | null;
+      const saved = JSON.parse(readStore("essay-draft") ?? "null") as { draft?: string; prompt?: string; limit?: string; answers?: Record<string, string>; reviewed?: boolean } | null;
       if (saved?.draft) setDraft(saved.draft);
       // Arriving from the odds flow, whose review of this draft is saved: show it straight away.
       if (saved?.reviewed && saved.draft && !start) {

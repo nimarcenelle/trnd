@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { accessFor, ACCESS_COOKIE } from "@/lib/admitted/access";
-import { emailAccessOnce } from "@/lib/admitted/access-email";
+import { accessFor, ACCESS_COOKIE } from "@/lib/essayodds/access";
+import { emailAccessOnce } from "@/lib/essayodds/access-email";
 import { env, isEssayOpen } from "@/lib/env";
 
 /** Where Stripe returns a buyer, and where a saved access link lands on any device. */

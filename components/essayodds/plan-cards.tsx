@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { IconCheck } from "@/components/icons";
-import { PAID_FEATURES, PLANS, type Plan } from "@/lib/admitted/plans";
+import { PAID_FEATURES, PLANS, type Plan } from "@/lib/essayodds/plans";
 
 function Checks({ items }: { items: string[] }) {
   return (

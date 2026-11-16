@@ -9,7 +9,9 @@ import { accessFor, activeSessionsFor, createAccessCheckout, isSubscriptionActiv
  * Access is a paid Stripe Checkout session, and no account: a pass until its end date, or an earlier subscription while
  * it's live. The session id sits in an http-only cookie, and the access link the buyer saves carries it to another device.
  */
-export const ACCESS_COOKIE = "admitted_access";
+export const ACCESS_COOKIE = "essayodds_access";
+/** The cookie name before the rename, still read so earlier buyers stay signed in. */
+export const LEGACY_ACCESS_COOKIE = "admitted_access";
 export const accessLink = (sessionId: string, base: string) => `${base}/essay/access?session_id=${encodeURIComponent(sessionId)}`;
 
 export { accessFor, activeSessionsFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access };
@@ -21,7 +23,8 @@ export async function paidSession(): Promise<string | null> {
 
 /** The paid session on this request and what it unlocks, if there is one. */
 export async function paidAccess(): Promise<({ id: string } & Access) | null> {
-  const id = (await cookies()).get(ACCESS_COOKIE)?.value;
+  const jar = await cookies();
+  const id = jar.get(ACCESS_COOKIE)?.value ?? jar.get(LEGACY_ACCESS_COOKIE)?.value;
   if (!id) return null;
   const access = await accessFor(id).catch(() => null);
   return access ? { id, ...access } : null;
@@ -36,5 +39,5 @@ export const subscriberId = (sessionId: string) => createHash("sha256").update(s
 /** A stable, non-reversible id for the caller's network, for capping use without an account. Never stored in the clear. */
 export function networkId(request: Request): string {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
-  return createHash("sha256").update(`admitted-free:${ip}`).digest("hex").slice(0, 24);
+  return createHash("sha256").update(`essayodds-free:${ip}`).digest("hex").slice(0, 24);
 }

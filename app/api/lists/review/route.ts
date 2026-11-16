@@ -1,8 +1,8 @@
-import { paidSession, subscriberId } from "@/lib/admitted/access";
-import { reviewList } from "@/lib/admitted/lists";
-import { MAX_INPUT, parseKind } from "@/lib/admitted/lists-core";
-import { EssayCapReached } from "@/lib/admitted/review";
-import { recordSubscriberUse, subscriberUsedToday } from "@/lib/admitted/saved";
+import { paidSession, subscriberId } from "@/lib/essayodds/access";
+import { reviewList } from "@/lib/essayodds/lists";
+import { MAX_INPUT, parseKind } from "@/lib/essayodds/lists-core";
+import { EssayCapReached } from "@/lib/essayodds/review";
+import { recordSubscriberUse, subscriberUsedToday } from "@/lib/essayodds/saved";
 import { isEssayOpen } from "@/lib/env";
 
 export const maxDuration = 120;

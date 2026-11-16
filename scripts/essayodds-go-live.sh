@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # EssayOdds go-live: sets the production environment variables on Vercel project trnd-admitted, then redeploys.
-# Run from the repo root:  bash scripts/admitted-go-live.sh
+# Run from the repo root:  bash scripts/essayodds-go-live.sh
 # Each step asks first and can be skipped. Secrets are read without echoing and never written to disk.
 set -euo pipefail
 
-PROJECT="trnd-admitted"
+PROJECT="trnd-essayodds"
 SCOPE="nimarcenelles-projects"
 SITE="https://essayodds.com"
 
@@ -32,14 +32,14 @@ if ask "Set the live Stripe secret key now?"; then
   put STRIPE_SECRET_KEY "$key"
 fi
 
-echo "3/3  Admitted's own Supabase project"
+echo "3/3  EssayOdds' own Supabase project"
 echo "  First run supabase/migrations/0200_ai_results.sql in the new project's SQL editor."
-if ask "Set ADMITTED_SUPABASE_URL and ADMITTED_SUPABASE_SERVICE_ROLE_KEY now?"; then
+if ask "Set ESSAYODDS_SUPABASE_URL and ESSAYODDS_SUPABASE_SERVICE_ROLE_KEY now?"; then
   read -r -p "  Project URL (https://….supabase.co): " url
   [[ "$url" == https://*.supabase.co ]] || { echo "  That isn't a Supabase project URL; nothing changed."; exit 1; }
   read -r -s -p "  Service role key (hidden): " key; echo
-  put ADMITTED_SUPABASE_URL "$url"
-  put ADMITTED_SUPABASE_SERVICE_ROLE_KEY "$key"
+  put ESSAYODDS_SUPABASE_URL "$url"
+  put ESSAYODDS_SUPABASE_SERVICE_ROLE_KEY "$key"
 fi
 
 if ask "Redeploy production so the changes take effect?"; then

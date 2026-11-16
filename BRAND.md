@@ -1,4 +1,4 @@
-# EssayOdds: brand (code paths still say admitted)
+# EssayOdds: brand
 
 How EssayOdds looks and talks. Any new UI follows it. Forked from TRND's brand: same type, same components, same
 restraint, on a white ground with navy ink and one clear green. The source of truth for values is `app/globals.css` (tokens and
@@ -22,16 +22,16 @@ the same change.
   statements of fact. No invented counts, testimonials, countdowns or "spots left". Logos are in `public/logos/` (Wikimedia
   Commons, trademarked, one tone via CSS).
 - **Checkable.** Every school figure comes from that school's own Common Data Set and points at its section. Odds are calculated from those
-  figures in `lib/admitted/odds-core.ts`; the model only words the fixes. The homepage samples in
-  `components/admitted/sample.ts` must match what the live tool returns for those applicants.
+  figures in `lib/essayodds/odds-core.ts`; the model only words the fixes. The homepage samples in
+  `components/essayodds/sample.ts` must match what the live tool returns for those applicants.
 - **Essay scores are calculated.** A model grades six criteria on described bands, three reads averaged, in
-  `lib/admitted/review-core.ts`. Every line a review cites must exist in the essay. A rewrite that scores lower than its
+  `lib/essayodds/review-core.ts`. Every line a review cites must exist in the essay. A rewrite that scores lower than its
   draft gets one more try. Every rewrite is shown with its score change, green only when the score rose. Before a rewrite the student can answer the review's fixes; those answers count as their own material.
 - **Light by default**, with a dark theme from the toggle (`[data-theme="dark"]`).
 
 ## Wordmark
 
-`components/brand.tsx`: a green dot (0.46× the type size) and **Admitted** in Inter 600, −0.02em, in ink. Never
+`components/brand.tsx`: a green dot (0.46× the type size) and **EssayOdds** in Inter 600, −0.02em, in ink. Never
 recolored except ink on light and ink on dark. Minimum size 13px.
 
 ## Color
@@ -73,10 +73,10 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
   or an activity list without reading it, so those say "depends on what's in them", never a number. The essay score lives
   inside the paid workspace, after we have read the draft. "Up to" is today's odds plus the round only, and blank where a
   school has no early round.
-- Pricing (`lib/admitted/plans.ts`, the one source for every price): no free tier (Nick, 2026-11-16: "no starting free").
+- Pricing (`lib/essayodds/plans.ts`, the one source for every price): no free tier (Nick, 2026-11-16: "no starting free").
   One-time passes, no subscriptions: RD Pass $59 (until January 15, 2027) and Week Pass $19 (7 days). The odds flow runs without a card as the hook: the odds and the points the
   essay costs are shown, the essay score, marked lines, rewrites, list reviews and Final Read need a plan. Copy sells against
-  the real regular-decision deadline (`lib/admitted/deadline.ts`, days to January 1), in amber. A parent pays at `/pay`.
+  the real regular-decision deadline (`lib/essayodds/deadline.ts`, days to January 1), in amber. A parent pays at `/pay`.
 - Free tools are pages of their own on the marketing nav: `/essays` (every school's prompts, from its own site where it
   publishes them; re-check each August), `/activities` (list reviews). `/essay/final` (Final Read) is paid and lives in the
   workspace bar.

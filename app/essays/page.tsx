@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 import SiteNav from "@/components/site-nav";
-import { shortName } from "@/lib/admitted/list";
-import { PROMPTS } from "@/lib/admitted/prompts";
-import { SCHOOLS } from "@/lib/admitted/schools";
+import { shortName } from "@/lib/essayodds/list";
+import { PROMPTS } from "@/lib/essayodds/prompts";
+import { SCHOOLS } from "@/lib/essayodds/schools";
 
 export const metadata = { title: "College essay prompts 2026–27 · EssayOdds", description: "Supplemental essay prompts and word limits for 39 colleges, from each school's own site. Paste an answer and get it scored." };
 

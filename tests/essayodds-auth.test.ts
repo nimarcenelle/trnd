@@ -33,3 +33,15 @@ describe("accounts", () => {
     expect(validEmail("nope")).toBe(false);
   });
 });
+
+import { DEMO_ACTIVITIES, DEMO_ESSAY, isDemoEssay, isDemoList } from "@/lib/essayodds/demo";
+
+describe("demo mode", () => {
+  it("answers only the sample student, whatever the spacing", () => {
+    expect(isDemoEssay(DEMO_ESSAY)).toBe(true);
+    expect(isDemoEssay(DEMO_ESSAY.replace(/\n\n/g, " "))).toBe(true);
+    expect(isDemoEssay(DEMO_ESSAY + " One more line.")).toBe(false);
+    expect(isDemoList(DEMO_ACTIVITIES)).toBe(true);
+    expect(isDemoList("President, Chess Club")).toBe(false);
+  });
+});

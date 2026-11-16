@@ -1,4 +1,5 @@
-import { DAILY_LIMITS, paidSession, subscriberId } from "@/lib/essayodds/access";
+import { DAILY_LIMITS, networkId, paidSession, subscriberId } from "@/lib/essayodds/access";
+import { isDemoEssay } from "@/lib/essayodds/demo";
 import { recordSubscriberUse, subscriberUsedToday } from "@/lib/essayodds/saved";
 import { EssayCapReached, reviewEssay } from "@/lib/essayodds/review";
 import { parseWordLimit, wordCount } from "@/lib/essayodds/review-core";
@@ -11,12 +12,13 @@ export async function POST(request: Request): Promise<Response> {
   if (!isEssayOpen) return Response.json({ error: "not_open" }, { status: 404 });
   const session = await paidSession();
   if (!session) return Response.json({ error: "payment_required" }, { status: 402 });
-  const user = subscriberId(session);
+  const user = session === "demo" ? networkId(request) : subscriberId(session);
   if ((await subscriberUsedToday("use_review", user).catch(() => 0)) >= DAILY_LIMITS.review) return Response.json({ error: "subscriber_limit" }, { status: 429 });
   const body = (await request.json().catch(() => null)) as { essay?: unknown; prompt?: unknown; limit?: unknown } | null;
   const essay = String(body?.essay ?? "").trim();
   const words = wordCount(essay);
   if (words < 50 || words > 1000) return Response.json({ error: "length" }, { status: 400 });
+  if (session === "demo" && !isDemoEssay(essay)) return Response.json({ error: "demo_only" }, { status: 402 });
   try {
     const result = await reviewEssay(essay, String(body?.prompt ?? "").trim().slice(0, 500), parseWordLimit(body?.limit));
     await recordSubscriberUse("use_review", user);

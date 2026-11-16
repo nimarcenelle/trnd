@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 
 import { currentSession } from "./auth";
+import { DEMO_COOKIE } from "./demo";
+import { RD_PASS_ENDS } from "./plans";
 import { putLatest, readSaved } from "./saved";
 import { accessFor, activeSessionsFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access } from "@/lib/billing/stripe";
 
@@ -29,6 +31,8 @@ export async function paidSession(): Promise<string | null> {
  */
 export async function paidAccess(): Promise<({ id: string } & Access) | null> {
   const jar = await cookies();
+  // Demo mode: unlocked, but the routes only answer the sample student.
+  if (jar.get(DEMO_COOKIE)?.value === "1") return { id: "demo", until: RD_PASS_ENDS, recurring: false, email: null };
   const id = jar.get(ACCESS_COOKIE)?.value ?? jar.get(LEGACY_ACCESS_COOKIE)?.value;
   if (id) {
     const access = await accessFor(id).catch(() => null);

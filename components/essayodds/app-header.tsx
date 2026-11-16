@@ -32,7 +32,7 @@ export default async function AppHeader({ welcome = false }: { welcome?: boolean
               {until ? `Pass until ${until}` : "Weekly plan"}
             </span>
           )}
-          <AccountMenu email={account?.email ?? null} hasPass={Boolean(access)} until={access?.until ? access.until.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" }) : null} buyerEmail={account ? null : (access?.email ?? null)} welcome={welcome} manageId={access?.recurring ? access.id : null} />
+          {access?.id !== "demo" && <AccountMenu email={account?.email ?? null} hasPass={Boolean(access)} until={access?.until ? access.until.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" }) : null} buyerEmail={account ? null : (access?.email ?? null)} welcome={welcome} manageId={access?.recurring ? access.id : null} />}
           {!access && (
             <Link href="/pricing" className="btn btn-primary btn-sm">
               Get a pass

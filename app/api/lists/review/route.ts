@@ -1,4 +1,5 @@
-import { paidSession, subscriberId } from "@/lib/essayodds/access";
+import { networkId, paidSession, subscriberId } from "@/lib/essayodds/access";
+import { isDemoList } from "@/lib/essayodds/demo";
 import { reviewList } from "@/lib/essayodds/lists";
 import { MAX_INPUT, parseKind } from "@/lib/essayodds/lists-core";
 import { EssayCapReached } from "@/lib/essayodds/review";
@@ -17,7 +18,8 @@ export async function POST(request: Request): Promise<Response> {
   if (text.length < 20 || text.length > MAX_INPUT) return Response.json({ error: "length" }, { status: 400 });
   const session = await paidSession();
   if (!session) return Response.json({ error: "payment_required" }, { status: 402 });
-  const user = subscriberId(session);
+  if (session === "demo" && !isDemoList(text)) return Response.json({ error: "demo_only" }, { status: 402 });
+  const user = session === "demo" ? networkId(request) : subscriberId(session);
   if ((await subscriberUsedToday("use_lists", user).catch(() => 0)) >= PER_DAY) return Response.json({ error: "limit" }, { status: 429 });
   try {
     const result = await reviewList(parseKind(body?.kind), text);

@@ -2,12 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BuyButton } from "@/components/essayodds/plan-cards";
 import SiteNav from "@/components/site-nav";
+import { daysUntil } from "@/lib/essayodds/deadline";
+import { PLANS } from "@/lib/essayodds/plans";
 import { shortName } from "@/lib/essayodds/list";
 import { COMMON_APP, PROMPTS, type Prompt, wordLimit } from "@/lib/essayodds/prompts";
 import { admitRate, earlyRate, SCHOOLS } from "@/lib/essayodds/schools";
 
 export const dynamicParams = false;
+/** The deadline countdown is worked out on the server, so these pages rebuild hourly. */
+export const revalidate = 3600;
 export const generateStaticParams = () => SCHOOLS.filter((s) => PROMPTS[s.id]).map((s) => ({ school: s.id }));
 
 export async function generateMetadata({ params }: PageProps<"/essays/[school]">): Promise<Metadata> {
@@ -49,6 +54,7 @@ export default async function SchoolPromptsPage({ params }: PageProps<"/essays/[
   if (!s || !data) notFound();
   const name = shortName(s.name);
   const early = earlyRate(s);
+  const due = daysUntil(s.regularDeadline);
   const facts = [
     { label: "Admit rate", value: `${admitRate(s).toFixed(1)}%` },
     s.early && early ? { label: `${s.early.plan} admit rate`, value: `${early.toFixed(1)}%` } : null,
@@ -88,6 +94,16 @@ export default async function SchoolPromptsPage({ params }: PageProps<"/essays/[
                 See your odds at {name}
               </Link>
             </p>
+            <div className="card mt-8 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[var(--shadow-lg)]">
+              <div>
+                {due !== null && <p className="text-[13px] font-semibold text-[var(--warn)] tnum">{due === 0 ? `${name}'s regular deadline is today` : `${due} day${due === 1 ? "" : "s"} until ${name}'s regular deadline`}</p>}
+                <p className="text-[17px] font-semibold mt-1">Get every {name} essay scored and fixed before you submit.</p>
+                <p className="text-[13px] text-ink-2 mt-1">Your score, the lines costing you, rewrites in your voice. {PLANS.rd.price} once through January 15, or {PLANS.week.short}.</p>
+              </div>
+              <div className="sm:w-[220px] shrink-0">
+                <BuyButton plan={PLANS.rd} primary />
+              </div>
+            </div>
           </div>
         </section>
 

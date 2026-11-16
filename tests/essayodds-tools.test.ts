@@ -129,3 +129,17 @@ describe("Common App upload", () => {
     expect(fieldsFrom(pdf, { essay_start: "", essay_end: "", gpa: "about 4", test: "2400", state: "New York", colleges: [] })).toEqual({ essay: "", gpa: "", test: "", state: "", schools: [] });
   });
 });
+
+import { daysUntil } from "@/lib/essayodds/deadline";
+
+describe("school deadlines", () => {
+  const now = new Date("2026-11-16T17:00:00Z");
+  it("counts days to the next one, rolling into next year", () => {
+    expect(daysUntil("Jan 2", now)).toBe(47);
+    expect(daysUntil("Nov 30", now)).toBe(14);
+    expect(daysUntil("Nov 16", now)).toBe(0);
+    expect(daysUntil("Nov 1", now)).toBe(350);
+    expect(daysUntil(null, now)).toBeNull();
+    expect(daysUntil("rolling", now)).toBeNull();
+  });
+});

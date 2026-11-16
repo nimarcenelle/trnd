@@ -47,7 +47,7 @@ function Rewrite({ text, limit }: { text: string; limit: number }) {
 }
 
 /** Paste a Common App activity or honors list; every entry is graded and the weakest one comes first. */
-export default function ListReviewer() {
+export default function ListReviewer({ paid = true }: { paid?: boolean }) {
   const [kind, setKind] = useState<ListKind>("activities");
   const [texts, setTexts] = useState<Record<ListKind, string>>({ activities: "", honors: "" });
   const [result, setResult] = useState<ListReview | null>(null);
@@ -161,6 +161,15 @@ export default function ListReviewer() {
             <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">
               Every entry scored out of 100 on {kind === "activities" ? "impact, specificity and clarity" : "scope, selectivity and clarity"}, the one doing the least work named first, and a tighter version that fits the Common App field and keeps only your facts.
             </p>
+            {!paid && (
+              <div className="card p-5 mt-6">
+                <p className="text-[14px] font-semibold">Included with every pass</p>
+                <p className="text-[13px] text-ink-2 mt-1 leading-[1.55]">Activities, honors, every essay and supplement, and a Final Read before you submit.</p>
+                <a className="btn btn-primary mt-4" href="/pricing">
+                  Get a pass
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -18,6 +18,14 @@ export default function EssayPromptsIndex() {
             <p className="kicker">Essay prompts</p>
             <h1 className="section-title text-[32px] sm:text-[40px] mt-3 max-w-[720px]">Every prompt, every limit, for {listed.length} schools.</h1>
             <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[640px]">This cycle&apos;s supplemental essays, copied from each school&apos;s own site where it publishes them. Pick a prompt and get your answer scored, with every weak line marked.</p>
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
+              <Link href="/essay" className="btn btn-primary btn-lg">
+                Score my essay
+              </Link>
+              <Link href="/odds" className="btn btn-secondary btn-lg">
+                See my odds first
+              </Link>
+            </div>
             <ul className="list-none p-0 m-0 mt-10 grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {listed.map((s) => {
                 const n = PROMPTS[s.id].prompts.filter((p) => p.required).length;

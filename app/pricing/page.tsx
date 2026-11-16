@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import LogoStrip from "@/components/essayodds/logo-strip";
 import PlanCards, { Agree } from "@/components/essayodds/plan-cards";
 import SiteNav from "@/components/site-nav";
 import { daysToRegularDecision } from "@/lib/essayodds/deadline";
@@ -46,6 +47,12 @@ export default function PricingPage() {
                 .
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="border-t border-line py-10">
+          <div className="wrap">
+            <LogoStrip />
           </div>
         </section>
 

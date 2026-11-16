@@ -29,11 +29,11 @@ const WINS = [
 const FAQ = [
   { q: "What do I get?", a: "Your odds at every school on your list, your essay score with every weak line marked, rewrites in your voice, every supplement and revision re-scored, your activity and honors lists tightened, and a Final Read of everything before you submit." },
   { q: "Is it worth it with deadlines this close?", a: "That's when it matters most. Most regular-decision applications are due January 1. An essay that reads stronger is the one thing still in your control, and you can rework every supplement this week." },
-  { q: "Is using Admitted cheating?", a: "No. It works like a tough reader: it scores your draft, marks what's weak and rewrites only from your own details. You choose every line that goes in." },
+  { q: "Is using EssayOdds cheating?", a: "No. It works like a tough reader: it scores your draft, marks what's weak and rewrites only from your own details. You choose every line that goes in." },
   { q: "Will my essay still sound like me?", a: "Yes. Before a rewrite it asks for details only you know, keeps your sentences where they work, shows how much stayed yours and flags anything you didn't write." },
   { q: "Where do the odds come from?", a: "From each college's Common Data Set: admit rates by round and GPA and test ranges, applied to you, then adjusted by how your essay reads." },
   { q: "Who built this?", a: "Ivy League grads who've been through the process and know what admissions readers look for." },
-  { q: "Can a parent pay?", a: "Yes. Send them admitted.usetrnd.com/pay. They check out and get one link to send you." },
+  { q: "Can a parent pay?", a: "Yes. Send them essayodds.com/pay. They check out and get one link to send you." },
   { q: "Is it a subscription?", a: "There's nothing to cancel. Each pass is one payment and simply ends: the RD Pass after January 15, the Week Pass after 7 days." },
 ];
 
@@ -113,7 +113,7 @@ export default function Home() {
           <div>
             <p className="kicker">Essays</p>
             <h2 className="section-title text-[32px] sm:text-[40px] mt-3">The essay is the part you can still change.</h2>
-            <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[500px]">Your grades and scores are set. Your essay isn&apos;t. Admitted shows you exactly where it loses a reader, then helps you rewrite it in your own voice until it&apos;s the strongest part of your application.</p>
+            <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[500px]">Your grades and scores are set. Your essay isn&apos;t. EssayOdds shows you exactly where it loses a reader, then helps you rewrite it in your own voice until it&apos;s the strongest part of your application.</p>
             <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-2.5">
               {["Scored on six criteria admissions readers use", "Weak lines marked in your draft, with the fix", "Rewrites from your details, never invented", "Personal statement and every supplement"].map((t) => (
                 <li key={t} className="flex gap-2.5 text-[14px]">
@@ -200,7 +200,7 @@ export default function Home() {
         <div className="wrap py-8 flex flex-col sm:flex-row gap-4 justify-between sm:items-center text-[13px] text-ink-3">
           <div className="flex items-center gap-4">
             <Brand size={12} />
-            <span>© {new Date().getFullYear()} Admitted · Built by Ivy League grads</span>
+            <span>© {new Date().getFullYear()} EssayOdds · Built by Ivy League grads</span>
           </div>
           <div className="flex gap-6">
             <Link href="/essays" className="hover:text-ink">

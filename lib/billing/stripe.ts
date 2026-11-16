@@ -37,7 +37,7 @@ export async function createPortalSession(customerId: string): Promise<string> {
   return session.url;
 }
 
-/** Admitted's plans live in lib/admitted/plans.ts. The product tag is kept from the weekly launch so earlier buyers keep access. */
+/** EssayOdds's plans live in lib/admitted/plans.ts. The product tag is kept from the weekly launch so earlier buyers keep access. */
 const ESSAYS_PRODUCT = "admitted-weekly";
 
 const essaysStripe = () => {
@@ -51,7 +51,7 @@ export async function createAccessCheckout(plan: Plan, forSomeoneElse = false): 
   const until = accessUntil(plan.id, new Date()).toISOString();
   const session = await essaysStripe().checkout.sessions.create({
     mode: "payment",
-    line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: plan.cents, product_data: { name: `Admitted ${plan.name}`, description: plan.billed } } }],
+    line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: plan.cents, product_data: { name: `EssayOdds ${plan.name}`, description: plan.billed } } }],
     metadata: { product: ESSAYS_PRODUCT, plan: plan.id, access_until: until },
     payment_intent_data: { metadata: { product: ESSAYS_PRODUCT, plan: plan.id } },
     customer_creation: "always",

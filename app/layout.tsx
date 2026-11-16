@@ -6,8 +6,8 @@ import "@fontsource-variable/inter/opsz.css";
 
 import "./globals.css";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://admitted.usetrnd.com";
-const TITLE = "Admitted: know your odds, then raise them";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://essayodds.com";
+const TITLE = "EssayOdds: know your odds, then raise them";
 const DESCRIPTION =
   "Paste your essay or upload your Common App. See your admit odds at every school on your list and how much your essay is costing you, then fix it before you submit. Built by Ivy League grads.";
 
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   // og:image comes from app/opengraph-image.tsx.
-  openGraph: { title: TITLE, description: DESCRIPTION, url: "/", siteName: "Admitted", type: "website" },
+  openGraph: { title: TITLE, description: DESCRIPTION, url: "/", siteName: "EssayOdds", type: "website" },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 

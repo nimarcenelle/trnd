@@ -12,7 +12,7 @@ export default function NotFound() {
         <p className="text-[16px] text-ink-2 mt-2">The link may be old or mistyped.</p>
       </div>
       <Link href="/" className="btn btn-primary">
-        Back to Admitted
+        Back to EssayOdds
       </Link>
     </main>
   );

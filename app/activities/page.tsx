@@ -5,7 +5,7 @@ import SiteNav from "@/components/site-nav";
 import { isEssayOpen } from "@/lib/env";
 
 export const metadata = {
-  title: "Activity and honors list review · Admitted",
+  title: "Activity and honors list review · EssayOdds",
   description: "Paste your Common App activities or honors. Every entry gets scored, the weakest is named, and a tighter version fits the field.",
 };
 

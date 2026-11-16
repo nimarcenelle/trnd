@@ -4,7 +4,7 @@ import OddsFlow from "@/components/admitted/odds-flow";
 import { paidSession } from "@/lib/admitted/access";
 import { isEssayOpen } from "@/lib/env";
 
-export const metadata = { title: "See my odds · Admitted" };
+export const metadata = { title: "See my odds · EssayOdds" };
 
 export default async function OddsPage() {
   const paid = isEssayOpen ? Boolean(await paidSession()) : false;

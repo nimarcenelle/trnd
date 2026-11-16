@@ -5,7 +5,7 @@ import PlanCards from "@/components/admitted/plan-cards";
 import SiteNav from "@/components/site-nav";
 import { isEssayOpen } from "@/lib/env";
 
-export const metadata = { title: "Pay for a student · Admitted", description: "Pay for a student's Admitted essays. After checkout you get one link to send them." };
+export const metadata = { title: "Pay for a student · EssayOdds", description: "Pay for a student's EssayOdds essays. After checkout you get one link to send them." };
 
 /** The page a student sends whoever is paying. No account on either side: the payer gets a link to pass on. */
 export default function PayPage() {

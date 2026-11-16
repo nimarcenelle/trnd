@@ -7,7 +7,7 @@ import { accessFor, accessLink } from "@/lib/admitted/access";
 import { emailAccessOnce } from "@/lib/admitted/access-email";
 import { env, isEssayOpen } from "@/lib/env";
 
-export const metadata = { title: "Send the link · Admitted", robots: { index: false } };
+export const metadata = { title: "Send the link · EssayOdds", robots: { index: false } };
 
 /** Where a parent lands after paying: the link to send, and nothing set in their own browser. */
 export default async function PayDonePage({ searchParams }: PageProps<"/pay/done">) {

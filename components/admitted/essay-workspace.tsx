@@ -62,7 +62,7 @@ function Upgrade({ reason }: { reason: "rewrite" | "review" }) {
         </a>
         . Someone else paying? Send them{" "}
         <a className="underline hover:text-ink" href="/pay">
-          admitted.usetrnd.com/pay
+          essayodds.com/pay
         </a>
         .
       </p>

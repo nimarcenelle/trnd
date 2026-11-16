@@ -27,7 +27,7 @@ export default function ProductShot() {
         <span className="w-2.5 h-2.5 rounded-full bg-line-strong" />
         <span className="w-2.5 h-2.5 rounded-full bg-line-strong" />
         <span className="w-2.5 h-2.5 rounded-full bg-line-strong" />
-        <span className="mx-auto h-6 px-3 rounded-md bg-bg border border-line text-[12px] text-ink-3 inline-flex items-center">admitted.usetrnd.com/{current.path}</span>
+        <span className="mx-auto h-6 px-3 rounded-md bg-bg border border-line text-[12px] text-ink-3 inline-flex items-center">essayodds.com/{current.path}</span>
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)] md:grid-cols-[200px_minmax(0,1fr)] md:min-h-[430px]">
         <aside className="md:border-r border-b md:border-b-0 border-line bg-subtle p-3 flex md:flex-col gap-5">

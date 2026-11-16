@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 /**
  * Essay results quote students' writing and sit in a database shared with TRND, so they are stored
- * encrypted with a key that only Admitted's deployment holds. AES-256-GCM.
+ * encrypted with a key that only EssayOdds's deployment holds. AES-256-GCM.
  */
 export type Sealed = { sealed: string };
 

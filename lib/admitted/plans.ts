@@ -1,5 +1,5 @@
 /**
- * What Admitted sells: one-time passes, no subscriptions. One list, read by every price on the site and by checkout,
+ * What EssayOdds sells: one-time passes, no subscriptions. One list, read by every price on the site and by checkout,
  * so a page can never show a price Stripe doesn't charge.
  *
  * Priced for the regular-decision crunch (Nick, 2026-11-16: "make the pricing make sense"): the RD Pass covers every

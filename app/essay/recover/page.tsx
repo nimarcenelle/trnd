@@ -4,7 +4,7 @@ import RecoverForm from "@/components/admitted/recover-form";
 import SiteNav from "@/components/site-nav";
 import { isEssayOpen } from "@/lib/env";
 
-export const metadata = { title: "Get your access link · Admitted", robots: { index: false } };
+export const metadata = { title: "Get your access link · EssayOdds", robots: { index: false } };
 
 export default function RecoverPage() {
   if (!isEssayOpen) notFound();

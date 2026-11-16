@@ -5,7 +5,7 @@ import SiteNav from "@/components/site-nav";
 import { daysToRegularDecision } from "@/lib/admitted/deadline";
 import { PLANS } from "@/lib/admitted/plans";
 
-export const metadata = { title: "Pricing · Admitted", description: "Essay scores, marked lines and rewrites in your voice for every essay you submit: $59 through January 15, or $19 for a week. One payment, no subscription." };
+export const metadata = { title: "Pricing · EssayOdds", description: "Essay scores, marked lines and rewrites in your voice for every essay you submit: $59 through January 15, or $19 for a week. One payment, no subscription." };
 
 /** The deadline countdown is worked out on the server, so the page rebuilds hourly. */
 export const revalidate = 3600;
@@ -14,7 +14,7 @@ const FAQ = [
   { q: "Which pass should I get?", a: `The ${PLANS.rd.name} if you have more than one essay left: ${PLANS.rd.short}, every essay and supplement until you submit. The ${PLANS.week.name} if you have one or two supplements to finish this week.` },
   { q: "Is it a subscription?", a: "No. Each pass is one payment and simply ends: the RD Pass after January 15, the Week Pass after 7 days. Nothing renews, nothing to cancel." },
   { q: "What do I get?", a: "Your essay scored out of 100 with every weak line marked and the fix, rewrites in your voice from your own details, every supplement and revision re-scored, your activity and honors lists tightened, and a Final Read of everything before you submit." },
-  { q: "Can a parent pay?", a: "Yes. Send them admitted.usetrnd.com/pay. After checkout they get one link to send you, and opening it unlocks everything." },
+  { q: "Can a parent pay?", a: "Yes. Send them essayodds.com/pay. After checkout they get one link to send you, and opening it unlocks everything." },
 ];
 
 export default function PricingPage() {

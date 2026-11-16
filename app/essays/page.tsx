@@ -5,7 +5,7 @@ import { shortName } from "@/lib/admitted/list";
 import { PROMPTS } from "@/lib/admitted/prompts";
 import { SCHOOLS } from "@/lib/admitted/schools";
 
-export const metadata = { title: "College essay prompts 2026–27 · Admitted", description: "Supplemental essay prompts and word limits for 39 colleges, from each school's own site. Paste an answer and get it scored." };
+export const metadata = { title: "College essay prompts 2026–27 · EssayOdds", description: "Supplemental essay prompts and word limits for 39 colleges, from each school's own site. Paste an answer and get it scored." };
 
 export default function EssayPromptsIndex() {
   const listed = SCHOOLS.filter((s) => PROMPTS[s.id]).sort((a, b) => shortName(a.name).localeCompare(shortName(b.name)));

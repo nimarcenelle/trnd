@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: PageProps<"/essays/[school]">
   const s = SCHOOLS.find((x) => x.id === school);
   if (!s || !PROMPTS[s.id]) return {};
   const name = shortName(s.name);
-  return { title: `${name} essay prompts ${PROMPTS[s.id].cycle} · Admitted`, description: `Every ${name} supplemental essay prompt for ${PROMPTS[s.id].cycle}, with word limits. Paste your answer and get it scored.` };
+  return { title: `${name} essay prompts ${PROMPTS[s.id].cycle} · EssayOdds`, description: `Every ${name} supplemental essay prompt for ${PROMPTS[s.id].cycle}, with word limits. Paste your answer and get it scored.` };
 }
 
 const limitLabel = (p: Prompt) => (p.limit === null ? "No stated limit" : `${p.limit.toLocaleString()} ${p.unit} max`);

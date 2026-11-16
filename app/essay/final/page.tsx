@@ -10,7 +10,7 @@ import { PROMPTS, wordLimit } from "@/lib/admitted/prompts";
 import { SCHOOLS } from "@/lib/admitted/schools";
 import { isEssayOpen } from "@/lib/env";
 
-export const metadata = { title: "Final Read · Admitted" };
+export const metadata = { title: "Final Read · EssayOdds" };
 
 /** Every essay and list for the schools a student is applying to, checked in one pass before they submit. Paid. */
 export default async function FinalReadPage() {

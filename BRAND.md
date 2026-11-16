@@ -1,6 +1,6 @@
-# Admitted: brand
+# EssayOdds: brand (code paths still say admitted)
 
-How Admitted looks and talks. Any new UI follows it. Forked from TRND's brand: same type, same components, same
+How EssayOdds looks and talks. Any new UI follows it. Forked from TRND's brand: same type, same components, same
 restraint, on a white ground with navy ink and one clear green. The source of truth for values is `app/globals.css` (tokens and
 component classes) and `components/brand.tsx` (the wordmark). If this file and those disagree, fix whichever is wrong in
 the same change.

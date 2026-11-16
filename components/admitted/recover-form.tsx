@@ -16,7 +16,7 @@ export default function RecoverForm() {
     return (
       <div className="card p-5">
         <p className="text-[14px] font-semibold">Check your inbox.</p>
-        <p className="text-[14px] text-ink-2 mt-1 leading-[1.6]">If {email} paid for Admitted, your access link is on its way. It can take a minute; check spam too. If a parent paid, it went to their email.</p>
+        <p className="text-[14px] text-ink-2 mt-1 leading-[1.6]">If {email} paid for EssayOdds, your access link is on its way. It can take a minute; check spam too. If a parent paid, it went to their email.</p>
       </div>
     );
   return (

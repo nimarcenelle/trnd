@@ -9,7 +9,7 @@ import { accessLink, paidAccess } from "@/lib/admitted/access";
 import { PROMPTS, wordLimit } from "@/lib/admitted/prompts";
 import { env, isEssayOpen } from "@/lib/env";
 
-export const metadata = { title: "Essays · Admitted" };
+export const metadata = { title: "Essays · EssayOdds" };
 
 export default async function EssayPage({ searchParams }: PageProps<"/essay">) {
   if (!isEssayOpen) notFound();

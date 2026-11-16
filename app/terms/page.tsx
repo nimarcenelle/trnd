@@ -1,17 +1,17 @@
 import LegalShell from "@/components/legal/legal-shell";
 
-export const metadata = { title: "Terms of Service · Admitted" };
+export const metadata = { title: "Terms of Service · EssayOdds" };
 
 /** Plain-English terms that match what the product does. Have counsel review before scale. */
 export default function TermsPage() {
   return (
     <LegalShell title="Terms of Service" updated="November 5, 2026">
-      <h2>What Admitted is</h2>
+      <h2>What EssayOdds is</h2>
       <p>
-        Admitted estimates your odds at selected colleges from figures those colleges publish, and rates and rewrites your
+        EssayOdds estimates your odds at selected colleges from figures those colleges publish, and rates and rewrites your
         application essays using AI models. It is a decision-support tool. Odds are estimates, and essay scores are an AI
         model&apos;s reading against our rubric. Neither predicts or guarantees an admission, and no college is affiliated with
-        Admitted.
+        EssayOdds.
       </p>
 
       <h2>Subscription and payment</h2>
@@ -35,11 +35,11 @@ export default function TermsPage() {
       </p>
 
       <h2>What you may not do</h2>
-      <p>Don&apos;t resell Admitted, share your access link publicly, probe or overload the service, or submit writing that isn&apos;t yours to submit.</p>
+      <p>Don&apos;t resell EssayOdds, share your access link publicly, probe or overload the service, or submit writing that isn&apos;t yours to submit.</p>
 
       <h2>Liability</h2>
       <p>
-        Admitted is provided as is. To the extent the law allows, our total liability to you is limited to what you paid us, and
+        EssayOdds is provided as is. To the extent the law allows, our total liability to you is limited to what you paid us, and
         we are not liable for admission decisions or indirect damages.
       </p>
 

@@ -11,7 +11,7 @@ import type { School } from "./schools";
 
 const Reply = z.object({ results: z.array(z.object({ school_id: z.string(), essays: z.string(), activities: z.string() })) });
 
-const SYSTEM = `You write two short fix labels for each college, for an admissions tool called Admitted.
+const SYSTEM = `You write two short fix labels for each college, for an admissions tool called EssayOdds.
 "essays" names the essay work worth doing at that school. "activities" names how to present activities there.
 Each label is under eight words, sentence case, and starts with a verb, like "Make your Why Dartmouth essay specific".
 Never state a number, a statistic, a program name or a fact about the school, and never promise an admit.`;

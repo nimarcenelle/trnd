@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-/** Schools whose admitted students have used Admitted. A logo file in public/logos/<id>.svg replaces the name. */
+/** Schools whose admitted students have used EssayOdds. A logo file in public/logos/<id>.svg replaces the name. */
 const SCHOOLS = [
   { id: "harvard", name: "Harvard" },
   { id: "yale", name: "Yale" },

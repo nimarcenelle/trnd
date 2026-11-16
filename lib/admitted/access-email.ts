@@ -16,19 +16,19 @@ export async function sendAccessEmail(to: string, sessions: ({ id: string } & Ac
   const rows = sessions
     .map((s) => {
       const url = accessLink(s.id, env.siteUrl);
-      return `<p style="margin:0 0 16px"><a href="${esc(url)}" style="display:inline-block;background:#14233f;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">Open Admitted</a><br><span style="font-size:13px;color:#68738a">${s.until ? `Access until ${day(s.until)}.` : "Access while your subscription is active."}</span></p>`;
+      return `<p style="margin:0 0 16px"><a href="${esc(url)}" style="display:inline-block;background:#14233f;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">Open EssayOdds</a><br><span style="font-size:13px;color:#68738a">${s.until ? `Access until ${day(s.until)}.` : "Access while your subscription is active."}</span></p>`;
     })
     .join("");
   const html = `<div style="font-family:Inter,system-ui,sans-serif;max-width:520px;margin:0 auto;color:#101b30">
-<h1 style="font-size:22px;line-height:1.3;margin:0 0 12px">Your Admitted access link</h1>
+<h1 style="font-size:22px;line-height:1.3;margin:0 0 12px">Your EssayOdds access link</h1>
 <p style="line-height:1.6;margin:0 0 20px">Open this on any device to get back to your essays. Keep this email: it's your way back in. If someone paid for you, forward it to the student.</p>
 ${rows}
-<p style="font-size:13px;color:#68738a;line-height:1.6">Anyone with this link can use the access, so don't share it beyond the student. Didn't buy Admitted? You can ignore this email.</p>
+<p style="font-size:13px;color:#68738a;line-height:1.6">Anyone with this link can use the access, so don't share it beyond the student. Didn't buy EssayOdds? You can ignore this email.</p>
 </div>`;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { authorization: `Bearer ${env.resendApiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({ from: env.admittedEmailFrom, to: [to], subject: "Your Admitted access link", html }),
+    body: JSON.stringify({ from: env.admittedEmailFrom, to: [to], subject: "Your EssayOdds access link", html }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }

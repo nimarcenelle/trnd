@@ -8,7 +8,8 @@ import Brand from "@/components/brand";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 import { scoreKind, STATES, validGpa } from "@/lib/admitted/flow";
 import { schoolQuery, shortName, upTo } from "@/lib/admitted/list";
-import { PLANS } from "@/lib/admitted/plans";
+import { daysToRegularDecision } from "@/lib/admitted/deadline";
+import { PAID_FEATURES, PLANS } from "@/lib/admitted/plans";
 import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/admitted/schools";
 
 import EssaySample from "./essay-sample";
@@ -25,8 +26,8 @@ const DRAFT_STORE = "admitted-essay-draft";
 const MIN_WORDS = 50;
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
-/** Where the essay read stands. "used" means the free review went to another draft and there is no plan. */
-type EssayRead = { state: "none" | "reading" | "read" | "used" | "failed"; score?: number };
+/** Where the essay read stands. */
+type EssayRead = { state: "none" | "reading" | "read" | "failed"; score?: number };
 
 function Question({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) {
   return (
@@ -97,7 +98,7 @@ const roundGain = (r: Row) => r.fixes.find((f) => f.kind === "round")?.gain ?? 0
 /** The school where the round moves the number most, or the most movable one where none has a round. */
 const biggestMove = (rows: Row[]) => [...rows].sort((a, b) => roundGain(b) - roundGain(a) || b.movable - a.movable)[0];
 
-function Reveal({ rows, profile, onNext, open, essay }: { rows: Row[]; profile: string; onNext: () => void; open: boolean; essay: EssayRead }) {
+function Reveal({ rows, profile, onNext, open, essay, paid }: { rows: Row[]; profile: string; onNext: () => void; open: boolean; essay: EssayRead; paid: boolean }) {
   const lead = biggestMove(rows);
   const others = rows.filter((r) => r !== lead);
   const round = lead.fixes.find((f) => f.kind === "round");
@@ -152,22 +153,24 @@ function Reveal({ rows, profile, onNext, open, essay }: { rows: Row[]; profile: 
           ))}
         </ul>
         {lead.school.note && <p className="caption mt-2">{lead.school.note}</p>}
-        {essay.state === "read" && (
-          <p className="text-[14px] text-ink-2 mt-4 border-t border-line pt-4">
-            Quick read: your essay scores <span className="font-semibold text-ink tnum">{essay.score}</span> out of 100, and these odds count it. Your full review marks the exact lines costing you most.{" "}
-            <Link className="font-medium text-ink underline" href="/essay">
-              See my full review
-            </Link>
-          </p>
-        )}
-        {essay.state === "used" && (
-          <p className="text-[14px] text-ink-2 mt-4 border-t border-line pt-4">
-            Your free review went to another draft, so these odds don&apos;t count this essay yet.{" "}
-            <Link className="underline hover:text-ink" href="/pricing">
-              See plans
-            </Link>
-          </p>
-        )}
+        {essay.state === "read" &&
+          (paid ? (
+            <p className="text-[14px] text-ink-2 mt-4 border-t border-line pt-4">
+              Your essay is read and these odds count it.{" "}
+              <Link className="font-medium text-ink underline" href="/essay">
+                See my full review
+              </Link>
+            </p>
+          ) : (
+            <div className="well mt-5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <p className="text-[14px] leading-[1.55]">
+                <span className="font-semibold">Your essay is read.</span> Its score and the exact lines {essays ? <>costing you <span className="font-semibold text-brand tnum">{essays.gain} pts</span> here</> : "to fix"} are ready.
+              </p>
+              <button className="btn btn-primary shrink-0" type="button" onClick={onNext}>
+                Unlock my fixes
+              </button>
+            </div>
+          ))}
         {essay.state === "failed" && <p className="caption mt-4">We couldn&apos;t read your essay this time, so these odds leave it out. Try again from your essay page.</p>}
       </section>
       {others.length > 0 && (
@@ -176,7 +179,7 @@ function Reveal({ rows, profile, onNext, open, essay }: { rows: Row[]; profile: 
         </div>
       )}
       <p className="caption mt-3">Each school name links to the Common Data Set behind its number. These are estimates, not a promise of an admit.</p>
-      {open && <Next onClick={onNext} label={essay.state === "read" ? "Raise my odds" : "See what raises them"} />}
+      {open && <Next onClick={onNext} label="Raise my odds" />}
     </div>
   );
 }
@@ -252,14 +255,14 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
   /** Starts the reads as soon as the essay is in, so they run while the student answers the rest. */
   function startRead(raw: string) {
     const text = raw.trim();
-    // The essay page opens on the same draft, and its saved review comes back for free there.
+    // The essay page opens on the same draft.
     try {
       localStorage.setItem(DRAFT_STORE, JSON.stringify({ draft: text, prompt: "", limit: "650", answers: {} }));
     } catch {}
     setRead({ state: "reading" });
     const post = (path: string) => fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ essay: text, prompt: "", limit: 650 }) });
-    // The full review (free once) keeps going for the essay page; the odds only wait for the quick read.
-    void post("/api/essays/review")
+    // A subscriber's full review keeps going for the essay page; the odds only wait for the quick read.
+    if (paid) void post("/api/essays/review")
       .then((res) => {
         if (!res.ok) return;
         try {
@@ -466,7 +469,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
               <button className="mt-4 text-[14px] text-ink-2 underline hover:text-ink cursor-pointer bg-transparent border-0 p-0 font-[inherit]" type="button" onClick={skipEssay}>
                 I haven&apos;t written it yet
               </button>
-              <p className="caption mt-3">Your first full review is free. Saved encrypted, never sold.</p>
+              <p className="caption mt-3">Saved encrypted, never sold.</p>
             </Question>
           )}
 
@@ -510,37 +513,32 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
               {error && <p className="text-[13px] text-neg mt-2">{error}</p>}
               <Next disabled={!home} busy={busy} onClick={() => void getOdds()} label="See my odds" busyLabel={read.state === "reading" ? "Reading your essay…" : "Working…"} hint />
               {busy && read.state === "reading" && <p className="caption mt-3">Your essay takes about a minute to read. Your odds follow straight after.</p>}
-              <p className="caption mt-3">Free, no account, no email.</p>
+              <p className="caption mt-3">No account, no email.</p>
             </Question>
           )}
 
-          {step === 5 && rows.length > 0 && <Reveal rows={rows} profile={profile} onNext={() => go(6)} open={open} essay={read} />}
+          {step === 5 && rows.length > 0 && <Reveal rows={rows} profile={profile} onNext={() => go(6)} open={open} essay={read} paid={paid} />}
 
           {step === 6 && (
             <div className="w-full max-w-[1000px] mx-auto grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 items-center">
               <div className="rise min-w-0">
-                {read.state === "read" ? (
-                  <>
-                    <h1 className="display text-[40px] sm:text-[56px]">Your essay scores {read.score}. Here&apos;s how to raise it.</h1>
-                    <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.55] mt-4">Your review marks the lines costing you most. A plan asks for the details only you know, rewrites from them in your voice and re-scores every revision, so you can watch your odds move.</p>
-                  </>
-                ) : (
-                  <>
-                    <h1 className="display text-[40px] sm:text-[56px]">How far this moves depends on your essays.</h1>
-                    <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.55] mt-4">Nobody can size an essay without reading it. Admitted&apos;s AI rates your draft, marks what costs you most, asks for the details only you know and rewrites it in your voice.</p>
-                  </>
-                )}
+                <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
+                <h1 className="display text-[40px] sm:text-[56px] mt-3">{read.state === "read" ? "Your essay is leaving points on the table." : "Your essays decide the rest."}</h1>
+                <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.55] mt-4">Your grades and scores are set. Your essays aren&apos;t. Get your score, every line that&apos;s costing you marked with the fix, and rewrites in your own voice, tonight. Every supplement, every revision, until you submit.</p>
                 <div className="mt-8">
                   <EssaySample />
                 </div>
 
               </div>
               <div className="rise rounded-[20px] bg-band text-band-ink p-8 shadow-[var(--shadow-lg)]" style={{ animationDelay: "0.15s" }}>
-                <div className="text-[14px] font-medium text-band-ink-3">{read.state === "read" ? "Your review is ready" : "Essays"}</div>
-                <div className="mt-2 text-[56px] font-semibold tnum tracking-[-0.03em] leading-none">{read.state === "read" ? `${read.score}/100` : "Free"}</div>
-                <p className="text-[13px] text-band-ink-3 leading-[1.5] mt-3">{read.state === "read" ? "Free: the score and every marked line." : "Your first full review. No card, no account."}</p>
+                <div className="text-[14px] font-medium text-band-ink-3">Season pass, through every deadline</div>
+                <div className="mt-2 flex items-baseline gap-2 leading-none">
+                  <span className="text-[56px] font-semibold tnum tracking-[-0.03em]">{PLANS.season.price}</span>
+                  <span className="text-[15px] text-band-ink-3">{PLANS.season.per}</span>
+                </div>
+                <p className="text-[13px] text-band-ink-3 leading-[1.5] mt-3">{PLANS.season.monthly}. Cancel anytime.</p>
                 <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3 text-[14px] border-t border-band-line pt-6">
-                  {["A score against six criteria", "The lines costing you most, marked in your draft", "What to do about each one"].map((item) => (
+                  {PAID_FEATURES.map((item) => (
                     <li key={item} className="flex gap-2.5">
                       <IconCheck className="mt-[3px] shrink-0" />
                       {item}
@@ -556,19 +554,21 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                     <form action="/api/essays/checkout" method="post" className="mt-8">
                       <input type="hidden" name="plan" value="season" />
                       <button className="btn btn-lg w-full !h-12 !bg-bg !text-ink" type="submit">
-                        Get the season pass, {PLANS.season.price}
+                        Get the season pass
                       </button>
                     </form>
-                    <p className="text-[12px] text-band-ink-3 text-center mt-2 leading-[1.5]">{PLANS.season.monthly}. Unlimited reviews and rewrites. Cancel anytime.</p>
                     <form action="/api/essays/checkout" method="post" className="mt-4">
                       <input type="hidden" name="plan" value="monthly" />
                       <button className="w-full text-[13px] text-band-ink underline cursor-pointer bg-transparent border-0 p-0 font-[inherit]" type="submit">
                         Or {PLANS.monthly.price} a month
                       </button>
                     </form>
-                    <Link href="/essay" className="block text-center text-[13px] text-band-ink-3 underline mt-3">
-                      {read.state === "read" ? "Just show my free review" : "Review my essay free first"}
-                    </Link>
+                    <p className="text-[12px] text-band-ink-3 text-center mt-3 leading-[1.5]">
+                      Parent paying?{" "}
+                      <Link className="underline" href="/pay">
+                        Send them this link
+                      </Link>
+                    </p>
                   </>
                 )}
               </div>

@@ -73,12 +73,10 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
   or an activity list without reading it, so those say "depends on what's in them", never a number. The essay score lives
   inside the paid workspace, after we have read the draft. "Up to" is today's odds plus the round only, and blank where a
   school has no early round.
-- Pricing (`lib/admitted/plans.ts`, the one source for every price): free is odds, prompts, activity and honors reviews and one full
-  essay review, no card and no account; monthly $29, or the season pass $99 for six months, same features. Cancel anytime, no
-  refunds promised. A parent pays at `/pay` and gets the access link to send. `/pricing` has the cards and the comparison table. The free giveaway is the guide PDF "The 7 mistakes that sink
-  college essays" (`public/guides/`, source in `content/guide/essay-mistakes.html`), for an email. It's framed around
-  mistakes, because the problem sells the tool, and its last page says why you can't catch them in your own draft. Admitted is described as an AI tool that rates and
-  improves essays, never as a person reading them.
+- Pricing (`lib/admitted/plans.ts`, the one source for every price): no free tier (Nick, 2026-11-16: "no starting free").
+  Season pass $99 for six months, or $29 a month. The odds flow runs without a card as the hook: the odds and the points the
+  essay costs are shown, the essay score, marked lines, rewrites, list reviews and Final Read need a plan. Copy sells against
+  the real regular-decision deadline (`lib/admitted/deadline.ts`, days to January 1), in amber. A parent pays at `/pay`.
 - Free tools are pages of their own on the marketing nav: `/essays` (every school's prompts, from its own site where it
   publishes them; re-check each August), `/activities` (list reviews). `/essay/final` (Final Read) is paid and lives in the
   workspace bar.

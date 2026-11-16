@@ -24,8 +24,5 @@ export const PLANS: Record<PlanId, Plan> = {
 
 export const parsePlan = (value: unknown): PlanId => (value === "monthly" ? "monthly" : "season");
 
-/** Free, no card and no account. */
-export const FREE_FEATURES = ["Odds at every school, with sources", "One full essay review: score and line-by-line fixes", "Activity and honors list reviews", "Essay prompts for every school we cover"];
-
 /** Both paid plans get the same thing; they differ only in how they bill. */
-export const PAID_FEATURES = ["Unlimited essay reviews", "Rewrites in your voice, from your own details", "Every revision re-scored", "Final Read: every essay checked before you submit"];
+export const PAID_FEATURES = ["Your essay scored, every weak line marked", "Rewrites in your voice, from your own details", "Every supplement and revision, unlimited", "Activity and honors lists tightened", "Final Read: everything checked before you submit"];

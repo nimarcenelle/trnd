@@ -6,7 +6,7 @@ import { isEssayOpen } from "@/lib/env";
 
 export const metadata = {
   title: "Activity and honors list review · Admitted",
-  description: "Paste your Common App activities or honors. Every entry gets scored, the weakest is named, and a tighter version fits the field. Free, no account.",
+  description: "Paste your Common App activities or honors. Every entry gets scored, the weakest is named, and a tighter version fits the field.",
 };
 
 export default function ActivitiesPage() {
@@ -19,7 +19,7 @@ export default function ActivitiesPage() {
           <p className="kicker">Activities and honors</p>
           <h1 className="section-title text-[32px] sm:text-[40px] mt-3 max-w-[720px]">Find the entry doing the least work.</h1>
           <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[640px]">
-            Paste your Common App list. Our AI scores every entry, names the weakest and offers a tighter version that fits the field. It only uses your facts: a rewrite with a number you didn&apos;t give is thrown out. Free, no account.
+            Paste your Common App list. Our AI scores every entry, names the weakest and offers a tighter version that fits the field. It only uses your facts: a rewrite with a number you didn&apos;t give is thrown out. Included in every plan.
           </p>
           <div className="mt-10">
             <ListReviewer />

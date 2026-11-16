@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: PageProps<"/essays/[school]">
   const s = SCHOOLS.find((x) => x.id === school);
   if (!s || !PROMPTS[s.id]) return {};
   const name = shortName(s.name);
-  return { title: `${name} essay prompts ${PROMPTS[s.id].cycle} · Admitted`, description: `Every ${name} supplemental essay prompt for ${PROMPTS[s.id].cycle}, with word limits. Paste your answer and get it reviewed free.` };
+  return { title: `${name} essay prompts ${PROMPTS[s.id].cycle} · Admitted`, description: `Every ${name} supplemental essay prompt for ${PROMPTS[s.id].cycle}, with word limits. Paste your answer and get it scored.` };
 }
 
 const limitLabel = (p: Prompt) => (p.limit === null ? "No stated limit" : `${p.limit.toLocaleString()} ${p.unit} max`);
@@ -71,7 +71,7 @@ export default async function SchoolPromptsPage({ params }: PageProps<"/essays/[
             <h1 className="section-title text-[32px] sm:text-[40px] mt-3">{name} essay prompts, {data.cycle}</h1>
             <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[680px]">
               {data.prompts.length
-                ? `Every prompt ${s.name} asks first-year applicants this cycle, with its limit. Paste your answer into the workspace and our AI scores it against six criteria and marks the lines costing you most. Your first review is free.`
+                ? `Every prompt ${s.name} asks first-year applicants this cycle, with its limit. Paste your answer into the workspace and our AI scores it against six criteria and marks the lines costing you most.`
                 : `${s.name} asks for no supplemental essays this cycle. Your Common App personal statement carries the writing, so it is the one to get right.`}
             </p>
             <dl className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-[760px]">

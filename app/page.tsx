@@ -8,22 +8,27 @@ import ProductShot from "@/components/admitted/product-shot";
 import Brand from "@/components/brand";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 import SiteNav from "@/components/site-nav";
+import { daysToRegularDecision } from "@/lib/admitted/deadline";
 import { PLANS } from "@/lib/admitted/plans";
 
+/** The deadline countdown is worked out on the server, so the page rebuilds hourly. */
+export const revalidate = 3600;
+
 const STEPS = [
-  { title: "Upload your Common App", body: "Or paste your essay and answer four questions. Two minutes, no account." },
+  { title: "Upload your Common App", body: "Or paste your essay and answer four questions. Two minutes." },
   { title: "See your odds and essay score", body: "Your real odds at every school on your list, and how your essay moves them." },
-  { title: "Fix what's costing you", body: "Every weak line marked, rewritten in your voice, re-scored until it's ready." },
+  { title: "Fix it before the deadline", body: "Every weak line marked, rewritten in your voice, re-scored until it's ready to submit." },
 ];
 
 const WINS = [
-  { title: "Your real odds", body: "At every school on your list, from the numbers each college publishes about itself. Free." },
-  { title: "Your essay, scored", body: "Graded on the six things admissions readers weigh, with the exact lines costing you marked. First review free." },
+  { title: "Your real odds", body: "At every school on your list, from the numbers each college publishes about itself, adjusted for how your essay reads." },
+  { title: "Your essay, scored", body: "Graded on the six things admissions readers weigh, with every line that's costing you marked and the fix beside it." },
   { title: "Rewrites in your voice", body: "Built from your own details, never invented. Every revision re-scored, so you see your odds move." },
 ];
 
 const FAQ = [
-  { q: "Is it really free to start?", a: "Yes. Your odds, your first full essay review, every school's prompts and activity reviews are free. No card, no account. Pay only when you want unlimited reviews and rewrites." },
+  { q: "What do I get?", a: "Your odds at every school on your list, your essay score with every weak line marked, rewrites in your voice, every supplement and revision re-scored, your activity and honors lists tightened, and a Final Read of everything before you submit." },
+  { q: "Is it worth it with deadlines this close?", a: "That's when it matters most. Most regular-decision applications are due January 1. An essay that reads stronger is the one thing still in your control, and you can rework every supplement this week." },
   { q: "Is using Admitted cheating?", a: "No. It works like a tough reader: it scores your draft, marks what's weak and rewrites only from your own details. You choose every line that goes in." },
   { q: "Will my essay still sound like me?", a: "Yes. Before a rewrite it asks for details only you know, keeps your sentences where they work, shows how much stayed yours and flags anything you didn't write." },
   { q: "Where do the odds come from?", a: "From each college's Common Data Set: admit rates by round and GPA and test ranges, applied to you, then adjusted by how your essay reads." },
@@ -36,7 +41,7 @@ function Cta({ className = "" }: { className?: string }) {
   return (
     <div className={`flex flex-col sm:flex-row gap-3 ${className}`}>
       <Link href="/odds" className="btn btn-primary btn-lg !h-12 !px-6">
-        Get my odds free <IconArrowRight />
+        Get my odds <IconArrowRight />
       </Link>
       <Link href="/odds" className="btn btn-secondary btn-lg !h-12 !px-6">
         Upload my Common App
@@ -55,17 +60,20 @@ export default function Home() {
         <div className="relative wrap pt-12 sm:pt-20 pb-14 sm:pb-16">
           <div className="grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-14 items-center">
             <div>
-              <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full bg-[var(--soft)] text-[13px] font-medium text-[var(--soft-ink)]">
-                <i className="w-1.5 h-1.5 rounded-full bg-brand" /> Built by Ivy League grads
-              </span>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full bg-[var(--soft)] text-[13px] font-medium text-[var(--soft-ink)]">
+                  <i className="w-1.5 h-1.5 rounded-full bg-brand" /> Built by Ivy League grads
+                </span>
+                <span className="inline-flex items-center h-7 px-3 rounded-full bg-[var(--warn-bg)] text-[13px] font-medium text-[var(--warn)] tnum">{daysToRegularDecision()} days to RD deadlines</span>
+              </div>
               <h1 className="display text-[44px] sm:text-[60px] mt-6">
                 Know your odds.
                 <span className="block text-[var(--headline-2)]">Then raise them.</span>
               </h1>
-              <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.55] mt-5 max-w-[560px]">Upload your Common App or paste your essay. In two minutes you get your admit odds at every school on your list, your essay score, and the exact lines to fix.</p>
+              <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.55] mt-5 max-w-[560px]">Upload your Common App or paste your essay. In two minutes, see your admit odds at every school on your list and exactly how much your essay is costing you. Then fix it before you submit.</p>
               <Cta className="mt-8" />
               <ul className="list-none p-0 m-0 mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-ink-2">
-                {["Free to start", "No card", "No account"].map((t) => (
+                {["Two minutes", "Every school on your list", "Cancel anytime"].map((t) => (
                   <li key={t} className="flex items-center gap-1.5">
                     <IconCheck className="text-brand" /> {t}
                   </li>
@@ -114,7 +122,7 @@ export default function Home() {
               ))}
             </ul>
             <Link href="/essay" className="btn btn-primary btn-lg mt-8">
-              Score my essay free <IconArrowRight />
+              Fix my essay <IconArrowRight />
             </Link>
           </div>
           <div className="stage">
@@ -144,7 +152,8 @@ export default function Home() {
       <section id="pricing" className="border-t border-line bg-subtle scroll-mt-14">
         <div className="wrap py-20 sm:py-24">
           <div className="text-center">
-            <h2 className="section-title text-[32px] sm:text-[40px]">Start free. Upgrade when it counts.</h2>
+            <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
+            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Get every essay right before you submit.</h2>
             <p className="text-[16px] text-ink-2 mt-3">
               The season pass is {PLANS.season.monthly}, less than one hour with a private counselor.
             </p>
@@ -181,8 +190,8 @@ export default function Home() {
 
       <section className="border-t border-line wash-bottom">
         <div className="wrap py-20 sm:py-28 flex flex-col items-center text-center">
-          <h2 className="section-title text-[32px] sm:text-[44px] max-w-[760px]">See where you stand in two minutes.</h2>
-          <p className="text-[16px] text-ink-2 mt-4">Free. No card. No account.</p>
+          <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
+          <h2 className="section-title text-[32px] sm:text-[44px] max-w-[760px] mt-3">Your essay is the last thing you can still change.</h2>
           <Cta className="mt-8 justify-center" />
         </div>
       </section>

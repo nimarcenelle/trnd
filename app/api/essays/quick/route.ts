@@ -6,7 +6,7 @@ import { isEssayOpen } from "@/lib/env";
 
 export const maxDuration = 60;
 
-/** The odds flow's quick read: free, no cookie, capped per network a day. Returns only the score. */
+/** The odds flow's quick read, so the odds can count the essay. No plan needed, capped per network a day. Returns only the score. */
 const PER_DAY = 10;
 
 export async function POST(request: Request): Promise<Response> {

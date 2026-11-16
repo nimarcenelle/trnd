@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { IconCheck } from "@/components/icons";
-import { FREE_FEATURES, PAID_FEATURES, PLANS, type Plan } from "@/lib/admitted/plans";
+import { PAID_FEATURES, PLANS, type Plan } from "@/lib/admitted/plans";
 
 function Checks({ items }: { items: string[] }) {
   return (
@@ -63,25 +63,12 @@ function PaidCard({ plan, best, forStudent }: { plan: Plan; best: boolean; forSt
   );
 }
 
-/** Free, monthly and season pass side by side. `forStudent` is the parent-pays page: no free card. */
+/** Monthly and the season pass side by side. `forStudent` sends a parent to the page with the link to pass on. */
 export default function PlanCards({ forStudent = false }: { forStudent?: boolean }) {
   return (
-    <div className={`grid grid-cols-[minmax(0,1fr)] gap-4 items-stretch ${forStudent ? "md:grid-cols-2 max-w-[760px]" : "md:grid-cols-3 max-w-[1080px]"} mx-auto`}>
-      {!forStudent && (
-        <div className="card p-8 flex flex-col">
-          <div className="text-[14px] font-semibold text-ink-2">Free</div>
-          <div className="mt-3 flex items-baseline gap-1.5">
-            <span className="text-[40px] font-semibold tnum">$0</span>
-          </div>
-          <p className="text-[13px] text-ink-2 mt-1">No card, no account.</p>
-          <Checks items={FREE_FEATURES} />
-          <Link href="/essay" className="btn btn-secondary btn-lg w-full mt-auto">
-            Review my essay free
-          </Link>
-        </div>
-      )}
-      <PaidCard plan={PLANS.monthly} best={false} forStudent={forStudent} />
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 items-stretch md:grid-cols-2 max-w-[780px] mx-auto">
       <PaidCard plan={PLANS.season} best forStudent={forStudent} />
+      <PaidCard plan={PLANS.monthly} best={false} forStudent={forStudent} />
     </div>
   );
 }

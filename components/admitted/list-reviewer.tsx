@@ -12,6 +12,7 @@ const PLACEHOLDER: Record<ListKind, string> = {
 
 const errorFor = (status?: number) => {
   if (status === 400) return "Paste at least one full entry, under 6,000 characters.";
+  if (status === 402) return "plan";
   if (status === 429) return "That's today's limit for list reviews. It resets at midnight UTC.";
   return "That did not go through. Try again in a minute.";
 };
@@ -111,7 +112,17 @@ export default function ListReviewer() {
       </div>
 
       <div aria-live="polite">
-        {error && <p className="well px-3 py-2 mb-5 text-[13px] text-neg">{error}</p>}
+        {error === "plan" ? (
+          <div className="card p-5 mb-5">
+            <p className="text-[14px] font-semibold">Activity and honors reviews come with a plan.</p>
+            <p className="text-[13px] text-ink-2 mt-1">Every entry scored, the weakest named, and a tighter version that fits the field, plus every essay scored and fixed.</p>
+            <a className="btn btn-primary mt-4" href="/pricing">
+              See plans
+            </a>
+          </div>
+        ) : (
+          error && <p className="well px-3 py-2 mb-5 text-[13px] text-neg">{error}</p>
+        )}
         {busy ? (
           <div className="flex flex-col gap-3 animate-pulse" role="status">
             <p className="text-[14px] text-ink-2">Reading every entry. This takes about 30 seconds.</p>

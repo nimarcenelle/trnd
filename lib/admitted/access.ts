@@ -27,14 +27,7 @@ export const DAILY_LIMITS = { review: 40, rewrite: 15 } as const;
 /** A stable, non-reversible id for a subscriber, for counting their use. */
 export const subscriberId = (sessionId: string) => createHash("sha256").update(sessionId).digest("hex").slice(0, 24);
 
-/**
- * The free review: one per browser, no card. The cookie holds the key of the review it was spent on, so the same draft
- * opens again for free and a new one asks for a plan. Clearing cookies gets another, so each network is also capped a day.
- */
-export const FREE_COOKIE = "admitted_free";
-export const FREE_PER_NETWORK_PER_DAY = 3;
-
-/** A stable, non-reversible id for the caller's network, for counting free use. Never stored in the clear. */
+/** A stable, non-reversible id for the caller's network, for capping use without an account. Never stored in the clear. */
 export function networkId(request: Request): string {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
   return createHash("sha256").update(`admitted-free:${ip}`).digest("hex").slice(0, 24);

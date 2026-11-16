@@ -34,15 +34,13 @@ function Bands({ grade }: { grade: number }) {
   );
 }
 
-/** What a free reader sees where a paid feature would be. Both plans, and a way to have someone else pay. */
+/** What someone without a plan sees: both plans, and a way to have someone else pay. */
 function Upgrade({ reason }: { reason: "rewrite" | "review" }) {
   return (
     <div className="max-w-[440px]">
-      <h2 className="text-[16px] font-semibold">{reason === "review" ? "Your free review is used" : "Rewrites come with a plan"}</h2>
+      <h2 className="text-[16px] font-semibold">Get your essay scored and fixed</h2>
       <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">
-        {reason === "review"
-          ? "Every draft after the first, and every revision, is reviewed on a plan. Your first review stays here for free."
-          : "A plan rewrites from your draft and the details you add, flags anything you didn't write, and re-scores every revision."}
+        Your score out of 100, every line costing you marked with the fix, and rewrites in your voice, re-scored until it&apos;s ready. Unlimited essays and supplements.
       </p>
       <div className="flex flex-col gap-3 mt-6">
         {[PLANS.season, PLANS.monthly].map((plan) => (
@@ -71,7 +69,6 @@ function Upgrade({ reason }: { reason: "rewrite" | "review" }) {
 function Empty({ paid }: { paid: boolean }) {
   return (
     <div className="max-w-[440px]">
-      {!paid && <p className="badge badge-pos mb-4">Your first full review is free</p>}
       <h2 className="text-[16px] font-semibold">What you will get</h2>
       <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">A score out of 100, the lines costing you most marked in your draft, and what to do about each one.</p>
       <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3">
@@ -459,7 +456,7 @@ export default function EssayWorkspace({ paid, start }: { paid: boolean; start?:
           {error && <p className="well px-3 py-2 mb-5 text-[13px] text-neg">{error}</p>}
           {busy === "review" || (busy === "rewrite" && tab === "rewrite") ? (
             <Working step={busy as "review" | "rewrite"} />
-          ) : locked ? (
+          ) : locked || (!paid && !review) ? (
             <Upgrade reason="review" />
           ) : !review ? (
             <Empty paid={paid} />

@@ -1,34 +1,21 @@
 import Link from "next/link";
 
 import PlanCards, { Agree } from "@/components/admitted/plan-cards";
-import { IconCheck } from "@/components/icons";
 import SiteNav from "@/components/site-nav";
+import { daysToRegularDecision } from "@/lib/admitted/deadline";
 import { PLANS } from "@/lib/admitted/plans";
 
-export const metadata = { title: "Pricing · Admitted", description: "Odds and your first essay review are free. Unlimited reviews and rewrites: $29 a month or $99 for six months." };
+export const metadata = { title: "Pricing · Admitted", description: "Essay scores, marked lines and rewrites in your voice for every essay you submit: $99 for the season or $29 a month." };
 
-const ROWS: { label: string; free: string | boolean; paid: string | boolean }[] = [
-  { label: "Odds at every school, with sources", free: true, paid: true },
-  { label: "Essay prompts for every school we cover", free: true, paid: true },
-  { label: "Activity and honors list reviews", free: true, paid: true },
-  { label: "Essay reviews: score, marked lines, fixes", free: "One", paid: "Unlimited" },
-  { label: "Rewrites in your voice", free: false, paid: true },
-  { label: "Revisions re-scored", free: false, paid: true },
-  { label: "Final Read before you submit", free: false, paid: true },
-];
+/** The deadline countdown is worked out on the server, so the page rebuilds hourly. */
+export const revalidate = 3600;
 
 const FAQ = [
-  { q: "What is the difference between monthly and the season pass?", a: `Nothing but billing. Monthly is ${PLANS.monthly.price} a month. The season pass is ${PLANS.season.price} for six months, ${PLANS.season.monthly}, which covers a full application season.` },
-  { q: "Do I need a card for the free review?", a: "No card and no account. Paste a draft and get the full review: the score, the lines costing you most and what to do about each." },
-  { q: "Can a parent pay?", a: "Yes. Send them admitted.usetrnd.com/pay. After checkout they get one link to send you, and opening it unlocks your essays." },
+  { q: "What's the difference between the season pass and monthly?", a: `Only billing. The season pass is ${PLANS.season.price} for six months (${PLANS.season.monthly}) and covers every deadline this cycle. Monthly is ${PLANS.monthly.price} a month.` },
+  { q: "What do I get?", a: "Your essay scored out of 100 with every weak line marked and the fix, rewrites in your voice from your own details, every supplement and revision re-scored, your activity and honors lists tightened, and a Final Read of everything before you submit." },
+  { q: "Can a parent pay?", a: "Yes. Send them admitted.usetrnd.com/pay. After checkout they get one link to send you, and opening it unlocks everything." },
   { q: "Can I cancel?", a: "Anytime, from Account on the essay page. You keep access until the end of the period you paid for." },
 ];
-
-function Cell({ value }: { value: string | boolean }) {
-  if (value === true) return <IconCheck className="text-brand mx-auto" aria-label="Included" />;
-  if (value === false) return <span className="text-ink-3" aria-label="Not included">–</span>;
-  return <span className="text-[13px] font-medium">{value}</span>;
-}
 
 export default function PricingPage() {
   return (
@@ -38,50 +25,20 @@ export default function PricingPage() {
         <section className="wash-top">
           <div className="wrap py-16 sm:py-24">
             <div className="text-center max-w-[680px] mx-auto">
-              <p className="kicker">Pricing</p>
-              <h1 className="section-title text-[32px] sm:text-[40px] mt-3">Your first essay review is free.</h1>
-              <p className="text-[16px] text-ink-2 leading-[1.65] mt-4">Odds, prompts, activity reviews and one full essay review cost nothing and need no card. Pay when you want every draft reviewed and rewritten.</p>
+              <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
+              <h1 className="section-title text-[32px] sm:text-[40px] mt-3">Every essay you submit, scored and fixed.</h1>
+              <p className="text-[16px] text-ink-2 leading-[1.65] mt-4">One plan covers your personal statement, every supplement, your activity list and a Final Read before you hit submit.</p>
             </div>
             <div className="mt-12">
               <PlanCards />
               <Agree />
               <p className="text-[14px] text-ink-2 text-center mt-6">
-                Someone else paying?{" "}
+                Parent paying?{" "}
                 <Link className="underline hover:text-ink" href="/pay">
                   Send them this page
                 </Link>
                 .
               </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-t border-line">
-          <div className="wrap py-16 sm:py-24 max-w-[880px]">
-            <h2 className="section-title text-[32px]">Compare plans</h2>
-            <div className="card mt-8 overflow-x-auto">
-              <table className="w-full text-[14px] border-collapse">
-                <thead>
-                  <tr className="bg-subtle text-ink-2 text-[13px]">
-                    <th className="text-left font-medium px-5 py-3">Feature</th>
-                    <th className="font-medium px-5 py-3 w-[110px]">Free</th>
-                    <th className="font-medium px-5 py-3 w-[150px]">Monthly or season</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ROWS.map((r) => (
-                    <tr key={r.label} className="border-t border-line">
-                      <td className="px-5 py-3">{r.label}</td>
-                      <td className="px-5 py-3 text-center">
-                        <Cell value={r.free} />
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <Cell value={r.paid} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </section>

@@ -16,7 +16,7 @@ export default function TermsPage() {
 
       <h2>Subscription and payment</h2>
       <p>
-        Your first essay review is free. Unlimited reviews and rewrites are a subscription, billed through Stripe until you cancel:
+        Essay reviews and rewrites are a subscription, billed through Stripe until you cancel:
         $29 a month, or $99 every six months for the season pass. Someone else may pay for you. Cancel anytime from Account on the
         essay page; you keep access until the end of the period paid for. Payments are non-refundable, except where the law
         requires otherwise.

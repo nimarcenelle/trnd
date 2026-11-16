@@ -32,6 +32,7 @@ describe("activity and honors lists", () => {
     expect(buildListReview("activities", LIST, reply("Sorted 2,000 pounds of food on weekends.")).entries[1].rewrite).toBe("");
     expect(buildListReview("activities", LIST, reply("x".repeat(151))).entries[1].rewrite).toBe("");
     expect(buildListReview("activities", LIST, reply("Sorted donations on weekends.")).entries[1].rewrite).toBe("Sorted donations on weekends.");
+    expect(buildListReview("activities", LIST, reply("Helped out on weekends.")).entries[1].rewrite).toBe("");
   });
   it("keeps numbers that were already there", () => {
     expect(numbersKept("raised $3,000 for 24 members", "Raised $3,000 with 24 members.")).toBe(true);

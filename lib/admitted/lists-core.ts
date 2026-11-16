@@ -9,7 +9,7 @@ import { quotedIn } from "./review-core";
  * proposes a tighter version; the score, the weakest entry and every check on the rewrite are worked out here. An entry
  * the model quotes has to exist in what was pasted, and a rewrite has to fit the Common App field and keep its numbers.
  */
-export const LISTS_VERSION = "1";
+export const LISTS_VERSION = "2";
 export type ListKind = "activities" | "honors";
 export const parseKind = (value: unknown): ListKind => (value === "honors" ? "honors" : "activities");
 
@@ -35,7 +35,7 @@ export const ListReply = z.object({
   entries: z
     .array(
       z.object({
-        name: z.string().describe("A short label for the entry, 2 to 6 words."),
+        name: z.string().describe("A short label for the entry, 2 to 6 words, in sentence case: capitalize only the first word and proper names."),
         quote: z.string().describe("The entry exactly as pasted, or its longest unique line, copied character for character."),
         grades: z.object({ a: Band, b: Band, c: Band }),
         fix: z.string().describe("One sentence: the single change that would most improve this entry."),
@@ -87,7 +87,7 @@ export function buildListReview(kind: ListKind, text: string, reply: ListReply):
       const grades = LIST_CRITERIA[kind].map((c) => ({ label: c.label, grade: e.grades[c.id] }));
       const score = Math.round((grades.reduce((sum, g) => sum + (g.grade - 1), 0) / (grades.length * 4)) * 100);
       const rewrite = clean(e.rewrite);
-      const usable = rewrite.length > 0 && rewrite.length <= limit && numbersKept(e.quote, rewrite) && clean(e.quote) !== rewrite;
+      const usable = rewrite.length > 0 && rewrite.length <= limit && numbersKept(e.quote, rewrite) && !quotedIn(e.quote, rewrite);
       return { name: e.name.trim(), quote: e.quote.trim(), score, grades, fix: e.fix.trim(), rewrite: usable ? rewrite : "", rewriteLength: usable ? rewrite.length : 0 };
     });
   let weakest: number | null = null;

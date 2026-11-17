@@ -48,16 +48,15 @@ function WhyEssays() {
             <span className="block text-[var(--headline-2)]">Your essays get you in.</span>
           </h2>
           <div className="flex flex-col gap-4 mt-6 text-[17px] text-ink-2 leading-[1.7]">
-            <p>At the schools you&apos;re applying to, great grades and scores are the starting line. A quarter of Harvard&apos;s class scored {HARVARD.sat75} or higher on the SAT, and {fmt(HARVARD.applicants - HARVARD.admitted)} applicants were still turned away.</p>
-            <p>When every file has the numbers, the numbers stop deciding. The reader has seen a thousand transcripts like yours. What they haven&apos;t seen is you, and your essays are where you show up. That&apos;s where a file goes from qualified to admitted.</p>
-            <p className="text-ink font-medium">It&apos;s also the only part you can still change. Your GPA stopped moving months ago. Your scores are in. Your essays can be rewritten tonight.</p>
+            <p>At top schools, everyone has the numbers. A quarter of Harvard&apos;s class scored {HARVARD.sat75}+, and {fmt(HARVARD.applicants - HARVARD.admitted)} applicants still got turned away.</p>
+            <p className="text-ink font-medium">Your essays are what&apos;s left, and the only part you can still change.</p>
           </div>
           <Link href="/essay" className="btn btn-primary btn-lg mt-8">
             Fix my essays <IconArrowRight />
           </Link>
         </div>
         <div className="rounded-[20px] bg-band text-band-ink p-7 sm:p-8 shadow-[var(--shadow-lg)]">
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-6 sm:grid-cols-3 lg:grid-cols-[minmax(0,1fr)]">
             {stats.map((st) => (
               <div key={st.label} className="border-b border-band-line pb-5">
                 <div className="text-[40px] font-semibold tracking-[-0.03em] leading-none tnum">{st.value}</div>
@@ -134,10 +133,7 @@ export default function Home() {
           <div>
             <p className="kicker">The problem</p>
             <h2 className="section-title text-[32px] sm:text-[40px] mt-3">You can&apos;t see your own essay the way a reader does.</h2>
-            <div className="flex flex-col gap-4 mt-4 max-w-[520px] text-[16px] text-ink-2 leading-[1.7]">
-              <p>You&apos;ve read your draft forty times. Your parents say it&apos;s great. Your counselor has hundreds of other students. Nobody is telling you which lines a reader skims, which sound like every other applicant, and which are the reason they&apos;d remember you.</p>
-              <p className="text-ink font-medium">EssayOdds does. It reads your draft like an admissions reader, scores it, and marks the exact lines holding it back. Then it helps you rewrite them in your own voice.</p>
-            </div>
+            <p className="text-[16px] text-ink-2 leading-[1.7] mt-4 max-w-[500px]">Nobody tells you which lines a reader skims. EssayOdds does, then helps you rewrite them in your own voice.</p>
             <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-2.5">
               {["Scored on six criteria admissions readers use", "Weak lines marked in your draft, with the fix", "Rewrites from your details, never invented", "Personal statement and every supplement"].map((t) => (
                 <li key={t} className="flex gap-2.5 text-[14px]">
@@ -162,7 +158,7 @@ export default function Home() {
               <p className="kicker">Then see what it&apos;s worth</p>
               <h2 className="section-title text-[32px] sm:text-[40px] max-w-[620px] mt-3">Watch your odds move at every school on your list.</h2>
             </div>
-            <p className="text-[16px] text-ink-2 leading-[1.65]">No forum guesses. Your odds come from each college&apos;s own admissions data, adjusted for how your essays read, with the one move that raises each number. Fix an essay and watch them climb.</p>
+            <p className="text-[16px] text-ink-2 leading-[1.65]">From each college&apos;s own admissions data. Fix an essay and watch them climb.</p>
           </div>
           <div className="mt-12">
             <ProductShot />
@@ -177,9 +173,9 @@ export default function Home() {
         <div className="wrap py-20 sm:py-24">
           <div className="text-center">
             <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
-            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Every essay, read and fixed, for less than one hour with a counselor.</h2>
+            <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Every essay fixed, for less than one counselor hour.</h2>
             <p className="text-[16px] text-ink-2 mt-3 max-w-[640px] mx-auto">
-              Your personal statement, every supplement, your activities and honors, and a Final Read of the whole application. The RD Pass is one payment through January 15, with nothing to cancel.
+              Every essay, your activities and a Final Read. One payment through January 15.
             </p>
           </div>
           <div className="mt-12">
@@ -225,7 +221,7 @@ export default function Home() {
         <div className="wrap py-20 sm:py-28 flex flex-col items-center text-center">
           <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
           <h2 className="section-title text-[32px] sm:text-[44px] max-w-[760px] mt-3">Your grades are done. Your essays aren&apos;t.</h2>
-          <p className="text-[17px] text-ink-2 leading-[1.6] mt-4 max-w-[560px]">They&apos;re the last part of your application you can still change, and the part readers remember. Make them the reason they say yes.</p>
+          <p className="text-[17px] text-ink-2 leading-[1.6] mt-4 max-w-[560px]">Make them the reason they say yes.</p>
           <Cta className="mt-8 justify-center" />
         </div>
       </section>

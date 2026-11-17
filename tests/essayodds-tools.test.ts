@@ -143,3 +143,16 @@ describe("school deadlines", () => {
     expect(daysUntil("rolling", now)).toBeNull();
   });
 });
+
+import { parsePartial } from "@/lib/essayodds/partial-json";
+
+describe("reading a reply while it streams", () => {
+  it("shows what has arrived so far", () => {
+    expect(parsePartial<{ rewrite: string }>('{"rewrite":"The first bike I fi')).toEqual({ rewrite: "The first bike I fi" });
+    expect(parsePartial<{ notes: { fix: string }[] }>('{"grades":{"a":3},"notes":[{"fix":"Open on the mom')).toEqual({ grades: { a: 3 }, notes: [{ fix: "Open on the mom" }] });
+    expect(parsePartial('{"notes":[{"fix":"Done"},{"pro')).toEqual({ notes: [{ fix: "Done" }, {}] });
+    expect(parsePartial('{"rewrite":"He said \\"hi')).toEqual({ rewrite: 'He said "hi' });
+    expect(parsePartial("")).toBeNull();
+    expect(parsePartial('{"a":1,"b":[1,2]}')).toEqual({ a: 1, b: [1, 2] });
+  });
+});

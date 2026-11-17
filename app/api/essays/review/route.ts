@@ -3,6 +3,7 @@ import { isDemoEssay } from "@/lib/essayodds/demo";
 import { recordSubscriberUse, subscriberUsedToday } from "@/lib/essayodds/saved";
 import { EssayCapReached, reviewEssay } from "@/lib/essayodds/review";
 import { parseWordLimit, wordCount } from "@/lib/essayodds/review-core";
+import { streamResponse, wantsStream } from "@/lib/essayodds/ndjson";
 import { isEssayOpen } from "@/lib/env";
 
 export const maxDuration = 180;
@@ -19,8 +20,19 @@ export async function POST(request: Request): Promise<Response> {
   const words = wordCount(essay);
   if (words < 50 || words > 1000) return Response.json({ error: "length" }, { status: 400 });
   if (session === "demo" && !isDemoEssay(essay)) return Response.json({ error: "demo_only" }, { status: 402 });
+  const prompt = String(body?.prompt ?? "").trim().slice(0, 500);
+  const limit = parseWordLimit(body?.limit);
+  if (wantsStream(request))
+    return streamResponse(
+      async (send) => {
+        const result = await reviewEssay(essay, prompt, limit, send);
+        await recordSubscriberUse("use_review", user);
+        return result;
+      },
+      (err) => (err instanceof EssayCapReached ? 429 : (console.error("[review]", err), 500)),
+    );
   try {
-    const result = await reviewEssay(essay, String(body?.prompt ?? "").trim().slice(0, 500), parseWordLimit(body?.limit));
+    const result = await reviewEssay(essay, prompt, limit);
     await recordSubscriberUse("use_review", user);
     return Response.json(result);
   } catch (err) {

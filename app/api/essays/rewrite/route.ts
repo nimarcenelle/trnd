@@ -4,6 +4,7 @@ import { recordSubscriberUse, subscriberUsedToday } from "@/lib/essayodds/saved"
 import { parseWordLimit, wordCount } from "@/lib/essayodds/review-core";
 import { EssayCapReached, rewriteEssay } from "@/lib/essayodds/rewrite";
 import { parseAnswers } from "@/lib/essayodds/rewrite-core";
+import { streamResponse, wantsStream } from "@/lib/essayodds/ndjson";
 import { isEssayOpen } from "@/lib/env";
 
 export const maxDuration = 300;
@@ -20,8 +21,20 @@ export async function POST(request: Request): Promise<Response> {
   if (words < 50 || words > 1000) return Response.json({ error: "length" }, { status: 400 });
   if (session === "demo" && !isDemoEssay(draft)) return Response.json({ error: "demo_only" }, { status: 402 });
   const revision = Math.min(500, Math.max(0, Math.floor(Number(body?.revision) || 0)));
+  const prompt = String(body?.prompt ?? "").trim().slice(0, 500);
+  const limit = parseWordLimit(body?.limit);
+  const answers = parseAnswers(body?.answers);
+  if (wantsStream(request))
+    return streamResponse(
+      async (send) => {
+        const result = await rewriteEssay(draft, prompt, limit, revision, answers, send);
+        await recordSubscriberUse("use_rewrite", subscriber);
+        return result;
+      },
+      (err) => (err instanceof EssayCapReached ? 429 : (console.error("[rewrite]", err), 500)),
+    );
   try {
-    const result = await rewriteEssay(draft, String(body?.prompt ?? "").trim().slice(0, 500), parseWordLimit(body?.limit), revision, parseAnswers(body?.answers));
+    const result = await rewriteEssay(draft, prompt, limit, revision, answers);
     await recordSubscriberUse("use_rewrite", subscriber);
     return Response.json(result);
   } catch (err) {

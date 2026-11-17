@@ -2,13 +2,15 @@ import "server-only";
 
 import { z } from "zod";
 
-import { generateJson } from "@/lib/ai/openai";
+import { generateJson, streamJson } from "@/lib/ai/openai";
 import { env } from "@/lib/env";
 
 import { EssayCapReached, reviewEssay } from "./review";
 import { wordCount, type Review } from "./review-core";
 import { answersText, bestAttempt, keptShare, rewriteKey, rewriteProblems, type Answer } from "./rewrite-core";
+import { parsePartial } from "./partial-json";
 import { countToday, readSaved, saveFirst } from "./saved";
+import { throttled, type OnEvent } from "./stream-events";
 
 export type Rewrite = { rewrite: string; changes: string[]; kept: number; words: number; limit: number; before: number; after: number; check: string[] };
 
@@ -33,7 +35,8 @@ const notesFor = (review: Review) =>
   [...review.notes.map((n) => `Fix: "${n.quote}" ${n.problem} ${n.fix}`), ...review.keep.map((k) => `Keep exactly: "${k.quote}"`)].join("\n");
 
 /** The same draft, prompt, word limit, details and revision number always return the saved rewrite. */
-export async function rewriteEssay(draft: string, prompt: string, limit: number, revision: number, answers: Answer[] = []): Promise<Rewrite> {
+/** With `onEvent`, the rewrite streams to the page as it is written, with a line for each step after it. */
+export async function rewriteEssay(draft: string, prompt: string, limit: number, revision: number, answers: Answer[] = [], onEvent?: OnEvent): Promise<Rewrite> {
   const started = Date.now();
   const key = rewriteKey(draft, prompt, limit, revision, answers);
   const details = answers.length ? `Student's added details:\n${answersText(answers)}\n\n` : "";
@@ -41,19 +44,35 @@ export async function rewriteEssay(draft: string, prompt: string, limit: number,
   if (hit) return hit;
   if ((await countToday("rewrite")) >= env.rewriteDailyCap) throw new EssayCapReached();
 
+  onEvent?.({ type: "phase", label: "Reading your draft" });
   const before = await reviewEssay(draft, prompt, limit);
   const base = `Essay prompt: ${prompt || "Common App personal statement"}\nWord limit: ${limit}\nRevision: ${revision}\n\nReader's notes:\n${notesFor(before)}\n\n${details}Draft:\n${draft}`;
-  const write = (extra = "") => generateJson({ model: env.openaiModelWriting, effort: "high", system: SYSTEM, prompt: base + extra, schema: Reply });
+  const write = async (extra = "") => {
+    const opts = { model: env.openaiModelWriting, effort: "high" as const, system: SYSTEM, prompt: base + extra, schema: Reply };
+    if (!onEvent) return generateJson(opts);
+    onEvent({ type: "phase", label: "Writing" });
+    const live = throttled((text: string) => onEvent({ type: "rewrite", text }));
+    try {
+      return await streamJson(opts, (soFar) => {
+        const text = parsePartial<{ rewrite?: string }>(soFar)?.rewrite;
+        if (text) live.push(text);
+      });
+    } finally {
+      live.flush();
+    }
+  };
   const check = async (rewrite: string) => (await generateJson({ model: env.openaiModelWriting, effort: "high", system: CHECK_SYSTEM, prompt: `Draft:\n${draft}\n\n${details}Rewrite:\n${rewrite}`, schema: Check })).invented;
 
   const attempt = async (extra = "") => {
     let reply = await write(extra);
+    onEvent?.({ type: "phase", label: "Checking for anything you didn't write" });
     let flagged = await check(reply.rewrite);
     const problems = rewriteProblems(reply.rewrite, wordCount(draft), limit, flagged);
     if (problems.length) {
       reply = await write(`\n\nYour last rewrite was rejected. Fix these:\n${problems.join("\n")}\n\nLast rewrite:\n${reply.rewrite}`);
       flagged = await check(reply.rewrite);
     }
+    onEvent?.({ type: "phase", label: "Scoring the rewrite" });
     return { reply, flagged, after: (await reviewEssay(reply.rewrite, prompt, limit)).score };
   };
 
@@ -62,6 +81,7 @@ export async function rewriteEssay(draft: string, prompt: string, limit: number,
   // A second try only when the first scored below the draft and there is time left. If it fails, the first stands.
   if (first.after < before.score - SCORE_WOBBLE && Date.now() - started < RETRY_WITHIN_MS) {
     try {
+      onEvent?.({ type: "phase", label: "That scored lower. Trying again, closer to your draft" });
       attempts.push(await attempt(`\n\nYour last rewrite scored ${first.after}, below the draft's ${before.score}. It lost what made the draft work. Stay closer to the draft and keep more of its sentences.\n\nLast rewrite:\n${first.reply.rewrite}`));
     } catch (err) {
       console.warn("[rewrite] second try failed", (err as Error).message);

@@ -1,6 +1,8 @@
 "use client";
 
+import { postStream } from "@/lib/essayodds/read-stream";
 import { persist, restore } from "@/lib/essayodds/storage";
+import type { LiveNote } from "@/lib/essayodds/stream-events";
 import { useEffect, useRef, useState } from "react";
 
 import { segments } from "@/lib/essayodds/highlight";
@@ -8,6 +10,7 @@ import { PLANS } from "@/lib/essayodds/plans";
 import type { Review } from "@/lib/essayodds/review-core";
 
 import { BuyButton } from "./plan-cards";
+import Typed from "./typed";
 
 type Rewrite = { rewrite: string; changes: string[]; kept: number; words: number; limit: number; before: number; after: number; check: string[] };
 type Busy = "" | "review" | "rewrite";
@@ -88,10 +91,52 @@ function Empty({ paid }: { paid: boolean }) {
   );
 }
 
-function Working({ step }: { step: "review" | "rewrite" }) {
+/** A review while it streams: the notes appear and fill in as the reader writes them. The score comes when every read is in. */
+function LiveReview({ notes }: { notes: LiveNote[] }) {
+  return (
+    <div className="max-w-[520px]" role="status" aria-live="polite">
+      <div className="flex items-center gap-2 text-[13px] text-ink-3">
+        <span className="h-2 w-2 rounded-full bg-brand animate-pulse" /> Reading your draft. Your score comes when every read is in.
+      </div>
+      <h2 className="text-[14px] font-semibold mt-6">What to fix</h2>
+      <ol className="list-none p-0 m-0 mt-3 flex flex-col gap-2">
+        {notes
+          .filter((n) => n.fix || n.problem)
+          .map((n, i) => (
+            <li key={i} className="rounded-[10px] border border-line p-3.5 fade-in">
+              <span className="flex gap-3">
+                <span className="h-5 w-5 shrink-0 rounded-full bg-[var(--soft)] text-[var(--soft-ink)] text-[11px] font-semibold tnum flex items-center justify-center">{i + 1}</span>
+                <span className="min-w-0 text-[14px] leading-[1.55]">
+                  <span className="block font-medium">{n.fix}</span>
+                  {n.problem && <span className="block text-[13px] text-ink-2 mt-1">{n.problem}</span>}
+                </span>
+              </span>
+            </li>
+          ))}
+      </ol>
+    </div>
+  );
+}
+
+/** A rewrite while it streams: the text writes itself out, then a line for each check after it. */
+function LiveRewrite({ text, phase }: { text: string; phase: string }) {
+  return (
+    <div role="status" aria-live="polite">
+      <div className="flex items-center gap-2 text-[13px] text-ink-3">
+        <span className="h-2 w-2 rounded-full bg-brand animate-pulse" /> {phase || "Writing"}…
+      </div>
+      <p className="text-[14px] leading-[1.7] mt-5 whitespace-pre-wrap">
+        {text}
+        <span className="inline-block w-[2px] h-[1.1em] align-[-0.2em] bg-ink ml-0.5 animate-pulse" />
+      </p>
+    </div>
+  );
+}
+
+function Working({ step, phase = "" }: { step: "review" | "rewrite"; phase?: string }) {
   return (
     <div className="max-w-[440px]" role="status">
-      <h2 className="text-[16px] font-semibold">{step === "review" ? "Reading your draft" : "Rewriting from your draft"}</h2>
+      <h2 className="text-[16px] font-semibold">{phase || (step === "review" ? "Reading your draft" : "Rewriting from your draft")}</h2>
       <p className="text-[14px] text-ink-2 mt-1.5">{step === "review" ? "This takes about 40 seconds." : "This takes 2 to 4 minutes. Keep this page open."}</p>
       <div className="mt-6 flex flex-col gap-3 animate-pulse">
         {CRITERIA.map((label) => (
@@ -102,7 +147,7 @@ function Working({ step }: { step: "review" | "rewrite" }) {
   );
 }
 
-function ReviewPane({ review, active, onSelect, onNext }: { review: Review; active: string | null; onSelect: (id: string) => void; onNext: () => void }) {
+function ReviewPane({ review, active, onSelect, onNext, animate = false }: { review: Review; active: string | null; onSelect: (id: string) => void; onNext: () => void; animate?: boolean }) {
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
@@ -139,8 +184,12 @@ function ReviewPane({ review, active, onSelect, onNext }: { review: Review; acti
                     <span className="flex gap-3">
                       <span className="h-5 w-5 shrink-0 rounded-full bg-[var(--soft)] text-[var(--soft-ink)] text-[11px] font-semibold tnum flex items-center justify-center">{i + 1}</span>
                       <span className="min-w-0 text-[14px] leading-[1.55]">
-                        <span className="block font-medium">{n.fix}</span>
-                        <span className="block text-[13px] text-ink-2 mt-1">{n.problem}</span>
+                        <span className="block font-medium">
+                          <Typed text={n.fix} animate={animate} delay={i * 450} />
+                        </span>
+                        <span className="block text-[13px] text-ink-2 mt-1">
+                          <Typed text={n.problem} animate={animate} delay={i * 450 + 200} />
+                        </span>
                       </span>
                     </span>
                   </button>
@@ -174,7 +223,7 @@ function ReviewPane({ review, active, onSelect, onNext }: { review: Review; acti
   );
 }
 
-function RewritePane({ rewrite, revision, busy, onRevise, onUse, onDetails }: { rewrite: Rewrite; revision: number; busy: boolean; onRevise: () => void; onUse: () => void; onDetails: (() => void) | null }) {
+function RewritePane({ rewrite, revision, busy, onRevise, onUse, onDetails, animate = false }: { rewrite: Rewrite; revision: number; busy: boolean; onRevise: () => void; onUse: () => void; onDetails: (() => void) | null; animate?: boolean }) {
   const [copied, setCopied] = useState(false);
   return (
     <div>
@@ -207,7 +256,9 @@ function RewritePane({ rewrite, revision, busy, onRevise, onUse, onDetails }: { 
           </ul>
         </div>
       )}
-      <p className="text-[14px] leading-[1.7] mt-5 whitespace-pre-wrap">{rewrite.rewrite}</p>
+      <p className="text-[14px] leading-[1.7] mt-5 whitespace-pre-wrap">
+        <Typed text={rewrite.rewrite} animate={animate} wordsPerSecond={60} />
+      </p>
       <div className="flex flex-wrap gap-2 mt-5">
         <button className="btn btn-primary" type="button" disabled={busy} onClick={onUse}>
           Use as my draft
@@ -276,6 +327,12 @@ export default function EssayWorkspace({ paid, start }: { paid: boolean; start?:
   const [prompt, setPrompt] = useState(start?.prompt ?? "");
   const [limit, setLimit] = useState(start?.limit ? String(start.limit) : "650");
   const [locked, setLocked] = useState<"" | "review">("");
+  /** What has streamed in so far, and whether the finished result should type itself out (it arrived all at once). */
+  const [liveNotes, setLiveNotes] = useState<LiveNote[] | null>(null);
+  const [liveRewrite, setLiveRewrite] = useState("");
+  const [phase, setPhase] = useState("");
+  const [typeReview, setTypeReview] = useState(false);
+  const [typeRewrite, setTypeRewrite] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [review, setReview] = useState<Review | null>(null);
   const [rewrite, setRewrite] = useState<Rewrite | null>(null);
@@ -327,27 +384,35 @@ export default function EssayWorkspace({ paid, start }: { paid: boolean; start?:
     setLocked("");
   }
 
-  async function post(path: string, body: object, step: "review" | "rewrite"): Promise<Response | null> {
+  /** Streams a review or rewrite: shows it as it is written, and handles a refusal the same way as before. */
+  async function stream<T>(path: string, body: object, step: "review" | "rewrite"): Promise<{ result: T; streamed: boolean } | null> {
     setBusy(step);
     setError("");
+    setLiveNotes(null);
+    setLiveRewrite("");
+    setPhase("");
     if (window.matchMedia("(max-width: 1023px)").matches) results.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
+    let streamed = false;
+    const out = await postStream<T>(path, body, (e) => {
+      if (e.type === "notes") ((streamed = true), setLiveNotes(e.notes));
+      if (e.type === "rewrite") ((streamed = true), setLiveRewrite(e.text));
+      if (e.type === "phase") setPhase(e.label);
+    });
     setBusy("");
-    if (res?.status === 402 && !paid) {
-      setLocked("review");
-      return null;
-    }
-    if (!res?.ok) {
-      setError(errorFor(res?.status));
-      return null;
-    }
-    return res;
+    setLiveNotes(null);
+    setLiveRewrite("");
+    setPhase("");
+    if ("result" in out) return { result: out.result, streamed };
+    if (out.status === 402 && !paid) setLocked("review");
+    else setError(errorFor(out.status));
+    return null;
   }
 
   async function runReview(text = draft) {
-    const res = await post("/api/essays/review", { essay: text, prompt, limit }, "review");
-    if (!res) return;
-    setReview((await res.json()) as Review);
+    const got = await stream<Review>("/api/essays/review", { essay: text, prompt, limit }, "review");
+    if (!got) return;
+    setTypeReview(!got.streamed);
+    setReview(got.result);
     setTab("review");
     setReading(true);
   }
@@ -355,11 +420,12 @@ export default function EssayWorkspace({ paid, start }: { paid: boolean; start?:
   async function runRewrite(next: number) {
     setTab("rewrite");
     const sent = asks.map((ask) => ({ ask, answer: answers[ask] ?? "" })).filter((a) => a.answer.trim());
-    const res = await post("/api/essays/rewrite", { draft, prompt, limit, revision: next, answers: sent }, "rewrite");
-    if (!res) return;
+    const got = await stream<Rewrite>("/api/essays/rewrite", { draft, prompt, limit, revision: next, answers: sent }, "rewrite");
+    if (!got) return;
     setRevision(next);
     setShowDetails(false);
-    setRewrite((await res.json()) as Rewrite);
+    setTypeRewrite(!got.streamed);
+    setRewrite(got.result);
   }
 
   function select(id: string) {
@@ -461,21 +527,25 @@ export default function EssayWorkspace({ paid, start }: { paid: boolean; start?:
         )}
         <div className="flex-1 overflow-y-auto px-5 sm:px-8 py-6">
           {error && <p className="well px-3 py-2 mb-5 text-[13px] text-neg">{error}</p>}
-          {busy === "review" || (busy === "rewrite" && tab === "rewrite") ? (
-            <Working step={busy as "review" | "rewrite"} />
+          {busy === "review" && liveNotes?.some((n) => n.fix) ? (
+            <LiveReview notes={liveNotes} />
+          ) : busy === "rewrite" && tab === "rewrite" && liveRewrite ? (
+            <LiveRewrite text={liveRewrite} phase={phase} />
+          ) : busy === "review" || (busy === "rewrite" && tab === "rewrite") ? (
+            <Working step={busy as "review" | "rewrite"} phase={phase} />
           ) : locked || (!paid && !review) ? (
             <Upgrade reason="review" />
           ) : !review ? (
             <Empty paid={paid} />
           ) : tab === "review" ? (
             <div className="fade-in">
-              <ReviewPane review={review} active={active} onSelect={select} onNext={() => setTab("rewrite")} />
+              <ReviewPane review={review} active={active} onSelect={select} onNext={() => setTab("rewrite")} animate={typeReview} />
             </div>
           ) : !paid ? (
             <Upgrade reason="rewrite" />
           ) : rewrite && !showDetails ? (
             <div className="fade-in">
-              <RewritePane key={revision} rewrite={rewrite} revision={revision} busy={Boolean(busy)} onRevise={() => void runRewrite(revision + 1)} onUse={useRewrite} onDetails={asks.length ? () => setShowDetails(true) : null} />
+              <RewritePane key={revision} rewrite={rewrite} revision={revision} busy={Boolean(busy)} onRevise={() => void runRewrite(revision + 1)} onUse={useRewrite} onDetails={asks.length ? () => setShowDetails(true) : null} animate={typeRewrite} />
             </div>
           ) : asks.length ? (
             <DetailsPane asks={asks} answers={answers} busy={Boolean(busy)} onChange={(ask, value) => setAnswers((a) => ({ ...a, [ask]: value }))} onRewrite={() => void runRewrite(rewrite ? revision + 1 : 0)} />

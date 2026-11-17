@@ -53,3 +53,36 @@ export async function generateJson<S extends z.ZodType>(opts: {
   }
   throw lastError;
 }
+
+/**
+ * generateJson, streamed: `onText` gets the reply so far each time more of it arrives, for showing work as it is written.
+ * The finished reply is held to the schema the same way; one that fails is asked for again without streaming.
+ */
+export async function streamJson<S extends z.ZodType>(
+  opts: { system: string; prompt: string; schema: S; effort?: "low" | "medium" | "high"; model?: string },
+  onText: (soFar: string) => void,
+): Promise<z.infer<S>> {
+  const model = opts.model ?? env.openaiModel;
+  const format = { type: "json_schema" as const, name: "reply", strict: true, schema: strictJsonSchema(opts.schema) };
+  const stream = await getClient().responses.create({
+    model,
+    instructions: safeText(opts.system),
+    input: safeText(opts.prompt),
+    text: { format },
+    stream: true,
+    ...(isReasoning(model) ? { reasoning: { effort: opts.effort ?? "medium" } } : { temperature: 0.4 }),
+  });
+  let text = "";
+  for await (const event of stream) {
+    if (event.type === "response.output_text.delta") {
+      text += event.delta;
+      onText(text);
+    }
+  }
+  try {
+    return opts.schema.parse(JSON.parse(text)) as z.infer<S>;
+  } catch (err) {
+    console.warn("[ai] streamed reply rejected, asking again:", (err as Error).message.slice(0, 200));
+    return generateJson(opts);
+  }
+}

@@ -7,7 +7,7 @@ import "@fontsource-variable/inter/opsz.css";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://essayodds.com";
-const TITLE = "EssayOdds: know your odds, then raise them";
+const TITLE = "EssayOdds: know your actual odds, then raise them";
 const DESCRIPTION =
   "Paste your essay or upload your Common App. See your admit odds at every school on your list and how much your essay is costing you, then fix it before you submit. Built by Ivy League grads.";
 

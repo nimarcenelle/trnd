@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 /** The link-preview card, from the light theme's tokens (hard-coded: this renders outside CSS). */
 
-export const alt = "EssayOdds: know your odds, then raise them";
+export const alt = "EssayOdds: know your actual odds, then raise them";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

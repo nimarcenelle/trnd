@@ -31,7 +31,7 @@ export const env = {
   stripePrice: process.env.STRIPE_PRICE ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM || "TRND <reports@usetrnd.com>",
-  essayOddsEmailFrom: process.env.ESSAYODDS_EMAIL_FROM || "EssayOdds <access@usetrnd.com>",
+  essayOddsEmailFrom: process.env.ESSAYODDS_EMAIL_FROM || "EssayOdds <access@essayodds.com>",
   /** Where Pro call requests go. */
   essayOddsOwnerEmail: process.env.ESSAYODDS_OWNER_EMAIL || "hello@usetrnd.com",
   /** A Calendly or Cal.com link for Pro calls; when set it replaces the request form. */

@@ -1,9 +1,12 @@
+import { TIER_STYLE, tierFor } from "@/lib/essayodds/tiers";
+
 import { SplitBar, SplitLegend } from "./split";
 
 export type OddsRow = { key: string; name: string; odds: number; upTo: number | null; locked: number; movable: number; fix?: { kind: string; label: string; gain: number }; source?: { href: string; edition: string }; note?: string };
 
 /** One row per school: odds, the split, the next move, and how far the round alone can take it. The live results and the sample are the same view. */
-export default function OddsTable({ rows }: { rows: OddsRow[] }) {
+/** `tiers` adds a reach, target or likely label to each school (Pro). */
+export default function OddsTable({ rows, tiers = false }: { rows: OddsRow[]; tiers?: boolean }) {
   return (
     <div className="card overflow-hidden">
       <table className="table !text-[14px]">
@@ -21,7 +24,8 @@ export default function OddsTable({ rows }: { rows: OddsRow[] }) {
           {rows.map((r) => (
             <tr key={r.key}>
               <td className="!px-4 !py-3">
-                <div className="font-medium">
+                <div className="font-medium flex flex-wrap items-center gap-2">
+                  {tiers && <span className={TIER_STYLE[tierFor(r.odds)]}>{tierFor(r.odds)}</span>}
                   {r.source ? (
                     <a className="hover:underline" href={r.source.href} target="_blank" rel="noreferrer" title={`Common Data Set ${r.source.edition}`}>
                       {r.name}

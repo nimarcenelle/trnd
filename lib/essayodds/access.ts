@@ -32,21 +32,27 @@ export async function paidSession(): Promise<string | null> {
 export async function paidAccess(): Promise<({ id: string } & Access) | null> {
   const jar = await cookies();
   // Demo mode: unlocked, but the routes only answer the sample student.
-  if (jar.get(DEMO_COOKIE)?.value === "1") return { id: "demo", until: RD_PASS_ENDS, recurring: false, email: null };
+  if (jar.get(DEMO_COOKIE)?.value === "1") return { id: "demo", until: RD_PASS_ENDS, recurring: false, email: null, plan: "pro" };
   const id = jar.get(ACCESS_COOKIE)?.value ?? jar.get(LEGACY_ACCESS_COOKIE)?.value;
+  const found: ({ id: string } & Access)[] = [];
   if (id) {
     const access = await accessFor(id).catch(() => null);
-    if (access) return { id, ...access };
+    if (access) found.push({ id, ...access });
   }
   const session = await currentSession();
-  if (!session) return null;
-  for (const owned of await purchasesOf(session.uid)) {
-    const access = await accessFor(owned).catch(() => null);
-    if (access) return { id: owned, ...access };
+  if (session) {
+    for (const owned of await purchasesOf(session.uid)) {
+      if (owned === id) continue;
+      const access = await accessFor(owned).catch(() => null);
+      if (access) found.push({ id: owned, ...access });
+    }
+    if (!found.length) found.push(...(await activeSessionsFor(session.email).catch(() => [])));
   }
-  const [byEmail] = await activeSessionsFor(session.email).catch(() => []);
-  return byEmail ?? null;
+  // Pro wins when someone holds more than one pass, so its extras show up wherever they look.
+  return found.find((a) => a.plan === "pro") ?? found[0] ?? null;
 }
+
+export const isPro = (access: Access | null) => access?.plan === "pro";
 
 const purchasesKey = (uid: string) => `data:${uid}:purchases`;
 

@@ -8,6 +8,8 @@ const TOOLS = [
   { href: "/essay", label: "Essays" },
   { href: "/activities", label: "Activities" },
   { href: "/essay/final", label: "Final Read" },
+  { href: "/sat", label: "SAT" },
+  { href: "/pro", label: "Pro" },
 ];
 
 const isActive = (path: string, href: string) => (href === "/essay" ? path === "/essay" : path === href || path.startsWith(`${href}/`));

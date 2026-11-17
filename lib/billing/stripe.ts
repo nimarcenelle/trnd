@@ -2,7 +2,7 @@ import "server-only";
 
 import Stripe from "stripe";
 
-import { accessUntil, parsePlan, type Plan } from "@/lib/essayodds/plans";
+import { accessUntil, parsePlan, type Plan, type PlanId } from "@/lib/essayodds/plans";
 import type { Brand } from "@/lib/db/types";
 import { env, isStripeConfigured } from "@/lib/env";
 
@@ -78,7 +78,8 @@ export async function createAccessCheckout(plan: Plan, forSomeoneElse = false, e
   return session.url;
 }
 
-export type Access = { until: Date | null; recurring: boolean; email: string | null };
+/** `plan` is the plan bought, so Pro features can check for it; older purchases read as "rd". */
+export type Access = { until: Date | null; recurring: boolean; email: string | null; plan: PlanId };
 
 /**
  * What a checkout session unlocks right now. A pass works until the date fixed at checkout (counted from payment for
@@ -94,10 +95,10 @@ export async function accessFor(sessionId: string): Promise<Access | null> {
     const plan = parsePlan(session.metadata?.plan);
     const fixed = session.metadata?.access_until ? new Date(session.metadata.access_until) : null;
     const until = plan === "week" ? accessUntil("week", new Date(session.created * 1000)) : (fixed ?? accessUntil("rd", new Date(session.created * 1000)));
-    return Date.now() < until.getTime() ? { until, recurring: false, email: session.customer_details?.email ?? null } : null;
+    return Date.now() < until.getTime() ? { until, recurring: false, email: session.customer_details?.email ?? null, plan } : null;
   }
   const sub = session.subscription;
-  return typeof sub === "object" && sub !== null && ["active", "trialing", "past_due"].includes(sub.status) ? { until: null, recurring: true, email: session.customer_details?.email ?? null } : null;
+  return typeof sub === "object" && sub !== null && ["active", "trialing", "past_due"].includes(sub.status) ? { until: null, recurring: true, email: session.customer_details?.email ?? null, plan: "week" } : null;
 }
 
 /** Every checkout session paid with this email that still unlocks something, newest first. */

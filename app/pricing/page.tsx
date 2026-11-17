@@ -12,7 +12,8 @@ export const metadata = { title: "Pricing · EssayOdds", description: "Essay sco
 export const revalidate = 3600;
 
 const FAQ = [
-  { q: "Which should I get?", a: `The ${PLANS.rd.name} if you have more than one essay left: ${PLANS.rd.short}, every essay and supplement until you submit, one payment. ${PLANS.week.name} if you want to start small: ${PLANS.week.short}, cancel whenever you're done.` },
+  { q: "Which should I get?", a: `The ${PLANS.rd.name} if you have more than one essay left: ${PLANS.rd.short}, every essay and supplement until you submit. ${PLANS.pro.name} if you want a person in your corner too: ${PLANS.pro.short}, your list sorted into reach, target and likely, and an SAT plan. ${PLANS.week.name} to start small: ${PLANS.week.short}.` },
+  { q: "Who is the call with?", a: "One of the Ivy League grads who built EssayOdds. 45 minutes on whatever matters most: your list, your essays, your activities. You pick the times; we confirm by email." },
   { q: "Is it a subscription?", a: "The RD Pass isn't: one payment, and it simply ends after January 15. Weekly is: $19 every week until you cancel, which takes two clicks from your account menu." },
   { q: "What do I get?", a: "Your essay scored out of 100 with every weak line marked and the fix, rewrites in your voice from your own details, every supplement and revision re-scored, your activity and honors lists tightened, and a Final Read of everything before you submit." },
   { q: "Can a parent pay?", a: "Yes. Send them essayodds.com/pay. After checkout they get one link to send you, and opening it unlocks everything." },

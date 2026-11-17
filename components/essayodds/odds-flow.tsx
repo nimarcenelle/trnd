@@ -11,6 +11,7 @@ import { scoreKind, STATES, validGpa } from "@/lib/essayodds/flow";
 import { schoolQuery, shortName, upTo } from "@/lib/essayodds/list";
 import { daysToRegularDecision } from "@/lib/essayodds/deadline";
 import { PAID_FEATURES, PLANS } from "@/lib/essayodds/plans";
+import { TIER_STYLE, tierFor } from "@/lib/essayodds/tiers";
 import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/essayodds/schools";
 
 import EssaySample from "./essay-sample";
@@ -99,7 +100,7 @@ const roundGain = (r: Row) => r.fixes.find((f) => f.kind === "round")?.gain ?? 0
 /** The school where the round moves the number most, or the most movable one where none has a round. */
 const biggestMove = (rows: Row[]) => [...rows].sort((a, b) => roundGain(b) - roundGain(a) || b.movable - a.movable)[0];
 
-function Reveal({ rows, profile, onNext, open, essay, paid, lockedNames = [] }: { rows: Row[]; profile: string; onNext: () => void; open: boolean; essay: EssayRead; paid: boolean; lockedNames?: string[] }) {
+function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedNames = [] }: { rows: Row[]; profile: string; onNext: () => void; open: boolean; essay: EssayRead; paid: boolean; pro?: boolean; lockedNames?: string[] }) {
   const lead = biggestMove(rows);
   const others = rows.filter((r) => r !== lead);
   const round = lead.fixes.find((f) => f.kind === "round");
@@ -113,6 +114,7 @@ function Reveal({ rows, profile, onNext, open, essay, paid, lockedNames = [] }: 
       </div>
       <section className="rise card mt-6 p-6 sm:p-8 shadow-[var(--shadow-lg)]">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          {pro && <span className={`${TIER_STYLE[tierFor(lead.odds)]} mr-2`}>{tierFor(lead.odds)}</span>}
           <a className="text-[16px] font-semibold hover:underline" href={lead.school.source} target="_blank" rel="noreferrer">
             {lead.school.name}
           </a>
@@ -209,7 +211,7 @@ function Reveal({ rows, profile, onNext, open, essay, paid, lockedNames = [] }: 
       )}
       {others.length > 0 && (
         <div className="rise mt-4" style={{ animationDelay: "0.25s" }}>
-          <OddsTable rows={others.map((r) => ({ key: r.schoolId, name: r.school.name, odds: r.odds, upTo: upTo(r.odds, r.fixes), locked: r.locked, movable: r.movable, fix: r.fixes.find((f) => f.kind === "round") ?? r.fixes[0], source: { href: r.school.source, edition: r.school.edition }, note: r.school.note }))} />
+          <OddsTable tiers={pro} rows={others.map((r) => ({ key: r.schoolId, name: r.school.name, odds: r.odds, upTo: upTo(r.odds, r.fixes), locked: r.locked, movable: r.movable, fix: r.fixes.find((f) => f.kind === "round") ?? r.fixes[0], source: { href: r.school.source, edition: r.school.edition }, note: r.school.note }))} />
         </div>
       )}
       <p className="caption mt-3">Each school name links to the Common Data Set behind its number. These are estimates, not a promise of an admit.</p>
@@ -219,7 +221,7 @@ function Reveal({ rows, profile, onNext, open, essay, paid, lockedNames = [] }: 
 }
 
 /** Five questions, one per screen (the essay is read while the rest are answered), then the odds, then the one thing worth paying for. */
-export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean }) {
+export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; open: boolean; pro?: boolean }) {
   // The step lives in the URL so the back button walks the steps. Answers never go in the URL.
   const params = useSearchParams();
   const step = Number(params.get("step")) || 0;
@@ -550,7 +552,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
             </Question>
           )}
 
-          {step === 5 && rows.length > 0 && <Reveal rows={rows} profile={profile} onNext={() => go(6)} open={open} essay={read} paid={paid} lockedNames={lockedNames} />}
+          {step === 5 && rows.length > 0 && <Reveal rows={rows} profile={profile} onNext={() => go(6)} open={open} essay={read} paid={paid} pro={pro} lockedNames={lockedNames} />}
 
           {step === 6 && (
             <div className="w-full max-w-[1000px] mx-auto grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 items-center">
@@ -596,6 +598,12 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                       <input type="hidden" name="plan" value="week" />
                       <button className="w-full text-[13px] text-band-ink underline cursor-pointer bg-transparent border-0 p-0 font-[inherit]" type="submit">
                         Or {PLANS.week.short}, cancel anytime
+                      </button>
+                    </form>
+                    <form action="/api/essays/checkout" method="post" className="mt-2">
+                      <input type="hidden" name="plan" value="pro" />
+                      <button className="w-full text-[13px] text-band-ink underline cursor-pointer bg-transparent border-0 p-0 font-[inherit]" type="submit">
+                        Want a 1:1 call too? {PLANS.pro.name}, {PLANS.pro.short}
                       </button>
                     </form>
                     <p className="text-[12px] text-band-ink-3 text-center mt-3 leading-[1.5]">

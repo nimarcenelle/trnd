@@ -156,3 +156,39 @@ describe("reading a reply while it streams", () => {
     expect(parsePartial('{"a":1,"b":[1,2]}')).toEqual({ a: 1, b: [1, 2] });
   });
 });
+
+import { cleanSat, parseTarget } from "@/lib/essayodds/sat-core";
+import { tierFor } from "@/lib/essayodds/tiers";
+
+describe("Pro", () => {
+  it("is a plan of its own that runs as long as the RD Pass, and costs the difference to upgrade", () => {
+    expect(parsePlan("pro")).toBe("pro");
+    expect(accessUntil("pro", new Date("2026-11-16T12:00:00Z"))).toEqual(RD_PASS_ENDS);
+    expect(PLANS.pro.cents - PLANS.rd.cents).toBe(14000);
+  });
+  it("sorts schools into reach, target and likely", () => {
+    expect([tierFor(5), tierFor(24), tierFor(25), tierFor(59), tierFor(60), tierFor(85)]).toEqual(["Reach", "Reach", "Target", "Target", "Likely", "Likely"]);
+  });
+  it("keeps only real SAT domains, scores in range and three focus skills", () => {
+    const plan = cleanSat(
+      {
+        total: 1340,
+        readingWriting: 900,
+        math: 650,
+        missed: [
+          { domain: "Algebra", skill: "Linear equations in two variables", count: 3 },
+          { domain: "Vibes", skill: "Made up", count: 9 },
+          { domain: "Craft and Structure", skill: "Words in Context", count: 0 },
+          { domain: "Advanced Math", skill: "Nonlinear functions", count: 5 },
+        ],
+        focus: [1, 2, 3, 4].map((i) => ({ skill: `s${i}`, domain: "Algebra", why: "w", drill: "d" })),
+        plan: [1, 2, 3, 4].map((week) => ({ week, work: "x" })),
+      },
+      1500,
+    );
+    expect([plan.total, plan.readingWriting, plan.math]).toEqual([1340, null, 650]);
+    expect(plan.missed.map((m) => m.skill)).toEqual(["Nonlinear functions", "Linear equations in two variables"]);
+    expect([plan.focus.length, plan.plan.length, plan.target]).toEqual([3, 3, 1500]);
+    expect([parseTarget("1500"), parseTarget("2400"), parseTarget("")]).toEqual([1500, null, null]);
+  });
+});

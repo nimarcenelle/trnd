@@ -1,16 +1,16 @@
 import { Suspense } from "react";
 
 import OddsFlow from "@/components/essayodds/odds-flow";
-import { paidSession } from "@/lib/essayodds/access";
+import { isPro, paidAccess } from "@/lib/essayodds/access";
 import { isEssayOpen } from "@/lib/env";
 
 export const metadata = { title: "See my odds · EssayOdds" };
 
 export default async function OddsPage() {
-  const paid = isEssayOpen ? Boolean(await paidSession()) : false;
+  const access = isEssayOpen ? await paidAccess() : null;
   return (
     <Suspense>
-      <OddsFlow paid={paid} open={isEssayOpen} />
+      <OddsFlow paid={Boolean(access)} pro={isPro(access)} open={isEssayOpen} />
     </Suspense>
   );
 }

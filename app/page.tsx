@@ -58,7 +58,7 @@ export default function Home() {
                 Know your <em className="italic">actual</em> odds.
                 <span className="block text-[var(--headline-2)]">Then raise them.</span>
               </h1>
-              <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.55] mt-5 max-w-[560px]">Not a forum guess. Your real chances at every school on your list, from each college&apos;s own admissions data, and exactly how many points your essay is costing you. Two minutes to see it. Fix it before you hit submit.</p>
+              <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.55] mt-5 max-w-[560px]">Not a forum guess. Your real chances at every school on your list, from each college&apos;s own admissions data, and exactly how to boost them, starting with the points your essay is costing you. Two minutes to see it.</p>
               <Cta className="mt-8" />
               <ul className="list-none p-0 m-0 mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-ink-2">
                 {["Two minutes", "Every school on your list", "Cancel anytime"].map((t) => (

@@ -1,7 +1,6 @@
 /**
  * Published first-year figures, from each school's own Common Data Set. Sections C1, C9,
  * C14 and C21–C22. A null means the figure could not be read from the file, never a guess.
- * Princeton and Johns Hopkins are listed as pending until their files are in.
  */
 export type School = {
   id: string;
@@ -29,6 +28,8 @@ export type School = {
 export const SCHOOLS: School[] = [
   { id: "harvard", name: "Harvard University", aliases: ["harvard", "harvard college"], edition: "2025–26", source: "https://bpb-us-e1.wpmucdn.com/sites.harvard.edu/dist/6/210/files/2026/07/CDS_2025-2026.pdf", applicants: 47893, admitted: 2003, early: { plan: "REA", closes: "Nov 1", applicants: null, admitted: null }, sat: "ERW 720–770, Math 730–790", sat25: 1450, sat75: 1560, regularDeadline: "Jan 1" },
   { id: "yale", name: "Yale University", aliases: ["yale"], edition: "2025–26", source: "https://oir.yale.edu/sites/default/files/yale_cds_2025-26_md_20260616.pdf", applicants: 50264, admitted: 2387, early: { plan: "REA", closes: "Nov 1", applicants: null, admitted: null }, sat: "1480–1560", sat25: 1480, sat75: 1560, regularDeadline: "Jan 2" },
+  { id: "princeton", name: "Princeton University", aliases: ["princeton", "princeton university"], edition: "2025–26", source: "https://ir.princeton.edu/document/606", applicants: 42303, admitted: 1868, early: { plan: "REA", closes: "Nov 1", applicants: null, admitted: null }, sat: "ERW 740–780, Math 760–800", sat25: 1490, sat75: 1560, regularDeadline: "Jan 1" },
+  { id: "jhu", name: "Johns Hopkins University", aliases: ["johns hopkins", "hopkins", "jhu", "johns hopkins university"], edition: "2025–26", source: "https://oira.jhu.edu/wp-content/uploads/2025-2026-CDS-Johns-Hopkins-University-v2.pdf", applicants: 50259, admitted: 3072, early: { plan: "ED", closes: "Nov 1", applicants: 7639, admitted: 835 }, sat: "ERW 750–780, Math 780–800", sat25: 1530, sat75: 1565, regularDeadline: "Jan 2", note: "Early decision figures combine ED I (Nov 1) and ED II (Jan 2)." },
   { id: "dartmouth", name: "Dartmouth College", aliases: ["dartmouth"], edition: "2025–26", source: "https://www.dartmouth.edu/oir/pdfs/cds_2025-26.pdf", applicants: 28230, admitted: 1699, early: { plan: "ED", closes: "Nov 1", applicants: 3552, admitted: 768 }, sat: "1440–1550", sat25: 1440, sat75: 1550, regularDeadline: "Jan 3" },
   { id: "cornell", name: "Cornell University", aliases: ["cornell"], edition: "2025–26", source: "https://irp.cornell.edu/wp-content/uploads/2026/09/Cornell-Common-Data-Set-2025-26.pdf", applicants: 72523, admitted: 6077, early: { plan: "ED", closes: "Nov 1", applicants: 10057, admitted: 1889 }, sat: "1490–1550", sat25: 1490, sat75: 1550, regularDeadline: "Jan 2" },
   { id: "columbia", name: "Columbia University", aliases: ["columbia", "columbia college", "columbia engineering"], edition: "2025–26", source: "https://opir.columbia.edu/cds", applicants: 59611, admitted: 2946, early: { plan: "ED", closes: "Nov 1", applicants: 5868, admitted: 819 }, sat: "1510–1560", sat25: 1510, sat75: 1560, regularDeadline: "Jan 1", note: "Columbia College and Columbia Engineering" },
@@ -69,8 +70,6 @@ export const SCHOOLS: School[] = [
 ];
 
 export const PENDING_SCHOOLS: { name: string; aliases: string[] }[] = [
-  { name: "Princeton University", aliases: ["princeton"] },
-  { name: "Johns Hopkins University", aliases: ["johns hopkins", "hopkins", "jhu"] },
   { name: "University of Virginia", aliases: ["uva", "university of virginia"] },
 ];
 

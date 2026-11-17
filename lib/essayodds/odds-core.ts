@@ -64,7 +64,7 @@ export function matchSchools(text: string): { found: School[]; pending: string[]
   const found: School[] = [];
   const pending: string[] = [];
   const unknown: string[] = [];
-  for (const part of text.split(/[,;\n]+/).map((p) => p.trim()).filter(Boolean).slice(0, 40)) {
+  for (const part of text.split(/[,;\n]+/).map((p) => p.trim()).filter(Boolean).slice(0, 60)) {
     const n = norm(part);
     const school = SCHOOLS.find((s) => s.aliases.some((alias) => norm(alias) === n) || norm(s.name) === n);
     if (school) {

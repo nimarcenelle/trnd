@@ -14,9 +14,9 @@ export async function POST(request: Request): Promise<Response> {
   let text = "";
   try {
     if (isPdf(bytes)) {
-      text = await pdfText(bytes);
+      text = await pdfText(bytes.slice());
       // A whole Common App, not one essay: take the personal statement out of it.
-      if (text.split(/\s+/).length > 1200) text = (await readCommonApp(bytes)).essay ?? "";
+      if (text.split(/\s+/).length > 1200) text = (await readCommonApp(bytes.slice())).essay ?? "";
     }
     else if (isDocx(bytes)) text = docxText(bytes);
     else return Response.json({ error: "type" }, { status: 415 });

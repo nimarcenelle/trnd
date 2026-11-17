@@ -100,6 +100,13 @@ const roundGain = (r: Row) => r.fixes.find((f) => f.kind === "round")?.gain ?? 0
 /** The school where the round moves the number most, or the most movable one where none has a round. */
 const biggestMove = (rows: Row[]) => [...rows].sort((a, b) => roundGain(b) - roundGain(a) || b.movable - a.movable)[0];
 
+/** What fixing the essays and activities could add, from the same calculation as the odds. Null under a 5% lift. */
+export function potential(row: Pick<Row, "odds" | "fixes">): { to: number; lift: number } | null {
+  const to = row.odds + row.fixes.filter((f) => f.kind !== "round").reduce((sum, f) => sum + f.gain, 0);
+  const lift = Math.round((to / Math.max(1, row.odds) - 1) * 100);
+  return lift >= 5 ? { to, lift } : null;
+}
+
 function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedNames = [] }: { rows: Row[]; profile: string; onNext: () => void; open: boolean; essay: EssayRead; paid: boolean; pro?: boolean; lockedNames?: string[] }) {
   const lead = biggestMove(rows);
   const others = rows.filter((r) => r !== lead);
@@ -128,6 +135,15 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
             {upTo(lead.odds, lead.fixes) === null ? "today" : <>today, up to <span className="font-semibold text-brand">{upTo(lead.odds, lead.fixes)}%</span> by round</>}
           </div>
         </div>
+        {potential(lead) && (
+          <div className="mt-5 rounded-[12px] bg-[var(--soft)] px-4 py-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <span className="text-[14px] font-medium">With your essays and activities fixed</span>
+            <span className="tnum text-[14px]">
+              <span className="text-ink-3">{lead.odds}% →</span> <span className="font-semibold text-brand text-[18px]">{potential(lead)!.to}%</span>{" "}
+              <span className="font-semibold text-brand">· {potential(lead)!.lift}% higher odds</span>
+            </span>
+          </div>
+        )}
         <div className="mt-6 flex h-3 w-full rounded-full overflow-hidden bg-muted">
           <span className="grow-x bg-locked" style={{ width: `${lead.locked}%` }} />
           <span className="grow-x bg-brand ml-px" style={{ width: `${lead.movable}%`, animationDelay: "0.35s" }} />
@@ -595,6 +611,15 @@ export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; o
                 <h1 className="display text-[40px] sm:text-[56px] mt-3">
                   {lockedNames.length ? `Unlock your odds at ${lockedNames.length === 1 ? lockedNames[0].replace(/^University of /, "") : "all your schools"}.` : read.state === "read" ? "Your essay is leaving points on the table." : "Your essays decide the rest."}
                 </h1>
+                {rows[0] && (() => {
+                  const best = rows.map((r) => ({ r, p: potential(r) })).filter((x) => x.p).sort((a, b) => b.p!.lift - a.p!.lift)[0];
+                  return best ? (
+                    <p className="mt-4 inline-flex flex-wrap items-baseline gap-x-2 rounded-full bg-[var(--soft)] px-4 py-2 text-[14px] tnum">
+                      <span className="font-semibold text-brand">Up to {best.p!.lift}% higher odds</span>
+                      <span className="text-ink-2">at {best.r.school.name.replace(/^University of /, "")} with your essays and activities fixed</span>
+                    </p>
+                  ) : null;
+                })()}
                 <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.55] mt-4">Your grades and scores are set. Your essays aren&apos;t. Get your score, every line that&apos;s costing you marked with the fix, and rewrites in your own voice, tonight. Every supplement, every revision, until you submit.</p>
                 <div className="mt-8">
                   <EssaySample />

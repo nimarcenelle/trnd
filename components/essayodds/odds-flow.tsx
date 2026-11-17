@@ -183,7 +183,7 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
           ) : (
             <div className="well mt-5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <p className="text-[14px] leading-[1.55]">
-                <span className="font-semibold">Your essay is read.</span> Its score and the exact lines {essays ? <>holding your odds back <span className="font-semibold text-brand tnum">{lift(essays.gain, lead.odds)}%</span> here</> : "to fix"} are ready.
+                <span className="font-semibold">Your essay is read.</span> Its score and the exact lines {essays ? <>that could raise your odds <span className="font-semibold text-brand tnum">{lift(essays.gain, lead.odds)}%</span></> : "to fix"} are ready.
               </p>
               <button className="btn btn-primary shrink-0" type="button" onClick={onNext}>
                 Unlock my fixes

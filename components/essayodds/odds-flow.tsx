@@ -100,6 +100,9 @@ const roundGain = (r: Row) => r.fixes.find((f) => f.kind === "round")?.gain ?? 0
 /** The school where the round moves the number most, or the most movable one where none has a round. */
 const biggestMove = (rows: Row[]) => [...rows].sort((a, b) => roundGain(b) - roundGain(a) || b.movable - a.movable)[0];
 
+/** A gain in odds points as a percent increase on today's odds: +1 on 7% is 14% higher odds. */
+export const lift = (gain: number, odds: number) => Math.round((gain / Math.max(1, odds)) * 100);
+
 /** What fixing the essays and activities could add, from the same calculation as the odds. Null under a 5% lift. */
 export function potential(row: Pick<Row, "odds" | "fixes">): { to: number; lift: number } | null {
   const to = row.odds + row.fixes.filter((f) => f.kind !== "round").reduce((sum, f) => sum + f.gain, 0);
@@ -136,12 +139,9 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
           </div>
         </div>
         {potential(lead) && (
-          <div className="mt-5 rounded-[12px] bg-[var(--soft)] px-4 py-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <span className="text-[14px] font-medium">With your essays and activities fixed</span>
-            <span className="tnum text-[14px]">
-              <span className="text-ink-3">{lead.odds}% →</span> <span className="font-semibold text-brand text-[18px]">{potential(lead)!.to}%</span>{" "}
-              <span className="font-semibold text-brand">· {potential(lead)!.lift}% higher odds</span>
-            </span>
+          <div className="mt-5 rounded-[12px] bg-[var(--soft)] px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <span className="text-[15px] font-medium">Fix your essays and activities to raise your odds by</span>
+            <span className="tnum text-[28px] font-semibold tracking-[-0.02em] leading-none text-brand">{potential(lead)!.lift}%</span>
           </div>
         )}
         <div className="mt-6 flex h-3 w-full rounded-full overflow-hidden bg-muted">
@@ -155,13 +155,13 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
           {round && (
             <li className="flex items-baseline justify-between gap-4 py-3 text-[14px]">
               <span>{round.label}</span>
-              <span className="tnum font-semibold text-brand whitespace-nowrap">+{round.gain} pts</span>
+              <span className="tnum font-semibold text-brand whitespace-nowrap">+{lift(round.gain, lead.odds)}% odds</span>
             </li>
           )}
           {essay.state === "read" && (
             <li className="flex items-baseline justify-between gap-4 py-3 text-[14px]">
               <span>{essays?.label ?? "Your essay"}</span>
-              {essays ? <span className="tnum font-semibold text-brand whitespace-nowrap">+{essays.gain} pts</span> : <span className="text-[13px] text-ink-3 text-right">Already strong</span>}
+              {essays ? <span className="tnum font-semibold text-brand whitespace-nowrap">+{lift(essays.gain, lead.odds)}% odds</span> : <span className="text-[13px] text-ink-3 text-right">Already strong</span>}
             </li>
           )}
           {[...(essay.state === "read" ? [] : [essays?.label ?? "Your essays"]), "Your recommendation letters", activities?.label ?? "How your activities read"].map((label) => (
@@ -183,7 +183,7 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
           ) : (
             <div className="well mt-5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <p className="text-[14px] leading-[1.55]">
-                <span className="font-semibold">Your essay is read.</span> Its score and the exact lines {essays ? <>costing you <span className="font-semibold text-brand tnum">{essays.gain} pts</span> here</> : "to fix"} are ready.
+                <span className="font-semibold">Your essay is read.</span> Its score and the exact lines {essays ? <>holding your odds back <span className="font-semibold text-brand tnum">{lift(essays.gain, lead.odds)}%</span> here</> : "to fix"} are ready.
               </p>
               <button className="btn btn-primary shrink-0" type="button" onClick={onNext}>
                 Unlock my fixes
@@ -615,7 +615,7 @@ export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; o
                   const best = rows.map((r) => ({ r, p: potential(r) })).filter((x) => x.p).sort((a, b) => b.p!.lift - a.p!.lift)[0];
                   return best ? (
                     <p className="mt-4 inline-flex flex-wrap items-baseline gap-x-2 rounded-full bg-[var(--soft)] px-4 py-2 text-[14px] tnum">
-                      <span className="font-semibold text-brand">Up to {best.p!.lift}% higher odds</span>
+                      <span className="font-semibold text-brand">Raise your odds by up to {best.p!.lift}%</span>
                       <span className="text-ink-2">at {best.r.school.name.replace(/^University of /, "")} with your essays and activities fixed</span>
                     </p>
                   ) : null;

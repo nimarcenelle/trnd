@@ -36,6 +36,7 @@ export default function OddsToy() {
   const target = fixed ? FACTORS.withFixes : FACTORS.odds;
   const odds = useCount(target);
   const gain = FACTORS.withFixes - FACTORS.odds;
+  const pct = Math.round((gain / FACTORS.odds) * 100);
   return (
     <div className="card w-full p-6 shadow-[var(--shadow-lg)]">
       <div className="flex items-center justify-between gap-3">
@@ -63,7 +64,7 @@ export default function OddsToy() {
         <div className="text-[13px] text-ink-3 text-right tnum">
           GPA {FACTORS.gpa} · SAT {FACTORS.test}
           <br />
-          {fixed ? <span className="text-brand font-medium">+{gain} points with essays fixed</span> : "odds today"}
+          {fixed ? <span className="text-brand font-medium">{pct}% higher odds with essays fixed</span> : "odds today"}
         </div>
       </div>
       <div className="mt-5 flex h-3 w-full rounded-full overflow-hidden bg-muted" role="img" aria-label={`${target} percent ${fixed ? "with essays fixed" : "today"}`}>
@@ -75,7 +76,7 @@ export default function OddsToy() {
           <li key={f.label} className="flex items-baseline justify-between gap-3 py-3 text-[14px]">
             <span>{f.label}</span>
             {fixed && f.kind === "essays" ? (
-              <span className="text-[13px] font-medium text-brand whitespace-nowrap tnum">+{gain} points</span>
+              <span className="text-[13px] font-medium text-brand whitespace-nowrap tnum">+{pct}% odds</span>
             ) : (
               <span className="text-[13px] text-ink-3 whitespace-nowrap">Depends on what&apos;s in them</span>
             )}

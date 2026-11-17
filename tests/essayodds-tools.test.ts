@@ -123,6 +123,10 @@ describe("Common App upload", () => {
     expect(cutEssay(pdf, "not in the text", "word79")).toBe("");
     expect(cutEssay(pdf, "word0 word1", "word5 word6")).toBe("");
   });
+  it("still finds the essay when the model copied a snippet slightly wrong", () => {
+    // A dropped word at the end of the opening, a stray word at the start of the closing.
+    expect(cutEssay(pdf, "word0 word1 word2 word3 word4 word5 word6 word7 word8 wordX", "wordY word72 word73 word74 word75 word76 word77 word78 word79")).toBe(essay);
+  });
   it("keeps only answers that pass the flow's checks", () => {
     const f = fieldsFrom(pdf, { essay_start: "word0 word1", essay_end: "word78 word79", gpa: "3.92", test: "1520", state: "ny", colleges: ["Yale University", "Hogwarts"] });
     expect(f).toEqual({ essay, gpa: "3.92", test: "1520", state: "NY", schools: ["Yale University"] });

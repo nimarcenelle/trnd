@@ -28,17 +28,29 @@ export type CommonAppFields = { essay: string; gpa: string; test: string; state:
 
 const normalize = (text: string) => text.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/\s+/g, " ").trim();
 
+/** Where a snippet sits in the body, trying shorter runs of its words when the model copied it a little wrong. */
+function locate(body: string, snippet: string, from: number, side: "start" | "end"): { at: number; length: number } | null {
+  const words = snippet.split(" ").filter(Boolean);
+  for (const n of [words.length, 6, 4]) {
+    if (n !== words.length && (n > words.length || n < 3)) continue;
+    const part = (side === "start" ? words.slice(0, n) : words.slice(-n)).join(" ");
+    const at = body.toLowerCase().indexOf(part.toLowerCase(), from);
+    if (at >= 0) return { at, length: part.length };
+  }
+  return null;
+}
+
 /** The essay between the two snippets, from the PDF's own text. Empty when either can't be found. */
 export function cutEssay(text: string, start: string, end: string): string {
   const body = normalize(text);
   const s = normalize(start);
   const e = normalize(end);
   if (!s || !e) return "";
-  const from = body.toLowerCase().indexOf(s.toLowerCase());
-  if (from < 0) return "";
-  const at = body.toLowerCase().indexOf(e.toLowerCase(), from);
-  if (at < 0) return "";
-  const essay = body.slice(from, at + e.length).trim();
+  const first = locate(body, s, 0, "start");
+  if (!first) return "";
+  const last = locate(body, e, first.at, "end");
+  if (!last) return "";
+  const essay = body.slice(first.at, last.at + last.length).trim();
   const words = wordCount(essay);
   return words >= 50 && words <= 1000 ? essay : "";
 }

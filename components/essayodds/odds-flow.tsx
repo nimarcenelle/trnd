@@ -99,7 +99,7 @@ const roundGain = (r: Row) => r.fixes.find((f) => f.kind === "round")?.gain ?? 0
 /** The school where the round moves the number most, or the most movable one where none has a round. */
 const biggestMove = (rows: Row[]) => [...rows].sort((a, b) => roundGain(b) - roundGain(a) || b.movable - a.movable)[0];
 
-function Reveal({ rows, profile, onNext, open, essay, paid }: { rows: Row[]; profile: string; onNext: () => void; open: boolean; essay: EssayRead; paid: boolean }) {
+function Reveal({ rows, profile, onNext, open, essay, paid, lockedNames = [] }: { rows: Row[]; profile: string; onNext: () => void; open: boolean; essay: EssayRead; paid: boolean; lockedNames?: string[] }) {
   const lead = biggestMove(rows);
   const others = rows.filter((r) => r !== lead);
   const round = lead.fixes.find((f) => f.kind === "round");
@@ -116,7 +116,7 @@ function Reveal({ rows, profile, onNext, open, essay, paid }: { rows: Row[]; pro
           <a className="text-[16px] font-semibold hover:underline" href={lead.school.source} target="_blank" rel="noreferrer">
             {lead.school.name}
           </a>
-          <span className="text-[13px] text-ink-3">{round ? "Where the round moves you most" : "Where you can move the most"}</span>
+          <span className={`text-[13px] ${lockedNames.length ? "font-medium text-brand" : "text-ink-3"}`}>{lockedNames.length ? "Your free preview" : round ? "Where the round moves you most" : "Where you can move the most"}</span>
         </div>
         <div className="mt-5 flex flex-wrap items-end gap-x-5 gap-y-2 tnum">
           <div className="text-[72px] sm:text-[96px] font-semibold tracking-[-0.04em] leading-[0.9]">
@@ -174,6 +174,39 @@ function Reveal({ rows, profile, onNext, open, essay, paid }: { rows: Row[]; pro
           ))}
         {essay.state === "failed" && <p className="caption mt-4">We couldn&apos;t read your essay this time, so these odds leave it out. Try again from your essay page.</p>}
       </section>
+      {lockedNames.length > 0 && (
+        <section className="rise card mt-4 overflow-hidden" style={{ animationDelay: "0.25s" }}>
+          <ul className="list-none p-0 m-0 divide-y divide-line">
+            {lockedNames.map((name) => (
+              <li key={name} className="flex items-center gap-4 px-5 sm:px-6 py-4">
+                <span className="flex-1 min-w-0 text-[14px] font-medium truncate">{name}</span>
+                <span className="hidden sm:flex h-2 w-40 rounded-full overflow-hidden bg-muted blur-[2px]" aria-hidden="true">
+                  <span className="bg-locked w-1/4" />
+                  <span className="bg-brand w-1/6 ml-px" />
+                </span>
+                <span className="text-[20px] font-semibold tnum text-ink-3 blur-[5px] select-none" aria-hidden="true">
+                  ??%
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-2 shrink-0">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                    <rect x="4" y="11" width="16" height="10" rx="2" />
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                  </svg>
+                  Locked
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="bg-subtle border-t border-line px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-[14px]">
+              Your odds at {lockedNames.length === 1 ? lockedNames[0] : `${lockedNames.slice(0, -1).join(", ")} and ${lockedNames[lockedNames.length - 1]}`}, with what moves each one.
+            </p>
+            <button className="btn btn-primary shrink-0" type="button" onClick={onNext}>
+              Unlock all {lockedNames.length + 1} schools
+            </button>
+          </div>
+        </section>
+      )}
       {others.length > 0 && (
         <div className="rise mt-4" style={{ animationDelay: "0.25s" }}>
           <OddsTable rows={others.map((r) => ({ key: r.schoolId, name: r.school.name, odds: r.odds, upTo: upTo(r.odds, r.fixes), locked: r.locked, movable: r.movable, fix: r.fixes.find((f) => f.kind === "round") ?? r.fixes[0], source: { href: r.school.source, edition: r.school.edition }, note: r.school.note }))} />
@@ -199,6 +232,8 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
   const [read, setRead] = useState<EssayRead>({ state: "none" });
   const reading = useRef<Promise<EssayRead> | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
+  /** Schools the free preview doesn't show, by name, to unlock. */
+  const [lockedNames, setLockedNames] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [requesting, setRequesting] = useState(false);
@@ -346,8 +381,9 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
       if (step !== 4) go(4);
       return;
     }
-    const reply = (await res.json()) as { results: Row[]; essay: number | null };
+    const reply = (await res.json()) as { results: Row[]; essay: number | null; locked?: string[] };
     setRows(reply.results);
+    setLockedNames(reply.locked ?? []);
     // The odds count the score the server read from its saved review.
     if (essayRead.state === "read") setRead({ state: "read", score: reply.essay ?? essayRead.score });
     go(5);
@@ -390,7 +426,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
       <div className={`flex-1 grid grid-cols-[minmax(0,1fr)] ${inFlow ? "lg:grid-cols-[minmax(0,1fr)_440px]" : ""}`}>
         <main key={step} className={`min-w-0 px-5 sm:px-10 py-10 sm:py-16 ${inFlow ? "lg:px-16 xl:px-24 flex lg:items-center" : ""}`}>
           {step === 0 && (
-            <Question title="Where are you applying?" sub="Choose every school on your list.">
+            <Question title="Where are you applying?" sub="Pick your top 3. Your free preview shows your odds at the last one you pick; unlock the rest with a pass.">
               <label className={`card mb-6 p-4 flex items-center justify-between gap-4 cursor-pointer hover:border-line-strong transition-colors ${uploading ? "opacity-70 pointer-events-none" : ""}`}>
                 <span className="min-w-0">
                   <span className="block text-[14px] font-semibold">{uploading ? "Reading your Common App…" : "Skip the questions: upload your Common App"}</span>
@@ -418,6 +454,7 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
                     <li key={s.id}>
                       <button type="button" aria-pressed={on} onClick={() => setPicked((p) => (on ? p.filter((n) => n !== s.name) : [...p, s.name]))} className={`group w-full h-12 px-3 rounded-[10px] border flex items-center justify-between gap-2 text-[14px] text-left cursor-pointer font-[inherit] transition-all ${on ? "border-locked bg-[var(--soft)] font-medium text-ink shadow-[var(--shadow-sm)]" : "border-line bg-bg text-ink hover:border-line-strong hover:shadow-[var(--shadow-sm)]"}`}>
                         <span className="truncate">{shortName(s.name)}</span>
+                        {!paid && on && picked.length > 1 && picked[picked.length - 1] === s.name && <span className="text-[10px] font-semibold text-brand uppercase tracking-wide shrink-0">Free</span>}
                         <span className={`h-4 w-4 shrink-0 rounded-full flex items-center justify-center transition-colors ${on ? "bg-brand text-[var(--on-action)]" : "border border-line-strong"}`}>{on && <IconCheck className="w-2.5 h-2.5" />}</span>
                       </button>
                     </li>
@@ -513,13 +550,15 @@ export default function OddsFlow({ paid, open }: { paid: boolean; open: boolean 
             </Question>
           )}
 
-          {step === 5 && rows.length > 0 && <Reveal rows={rows} profile={profile} onNext={() => go(6)} open={open} essay={read} paid={paid} />}
+          {step === 5 && rows.length > 0 && <Reveal rows={rows} profile={profile} onNext={() => go(6)} open={open} essay={read} paid={paid} lockedNames={lockedNames} />}
 
           {step === 6 && (
             <div className="w-full max-w-[1000px] mx-auto grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 items-center">
               <div className="rise min-w-0">
                 <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
-                <h1 className="display text-[40px] sm:text-[56px] mt-3">{read.state === "read" ? "Your essay is leaving points on the table." : "Your essays decide the rest."}</h1>
+                <h1 className="display text-[40px] sm:text-[56px] mt-3">
+                  {lockedNames.length ? `Unlock your odds at ${lockedNames.length === 1 ? lockedNames[0].replace(/^University of /, "") : "all your schools"}.` : read.state === "read" ? "Your essay is leaving points on the table." : "Your essays decide the rest."}
+                </h1>
                 <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.55] mt-4">Your grades and scores are set. Your essays aren&apos;t. Get your score, every line that&apos;s costing you marked with the fix, and rewrites in your own voice, tonight. Every supplement, every revision, until you submit.</p>
                 <div className="mt-8">
                   <EssaySample />

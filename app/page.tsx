@@ -57,7 +57,7 @@ export default function Home() {
               <h1 className="display text-[44px] sm:text-[60px] mt-6">
                 The AI built to get you <em className="italic text-[var(--headline-2)]">in</em>.
               </h1>
-              <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.55] mt-5 max-w-[560px]">EssayOdds scores your essays the way an admissions reader would, marks the exact lines holding them back, and shows your real odds at every school on your list from each college&apos;s own data. Fix it all before you submit.</p>
+              <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.55] mt-5 max-w-[560px]">Trained on 500+ essays that got into top schools, EssayOdds scores yours the way an admissions reader would, marks the exact lines holding them back, and shows your real odds at every school on your list from each college&apos;s own data. Fix it all before you submit.</p>
               <Cta className="mt-8" />
               <ul className="list-none p-0 m-0 mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-ink-2">
                 {["Two minutes", "Every school on your list", "Cancel anytime"].map((t) => (

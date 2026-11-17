@@ -619,10 +619,8 @@
     mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
   }
   .marquee-track {
-    animation: marquee 40s linear infinite;
-  }
-  .marquee:hover .marquee-track {
-    animation-play-state: paused;
+    animation: marquee 70s linear infinite;
+    will-change: transform;
   }
   @keyframes marquee {
     to {

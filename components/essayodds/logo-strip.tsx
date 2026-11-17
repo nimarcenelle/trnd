@@ -36,9 +36,9 @@ export default function LogoStrip() {
     <div>
       <p className="text-center text-[13px] font-medium text-ink-3">Used by students admitted to</p>
       <div className="marquee mt-6 overflow-hidden">
-        <ul className="marquee-track list-none p-0 m-0 flex w-max items-center gap-14 sm:gap-20">
+        <ul className="marquee-track list-none p-0 m-0 flex w-max items-center">
           {[...SCHOOLS, ...SCHOOLS].map((s, i) => (
-            <li key={`${s.id}-${i}`} aria-hidden={i >= SCHOOLS.length} className="shrink-0">
+            <li key={`${s.id}-${i}`} aria-hidden={i >= SCHOOLS.length} className="shrink-0 pr-14 sm:pr-20">
               <Mark id={s.id} name={s.name} />
             </li>
           ))}

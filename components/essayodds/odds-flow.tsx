@@ -240,6 +240,7 @@ export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; o
   const [error, setError] = useState("");
   const [requesting, setRequesting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [essayFile, setEssayFile] = useState<{ state: "idle" | "reading" | "failed"; note?: string }>({ state: "idle" });
   const [uploadNote, setUploadNote] = useState("");
   /** Questions the Common App already answered, so the flow doesn't ask them again. */
   const [filled, setFilled] = useState<number[]>([]);
@@ -330,6 +331,23 @@ export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; o
     ].find((q) => q.step > from && !q.done);
     if (open) go(open.step);
     else void getOdds(a);
+  }
+
+  /** A Word or PDF essay fills the box; the student still sees it and presses Read. */
+  async function uploadEssay(file: File) {
+    setEssayFile({ state: "reading" });
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch("/api/onboard/essay-file", { method: "POST", body: form }).catch(() => null);
+    if (!res?.ok) {
+      const note = res?.status === 415 ? "Upload a Word (.docx) or PDF file." : res?.status === 413 ? "That file is over 5 MB." : "We couldn't read that file. Paste the essay instead.";
+      return setEssayFile({ state: "failed", note });
+    }
+    const { essay: text } = (await res.json()) as { essay: string };
+    setEssay(text);
+    reading.current = null;
+    setRead({ state: "none" });
+    setEssayFile({ state: "idle", note: `Read from ${file.name}. Check it, then press Read my essay.` });
   }
 
   async function upload(file: File) {
@@ -485,7 +503,7 @@ export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; o
           )}
 
           {step === 1 && (
-            <Question title="Paste your personal statement." sub="Our AI reads it while you answer the rest, and your odds count it. Not written yet? Skip it and add it later.">
+            <Question title="Add your personal statement." sub="Our AI reads it while you answer the rest, and your odds count it. Not written yet? Skip it and add it later.">
               <textarea
                 className="input w-full !h-[280px] !py-3 text-[16px] leading-[1.65] resize-y"
                 value={essay}
@@ -494,12 +512,28 @@ export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; o
                   reading.current = null;
                   setRead({ state: "none" });
                 }}
-                placeholder="Paste your Common App essay or your best draft."
+                placeholder="Paste your Common App essay or your best draft, or upload the file."
                 aria-label="Your personal statement"
               />
-              <p className={`text-[13px] mt-2 tnum ${essayWords > 650 ? "text-neg" : "text-ink-3"}`}>
-                {essayWords} / 650 words{essayWords > 0 && essayWords < MIN_WORDS ? ` · ${MIN_WORDS} words to read it` : ""}
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-3 mt-2">
+                <p className={`text-[13px] tnum ${essayWords > 650 ? "text-neg" : "text-ink-3"}`}>
+                  {essayWords} / 650 words{essayWords > 0 && essayWords < MIN_WORDS ? ` · ${MIN_WORDS} words to read it` : ""}
+                </p>
+                <label className={`btn btn-secondary btn-sm cursor-pointer ${essayFile.state === "reading" ? "opacity-70 pointer-events-none" : ""}`}>
+                  {essayFile.state === "reading" ? "Reading file…" : "Upload Word or PDF"}
+                  <input
+                    type="file"
+                    accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (file) void uploadEssay(file);
+                    }}
+                  />
+                </label>
+              </div>
+              {essayFile.note && <p className={`text-[13px] mt-2 ${essayFile.state === "failed" ? "text-neg" : "text-brand"}`}>{essayFile.note}</p>}
               <Next disabled={essayWords < MIN_WORDS || essayWords > 1000} onClick={readEssay} label="Read my essay" />
               <button className="mt-4 text-[14px] text-ink-2 underline hover:text-ink cursor-pointer bg-transparent border-0 p-0 font-[inherit]" type="button" onClick={skipEssay}>
                 I haven&apos;t written it yet

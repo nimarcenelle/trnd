@@ -160,18 +160,27 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
               <span className="tnum font-semibold text-brand whitespace-nowrap">{lift(round.gain, lead.odds)}% better chance</span>
             </li>
           )}
-          {essay.state === "read" && (
-            <li className="flex items-baseline justify-between gap-4 py-3 text-[14px]">
-              <span>{essays?.label ?? "Your essay"}</span>
-              {essays ? <span className="tnum font-semibold text-brand whitespace-nowrap">{lift(essays.gain, lead.odds)}% better chance</span> : <span className="text-[13px] text-ink-3 text-right">Already strong</span>}
-            </li>
-          )}
-          {[...(essay.state === "read" ? [] : [essays?.label ?? "Your essays"]), "Your recommendation letters", activities?.label ?? "How your activities read"].map((label) => (
-            <li key={label} className="flex items-baseline justify-between gap-4 py-3 text-[14px]">
-              <span>{label}</span>
-              <span className="text-[13px] text-ink-3 text-right">Depends on what&apos;s in them</span>
-            </li>
-          ))}
+          {(() => {
+            // The rows add up to the band: essays first, activities take the rest, so 38% + 12% reads as the 50% above.
+            const total = potential(lead)?.lift ?? null;
+            const essayShare = essays ? lift(essays.gain, lead.odds) : 0;
+            const activityShare = total !== null ? Math.max(0, total - essayShare) : activities ? lift(activities.gain, lead.odds) : 0;
+            const rows: { label: string; share: number | null; note?: string }[] = [
+              { label: essays?.label ?? (essay.state === "read" ? "Your essay" : "Your essays"), share: essays ? essayShare : null, note: essay.state === "read" && !essays ? "Already strong" : undefined },
+              { label: activities?.label ?? "How your activities read", share: activities ? activityShare : null },
+              { label: "Your recommendation letters", share: null },
+            ];
+            return rows.map((r) => (
+              <li key={r.label} className="flex items-baseline justify-between gap-4 py-3 text-[14px]">
+                <span>{r.label}</span>
+                {r.share ? (
+                  <span className="tnum font-semibold text-brand whitespace-nowrap">{r.share}% better chance</span>
+                ) : (
+                  <span className="text-[13px] text-ink-3 text-right">{r.note ?? "Depends on what's in them"}</span>
+                )}
+              </li>
+            ));
+          })()}
         </ul>
         {lead.school.note && <p className="caption mt-2">{lead.school.note}</p>}
         {essay.state === "read" &&

@@ -128,7 +128,7 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
           <a className="text-[16px] font-semibold hover:underline" href={lead.school.source} target="_blank" rel="noreferrer">
             {lead.school.name}
           </a>
-          <span className={`text-[13px] ${lockedNames.length ? "font-medium text-brand" : "text-ink-3"}`}>{lockedNames.length ? "Your free preview" : round ? "Where the round moves you most" : "Where you can move the most"}</span>
+          <span className={`text-[13px] ${lockedNames.length ? "font-medium text-brand" : "text-ink-3"}`}>{lockedNames.length ? "Your free preview" : round ? "Where applying early helps you most" : "Where your essays matter most"}</span>
         </div>
         <div className="mt-5 flex flex-wrap items-end gap-x-5 gap-y-2 tnum">
           <div className="text-[72px] sm:text-[96px] font-semibold tracking-[-0.04em] leading-[0.9]">
@@ -140,8 +140,8 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
         </div>
         {potential(lead) && (
           <div className="mt-5 rounded-[12px] bg-[var(--soft)] px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-            <span className="text-[15px] font-medium">Fix your essays and activities to raise your odds by</span>
-            <span className="tnum text-[28px] font-semibold tracking-[-0.02em] leading-none text-brand">{potential(lead)!.lift}%</span>
+            <span className="text-[15px] font-medium">Fix your essays and activities for a better chance of getting in</span>
+            <span className="tnum text-[28px] font-semibold tracking-[-0.02em] leading-none text-brand">+{potential(lead)!.lift}%</span>
           </div>
         )}
         <div className="mt-6 flex h-3 w-full rounded-full overflow-hidden bg-muted">
@@ -155,13 +155,13 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
           {round && (
             <li className="flex items-baseline justify-between gap-4 py-3 text-[14px]">
               <span>{round.label}</span>
-              <span className="tnum font-semibold text-brand whitespace-nowrap">+{lift(round.gain, lead.odds)}% odds</span>
+              <span className="tnum font-semibold text-brand whitespace-nowrap">{lift(round.gain, lead.odds)}% better chance</span>
             </li>
           )}
           {essay.state === "read" && (
             <li className="flex items-baseline justify-between gap-4 py-3 text-[14px]">
               <span>{essays?.label ?? "Your essay"}</span>
-              {essays ? <span className="tnum font-semibold text-brand whitespace-nowrap">+{lift(essays.gain, lead.odds)}% odds</span> : <span className="text-[13px] text-ink-3 text-right">Already strong</span>}
+              {essays ? <span className="tnum font-semibold text-brand whitespace-nowrap">{lift(essays.gain, lead.odds)}% better chance</span> : <span className="text-[13px] text-ink-3 text-right">Already strong</span>}
             </li>
           )}
           {[...(essay.state === "read" ? [] : [essays?.label ?? "Your essays"]), "Your recommendation letters", activities?.label ?? "How your activities read"].map((label) => (
@@ -183,7 +183,7 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
           ) : (
             <div className="well mt-5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <p className="text-[14px] leading-[1.55]">
-                <span className="font-semibold">Your essay is read.</span> Its score and the exact lines {essays ? <>that could raise your odds <span className="font-semibold text-brand tnum">{lift(essays.gain, lead.odds)}%</span></> : "to fix"} are ready.
+                <span className="font-semibold">Your essay is read.</span> {essays ? <>See exactly what to change for a <span className="font-semibold text-brand tnum">{lift(essays.gain, lead.odds)}%</span> better chance of getting in.</> : "See exactly what to change before you submit."}
               </p>
               <button className="btn btn-primary shrink-0" type="button" onClick={onNext}>
                 Unlock my fixes
@@ -231,7 +231,7 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
         </div>
       )}
       <p className="caption mt-3">Each school name links to the Common Data Set behind its number. These are estimates, not a promise of an admit.</p>
-      {open && <Next onClick={onNext} label="Raise my odds" />}
+      {open && <Next onClick={onNext} label="Get my fixes" />}
     </div>
   );
 }
@@ -609,18 +609,18 @@ export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; o
               <div className="rise min-w-0">
                 <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
                 <h1 className="display text-[40px] sm:text-[56px] mt-3">
-                  {lockedNames.length ? `Unlock your odds at ${lockedNames.length === 1 ? lockedNames[0].replace(/^University of /, "") : "all your schools"}.` : read.state === "read" ? "Your essay is leaving points on the table." : "Your essays decide the rest."}
+                  {lockedNames.length ? `Unlock your odds at ${lockedNames.length === 1 ? lockedNames[0].replace(/^University of /, "") : "all your schools"}.` : read.state === "read" ? "Your essay can still get you in." : "Your essays decide the rest."}
                 </h1>
                 {rows[0] && (() => {
                   const best = rows.map((r) => ({ r, p: potential(r) })).filter((x) => x.p).sort((a, b) => b.p!.lift - a.p!.lift)[0];
                   return best ? (
                     <p className="mt-4 inline-flex flex-wrap items-baseline gap-x-2 rounded-full bg-[var(--soft)] px-4 py-2 text-[14px] tnum">
-                      <span className="font-semibold text-brand">Raise your odds by up to {best.p!.lift}%</span>
-                      <span className="text-ink-2">at {best.r.school.name.replace(/^University of /, "")} with your essays and activities fixed</span>
+                      <span className="font-semibold text-brand">Up to a {best.p!.lift}% better chance of getting in</span>
+                      <span className="text-ink-2">at {best.r.school.name.replace(/^University of /, "")}, with your essays and activities fixed</span>
                     </p>
                   ) : null;
                 })()}
-                <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.55] mt-4">Your grades and scores are set. Your essays aren&apos;t. Get your score, every line that&apos;s costing you marked with the fix, and rewrites in your own voice, tonight. Every supplement, every revision, until you submit.</p>
+                <p className="text-[16px] sm:text-[18px] text-ink-2 leading-[1.55] mt-4">Your grades and scores are set. Your essays aren&apos;t. Get your score, every line that&apos;s working against you marked with the fix, and rewrites in your own voice, tonight. Every supplement, every revision, until you submit.</p>
                 <div className="mt-8">
                   <EssaySample />
                 </div>

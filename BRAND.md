@@ -7,6 +7,9 @@ the same change.
 
 ## Principles
 
+- **Getting in, never points (Nick, 2026-11-18).** Every line is about the student getting admitted. Gains read as "a 43% better
+  chance of getting in", never "+N pts", "boost your score" or "leaving points on the table". The split bar is "set by your grades
+  and scores" and "still up to you", not locked and movable.
 - **Sell, cleanly (Nick, 2026-11-16).** Every section and every step pushes toward a purchase: one clear promise ("Know
   your odds. Then raise them."), a CTA in every homepage section, the last odds screen sells the season pass directly. No
   fluff, no noise, nothing that pulls away from buying (the guide capture is off the homepage and the odds flow). It still
@@ -91,6 +94,6 @@ UI. Do not add sizes between these. `.tnum` on every number. Sentence case every
 ## Voice
 
 - Short declaratives. "36% of this is locked. 64% is movable." Not "unlock your dream school".
-- Give the number and its unit: "+7 pts at Dartmouth", "chance of at least one admit: 16% → 23%".
+- Give the number and what it means for getting in: "a 43% better chance of getting in at Tufts", never "+7 pts".
 - Never promise an admit. Odds say how sure they are.
 - No hype words: no "unlock", "supercharge", "AI-powered", "magic", "dream school", "guaranteed".

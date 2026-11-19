@@ -44,7 +44,7 @@ function Upgrade({ reason }: { reason: "rewrite" | "review" }) {
     <div className="max-w-[440px]">
       <h2 className="text-[16px] font-semibold">Get your essay scored and fixed</h2>
       <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">
-        Your score out of 100, every line costing you marked with the fix, and rewrites in your voice, re-scored until it&apos;s ready. Unlimited essays and supplements.
+        Your score out of 100, every line working against you marked with the fix, and rewrites in your voice, re-scored until it&apos;s ready. Unlimited essays and supplements.
       </p>
       <div className="flex flex-col gap-3 mt-6">
         {[PLANS.rd, PLANS.week].map((plan) => (
@@ -78,7 +78,7 @@ function Empty({ paid }: { paid: boolean }) {
   return (
     <div className="max-w-[440px]">
       <h2 className="text-[16px] font-semibold">What you will get</h2>
-      <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">A score out of 100, the lines costing you most marked in your draft, and what to do about each one.</p>
+      <p className="text-[14px] text-ink-2 leading-[1.6] mt-1.5">A score out of 100, the lines hurting you most marked in your draft, and what to do about each one.</p>
       <ul className="list-none p-0 m-0 mt-6 flex flex-col gap-3">
         {CRITERIA.map((label) => (
           <li key={label} className="flex items-center justify-between gap-4 text-[13px] text-ink-3">

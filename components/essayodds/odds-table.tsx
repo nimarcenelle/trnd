@@ -37,7 +37,7 @@ export default function OddsTable({ rows, tiers = false }: { rows: OddsRow[]; ti
                 {r.fix && (
                   <div className="text-[13px] text-ink-2 mt-0.5">
                     {r.fix.label}
-                    {r.fix.kind === "round" && <span className="tnum font-medium text-brand whitespace-nowrap"> +{Math.round((r.fix.gain / Math.max(1, r.odds)) * 100)}% odds</span>}
+                    {r.fix.kind === "round" && <span className="tnum font-medium text-brand whitespace-nowrap"> {Math.round((r.fix.gain / Math.max(1, r.odds)) * 100)}% better chance</span>}
                   </div>
                 )}
                 {r.note && <div className="text-[12px] text-ink-3 mt-0.5">{r.note}</div>}

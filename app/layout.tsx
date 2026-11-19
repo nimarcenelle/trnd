@@ -9,7 +9,7 @@ import "./globals.css";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://essayodds.com";
 const TITLE = "EssayOdds: the AI built to get you in";
 const DESCRIPTION =
-  "Paste your essay or upload your Common App. See your admit odds at every school on your list and how much your essay is costing you, then fix it before you submit. Built by Ivy League grads.";
+  "Paste your essay or upload your Common App. See your admit odds at every school on your list and exactly what to fix in your essays to get in. Built by Ivy League grads.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

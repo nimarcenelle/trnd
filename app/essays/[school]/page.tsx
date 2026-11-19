@@ -77,7 +77,7 @@ export default async function SchoolPromptsPage({ params }: PageProps<"/essays/[
             <h1 className="section-title text-[32px] sm:text-[40px] mt-3">{name} essay prompts, {data.cycle}</h1>
             <p className="text-[16px] text-ink-2 leading-[1.65] mt-4 max-w-[680px]">
               {data.prompts.length
-                ? `Every prompt ${s.name} asks first-year applicants this cycle, with its limit. Paste your answer into the workspace and our AI scores it against six criteria and marks the lines costing you most.`
+                ? `Every prompt ${s.name} asks first-year applicants this cycle, with its limit. Paste your answer into the workspace and our AI scores it against six criteria and marks the lines working against you most.`
                 : `${s.name} asks for no supplemental essays this cycle. Your Common App personal statement carries the writing, so it is the one to get right.`}
             </p>
             <dl className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-[760px]">
@@ -98,7 +98,7 @@ export default async function SchoolPromptsPage({ params }: PageProps<"/essays/[
               <div>
                 {due !== null && <p className="text-[13px] font-semibold text-[var(--warn)] tnum">{due === 0 ? `${name}'s regular deadline is today` : `${due} day${due === 1 ? "" : "s"} until ${name}'s regular deadline`}</p>}
                 <p className="text-[17px] font-semibold mt-1">Get every {name} essay scored and fixed before you submit.</p>
-                <p className="text-[13px] text-ink-2 mt-1">Your score, the lines costing you, rewrites in your voice. {PLANS.rd.price} once through January 15, or {PLANS.week.short}.</p>
+                <p className="text-[13px] text-ink-2 mt-1">Your score, the lines working against you, rewrites in your voice. {PLANS.rd.price} once through January 15, or {PLANS.week.short}.</p>
               </div>
               <div className="sm:w-[220px] shrink-0">
                 <BuyButton plan={PLANS.rd} primary />

@@ -17,14 +17,14 @@ export default function Image() {
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ fontSize: 76, fontWeight: 700, color: "#101b30", lineHeight: 1.06, letterSpacing: -2, display: "flex", flexDirection: "column" }}>
             <span>Your real odds.</span>
-            <span style={{ color: "#0e7c4f" }}>And the part you can still move.</span>
+            <span style={{ color: "#0e7c4f" }}>And how to get in.</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 28, color: "#45516a" }}>
             <div style={{ display: "flex", width: 360, height: 14, borderRadius: 999, overflow: "hidden" }}>
               <div style={{ width: "64%", background: "#14233f", display: "flex" }} />
               <div style={{ width: "36%", background: "#0e7c4f", marginLeft: 3, display: "flex" }} />
             </div>
-            <span>Locked, and movable</span>
+            <span>Your grades are set. Your essays aren&apos;t.</span>
           </div>
         </div>
         <div style={{ fontSize: 24, color: "#68738a", display: "flex" }}>essayodds.com</div>

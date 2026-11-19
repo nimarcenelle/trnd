@@ -155,10 +155,10 @@ export default function Home() {
         <div className="wrap py-20 sm:py-24">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:items-end">
             <div>
-              <p className="kicker">Then see what it&apos;s worth</p>
-              <h2 className="section-title text-[32px] sm:text-[40px] max-w-[620px] mt-3">Watch your odds move at every school on your list.</h2>
+              <p className="kicker">Then see where you can get in</p>
+              <h2 className="section-title text-[32px] sm:text-[40px] max-w-[620px] mt-3">See your chances at every school on your list, and what gets you in.</h2>
             </div>
-            <p className="text-[16px] text-ink-2 leading-[1.65]">From each college&apos;s own admissions data. Fix an essay and watch them climb.</p>
+            <p className="text-[16px] text-ink-2 leading-[1.65]">From each college&apos;s own admissions data. Fix your essays and watch your chances of getting in go up.</p>
           </div>
           <div className="mt-12">
             <ProductShot />

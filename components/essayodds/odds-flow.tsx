@@ -140,8 +140,10 @@ function Reveal({ rows, profile, onNext, open, essay, paid, pro = false, lockedN
         </div>
         {potential(lead) && (
           <div className="mt-5 rounded-[12px] bg-[var(--soft)] px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-            <span className="text-[15px] font-medium">Fix your essays and activities for a better chance of getting in</span>
-            <span className="tnum text-[28px] font-semibold tracking-[-0.02em] leading-none text-brand">+{potential(lead)!.lift}%</span>
+            <span className="text-[14px] text-ink-2">With your essays and activities fixed</span>
+            <span className="text-[16px] font-medium">
+              <span className="tnum text-[28px] font-semibold tracking-[-0.02em] text-brand">{potential(lead)!.lift}%</span> better chance of getting in
+            </span>
           </div>
         )}
         <div className="mt-6 flex h-3 w-full rounded-full overflow-hidden bg-muted">

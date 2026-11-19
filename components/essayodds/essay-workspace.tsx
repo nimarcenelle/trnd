@@ -9,7 +9,7 @@ import { segments } from "@/lib/essayodds/highlight";
 import { PLANS } from "@/lib/essayodds/plans";
 import type { Review } from "@/lib/essayodds/review-core";
 
-import { BuyButton } from "./plan-cards";
+import { Agree, BuyButton } from "./plan-cards";
 import Typed from "./typed";
 
 type Rewrite = { rewrite: string; changes: string[]; kept: number; words: number; limit: number; before: number; after: number; check: string[] };
@@ -25,6 +25,7 @@ const errorFor = (status?: number) => {
   if (status === 400) return "Paste a draft between 50 and 1,000 words.";
   if (status === 402) return "Your access could not be confirmed. Open your access link and try again.";
   if (status === 429) return "You've reached today's limit. It resets at midnight UTC.";
+  if (status === 503) return "EssayOdds is at capacity right now. This is not your limit and nothing was used. Try again shortly.";
   return "That did not go through. Try again in a minute.";
 };
 
@@ -59,6 +60,7 @@ function Upgrade({ reason }: { reason: "rewrite" | "review" }) {
           </div>
         ))}
       </div>
+      <Agree className="mt-3" />
       <p className="text-[13px] text-ink-2 mt-4">
         Already paid?{" "}
         <a className="underline hover:text-ink" href="/login?next=/essay">

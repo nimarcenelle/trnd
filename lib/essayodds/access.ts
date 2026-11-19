@@ -7,7 +7,7 @@ import { currentSession } from "./auth";
 import { DEMO_COOKIE } from "./demo";
 import { RD_PASS_ENDS } from "./plans";
 import { putLatest, readSaved } from "./saved";
-import { accessFor, activeSessionsFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access } from "@/lib/billing/stripe";
+import { accessFor, activeSessionsFor, cancelWeeklyBehind, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access } from "@/lib/billing/stripe";
 
 /**
  * Access is a paid Stripe Checkout session: the RD Pass until its end date, or the weekly subscription while it's live. It is
@@ -19,6 +19,17 @@ export const LEGACY_ACCESS_COOKIE = "admitted_access";
 export const accessLink = (sessionId: string, base: string) => `${base}/essay/access?session_id=${encodeURIComponent(sessionId)}`;
 
 export { accessFor, activeSessionsFor, createAccessCheckout, isSubscriptionActive, subscriptionPortal, type Access };
+
+/**
+ * A one-time pass replaces Weekly: every live weekly subscription the buyer holds is cancelled, found by the email they
+ * paid with plus any sessions the caller already knows are theirs (this browser's cookie, their account's purchases).
+ */
+export async function endWeeklyFor(pass: Access, known: string[] = []): Promise<void> {
+  if (pass.recurring) return;
+  const byEmail = pass.email ? (await activeSessionsFor(pass.email).catch(() => [])).filter((s) => s.recurring).map((s) => s.id) : [];
+  const n = await cancelWeeklyBehind([...known, ...byEmail]);
+  if (n) console.log(`[access] cancelled ${n} weekly subscription(s) replaced by a pass`);
+}
 
 /** The subscribed session on this request, if there is one. */
 export async function paidSession(): Promise<string | null> {

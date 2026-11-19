@@ -31,14 +31,14 @@ export async function POST(request: Request): Promise<Response> {
         await recordSubscriberUse("use_rewrite", subscriber);
         return result;
       },
-      (err) => (err instanceof EssayCapReached ? 429 : (console.error("[rewrite]", err), 500)),
+      (err) => (err instanceof EssayCapReached ? 503 : (console.error("[rewrite]", err), 500)),
     );
   try {
     const result = await rewriteEssay(draft, prompt, limit, revision, answers);
     await recordSubscriberUse("use_rewrite", subscriber);
     return Response.json(result);
   } catch (err) {
-    if (err instanceof EssayCapReached) return Response.json({ error: "busy" }, { status: 429 });
+    if (err instanceof EssayCapReached) return Response.json({ error: "busy" }, { status: 503 });
     console.error("[rewrite]", err);
     return Response.json({ error: "failed" }, { status: 500 });
   }

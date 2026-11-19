@@ -9,8 +9,8 @@ import Brand from "@/components/brand";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 import { scoreKind, STATES, validGpa } from "@/lib/essayodds/flow";
 import { schoolQuery, shortName, upTo } from "@/lib/essayodds/list";
-import { daysToRegularDecision } from "@/lib/essayodds/deadline";
-import { PAID_FEATURES, PLANS } from "@/lib/essayodds/plans";
+import { rdCountdownLine } from "@/lib/essayodds/deadline";
+import { PAID_FEATURES, PASS_ENDS, PLANS } from "@/lib/essayodds/plans";
 import { TIER_STYLE, tierFor } from "@/lib/essayodds/tiers";
 import { PENDING_SCHOOLS, SCHOOLS } from "@/lib/essayodds/schools";
 
@@ -367,7 +367,7 @@ export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; o
     form.append("file", file);
     const res = await fetch("/api/onboard/essay-file", { method: "POST", body: form }).catch(() => null);
     if (!res?.ok) {
-      const note = res?.status === 415 ? "Upload a Word (.docx) or PDF file." : res?.status === 413 ? "That file is over 5 MB." : "We couldn't read that file. Paste the essay instead.";
+      const note = res?.status === 429 ? "That's today's limit for file uploads. Paste the essay instead." : res?.status === 415 ? "Upload a Word (.docx) or PDF file." : res?.status === 413 ? "That file is over 5 MB." : "We couldn't read that file. Paste the essay instead.";
       return setEssayFile({ state: "failed", note });
     }
     const { essay: text } = (await res.json()) as { essay: string };
@@ -618,7 +618,7 @@ export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; o
           {step === 6 && (
             <div className="w-full max-w-[1000px] mx-auto grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 items-center">
               <div className="rise min-w-0">
-                <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
+                {rdCountdownLine() && <p className="text-[14px] font-semibold text-brand tnum">{rdCountdownLine()}</p>}
                 <h1 className="display text-[40px] sm:text-[56px] mt-3">
                   {lockedNames.length ? `Unlock your odds at ${lockedNames.length === 1 ? lockedNames[0].replace(/^University of /, "") : "all your schools"}.` : read.state === "read" ? "Your essay can still get you in." : "Your essays decide the rest."}
                 </h1>
@@ -638,7 +638,7 @@ export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; o
 
               </div>
               <div className="rise rounded-[20px] bg-band text-band-ink p-8 shadow-[var(--shadow-lg)]" style={{ animationDelay: "0.15s" }}>
-                <div className="text-[14px] font-medium text-band-ink-3">{PLANS.rd.name}, through January 15</div>
+                <div className="text-[14px] font-medium text-band-ink-3">{PLANS.rd.name}, through {PASS_ENDS}</div>
                 <div className="mt-2 flex items-baseline gap-2 leading-none">
                   <span className="text-[56px] font-semibold tnum tracking-[-0.03em]">{PLANS.rd.price}</span>
                   <span className="text-[15px] text-band-ink-3">{PLANS.rd.per}</span>
@@ -681,6 +681,17 @@ export default function OddsFlow({ paid, open, pro = false }: { paid: boolean; o
                       <Link className="underline" href="/pay">
                         Send them this link
                       </Link>
+                    </p>
+                    <p className="text-[12px] text-band-ink-3 text-center mt-2 leading-[1.5]">
+                      Odds are estimates, not a guarantee of admission. By paying you agree to the{" "}
+                      <Link className="underline" href="/terms">
+                        Terms
+                      </Link>{" "}
+                      and{" "}
+                      <Link className="underline" href="/privacy">
+                        Privacy Policy
+                      </Link>
+                      .
                     </p>
                   </>
                 )}

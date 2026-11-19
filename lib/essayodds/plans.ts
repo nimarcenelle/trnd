@@ -28,19 +28,28 @@ export type Plan = {
 export const RD_PASS_ENDS = new Date("2027-01-16T05:00:00Z");
 const WEEK = 7 * 86_400_000;
 
-export const PLANS: Record<PlanId, Plan> = {
-  pro: { id: "pro", name: "Pro", cents: 19900, price: "$199", per: "one time", billed: "Everything in the RD Pass, plus a 1:1 call with an Ivy League grad. Through January 15.", short: "$199 once, with a 1:1 call", cta: "Get Pro" },
-  rd: { id: "rd", name: "RD Pass", cents: 5900, price: "$59", per: "one time", billed: "Everything until January 15. No subscription, nothing to cancel.", short: "$59 once, through January 15", cta: "Get the RD Pass" },
-  week: { id: "week", name: "Weekly", cents: 1900, price: "$19", per: "a week", billed: "Renews weekly. Cancel anytime from your account.", short: "$19 a week", cta: "Start weekly", recurring: "week" },
-};
-
-export const parsePlan = (value: unknown): PlanId => (value === "week" ? "week" : value === "pro" ? "pro" : "rd");
-
 /** When a pass bought at `bought` stops working. An RD Pass bought late still gets a full week. */
 export function accessUntil(plan: PlanId, bought: Date): Date {
   const week = new Date(bought.getTime() + WEEK);
   return plan === "week" ? week : new Date(Math.max(RD_PASS_ENDS.getTime(), week.getTime()));
 }
+
+/** The last day a pass bought at `bought` works, as "January 15". It moves later once a week from purchase runs past January 15. */
+export function passEndsLabel(bought = new Date()): string {
+  // The pass ends at the first instant of the next New York day, so the last day is the one before it.
+  return new Date(accessUntil("rd", bought).getTime() - 1).toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" });
+}
+
+/** The end date every price line on the site shows for a pass bought now. */
+export const PASS_ENDS = passEndsLabel();
+
+export const PLANS: Record<PlanId, Plan> = {
+  pro: { id: "pro", name: "Pro", cents: 19900, price: "$199", per: "one time", billed: `Everything in the RD Pass, plus a 1:1 call with an Ivy League grad. Through ${PASS_ENDS}.`, short: "$199 once, with a 1:1 call", cta: "Get Pro" },
+  rd: { id: "rd", name: "RD Pass", cents: 5900, price: "$59", per: "one time", billed: `Everything until ${PASS_ENDS}. No subscription, nothing to cancel.`, short: `$59 once, through ${PASS_ENDS}`, cta: "Get the RD Pass" },
+  week: { id: "week", name: "Weekly", cents: 1900, price: "$19", per: "a week", billed: "Renews weekly. Cancel anytime from your account.", short: "$19 a week", cta: "Start weekly", recurring: "week" },
+};
+
+export const parsePlan = (value: unknown): PlanId => (value === "week" ? "week" : value === "pro" ? "pro" : "rd");
 
 /** What Pro adds on top of everything in the RD Pass. */
 export const PRO_FEATURES = ["Everything in the RD Pass", "A 45-minute 1:1 call with an Ivy League grad", "Your list sorted into reach, target and likely", "An SAT plan from your scored practice test"];

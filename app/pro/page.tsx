@@ -65,7 +65,7 @@ export default async function ProPage() {
                   </li>
                 ))}
               </ul>
-              <BuyButton plan={PLANS.pro} primary label={access?.plan === "rd" ? `Upgrade to Pro for $${(PLANS.pro.cents - PLANS.rd.cents) / 100}` : undefined} />
+              <BuyButton plan={PLANS.pro} primary agree label={access?.plan === "rd" ? `Upgrade to Pro for $${(PLANS.pro.cents - PLANS.rd.cents) / 100}` : undefined} />
               {access?.plan === "rd" && <p className="caption mt-3">You have the RD Pass, so you pay only the difference. Pro adds the call, the school sorting and the SAT plan.</p>}
             </div>
           )}

@@ -16,7 +16,10 @@ export const env = {
   essayEncryptionKey: process.env.ESSAY_ENCRYPTION_KEY ?? "",
   /** New AI results allowed per day; saved results never count. */
   oddsDailyCap: Number(process.env.ODDS_DAILY_CAP) || 2000,
-  rewriteDailyCap: Number(process.env.REWRITE_DAILY_CAP) || 200,
+  /** Paid work (reviews, rewrites, lists, SAT plans): each customer is already capped per day, so this only stops a runaway. */
+  rewriteDailyCap: Number(process.env.REWRITE_DAILY_CAP) || 2000,
+  /** Unpaid reads in the odds flow and unpaid file reads, across all visitors. */
+  freeDailyCap: Number(process.env.FREE_DAILY_CAP) || 600,
   /** Social reads (Instagram, TikTok, Facebook posts) cost Apify credit per run: on with the token, APIFY_SOCIAL=0 turns them off. */
   apifySocial: Boolean(process.env.APIFY_TOKEN) && process.env.APIFY_SOCIAL !== "0",
   /** Optional fallback for the Ad Library read when Meta walls our fetch. */

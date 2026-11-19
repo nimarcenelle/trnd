@@ -30,7 +30,7 @@ export async function POST(request: Request): Promise<Response> {
     await recordSubscriberUse("use_sat", who);
     return Response.json(plan);
   } catch (err) {
-    if (err instanceof EssayCapReached) return Response.json({ error: "busy" }, { status: 429 });
+    if (err instanceof EssayCapReached) return Response.json({ error: "busy" }, { status: 503 });
     console.error("[sat]", (err as Error).message);
     return Response.json({ error: "failed" }, { status: 500 });
   }

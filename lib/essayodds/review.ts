@@ -41,7 +41,7 @@ export async function quickRead(essay: string): Promise<Review> {
   const key = quickKey(essay);
   const hit = (await readSaved<Review>([key])).get(key);
   if (hit) return hit;
-  if ((await countToday("quick")) >= env.rewriteDailyCap * 3) throw new EssayCapReached();
+  if ((await countToday("quick")) >= env.freeDailyCap) throw new EssayCapReached();
   const reply = await generateJson({ model: env.openaiModelFast, effort: "low", system: REVIEW_SYSTEM, prompt: reviewPrompt(essay, "", DEFAULT_WORD_LIMIT), schema: ReviewReply });
   const value = buildReview(essay, DEFAULT_WORD_LIMIT, [reply]);
   return (await saveFirst("quick", [{ key, value }])).get(key) ?? value;

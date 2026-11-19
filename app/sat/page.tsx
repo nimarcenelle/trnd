@@ -32,7 +32,7 @@ export default async function SatPage() {
                   {PLANS.pro.short}: everything in the RD Pass, a 1:1 call, your list sorted into reach, target and likely, and this SAT plan.
                 </p>
                 <div className="mt-4 max-w-[260px]">
-                  <BuyButton plan={PLANS.pro} primary label={access?.plan === "rd" ? `Upgrade to Pro for $${(PLANS.pro.cents - PLANS.rd.cents) / 100}` : undefined} />
+                  <BuyButton plan={PLANS.pro} primary agree label={access?.plan === "rd" ? `Upgrade to Pro for $${(PLANS.pro.cents - PLANS.rd.cents) / 100}` : undefined} />
                 </div>
                 <Link className="text-[13px] underline text-ink-2 hover:text-ink inline-block mt-3" href="/pro">
                   What&apos;s in Pro

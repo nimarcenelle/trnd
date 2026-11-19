@@ -1,4 +1,5 @@
 import { paidSession } from "@/lib/essayodds/access";
+import { isDemoEssay } from "@/lib/essayodds/demo";
 import { oddsFor } from "@/lib/essayodds/odds";
 import { DEFAULT_WORD_LIMIT, quickKey, reviewKey, type Review } from "@/lib/essayodds/review-core";
 import { readSaved } from "@/lib/essayodds/saved";
@@ -29,7 +30,9 @@ export async function POST(request: Request): Promise<Response> {
   }
   const { found, pending, unknown } = matchSchools(String(body?.schools ?? ""));
   try {
-    const paid = !isEssayOpen || Boolean(await paidSession().catch(() => null));
+    // Demo mode unlocks the sample student only, as everywhere else; anyone's own numbers still need a pass.
+    const session = await paidSession().catch(() => null);
+    const paid = !isEssayOpen || (session === "demo" ? isDemoEssay(essay) : Boolean(session));
     const shown = paid ? found : found.slice(-1);
     const locked = paid ? [] : found.slice(0, -1).map((s) => s.name);
     const results = shown.length ? await oddsFor(profile, shown) : [];

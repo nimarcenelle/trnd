@@ -26,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
     await recordSubscriberUse("use_lists", user);
     return Response.json(result);
   } catch (err) {
-    if (err instanceof EssayCapReached) return Response.json({ error: "busy" }, { status: 429 });
+    if (err instanceof EssayCapReached) return Response.json({ error: "busy" }, { status: 503 });
     console.error("[lists]", err);
     return Response.json({ error: "failed" }, { status: 500 });
   }

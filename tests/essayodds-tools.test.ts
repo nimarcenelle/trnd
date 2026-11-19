@@ -196,3 +196,25 @@ describe("Pro", () => {
     expect([parseTarget("1500"), parseTarget("2400"), parseTarget("")]).toEqual([1500, null, null]);
   });
 });
+
+import { rdCountdown, rdCountdownLine } from "@/lib/essayodds/deadline";
+import { passEndsLabel } from "@/lib/essayodds/plans";
+
+describe("the regular-decision countdown", () => {
+  it("counts to January 1, then to January 15, then goes quiet until August", () => {
+    expect(rdCountdown(new Date("2026-11-19T15:00:00Z"))).toEqual({ days: 43, what: "most regular-decision deadlines" });
+    expect(rdCountdownLine(new Date("2027-01-01T15:00:00Z"))).toBe("Most regular-decision deadlines are today");
+    expect(rdCountdownLine(new Date("2027-01-02T15:00:00Z"))).toBe("13 days until the January 15 deadlines");
+    expect(rdCountdownLine(new Date("2027-01-14T15:00:00Z"))).toBe("1 day until the January 15 deadlines");
+    expect(rdCountdown(new Date("2027-01-16T15:00:00Z"))).toBeNull();
+    expect(rdCountdown(new Date("2027-05-01T15:00:00Z"))).toBeNull();
+    expect(rdCountdown(new Date("2027-08-01T15:00:00Z"))?.days).toBe(153);
+  });
+
+  it("names the last day a pass works, which moves once a week from purchase passes January 15", () => {
+    expect(passEndsLabel(new Date("2026-11-19T15:00:00Z"))).toBe("January 15");
+    expect(passEndsLabel(new Date("2027-01-08T15:00:00Z"))).toBe("January 15");
+    expect(passEndsLabel(new Date("2027-01-12T15:00:00Z"))).toBe("January 19");
+    expect(passEndsLabel(new Date("2027-02-01T15:00:00Z"))).toBe("February 8");
+  });
+});

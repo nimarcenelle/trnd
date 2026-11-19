@@ -8,8 +8,8 @@ import ProductShot from "@/components/essayodds/product-shot";
 import Brand from "@/components/brand";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 import SiteNav from "@/components/site-nav";
-import { daysToRegularDecision } from "@/lib/essayodds/deadline";
-import { PLANS } from "@/lib/essayodds/plans";
+import { rdCountdown, rdCountdownLine } from "@/lib/essayodds/deadline";
+import { PASS_ENDS, PLANS } from "@/lib/essayodds/plans";
 import { SCHOOLS } from "@/lib/essayodds/schools";
 import { FACTORS } from "@/components/essayodds/sample";
 
@@ -25,7 +25,7 @@ const FAQ = [
   { q: "Where do the odds come from?", a: "From each college's Common Data Set: admit rates by round and GPA and test ranges, applied to you, then adjusted by how your essay reads." },
   { q: "Who built this?", a: "Ivy League grads who've been through the process and know what admissions readers look for." },
   { q: "Can a parent pay?", a: "Yes. Send them essayodds.com/pay. They check out and get one link to send you." },
-  { q: "Is it a subscription?", a: "Your choice. The RD Pass is one payment that covers every essay until January 15, with nothing to cancel. Weekly is $19 a week and renews until you cancel, in two clicks from your account." },
+  { q: "Is it a subscription?", a: `Your choice. The RD Pass is one payment that covers every essay until ${PASS_ENDS}, with nothing to cancel. Weekly is $19 a week and renews until you cancel, in two clicks from your account.` },
 ];
 
 const HARVARD = SCHOOLS.find((s) => s.id === "harvard")!;
@@ -101,15 +101,15 @@ export default function Home() {
                 <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full bg-[var(--soft)] text-[13px] font-medium text-[var(--soft-ink)]">
                   <i className="w-1.5 h-1.5 rounded-full bg-brand" /> Built by Ivy League grads
                 </span>
-                <span className="inline-flex items-center h-7 px-3 rounded-full bg-[var(--warn-bg)] text-[13px] font-medium text-[var(--warn)] tnum">{daysToRegularDecision()} days to RD deadlines</span>
+                {rdCountdown() && <span className="inline-flex items-center h-7 px-3 rounded-full bg-[var(--warn-bg)] text-[13px] font-medium text-[var(--warn)] tnum">{rdCountdown()!.days === 0 ? "RD deadlines are today" : `${rdCountdown()!.days} day${rdCountdown()!.days === 1 ? "" : "s"} to RD deadlines`}</span>}
               </div>
               <h1 className="display text-[44px] sm:text-[60px] mt-6">
                 The AI built to get you <em className="italic text-[var(--headline-2)]">in</em>.
               </h1>
-              <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.55] mt-5 max-w-[560px]">Trained on 500+ essays that got into top schools, EssayOdds scores yours the way an admissions reader would, marks the exact lines holding them back, and shows your real odds at every school on your list from each college&apos;s own data. Fix it all before you submit.</p>
+              <p className="text-[17px] sm:text-[19px] text-ink-2 leading-[1.55] mt-5 max-w-[560px]">EssayOdds scores your essays the way an admissions reader would, marks the exact lines holding them back, and shows your real odds at every school on your list from each college&apos;s own data. Fix it all before you submit.</p>
               <Cta className="mt-8" />
               <ul className="list-none p-0 m-0 mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-ink-2">
-                {["Two minutes", "Every school on your list", "Cancel anytime"].map((t) => (
+                {["Two minutes", "Every school on your list", "No subscription needed"].map((t) => (
                   <li key={t} className="flex items-center gap-1.5">
                     <IconCheck className="text-brand" /> {t}
                   </li>
@@ -172,10 +172,10 @@ export default function Home() {
       <section id="pricing" className="border-t border-line bg-subtle scroll-mt-14">
         <div className="wrap py-20 sm:py-24">
           <div className="text-center">
-            <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
+            {rdCountdownLine() && <p className="text-[14px] font-semibold text-brand tnum">{rdCountdownLine()}</p>}
             <h2 className="section-title text-[32px] sm:text-[40px] mt-3">Every essay fixed, for less than one counselor hour.</h2>
             <p className="text-[16px] text-ink-2 mt-3 max-w-[640px] mx-auto">
-              Every essay, your activities and a Final Read. One payment through January 15.
+              Every essay, your activities and a Final Read. One payment through {PASS_ENDS}.
             </p>
           </div>
           <div className="mt-12">
@@ -219,7 +219,7 @@ export default function Home() {
 
       <section className="border-t border-line wash-bottom">
         <div className="wrap py-20 sm:py-28 flex flex-col items-center text-center">
-          <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
+          {rdCountdownLine() && <p className="text-[14px] font-semibold text-brand tnum">{rdCountdownLine()}</p>}
           <h2 className="section-title text-[32px] sm:text-[44px] max-w-[760px] mt-3">Your grades are done. Your essays aren&apos;t.</h2>
           <p className="text-[17px] text-ink-2 leading-[1.6] mt-4 max-w-[560px]">Make them the reason they say yes.</p>
           <Cta className="mt-8 justify-center" />

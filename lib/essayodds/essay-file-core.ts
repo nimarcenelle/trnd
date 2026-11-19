@@ -3,6 +3,9 @@ import { inflateRawSync } from "node:zlib";
 /** The largest essay file we read. A Word essay is a few dozen KB. */
 export const MAX_ESSAY_FILE_BYTES = 5 * 1024 * 1024;
 
+/** A zip can unpack to far more than it weighs; an essay never needs more than this. */
+const MAX_UNZIPPED_BYTES = 20 * 1024 * 1024;
+
 const isZip = (b: Uint8Array) => b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;
 export const isPdf = (b: Uint8Array) => b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46;
 export const isDocx = isZip;
@@ -33,7 +36,7 @@ export function unzipEntry(bytes: Uint8Array, name: string): Uint8Array | null {
       const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
       const data = bytes.subarray(start, start + size);
       if (method === 0) return data;
-      if (method === 8) return new Uint8Array(inflateRawSync(data));
+      if (method === 8) return new Uint8Array(inflateRawSync(data, { maxOutputLength: MAX_UNZIPPED_BYTES }));
       return null;
     }
     at += 46 + nameLen + extraLen + commentLen;

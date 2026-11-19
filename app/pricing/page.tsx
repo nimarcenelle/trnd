@@ -3,10 +3,10 @@ import Link from "next/link";
 import LogoStrip from "@/components/essayodds/logo-strip";
 import PlanCards, { Agree } from "@/components/essayodds/plan-cards";
 import SiteNav from "@/components/site-nav";
-import { daysToRegularDecision } from "@/lib/essayodds/deadline";
-import { PLANS } from "@/lib/essayodds/plans";
+import { rdCountdownLine } from "@/lib/essayodds/deadline";
+import { PASS_ENDS, PLANS } from "@/lib/essayodds/plans";
 
-export const metadata = { title: "Pricing · EssayOdds", description: "Essay scores, marked lines and rewrites in your voice for every essay you submit: $59 through January 15, or $19 a week." };
+export const metadata = { title: "Pricing · EssayOdds", description: "Essay scores, marked lines and rewrites in your voice for every essay you submit: $59 once, or $19 a week." };
 
 /** The deadline countdown is worked out on the server, so the page rebuilds hourly. */
 export const revalidate = 3600;
@@ -14,7 +14,7 @@ export const revalidate = 3600;
 const FAQ = [
   { q: "Which should I get?", a: `The ${PLANS.rd.name} if you have more than one essay left: ${PLANS.rd.short}, every essay and supplement until you submit. ${PLANS.pro.name} if you want a person in your corner too: ${PLANS.pro.short}, your list sorted into reach, target and likely, and an SAT plan. ${PLANS.week.name} to start small: ${PLANS.week.short}.` },
   { q: "Who is the call with?", a: "One of the Ivy League grads who built EssayOdds. 45 minutes on whatever matters most: your list, your essays, your activities. You pick the times; we confirm by email." },
-  { q: "Is it a subscription?", a: "The RD Pass isn't: one payment, and it simply ends after January 15. Weekly is: $19 every week until you cancel, which takes two clicks from your account menu." },
+  { q: "Is it a subscription?", a: `The RD Pass isn't: one payment, and it simply ends after ${PASS_ENDS}. Weekly is: $19 every week until you cancel, which takes two clicks from your account menu.` },
   { q: "What do I get?", a: "Your essay scored out of 100 with every weak line marked and the fix, rewrites in your voice from your own details, every supplement and revision re-scored, your activity and honors lists tightened, and a Final Read of everything before you submit." },
   { q: "Can a parent pay?", a: "Yes. Send them essayodds.com/pay. After checkout they get one link to send you, and opening it unlocks everything." },
 ];
@@ -27,7 +27,7 @@ export default function PricingPage() {
         <section className="wash-top">
           <div className="wrap py-16 sm:py-24">
             <div className="text-center max-w-[680px] mx-auto">
-              <p className="text-[14px] font-semibold text-brand tnum">{daysToRegularDecision()} days until most regular-decision deadlines</p>
+              {rdCountdownLine() && <p className="text-[14px] font-semibold text-brand tnum">{rdCountdownLine()}</p>}
               <h1 className="section-title text-[32px] sm:text-[40px] mt-3">Every essay you submit, scored and fixed.</h1>
               <p className="text-[16px] text-ink-2 leading-[1.65] mt-4">One plan covers your personal statement, every supplement, your activity list and a Final Read before you hit submit.</p>
             </div>

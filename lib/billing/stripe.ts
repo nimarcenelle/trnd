@@ -88,10 +88,14 @@ export type Access = { until: Date | null; recurring: boolean; email: string | n
  */
 export async function accessFor(sessionId: string): Promise<Access | null> {
   if (!sessionId.startsWith("cs_")) return null;
-  const session = await essaysStripe().checkout.sessions.retrieve(sessionId, { expand: ["subscription"] });
+  const session = await essaysStripe().checkout.sessions.retrieve(sessionId, { expand: ["subscription", "payment_intent.latest_charge"] });
   if (!isEssaysProduct(session.metadata?.product)) return null;
   if (session.mode === "payment") {
     if (session.payment_status !== "paid") return null;
+    // Stripe keeps a session "paid" after the money goes back, so the charge is checked too.
+    const intent = session.payment_intent;
+    const charge = typeof intent === "object" && intent !== null ? intent.latest_charge : null;
+    if (typeof charge === "object" && charge !== null && (charge.refunded || charge.amount_refunded > 0 || charge.disputed)) return null;
     const plan = parsePlan(session.metadata?.plan);
     const fixed = session.metadata?.access_until ? new Date(session.metadata.access_until) : null;
     const until = plan === "week" ? accessUntil("week", new Date(session.created * 1000)) : (fixed ?? accessUntil("rd", new Date(session.created * 1000)));
@@ -111,6 +115,37 @@ export async function activeSessionsFor(email: string): Promise<({ id: string } 
     if (access) found.push({ id: s.id, ...access });
   }
   return found;
+}
+
+/**
+ * Ends the weekly subscriptions behind these checkout sessions, now that their owner holds a one-time pass. Without this
+ * a Weekly subscriber who buys the RD Pass or Pro keeps paying $19 a week for access the pass already gives.
+ */
+export async function cancelWeeklyBehind(sessionIds: string[]): Promise<number> {
+  let cancelled = 0;
+  for (const id of new Set(sessionIds)) {
+    if (!id.startsWith("cs_")) continue;
+    const session = await essaysStripe().checkout.sessions.retrieve(id, { expand: ["subscription"] }).catch(() => null);
+    const sub = session?.subscription;
+    if (!session || session.mode !== "subscription" || !isEssaysProduct(session.metadata?.product)) continue;
+    if (typeof sub !== "object" || sub === null || !["active", "trialing", "past_due"].includes(sub.status)) continue;
+    await essaysStripe().subscriptions.cancel(sub.id);
+    cancelled++;
+  }
+  return cancelled;
+}
+
+/** A Stripe webhook body, checked against its signature. Throws when the signature doesn't match. */
+export function checkoutEvent(body: string, signature: string): Stripe.Event {
+  if (!env.stripeWebhookSecret) throw new Error("STRIPE_WEBHOOK_SECRET is not set.");
+  return essaysStripe().webhooks.constructEvent(body, signature, env.stripeWebhookSecret);
+}
+
+/** The checkout session id in a webhook event, when the event is an EssayOdds checkout that has just been paid. */
+export function paidCheckoutIn(event: Stripe.Event): string | null {
+  if (event.type !== "checkout.session.completed" && event.type !== "checkout.session.async_payment_succeeded") return null;
+  const session = event.data.object;
+  return isEssaysProduct(session.metadata?.product) ? session.id : null;
 }
 
 export const isSubscriptionActive = async (sessionId: string) => (await accessFor(sessionId)) !== null;

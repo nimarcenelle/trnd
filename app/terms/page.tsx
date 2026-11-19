@@ -5,7 +5,7 @@ export const metadata = { title: "Terms of Service · EssayOdds" };
 /** Plain-English terms that match what the product does. Have counsel review before scale. */
 export default function TermsPage() {
   return (
-    <LegalShell title="Terms of Service" updated="November 5, 2026">
+    <LegalShell title="Terms of Service" updated="November 19, 2026">
       <h2>What EssayOdds is</h2>
       <p>
         EssayOdds estimates your odds at selected colleges from figures those colleges publish, and rates and rewrites your
@@ -14,19 +14,30 @@ export default function TermsPage() {
         EssayOdds.
       </p>
 
-      <h2>Subscription and payment</h2>
+      <h2>Passes and payment</h2>
       <p>
-        Essay reviews and rewrites are sold as one-time passes, paid through Stripe: the RD Pass ($59) gives access until
-        January 15, 2027, and does not renew. Pro ($199) is the same pass plus one 45-minute call, scheduled by email, and also ends
-        January 15, 2027. The weekly plan ($19 a week) is a subscription that renews every week until you
-        cancel it from your account; you keep access to the end of the week you paid for. Someone else may pay for you.
-        Payments are non-refundable, except where the law requires otherwise.
+        Payment is taken through Stripe. The RD Pass ($59) is one payment and does not renew: it gives access until the end of
+        January 15, 2027, or for seven days from purchase if that is later. Pro ($199) is the same pass plus one 45-minute call,
+        booked online, and runs for the same period. The weekly plan ($19 a week) is a subscription that renews every week
+        until you cancel it from your account; you keep access to the end of the week you paid for. If you buy a pass while on
+        the weekly plan, we cancel the weekly plan so you are not charged for both. Someone else may pay for you. Payments are
+        non-refundable, except where the law requires otherwise; if a payment is refunded or disputed, the access it bought
+        ends.
       </p>
 
       <h2>Your access</h2>
       <p>
-        There is no account. Your purchase is tied to an access link, which we show you after you pay. Keep it private, because
-        anyone who has it can use your access. Daily limits may apply so the service stays available to everyone.
+        Your purchase is tied to an access link, which we show you after you pay and email to the address you paid with. Keep
+        it private, because anyone who has it can use your access. You can also create an account with your email (we send a
+        code, there is no password) so your pass and saved work follow you to any device. Daily limits apply so the service
+        stays available to everyone.
+      </p>
+
+      <h2>Who can use EssayOdds</h2>
+      <p>
+        EssayOdds is for students applying to college and the people helping them. If you are under 18, use it with the
+        permission of a parent or guardian, who must agree to these terms and make any purchase for you. EssayOdds is not for
+        children under 13.
       </p>
 
       <h2>Your essays</h2>

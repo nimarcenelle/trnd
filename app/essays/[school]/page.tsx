@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { BuyButton } from "@/components/essayodds/plan-cards";
 import SiteNav from "@/components/site-nav";
 import { daysUntil } from "@/lib/essayodds/deadline";
-import { PLANS } from "@/lib/essayodds/plans";
+import { PASS_ENDS, PLANS } from "@/lib/essayodds/plans";
 import { shortName } from "@/lib/essayodds/list";
 import { COMMON_APP, PROMPTS, type Prompt, wordLimit } from "@/lib/essayodds/prompts";
 import { admitRate, earlyRate, SCHOOLS } from "@/lib/essayodds/schools";
@@ -98,10 +98,10 @@ export default async function SchoolPromptsPage({ params }: PageProps<"/essays/[
               <div>
                 {due !== null && <p className="text-[13px] font-semibold text-[var(--warn)] tnum">{due === 0 ? `${name}'s regular deadline is today` : `${due} day${due === 1 ? "" : "s"} until ${name}'s regular deadline`}</p>}
                 <p className="text-[17px] font-semibold mt-1">Get every {name} essay scored and fixed before you submit.</p>
-                <p className="text-[13px] text-ink-2 mt-1">Your score, the lines working against you, rewrites in your voice. {PLANS.rd.price} once through January 15, or {PLANS.week.short}.</p>
+                <p className="text-[13px] text-ink-2 mt-1">Your score, the lines working against you, rewrites in your voice. {PLANS.rd.price} once through {PASS_ENDS}, or {PLANS.week.short}.</p>
               </div>
               <div className="sm:w-[220px] shrink-0">
-                <BuyButton plan={PLANS.rd} primary />
+                <BuyButton plan={PLANS.rd} primary agree />
               </div>
             </div>
           </div>

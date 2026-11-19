@@ -16,9 +16,9 @@ function Checks({ items }: { items: string[] }) {
   );
 }
 
-export function Agree() {
+export function Agree({ className = "text-center mt-3" }: { className?: string }) {
   return (
-    <p className="caption text-center mt-3">
+    <p className={`caption ${className}`}>
       By paying you agree to the{" "}
       <Link className="underline hover:text-ink" href="/terms">
         Terms
@@ -32,8 +32,8 @@ export function Agree() {
   );
 }
 
-/** One plan's buy button. `forStudent` sends a parent to a page with the link to pass on. */
-export function BuyButton({ plan, primary, forStudent = false, label }: { plan: Plan; primary: boolean; forStudent?: boolean; label?: string }) {
+/** One plan's buy button. `forStudent` sends a parent to a page with the link to pass on; `agree` puts the terms line under it, for a button that stands alone. */
+export function BuyButton({ plan, primary, forStudent = false, label, agree = false }: { plan: Plan; primary: boolean; forStudent?: boolean; label?: string; agree?: boolean }) {
   return (
     <form action="/api/essays/checkout" method="post" className="mt-auto">
       <input type="hidden" name="plan" value={plan.id} />
@@ -41,6 +41,7 @@ export function BuyButton({ plan, primary, forStudent = false, label }: { plan: 
       <button className={`btn btn-lg w-full ${primary ? "btn-primary" : "btn-secondary"}`} type="submit">
         {label ?? plan.cta}
       </button>
+      {agree && <Agree className="mt-2" />}
     </form>
   );
 }

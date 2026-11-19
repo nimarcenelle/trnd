@@ -15,6 +15,7 @@ const errorFor = (status?: number) => {
   if (status === 400) return "Paste at least one full entry, under 6,000 characters.";
   if (status === 402) return "plan";
   if (status === 429) return "That's today's limit for list reviews. It resets at midnight UTC.";
+  if (status === 503) return "EssayOdds is at capacity right now. This is not your limit and nothing was used. Try again shortly.";
   return "That did not go through. Try again in a minute.";
 };
 

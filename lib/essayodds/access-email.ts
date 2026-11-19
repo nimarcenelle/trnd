@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { env, isEmailConfigured } from "@/lib/env";
 
 import { accessLink, type Access } from "./access";
-import { saveFirst } from "./saved";
+import { deleteKeys, saveFirst } from "./saved";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const day = (d: Date) => d.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" });
@@ -41,5 +41,11 @@ export async function emailAccessOnce(session: { id: string } & Access): Promise
   const before = Date.now();
   const saved = await saveFirst<{ at: number }>("access_email", [{ key, value: { at: before } }]);
   if (saved.get(key)?.at !== before) return;
-  await sendAccessEmail(session.email, [session]);
+  try {
+    await sendAccessEmail(session.email, [session]);
+  } catch (err) {
+    // Not sent: clear the mark so the next return or Stripe's retry sends it.
+    await deleteKeys([key]).catch(() => {});
+    throw err;
+  }
 }
